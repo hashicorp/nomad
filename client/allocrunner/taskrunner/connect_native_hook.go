@@ -2,17 +2,17 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -149,23 +149,23 @@ func (connectNativeHook) copyCertificate(source, dir, name string) error {
 
 	original, err := os.Open(source)
 	if err != nil {
-		return errors.Wrap(err, "failed to open consul TLS certificate")
+		return fmt.Errorf("failed to open consul TLS certificate: %w", err)
 	}
 	defer original.Close()
 
 	destination := filepath.Join(dir, name)
 	fd, err := os.Create(destination)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create secrets/%s", name)
+		return fmt.Errorf("failed to create secrets/%s: %w", name, err)
 	}
 	defer fd.Close()
 
 	if _, err := io.Copy(fd, original); err != nil {
-		return errors.Wrapf(err, "failed to copy certificate secrets/%s", name)
+		return fmt.Errorf("failed to copy certificate secrets/%s: %w", name, err)
 	}
 
 	if err := fd.Sync(); err != nil {
-		return errors.Wrapf(err, "failed to write secrets/%s", name)
+		return fmt.Errorf("failed to write secrets/%s: %w", name, err)
 	}
 
 	return nil
@@ -273,7 +273,7 @@ func (h *connectNativeHook) maybeSetSITokenEnv(dir, task string, env map[string]
 	token, err := ioutil.ReadFile(filepath.Join(dir, sidsTokenFile))
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return errors.Wrapf(err, "failed to load SI token for native task %s", task)
+			return fmt.Errorf("failed to load SI token for native task %s: %w", task, err)
 		}
 		h.logger.Trace("no SI token to load for native task", "task", task)
 		return nil // token file DNE; acls not enabled

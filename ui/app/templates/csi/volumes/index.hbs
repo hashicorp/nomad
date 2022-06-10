@@ -1,8 +1,16 @@
 {{page-title "CSI Volumes"}}
 <div class="tabs is-subnav">
   <ul>
-    <li data-test-tab="volumes"><LinkTo @route="csi.volumes.index" @activeClass="is-active">Volumes</LinkTo></li>
-    <li data-test-tab="plugins"><LinkTo @route="csi.plugins.index" @activeClass="is-active">Plugins</LinkTo></li>
+    <li data-test-tab="volumes">
+      <LinkTo @route="csi.volumes.index" @activeClass="is-active">
+        Volumes
+      </LinkTo>
+    </li>
+    <li data-test-tab="plugins">
+      <LinkTo @route="csi.plugins.index" @activeClass="is-active">
+        Plugins
+      </LinkTo>
+    </li>
   </ul>
 </div>
 <section class="section">
@@ -13,7 +21,8 @@
           data-test-volumes-search
           @searchTerm={{mut this.searchTerm}}
           @onChange={{action this.resetPagination}}
-          @placeholder="Search volumes..." />
+          @placeholder="Search volumes..."
+        />
       {{/if}}
     </div>
     {{#if this.system.shouldShowNamespaces}}
@@ -24,101 +33,154 @@
             @label="Namespace"
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
-            @onSelect={{action (queue
-              (action this.cacheNamespace)
-              (action this.setFacetQueryParam "qpNamespace")
-            )}} />
+            @onSelect={{action
+              (queue (action this.cacheNamespace) (action this.setFacetQueryParam "qpNamespace"))
+            }}
+          />
         </div>
       </div>
     {{/if}}
   </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
-  {{else}}
-    {{#if this.sortedVolumes}}
-      <ListPagination
-        @source={{this.sortedVolumes}}
-        @size={{this.pageSize}}
-        @page={{this.currentPage}} as |p|>
-        <ListTable
-          @source={{p.list}}
-          @sortProperty={{this.sortProperty}}
-          @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|>
-          <t.head>
-            <t.sort-by @prop="name">Name</t.sort-by>
+  {{else if this.sortedVolumes}}
+    <ListPagination
+      @source={{this.sortedVolumes}}
+      @size={{this.pageSize}}
+      @page={{this.currentPage}} as |p|
+    >
+      <ListTable
+        @source={{p.list}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @class="with-foot" as |t|
+      >
+        <t.head>
+          <t.sort-by @prop="name">
+            Name
+          </t.sort-by>
+          {{#if this.system.shouldShowNamespaces}}
+            <t.sort-by @prop="namespace.name">
+              Namespace
+            </t.sort-by>
+          {{/if}}
+          <t.sort-by @prop="schedulable">
+            Volume Health
+          </t.sort-by>
+          <t.sort-by @prop="controllersHealthyProportion">
+            Controller Health
+          </t.sort-by>
+          <t.sort-by @prop="nodesHealthyProportion">
+            Node Health
+          </t.sort-by>
+          <t.sort-by @prop="provider">
+            Provider
+          </t.sort-by>
+          <th>
+            # Allocs
+          </th>
+        </t.head>
+        <t.body @key="model.name" as |row|>
+          <tr
+            class="is-interactive"
+            data-test-volume-row
+            {{on "click" (action "gotoVolume" row.model)}}
+          >
+            <td data-test-volume-name>
+              <LinkTo
+                @route="csi.volumes.volume"
+                @model={{row.model.idWithNamespace}}
+                class="is-primary"
+              >
+                {{row.model.name}}
+              </LinkTo>
+            </td>
             {{#if this.system.shouldShowNamespaces}}
-              <t.sort-by @prop="namespace.name">Namespace</t.sort-by>
+              <td data-test-volume-namespace>
+                {{row.model.namespace.name}}
+              </td>
             {{/if}}
-            <t.sort-by @prop="schedulable">Volume Health</t.sort-by>
-            <t.sort-by @prop="controllersHealthyProportion">Controller Health</t.sort-by>
-            <t.sort-by @prop="nodesHealthyProportion">Node Health</t.sort-by>
-            <t.sort-by @prop="provider">Provider</t.sort-by>
-            <th># Allocs</th>
-          </t.head>
-          <t.body @key="model.name" as |row|>
-            <tr class="is-interactive" data-test-volume-row {{on "click" (action "gotoVolume" row.model)}}>
-              <td data-test-volume-name>
-                <LinkTo
-                  @route="csi.volumes.volume"
-                  @model={{row.model.plainId}}
-                  @query={{hash volumeNamespace=row.model.namespace.name}}
-                  class="is-primary">
-                  {{row.model.name}}
-                </LinkTo>
-              </td>
-              {{#if this.system.shouldShowNamespaces}}
-                <td data-test-volume-namespace>{{row.model.namespace.name}}</td>
+            <td data-test-volume-schedulable>
+              {{if row.model.schedulable "Schedulable" "Unschedulable"}}
+            </td>
+            <td data-test-volume-controller-health>
+              {{#if row.model.controllerRequired}}
+                {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                (
+                {{row.model.controllersHealthy}}
+                /
+                {{row.model.controllersExpected}}
+                )
+              {{else if (gt row.model.controllersExpected 0)}}
+                {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                (
+                {{row.model.controllersHealthy}}
+                /
+                {{row.model.controllersExpected}}
+                )
+              {{else}}
+                <em class="is-faded">
+                  Node Only
+                </em>
               {{/if}}
-              <td data-test-volume-schedulable>{{if row.model.schedulable "Schedulable" "Unschedulable"}}</td>
-              <td data-test-volume-controller-health>
-                {{#if row.model.controllerRequired}}
-                  {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
-                  ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
-                {{else}}
-                  {{#if (gt row.model.controllersExpected 0)}}
-                    {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
-                    ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
-                  {{else}}
-                    <em class="is-faded">Node Only</em>
-                  {{/if}}
-                {{/if}}
-              </td>
-              <td data-test-volume-node-health>
-                {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
-                ({{row.model.nodesHealthy}}/{{row.model.nodesExpected}})
-              </td>
-              <td data-test-volume-provider>{{row.model.provider}}</td>
-              <td data-test-volume-allocations>{{row.model.allocationCount}}</td>
-            </tr>
-          </t.body>
-        </ListTable>
-        <div class="table-foot">
-          <PageSizeSelect @onChange={{action this.resetPagination}} />
-          <nav class="pagination">
-            <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedVolumes.length}}
-            </div>
-            <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
-            <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
-            <ul class="pagination-list"></ul>
-          </nav>
-        </div>
-      </ListPagination>
-    {{else}}
-      <div data-test-empty-volumes-list class="empty-message">
-        {{#if (eq this.visibleVolumes.length 0)}}
-          <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Volumes</h3>
-          <p class="empty-message-body">
-            This namespace currently has no CSI Volumes.
-          </p>
-        {{else if this.searchTerm}}
-          <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Matches</h3>
-          <p class="empty-message-body">
-            No volumes match the term <strong>{{this.searchTerm}}</strong>
-          </p>
-        {{/if}}
+            </td>
+            <td data-test-volume-node-health>
+              {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
+              (
+              {{row.model.nodesHealthy}}
+              /
+              {{row.model.nodesExpected}}
+              )
+            </td>
+            <td data-test-volume-provider>
+              {{row.model.provider}}
+            </td>
+            <td data-test-volume-allocations>
+              {{row.model.allocationCount}}
+            </td>
+          </tr>
+        </t.body>
+      </ListTable>
+      <div class="table-foot">
+        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}
+            –
+            {{p.endsAt}}
+            of
+            {{this.sortedVolumes.length}}
+          </div>
+          <p.prev @class="pagination-previous">
+            {{x-icon "chevron-left"}}
+          </p.prev>
+          <p.next @class="pagination-next">
+            {{x-icon "chevron-right"}}
+          </p.next>
+          <ul class="pagination-list"></ul>
+        </nav>
       </div>
-    {{/if}}
+    </ListPagination>
+  {{else}}
+    <div data-test-empty-volumes-list class="empty-message">
+      {{#if (eq this.visibleVolumes.length 0)}}
+        <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+          No Volumes
+        </h3>
+        <p class="empty-message-body">
+          This namespace currently has no CSI Volumes.
+        </p>
+      {{else if this.searchTerm}}
+        <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+          No Matches
+        </h3>
+        <p class="empty-message-body">
+          No volumes match the term
+          <strong>
+            {{this.searchTerm}}
+          </strong>
+        </p>
+      {{/if}}
+    </div>
   {{/if}}
 </section>

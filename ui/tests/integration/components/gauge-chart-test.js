@@ -8,7 +8,7 @@ import gaugeChart from 'nomad-ui/tests/pages/components/gauge-chart';
 
 const GaugeChart = create(gaugeChart());
 
-module('Integration | Component | gauge chart', function(hooks) {
+module('Integration | Component | gauge chart', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -17,7 +17,9 @@ module('Integration | Component | gauge chart', function(hooks) {
     label: 'Gauge',
   });
 
-  test('presents as an svg, a formatted percentage, and a label', async function(assert) {
+  test('presents as an svg, a formatted percentage, and a label', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     this.setProperties(props);
 
@@ -35,7 +37,7 @@ module('Integration | Component | gauge chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the width of the chart is determined based on the container and the height is a function of the width', async function(assert) {
+  test('the width of the chart is determined based on the container and the height is a function of the width', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
 

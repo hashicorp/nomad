@@ -6,11 +6,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_LicenseGet(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 

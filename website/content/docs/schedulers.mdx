@@ -67,7 +67,7 @@ according to the job's [restart] stanza; system jobs do not have rescheduling.
 The `sysbatch` scheduler is used to register jobs that should be run to completion
 on all clients that meet the job's constraints. The `sysbatch` scheduler will
 schedule jobs similarly to the `system` scheduler, but like a `batch` job once a
-task exists successfully it is not restarted on that client.
+task exits successfully it is not restarted on that client.
 
 This scheduler type is useful for issuing "one off" commands to be run on every
 node in the cluster. Sysbatch jobs can also be created as [periodic] and [parameterized]

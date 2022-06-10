@@ -13,7 +13,7 @@ export default class BucketService extends Service {
   }
 
   @action deregisterBreadcrumb(crumb) {
-    const newCrumbs = this.crumbs.filter(c => c !== crumb);
+    const newCrumbs = this.crumbs.filter((c) => c !== crumb);
 
     this.crumbs = newCrumbs;
   }

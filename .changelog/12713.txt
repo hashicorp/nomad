@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where volumes were being incorrectly linked when per_alloc=true
+```

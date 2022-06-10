@@ -71,6 +71,7 @@ type Evaluation struct {
 	NextEval             string
 	PreviousEval         string
 	BlockedEval          string
+	RelatedEvals         []*EvaluationStub
 	FailedTGAllocs       map[string]*AllocationMetric
 	ClassEligibility     map[string]bool
 	EscapedComputedClass bool
@@ -82,6 +83,29 @@ type Evaluation struct {
 	ModifyIndex          uint64
 	CreateTime           int64
 	ModifyTime           int64
+}
+
+// EvaluationStub is used to serialize parts of an evaluation returned in the
+// RelatedEvals field of an Evaluation.
+type EvaluationStub struct {
+	ID                string
+	Priority          int
+	Type              string
+	TriggeredBy       string
+	Namespace         string
+	JobID             string
+	NodeID            string
+	DeploymentID      string
+	Status            string
+	StatusDescription string
+	WaitUntil         time.Time
+	NextEval          string
+	PreviousEval      string
+	BlockedEval       string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+	CreateTime        int64
+	ModifyTime        int64
 }
 
 // EvalIndexSort is a wrapper to sort evaluations by CreateIndex.

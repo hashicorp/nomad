@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -125,6 +126,9 @@ func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTask
 			AutoAdvertise: net.AutoAdvertise,
 		}
 		for k, v := range net.PortMap {
+			if v > math.MaxInt32 {
+				return nil, fmt.Errorf("port map out of bounds")
+			}
 			pbNet.PortMap[k] = int32(v)
 		}
 	}

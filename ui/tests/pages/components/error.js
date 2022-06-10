@@ -1,6 +1,6 @@
 import { clickable, isPresent, text } from 'ember-cli-page-object';
 
-export default function(selectorBase = 'data-test-error') {
+export default function (selectorBase = 'data-test-error') {
   return {
     scope: `[${selectorBase}]`,
     isPresent: isPresent(),

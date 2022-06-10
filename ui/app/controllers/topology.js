@@ -31,13 +31,17 @@ export default class TopologyControllers extends Controller {
 
   @computed('model.nodes.@each.resources')
   get totalMemory() {
-    const mibs = this.model.nodes.mapBy('resources.memory').reduce(sumAggregator, 0);
+    const mibs = this.model.nodes
+      .mapBy('resources.memory')
+      .reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
 
   @computed('model.nodes.@each.resources')
   get totalCPU() {
-    return this.model.nodes.mapBy('resources.cpu').reduce((sum, cpu) => sum + (cpu || 0), 0);
+    return this.model.nodes
+      .mapBy('resources.cpu')
+      .reduce((sum, cpu) => sum + (cpu || 0), 0);
   }
 
   @computed('totalMemory')
@@ -70,7 +74,9 @@ export default class TopologyControllers extends Controller {
 
   @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedCPU() {
-    return this.scheduledAllocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
+    return this.scheduledAllocations
+      .mapBy('allocatedResources.cpu')
+      .reduce(sumAggregator, 0);
   }
 
   @computed('totalMemory', 'totalReservedMemory')
@@ -85,23 +91,35 @@ export default class TopologyControllers extends Controller {
     return this.totalReservedCPU / this.totalCPU;
   }
 
-  @computed('activeAllocation.taskGroupName', 'scheduledAllocations.@each.{job,taskGroupName}')
+  @computed(
+    'activeAllocation.taskGroupName',
+    'scheduledAllocations.@each.{job,taskGroupName}'
+  )
   get siblingAllocations() {
     if (!this.activeAllocation) return [];
     const taskGroup = this.activeAllocation.taskGroupName;
     const jobId = this.activeAllocation.belongsTo('job').id();
 
-    return this.scheduledAllocations.filter(allocation => {
-      return allocation.taskGroupName === taskGroup && allocation.belongsTo('job').id() === jobId;
+    return this.scheduledAllocations.filter((allocation) => {
+      return (
+        allocation.taskGroupName === taskGroup &&
+        allocation.belongsTo('job').id() === jobId
+      );
     });
   }
 
   @computed('activeNode')
   get nodeUtilization() {
     const node = this.activeNode;
-    const [formattedMemory, memoryUnits] = reduceBytes(node.memory * 1024 * 1024);
-    const totalReservedMemory = node.allocations.mapBy('memory').reduce(sumAggregator, 0);
-    const totalReservedCPU = node.allocations.mapBy('cpu').reduce(sumAggregator, 0);
+    const [formattedMemory, memoryUnits] = reduceBytes(
+      node.memory * 1024 * 1024
+    );
+    const totalReservedMemory = node.allocations
+      .mapBy('memory')
+      .reduce(sumAggregator, 0);
+    const totalReservedCPU = node.allocations
+      .mapBy('cpu')
+      .reduce(sumAggregator, 0);
 
     return {
       totalMemoryFormatted: formattedMemory.toFixed(2),

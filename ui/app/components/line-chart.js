@@ -1,7 +1,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
-import { run } from '@ember/runloop';
+import { schedule, next } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
 import d3Axis from 'd3-axis';
@@ -23,11 +23,11 @@ const lerp = ([low, high], numPoints) => {
 };
 
 // Round a number or an array of numbers
-const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
+const nice = (val) => (val instanceof Array ? val.map(nice) : Math.round(val));
 
 const defaultXScale = (data, yAxisOffset, xProp, timeseries) => {
   const scale = timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-  const domain = data.length ? d3Array.extent(data, d => d[xProp]) : [0, 1];
+  const domain = data.length ? d3Array.extent(data, (d) => d[xProp]) : [0, 1];
 
   scale.rangeRound([10, yAxisOffset]).domain(domain);
 
@@ -35,15 +35,12 @@ const defaultXScale = (data, yAxisOffset, xProp, timeseries) => {
 };
 
 const defaultYScale = (data, xAxisOffset, yProp) => {
-  let max = d3Array.max(data, d => d[yProp]) || 1;
+  let max = d3Array.max(data, (d) => d[yProp]) || 1;
   if (max > 1) {
     max = nice(max);
   }
 
-  return d3Scale
-    .scaleLinear()
-    .rangeRound([xAxisOffset, 10])
-    .domain([0, max]);
+  return d3Scale.scaleLinear().rangeRound([xAxisOffset, 10]).domain([0, max]);
 };
 
 export default class LineChart extends Component {
@@ -95,7 +92,9 @@ export default class LineChart extends Component {
   @action
   xFormat(timeseries) {
     if (this.args.xFormat) return this.args.xFormat;
-    return timeseries ? d3TimeFormat.timeFormat('%b %d, %H:%M') : d3Format.format(',');
+    return timeseries
+      ? d3TimeFormat.timeFormat('%b %d, %H:%M')
+      : d3Format.format(',');
   }
 
   @action
@@ -134,7 +133,7 @@ export default class LineChart extends Component {
 
   get xRange() {
     const { xProp, data } = this;
-    const range = d3Array.extent(data, d => d[xProp]);
+    const range = d3Array.extent(data, (d) => d[xProp]);
     const formatter = this.xFormat(this.args.timeseries);
 
     return range.map(formatter);
@@ -142,7 +141,7 @@ export default class LineChart extends Component {
 
   get yRange() {
     const yProp = this.yProp;
-    const range = d3Array.extent(this.data, d => d[yProp]);
+    const range = d3Array.extent(this.data, (d) => d[yProp]);
     const formatter = this.yFormat();
 
     return range.map(formatter);
@@ -232,21 +231,21 @@ export default class LineChart extends Component {
     const updateActiveDatum = this.updateActiveDatum.bind(this);
 
     const chart = this;
-    canvas.on('mouseenter', function(ev) {
+    canvas.on('mouseenter', function (ev) {
       const mouseX = d3.pointer(ev, this)[0];
       chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
-      run.schedule('afterRender', chart, () => (chart.isActive = true));
+      schedule('afterRender', chart, () => (chart.isActive = true));
     });
 
-    canvas.on('mousemove', function(ev) {
+    canvas.on('mousemove', function (ev) {
       const mouseX = d3.pointer(ev, this)[0];
       chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
     });
 
     canvas.on('mouseleave', () => {
-      run.schedule('afterRender', this, () => (this.isActive = false));
+      schedule('afterRender', this, () => (this.isActive = false));
       this.activeDatum = null;
       this.activeData = [];
     });
@@ -264,7 +263,7 @@ export default class LineChart extends Component {
     }
 
     // Map screen coordinates to data domain
-    const bisector = d3Array.bisector(d => d[xProp]).left;
+    const bisector = d3Array.bisector((d) => d[xProp]).left;
     const x = xScale.invert(mouseX);
 
     // Find the closest datum to the cursor for each series
@@ -308,13 +307,17 @@ export default class LineChart extends Component {
     // Of the selected data, determine which is closest
     const closestDatum = activeData
       .slice()
-      .sort((a, b) => Math.abs(a.datum.datum[xProp] - x) - Math.abs(b.datum.datum[xProp] - x))[0];
+      .sort(
+        (a, b) =>
+          Math.abs(a.datum.datum[xProp] - x) -
+          Math.abs(b.datum.datum[xProp] - x)
+      )[0];
 
     // If any other selected data are beyond a distance threshold, drop them from the list
     // xScale is used here to measure distance in screen-space rather than data-space.
     const dist = Math.abs(xScale(closestDatum.datum.datum[xProp]) - mouseX);
     const filteredData = activeData.filter(
-      d => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10
+      (d) => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10
     );
 
     this.activeData = filteredData;
@@ -335,7 +338,7 @@ export default class LineChart extends Component {
     // svg elements
     this.mountD3Elements();
 
-    run.next(() => {
+    next(() => {
       // Since each axis depends on the dimension of the other
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.
@@ -351,7 +354,9 @@ export default class LineChart extends Component {
     if (!this.isDestroyed && !this.isDestroying) {
       d3.select(this.element.querySelector('.x-axis')).call(this.xAxis);
       d3.select(this.element.querySelector('.y-axis')).call(this.yAxis);
-      d3.select(this.element.querySelector('.y-gridlines')).call(this.yGridlines);
+      d3.select(this.element.querySelector('.y-gridlines')).call(
+        this.yGridlines
+      );
     }
   }
 

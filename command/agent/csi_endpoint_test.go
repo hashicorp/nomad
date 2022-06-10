@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_CSIEndpointPlugin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -29,7 +29,7 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.Code)
 
-		out, ok := obj.(*api.CSIPlugin)
+		out, ok := obj.(*structs.CSIPlugin)
 		require.True(t, ok)
 
 		// ControllersExpected is 0 because this plugin was created without a job,
@@ -44,22 +44,31 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 	})
 }
 
-func TestHTTP_CSIEndpointUtils(t *testing.T) {
-	secrets := structsCSISecretsToApi(structs.CSISecrets{
-		"foo": "bar",
-	})
-
-	require.Equal(t, "bar", secrets["foo"])
-
-	tops := structsCSITopolgiesToApi([]*structs.CSITopology{{
-		Segments: map[string]string{"foo": "bar"},
-	}})
-
-	require.Equal(t, "bar", tops[0].Segments["foo"])
+func TestHTTP_CSIParseSecrets(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		val    string
+		expect structs.CSISecrets
+	}{
+		{"", nil},
+		{"one", nil},
+		{"one,two", nil},
+		{"one,two=value_two",
+			structs.CSISecrets(map[string]string{"two": "value_two"})},
+		{"one=value_one,one=overwrite",
+			structs.CSISecrets(map[string]string{"one": "overwrite"})},
+		{"one=value_one,two=value_two",
+			structs.CSISecrets(map[string]string{"one": "value_one", "two": "value_two"})},
+	}
+	for _, tc := range testCases {
+		req, _ := http.NewRequest("GET", "/v1/plugin/csi/foo", nil)
+		req.Header.Add("X-Nomad-CSI-Secrets", tc.val)
+		require.Equal(t, tc.expect, parseCSISecrets(req), tc.val)
+	}
 }
 
 func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPluginNodeOnly(server.State(), "foo")
@@ -87,7 +96,7 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 		resp = httptest.NewRecorder()
 		raw, err := s.Server.CSIVolumeSpecificRequest(resp, req)
 		require.NoError(t, err, "get error")
-		out, ok := raw.(*api.CSIVolume)
+		out, ok := raw.(*structs.CSIVolume)
 		require.True(t, ok)
 		require.Equal(t, 1, out.ControllersHealthy)
 		require.Equal(t, 2, out.NodesHealthy)
@@ -101,7 +110,7 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 }
 
 func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -133,7 +142,7 @@ func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
 }
 
 func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -153,25 +162,4 @@ func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
 		_, err = s.Server.CSISnapshotsRequest(resp, req)
 		require.Error(t, err, "no such volume: bar")
 	})
-}
-
-// TestHTTP_CSIEndpoint_Cast is a smoke test for converting from structs to
-// API structs
-func TestHTTP_CSIEndpoint_Cast(t *testing.T) {
-	t.Parallel()
-
-	plugin := mock.CSIPlugin()
-	plugin.Nodes["node1"] = &structs.CSIInfo{
-		PluginID: plugin.ID,
-		AllocID:  "alloc1",
-		NodeInfo: &structs.CSINodeInfo{ID: "instance-1", MaxVolumes: 3},
-	}
-	apiPlugin := structsCSIPluginToApi(plugin)
-	require.Equal(t,
-		plugin.Nodes["node1"].NodeInfo.MaxVolumes,
-		apiPlugin.Nodes["node1"].NodeInfo.MaxVolumes)
-
-	vol := mock.CSIVolume(plugin)
-	apiVol := structsCSIVolumeToApi(vol)
-	require.Equal(t, vol.MountOptions.MountFlags, apiVol.MountOptions.MountFlags)
 }

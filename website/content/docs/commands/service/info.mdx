@@ -1,0 +1,79 @@
+---
+layout: docs
+page_title: 'Commands: service info'
+description: |
+  The service info command is used to read the specified Nomad registered
+  service by name.
+---
+
+# Command: service info
+
+The `service info` command is used to read the specified Nomad registered
+service by name.
+
+~> Service commands are new in Nomad 1.3.
+
+## Usage
+
+```plaintext
+nomad service info [options] <service_name>
+```
+
+The `service info` command requires a single argument, a service name.
+
+When ACLs are enabled, this command requires a token with the `read-job`
+capability for the service's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Info Options
+
+- `-per-page`: How many results to show per page.
+
+- `-page-token`: Where to start pagination.
+
+- `-filter`: Specifies an expression used to filter query results.
+
+- `-json` : Output the service registrations in JSON format.
+
+- `-t` : Format and display the service registrations using a Go template.
+
+- `verbose` : Display full information.
+
+## Examples
+
+View the information of a specific service:
+
+```shell-session
+$ nomad service info example-cache-redis
+Job ID   Address          Tags        Node ID   Alloc ID
+example  127.0.0.1:22686  [db,cache]  7406e90b  5f0730ca
+example  127.0.0.1:25854  [db,cache]  7406e90b  a831f7f2
+```
+
+View the verbose information of a specific service:
+
+```shell-session
+$ nomad service info -verbose example-cache-redis
+ID           = _nomad-task-5f0730ca-b055-52ac-f56e-358f3f7412f6-redis-example-cache-redis-db
+Service Name = example-cache-redis
+Namespace    = default
+Job ID       = example
+Alloc ID     = 5f0730ca-b055-52ac-f56e-358f3f7412f6
+Node ID      = 7406e90b-de16-d118-80fe-60d0f2730cb3
+Datacenter   = dc1
+Address      = 127.0.0.1:22686
+Tags         = [db,cache]
+
+ID           = _nomad-task-a831f7f2-4c01-39dc-c742-f2b8ca178a49-redis-example-cache-redis-db
+Service Name = example-cache-redis
+Namespace    = default
+Job ID       = example
+Alloc ID     = a831f7f2-4c01-39dc-c742-f2b8ca178a49
+Node ID      = 7406e90b-de16-d118-80fe-60d0f2730cb3
+Datacenter   = dc1
+Address      = 127.0.0.1:25854
+Tags         = [db,cache]
+```

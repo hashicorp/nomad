@@ -1,23 +1,23 @@
 //go:build !windows
-// +build !windows
 
 package rawexec
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
-
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
+	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
@@ -29,10 +29,8 @@ import (
 )
 
 func TestRawExecDriver_User(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -61,18 +59,19 @@ func TestRawExecDriver_User(t *testing.T) {
 }
 
 func TestRawExecDriver_Signal(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
+
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "signal",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "signal",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -135,7 +134,7 @@ done
 }
 
 func TestRawExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -204,22 +203,18 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 // TestRawExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
 // task processes are cleaned up.
 func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
-	t.Parallel()
-
-	// This only works reliably with cgroup PID tracking, happens in linux only
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
-
-	require := require.New(t)
+	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "test",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -229,20 +224,20 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	taskConfig["command"] = "/bin/sh"
 	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
 
-	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	require.NoError(t, err)
 	defer harness.DestroyTask(task.ID, true)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	select {
 	case result := <-ch:
-		require.True(result.Successful(), "command failed: %#v", result)
+		require.True(t, result.Successful(), "command failed: %#v", result)
 	case <-time.After(10 * time.Second):
-		require.Fail("timeout waiting for task to shutdown")
+		require.Fail(t, "timeout waiting for task to shutdown")
 	}
 
 	sleepPid := 0
@@ -268,7 +263,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 		sleepPid = pid
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	// isProcessRunning returns an error if process is not running
@@ -286,9 +281,9 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(isProcessRunning(sleepPid))
+	require.NoError(t, isProcessRunning(sleepPid))
 
-	require.NoError(harness.DestroyTask(task.ID, true))
+	require.NoError(t, harness.DestroyTask(task.ID, true))
 
 	testutil.WaitForResult(func() (bool, error) {
 		err := isProcessRunning(sleepPid)
@@ -302,12 +297,12 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestRawExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS == "darwin" {
 		t.Skip("skip running exec tasks on darwin as darwin has restrictions on starting tty shells")
 	}
@@ -318,8 +313,10 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -341,16 +338,25 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 }
 
 func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("skip, requires running on Linux for testing custom user setting")
-	}
+	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 
 	d := newEnabledRawExecDriver(t)
+
+	// because we cannot set AllocID, see below
+	d.config.NoCgroups = true
+
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
+		// todo(shoenig) - Setting AllocID causes test to fail - with or without
+		//  cgroups, and with or without chroot. It has to do with MkAllocDir
+		//  creating the directory structure, but the actual root cause is still
+		//  TBD. The symptom is that any command you try to execute will result
+		//  in "permission denied" coming from os/exec. This test is imperfect,
+		//  the actual feature of running commands as another user works fine.
+		// AllocID: uuid.Generate()
 		ID:   uuid.Generate(),
 		Name: "sleep",
 		User: "nobody",
@@ -380,10 +386,8 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 }
 
 func TestRawExecDriver_NoCgroup(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 
 	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
 	require.NoError(t, err)
@@ -394,8 +398,9 @@ func TestRawExecDriver_NoCgroup(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "nocgroup",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "nocgroup",
 	}
 
 	cleanup := harness.MkAllocDir(task, true)

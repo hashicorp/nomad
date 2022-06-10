@@ -1,7 +1,9 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobSerializer extends ApplicationSerializer {
   attrs = {
     parameterized: 'ParameterizedJob',
@@ -20,7 +22,10 @@ export default class JobSerializer extends ApplicationSerializer {
     if (!hash.ParentID) {
       hash.ParentID = null;
     } else {
-      hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
+      hash.ParentID = JSON.stringify([
+        hash.ParentID,
+        hash.NamespaceID || 'default',
+      ]);
     }
 
     // Job Summary is always at /:job-id/summary, but since it can also come from
@@ -52,10 +57,14 @@ export default class JobSerializer extends ApplicationSerializer {
 
   extractRelationships(modelClass, hash) {
     const namespace =
-      !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
+      !hash.NamespaceID || hash.NamespaceID === 'default'
+        ? undefined
+        : hash.NamespaceID;
     const { modelName } = modelClass;
 
-    const apiNamespace = this.store.adapterFor(modelClass.modelName).get('namespace');
+    const apiNamespace = this.store
+      .adapterFor(modelClass.modelName)
+      .get('namespace');
 
     const [jobURL] = this.store
       .adapterFor(modelName)

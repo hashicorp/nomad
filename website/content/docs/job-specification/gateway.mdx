@@ -98,15 +98,30 @@ envoy_gateway_bind_addresses "<service>" {
   on the gateway. If TLS is enabled, then each host defined in the `host` field will
   be added as a DNSSAN to the gateway's x509 certificate.
 
+- `tls_min_version` `(string: optional)` - Set the default minimum TLS version 
+  supported by the gateway. Refer to
+  [`TLSMinVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsminversion)
+  in the Consul documentation for supported versions.
+
+- `tls_max_version` `(string: optional)` - Set the default maximum TLS version 
+  supported by the gateway. Refer to 
+  [`TLSMaxVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
+  in the Consul documentation for supported versions.
+
+- `cipher_suites` `(array<string>: optional)` - Set the default list of TLS 
+  cipher suites for the gateway's listeners. Refer to 
+  [`CipherSuites`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#ciphersuites)
+  in the Consul documentation for the supported cipher suites.
+
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
-- `protocol` `(string: "tcp")` - The protocol associated with the listener. Either
-  `tcp` or `http`.
+- `protocol` `(string: "tcp")` - The protocol associated with the listener. One
+  of `tcp`, `http`, `http2`, or `grpc`.
 
-  ~> **Note:** If using `http`, preconfiguring a [service-default] in Consul to
+  ~> **Note:** If using any protocol other than `tcp` (for example: `http` or `grpc`), preconfiguring a [service-default] in Consul to
   set the [Protocol](https://www.consul.io/docs/agent/config-entries/service-defaults#protocol)
-  of the service to `http` is recommended.
+  of the service to the desired protocol is mandatory due to an [open issue](https://github.com/hashicorp/nomad/issues/8647).
 
 - `service` <code>(array<[service]>: required)</code> - One or more services to be
   exposed via this listener. For `tcp` listeners, only a single service is allowed.
@@ -300,7 +315,7 @@ job "ingress-demo" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v5"
+        image        = "hashicorpdev/uuid-api:v5"
         network_mode = "host"
       }
 
@@ -343,7 +358,7 @@ job "countdash-terminating" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/counter-api:v3"
+        image        = "hashicorpdev/counter-api:v3"
         network_mode = "host"
       }
     }
@@ -429,7 +444,7 @@ job "countdash-terminating" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
@@ -546,7 +561,7 @@ job "countdash-mesh-one" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
@@ -623,7 +638,7 @@ job "countdash-mesh-two" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }

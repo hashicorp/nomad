@@ -6,11 +6,12 @@ import { equal, gt } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
-import { classNames } from '@ember-decorators/component';
+import { classNames, attributeBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('boxed-section', 'task-log')
+@attributeBindings('data-test-file-viewer')
 export default class File extends Component {
   @service token;
   @service system;
@@ -39,7 +40,10 @@ export default class File extends Component {
 
     if (contentType.startsWith('image/')) {
       return 'image';
-    } else if (contentType.startsWith('text/') || contentType.startsWith('application/json')) {
+    } else if (
+      contentType.startsWith('text/') ||
+      contentType.startsWith('application/json')
+    ) {
       return 'stream';
     } else {
       return 'unknown';
@@ -108,7 +112,14 @@ export default class File extends Component {
     }
   }
 
-  @computed('clientTimeout', 'fileParams', 'fileUrl', 'mode', 'serverTimeout', 'useServer')
+  @computed(
+    'clientTimeout',
+    'fileParams',
+    'fileUrl',
+    'mode',
+    'serverTimeout',
+    'useServer'
+  )
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
     const plainText = this.mode === 'head' || this.mode === 'tail';
@@ -116,15 +127,15 @@ export default class File extends Component {
     // If the file request can't settle in one second, the client
     // must be unavailable and the server should be used instead
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
-    const logFetch = url =>
+    const logFetch = (url) =>
       RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
-        response => {
+        (response) => {
           if (!response || !response.ok) {
             this.nextErrorState(response);
           }
           return response;
         },
-        error => this.nextErrorState(error)
+        (error) => this.nextErrorState(error)
       );
 
     return Log.create({

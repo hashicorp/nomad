@@ -5,7 +5,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -249,8 +248,8 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
-			b.stats.Unblock(eval)
 			dup = existingW.eval
+			b.stats.Unblock(dup)
 		} else {
 			dup = eval
 			newCancelled = true
@@ -529,7 +528,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	// because any node could potentially be feasible.
 	numEscaped := len(b.escaped)
 	numQuotaLimit := 0
-	unblocked := make(map[*structs.Evaluation]string, lib.MaxInt(numEscaped, 4))
+	unblocked := make(map[*structs.Evaluation]string, helper.MaxInt(numEscaped, 4))
 
 	if numEscaped != 0 && computedClass != "" {
 		for id, wrapped := range b.escaped {
@@ -706,9 +705,14 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
 func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			stats := b.Stats()
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
@@ -723,10 +727,10 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "memory"}, float32(v.MemoryMB), labels)
 			}
 
-			for k, v := range stats.BlockedResources.ByNodeInfo {
+			for k, v := range stats.BlockedResources.ByNode {
 				labels := []metrics.Label{
-					{Name: "datacenter", Value: k.Datacenter},
-					{Name: "node_class", Value: k.NodeClass},
+					{Name: "datacenter", Value: k.dc},
+					{Name: "node_class", Value: k.class},
 				}
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "cpu"}, float32(v.CPU), labels)
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "memory"}, float32(v.MemoryMB), labels)

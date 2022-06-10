@@ -1,23 +1,21 @@
-//go:build ent
-// +build ent
-
 package command
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaceApplyCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &NamespaceApplyCommand{}
 }
 
 func TestNamespaceApplyCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &NamespaceApplyCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +38,7 @@ func TestNamespaceApplyCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceApplyCommand_Good(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)

@@ -6,10 +6,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNetworkIndex_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	n := &Node{
 		NodeResources: &NodeResources{
 			Networks: []*NetworkResource{
@@ -123,6 +126,7 @@ func TestNetworkIndex_Copy(t *testing.T) {
 
 func TestNetworkIndex_Overcommitted(t *testing.T) {
 	t.Skip()
+	ci.Parallel(t)
 	idx := NewNetworkIndex()
 
 	// Consume some network
@@ -165,6 +169,8 @@ func TestNetworkIndex_Overcommitted(t *testing.T) {
 }
 
 func TestNetworkIndex_SetNode(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	n := &Node{
 		NodeResources: &NodeResources{
@@ -200,6 +206,8 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 }
 
 func TestNetworkIndex_AddAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	allocs := []*Allocation{
 		{
@@ -255,6 +263,8 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 }
 
 func TestNetworkIndex_AddReserved(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 
 	reserved := &NetworkResource{
@@ -288,6 +298,8 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 // XXX Reserving ports doesn't work when yielding from a CIDR block. This is
 // okay for now since we do not actually fingerprint CIDR blocks.
 func TestNetworkIndex_yieldIP(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	n := &Node{
 		NodeResources: &NodeResources{
@@ -316,6 +328,7 @@ func TestNetworkIndex_yieldIP(t *testing.T) {
 }
 
 func TestNetworkIndex_AssignNetwork(t *testing.T) {
+	ci.Parallel(t)
 	idx := NewNetworkIndex()
 	n := &Node{
 		NodeResources: &NodeResources{
@@ -419,6 +432,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
 func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
+	ci.Parallel(t)
 
 	// Create a node that only has one free port
 	idx := NewNetworkIndex()
@@ -465,6 +479,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestNetworkIndex_SetNode_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	n := &Node{
 		Resources: &Resources{
@@ -508,6 +524,8 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestNetworkIndex_AddAllocs_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	allocs := []*Allocation{
 		{
@@ -560,6 +578,8 @@ func TestNetworkIndex_AddAllocs_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestNetworkIndex_yieldIP_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	n := &Node{
 		Resources: &Resources{
@@ -599,6 +619,8 @@ func TestNetworkIndex_yieldIP_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	idx := NewNetworkIndex()
 	n := &Node{
 		Resources: &Resources{
@@ -735,6 +757,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
 func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
+	ci.Parallel(t)
 
 	// Create a node that only has one free port
 	idx := NewNetworkIndex()
@@ -787,6 +810,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 }
 
 func TestIntContains(t *testing.T) {
+	ci.Parallel(t)
+	
 	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")

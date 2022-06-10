@@ -41,6 +41,20 @@ The table below shows this endpoint's support for
   the prefix must have an even number of hexadecimal characters
   (0-9a-f). This is specified as a query string parameter.
 
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected volume. This
+  value can be obtained from the `X-Nomad-NextToken` header from the previous
+  response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of volumes to return for
+  this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the
+  `next_token` of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
+
 ### Sample Request
 
 ```shell-session
@@ -206,7 +220,7 @@ $ curl \
               "VaultError": "",
               "TaskSignalReason": "",
               "TaskSignal": "",
-              "DriverMessage": "Downloading image redis:3.2"
+              "DriverMessage": "Downloading image redis:7"
             },
             {
               "Type": "Started",
@@ -454,21 +468,25 @@ The table below shows this endpoint's support for
 | ---------------- | ---------------------------- |
 | `NO`             | `namespace:csi-write-volume` |
 
+This endpoint accepts a `X-Nomad-CSI-Secrets` header to set secrets
+for deleting the volume as comma-separated key-value pairs (see the
+example below). These secrets will be merged with any secrets already
+stored when the CSI volume was created.
+
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
   volume. This must be the full ID. This is specified as part of the
   path.
 
-
 ### Sample Request
 
 ```shell-session
 $ curl \
     --request DELETE \
+    -H "X-Nomad-CSI-Secrets: secret-key-1=value-1,secret-key-2=value-2" \
     https://localhost:4646/v1/volume/csi/volume-id1/delete
 ```
-
 
 ## Detach Volume
 
@@ -662,6 +680,11 @@ The table below shows this endpoint's support for
 | ---------------- | ---------------------------- |
 | `NO`             | `namespace:csi-write-volume` |
 
+This endpoint accepts a `X-Nomad-CSI-Secrets` header to set secrets
+for deleting the snapshot as comma-separated key-value pairs (see the
+example below). These secrets will be merged with any secrets already
+stored when the CSI snapshot was created.
+
 ### Parameters
 
 - `plugin_id` `(string: <required>)` - Specifies the prefix of a CSI plugin ID
@@ -677,6 +700,7 @@ The table below shows this endpoint's support for
 ```shell-session
 $ curl \
     --request DELETE \
+    -H "X-Nomad-CSI-Secrets: secret-key-1=value-1,secret-key-2=value-2" \
     https://localhost:4646/v1/volumes/snapshot
 ```
 
@@ -699,6 +723,11 @@ The table below shows this endpoint's support for
 | ---------------- | --------------------------- |
 | `YES`            | `namespace:csi-list-volume` |
 
+This endpoint accepts a `X-Nomad-CSI-Secrets` header to set secrets
+for deleting the snapshot as comma-separated key-value pairs (see the
+example below). These secrets will be merged with any secrets already
+stored when the CSI snapshot was created.
+
 ### Parameters
 
 - `plugin_id` `(string: <required>)` - Specifies the prefix of a CSI plugin ID
@@ -714,15 +743,12 @@ The table below shows this endpoint's support for
   return for this request. The response will include a `NextToken` field that
   can be passed to the next request to fetch additional pages.
 
-- `secrets` `(string: "")` - Specifies a list of key/value secrets for listing snapshots.
-  These key/value pairs are comma-separated and are passed directly to the CSI plugin.
-
 ### Sample Request
 
 ```shell-session
 $ curl \
-    https://localhost:4646/v1/volumes/snapshot?plugin_id=plugin-id1&per_page=2& \
-    secrets=secret-key-1=secret-value-1,secret-key-2=secret-value-2
+    -H "X-Nomad-CSI-Secrets: secret-key-1=value-1,secret-key-2=value-2" \
+    https://localhost:4646/v1/volumes/snapshot?plugin_id=plugin-id1&per_page=2
 ```
 
 ### Sample Response

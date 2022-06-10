@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	pathPrefix   = "logrotator"
 	baseFileName = "redis.stdout"
 )
 
@@ -30,9 +29,7 @@ func TestFileRotator_IncorrectPath(t *testing.T) {
 func TestFileRotator_CreateNewFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.HCLogger(t))
 	require.NoError(t, err)
@@ -45,9 +42,7 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 func TestFileRotator_OpenLastFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
 	fname2 := filepath.Join(path, "redis.stdout.2")
@@ -70,9 +65,7 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
 	f1, err := os.Create(fname1)
@@ -104,9 +97,7 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 func TestFileRotator_RotateFiles(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
 	require.NoError(t, err)
@@ -149,9 +140,7 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
 	require.NoError(t, err)
@@ -197,12 +186,10 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 func TestFileRotator_WriteRemaining(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
-	err = ioutil.WriteFile(fname1, []byte("abcd"), 0600)
+	err := ioutil.WriteFile(fname1, []byte("abcd"), 0600)
 	require.NoError(t, err)
 
 	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
@@ -259,9 +246,7 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(t, err)
-	defer os.RemoveAll(path)
+	path := t.TempDir()
 
 	fr, err := NewFileRotator(path, baseFileName, 2, 2, testlog.HCLogger(t))
 	require.NoError(t, err)
@@ -298,9 +283,7 @@ func BenchmarkRotator(b *testing.B) {
 }
 
 func benchmarkRotatorWithInputSize(size int, b *testing.B) {
-	path, err := ioutil.TempDir("", pathPrefix)
-	require.NoError(b, err)
-	defer os.RemoveAll(path)
+	path := b.TempDir()
 
 	fr, err := NewFileRotator(path, baseFileName, 5, 1024*1024, testlog.HCLogger(b))
 	require.NoError(b, err)

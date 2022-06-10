@@ -38,8 +38,8 @@ func (tc *ScalingE2ETest) AfterEach(f *framework.F) {
 	}
 
 	for _, namespacedJob := range tc.namespacedJobIDs {
-		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", "-namespace",
-			namespacedJob[0], namespacedJob[1])
+		err := e2eutil.StopJob(namespacedJob[1], "-purge", "-namespace",
+			namespacedJob[0])
 		f.NoError(err)
 	}
 	tc.namespacedJobIDs = [][2]string{}

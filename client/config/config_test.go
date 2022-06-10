@@ -5,11 +5,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/config"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConfigRead(t *testing.T) {
+	ci.Parallel(t)
+
 	config := Config{}
 
 	actual := config.Read("cake")
@@ -26,6 +29,8 @@ func TestConfigRead(t *testing.T) {
 }
 
 func TestConfigReadDefault(t *testing.T) {
+	ci.Parallel(t)
+
 	config := Config{}
 
 	expected := "vanilla"
@@ -50,6 +55,8 @@ func mockWaitConfig() *WaitConfig {
 }
 
 func TestWaitConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Wait     *WaitConfig
@@ -95,6 +102,8 @@ func TestWaitConfig_Copy(t *testing.T) {
 }
 
 func TestWaitConfig_IsEmpty(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Wait     *WaitConfig
@@ -127,6 +136,8 @@ func TestWaitConfig_IsEmpty(t *testing.T) {
 }
 
 func TestWaitConfig_IsEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Wait     *WaitConfig
@@ -170,6 +181,8 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 }
 
 func TestWaitConfig_IsValid(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Retry    *WaitConfig
@@ -223,6 +236,8 @@ func TestWaitConfig_IsValid(t *testing.T) {
 }
 
 func TestWaitConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Target   *WaitConfig
@@ -280,6 +295,8 @@ func TestWaitConfig_Merge(t *testing.T) {
 }
 
 func TestWaitConfig_ToConsulTemplate(t *testing.T) {
+	ci.Parallel(t)
+
 	expected := config.WaitConfig{
 		Enabled: helper.BoolToPtr(true),
 		Min:     helper.TimeToPtr(5 * time.Second),
@@ -307,6 +324,8 @@ func mockRetryConfig() *RetryConfig {
 	}
 }
 func TestRetryConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Retry    *RetryConfig
@@ -382,6 +401,8 @@ func TestRetryConfig_Copy(t *testing.T) {
 }
 
 func TestRetryConfig_IsEmpty(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Retry    *RetryConfig
@@ -414,6 +435,8 @@ func TestRetryConfig_IsEmpty(t *testing.T) {
 }
 
 func TestRetryConfig_IsEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Retry    *RetryConfig
@@ -502,6 +525,8 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 }
 
 func TestRetryConfig_IsValid(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Retry    *RetryConfig
@@ -570,6 +595,8 @@ func TestRetryConfig_IsValid(t *testing.T) {
 }
 
 func TestRetryConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Target   *RetryConfig
@@ -645,6 +672,8 @@ func TestRetryConfig_Merge(t *testing.T) {
 }
 
 func TestRetryConfig_ToConsulTemplate(t *testing.T) {
+	ci.Parallel(t)
+
 	expected := config.RetryConfig{
 		Enabled:    helper.BoolToPtr(true),
 		Attempts:   helper.IntToPtr(5),

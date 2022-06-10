@@ -148,7 +148,7 @@ export let LiveData = () => {
       `,
     context: {
       controller: EmberObject.extend({
-        startTimer: on('init', function() {
+        startTimer: on('init', function () {
           this.lineChartLive = [];
 
           this.set(
@@ -170,7 +170,7 @@ export let LiveData = () => {
         },
 
         get secondsFormat() {
-          return date => moment(date).format('HH:mm:ss');
+          return (date) => moment(date).format('HH:mm:ss');
         },
       }).create(),
     },
@@ -272,9 +272,7 @@ export let VerticalAnnotations = () => {
       data: DelayedArray.create(
         new Array(180).fill(null).map((_, idx) => ({
           y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
-          x: moment()
-            .add(idx, 'd')
-            .toDate(),
+          x: moment().add(idx, 'd').toDate(),
         }))
       ),
       annotations: [
@@ -291,16 +289,12 @@ export let VerticalAnnotations = () => {
           info: 'This is the max of the sine curve',
         },
         {
-          x: moment()
-            .add(89, 'd')
-            .toDate(),
+          x: moment().add(89, 'd').toDate(),
           type: 'info',
           info: 'This is the end of the first period',
         },
         {
-          x: moment()
-            .add(96, 'd')
-            .toDate(),
+          x: moment().add(96, 'd').toDate(),
           type: 'info',
           info: 'A close annotation for staggering purposes',
         },
@@ -312,9 +306,7 @@ export let VerticalAnnotations = () => {
           info: 'This is the min of the sine curve',
         },
         {
-          x: moment()
-            .add(179, 'd')
-            .toDate(),
+          x: moment().add(179, 'd').toDate(),
           type: 'info',
           info: 'Far right',
         },
@@ -348,9 +340,7 @@ export let HorizontalAnnotations = () => {
       data: DelayedArray.create(
         new Array(180).fill(null).map((_, idx) => ({
           y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
-          x: moment()
-            .add(idx, 'd')
-            .toDate(),
+          x: moment().add(idx, 'd').toDate(),
         }))
       ),
       annotations: [

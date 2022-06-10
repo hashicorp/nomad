@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 // TestInterpolateServices asserts that all service
 // and check fields are properly interpolated.
 func TestInterpolateServices(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	services := []*structs.Service{
 		{
@@ -24,6 +25,10 @@ func TestInterpolateServices(t *testing.T) {
 			},
 			CanaryMeta: map[string]string{
 				"canarymeta-key": "${canarymeta}",
+			},
+			Address: "${address}",
+			TaggedAddresses: map[string]string{
+				"${ta-key}": "${ta-address}",
 			},
 			Checks: []*structs.ServiceCheck{
 				{
@@ -50,6 +55,9 @@ func TestInterpolateServices(t *testing.T) {
 			"portlabel":    "portlabel",
 			"tags":         "tags",
 			"meta":         "meta-value",
+			"address":      "example.com",
+			"ta-key":       "public_wan",
+			"ta-address":   "1.2.3.4",
 			"canarymeta":   "canarymeta-value",
 			"checkname":    "checkname",
 			"checktype":    "checktype",
@@ -79,6 +87,10 @@ func TestInterpolateServices(t *testing.T) {
 			CanaryMeta: map[string]string{
 				"canarymeta-key": "canarymeta-value",
 			},
+			Address: "example.com",
+			TaggedAddresses: map[string]string{
+				"public_wan": "1.2.3.4",
+			},
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:          "checkname",
@@ -107,7 +119,7 @@ var testEnv = NewTaskEnv(
 	nil, nil, "", "")
 
 func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringSliceString(testEnv, nil))
@@ -125,7 +137,7 @@ func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
 }
 
 func TestInterpolate_interpolateMapStringString(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringString(testEnv, nil))
@@ -143,7 +155,7 @@ func TestInterpolate_interpolateMapStringString(t *testing.T) {
 }
 
 func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringInterface(testEnv, nil))
@@ -161,7 +173,7 @@ func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
 }
 
 func TestInterpolate_interpolateConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	e := map[string]string{
 		"tag1":              "_tag1",

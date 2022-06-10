@@ -4,10 +4,12 @@ import { render, triggerEvent } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | das/recommendation-chart', function(hooks) {
+module('Integration | Component | das/recommendation-chart', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('it renders a chart for a recommended CPU increase', async function(assert) {
+  test('it renders a chart for a recommended CPU increase', async function (assert) {
+    assert.expect(5);
+
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -29,7 +31,9 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('it renders a chart for a recommended memory decrease', async function(assert) {
+  test('it renders a chart for a recommended memory decrease', async function (assert) {
+    assert.expect(5);
+
     this.set('resource', 'MemoryMB');
     this.set('current', 1919);
     this.set('recommended', 1312);
@@ -51,7 +55,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('it handles the maximum being far beyond the recommended', async function(assert) {
+  test('it handles the maximum being far beyond the recommended', async function (assert) {
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -74,7 +78,9 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.ok(maxLine.getAttribute('x1') < chartSvg.clientWidth);
   });
 
-  test('it can be disabled and will show no delta', async function(assert) {
+  test('it can be disabled and will show no delta', async function (assert) {
+    assert.expect(6);
+
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -99,7 +105,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the stats labels shift aligment and disappear to account for space', async function(assert) {
+  test('the stats labels shift aligment and disappear to account for space', async function (assert) {
     this.set('resource', 'CPU');
     this.set('current', 50);
     this.set('recommended', 100);
@@ -140,7 +146,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.dom('[data-test-label=p99]').hasClass('hidden');
   });
 
-  test('a legend tooltip shows the sorted stats values on hover', async function(assert) {
+  test('a legend tooltip shows the sorted stats values on hover', async function (assert) {
     this.set('resource', 'CPU');
     this.set('current', 50);
     this.set('recommended', 101);

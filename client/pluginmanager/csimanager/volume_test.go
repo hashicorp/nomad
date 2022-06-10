@@ -3,11 +3,11 @@ package csimanager
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -16,13 +16,6 @@ import (
 	csifake "github.com/hashicorp/nomad/plugins/csi/fake"
 	"github.com/stretchr/testify/require"
 )
-
-func tmpDir(t testing.TB) string {
-	t.Helper()
-	dir, err := ioutil.TempDir("", "nomad")
-	require.NoError(t, err)
-	return dir
-}
 
 func checkMountSupport() bool {
 	path, err := os.Getwd()
@@ -39,7 +32,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -92,8 +85,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			}
 
 			// Step 2: Test Setup
-			tmpPath := tmpDir(t)
-			defer os.RemoveAll(tmpPath)
+			tmpPath := t.TempDir()
 
 			csiFake := &csifake.Client{}
 			eventer := func(e *structs.NodeEvent) {}
@@ -136,7 +128,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name         string
@@ -192,8 +184,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpPath := tmpDir(t)
-			defer os.RemoveAll(tmpPath)
+			tmpPath := t.TempDir()
 
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeStageVolumeErr = tc.PluginErr
@@ -217,7 +208,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -251,8 +242,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpPath := tmpDir(t)
-			defer os.RemoveAll(tmpPath)
+			tmpPath := t.TempDir()
 
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
@@ -279,7 +269,8 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                     string
@@ -374,8 +365,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpPath := tmpDir(t)
-			defer os.RemoveAll(tmpPath)
+			tmpPath := t.TempDir()
 
 			csiFake := &csifake.Client{}
 			csiFake.NextNodePublishVolumeErr = tc.PluginErr
@@ -397,7 +387,6 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			if tc.ExpectedVolumeCapability != nil {
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
 			}
-
 		})
 	}
 }
@@ -406,7 +395,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -443,8 +432,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpPath := tmpDir(t)
-			defer os.RemoveAll(tmpPath)
+			tmpPath := t.TempDir()
 
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeUnpublishVolumeErr = tc.PluginErr
@@ -471,10 +459,9 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
-	tmpPath := tmpDir(t)
-	defer os.RemoveAll(tmpPath)
+	tmpPath := t.TempDir()
 
 	csiFake := &csifake.Client{}
 

@@ -17,7 +17,12 @@ export default class NodeSerializer extends ApplicationSerializer {
     const { modelName } = modelClass;
     const nodeURL = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, this.extractId(modelClass, hash), hash, 'findRecord');
+      .buildURL(
+        modelName,
+        this.extractId(modelClass, hash),
+        hash,
+        'findRecord'
+      );
 
     return {
       allocations: {

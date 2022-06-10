@@ -9,6 +9,7 @@
 package consul
 
 import (
+	"os"
 	"sort"
 
 	capi "github.com/hashicorp/consul/api"
@@ -16,6 +17,26 @@ import (
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/stretchr/testify/require"
 )
+
+func (tc *ConsulNamespacesE2ETest) AfterEach(f *framework.F) {
+	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
+		return
+	}
+
+	// cleanup jobs
+	for _, id := range tc.jobIDs {
+		_, _, err := tc.Nomad().Jobs().Deregister(id, true, nil)
+		f.NoError(err)
+	}
+
+	// do garbage collection
+	err := tc.Nomad().System().GarbageCollect()
+	f.NoError(err)
+
+	// reset accumulators
+	tc.tokenIDs = make(map[string][]string)
+	tc.policyIDs = make(map[string][]string)
+}
 
 func (tc *ConsulNamespacesE2ETest) TestConsulRegisterGroupServices(f *framework.F) {
 	nomadClient := tc.Nomad()

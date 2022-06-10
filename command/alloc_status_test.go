@@ -2,13 +2,12 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -21,12 +20,12 @@ import (
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocStatusCommand{}
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -88,7 +87,7 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -151,7 +150,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -248,7 +247,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -297,7 +296,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -359,8 +358,8 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -383,14 +382,10 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocStatusCommand_HostVolumes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// We have to create a tempdir for the host volume even though we're
 	// not going to use it b/c the server validates the config on startup
-	tmpDir, err := ioutil.TempDir("", "vol0")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	vol0 := uuid.Generate()
 	srv, _, url := testServer(t, true, func(c *agent.Config) {
@@ -451,7 +446,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 }
 
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	state := srv.Agent.Server().State()
@@ -479,7 +474,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			Segments: map[string]string{"foo": "bar"},
 		}},
 	}}
-	err = state.CSIVolumeRegister(1002, vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	require.NoError(t, err)
 
 	// Upsert the job and alloc

@@ -4,19 +4,19 @@ import sinon from 'sinon';
 
 const emptyOptions = { queryParams: {} };
 
-module('Unit | Utility | generate-exec-url', function(hooks) {
-  hooks.beforeEach(function() {
+module('Unit | Utility | generate-exec-url', function (hooks) {
+  hooks.beforeEach(function () {
     this.urlForSpy = sinon.spy();
     this.router = { urlFor: this.urlForSpy, currentRoute: { queryParams: {} } };
   });
 
-  test('it generates an exec job URL', function(assert) {
+  test('it generates an exec job URL', function (assert) {
     generateExecUrl(this.router, { job: { plainId: 'job-name' } });
 
     assert.ok(this.urlForSpy.calledWith('exec', 'job-name', emptyOptions));
   });
 
-  test('it generates an exec job URL with an allocation and task group when there are multiple tasks', function(assert) {
+  test('it generates an exec job URL with an allocation and task group when there are multiple tasks', function (assert) {
     generateExecUrl(this.router, {
       job: { plainId: 'job-name' },
       allocation: {
@@ -26,13 +26,18 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
-        queryParams: { allocation: 'allocation-short-id' },
-      })
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        {
+          queryParams: { allocation: 'allocation-short-id' },
+        }
+      )
     );
   });
 
-  test('it generates an exec job URL with an allocation, task group, and task when there is only one task', function(assert) {
+  test('it generates an exec job URL with an allocation, task group, and task when there is only one task', function (assert) {
     generateExecUrl(this.router, {
       job: { plainId: 'job-name' },
       allocation: {
@@ -54,18 +59,23 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     );
   });
 
-  test('it generates an exec task group URL', function(assert) {
+  test('it generates an exec task group URL', function (assert) {
     generateExecUrl(this.router, {
       job: { plainId: 'job-name' },
       taskGroup: { name: 'task-group-name' },
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', emptyOptions)
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        emptyOptions
+      )
     );
   });
 
-  test('it generates an exec task URL', function(assert) {
+  test('it generates an exec task URL', function (assert) {
     generateExecUrl(this.router, {
       allocation: { shortId: 'allocation-short-id' },
       job: { plainId: 'job-name' },
@@ -84,7 +94,7 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     );
   });
 
-  test('it generates an exec task URL without an allocation', function(assert) {
+  test('it generates an exec task URL without an allocation', function (assert) {
     generateExecUrl(this.router, {
       job: { plainId: 'job-name' },
       taskGroup: { name: 'task-group-name' },
@@ -92,11 +102,16 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group.task', 'job-name', 'task-group-name', 'task-name')
+      this.urlForSpy.calledWith(
+        'exec.task-group.task',
+        'job-name',
+        'task-group-name',
+        'task-name'
+      )
     );
   });
 
-  test('it includes job namespace and region when they exist', function(assert) {
+  test('it includes job namespace and region when they exist', function (assert) {
     generateExecUrl(this.router, {
       job: {
         namespace: {
@@ -105,13 +120,25 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
         plainId: 'job-name',
         region: 'a-region',
       },
-      allocation: { shortId: 'id', taskGroup: { name: 'task-group-name', tasks: [0, 1] } },
+      allocation: {
+        shortId: 'id',
+        taskGroup: { name: 'task-group-name', tasks: [0, 1] },
+      },
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
-        queryParams: { allocation: 'id', namespace: 'a-namespace', region: 'a-region' },
-      })
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        {
+          queryParams: {
+            allocation: 'id',
+            namespace: 'a-namespace',
+            region: 'a-region',
+          },
+        }
+      )
     );
   });
 });

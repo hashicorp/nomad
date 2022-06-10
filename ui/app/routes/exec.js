@@ -3,7 +3,10 @@ import Route from '@ember/routing/route';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { collect } from '@ember/object/computed';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
+import {
+  watchRecord,
+  watchRelationship,
+} from 'nomad-ui/utils/properties/watch';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -22,12 +25,12 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
 
     const jobPromise = this.store
       .findRecord('job', fullId)
-      .then(job => {
+      .then((job) => {
         return job.get('allocations').then(() => job);
       })
       .catch(notifyError(this));
 
-    const xtermImport = import('xterm').then(module => module.Terminal);
+    const xtermImport = import('xterm').then((module) => module.Terminal);
 
     return Promise.all([jobPromise, xtermImport]);
   }

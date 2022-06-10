@@ -20,7 +20,7 @@ export default class ListAccordion extends Component {
     const deepKey = `item.${key}`;
     const startExpanded = this.startExpanded;
 
-    const decoratedSource = this.source.map(item => {
+    const decoratedSource = this.source.map((item) => {
       const cacheItem = stateCache.findBy(deepKey, get(item, key));
       return {
         item,

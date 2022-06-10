@@ -9,7 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -101,8 +101,8 @@ func (h *nodeHeartbeater) resetHeartbeatTimer(id string) (time.Duration, error) 
 
 	// Compute the target TTL value
 	n := len(h.heartbeatTimers)
-	ttl := lib.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
-	ttl += lib.RandomStagger(ttl)
+	ttl := helper.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
+	ttl += helper.RandomStagger(ttl)
 
 	// Reset the TTL
 	h.resetHeartbeatTimerLocked(id, ttl+h.config.HeartbeatGrace)
@@ -152,6 +152,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 
 	h.logger.Warn("node TTL expired", "node_id", id)
 
+	canDisconnect, hasPendingReconnects := h.disconnectState(id)
+
 	// Make a request to update the node status
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:    id,
@@ -161,10 +163,56 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 			Region: h.config.Region,
 		},
 	}
+
+	if canDisconnect && hasPendingReconnects {
+		req.Status = structs.NodeStatusDisconnected
+	}
 	var resp structs.NodeUpdateResponse
 	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
+}
+
+func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
+	node, err := h.State().NodeByID(nil, id)
+	if err != nil {
+		h.logger.Error("error retrieving node by id", "error", err)
+		return false, false
+	}
+
+	// Exit if the node is already down or just initializing.
+	if node.Status == structs.NodeStatusDown || node.Status == structs.NodeStatusInit {
+		return false, false
+	}
+
+	allocs, err := h.State().AllocsByNode(nil, id)
+	if err != nil {
+		h.logger.Error("error retrieving allocs by node", "error", err)
+		return false, false
+	}
+
+	now := time.Now().UTC()
+	// Check if the node has any allocs that are configured with max_client_disconnect,
+	// that are past the disconnect window, and if so, whether it has at least one
+	// alloc that isn't yet expired.
+	nodeCanDisconnect := false
+	for _, alloc := range allocs {
+		allocCanDisconnect := alloc.DisconnectTimeout(now).After(now)
+		// Only process this until we find that at least one alloc is configured
+		// with max_client_disconnect.
+		if !nodeCanDisconnect && allocCanDisconnect {
+			nodeCanDisconnect = true
+		}
+		// Only process this until we find one that we want to run and has not
+		// yet expired.
+		if allocCanDisconnect &&
+			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
+			!alloc.Expired(now) {
+			return true, true
+		}
+	}
+
+	return nodeCanDisconnect, false
 }
 
 // clearHeartbeatTimer is used to clear the heartbeat time for

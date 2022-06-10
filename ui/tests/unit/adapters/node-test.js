@@ -4,10 +4,10 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { setupTest } from 'ember-qunit';
 import { settled } from '@ember/test-helpers';
 
-module('Unit | Adapter | Node', function(hooks) {
+module('Unit | Adapter | Node', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('node');
 
@@ -28,11 +28,11 @@ module('Unit | Adapter | Node', function(hooks) {
     this.server.create('allocation', { id: 'node-2-2', nodeId: 'node-2' });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
-  test('findHasMany removes old related models from the store', async function(assert) {
+  test('findHasMany removes old related models from the store', async function (assert) {
     // Fetch the model and related allocations
     let node = await run(() => this.store.findRecord('node', 'node-1'));
     let allocations = await run(() => findHasMany(node, 'allocations'));
@@ -46,7 +46,9 @@ module('Unit | Adapter | Node', function(hooks) {
     server.db.allocations.remove('node-1-1');
 
     allocations = await run(() => findHasMany(node, 'allocations'));
-    const dbAllocations = this.server.db.allocations.where({ nodeId: node.get('id') });
+    const dbAllocations = this.server.db.allocations.where({
+      nodeId: node.get('id'),
+    });
     assert.equal(
       allocations.get('length'),
       dbAllocations.length,
@@ -59,7 +61,7 @@ module('Unit | Adapter | Node', function(hooks) {
     );
   });
 
-  test('findHasMany does not remove old unrelated models from the store', async function(assert) {
+  test('findHasMany does not remove old unrelated models from the store', async function (assert) {
     // Fetch the first node and related allocations
     const node = await run(() => this.store.findRecord('node', 'node-1'));
     await run(() => findHasMany(node, 'allocations'));
@@ -70,10 +72,7 @@ module('Unit | Adapter | Node', function(hooks) {
 
     await settled();
     assert.deepEqual(
-      this.store
-        .peekAll('allocation')
-        .mapBy('id')
-        .sort(),
+      this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
       'All allocations for the first and second node are in the store'
     );
@@ -83,10 +82,7 @@ module('Unit | Adapter | Node', function(hooks) {
     // Reload the related allocations now that one was removed server-side
     await run(() => findHasMany(node, 'allocations'));
     assert.deepEqual(
-      this.store
-        .peekAll('allocation')
-        .mapBy('id')
-        .sort(),
+      this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-2', 'node-2-1', 'node-2-2'],
       'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
     );
@@ -109,10 +105,11 @@ module('Unit | Adapter | Node', function(hooks) {
     },
   ];
 
-  testCases.forEach(testCase => {
-    test(`setEligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+  testCases.forEach((testCase) => {
+    test(`setEligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
       await this.subject().setEligible(node);
@@ -125,9 +122,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`setIneligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+    test(`setIneligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
       await this.subject().setIneligible(node);
@@ -140,9 +138,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`drain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+    test(`drain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
       await this.subject().drain(node);
@@ -158,9 +157,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`drain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+    test(`drain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
 
@@ -178,9 +178,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`forceDrain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+    test(`forceDrain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
 
@@ -197,9 +198,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`forceDrain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+    test(`forceDrain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
 
@@ -217,9 +219,10 @@ module('Unit | Adapter | Node', function(hooks) {
       });
     });
 
-    test(`cancelDrain makes the correct POST request to /:node_id/drain ${testCase.variation}`, async function(assert) {
+    test(`cancelDrain makes the correct POST request to /:node_id/drain ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
-      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+      if (testCase.region)
+        window.localStorage.nomadActiveRegion = testCase.region;
 
       const node = await run(() => this.store.findRecord('node', testCase.id));
 

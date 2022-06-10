@@ -123,6 +123,10 @@
     "path": "sentinel-policies"
   },
   {
+    "title": "Services",
+    "path": "services"
+  },
+  {
     "title": "Status",
     "path": "status"
   },

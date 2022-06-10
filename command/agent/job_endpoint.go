@@ -7,12 +7,17 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// jobNotFoundErr is an error string which can be used as the return string
+// alongside a 404 when a job is not found.
+const jobNotFoundErr = "job not found"
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
@@ -85,6 +90,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/scale"):
 		jobName := strings.TrimSuffix(path, "/scale")
 		return s.jobScale(resp, req, jobName)
+	case strings.HasSuffix(path, "/services"):
+		jobName := strings.TrimSuffix(path, "/services")
+		return s.jobServiceRegistrations(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -703,6 +711,25 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	var namespace string
+	parseNamespace(req, &namespace)
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check job parse permissions
+	if aclObj != nil {
+		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+
+		allowed := hasParseJob || hasSubmitJob
+		if !allowed {
+			return nil, structs.ErrPermissionDenied
+		}
+	}
+
 	args := &api.JobsParseRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -712,7 +739,6 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	var jobStruct *api.Job
-	var err error
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
@@ -730,6 +756,39 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		jobStruct.Canonicalize()
 	}
 	return jobStruct, nil
+}
+
+// jobServiceRegistrations returns a list of all service registrations assigned
+// to the job identifier. It is callable via the
+// /v1/job/:jobID/services HTTP API and uses the
+// structs.JobServiceRegistrationsRPCMethod RPC method.
+func (s *HTTPServer) jobServiceRegistrations(
+	resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.JobServiceRegistrationsRequest{JobID: jobID}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.JobServiceRegistrationsResponse
+	if err := s.agent.RPC(structs.JobServiceRegistrationsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.Services == nil {
+		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
+	}
+	return reply.Services, nil
 }
 
 // apiJobAndRequestToStructs parses the query params from the incoming
@@ -951,6 +1010,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 	if taskGroup.StopAfterClientDisconnect != nil {
 		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
+	}
+
+	if taskGroup.MaxClientDisconnect != nil {
+		tg.MaxClientDisconnect = taskGroup.MaxClientDisconnect
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
@@ -1310,9 +1373,12 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
+			Address:           s.Address,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
+			TaggedAddresses:   helper.CopyMapStringString(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
+			Provider:          s.Provider,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1437,7 +1503,10 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 	}
 
 	return &structs.ConsulGatewayTLSConfig{
-		Enabled: in.Enabled,
+		Enabled:       in.Enabled,
+		TLSMinVersion: in.TLSMinVersion,
+		TLSMaxVersion: in.TLSMaxVersion,
+		CipherSuites:  helper.CopySliceString(in.CipherSuites),
 	}
 }
 
@@ -1563,11 +1632,12 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 	upstreams := make([]structs.ConsulUpstream, len(in))
 	for i, upstream := range in {
 		upstreams[i] = structs.ConsulUpstream{
-			DestinationName:  upstream.DestinationName,
-			LocalBindPort:    upstream.LocalBindPort,
-			Datacenter:       upstream.Datacenter,
-			LocalBindAddress: upstream.LocalBindAddress,
-			MeshGateway:      apiMeshGatewayToStructs(upstream.MeshGateway),
+			DestinationName:      upstream.DestinationName,
+			DestinationNamespace: upstream.DestinationNamespace,
+			LocalBindPort:        upstream.LocalBindPort,
+			Datacenter:           upstream.Datacenter,
+			LocalBindAddress:     upstream.LocalBindAddress,
+			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
 		}
 	}
 	return upstreams

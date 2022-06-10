@@ -1,7 +1,10 @@
 import { clickable, collection, text, attribute } from 'ember-cli-page-object';
-import { selectChoose, clickTrigger } from 'ember-power-select/test-support/helpers';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 
-export const multiFacet = scope => ({
+export const multiFacet = (scope) => ({
   scope,
 
   toggle: clickable('[data-test-dropdown-trigger]'),
@@ -15,7 +18,7 @@ export const multiFacet = scope => ({
   }),
 });
 
-export const singleFacet = scope => ({
+export const singleFacet = (scope) => ({
   scope,
 
   async toggle() {

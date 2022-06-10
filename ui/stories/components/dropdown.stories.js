@@ -77,7 +77,7 @@ export let Search = () => {
         'Thirteen',
         'Fourteen',
         'Fifteen',
-      ].map(name => ({ name })),
+      ].map((name) => ({ name })),
     },
   };
 };

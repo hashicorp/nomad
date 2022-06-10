@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -188,18 +189,34 @@ func (tc *EventsTest) TestStartIndex(f *framework.F) {
 	nomadClient := tc.Nomad()
 	events := nomadClient.EventStream()
 
-	uuid := uuid.Generate()
-	jobID := fmt.Sprintf("deployment-%s", uuid[0:8])
-	jobID2 := fmt.Sprintf("deployment2-%s", uuid[0:8])
-	tc.jobIDs = append(tc.jobIDs, jobID, jobID2)
+	uuid := uuid.Short()
+	noopID := fmt.Sprintf("noop-%s", uuid)
+	jobID := fmt.Sprintf("deployment-%s", uuid)
+	jobID2 := fmt.Sprintf("deployment2-%s", uuid)
+	tc.jobIDs = append(tc.jobIDs, noopID, jobID, jobID2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// register job
 	err := e2eutil.Register(jobID, "events/input/initial.nomad")
 	require.NoError(t, err)
-	job, _, err := nomadClient.Jobs().Info(jobID, nil)
-	require.NoError(t, err)
+
+	// The stream request gets the event *closest* to the index, not
+	// the exact match. Although events are written before raft
+	// entries they're written asynchronously, so it's possible to
+	// race and get a raft index from this query higher than the
+	// current head of the event buffer. Ensure the job is running
+	// before we try to get the index, so that we've given the event
+	// enough time to land in the buffer.
+	var job *api.Job
+	f.Eventually(func() bool {
+		job, _, err = nomadClient.Jobs().Info(jobID, nil)
+		if err != nil {
+			return false
+		}
+		return *job.Status == "running"
+	}, 20*time.Second, 200*time.Millisecond, "job should be running")
+
 	startIndex := *job.JobModifyIndex + 1
 
 	topics := map[api.Topic][]string{
@@ -239,7 +256,7 @@ func (tc *EventsTest) TestStartIndex(f *framework.F) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, e := range jobEvents {
 			if e.Type == "JobRegistered" {
-				if e.Index <= startIndex {
+				if e.Index < startIndex {
 					foundUnexpected = true
 				}
 				if e.Index >= startIndex {

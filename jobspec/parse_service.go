@@ -50,7 +50,9 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"task",
 		"meta",
 		"canary_meta",
+		"tagged_addresses",
 		"on_update",
+		"provider",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, err
@@ -67,6 +69,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	delete(m, "connect")
 	delete(m, "meta")
 	delete(m, "canary_meta")
+	delete(m, "tagged_addresses")
 
 	if err := mapstructure.WeakDecode(m, &service); err != nil {
 		return nil, err
@@ -104,12 +107,10 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		if len(co.Items) > 1 {
 			return nil, fmt.Errorf("connect '%s': cannot have more than 1 connect stanza", service.Name)
 		}
-
 		c, err := parseConnect(co.Items[0])
 		if err != nil {
 			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
 		}
-
 		service.Connect = c
 	}
 
@@ -136,6 +137,20 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 				return nil, err
 			}
 			if err := mapstructure.WeakDecode(m, &service.CanaryMeta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Parse out tagged_addresses fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if taO := listVal.Filter("tagged_addresses"); len(taO.Items) > 0 {
+		for _, o := range taO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &service.TaggedAddresses); err != nil {
 				return nil, err
 			}
 		}
@@ -191,33 +206,29 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 
 	// Parse the sidecar_service
 	o = connectList.Filter("sidecar_service")
-	if len(o.Items) == 0 {
-		return &connect, nil
-	}
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'sidecar_service' block allowed per task")
 	}
-
-	r, err := parseSidecarService(o.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("sidecar_service, %v", err)
+	if len(o.Items) == 1 {
+		r, err := parseSidecarService(o.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("sidecar_service, %v", err)
+		}
+		connect.SidecarService = r
 	}
-	connect.SidecarService = r
 
 	// Parse the sidecar_task
 	o = connectList.Filter("sidecar_task")
-	if len(o.Items) == 0 {
-		return &connect, nil
-	}
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'sidecar_task' block allowed per task")
 	}
-
-	t, err := parseSidecarTask(o.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("sidecar_task, %v", err)
+	if len(o.Items) == 1 {
+		t, err := parseSidecarTask(o.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("sidecar_task, %v", err)
+		}
+		connect.SidecarTask = t
 	}
-	connect.SidecarTask = t
 
 	return &connect, nil
 }
@@ -530,6 +541,9 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, error) {
 	valid := []string{
 		"enabled",
+		"tls_min_version",
+		"tls_max_version",
+		"cipher_suites",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {

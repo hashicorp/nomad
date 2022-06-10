@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -19,6 +20,8 @@ func TestAllocRestartCommand_Implements(t *testing.T) {
 }
 
 func TestAllocRestartCommand_Fails(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -91,6 +94,8 @@ func TestAllocRestartCommand_Fails(t *testing.T) {
 }
 
 func TestAllocRestartCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -152,6 +157,8 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 }
 
 func TestAllocRestartCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)

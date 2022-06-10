@@ -2,6 +2,7 @@ import { action } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
+import { schedule } from '@ember/runloop';
 
 const noOp = () => undefined;
 
@@ -49,7 +50,7 @@ export default class Trigger extends Component {
     this.error = null;
   }
 
-  @task(function*() {
+  @task(function* () {
     this._reset();
     try {
       this.result = yield this.args.do();
@@ -63,6 +64,8 @@ export default class Trigger extends Component {
 
   @action
   onTrigger() {
-    this.triggerTask.perform();
+    schedule('actions', () => {
+      this.triggerTask.perform();
+    });
   }
 }

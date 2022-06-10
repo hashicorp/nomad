@@ -9,9 +9,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
-	cconsul "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -56,7 +55,7 @@ type Tracker struct {
 	allocUpdates *cstructs.AllocListener
 
 	// consulClient is used to look up the state of the task's checks
-	consulClient cconsul.ConsulServiceAPI
+	consulClient serviceregistration.Handler
 
 	// healthy is used to signal whether we have determined the allocation to be
 	// healthy or unhealthy
@@ -93,7 +92,7 @@ type Tracker struct {
 // listener and consul API object are given so that the watcher can detect
 // health changes.
 func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.Allocation,
-	allocUpdates *cstructs.AllocListener, consulClient cconsul.ConsulServiceAPI,
+	allocUpdates *cstructs.AllocListener, consulClient serviceregistration.Handler,
 	minHealthyTime time.Duration, useChecks bool) *Tracker {
 
 	// Do not create a named sub-logger as the hook controlling
@@ -172,7 +171,7 @@ func (t *Tracker) TaskEvents() map[string]*structs.TaskEvent {
 	// Go through are task information and build the event map
 	for task, state := range t.taskHealth {
 		useChecks := t.tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Checks
-		if e, ok := state.event(deadline, t.tg.Update.MinHealthyTime, useChecks); ok {
+		if e, ok := state.event(deadline, t.tg.Update.HealthyDeadline, t.tg.Update.MinHealthyTime, useChecks); ok {
 			events[task] = structs.NewTaskEvent(AllocHealthEventSource).SetMessage(e)
 		}
 	}
@@ -284,6 +283,12 @@ func (t *Tracker) watchTaskEvents() {
 				continue
 			}
 
+			// If this is a poststart task which has already succeeded, we
+			// should skip evaluation.
+			if t.lifecycleTasks[taskName] == structs.TaskLifecycleHookPoststart && state.Successful() {
+				continue
+			}
+
 			// One of the tasks has failed so we can exit watching
 			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPrestart) {
 				t.setTaskHealth(false, true)
@@ -371,7 +376,7 @@ func (t *Tracker) watchConsulEvents() {
 	consulChecksErr := false
 
 	// allocReg are the registered objects in Consul for the allocation
-	var allocReg *consul.AllocRegistration
+	var allocReg *serviceregistration.AllocRegistration
 
 OUTER:
 	for {
@@ -476,13 +481,13 @@ OUTER:
 type taskHealthState struct {
 	task              *structs.Task
 	state             *structs.TaskState
-	taskRegistrations *consul.ServiceRegistrations
+	taskRegistrations *serviceregistration.ServiceRegistrations
 }
 
 // event takes the deadline time for the allocation to be healthy and the update
 // strategy of the group. It returns true if the task has contributed to the
 // allocation being unhealthy and if so, an event description of why.
-func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration, useChecks bool) (string, bool) {
+func (t *taskHealthState) event(deadline time.Time, healthyDeadline, minHealthyTime time.Duration, useChecks bool) (string, bool) {
 	requireChecks := false
 	desiredChecks := 0
 	for _, s := range t.task.Services {
@@ -500,7 +505,7 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 
 		switch t.state.State {
 		case structs.TaskStatePending:
-			return "Task not running by deadline", true
+			return fmt.Sprintf("Task not running by healthy_deadline of %v", healthyDeadline), true
 		case structs.TaskStateDead:
 			// hook tasks are healthy when dead successfully
 			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {
@@ -509,7 +514,7 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 		case structs.TaskStateRunning:
 			// We are running so check if we have been running long enough
 			if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
-				return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+				return fmt.Sprintf("Task not running for min_healthy_time of %v by healthy_deadline of %v", minHealthyTime, healthyDeadline), true
 			}
 		}
 	}

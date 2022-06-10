@@ -1,6 +1,8 @@
 import ApplicationSerializer from './application';
 import isIp from 'is-ip';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class NetworkSerializer extends ApplicationSerializer {
   attrs = {
     cidr: 'CIDR',
@@ -15,14 +17,14 @@ export default class NetworkSerializer extends ApplicationSerializer {
       hash.IP = `[${ip}]`;
     }
 
-    const reservedPorts = (hash.ReservedPorts || []).map(port => ({
+    const reservedPorts = (hash.ReservedPorts || []).map((port) => ({
       name: port.Label,
       port: port.Value,
       to: port.To,
       isDynamic: false,
     }));
 
-    const dynamicPorts = (hash.DynamicPorts || []).map(port => ({
+    const dynamicPorts = (hash.DynamicPorts || []).map((port) => ({
       name: port.Label,
       port: port.Value,
       to: port.To,

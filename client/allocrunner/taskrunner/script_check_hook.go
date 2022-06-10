@@ -10,7 +10,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +26,7 @@ const defaultShutdownWait = time.Minute
 type scriptCheckHookConfig struct {
 	alloc        *structs.Allocation
 	task         *structs.Task
-	consul       consul.ConsulServiceAPI
+	consul       serviceregistration.Handler
 	logger       log.Logger
 	shutdownWait time.Duration
 }
@@ -34,7 +34,7 @@ type scriptCheckHookConfig struct {
 // scriptCheckHook implements a task runner hook for running script
 // checks in the context of a task
 type scriptCheckHook struct {
-	consul          consul.ConsulServiceAPI
+	consul          serviceregistration.Handler
 	consulNamespace string
 	alloc           *structs.Allocation
 	task            *structs.Task
@@ -182,7 +182,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := agentconsul.MakeAllocServiceID(
+			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,
@@ -222,7 +222,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := agentconsul.MakeAllocServiceID(
+			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,

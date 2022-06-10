@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -98,11 +99,25 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 	return resp.Volumes, meta, err
 }
 
+// DEPRECATED: will be removed in Nomad 1.4.0
 // Delete deletes a CSI volume from an external storage provider. The ID
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
+	return err
+}
+
+// DeleteOpts deletes a CSI volume from an external storage
+// provider. The ID passed in the request is for the storage
+// provider's ID, so a volume that's already been deregistered can be
+// deleted.
+func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) error {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	w.SetHeadersFromCSISecrets(req.Secrets)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, w)
 	return err
 }
 
@@ -119,6 +134,10 @@ func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISna
 	req := &CSISnapshotCreateRequest{
 		Snapshots: []*CSISnapshot{snap},
 	}
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	w.SetHeadersFromCSISecrets(snap.Secrets)
 	resp := &CSISnapshotCreateResponse{}
 	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
 	return resp, meta, err
@@ -129,13 +148,40 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 	qp := url.Values{}
 	qp.Set("snapshot_id", snap.ID)
 	qp.Set("plugin_id", snap.PluginID)
-	for k, v := range snap.Secrets {
-		qp.Set("secret", fmt.Sprintf("%v=%v", k, v))
+	if w == nil {
+		w = &WriteOptions{}
 	}
+	w.SetHeadersFromCSISecrets(snap.Secrets)
 	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
 	return err
 }
 
+// ListSnapshotsOpts lists external storage volume snapshots.
+func (v *CSIVolumes) ListSnapshotsOpts(req *CSISnapshotListRequest) (*CSISnapshotListResponse, *QueryMeta, error) {
+	var resp *CSISnapshotListResponse
+
+	qp := url.Values{}
+	if req.PluginID != "" {
+		qp.Set("plugin_id", req.PluginID)
+	}
+	if req.NextToken != "" {
+		qp.Set("next_token", req.NextToken)
+	}
+	if req.PerPage != 0 {
+		qp.Set("per_page", fmt.Sprint(req.PerPage))
+	}
+	req.QueryOptions.SetHeadersFromCSISecrets(req.Secrets)
+
+	qm, err := v.client.query("/v1/volumes/snapshot?"+qp.Encode(), &resp, &req.QueryOptions)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sort.Sort(CSISnapshotSort(resp.Snapshots))
+	return resp, qm, nil
+}
+
+// DEPRECATED: will be removed in Nomad 1.4.0
 // ListSnapshots lists external storage volume snapshots.
 func (v *CSIVolumes) ListSnapshots(pluginID string, secrets string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
 	var resp *CSISnapshotListResponse
@@ -149,9 +195,6 @@ func (v *CSIVolumes) ListSnapshots(pluginID string, secrets string, q *QueryOpti
 	}
 	if q.PerPage != 0 {
 		qp.Set("per_page", fmt.Sprint(q.PerPage))
-	}
-	if secrets != "" {
-		qp.Set("secrets", secrets)
 	}
 
 	qm, err := v.client.query("/v1/volumes/snapshot?"+qp.Encode(), &resp, q)
@@ -206,13 +249,45 @@ type CSIMountOptions struct {
 // API or in Nomad's logs.
 type CSISecrets map[string]string
 
+func (q *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+	pairs := []string{}
+	for k, v := range secrets {
+		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
+	}
+	if q.Headers == nil {
+		q.Headers = map[string]string{}
+	}
+	q.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+}
+
+func (w *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+	pairs := []string{}
+	for k, v := range secrets {
+		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
+	}
+	if w.Headers == nil {
+		w.Headers = map[string]string{}
+	}
+	w.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+}
+
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
-	ID             string
-	Name           string
-	ExternalID     string `mapstructure:"external_id" hcl:"external_id"`
-	Namespace      string
-	Topologies     []*CSITopology
+	ID         string
+	Name       string
+	ExternalID string `mapstructure:"external_id" hcl:"external_id"`
+	Namespace  string
+
+	// RequestedTopologies are the topologies submitted as options to
+	// the storage provider at the time the volume was created. After
+	// volumes are created, this field is ignored.
+	RequestedTopologies *CSITopologyRequest `hcl:"topology_request"`
+
+	// Topologies are the topologies returned by the storage provider,
+	// based on the RequestedTopologies and what the storage provider
+	// could support. This value cannot be set by the user.
+	Topologies []*CSITopology
+
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 	MountOptions   *CSIMountOptions        `hcl:"mount_options"`
@@ -358,6 +433,12 @@ type CSIVolumeRegisterRequest struct {
 
 type CSIVolumeDeregisterRequest struct {
 	VolumeIDs []string
+	WriteRequest
+}
+
+type CSIVolumeDeleteRequest struct {
+	ExternalVolumeID string
+	Secrets          CSISecrets
 	WriteRequest
 }
 

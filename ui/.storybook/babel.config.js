@@ -14,7 +14,11 @@ module.exports = {
         shippedProposals: true,
         useBuiltIns: 'usage',
         corejs: '3',
-        targets: ['last 1 Chrome versions', 'last 1 Firefox versions', 'last 1 Safari versions'],
+        targets: [
+          'last 1 Chrome versions',
+          'last 1 Firefox versions',
+          'last 1 Safari versions',
+        ],
       },
     ],
   ],
@@ -27,7 +31,10 @@ module.exports = {
     ],
     ['@babel/plugin-proposal-class-properties', { loose: true }],
     '@babel/plugin-syntax-dynamic-import',
-    ['@babel/plugin-proposal-object-rest-spread', { loose: true, useBuiltIns: true }],
+    [
+      '@babel/plugin-proposal-object-rest-spread',
+      { loose: true, useBuiltIns: true },
+    ],
     'babel-plugin-macros',
     ['emotion', { sourceMap: true, autoLabel: true }],
     [

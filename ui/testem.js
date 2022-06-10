@@ -11,6 +11,7 @@ const config = {
   launch_in_ci: ['Chrome'],
   launch_in_dev: ['Chrome'],
   browser_start_timeout: 120,
+  parallel: -1,
   browser_args: {
     // New format in testem/master, but not in a release yet
     // Chrome: {
@@ -25,20 +26,27 @@ const config = {
         '--disable-software-rasterizer',
         '--mute-audio',
         '--remote-debugging-port=0',
-        '--window-size=1440,900'
-      ].filter(Boolean)
-    }
-  }
+        '--window-size=1440,900',
+      ].filter(Boolean),
+    },
+  },
 };
 
 if (process.env.CI) {
-  const reporters = [{
-    ReporterClass: TapReporter,
-    args: [false, null, { get: () => false }]
-  }, {
-    ReporterClass: XunitReporter,
-    args: [false, fs.createWriteStream('/tmp/test-reports/ui.xml'), { get: () => false }]
-  }];
+  const reporters = [
+    {
+      ReporterClass: TapReporter,
+      args: [false, null, { get: () => false }],
+    },
+    {
+      ReporterClass: XunitReporter,
+      args: [
+        false,
+        fs.createWriteStream('/tmp/test-reports/ui.xml'),
+        { get: () => false },
+      ],
+    },
+  ];
 
   const multiReporter = new MultiReporter({ reporters });
 

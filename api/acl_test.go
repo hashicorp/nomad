@@ -3,11 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLPolicies_ListUpsert(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -49,7 +50,7 @@ func TestACLPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestACLPolicies_Delete(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -84,7 +85,7 @@ func TestACLPolicies_Delete(t *testing.T) {
 }
 
 func TestACLPolicies_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -110,7 +111,7 @@ func TestACLPolicies_Info(t *testing.T) {
 }
 
 func TestACLTokens_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -129,7 +130,7 @@ func TestACLTokens_List(t *testing.T) {
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -158,7 +159,7 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 }
 
 func TestACLTokens_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -183,7 +184,7 @@ func TestACLTokens_Info(t *testing.T) {
 }
 
 func TestACLTokens_Self(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -213,7 +214,7 @@ func TestACLTokens_Self(t *testing.T) {
 }
 
 func TestACLTokens_Delete(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -237,7 +238,7 @@ func TestACLTokens_Delete(t *testing.T) {
 }
 
 func TestACL_OneTimeToken(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -267,4 +268,34 @@ func TestACL_OneTimeToken(t *testing.T) {
 	assertWriteMeta(t, wm)
 	assert.NotNil(t, out3)
 	assert.Equal(t, out3.AccessorID, out.AccessorID)
+}
+
+func TestACLTokens_BootstrapInvalidToken(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.ACL.Enabled = true
+	})
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	bootkn := "badtoken"
+	// Bootstrap with invalid token
+	_, _, err := at.BootstrapOpts(bootkn, nil)
+	assert.EqualError(t, err, "Unexpected response code: 400 (invalid acl token)")
+}
+
+func TestACLTokens_BootstrapValidToken(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.ACL.Enabled = true
+	})
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	bootkn := "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
+	// Bootstrap with Valid token
+	out, wm, err := at.BootstrapOpts(bootkn, nil)
+	assert.NoError(t, err)
+	assertWriteMeta(t, wm)
+	assert.Equal(t, bootkn, out.SecretID)
 }

@@ -3,6 +3,7 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
+import { dasherize } from '@ember/string';
 
 const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
@@ -17,9 +18,9 @@ export default Factory.extend({
       return `${this.parentId}/${dispatchId}`;
     }
 
-    return `${faker.helpers.randomize(
-      JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
+    return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
+      faker.hacker.noun()
+    )}-${i}`.toLowerCase();
   },
 
   name() {
@@ -40,7 +41,9 @@ export default Factory.extend({
   resourceSpec: null,
 
   groupsCount() {
-    return this.resourceSpec ? this.resourceSpec.length : faker.random.number({ min: 1, max: 2 });
+    return this.resourceSpec
+      ? this.resourceSpec.length
+      : faker.random.number({ min: 1, max: 2 });
   },
 
   region: () => 'global',
@@ -49,7 +52,9 @@ export default Factory.extend({
   allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
-    faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
+    faker.helpers
+      .shuffle(DATACENTERS)
+      .slice(0, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
@@ -148,7 +153,7 @@ export default Factory.extend({
     }),
   }),
 
-  createIndex: i => i,
+  createIndex: (i) => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
   // Directive used to control sub-resources
@@ -188,7 +193,9 @@ export default Factory.extend({
 
   afterCreate(job, server) {
     if (!job.namespaceId) {
-      const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
+      const namespace = server.db.namespaces.length
+        ? pickOne(server.db.namespaces).id
+        : null;
       job.update({
         namespace,
         namespaceId: namespace,
@@ -217,14 +224,20 @@ export default Factory.extend({
       groups = provide(job.groupsCount, (_, idx) =>
         server.create('task-group', 'noHostVolumes', {
           ...groupProps,
-          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+          resourceSpec:
+            job.resourceSpec &&
+            job.resourceSpec.length &&
+            job.resourceSpec[idx],
         })
       );
     } else {
       groups = provide(job.groupsCount, (_, idx) =>
         server.create('task-group', {
           ...groupProps,
-          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+          resourceSpec:
+            job.resourceSpec &&
+            job.resourceSpec.length &&
+            job.resourceSpec[idx],
         })
       );
     }
@@ -234,11 +247,15 @@ export default Factory.extend({
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
-    const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
-      jobId: job.id,
-      groupNames: groups.mapBy('name'),
-      namespace: job.namespace,
-    });
+    const jobSummary = server.create(
+      'job-summary',
+      hasChildren ? 'withChildren' : 'withSummary',
+      {
+        jobId: job.id,
+        groupNames: groups.mapBy('name'),
+        namespace: job.namespace,
+      }
+    );
 
     job.update({
       jobSummaryId: jobSummary.id,
@@ -271,7 +288,7 @@ export default Factory.extend({
 
     if (!job.shallow) {
       const knownEvaluationProperties = {
-        job,
+        jobId: job.id,
         namespace: job.namespace,
       };
       server.createList(

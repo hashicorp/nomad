@@ -26,6 +26,7 @@ const (
 
 	NamespaceCapabilityDeny                 = "deny"
 	NamespaceCapabilityListJobs             = "list-jobs"
+	NamespaceCapabilityParseJob             = "parse-job"
 	NamespaceCapabilityReadJob              = "read-job"
 	NamespaceCapabilitySubmitJob            = "submit-job"
 	NamespaceCapabilityDispatchJob          = "dispatch-job"
@@ -146,7 +147,7 @@ func (p *PluginPolicy) isValid() bool {
 // isNamespaceCapabilityValid ensures the given capability is valid for a namespace policy
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
-	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
+	case NamespaceCapabilityDeny, NamespaceCapabilityParseJob, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
@@ -166,6 +167,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 func expandNamespacePolicy(policy string) []string {
 	read := []string{
 		NamespaceCapabilityListJobs,
+		NamespaceCapabilityParseJob,
 		NamespaceCapabilityReadJob,
 		NamespaceCapabilityCSIListVolume,
 		NamespaceCapabilityCSIReadVolume,

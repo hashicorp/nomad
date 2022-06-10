@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -20,8 +18,11 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -63,7 +64,7 @@ type allocRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulClient consul.ConsulServiceAPI
+	consulClient serviceregistration.Handler
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// looking up supported envoy versions of the consul agent.
@@ -177,6 +178,13 @@ type allocRunner struct {
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	rpcClient RPCer
+
+	// serviceRegWrapper is the handler wrapper that is used by service hooks
+	// to perform service and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 // RPCer is the interface needed by hooks to make RPC calls.
@@ -220,6 +228,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
+		serviceRegWrapper:        config.ServiceRegWrapper,
+		getter:                   config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -273,6 +283,8 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 			ShutdownDelayCtx:     ar.shutdownDelayCtx,
+			ServiceRegWrapper:    ar.serviceRegWrapper,
+			Getter:               ar.getter,
 		}
 
 		if ar.cpusetManager != nil {
@@ -513,21 +525,21 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		states := make(map[string]*structs.TaskState, trNum)
 
 		for name, tr := range ar.tasks {
-			state := tr.TaskState()
-			states[name] = state
+			taskState := tr.TaskState()
+			states[name] = taskState
 
 			if tr.IsPoststopTask() {
 				continue
 			}
 
 			// Capture live task runners in case we need to kill them
-			if state.State != structs.TaskStateDead {
+			if taskState.State != structs.TaskStateDead {
 				liveRunners = append(liveRunners, tr)
 				continue
 			}
 
 			// Task is dead, determine if other tasks should be killed
-			if state.Failed {
+			if taskState.Failed {
 				// Only set failed event if no event has been
 				// set yet to give dead leaders priority.
 				if killEvent == nil {
@@ -614,16 +626,16 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
 
-		state := tr.TaskState()
-		states[name] = state
+		taskState := tr.TaskState()
+		states[name] = taskState
 		break
 	}
 
-	// Kill the rest concurrently
+	// Kill the rest non-sidecar or poststop tasks concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
-		// Filter out poststop tasks so they run after all the other tasks are killed
-		if tr.IsLeader() || tr.IsPoststopTask() {
+		// Filter out poststop and sidecar tasks so that they stop after all the other tasks are killed
+		if tr.IsLeader() || tr.IsPoststopTask() || tr.IsSidecarTask() {
 			continue
 		}
 
@@ -637,9 +649,33 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}
 
-			state := tr.TaskState()
+			taskState := tr.TaskState()
 			mu.Lock()
-			states[name] = state
+			states[name] = taskState
+			mu.Unlock()
+		}(name, tr)
+	}
+	wg.Wait()
+
+	// Kill the sidecar tasks last.
+	for name, tr := range ar.tasks {
+		if !tr.IsSidecarTask() || tr.IsLeader() || tr.IsPoststopTask() {
+			continue
+		}
+
+		wg.Add(1)
+		go func(name string, tr *taskrunner.TaskRunner) {
+			defer wg.Done()
+			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			err := tr.Kill(context.TODO(), taskEvent)
+			if err != nil && err != taskrunner.ErrTaskNotRunning {
+				ar.logger.Warn("error stopping sidecar task", "error", err, "task_name", name)
+			}
+
+			taskState := tr.TaskState()
+			mu.Lock()
+			states[name] = taskState
 			mu.Unlock()
 		}(name, tr)
 	}
@@ -775,6 +811,16 @@ func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
 	return ar.state.NetworkStatus.Copy()
+}
+
+// setIndexes is a helper for forcing alloc state on the alloc runner. This is
+// used during reconnect when the task has been marked unknown by the server.
+func (ar *allocRunner) setIndexes(update *structs.Allocation) {
+	ar.allocLock.Lock()
+	defer ar.allocLock.Unlock()
+	ar.alloc.AllocModifyIndex = update.AllocModifyIndex
+	ar.alloc.ModifyIndex = update.ModifyIndex
+	ar.alloc.ModifyTime = update.ModifyTime
 }
 
 // AllocState returns a copy of allocation state including a snapshot of task
@@ -1231,6 +1277,42 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 	}
 
 	return err.ErrorOrNil()
+}
+
+// Reconnect logs a reconnect event for each task in the allocation and syncs the current alloc state with the server.
+func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
+	event := structs.NewTaskEvent(structs.TaskClientReconnected)
+	event.Time = time.Now().UnixNano()
+	for _, tr := range ar.tasks {
+		tr.AppendEvent(event)
+	}
+
+	// Update the client alloc with the server side indexes.
+	ar.setIndexes(update)
+
+	// Calculate alloc state to get the final state with the new events.
+	// Cannot rely on AllocStates as it won't recompute TaskStates once they are set.
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+	for name, tr := range ar.tasks {
+		states[name] = tr.TaskState()
+	}
+
+	// Build the client allocation
+	alloc := ar.clientAlloc(states)
+
+	// Update the client state store.
+	err = ar.stateUpdater.PutAllocation(alloc)
+	if err != nil {
+		return
+	}
+
+	// Update the server.
+	ar.stateUpdater.AllocStateUpdated(alloc)
+
+	// Broadcast client alloc to listeners.
+	err = ar.allocBroadcaster.Send(alloc)
+
+	return
 }
 
 func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {

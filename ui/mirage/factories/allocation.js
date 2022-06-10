@@ -11,7 +11,7 @@ const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 const REF_TIME = new Date();
 
 export default Factory.extend({
-  id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
+  id: (i) => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
   jobVersion: 1,
 
@@ -20,13 +20,17 @@ export default Factory.extend({
 
   createIndex: () => faker.random.number({ min: 10, max: 2000 }),
   createTime() {
-    return faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000;
+    return (
+      faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000
+    );
   },
 
   namespace: null,
 
   clientStatus() {
-    return this.forceRunningClientStatus ? 'running' : faker.helpers.randomize(CLIENT_STATUSES);
+    return this.forceRunningClientStatus
+      ? 'running'
+      : faker.helpers.randomize(CLIENT_STATUSES);
   },
 
   desiredStatus: () => faker.helpers.randomize(DESIRED_STATUSES),
@@ -39,8 +43,10 @@ export default Factory.extend({
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
-      const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id => {
+      const taskGroup = server.db.taskGroups.findBy({
+        name: allocation.taskGroup,
+      });
+      const resources = taskGroup.taskIds.map((id) => {
         const task = server.db.tasks.find(id);
         return server.create('task-resource', {
           allocation,
@@ -60,8 +66,10 @@ export default Factory.extend({
 
   withoutTaskWithPorts: trait({
     afterCreate(allocation, server) {
-      const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id => {
+      const taskGroup = server.db.taskGroups.findBy({
+        name: allocation.taskGroup,
+      });
+      const resources = taskGroup.taskIds.map((id) => {
         const task = server.db.tasks.find(id);
         return server.create('task-resource', {
           allocation,
@@ -90,12 +98,16 @@ export default Factory.extend({
     afterCreate(allocation, server) {
       const attempts = allocation.rescheduleAttempts - 1;
       const previousEvents =
-        (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) || [];
+        (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) ||
+        [];
 
       let rescheduleTime;
       if (previousEvents.length) {
         const lastEvent = previousEvents[previousEvents.length - 1];
-        rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(5, 'minutes');
+        rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(
+          5,
+          'minutes'
+        );
       } else {
         rescheduleTime = faker.date.past(2 / 365, REF_TIME);
       }
@@ -134,20 +146,27 @@ export default Factory.extend({
         });
       }
 
-      allocation.update({ nextAllocation: nextAllocation.id, clientStatus: 'failed' });
+      allocation.update({
+        nextAllocation: nextAllocation.id,
+        clientStatus: 'failed',
+      });
     },
   }),
 
   preempted: trait({
     afterCreate(allocation, server) {
-      const preempter = server.create('allocation', { preemptedAllocations: [allocation.id] });
+      const preempter = server.create('allocation', {
+        preemptedAllocations: [allocation.id],
+      });
       allocation.update({ preemptedByAllocation: preempter.id });
     },
   }),
 
   preempter: trait({
     afterCreate(allocation, server) {
-      const preempted = server.create('allocation', { preemptedByAllocation: allocation.id });
+      const preempted = server.create('allocation', {
+        preemptedByAllocation: allocation.id,
+      });
       allocation.update({ preemptedAllocations: [preempted.id] });
     },
   }),
@@ -162,7 +181,9 @@ export default Factory.extend({
       server.db.nodes.length
     );
 
-    const job = allocation.jobId ? server.db.jobs.find(allocation.jobId) : pickOne(server.db.jobs);
+    const job = allocation.jobId
+      ? server.db.jobs.find(allocation.jobId)
+      : pickOne(server.db.jobs);
     const namespace = allocation.namespace || job.namespace;
     const node = allocation.nodeId
       ? server.db.nodes.find(allocation.nodeId)
@@ -175,7 +196,6 @@ export default Factory.extend({
       namespace,
       jobId: job.id,
       nodeId: node.id,
-      nodeName: node.name,
       taskStateIds: [],
       taskResourceIds: [],
       taskGroup: taskGroup.name,
@@ -183,14 +203,14 @@ export default Factory.extend({
     });
 
     if (!allocation.shallow) {
-      const states = taskGroup.taskIds.map(id =>
+      const states = taskGroup.taskIds.map((id) =>
         server.create('task-state', {
           allocation,
           name: server.db.tasks.find(id).name,
         })
       );
 
-      const resources = taskGroup.taskIds.map(id => {
+      const resources = taskGroup.taskIds.map((id) => {
         const task = server.db.tasks.find(id);
         return server.create('task-resource', {
           allocation,
@@ -200,7 +220,8 @@ export default Factory.extend({
       });
 
       allocation.update({
-        taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
+        taskStateIds:
+          allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
         taskResourceIds: resources.mapBy('id'),
       });
 

@@ -1,0 +1,3 @@
+```release-note:bug
+quotas (Enterprise): Fixed a bug quotas can be incorrectly calculated when nodes fail ranking.
+```

@@ -13,11 +13,11 @@ const mockTasks = [
   { task: 'Three', reservedCPU: 300, reservedMemory: 100, cpu: [], memory: [] },
 ];
 
-module('Integration | Component | PrimaryMetric::Task', function(hooks) {
+module('Integration | Component | PrimaryMetric::Task', function (hooks) {
   setupRenderingTest(hooks);
   setupPrimaryMetricMocks(hooks, [...mockTasks]);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
@@ -37,7 +37,7 @@ module('Integration | Component | PrimaryMetric::Task', function(hooks) {
     this.server.create('allocation', { forceRunningClientStatus: true });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -47,13 +47,16 @@ module('Integration | Component | PrimaryMetric::Task', function(hooks) {
       @metric={{this.metric}} />
   `;
 
-  const preload = async store => {
+  const preload = async (store) => {
     await store.findAll('allocation');
   };
 
-  const findResource = store => store.peekAll('allocation').get('firstObject.states.firstObject');
+  const findResource = (store) =>
+    store.peekAll('allocation').get('firstObject.states.firstObject');
 
-  test('Must pass an accessibility audit', async function(assert) {
+  test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await preload(this.store);
 
     const resource = findResource(this.store);

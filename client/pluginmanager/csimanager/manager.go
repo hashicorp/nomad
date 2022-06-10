@@ -54,9 +54,10 @@ func New(config *Config) Manager {
 }
 
 type csiManager struct {
-	// instances should only be accessed from the run() goroutine and the shutdown
-	// fn. It is a map of PluginType : [PluginName : instanceManager]
-	instances map[string]map[string]*instanceManager
+	// instances should only be accessed after locking with instancesLock.
+	// It is a map of PluginType : [PluginName : *instanceManager]
+	instances     map[string]map[string]*instanceManager
+	instancesLock sync.RWMutex
 
 	registry           dynamicplugins.Registry
 	logger             hclog.Logger
@@ -75,6 +76,8 @@ func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 }
 
 func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (VolumeMounter, error) {
+	c.instancesLock.RLock()
+	defer c.instancesLock.RUnlock()
 	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
 	if !hasAnyNodePlugins {
 		return nil, fmt.Errorf("no storage node plugins found")
@@ -118,6 +121,10 @@ func (c *csiManager) runLoop() {
 // managers against those in the registry. we primarily will use update
 // events from the registry.
 func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
+
+	c.instancesLock.Lock()
+	defer c.instancesLock.Unlock()
+
 	plugins := c.registry.ListPlugins(ptype)
 	seen := make(map[string]struct{}, len(plugins))
 
@@ -150,6 +157,9 @@ func (c *csiManager) handlePluginEvent(event *dynamicplugins.PluginUpdateEvent) 
 		"plugin_id", event.Info.Name,
 		"plugin_alloc_id", event.Info.AllocID)
 
+	c.instancesLock.Lock()
+	defer c.instancesLock.Unlock()
+
 	switch event.EventType {
 	case dynamicplugins.EventTypeRegistered:
 		c.ensureInstance(event.Info)
@@ -163,33 +173,46 @@ func (c *csiManager) handlePluginEvent(event *dynamicplugins.PluginUpdateEvent) 
 
 // Ensure we have an instance manager for the plugin and add it to
 // the CSI manager's tracking table for that plugin type.
+// Assumes that c.instances has been locked.
 func (c *csiManager) ensureInstance(plugin *dynamicplugins.PluginInfo) {
 	name := plugin.Name
 	ptype := plugin.Type
 	instances := c.instancesForType(ptype)
-	if _, ok := instances[name]; !ok {
-		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype)
+	mgr, ok := instances[name]
+	if !ok {
+		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
 		mgr := newInstanceManager(c.logger, c.eventer, c.updateNodeCSIInfoFunc, plugin)
 		instances[name] = mgr
 		mgr.run()
+	} else if mgr.allocID != plugin.AllocID {
+		mgr.shutdown()
+		c.logger.Debug("detected update for CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
+		mgr := newInstanceManager(c.logger, c.eventer, c.updateNodeCSIInfoFunc, plugin)
+		instances[name] = mgr
+		mgr.run()
+
 	}
 }
 
 // Shut down the instance manager for a plugin and remove it from
 // the CSI manager's tracking table for that plugin type.
+// Assumes that c.instances has been locked.
 func (c *csiManager) ensureNoInstance(plugin *dynamicplugins.PluginInfo) {
 	name := plugin.Name
 	ptype := plugin.Type
 	instances := c.instancesForType(ptype)
 	if mgr, ok := instances[name]; ok {
-		c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype)
-		mgr.shutdown()
-		delete(instances, name)
+		if mgr.allocID == plugin.AllocID {
+			c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
+			mgr.shutdown()
+			delete(instances, name)
+		}
 	}
 }
 
 // Get the instance managers table for a specific plugin type,
 // ensuring it's been initialized if it doesn't exist.
+// Assumes that c.instances has been locked.
 func (c *csiManager) instancesForType(ptype string) map[string]*instanceManager {
 	pluginMap, ok := c.instances[ptype]
 	if !ok {

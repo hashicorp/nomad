@@ -5,6 +5,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestResolveACLToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create mock state store and cache
 	state := state.TestStateStore(t)
@@ -93,7 +94,7 @@ func TestResolveACLToken(t *testing.T) {
 }
 
 func TestResolveACLToken_LeaderToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -109,7 +110,7 @@ func TestResolveACLToken_LeaderToken(t *testing.T) {
 }
 
 func TestResolveSecretToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

@@ -65,12 +65,21 @@ func (c *Client) Jobs() *Jobs {
 
 // ParseHCL is used to convert the HCL repesentation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
+// Use ParseHCLOpts if you need to customize JobsParseRequest.
 func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
-	var job Job
 	req := &JobsParseRequest{
 		JobHCL:       jobHCL,
 		Canonicalize: canonicalize,
 	}
+	return j.ParseHCLOpts(req)
+}
+
+// ParseHCLOpts is used to convert the HCL representation of a Job to JSON
+// server side. To parse the HCL client side see package
+// github.com/hashicorp/nomad/jobspec.
+// ParseHCL is an alternative convenience API for HCLv2 users.
+func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
+	var job Job
 	_, err := j.client.write("/v1/jobs/parse", req, &job, nil)
 	return &job, err
 }
@@ -432,8 +441,8 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 		JobID:               jobID,
 		JobVersion:          version,
 		EnforcePriorVersion: enforcePriorVersion,
-		// ConsulToken:         consulToken, // TODO(shoenig) enable!
-		VaultToken: vaultToken,
+		ConsulToken:         consulToken,
+		VaultToken:          vaultToken,
 	}
 	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
@@ -457,6 +466,14 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 		return nil, nil, err
 	}
 	return &resp, wm, nil
+}
+
+// Services is used to return a list of service registrations associated to the
+// specified jobID.
+func (j *Jobs) Services(jobID string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := j.client.query("/v1/job/"+jobID+"/services", &resp, q)
+	return resp, qm, err
 }
 
 // periodicForceResponse is used to deserialize a force response
@@ -1007,6 +1024,7 @@ type TaskGroupSummary struct {
 	Running  int
 	Starting int
 	Lost     int
+	Unknown  int
 }
 
 // JobListStub is used to return a subset of information about

@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -33,8 +34,9 @@ func init() {
 
 const ns = ""
 
-var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36} // 3min
-var reapWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}   // 3min
+var pluginAllocWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 12} // 1min
+var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}      // 3min
+var reapWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}        // 3min
 
 // assertNoErrorElseDump calls a non-halting assert on the error and dumps the
 // plugin logs if it fails.
@@ -214,7 +216,17 @@ func waitForPluginStatusCompare(pluginID string, compare func(got string) (bool,
 // cleanup.
 func volumeRegister(volID, volFilePath, createOrRegister string) error {
 
-	cmd := exec.Command("nomad", "volume", createOrRegister, "-")
+	// a CSI RPC to create a volume can take a long time because we
+	// have to wait on the AWS API to provision a disk, but a register
+	// should not because it only has to check the API for compatibility
+	timeout := time.Second * 30
+	if createOrRegister == "create" {
+		timeout = time.Minute * 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "nomad", "volume", createOrRegister, "-")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("could not open stdin?: %w", err)
@@ -226,9 +238,15 @@ func volumeRegister(volID, volFilePath, createOrRegister string) error {
 	}
 
 	// hack off the first line to replace with our unique ID
-	var re = regexp.MustCompile(`(?m)^id ".*"`)
-	volspec := re.ReplaceAllString(string(content),
-		fmt.Sprintf("id = \"%s\"", volID))
+	var idRegex = regexp.MustCompile(`(?m)^id[\s]+= ".*"`)
+	volspec := idRegex.ReplaceAllString(string(content),
+		fmt.Sprintf("id = %q", volID))
+
+	// the EBS plugin uses the name as an idempotency token across the
+	// whole AWS account, so it has to be globally unique
+	var nameRegex = regexp.MustCompile(`(?m)^name[\s]+= ".*"`)
+	volspec = nameRegex.ReplaceAllString(volspec,
+		fmt.Sprintf("name = %q", uuid.Generate()))
 
 	go func() {
 		defer stdin.Close()

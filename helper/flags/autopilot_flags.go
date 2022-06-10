@@ -5,6 +5,7 @@ package flags
 
 import (
 	"fmt"
+	"math/bits"
 	"strconv"
 	"time"
 )
@@ -88,7 +89,8 @@ func (u *UintValue) Set(v string) error {
 	if u.v == nil {
 		u.v = new(uint)
 	}
-	parsed, err := strconv.ParseUint(v, 0, 64)
+
+	parsed, err := strconv.ParseUint(v, 0, bits.UintSize)
 	*(u.v) = (uint)(parsed)
 	return err
 }

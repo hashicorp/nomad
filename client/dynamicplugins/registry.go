@@ -4,6 +4,7 @@
 package dynamicplugins
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -19,10 +20,11 @@ const (
 // that are running as Nomad Tasks.
 type Registry interface {
 	RegisterPlugin(info *PluginInfo) error
-	DeregisterPlugin(ptype, name string) error
+	DeregisterPlugin(ptype, name, allocID string) error
 
 	ListPlugins(ptype string) []*PluginInfo
 	DispensePlugin(ptype, name string) (interface{}, error)
+	PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error)
 
 	PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent
 
@@ -31,10 +33,11 @@ type Registry interface {
 	StubDispenserForType(ptype string, dispenser PluginDispenser)
 }
 
-// RegistryState is what we persist in the client state store. It contains
-// a map of plugin types to maps of plugin name -> PluginInfo.
+// RegistryState is what we persist in the client state
+// store. It contains a map of plugin types to maps of plugin name ->
+// list of *PluginInfo, sorted by recency of registration
 type RegistryState struct {
-	Plugins map[string]map[string]*PluginInfo
+	Plugins map[string]map[string]*list.List
 }
 
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
@@ -44,7 +47,7 @@ type PluginDispenser func(info *PluginInfo) (interface{}, error)
 func NewRegistry(state StateStorage, dispensers map[string]PluginDispenser) Registry {
 
 	registry := &dynamicRegistry{
-		plugins:      make(map[string]map[string]*PluginInfo),
+		plugins:      make(map[string]map[string]*list.List),
 		broadcasters: make(map[string]*pluginEventBroadcaster),
 		dispensers:   dispensers,
 		state:        state,
@@ -122,7 +125,7 @@ type PluginUpdateEvent struct {
 }
 
 type dynamicRegistry struct {
-	plugins     map[string]map[string]*PluginInfo
+	plugins     map[string]map[string]*list.List
 	pluginsLock sync.RWMutex
 
 	broadcasters     map[string]*pluginEventBroadcaster
@@ -180,18 +183,35 @@ func (d *dynamicRegistry) RegisterPlugin(info *PluginInfo) error {
 
 	pmap, ok := d.plugins[info.Type]
 	if !ok {
-		pmap = make(map[string]*PluginInfo, 1)
+		pmap = make(map[string]*list.List)
 		d.plugins[info.Type] = pmap
 	}
-
-	pmap[info.Name] = info
-
-	broadcaster := d.broadcasterForPluginType(info.Type)
-	event := &PluginUpdateEvent{
-		EventType: EventTypeRegistered,
-		Info:      info,
+	infos, ok := pmap[info.Name]
+	if !ok {
+		infos = list.New()
+		pmap[info.Name] = infos
 	}
-	broadcaster.broadcast(event)
+
+	// TODO(tgross): https://github.com/hashicorp/nomad/issues/11786
+	// If we're already registered, we should update the definition
+	// and send a broadcast of any update so the instanceManager can
+	// be restarted if there's been a change
+	var alreadyRegistered bool
+	for e := infos.Front(); e != nil; e = e.Next() {
+		if e.Value.(*PluginInfo).AllocID == info.AllocID {
+			alreadyRegistered = true
+			break
+		}
+	}
+	if !alreadyRegistered {
+		infos.PushFront(info)
+		broadcaster := d.broadcasterForPluginType(info.Type)
+		event := &PluginUpdateEvent{
+			EventType: EventTypeRegistered,
+			Info:      info,
+		}
+		broadcaster.broadcast(event)
+	}
 
 	return d.sync()
 }
@@ -209,7 +229,7 @@ func (d *dynamicRegistry) broadcasterForPluginType(ptype string) *pluginEventBro
 	return broadcaster
 }
 
-func (d *dynamicRegistry) DeregisterPlugin(ptype, name string) error {
+func (d *dynamicRegistry) DeregisterPlugin(ptype, name, allocID string) error {
 	d.pluginsLock.Lock()
 	defer d.pluginsLock.Unlock()
 
@@ -223,6 +243,9 @@ func (d *dynamicRegistry) DeregisterPlugin(ptype, name string) error {
 		// developers during the development of new plugin types.
 		return errors.New("must specify plugin name to deregister")
 	}
+	if allocID == "" {
+		return errors.New("must specify plugin allocation ID to deregister")
+	}
 
 	pmap, ok := d.plugins[ptype]
 	if !ok {
@@ -230,12 +253,20 @@ func (d *dynamicRegistry) DeregisterPlugin(ptype, name string) error {
 		return fmt.Errorf("no plugins registered for type: %s", ptype)
 	}
 
-	info, ok := pmap[name]
+	infos, ok := pmap[name]
 	if !ok {
 		// plugin already deregistered, don't send events or try re-deleting.
 		return nil
 	}
-	delete(pmap, name)
+
+	var info *PluginInfo
+	for e := infos.Front(); e != nil; e = e.Next() {
+		info = e.Value.(*PluginInfo)
+		if info.AllocID == allocID {
+			infos.Remove(e)
+			break
+		}
+	}
 
 	broadcaster := d.broadcasterForPluginType(ptype)
 	event := &PluginUpdateEvent{
@@ -259,7 +290,9 @@ func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
 	plugins := make([]*PluginInfo, 0, len(pmap))
 
 	for _, info := range pmap {
-		plugins = append(plugins, info)
+		if info.Front() != nil {
+			plugins = append(plugins, info.Front().Value.(*PluginInfo))
+		}
 	}
 
 	return plugins
@@ -302,11 +335,32 @@ func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}
 	}
 
 	info, ok := pmap[name]
-	if !ok {
+	if !ok || info.Front() == nil {
 		return nil, fmt.Errorf("plugin %s for type %s not found", name, ptype)
 	}
 
-	return dispenseFunc(info)
+	return dispenseFunc(info.Front().Value.(*PluginInfo))
+}
+
+func (d *dynamicRegistry) PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error) {
+	d.pluginsLock.Lock()
+	defer d.pluginsLock.Unlock()
+
+	pmap, ok := d.plugins[ptype]
+	if !ok {
+		return nil, fmt.Errorf("no plugins registered for type: %s", ptype)
+	}
+
+	infos, ok := pmap[name]
+	if ok {
+		for e := infos.Front(); e != nil; e = e.Next() {
+			plugin := e.Value.(*PluginInfo)
+			if plugin.AllocID == allocID {
+				return plugin, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("no plugin for that allocation")
 }
 
 // PluginsUpdatedCh returns a channel over which plugin events for the requested

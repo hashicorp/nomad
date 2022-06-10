@@ -3,18 +3,20 @@ package consul_test
 import (
 	"context"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -35,6 +37,8 @@ func (m *mockUpdater) TaskStateUpdated() {
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
+	ci.Parallel(t)
+
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
@@ -61,16 +65,8 @@ func TestConsul_Integration(t *testing.T) {
 		t.Fatalf("error generating consul config: %v", err)
 	}
 
-	conf.StateDir, err = ioutil.TempDir("", "nomadtest-consulstate")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.StateDir)
-	conf.AllocDir, err = ioutil.TempDir("", "nomdtest-consulalloc")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.AllocDir)
+	conf.StateDir = t.TempDir()
+	conf.AllocDir = t.TempDir()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -93,6 +89,7 @@ func TestConsul_Integration(t *testing.T) {
 			Name:      "httpd",
 			PortLabel: "http",
 			Tags:      []string{"nomad", "test", "http"},
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "httpd-http-check",
@@ -114,6 +111,7 @@ func TestConsul_Integration(t *testing.T) {
 		{
 			Name:      "httpd2",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Tags: []string{
 				"test",
 				// Use URL-unfriendly tags to test #3620
@@ -129,6 +127,9 @@ func TestConsul_Integration(t *testing.T) {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
+	t.Cleanup(func() {
+		r.NoError(allocDir.Destroy())
+	})
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
@@ -162,6 +163,7 @@ func TestConsul_Integration(t *testing.T) {
 		DeviceManager:        devicemanager.NoopMockManager(),
 		DriverManager:        drivermanager.TestDriverManager(t),
 		StartConditionMetCtx: closedCh,
+		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

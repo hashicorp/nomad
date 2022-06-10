@@ -1,27 +1,37 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 if [ -z "$1" ]; then
     echo "usage: $0 GO_VERSION"
-    echo ""
+    echo "(run in project directory)"
     echo "For example: $0 1.15.5"
     exit 1
 fi
 
 golang_version="$1"
 
-current_version=$(grep -o -E -e '/golang:[.0-9]+' .circleci/config.yml | head -n1 | cut -d: -f2)
+# read current version from canonical .go-version file
+current_version=$(cat .go-version)
 if [ -z "${current_version}" ]; then
     echo "unable to find current go version"
     exit 1
 fi
 echo "--> Replacing Go ${current_version} with Go ${golang_version} ..."
 
+# force the canonical .go-version file
+echo "${golang_version}" > .go-version
+
 # To support both GNU and BSD sed, the regex is looser than it needs to be.
 # Specifically, we use "* instead of "?, which relies on GNU extension without much loss of
 # correctness in practice.
+
 sed -i'' -e "s|/golang:[.0-9]*|/golang:${golang_version}|g" .circleci/config.yml
 sed -i'' -e "s|GOLANG_VERSION:[ \"]*[.0-9]*\"*|GOLANG_VERSION: ${golang_version}|g" \
 	.circleci/config.yml
+
+sed -i'' -e "s|GO_VERSION:[ \"]*[.0-9]*\"*|GO_VERSION: ${golang_version}|g" \
+	.github/workflows/test-core.yaml
 
 sed -i'' -e "s|\\(Install .Go\\) [.0-9]*|\\1 ${golang_version}|g" \
 	contributing/README.md

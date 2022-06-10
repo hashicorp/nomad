@@ -31,9 +31,17 @@ const generateCountMap = (keysCount, list) => () => {
 };
 
 const generateNodesAvailable = generateCountMap(5, DATACENTERS);
-const generateClassFiltered = generateCountMap(3, provide(10, faker.hacker.abbreviation));
+const generateClassFiltered = generateCountMap(
+  3,
+  provide(10, faker.hacker.abbreviation)
+);
 const generateClassExhausted = generateClassFiltered;
-const generateDimensionExhausted = generateCountMap(1, ['cpu', 'mem', 'disk', 'iops']);
+const generateDimensionExhausted = generateCountMap(1, [
+  'cpu',
+  'mem',
+  'disk',
+  'iops',
+]);
 const generateQuotaExhausted = generateDimensionExhausted;
 const generateScores = generateCountMap(1, ['binpack', 'job-anti-affinity']);
 const generateConstraintFiltered = generateCountMap(2, [
@@ -59,7 +67,9 @@ export default Factory.extend({
 
   createIndex: () => faker.random.number({ min: 10, max: 2000 }),
   createTime() {
-    return faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000;
+    return (
+      faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000
+    );
   },
 
   waitUntil: null,
@@ -68,14 +78,22 @@ export default Factory.extend({
     status: 'blocked',
     afterCreate(evaluation, server) {
       assignJob(evaluation, server);
-      const taskGroups = server.db.taskGroups.where({ jobId: evaluation.jobId });
+      const taskGroups = server.db.taskGroups.where({
+        jobId: evaluation.jobId,
+      });
 
       const taskGroupNames = taskGroups.mapBy('name');
-      const failedTaskGroupsCount = faker.random.number({ min: 1, max: taskGroupNames.length });
+      const failedTaskGroupsCount = faker.random.number({
+        min: 1,
+        max: taskGroupNames.length,
+      });
       const failedTaskGroupNames = [];
       for (let i = 0; i < failedTaskGroupsCount; i++) {
         failedTaskGroupNames.push(
-          ...taskGroupNames.splice(faker.random.number(taskGroupNames.length - 1), 1)
+          ...taskGroupNames.splice(
+            faker.random.number(taskGroupNames.length - 1),
+            1
+          )
         );
       }
 
@@ -91,7 +109,9 @@ export default Factory.extend({
   }),
 
   afterCreate(evaluation, server) {
-    assignJob(evaluation, server);
+    if (!evaluation.nodeId) {
+      assignJob(evaluation, server);
+    }
   },
 });
 
@@ -101,7 +121,9 @@ function assignJob(evaluation, server) {
     server.db.jobs.length
   );
 
-  const job = evaluation.jobId ? server.db.jobs.find(evaluation.jobId) : pickOne(server.db.jobs);
+  const job = evaluation.jobId
+    ? server.db.jobs.find(evaluation.jobId)
+    : pickOne(server.db.jobs);
   evaluation.update({
     jobId: job.id,
   });
@@ -113,12 +135,18 @@ export function generateTaskGroupFailures() {
     NodesEvaluated: faker.random.number({ min: 1, max: 100 }),
     NodesExhausted: faker.random.number({ min: 1, max: 100 }),
 
-    NodesAvailable: faker.random.number(10) >= 7 ? generateNodesAvailable() : null,
-    ClassFiltered: faker.random.number(10) >= 7 ? generateClassFiltered() : null,
-    ConstraintFiltered: faker.random.number(10) >= 7 ? generateConstraintFiltered() : null,
-    ClassExhausted: faker.random.number(10) >= 7 ? generateClassExhausted() : null,
-    DimensionExhausted: faker.random.number(10) >= 7 ? generateDimensionExhausted() : null,
-    QuotaExhausted: faker.random.number(10) >= 7 ? generateQuotaExhausted() : null,
+    NodesAvailable:
+      faker.random.number(10) >= 7 ? generateNodesAvailable() : null,
+    ClassFiltered:
+      faker.random.number(10) >= 7 ? generateClassFiltered() : null,
+    ConstraintFiltered:
+      faker.random.number(10) >= 7 ? generateConstraintFiltered() : null,
+    ClassExhausted:
+      faker.random.number(10) >= 7 ? generateClassExhausted() : null,
+    DimensionExhausted:
+      faker.random.number(10) >= 7 ? generateDimensionExhausted() : null,
+    QuotaExhausted:
+      faker.random.number(10) >= 7 ? generateQuotaExhausted() : null,
     Scores: faker.random.number(10) >= 7 ? generateScores() : null,
   };
 }

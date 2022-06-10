@@ -3,11 +3,14 @@ package taskenv
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_InterpolateNetworks(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputTaskEnv           *TaskEnv
 		inputNetworks          structs.Networks
@@ -33,6 +36,50 @@ func Test_InterpolateNetworks(t *testing.T) {
 				{Hostname: "bar-cache-blah"},
 			},
 			name: "interpolated hostname",
+		},
+		{
+			inputTaskEnv: testEnv,
+			inputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers:  []string{"127.0.0.1"},
+						Options:  []string{"some-opt"},
+						Searches: []string{"example.com"},
+					},
+				},
+			},
+			expectedOutputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers:  []string{"127.0.0.1"},
+						Options:  []string{"some-opt"},
+						Searches: []string{"example.com"},
+					},
+				},
+			},
+			name: "non-interpolated dns servers",
+		},
+		{
+			inputTaskEnv: testEnv,
+			inputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers:  []string{"${foo}"},
+						Options:  []string{"${foo}-opt"},
+						Searches: []string{"${foo}.example.com"},
+					},
+				},
+			},
+			expectedOutputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers:  []string{"bar"},
+						Options:  []string{"bar-opt"},
+						Searches: []string{"bar.example.com"},
+					},
+				},
+			},
+			name: "interpolated dns servers",
 		},
 	}
 

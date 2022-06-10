@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -81,6 +82,16 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 
 	c.Ui.Output(formatNamespaceBasics(ns))
 
+	if len(ns.Meta) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Metadata[reset]"))
+		var meta []string
+		for k := range ns.Meta {
+			meta = append(meta, fmt.Sprintf("%s|%s", k, ns.Meta[k]))
+		}
+		sort.Strings(meta)
+		c.Ui.Output(formatKV(meta))
+	}
+
 	if ns.Quota != "" {
 		quotas := client.Quotas()
 		spec, _, err := quotas.Info(ns.Quota, nil)
@@ -111,10 +122,22 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 
 // formatNamespaceBasics formats the basic information of the namespace
 func formatNamespaceBasics(ns *api.Namespace) string {
+	enabled_drivers := "*"
+	disabled_drivers := ""
+	if ns.Capabilities != nil {
+		if len(ns.Capabilities.EnabledTaskDrivers) != 0 {
+			enabled_drivers = strings.Join(ns.Capabilities.EnabledTaskDrivers, ",")
+		}
+		if len(ns.Capabilities.DisabledTaskDrivers) != 0 {
+			disabled_drivers = strings.Join(ns.Capabilities.DisabledTaskDrivers, ",")
+		}
+	}
 	basic := []string{
 		fmt.Sprintf("Name|%s", ns.Name),
 		fmt.Sprintf("Description|%s", ns.Description),
 		fmt.Sprintf("Quota|%s", ns.Quota),
+		fmt.Sprintf("EnabledDrivers|%s", enabled_drivers),
+		fmt.Sprintf("DisabledDrivers|%s", disabled_drivers),
 	}
 
 	return formatKV(basic)

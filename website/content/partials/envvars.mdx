@@ -56,9 +56,24 @@
     </tr>
     <tr>
       <td>
+        <code>NOMAD_CPU_CORES</code>
+      </td>
+      <td>
+        The specific CPU cores reserved for the task in cpuset list notation.
+        Omitted if the the task does not request cpu cores. E.g. <code>0-2,7,12-14</code>
+      </td>
+    </tr>
+    <tr>
+      <td>
         <code>NOMAD_ALLOC_ID</code>
       </td>
       <td>Allocation ID of the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_SHORT_ALLOC_ID</code>
+      </td>
+      <td>The first 8 characters of the allocation ID of the task</td>
     </tr>
     <tr>
       <td>
@@ -117,6 +132,12 @@
     </tr>
     <tr>
       <td>
+        <code>NOMAD_PARENT_CGROUP</code>
+      </td>
+      <td>The parent cgroup used to contain task cgroups (Linux only)</td>
+    </tr>
+    <tr>
+      <td>
         <code>NOMAD_NAMESPACE</code>
       </td>
       <td>Namespace in which the allocation is running</td>
@@ -151,7 +172,7 @@
       </td>
     </tr>
     <tr>
-      <th colspan="2">Network-related Variables</th>
+      <th colSpan="2">Network-related Variables</th>
     </tr>
     <tr>
       <td>
@@ -285,7 +306,7 @@
         </td>
       </tr>
     <tr>
-      <th colspan="2">Consul-related Variables (only set for connect native tasks)</th>
+      <th colSpan="2">Consul-related Variables (only set for connect native tasks)</th>
     </tr>
     <tr>
       <td>

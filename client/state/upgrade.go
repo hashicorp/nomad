@@ -2,21 +2,24 @@ package state
 
 import (
 	"bytes"
+	"container/list"
 	"fmt"
 	"os"
 
-	"github.com/boltdb/bolt"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
 )
 
 // NeedsUpgrade returns true if the BoltDB needs upgrading or false if it is
 // already up to date.
-func NeedsUpgrade(bdb *bolt.DB) (bool, error) {
-	needsUpgrade := true
-	err := bdb.View(func(tx *bolt.Tx) error {
+func NeedsUpgrade(bdb *bbolt.DB) (upgradeTo09, upgradeTo13 bool, err error) {
+	upgradeTo09 = true
+	upgradeTo13 = true
+	err = bdb.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(metaBucketName)
 		if b == nil {
 			// No meta bucket; upgrade
@@ -29,41 +32,45 @@ func NeedsUpgrade(bdb *bolt.DB) (bool, error) {
 			return nil
 		}
 
-		if !bytes.Equal(v, metaVersion) {
-			// Version exists but does not match. Abort.
-			return fmt.Errorf("incompatible state version. expected %q but found %q",
-				metaVersion, v)
+		if bytes.Equal(v, []byte{'2'}) {
+			upgradeTo09 = false
+			return nil
+		}
+		if bytes.Equal(v, metaVersion) {
+			upgradeTo09 = false
+			upgradeTo13 = false
+			return nil
 		}
 
-		// Version matches! Assume migrated!
-		needsUpgrade = false
-		return nil
+		// Version exists but does not match. Abort.
+		return fmt.Errorf("incompatible state version. expected %q but found %q",
+			metaVersion, v)
+
 	})
 
-	return needsUpgrade, err
+	return
 }
 
 // addMeta adds version metadata to BoltDB to mark it as upgraded and
 // should be run at the end of the upgrade transaction.
-func addMeta(tx *bolt.Tx) error {
+func addMeta(tx *bbolt.Tx) error {
 	// Create the meta bucket if it doesn't exist
 	bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
 	if err != nil {
 		return err
 	}
-
 	return bkt.Put(metaVersionKey, metaVersion)
 }
 
 // backupDB backs up the existing state database prior to upgrade overwriting
 // previous backups.
-func backupDB(bdb *bolt.DB, dst string) error {
+func backupDB(bdb *bbolt.DB, dst string) error {
 	fd, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 
-	return bdb.View(func(tx *bolt.Tx) error {
+	return bdb.View(func(tx *bbolt.Tx) error {
 		if _, err := tx.WriteTo(fd); err != nil {
 			fd.Close()
 			return err
@@ -138,7 +145,7 @@ func UpgradeAllocs(logger hclog.Logger, tx *boltdd.Tx) error {
 }
 
 // upgradeAllocBucket upgrades an alloc bucket.
-func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, allocID string) error {
+func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bbolt.Bucket, allocID string) error {
 	allocFound := false
 	taskBuckets := [][]byte{}
 	cur := bkt.Cursor()
@@ -246,7 +253,7 @@ func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, al
 
 // upgradeTaskBucket iterates over keys in a task bucket, deleting invalid keys
 // and returning the 0.8 version of the state.
-func upgradeTaskBucket(logger hclog.Logger, bkt *bolt.Bucket) (*taskRunnerState08, error) {
+func upgradeTaskBucket(logger hclog.Logger, bkt *bbolt.Bucket) (*taskRunnerState08, error) {
 	simpleFound := false
 	var trState taskRunnerState08
 
@@ -311,4 +318,33 @@ func upgradeOldAllocMutable(tx *boltdd.Tx, allocID string, oldBytes []byte) erro
 	}
 
 	return nil
+}
+
+func UpgradeDynamicPluginRegistry(logger hclog.Logger, tx *boltdd.Tx) error {
+
+	dynamicBkt := tx.Bucket(dynamicPluginBucketName)
+	if dynamicBkt == nil {
+		return nil // no previous plugins upgrade
+	}
+
+	oldState := &RegistryState12{}
+	if err := dynamicBkt.Get(registryStateKey, oldState); err != nil {
+		if !boltdd.IsErrNotFound(err) {
+			return fmt.Errorf("failed to read dynamic plugin registry state: %v", err)
+		}
+	}
+
+	newState := &dynamicplugins.RegistryState{
+		Plugins: make(map[string]map[string]*list.List),
+	}
+
+	for ptype, plugins := range oldState.Plugins {
+		newState.Plugins[ptype] = make(map[string]*list.List)
+		for pname, pluginInfo := range plugins {
+			newState.Plugins[ptype][pname] = list.New()
+			entry := list.Element{Value: pluginInfo}
+			newState.Plugins[ptype][pname].PushFront(entry)
+		}
+	}
+	return dynamicBkt.Put(registryStateKey, newState)
 }

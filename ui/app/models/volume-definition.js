@@ -11,6 +11,7 @@ export default class VolumeDefinition extends Fragment {
   @attr('string') source;
   @attr('string') type;
   @attr('boolean') readOnly;
+  @attr('boolean') perAlloc;
 
   @equal('type', 'csi') isCSI;
   @alias('taskGroup.job.namespace') namespace;

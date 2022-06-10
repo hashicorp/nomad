@@ -42,8 +42,10 @@ export default class AllocationStat extends Component {
 
   @computed('metric', 'statsTracker.{reservedMemory,reservedCPU}')
   get formattedReserved() {
-    if (this.metric === 'memory') return formatBytes(this.statsTracker.reservedMemory, 'MiB');
-    if (this.metric === 'cpu') return formatHertz(this.statsTracker.reservedCPU, 'MHz');
+    if (this.metric === 'memory')
+      return formatBytes(this.statsTracker.reservedMemory, 'MiB');
+    if (this.metric === 'cpu')
+      return formatHertz(this.statsTracker.reservedCPU, 'MHz');
     return undefined;
   }
 }

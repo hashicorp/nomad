@@ -5,7 +5,10 @@
   @startExpanded={{this.isExpanded}}
   @onToggle={{action this.persist}} as |a|
 >
-  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
+  <a.head
+    @buttonLabel={{if a.isOpen "collapse" "expand"}}
+    @buttonType={{if a.item.hasChildren "children-status" "allocation-status"}}
+  >
     <div class="columns">
       <div class="column is-minimum nowrap">
         {{#if a.item.hasChildren}}
@@ -32,7 +35,10 @@
                 </em>
               {{/if}}
             {{else}}
-              <AllocationStatusBar @allocationContainer={{a.item}} @isNarrow={{true}} />
+              <AllocationStatusBar
+                @allocationContainer={{a.item}}
+                @isNarrow={{true}}
+              />
             {{/if}}
           </div>
         </div>
@@ -55,7 +61,10 @@
 
                 {{if (eq datum.value 0) "is-empty"}}"
             >
-              <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+              <JobPage::Parts::SummaryLegendItem
+                @datum={{datum}}
+                @index={{index}}
+              />
             </li>
           {{/each}}
         </ol>
@@ -83,10 +92,16 @@
                   @model={{this.job}}
                   @query={{datum.legendLink.queryParams}}
                 >
-                  <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+                  <JobPage::Parts::SummaryLegendItem
+                    @datum={{datum}}
+                    @index={{index}}
+                  />
                 </LinkTo>
               {{else}}
-                <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+                <JobPage::Parts::SummaryLegendItem
+                  @datum={{datum}}
+                  @index={{index}}
+                />
               {{/if}}
             </li>
           {{/each}}

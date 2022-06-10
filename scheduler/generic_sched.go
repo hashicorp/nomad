@@ -8,6 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -24,6 +25,10 @@ const (
 	// allocNotNeeded is the status used when a job no longer requires an allocation
 	allocNotNeeded = "alloc not needed due to job update"
 
+	// allocReconnected is the status to use when a replacement allocation is stopped
+	// because a disconnected node reconnects.
+	allocReconnected = "alloc not needed due to disconnected client reconnect"
+
 	// allocMigrating is the status used when we must migrate an allocation
 	allocMigrating = "alloc is being migrated"
 
@@ -32,6 +37,9 @@ const (
 
 	// allocLost is the status used when an allocation is lost
 	allocLost = "alloc is lost since its node is down"
+
+	// allocUnknown is the status used when an allocation is unknown
+	allocUnknown = "alloc is unknown since its node is disconnected"
 
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
@@ -55,10 +63,18 @@ const (
 	// up evals for delayed rescheduling
 	reschedulingFollowupEvalDesc = "created for delayed rescheduling"
 
+	// disconnectTimeoutFollowupEvalDesc is the description used when creating follow
+	// up evals for allocations that be should be stopped after its disconnect
+	// timeout has passed.
+	disconnectTimeoutFollowupEvalDesc = "created for delayed disconnect timeout"
+
 	// maxPastRescheduleEvents is the maximum number of past reschedule event
 	// that we track when unlimited rescheduling is enabled
 	maxPastRescheduleEvents = 5
 )
+
+// minVersionMaxClientDisconnect is the minimum version that supports max_client_disconnect.
+var minVersionMaxClientDisconnect = version.Must(version.NewVersion("1.3.0"))
 
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
@@ -125,7 +141,14 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state Sta
 }
 
 // Process is used to handle a single evaluation
-func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+		}
+	}()
+
 	// Store the evaluation
 	s.eval = eval
 
@@ -141,7 +164,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
 		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
-		structs.EvalTriggerScaling:
+		structs.EvalTriggerScaling, structs.EvalTriggerMaxDisconnectTimeout, structs.EvalTriggerReconnect:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -354,7 +377,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	reconciler := NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
-		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID, s.eval.Priority)
+		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
+		s.eval.Priority, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+
 	results := reconciler.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
 
@@ -385,6 +410,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus, stop.followupEvalID)
 	}
 
+	// Handle disconnect updates
+	for _, update := range results.disconnectUpdates {
+		s.plan.AppendUnknownAlloc(update)
+	}
+
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
 		if update.DeploymentID != s.deployment.GetID() {
@@ -412,22 +442,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		return nil
 	}
 
-	// Record the number of allocations that needs to be placed per Task Group
-	for _, place := range results.place {
-		s.queuedAllocs[place.taskGroup.Name] += 1
-	}
-	for _, destructive := range results.destructiveUpdate {
-		s.queuedAllocs[destructive.placeTaskGroup.Name] += 1
-	}
-
 	// Compute the placements
 	place := make([]placementResult, 0, len(results.place))
 	for _, p := range results.place {
+		s.queuedAllocs[p.taskGroup.Name] += 1
 		place = append(place, p)
 	}
 
 	destructive := make([]placementResult, 0, len(results.destructiveUpdate))
 	for _, p := range results.destructiveUpdate {
+		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
 	return s.computePlacements(destructive, place)

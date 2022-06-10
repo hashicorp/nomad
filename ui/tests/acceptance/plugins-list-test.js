@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -6,28 +7,28 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginsList from 'nomad-ui/tests/pages/storage/plugins/list';
 
-module('Acceptance | plugins list', function(hooks) {
+module('Acceptance | plugins list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
     window.localStorage.clear();
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await PluginsList.visit();
     await a11yAudit(assert);
   });
 
-  test('visiting /csi/plugins', async function(assert) {
+  test('visiting /csi/plugins', async function (assert) {
     await PluginsList.visit();
 
     assert.equal(currentURL(), '/csi/plugins');
     assert.equal(document.title, 'CSI Plugins - Nomad');
   });
 
-  test('/csi/plugins should list the first page of plugins sorted by id', async function(assert) {
+  test('/csi/plugins should list the first page of plugins sorted by id', async function (assert) {
     const pluginCount = PluginsList.pageSize + 1;
     server.createList('csi-plugin', pluginCount, { shallow: true });
 
@@ -40,13 +41,17 @@ module('Acceptance | plugins list', function(hooks) {
     });
   });
 
-  test('each plugin row should contain information about the plugin', async function(assert) {
-    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: true });
+  test('each plugin row should contain information about the plugin', async function (assert) {
+    const plugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: true,
+    });
 
     await PluginsList.visit();
 
     const pluginRow = PluginsList.plugins.objectAt(0);
-    const controllerHealthStr = plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
+    const controllerHealthStr =
+      plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(pluginRow.id, plugin.id);
@@ -61,8 +66,11 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(pluginRow.provider, plugin.provider);
   });
 
-  test('node only plugins explain that there is no controller health for this plugin type', async function(assert) {
-    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: false });
+  test('node only plugins explain that there is no controller health for this plugin type', async function (assert) {
+    const plugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: false,
+    });
 
     await PluginsList.visit();
 
@@ -78,7 +86,7 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(pluginRow.provider, plugin.provider);
   });
 
-  test('each plugin row should link to the corresponding plugin', async function(assert) {
+  test('each plugin row should link to the corresponding plugin', async function (assert) {
     const plugin = server.create('csi-plugin', { shallow: true });
 
     await PluginsList.visit();
@@ -93,14 +101,14 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(currentURL(), `/csi/plugins/${plugin.id}`);
   });
 
-  test('when there are no plugins, there is an empty message', async function(assert) {
+  test('when there are no plugins, there is an empty message', async function (assert) {
     await PluginsList.visit();
 
     assert.ok(PluginsList.isEmpty);
     assert.equal(PluginsList.emptyState.headline, 'No Plugins');
   });
 
-  test('when there are plugins, but no matches for a search, there is an empty message', async function(assert) {
+  test('when there are plugins, but no matches for a search, there is an empty message', async function (assert) {
     server.create('csi-plugin', { id: 'cat 1', shallow: true });
     server.create('csi-plugin', { id: 'cat 2', shallow: true });
 
@@ -111,8 +119,10 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(PluginsList.emptyState.headline, 'No Matches');
   });
 
-  test('search resets the current page', async function(assert) {
-    server.createList('csi-plugin', PluginsList.pageSize + 1, { shallow: true });
+  test('search resets the current page', async function (assert) {
+    server.createList('csi-plugin', PluginsList.pageSize + 1, {
+      shallow: true,
+    });
 
     await PluginsList.visit();
     await PluginsList.nextPage();
@@ -124,7 +134,7 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(currentURL(), '/csi/plugins?search=foobar');
   });
 
-  test('when accessing plugins is forbidden, a message is shown with a link to the tokens page', async function(assert) {
+  test('when accessing plugins is forbidden, a message is shown with a link to the tokens page', async function (assert) {
     server.pretender.get('/v1/plugins', () => [403, {}, null]);
 
     await PluginsList.visit();

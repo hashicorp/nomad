@@ -6,16 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 // Test that building a chroot will skip nonexistent directories.
 func TestTaskDir_EmbedNonexistent(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	ci.Parallel(t)
+
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -33,11 +32,9 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 
 // Test that building a chroot copies files from the host into the task dir.
 func TestTaskDir_EmbedDirs(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	ci.Parallel(t)
+
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -48,11 +45,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 	// Create a fake host directory, with a file, and a subfolder that contains
 	// a file.
-	host, err := ioutil.TempDir("", "AllocDirHost")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(host)
+	host := t.TempDir()
 
 	subDirName := "subdir"
 	subDir := filepath.Join(host, subDirName)
@@ -87,14 +80,11 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 // Test that task dirs for image based isolation don't require root.
 func TestTaskDir_NonRoot_Image(t *testing.T) {
+	ci.Parallel(t)
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -110,14 +100,12 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 
 // Test that task dirs with no isolation don't require root.
 func TestTaskDir_NonRoot(t *testing.T) {
+	ci.Parallel(t)
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -131,8 +119,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	}
 
 	// ${TASK_DIR}/alloc should not exist!
-	if _, err = os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
 		t.Fatalf("Expected a NotExist error for shared alloc dir in task dir: %q", td.SharedTaskDir)
 	}
-
 }

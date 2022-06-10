@@ -2,15 +2,15 @@ package nomad
 
 import (
 	"container/heap"
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
 	"time"
 
-	"context"
-
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/delayheap"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -835,9 +835,14 @@ func (b *EvalBroker) Stats() *BrokerStats {
 
 // EmitStats is used to export metrics about the broker while enabled
 func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			stats := b.Stats()
 			metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
 			metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))

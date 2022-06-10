@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -54,9 +54,8 @@ type TestAgent struct {
 	// when Shutdown() is called.
 	Config *Config
 
-	// LogOutput is the sink for the logs. If nil, logs are written
-	// to os.Stderr.
-	LogOutput io.Writer
+	// logger is used for logging
+	logger hclog.InterceptLogger
 
 	// DataDir is the data directory which is used when Config.DataDir
 	// is not set. It is created automatically and removed when
@@ -101,6 +100,7 @@ func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *Test
 		Name:           name,
 		ConfigCallback: configCallback,
 		Enterprise:     EnterpriseTestAgent,
+		logger:         testlog.HCLogger(t),
 	}
 
 	a.Start()
@@ -234,11 +234,6 @@ RETRY:
 }
 
 func (a *TestAgent) start() (*Agent, error) {
-	if a.LogOutput == nil {
-		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
-		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
-	}
-
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
 	metrics.NewGlobal(metrics.DefaultConfig("service-name"), inm)
 
@@ -246,14 +241,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
-		Name:       "agent",
-		Level:      hclog.LevelFromString(a.Config.LogLevel),
-		Output:     a.LogOutput,
-		JSONFormat: a.Config.LogJson,
-	})
-
-	agent, err := NewAgent(a.Config, logger, a.LogOutput, inm)
+	agent, err := NewAgent(a.Config, a.logger, testlog.NewWriter(a.T), inm)
 	if err != nil {
 		return nil, err
 	}
@@ -348,14 +336,20 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	}
 }
 
-// TestConfig returns a unique default configuration for testing an
-// agent.
+// TestConfig returns a unique default configuration for testing an agent.
 func (a *TestAgent) config() *Config {
 	conf := DevConfig(nil)
 
 	// Customize the server configuration
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
+
+	// Setup client config
+	conf.ClientConfig = client.DefaultConfig()
+
+	conf.LogLevel = testlog.HCLoggerTestLevel().String()
+	conf.NomadConfig.Logger = a.logger
+	conf.ClientConfig.Logger = a.logger
 
 	// Set the name
 	conf.NodeName = a.Name

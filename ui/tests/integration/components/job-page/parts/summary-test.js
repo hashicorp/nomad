@@ -6,10 +6,10 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | job-page/parts/summary', function(hooks) {
+module('Integration | Component | job-page/parts/summary', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
@@ -17,12 +17,14 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.server.create('namespace');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
     window.localStorage.clear();
   });
 
-  test('jobs with children use the children diagram', async function(assert) {
+  test('jobs with children use the children diagram', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', 'periodic', {
       createAllocations: false,
     });
@@ -35,13 +37,21 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-children-status-bar]'), 'Children status bar found');
-    assert.notOk(find('[data-test-allocation-status-bar]'), 'Allocation status bar not found');
+    assert.ok(
+      find('[data-test-children-status-bar]'),
+      'Children status bar found'
+    );
+    assert.notOk(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation status bar not found'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('jobs without children use the allocations diagram', async function(assert) {
+  test('jobs without children use the allocations diagram', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', {
       createAllocations: false,
     });
@@ -54,13 +64,19 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation status bar found');
-    assert.notOk(find('[data-test-children-status-bar]'), 'Children status bar not found');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation status bar found'
+    );
+    assert.notOk(
+      find('[data-test-children-status-bar]'),
+      'Children status bar not found'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the allocations diagram lists all allocation status figures', async function(assert) {
+  test('the allocations diagram lists all allocation status figures', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
@@ -110,7 +126,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     );
   });
 
-  test('the children diagram lists all children status figures', async function(assert) {
+  test('the children diagram lists all children status figures', async function (assert) {
     this.server.create('job', 'periodic', {
       createAllocations: false,
     });
@@ -142,7 +158,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     );
   });
 
-  test('the summary block can be collapsed', async function(assert) {
+  test('the summary block can be collapsed', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
@@ -161,7 +177,9 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     assert.notOk(find('[data-test-legend]'), 'No legend');
   });
 
-  test('when collapsed, the summary block includes an inline version of the chart', async function(assert) {
+  test('when collapsed, the summary block includes an inline version of the chart', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', {
       createAllocations: false,
     });
@@ -176,7 +194,10 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
 
     await click('[data-test-accordion-toggle]');
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation bar still existed');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation bar still existed'
+    );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container'
@@ -185,7 +206,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the collapsed/expanded state is persisted to localStorage', async function(assert) {
+  test('the collapsed/expanded state is persisted to localStorage', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
@@ -198,7 +219,10 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.notOk(window.localStorage.nomadExpandJobSummary, 'No value in localStorage yet');
+    assert.notOk(
+      window.localStorage.nomadExpandJobSummary,
+      'No value in localStorage yet'
+    );
     await click('[data-test-accordion-toggle]');
 
     assert.equal(
@@ -208,7 +232,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     );
   });
 
-  test('the collapsed/expanded state from localStorage is used for the initial state when available', async function(assert) {
+  test('the collapsed/expanded state from localStorage is used for the initial state when available', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
@@ -223,7 +247,10 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation bar still existed');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation bar still existed'
+    );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container'

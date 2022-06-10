@@ -8,8 +8,77 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_Min(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		a := 1
+		b := 2
+		must.Eq(t, 1, Min(a, b))
+		must.Eq(t, 1, Min(b, a))
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		a := 1.1
+		b := 2.2
+		must.Eq(t, 1.1, Min(a, b))
+		must.Eq(t, 1.1, Min(b, a))
+	})
+
+	t.Run("string", func(t *testing.T) {
+		a := "cat"
+		b := "dog"
+		must.Eq(t, "cat", Min(a, b))
+		must.Eq(t, "cat", Min(b, a))
+	})
+}
+
+func Test_Max(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		a := 1
+		b := 2
+		must.Eq(t, 2, Max(a, b))
+		must.Eq(t, 2, Max(b, a))
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		a := 1.1
+		b := 2.2
+		must.Eq(t, 2.2, Max(a, b))
+		must.Eq(t, 2.2, Max(b, a))
+	})
+
+	t.Run("string", func(t *testing.T) {
+		a := "cat"
+		b := "dog"
+		must.Eq(t, "dog", Max(a, b))
+		must.Eq(t, "dog", Max(b, a))
+	})
+}
+
+func Test_CopyMap(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		var m map[string]int
+		result := CopyMap(m)
+		must.Nil(t, result)
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		m := make(map[string]int, 10)
+		result := CopyMap(m)
+		must.Nil(t, result)
+	})
+
+	t.Run("elements", func(t *testing.T) {
+		m := map[string]int{"a": 1, "b": 2}
+		result := CopyMap(m)
+		result["a"] = -1
+		must.MapEq(t, map[string]int{"a": -1, "b": 2}, result)
+		must.MapEq(t, map[string]int{"a": 1, "b": 2}, m) // not modified
+	})
+}
 
 func TestSliceStringIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}
@@ -165,6 +234,17 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 	}
 }
 
+func TestSetToSliceString(t *testing.T) {
+	set := map[string]struct{}{
+		"foo": {},
+		"bar": {},
+		"baz": {},
+	}
+	expect := []string{"foo", "bar", "baz"}
+	got := SetToSliceString(set)
+	require.ElementsMatch(t, expect, got)
+}
+
 func TestCopyMapStringSliceString(t *testing.T) {
 	m := map[string][]string{
 		"x": {"a", "b", "c"},
@@ -194,6 +274,27 @@ func TestCopyMapSliceInterface(t *testing.T) {
 
 	m["foo"] = "zzz"
 	require.False(t, reflect.DeepEqual(m, c))
+}
+
+func TestMergeMapStringString(t *testing.T) {
+	type testCase struct {
+		map1     map[string]string
+		map2     map[string]string
+		expected map[string]string
+	}
+
+	cases := []testCase{
+		{map[string]string{"foo": "bar"}, map[string]string{"baz": "qux"}, map[string]string{"foo": "bar", "baz": "qux"}},
+		{map[string]string{"foo": "bar"}, nil, map[string]string{"foo": "bar"}},
+		{nil, map[string]string{"baz": "qux"}, map[string]string{"baz": "qux"}},
+		{nil, nil, map[string]string{}},
+	}
+
+	for _, c := range cases {
+		if output := MergeMapStringString(c.map1, c.map2); !CompareMapStringString(output, c.expected) {
+			t.Errorf("MergeMapStringString(%q, %q) -> %q != %q", c.map1, c.map2, output, c.expected)
+		}
+	}
 }
 
 func TestCleanEnvVar(t *testing.T) {
@@ -430,4 +531,18 @@ func TestPathEscapesSandbox(t *testing.T) {
 			require.Equal(t, tc.expected, escapes, caseMsg)
 		})
 	}
+}
+
+func Test_NewSafeTimer(t *testing.T) {
+	t.Run("zero", func(t *testing.T) {
+		timer, stop := NewSafeTimer(0)
+		defer stop()
+		<-timer.C
+	})
+
+	t.Run("positive", func(t *testing.T) {
+		timer, stop := NewSafeTimer(1)
+		defer stop()
+		<-timer.C
+	})
 }

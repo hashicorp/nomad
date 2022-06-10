@@ -5,6 +5,7 @@ import { hasMany } from '@ember-data/model';
 
 export default class JobPlan extends Model {
   @attr() diff;
-  @fragmentArray('placement-failure', { defaultValue: () => [] }) failedTGAllocs;
+  @fragmentArray('placement-failure', { defaultValue: () => [] })
+  failedTGAllocs;
   @hasMany('allocation') preemptions;
 }

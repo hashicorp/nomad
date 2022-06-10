@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { run } from '@ember/runloop';
+import { next } from '@ember/runloop';
 import { action } from '@ember/object';
 import { minIndex, max } from 'd3-array';
 
@@ -14,11 +14,13 @@ export default class FlexMasonry extends Component {
 
   @action
   reflow() {
-    run.next(() => {
+    next(() => {
       // There's nothing to do if there is no element
       if (!this.element) return;
 
-      const items = this.element.querySelectorAll(':scope > .flex-masonry-item');
+      const items = this.element.querySelectorAll(
+        ':scope > .flex-masonry-item'
+      );
 
       // Clear out specified order and flex-basis values in case this was once a multi-column layout
       if (this.args.columns === 1 || !this.args.columns) {
@@ -43,7 +45,7 @@ export default class FlexMasonry extends Component {
         const height = item.clientHeight;
 
         // Pick the shortest column accounting for margins
-        const column = columns[minIndex(columns, c => c.height)];
+        const column = columns[minIndex(columns, (c) => c.height)];
 
         // Add the new element's height to the column height
         column.height += marginTop + height + marginBottom;
@@ -62,10 +64,12 @@ export default class FlexMasonry extends Component {
       // beteen the height of the column and the previous column, then flexbox will naturally place the first
       // item at the end of the previous column).
       columns.forEach((column, index) => {
-        const nextHeight = index < columns.length - 1 ? columns[index + 1].height : 0;
+        const nextHeight =
+          index < columns.length - 1 ? columns[index + 1].height : 0;
         const item = column.elements.lastObject;
         if (item) {
-          item.style.flexBasis = item.clientHeight + Math.max(0, nextHeight - column.height) + 'px';
+          item.style.flexBasis =
+            item.clientHeight + Math.max(0, nextHeight - column.height) + 'px';
         }
       });
 

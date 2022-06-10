@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,10 +11,12 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -29,8 +30,6 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-
-	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +44,8 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, fu
 }
 
 func TestClient_StartStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 	if err := client.Shutdown(); err != nil {
@@ -56,7 +56,7 @@ func TestClient_StartStop(t *testing.T) {
 // Certain labels for metrics are dependant on client initial setup. This tests
 // that the client has properly initialized before we assign values to labels
 func TestClient_BaseLabels(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	client, cleanup := TestClient(t, nil)
@@ -81,7 +81,7 @@ func TestClient_BaseLabels(t *testing.T) {
 }
 
 func TestClient_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	_, addr, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -102,7 +102,7 @@ func TestClient_RPC(t *testing.T) {
 }
 
 func TestClient_RPC_FireRetryWatchers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	_, addr, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -131,7 +131,7 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 }
 
 func TestClient_RPC_Passthrough(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -152,7 +152,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 }
 
 func TestClient_Fingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -175,7 +175,7 @@ func TestClient_Fingerprint(t *testing.T) {
 // TestClient_Fingerprint_Periodic asserts that driver node attributes are
 // periodically fingerprinted.
 func TestClient_Fingerprint_Periodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
 		confs := []*nconfig.PluginConfig{
@@ -253,7 +253,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 // TestClient_MixedTLS asserts that when a server is running with TLS enabled
 // it will reject any RPC connections from clients that lack TLS. See #2525
 func TestClient_MixedTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -300,7 +301,7 @@ func TestClient_MixedTLS(t *testing.T) {
 // enabled -- but their certificates are signed by different CAs -- they're
 // unable to communicate.
 func TestClient_BadTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -356,7 +357,7 @@ func TestClient_BadTLS(t *testing.T) {
 }
 
 func TestClient_Register(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -389,7 +390,7 @@ func TestClient_Register(t *testing.T) {
 }
 
 func TestClient_Heartbeat(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.MinHeartbeatTTL = 50 * time.Millisecond
@@ -426,7 +427,7 @@ func TestClient_Heartbeat(t *testing.T) {
 // TestClient_UpdateAllocStatus that once running allocations send updates to
 // the server.
 func TestClient_UpdateAllocStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -439,6 +440,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	job := mock.Job()
 	// allow running job on any node including self client, that may not be a Linux box
 	job.Constraints = nil
+	job.TaskGroups[0].Constraints = nil
 	job.TaskGroups[0].Count = 1
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -452,7 +454,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 }
 
 func TestClient_WatchAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -552,7 +554,7 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 }
 
 func TestClient_SaveRestoreState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -615,7 +617,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
 	consulCatalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
+	mockService := regMock.NewServiceRegistrationHandler(logger)
 
 	// ensure we use non-shutdown driver instances
 	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
@@ -653,7 +655,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 }
 
 func TestClient_AddAllocError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
@@ -729,12 +731,9 @@ func TestClient_AddAllocError(t *testing.T) {
 }
 
 func TestClient_Init(t *testing.T) {
-	t.Parallel()
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	ci.Parallel(t)
+
+	dir := t.TempDir()
 	allocDir := filepath.Join(dir, "alloc")
 
 	config := config.DefaultConfig()
@@ -759,7 +758,7 @@ func TestClient_Init(t *testing.T) {
 }
 
 func TestClient_BlockedAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -872,7 +871,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 }
 
 func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
@@ -888,7 +887,7 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 }
 
 func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
@@ -904,7 +903,7 @@ func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 }
 
 func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {})
@@ -914,7 +913,7 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 }
 
 func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
@@ -990,7 +989,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 }
 
 func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
@@ -1067,7 +1066,8 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 // TestClient_ServerList tests client methods that interact with the internal
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	client, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
@@ -1090,7 +1090,8 @@ func TestClient_ServerList(t *testing.T) {
 }
 
 func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	client, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
@@ -1188,7 +1189,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 // TestClient_UpdateNodeFromFingerprintKeepsConfig asserts manually configured
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("assertions assume linux platform")
 	}
@@ -1266,7 +1267,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
 func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var dev string
 	switch runtime.GOOS {
@@ -1304,6 +1305,8 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	c := &Client{logger: logger}
 
@@ -1400,8 +1403,9 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 }
 
 func TestClient_getAllocatedResources(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1515,7 +1519,8 @@ func TestClient_getAllocatedResources(t *testing.T) {
 }
 
 func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1598,7 +1603,7 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
 func TestClient_hasLocalState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1638,7 +1643,7 @@ func TestClient_hasLocalState(t *testing.T) {
 }
 
 func Test_verifiedTasks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// produce a result and check against expected tasks and/or error output
@@ -1703,4 +1708,90 @@ func Test_verifiedTasks(t *testing.T) {
 		tgTasks := []string{"g1t1", "g1t2", "g1t3"}
 		try(t, alloc(tgTasks), tasks, tasks, "")
 	})
+}
+
+func TestClient_ReconnectAllocs(t *testing.T) {
+	t.Parallel()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
+		c.RPCHandler = s1
+	})
+	defer cleanupC1()
+
+	waitTilNodeReady(c1, t)
+
+	job := mock.Job()
+
+	runningAlloc := mock.Alloc()
+	runningAlloc.NodeID = c1.Node().ID
+	runningAlloc.Job = job
+	runningAlloc.JobID = job.ID
+	runningAlloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	runningAlloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	runningAlloc.ClientStatus = structs.AllocClientStatusPending
+
+	state := s1.State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	require.NoError(t, err)
+
+	err = state.UpsertJobSummary(101, mock.JobSummary(runningAlloc.JobID))
+	require.NoError(t, err)
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{runningAlloc})
+	require.NoError(t, err)
+
+	// Ensure allocation gets upserted with desired status.
+	testutil.WaitForResult(func() (bool, error) {
+		upsertResult, stateErr := state.AllocByID(nil, runningAlloc.ID)
+		return upsertResult.ClientStatus == structs.AllocClientStatusRunning, stateErr
+	}, func(err error) {
+		require.NoError(t, err, "allocation query failed")
+	})
+
+	// Create the unknown version of the alloc from the running one, update state
+	// to simulate what reconciler would have done, and then send to the client.
+	unknownAlloc, err := state.AllocByID(nil, runningAlloc.ID)
+	require.Equal(t, structs.AllocClientStatusRunning, unknownAlloc.ClientStatus)
+	require.NoError(t, err)
+	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
+	unknownAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, []*structs.Allocation{unknownAlloc})
+	require.NoError(t, err)
+
+	updates := &allocUpdates{
+		pulled: map[string]*structs.Allocation{
+			unknownAlloc.ID: unknownAlloc,
+		},
+	}
+
+	c1.runAllocs(updates)
+
+	invalid := false
+	var runner AllocRunner
+	var finalAlloc *structs.Allocation
+	// Ensure the allocation is not invalid on the client and has been marked
+	// running on the server with the new modify index
+	testutil.WaitForResult(func() (result bool, stateErr error) {
+		c1.allocLock.RLock()
+		runner = c1.allocs[unknownAlloc.ID]
+		_, invalid = c1.invalidAllocs[unknownAlloc.ID]
+		c1.allocLock.RUnlock()
+
+		finalAlloc, stateErr = state.AllocByID(nil, unknownAlloc.ID)
+		result = structs.AllocClientStatusRunning == finalAlloc.ClientStatus
+		return
+	}, func(err error) {
+		require.NoError(t, err, "allocation server check failed")
+	})
+
+	require.NotNil(t, runner, "expected alloc runner")
+	require.False(t, invalid, "expected alloc to not be marked invalid")
+	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
 }

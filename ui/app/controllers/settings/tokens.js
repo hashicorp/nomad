@@ -48,9 +48,7 @@ export default class Tokens extends Controller {
         this.resetStore();
 
         // Refetch the token and associated policies
-        this.get('token.fetchSelfTokenAndPolicies')
-          .perform()
-          .catch();
+        this.get('token.fetchSelfTokenAndPolicies').perform().catch();
 
         this.setProperties({
           tokenIsValid: true,

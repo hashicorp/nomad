@@ -277,7 +277,6 @@
       "node_gc_threshold": "12h",
       "non_voting_server": true,
       "num_schedulers": 2,
-      "protocol_version": 3,
       "raft_protocol": 3,
       "raft_multiplier": 4,
       "redundancy_zone": "foo",

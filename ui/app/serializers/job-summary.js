@@ -1,6 +1,8 @@
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobSummary extends ApplicationSerializer {
   normalize(modelClass, hash) {
     hash.PlainJobId = hash.JobID;
@@ -13,12 +15,12 @@ export default class JobSummary extends ApplicationSerializer {
     const fullSummary = hash.Summary || {};
     hash.TaskGroupSummaries = Object.keys(fullSummary)
       .sort()
-      .map(key => {
+      .map((key) => {
         const allocStats = fullSummary[key] || {};
         const summary = { Name: key };
 
         Object.keys(allocStats).forEach(
-          allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
+          (allocKey) => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
         );
 
         return summary;
@@ -28,7 +30,8 @@ export default class JobSummary extends ApplicationSerializer {
     const childrenStats = get(hash, 'Children');
     if (childrenStats) {
       Object.keys(childrenStats).forEach(
-        childrenKey => (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
+        (childrenKey) =>
+          (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
       );
     }
 

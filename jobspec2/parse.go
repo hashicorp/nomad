@@ -96,6 +96,12 @@ func decode(c *jobConfig) error {
 		diags = append(diags, ds...)
 	}
 
+	// Return early if the input job or variable files are not valid.
+	// Decoding and evaluating invalid files may result in unexpected results.
+	if diags.HasErrors() {
+		return diags
+	}
+
 	diags = append(diags, c.decodeBody(file.Body)...)
 
 	if diags.HasErrors() {

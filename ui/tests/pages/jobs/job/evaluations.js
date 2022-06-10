@@ -1,4 +1,11 @@
-import { attribute, clickable, create, collection, text, visitable } from 'ember-cli-page-object';
+import {
+  attribute,
+  clickable,
+  create,
+  collection,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
 
@@ -15,10 +22,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions
-      .toArray()
-      .findBy('id', id)
-      .sort();
+    return this.sortOptions.toArray().findBy('id', id).sort();
   },
 
   error: error(),

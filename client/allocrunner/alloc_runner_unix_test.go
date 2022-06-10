@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/ci"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -25,7 +26,7 @@ import (
 // DesiredStatus=Stop, persisting the update, but crashing before terminating
 // the task.
 func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// 1. Run task
 	// 2. Shutdown alloc runner
@@ -38,6 +39,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 		{
 			Name:      "foo",
 			PortLabel: "8888",
+			Provider:  structs.ServiceProviderConsul,
 		},
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -122,11 +124,11 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 
 	// Assert consul was cleaned up:
 	//   1 removal during prekill
-	//   1 removal during exited
-	//   1 removal during stop
+	//    - removal during exited is de-duped due to prekill
+	//    - removal during stop is de-duped due to prekill
 	//   1 removal group during stop
-	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
-	require.Len(t, consulOps, 4)
+	consulOps := conf2.Consul.(*regMock.ServiceRegistrationHandler).GetOps()
+	require.Len(t, consulOps, 2)
 	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)
 	}
@@ -143,7 +145,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 // TestAllocRunner_Restore_CompletedBatch asserts that restoring a completed
 // batch alloc doesn't run it again
 func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// 1. Run task and wait for it to complete
 	// 2. Start new alloc runner
@@ -228,7 +230,7 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 // prestart hooks failed, then the alloc and subsequent tasks transition
 // to failed state
 func TestAllocRunner_PreStartFailuresLeadToFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch

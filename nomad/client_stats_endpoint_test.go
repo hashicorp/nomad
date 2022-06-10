@@ -6,6 +6,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestClientStats_Stats_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -58,7 +59,7 @@ func TestClientStats_Stats_Local(t *testing.T) {
 }
 
 func TestClientStats_Stats_Local_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -118,7 +119,7 @@ func TestClientStats_Stats_Local_ACL(t *testing.T) {
 }
 
 func TestClientStats_Stats_NoNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -142,7 +143,7 @@ func TestClientStats_Stats_NoNode(t *testing.T) {
 }
 
 func TestClientStats_Stats_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -169,7 +170,7 @@ func TestClientStats_Stats_OldNode(t *testing.T) {
 }
 
 func TestClientStats_Stats_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client

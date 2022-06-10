@@ -1,0 +1,24 @@
+rules:
+  - id: ui-no-string-extensions
+    patterns:
+      - pattern: "$S.$FUNC()"
+      - metavariable-pattern:
+          metavariable: $FUNC
+          pattern-either:
+            - pattern: "w"
+            - pattern: "loc"
+            - pattern: "camelize"
+            - pattern: "decamelize"
+            - pattern: "dasherize"
+            - pattern: "underscore"
+            - pattern: "classify"
+            - pattern: "capitalize"
+    message: "Invalid call to string extension `$FUNC` in `$S.$FUNC()`"
+    languages:
+      - javascript
+    severity: ERROR
+    paths:
+      include:
+        - "ui/**/*.js"
+      exclude:
+        - "ui/node_modules"

@@ -3,14 +3,13 @@ package nomad
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"testing"
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -21,17 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func tmpDir(t *testing.T) string {
-	t.Helper()
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return dir
-}
-
 func TestServer_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -43,15 +33,14 @@ func TestServer_RPC(t *testing.T) {
 }
 
 func TestServer_RPC_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
@@ -109,15 +98,14 @@ func TestServer_RPC_TLS(t *testing.T) {
 }
 
 func TestServer_RPC_MixedTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
@@ -178,7 +166,7 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 }
 
 func TestServer_Regions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Make the servers
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -211,7 +199,7 @@ func TestServer_Regions(t *testing.T) {
 }
 
 func TestServer_Reload_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "global"
@@ -243,7 +231,7 @@ func connectionReset(msg string) bool {
 // Tests that the server will successfully reload its network connections,
 // upgrading from plaintext to TLS if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -251,8 +239,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeA")
@@ -292,7 +279,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading from TLS to plaintext if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -301,8 +288,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeB")
@@ -339,7 +325,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading only RPC connections
 func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -348,8 +334,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeB")
@@ -393,7 +378,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // upgrading only RPC connections
 func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -402,8 +387,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeB")
@@ -449,7 +433,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 // Test that Raft connections are reloaded as expected when a Nomad server is
 // upgraded from plaintext to TLS
 func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -459,8 +443,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		barcert = "../dev/tls_cluster/certs/nomad.pem"
 		barkey  = "../dev/tls_cluster/certs/nomad-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -529,7 +512,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 }
 
 func TestServer_InvalidSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Set the config to not have the core scheduler
@@ -553,7 +536,7 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 }
 
 func TestServer_RPCNameAndRegionValidation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, tc := range []struct {
 		name     string
 		region   string
@@ -580,7 +563,7 @@ func TestServer_RPCNameAndRegionValidation(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 8
@@ -598,7 +581,7 @@ func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_EnabledSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.EnabledSchedulers = []string{structs.JobTypeCore, structs.JobTypeSystem}
@@ -618,7 +601,7 @@ func TestServer_ReloadSchedulers_EnabledSchedulers(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Set the config to not have the core scheduler
 	config := DefaultConfig()
@@ -643,4 +626,28 @@ func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
 	reloadSchedulers(s, &SchedulerWorkerPoolArgs{NumSchedulers: config.NumSchedulers, EnabledSchedulers: []string{"_core", "foo"}})
 	currentWC = s.GetSchedulerWorkerConfig()
 	require.Equal(t, origWC, currentWC)
+}
+
+func TestServer_PreventRaftDowngrade(t *testing.T) {
+	ci.Parallel(t)
+
+	dir := t.TempDir()
+	_, cleanupv3 := TestServer(t, func(c *Config) {
+		c.DevMode = false
+		c.DataDir = dir
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	cleanupv3()
+
+	_, cleanupv2, err := TestServerErr(t, func(c *Config) {
+		c.DevMode = false
+		c.DataDir = dir
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	if cleanupv2 != nil {
+		defer cleanupv2()
+	}
+
+	// Downgrading Raft should prevent the server from starting.
+	require.Error(t, err)
 }

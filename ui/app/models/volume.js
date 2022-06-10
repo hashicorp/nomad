@@ -14,7 +14,10 @@ export default class Volume extends Model {
 
   @computed('writeAllocations.[]', 'readAllocations.[]')
   get allocations() {
-    return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
+    return [
+      ...this.writeAllocations.toArray(),
+      ...this.readAllocations.toArray(),
+    ];
   }
 
   @attr('number') currentWriters;
@@ -36,6 +39,11 @@ export default class Volume extends Model {
   @attr('boolean') controllerRequired;
   @attr('number') controllersHealthy;
   @attr('number') controllersExpected;
+
+  @computed('plainId')
+  get idWithNamespace() {
+    return `${this.plainId}@${this.belongsTo('namespace').id()}`;
+  }
 
   @computed('controllersHealthy', 'controllersExpected')
   get controllersHealthyProportion() {

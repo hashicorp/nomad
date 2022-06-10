@@ -41,6 +41,9 @@ const (
 	qemuGracefulShutdownMsg = "system_powerdown\n"
 	qemuMonitorSocketName   = "qemu-monitor.sock"
 
+	// Socket file enabling communication with the Qemu Guest Agent (if enabled and running)
+	qemuGuestAgentSocketName = "qemu-guest-agent.sock"
+
 	// Maximum socket path length prior to qemu 2.10.1
 	qemuLegacyMaxMonitorPathLen = 108
 
@@ -95,6 +98,7 @@ var (
 		"drive_interface":   hclspec.NewAttr("drive_interface", "string", false),
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
+		"guest_agent":       hclspec.NewAttr("guest_agent", "bool", false),
 		"args":              hclspec.NewAttr("args", "list(string)", false),
 		"port_map":          hclspec.NewAttr("port_map", "list(map(number))", false),
 	})
@@ -123,6 +127,7 @@ type TaskConfig struct {
 	PortMap          hclutils.MapStrInt `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
 	GracefulShutdown bool               `codec:"graceful_shutdown"`
 	DriveInterface   string             `codec:"drive_interface"` // Use interface for image
+	GuestAgent       bool               `codec:"guest_agent"`
 }
 
 // TaskState is the state which is encoded in the handle returned in StartTask.
@@ -269,11 +274,6 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
 		return fmt.Errorf("error: handle cannot be nil")
-	}
-
-	// COMPAT(0.10): pre 0.9 upgrade path check
-	if handle.Version == 0 {
-		return d.recoverPre09Task(handle)
 	}
 
 	// If already attached to handle there's nothing to recover.
@@ -476,6 +476,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		}
 		d.logger.Debug("got monitor path", "monitorPath", monitorPath)
 		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
+	}
+
+	if driverConfig.GuestAgent {
+		if runtime.GOOS == "windows" {
+			return nil, nil, errors.New("QEMU Guest Agent socket is unsupported on the Windows platform")
+		}
+		// This socket will be used to communicate with the Guest Agent (if it's running)
+		taskDir := filepath.Join(cfg.AllocDir, cfg.Name)
+		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s/%s,server,nowait,id=qga0", taskDir, qemuGuestAgentSocketName))
+		args = append(args, "-device", "virtio-serial")
+		args = append(args, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0")
 	}
 
 	// Add pass through arguments to qemu executable. A user can specify

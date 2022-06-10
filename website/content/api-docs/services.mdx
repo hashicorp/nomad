@@ -1,0 +1,175 @@
+---
+layout: api
+page_title: Services - HTTP API
+description: >-
+  The /service endpoints are used to query and interact with Nomad services.
+---
+
+# Service HTTP API
+
+The `/service` endpoints are used to query and interact with Nomad services.
+
+## List Services
+
+This endpoint lists all the currently available Nomad services.
+
+| Method | Path           | Produces           |
+| ------ | -------------- | ------------------ |
+| `GET`  | `/v1/services` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `namespace:read-job` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/services
+```
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/services?namespace=*
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Namespace": "default",
+    "Services": [
+      {
+        "ServiceName": "example-cache-redis",
+        "Tags": [
+          "cache",
+          "db"
+        ]
+      }
+    ]
+  }
+]
+```
+
+## Read Service
+
+This endpoint reads a specific service.
+
+| Method | Path                     | Produces           |
+| ------ | ------------------------ | ------------------ |
+| `GET`  | `/service/:service_name` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required         |
+| ---------------- | ----------------- | -------------------- |
+| `YES`            | `all`             | `namespace:read-job` |
+
+### Parameters
+
+- `:service_name` `(string: <required>)` - Specifies the service name. This is
+  specified as part of the path.
+
+- `namespace` `(string: "default")` - Specifies the target namespace. This
+  parameter is used before any `filter` expression is applied.
+
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected service. This
+  value can be obtained from the `X-Nomad-NextToken` header from the previous
+  response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of services to return for
+  this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the `next_token`
+  of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/service/example-cache-redis
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Address": "127.0.0.1",
+    "AllocID": "177160af-26f6-619f-9c9f-5e46d1104395",
+    "CreateIndex": 14,
+    "Datacenter": "dc1",
+    "ID": "_nomad-task-177160af-26f6-619f-9c9f-5e46d1104395-redis-example-cache-redis-db",
+    "JobID": "example",
+    "ModifyIndex": 24,
+    "Namespace": "default",
+    "NodeID": "7406e90b-de16-d118-80fe-60d0f2730cb3",
+    "Port": 29702,
+    "ServiceName": "example-cache-redis",
+    "Tags": [
+      "db",
+      "cache"
+    ]
+  },
+  {
+    "Address": "127.0.0.1",
+    "AllocID": "ba731da0-6df9-9858-ef23-806e9758a899",
+    "CreateIndex": 35,
+    "Datacenter": "dc1",
+    "ID": "_nomad-task-ba731da0-6df9-9858-ef23-806e9758a899-redis-example-cache-redis-db",
+    "JobID": "example",
+    "ModifyIndex": 35,
+    "Namespace": "default",
+    "NodeID": "7406e90b-de16-d118-80fe-60d0f2730cb3",
+    "Port": 27232,
+    "ServiceName": "example-cache-redis",
+    "Tags": [
+      "db",
+      "cache"
+    ]
+  }
+]
+```
+
+## Delete Service Registration
+
+This endpoint is used to delete an individual service registration.
+
+| Method   | Path                                    | Produces           |
+| -------- | --------------------------------------- | ------------------ |
+| `DELETE` | `/v1/service/:service_name/:service_id` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
+
+### Parameters
+
+- `:service_name` `(string: <required>)` - Specifies the service name. This is
+  specified as part of the path.
+
+- `:service_id` `(string: <required>)` - Specifies the service ID. This is
+  specified as part of the path.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request DELETE \
+    https://localhost:4646/v1/service/example-cache-redis/_nomad-task-ba731da0-6df9-9858-ef23-806e9758a899-redis-example-cache-redis-db
+```

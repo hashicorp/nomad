@@ -4,23 +4,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
-	t.Parallel()
-	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	ci.Parallel(t)
+	tmpDir := t.TempDir()
 
 	{
 		cmd := exec.Command("nomad", "job", "init")
@@ -41,18 +37,18 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 }
 
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
 	assert := assert.New(t)
-	t.Parallel()
-	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	assert.Nil(err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	{
-		cmd := exec.Command("nomad", "job", "init")
+		cmd := exec.Command("nomad", "job", "init", "-short")
 		cmd.Dir = tmpDir
 		assert.Nil(cmd.Run())
 	}
@@ -91,5 +87,4 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		_, err := cmd.Output()
 		assert.Nil(err)
 	}
-
 }

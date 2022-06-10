@@ -28,7 +28,10 @@ export default create({
   }),
 
   statusDefinition: text('[data-test-status-definition]'),
-  statusDecorationClass: attribute('class', '[data-test-status-definition] .status-text'),
+  statusDecorationClass: attribute(
+    'class',
+    '[data-test-status-definition] .status-text'
+  ),
   addressDefinition: text('[data-test-address-definition]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
@@ -62,10 +65,13 @@ export default create({
   metaTable: isPresent('[data-test-meta]'),
   emptyMetaMessage: isPresent('[data-test-empty-meta-message]'),
 
-  metaAttributes: collection('[data-test-meta] [data-test-attributes-section]', {
-    key: text('[data-test-key]'),
-    value: text('[data-test-value]'),
-  }),
+  metaAttributes: collection(
+    '[data-test-meta] [data-test-attributes-section]',
+    {
+      key: text('[data-test-key]'),
+      value: text('[data-test-value]'),
+    }
+  ),
 
   error: {
     isShown: isPresent('[data-test-error]'),
@@ -88,22 +94,28 @@ export default create({
     permissions: text('[data-test-permissions]'),
   }),
 
-  driverHeads: collection('[data-test-driver-status] [data-test-accordion-head]', {
-    name: text('[data-test-name]'),
-    detected: text('[data-test-detected]'),
-    lastUpdated: text('[data-test-last-updated]'),
-    healthIsShown: isPresent('[data-test-health]'),
-    health: text('[data-test-health]'),
-    healthClass: attribute('class', '[data-test-health] .color-swatch'),
+  driverHeads: collection(
+    '[data-test-driver-status] [data-test-accordion-head]',
+    {
+      name: text('[data-test-name]'),
+      detected: text('[data-test-detected]'),
+      lastUpdated: text('[data-test-last-updated]'),
+      healthIsShown: isPresent('[data-test-health]'),
+      health: text('[data-test-health]'),
+      healthClass: attribute('class', '[data-test-health] .color-swatch'),
 
-    toggle: clickable('[data-test-accordion-toggle]'),
-  }),
+      toggle: clickable('[data-test-accordion-toggle]'),
+    }
+  ),
 
-  driverBodies: collection('[data-test-driver-status] [data-test-accordion-body]', {
-    description: text('[data-test-health-description]'),
-    descriptionIsShown: isPresent('[data-test-health-description]'),
-    attributesAreShown: isPresent('[data-test-driver-attributes]'),
-  }),
+  driverBodies: collection(
+    '[data-test-driver-status] [data-test-accordion-body]',
+    {
+      description: text('[data-test-health-description]'),
+      descriptionIsShown: isPresent('[data-test-health-description]'),
+      attributesAreShown: isPresent('[data-test-driver-attributes]'),
+    }
+  ),
 
   drainDetails: {
     scope: '[data-test-drain-details]',
@@ -151,10 +163,7 @@ export default create({
 
     setDeadline(label) {
       this.deadlineOptions.open();
-      this.deadlineOptions.options
-        .toArray()
-        .findBy('label', label)
-        .choose();
+      this.deadlineOptions.options.toArray().findBy('label', label).choose();
     },
   },
 
@@ -166,7 +175,13 @@ export default create({
   eligibilityError: notification('[data-test-eligibility-error]'),
   stopDrainError: notification('[data-test-stop-drain-error]'),
   drainError: notification('[data-test-drain-error]'),
-  drainStoppedNotification: notification('[data-test-drain-stopped-notification]'),
-  drainUpdatedNotification: notification('[data-test-drain-updated-notification]'),
-  drainCompleteNotification: notification('[data-test-drain-complete-notification]'),
+  drainStoppedNotification: notification(
+    '[data-test-drain-stopped-notification]'
+  ),
+  drainUpdatedNotification: notification(
+    '[data-test-drain-updated-notification]'
+  ),
+  drainCompleteNotification: notification(
+    '[data-test-drain-complete-notification]'
+  ),
 });

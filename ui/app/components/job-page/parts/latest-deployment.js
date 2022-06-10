@@ -13,7 +13,7 @@ export default class LatestDeployment extends Component {
 
   isShowingDeploymentDetails = false;
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.get('job.latestDeployment.content').promote();
     } catch (err) {
@@ -25,7 +25,7 @@ export default class LatestDeployment extends Component {
   })
   promote;
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.get('job.latestDeployment.content').fail();
     } catch (err) {

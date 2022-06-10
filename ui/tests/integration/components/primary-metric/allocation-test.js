@@ -13,21 +13,25 @@ const mockTasks = [
   { task: 'Three', reservedCPU: 300, reservedMemory: 100, cpu: [], memory: [] },
 ];
 
-module('Integration | Component | PrimaryMetric::Allocation', function(hooks) {
+module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
   setupRenderingTest(hooks);
   setupPrimaryMetricMocks(hooks, [...mockTasks]);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node');
-    this.server.create('job', { groupsCount: 1, groupTaskCount: 3, createAllocations: false });
+    this.server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 3,
+      createAllocations: false,
+    });
     this.server.create('allocation');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -37,13 +41,16 @@ module('Integration | Component | PrimaryMetric::Allocation', function(hooks) {
       @metric={{this.metric}} />
   `;
 
-  const preload = async store => {
+  const preload = async (store) => {
     await store.findAll('allocation');
   };
 
-  const findResource = store => store.peekAll('allocation').get('firstObject');
+  const findResource = (store) =>
+    store.peekAll('allocation').get('firstObject');
 
-  test('Must pass an accessibility audit', async function(assert) {
+  test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await preload(this.store);
 
     const resource = findResource(this.store);
@@ -53,7 +60,7 @@ module('Integration | Component | PrimaryMetric::Allocation', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('Each task for the allocation gets its own line', async function(assert) {
+  test('Each task for the allocation gets its own line', async function (assert) {
     await preload(this.store);
 
     const resource = findResource(this.store);

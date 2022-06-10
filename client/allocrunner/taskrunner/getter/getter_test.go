@@ -13,7 +13,11 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	gg "github.com/hashicorp/go-getter"
+	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -46,7 +50,7 @@ func (r noopReplacer) ClientPath(p string, join bool) (string, bool) {
 	return path, escapes
 }
 
-func noopTaskEnv(taskDir string) EnvReplacer {
+func noopTaskEnv(taskDir string) interfaces.EnvReplacer {
 	return noopReplacer{
 		taskDir: taskDir,
 	}
@@ -67,8 +71,49 @@ func (u upperReplacer) ClientPath(p string, join bool) (string, bool) {
 	return path, escapes
 }
 
-func removeAllT(t *testing.T, path string) {
-	require.NoError(t, os.RemoveAll(path))
+func TestGetter_getClient(t *testing.T) {
+	getter := NewGetter(&clientconfig.ArtifactConfig{
+		HTTPReadTimeout: time.Minute,
+		HTTPMaxBytes:    100_000,
+		GCSTimeout:      1 * time.Minute,
+		GitTimeout:      2 * time.Minute,
+		HgTimeout:       3 * time.Minute,
+		S3Timeout:       4 * time.Minute,
+	})
+	client := getter.getClient("src", nil, gg.ClientModeAny, "dst")
+
+	t.Run("check symlink config", func(t *testing.T) {
+		require.True(t, client.DisableSymlinks)
+	})
+
+	t.Run("check http config", func(t *testing.T) {
+		require.True(t, client.Getters["http"].(*gg.HttpGetter).XTerraformGetDisabled)
+		require.Equal(t, time.Minute, client.Getters["http"].(*gg.HttpGetter).ReadTimeout)
+		require.Equal(t, int64(100_000), client.Getters["http"].(*gg.HttpGetter).MaxBytes)
+	})
+
+	t.Run("check https config", func(t *testing.T) {
+		require.True(t, client.Getters["https"].(*gg.HttpGetter).XTerraformGetDisabled)
+		require.Equal(t, time.Minute, client.Getters["https"].(*gg.HttpGetter).ReadTimeout)
+		require.Equal(t, int64(100_000), client.Getters["https"].(*gg.HttpGetter).MaxBytes)
+	})
+
+	t.Run("check gcs config", func(t *testing.T) {
+		require.Equal(t, client.Getters["gcs"].(*gg.GCSGetter).Timeout, 1*time.Minute)
+	})
+
+	t.Run("check git config", func(t *testing.T) {
+		require.Equal(t, client.Getters["git"].(*gg.GitGetter).Timeout, 2*time.Minute)
+	})
+
+	t.Run("check hg config", func(t *testing.T) {
+		require.Equal(t, client.Getters["hg"].(*gg.HgGetter).Timeout, 3*time.Minute)
+	})
+
+	t.Run("check s3 config", func(t *testing.T) {
+		require.Equal(t, client.Getters["s3"].(*gg.S3Getter).Timeout, 4*time.Minute)
+	})
+
 }
 
 func TestGetArtifact_getHeaders(t *testing.T) {
@@ -109,9 +154,7 @@ func TestGetArtifact_Headers(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into.
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	require.NoError(t, err)
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact.
 	artifact := &structs.TaskArtifact{
@@ -124,10 +167,12 @@ func TestGetArtifact_Headers(t *testing.T) {
 	}
 
 	// Download the artifact.
+	getter := TestDefaultGetter(t)
 	taskEnv := upperReplacer{
 		taskDir: taskDir,
 	}
-	err = GetArtifact(taskEnv, artifact)
+
+	err := getter.GetArtifact(taskEnv, artifact)
 	require.NoError(t, err)
 
 	// Verify artifact exists.
@@ -145,11 +190,7 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -161,7 +202,8 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -177,11 +219,7 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -195,7 +233,8 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -211,11 +250,7 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -229,7 +264,8 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	}
 
 	// attempt to download the artifact
-	err = GetArtifact(noopTaskEnv(taskDir), artifact)
+	getter := TestDefaultGetter(t)
+	err := getter.GetArtifact(noopTaskEnv(taskDir), artifact)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
 	}
@@ -263,11 +299,7 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact with an incorrect checksum
 	file := "test.sh"
@@ -279,7 +311,8 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	}
 
 	// Download the artifact and expect an error
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err == nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -324,11 +357,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 
 	// Create a temp directory to download into and create some of the same
 	// files that exist in the artifact to ensure they are overridden
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	create := map[string]string{
 		"exist/my.config": "to be replaced",
@@ -344,7 +373,8 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -365,9 +395,7 @@ func TestGetArtifact_Setuid(t *testing.T) {
 
 	// Create a temp directory to download into and create some of the same
 	// files that exist in the artifact to ensure they are overridden
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	require.NoError(t, err)
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	file := "setuid.tgz"
 	artifact := &structs.TaskArtifact{
@@ -377,7 +405,8 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GetArtifact(noopTaskEnv(taskDir), artifact))
+	getter := TestDefaultGetter(t)
+	require.NoError(t, getter.GetArtifact(noopTaskEnv(taskDir), artifact))
 
 	var expected map[string]int
 

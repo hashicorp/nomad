@@ -109,8 +109,7 @@ When the task starts, it will be passed the following environment variables:
 
 - <tt>NOMAD_IP_foo</tt> - The IP to bind on for the given port label.
 - <tt>NOMAD_PORT_foo</tt> - The port value for the given port label.
-- <tt>NOMAD_ADDR_foo</tt> - A combined
-  <tt>ip:port</tt> that can be used for convenience.
+- <tt>NOMAD_ADDR_foo</tt> - A combined <tt>ip:port</tt> that can be used for convenience.
 
 The label of the port is just text - it has no special meaning to Nomad.
 
@@ -119,6 +118,8 @@ The label of the port is just text - it has no special meaning to Nomad.
 - `servers` `(array<string>: nil)` - Sets the DNS nameservers the allocation uses for name resolution.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
 - `options` `(array<string>: nil)` - Sets internal resolver variables.
+
+These parameters support [interpolation](/docs/runtime/interpolation).
 
 ## `network` Examples
 
@@ -215,6 +216,19 @@ network {
   }
 }
 ```
+
+Using bridge mode can result in failing outbound network requests on hosts that have
+[firewalld](https://firewalld.org) enabled. This includes most RHEL-based Linux distributions
+like CentOS, Rocky Linux or Oracle Linux. One solution for firewalld to allow network
+requsts coming from Nomad jobs is to mark the `nomad` bridge interface as trusted.
+
+```shell-session
+$ sudo firewall-cmd --zone=trusted --add-interface=nomad
+$ sudo firewall-cmd --zone=trusted --add-interface=nomad --permanent
+```
+
+It is neccessary to restart the affected jobs afterwards for them to be able to access
+the network. Further details can be found in Docker's documentation under [Docker and iptables](https://docs.docker.com/network/iptables/#integration-with-firewalld).
 
 ### DNS
 

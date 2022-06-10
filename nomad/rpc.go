@@ -7,21 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	golog "log"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
 	"time"
 
-	golog "log"
-
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -105,6 +103,38 @@ type RPCContext struct {
 
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
+}
+
+// Certificate returns the first certificate available in the chain.
+func (ctx *RPCContext) Certificate() *x509.Certificate {
+	if ctx == nil || len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
+		return nil
+	}
+
+	return ctx.VerifiedChains[0][0]
+}
+
+// ValidateCertificateForName returns true if the RPC context certificate is valid
+// for the given domain name.
+func (ctx *RPCContext) ValidateCertificateForName(name string) error {
+	if ctx == nil || !ctx.TLS {
+		return nil
+	}
+
+	cert := ctx.Certificate()
+	if cert == nil {
+		return errors.New("missing certificate information")
+	}
+
+	validNames := []string{cert.Subject.CommonName}
+	validNames = append(validNames, cert.DNSNames...)
+	for _, valid := range validNames {
+		if name == valid {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
 }
 
 // listen is used to listen for incoming RPC connections
@@ -565,7 +595,7 @@ CHECK_LEADER:
 		firstCheck = time.Now()
 	}
 	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
+		jitter := helper.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
@@ -612,7 +642,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -621,7 +651,7 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	if server == nil {
 		return errors.New("must be given a valid server address")
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
@@ -648,7 +678,7 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
@@ -676,7 +706,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -788,7 +818,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
+	opts.queryOpts.MaxQueryTime += helper.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
 
 	// Setup a query timeout
 	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)
@@ -838,30 +868,18 @@ func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 		return nil
 	}
 
-	// defensive conditions: these should have already been enforced by handleConn
-	if rpcCtx == nil || !rpcCtx.TLS {
-		return errors.New("non-TLS connection attempted")
-	}
-	if len(rpcCtx.VerifiedChains) == 0 || len(rpcCtx.VerifiedChains[0]) == 0 {
-		// this should never happen, as rpcNameAndRegionValidate should have enforced it
-		return errors.New("missing cert info")
-	}
-
 	// check that `server.<region>.nomad` is present in cert
 	expected := "server." + r.Region() + ".nomad"
-
-	cert := rpcCtx.VerifiedChains[0][0]
-	for _, dnsName := range cert.DNSNames {
-		if dnsName == expected {
-			// Certificate is valid for the expected name
-			return nil
+	err := rpcCtx.ValidateCertificateForName(expected)
+	if err != nil {
+		cert := rpcCtx.Certificate()
+		if cert != nil {
+			err = fmt.Errorf("request certificate is only valid for %s: %v", cert.DNSNames, err)
 		}
-	}
-	if cert.Subject.CommonName == expected {
-		// Certificate is valid for the expected name
-		return nil
+
+		return fmt.Errorf("unauthorized raft connection from %s: %v", rpcCtx.Conn.RemoteAddr(), err)
 	}
 
-	r.logger.Warn("unauthorized raft connection", "remote_addr", rpcCtx.Conn.RemoteAddr(), "required_hostname", expected, "found", cert.DNSNames)
-	return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
+	// Certificate is valid for the expected name
+	return nil
 }

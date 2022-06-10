@@ -2,12 +2,12 @@ package agent
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,13 +18,9 @@ const (
 )
 
 func TestLogFile_timeRotation(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	ci.Parallel(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterTimeTest")
-	require.NoError(err)
-
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	logFile := logFile{
@@ -43,12 +39,10 @@ func TestLogFile_timeRotation(t *testing.T) {
 }
 
 func TestLogFile_openNew(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterOpenTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -61,7 +55,7 @@ func TestLogFile_openNew(t *testing.T) {
 	}
 	require.NoError(logFile.openNew())
 
-	_, err = ioutil.ReadFile(logFile.FileInfo.Name())
+	_, err := ioutil.ReadFile(logFile.FileInfo.Name())
 	require.NoError(err)
 
 	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
@@ -80,12 +74,10 @@ func TestLogFile_openNew(t *testing.T) {
 }
 
 func TestLogFile_byteRotation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterByteTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -104,12 +96,10 @@ func TestLogFile_byteRotation(t *testing.T) {
 }
 
 func TestLogFile_logLevelFiltering(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterFilterTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 	filt := LevelFilter()
 	logFile := logFile{
 		logFilter: filt,
@@ -127,12 +117,10 @@ func TestLogFile_logLevelFiltering(t *testing.T) {
 }
 
 func TestLogFile_deleteArchives(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -167,12 +155,10 @@ func TestLogFile_deleteArchives(t *testing.T) {
 }
 
 func TestLogFile_deleteArchivesDisabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
-	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesDisabledTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")

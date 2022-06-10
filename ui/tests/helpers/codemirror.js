@@ -3,7 +3,7 @@ const invariant = (truthy, error) => {
 };
 
 export function getCodeMirrorInstance(container) {
-  return function(selector) {
+  return function (selector) {
     const cmService = container.lookup('service:code-mirror');
 
     const element = document.querySelector(selector);
@@ -17,14 +17,14 @@ export function getCodeMirrorInstance(container) {
 }
 
 export default function setupCodeMirror(hooks) {
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.getCodeMirrorInstance = getCodeMirrorInstance(this.owner);
 
     // Expose to window for access from page objects
     window.getCodeMirrorInstance = this.getCodeMirrorInstance;
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     delete window.getCodeMirrorInstance;
     delete this.getCodeMirrorInstance;
   });

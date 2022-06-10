@@ -34,6 +34,7 @@ func Node() *structs.Node {
 			"nomad.version":      "0.5.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
+			"consul.version":     "1.11.4",
 		},
 
 		// TODO Remove once clientv2 gets merged
@@ -251,6 +252,13 @@ func Job() *structs.Job {
 			{
 				Name:  "web",
 				Count: 10,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${attr.consul.version}",
+						RTarget: ">= 1.7.0",
+						Operand: structs.ConstraintSemver,
+					},
+				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
 				},
@@ -333,6 +341,88 @@ func Job() *structs.Job {
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
 	}
+	job.Canonicalize()
+	return job
+}
+
+func MultiTaskGroupJob() *structs.Job {
+	job := Job()
+	apiTaskGroup := &structs.TaskGroup{
+		Name:  "api",
+		Count: 10,
+		EphemeralDisk: &structs.EphemeralDisk{
+			SizeMB: 150,
+		},
+		RestartPolicy: &structs.RestartPolicy{
+			Attempts: 3,
+			Interval: 10 * time.Minute,
+			Delay:    1 * time.Minute,
+			Mode:     structs.RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:      2,
+			Interval:      10 * time.Minute,
+			Delay:         5 * time.Second,
+			DelayFunction: "constant",
+		},
+		Migrate: structs.DefaultMigrateStrategy(),
+		Networks: []*structs.NetworkResource{
+			{
+				Mode: "host",
+				DynamicPorts: []structs.Port{
+					{Label: "http"},
+					{Label: "admin"},
+				},
+			},
+		},
+		Tasks: []*structs.Task{
+			{
+				Name:   "api",
+				Driver: "exec",
+				Config: map[string]interface{}{
+					"command": "/bin/date",
+				},
+				Env: map[string]string{
+					"FOO": "bar",
+				},
+				Services: []*structs.Service{
+					{
+						Name:      "${TASK}-backend",
+						PortLabel: "http",
+						Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:     "check-table",
+								Type:     structs.ServiceCheckScript,
+								Command:  "/usr/local/check-table-${meta.database}",
+								Args:     []string{"${meta.version}"},
+								Interval: 30 * time.Second,
+								Timeout:  5 * time.Second,
+							},
+						},
+					},
+					{
+						Name:      "${TASK}-admin",
+						PortLabel: "admin",
+					},
+				},
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{
+					CPU:      500,
+					MemoryMB: 256,
+				},
+				Meta: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"elb_check_type":     "http",
+			"elb_check_interval": "30s",
+			"elb_check_min":      "3",
+		},
+	}
+	job.TaskGroups = append(job.TaskGroups, apiTaskGroup)
 	job.Canonicalize()
 	return job
 }
@@ -683,6 +773,110 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 	return job
 }
 
+func LifecycleJobWithPoststartDeploy() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:    "web",
+				Count:   1,
+				Migrate: structs.DefaultMigrateStrategy(),
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 0,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeFail,
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "web",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "side",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: true,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "post",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook: structs.TaskLifecycleHookPoststart,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "init",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: false,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func LifecycleAllocWithPoststopDeploy() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        uuid.Generate(),
@@ -752,6 +946,82 @@ func LifecycleAllocWithPoststopDeploy() *structs.Allocation {
 			},
 		},
 		Job:           LifecycleJobWithPoststopDeploy(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func LifecycleAllocWithPoststartDeploy() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789xyz",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"init": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"side": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"post": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"init": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"side": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"post": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+			},
+		},
+		Job:           LifecycleJobWithPoststartDeploy(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
@@ -1894,8 +2164,8 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		ExternalID:          "vol-01",
 		Namespace:           "default",
 		Topologies:          []*structs.CSITopology{},
-		AccessMode:          structs.CSIVolumeAccessModeSingleNodeWriter,
-		AttachmentMode:      structs.CSIVolumeAttachmentModeFilesystem,
+		AccessMode:          structs.CSIVolumeAccessModeUnknown,
+		AttachmentMode:      structs.CSIVolumeAttachmentModeUnknown,
 		MountOptions:        &structs.CSIMountOptions{},
 		Secrets:             structs.CSISecrets{},
 		Parameters:          map[string]string{},
@@ -1914,6 +2184,39 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		NodesHealthy:        plugin.NodesHealthy,
 		NodesExpected:       len(plugin.Nodes),
 	}
+}
+
+func CSIPluginJob(pluginType structs.CSIPluginType, pluginID string) *structs.Job {
+
+	job := new(structs.Job)
+
+	switch pluginType {
+	case structs.CSIPluginTypeController:
+		job = Job()
+		job.ID = fmt.Sprintf("mock-controller-%s", pluginID)
+		job.Name = "job-plugin-controller"
+		job.TaskGroups[0].Count = 2
+	case structs.CSIPluginTypeNode:
+		job = SystemJob()
+		job.ID = fmt.Sprintf("mock-node-%s", pluginID)
+		job.Name = "job-plugin-node"
+	case structs.CSIPluginTypeMonolith:
+		job = SystemJob()
+		job.ID = fmt.Sprintf("mock-monolith-%s", pluginID)
+		job.Name = "job-plugin-monolith"
+	}
+
+	job.TaskGroups[0].Name = "plugin"
+	job.TaskGroups[0].Tasks[0].Name = "plugin"
+	job.TaskGroups[0].Tasks[0].Driver = "docker"
+	job.TaskGroups[0].Tasks[0].Services = nil
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:       pluginID,
+		Type:     pluginType,
+		MountDir: "/csi",
+	}
+	job.Canonicalize()
+	return job
 }
 
 func Events(index uint64) *structs.Events {
@@ -1951,12 +2254,45 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 }
 
 func Namespace() *structs.Namespace {
+	uuid := uuid.Generate()
 	ns := &structs.Namespace{
-		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
+		Name:        fmt.Sprintf("team-%s", uuid),
+		Meta:        map[string]string{"team": uuid},
 		Description: "test namespace",
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
 	ns.SetHash()
 	return ns
+}
+
+// ServiceRegistrations generates an array containing two unique service
+// registrations.
+func ServiceRegistrations() []*structs.ServiceRegistration {
+	return []*structs.ServiceRegistration{
+		{
+			ID:          "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
+			ServiceName: "example-cache",
+			Namespace:   "default",
+			NodeID:      "17a6d1c0-811e-2ca9-ded0-3d5d6a54904c",
+			Datacenter:  "dc1",
+			JobID:       "example",
+			AllocID:     "2873cf75-42e5-7c45-ca1c-415f3e18be3d",
+			Tags:        []string{"foo"},
+			Address:     "192.168.10.1",
+			Port:        23000,
+		},
+		{
+			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http",
+			ServiceName: "countdash-api",
+			Namespace:   "platform",
+			NodeID:      "ba991c17-7ce5-9c20-78b7-311e63578583",
+			Datacenter:  "dc2",
+			JobID:       "countdash-api",
+			AllocID:     "ca60e901-675a-0ab2-2e57-2f3b05fdc540",
+			Tags:        []string{"bar"},
+			Address:     "192.168.200.200",
+			Port:        29000,
+		},
+	}
 }

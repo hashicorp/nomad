@@ -1,0 +1,18 @@
+rules:
+  # Check `release-note` in changelog entries.
+  # https://semgrep.dev/s/DyRW
+  - id: "changelog-release-note"
+    patterns:
+      - pattern: "```$CHANGE_TYPE"
+      - pattern-not-inside: "```release-note"
+      # This is probably the right way to write this rule, but semgrep doesn't
+      # like it: https://github.com/returntocorp/semgrep/issues/4565
+      # - pattern-not: "```release-note:..."
+    message: "Missing `relelease-note`"
+    languages:
+      - "generic"
+    severity: "ERROR"
+    fix: "```release-note:$CHANGE_TYPE"
+    paths:
+      include:
+        - ".changelog"

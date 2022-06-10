@@ -8,7 +8,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -21,11 +22,21 @@ var _ interfaces.TaskExitedHook = &serviceHook{}
 var _ interfaces.TaskStopHook = &serviceHook{}
 var _ interfaces.TaskUpdateHook = &serviceHook{}
 
+const (
+	taskServiceHookName = "task_services"
+)
+
 type serviceHookConfig struct {
-	alloc           *structs.Allocation
-	task            *structs.Task
-	consulServices  consul.ConsulServiceAPI
-	consulNamespace string
+	alloc *structs.Allocation
+	task  *structs.Task
+
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 
 	// Restarter is a subset of the TaskLifecycle interface
 	restarter agentconsul.WorkloadRestarter
@@ -34,12 +45,11 @@ type serviceHookConfig struct {
 }
 
 type serviceHook struct {
-	allocID         string
-	taskName        string
-	consulNamespace string
-	consulServices  consul.ConsulServiceAPI
-	restarter       agentconsul.WorkloadRestarter
-	logger          log.Logger
+	allocID   string
+	jobID     string
+	taskName  string
+	restarter agentconsul.WorkloadRestarter
+	logger    log.Logger
 
 	// The following fields may be updated
 	driverExec tinterfaces.ScriptExecutor
@@ -50,9 +60,21 @@ type serviceHook struct {
 	ports      structs.AllocatedPorts
 	taskEnv    *taskenv.TaskEnv
 
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made. This field may be updated.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
+
 	// initialRegistrations tracks if Poststart has completed, initializing
 	// fields required in other lifecycle funcs
 	initialRegistration bool
+
+	// deregistered tracks whether deregister() has previously been called, so
+	// we do not call this multiple times for a single task when not needed.
+	deregistered bool
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -61,13 +83,14 @@ type serviceHook struct {
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
 	h := &serviceHook{
-		allocID:         c.alloc.ID,
-		taskName:        c.task.Name,
-		consulServices:  c.consulServices,
-		consulNamespace: c.consulNamespace,
-		services:        c.task.Services,
-		restarter:       c.restarter,
-		ports:           c.alloc.AllocatedResources.Shared.Ports,
+		allocID:           c.alloc.ID,
+		jobID:             c.alloc.JobID,
+		taskName:          c.task.Name,
+		namespace:         c.namespace,
+		serviceRegWrapper: c.serviceRegWrapper,
+		services:          c.task.Services,
+		restarter:         c.restarter,
+		ports:             c.alloc.AllocatedResources.Shared.Ports,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -82,9 +105,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 	return h
 }
 
-func (h *serviceHook) Name() string {
-	return "consul_services"
-}
+func (h *serviceHook) Name() string { return taskServiceHookName }
 
 func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 	h.mu.Lock()
@@ -96,18 +117,21 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	h.taskEnv = req.TaskEnv
 	h.initialRegistration = true
 
+	// Ensure deregistered is unset.
+	h.deregistered = false
+
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
 
-	return h.consulServices.RegisterWorkload(workloadServices)
+	return h.serviceRegWrapper.RegisterWorkload(workloadServices)
 }
 
 func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.initialRegistration {
-		// no op Consul since initial registration has not finished
-		// only update hook fields
+		// no op since initial registration has not finished only update hook
+		// fields.
 		return h.updateHookFields(req)
 	}
 
@@ -122,7 +146,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
 
-	return h.consulServices.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return h.serviceRegWrapper.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
 func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error {
@@ -149,6 +173,10 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 	h.canary = canary
 	h.ports = req.Alloc.AllocatedResources.Shared.Ports
 
+	// An update may change the service provider, therefore we need to account
+	// for how namespaces work across providers also.
+	h.namespace = req.Alloc.ServiceProviderNamespace()
+
 	return nil
 }
 
@@ -171,11 +199,12 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 
 // deregister services from Consul.
 func (h *serviceHook) deregister() {
-	if len(h.services) > 0 {
+	if len(h.services) > 0 && !h.deregistered {
 		workloadServices := h.getWorkloadServices()
-		h.consulServices.RemoveWorkload(workloadServices)
+		h.serviceRegWrapper.RemoveWorkload(workloadServices)
 	}
 	h.initialRegistration = false
+	h.deregistered = true
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
@@ -185,21 +214,22 @@ func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest,
 	return nil
 }
 
-func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
+func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
 	// Create task services struct with request's driver metadata
-	return &agentconsul.WorkloadServices{
-		AllocID:         h.allocID,
-		Task:            h.taskName,
-		ConsulNamespace: h.consulNamespace,
-		Restarter:       h.restarter,
-		Services:        interpolatedServices,
-		DriverExec:      h.driverExec,
-		DriverNetwork:   h.driverNet,
-		Networks:        h.networks,
-		Canary:          h.canary,
-		Ports:           h.ports,
+	return &serviceregistration.WorkloadServices{
+		AllocID:       h.allocID,
+		JobID:         h.jobID,
+		Task:          h.taskName,
+		Namespace:     h.namespace,
+		Restarter:     h.restarter,
+		Services:      interpolatedServices,
+		DriverExec:    h.driverExec,
+		DriverNetwork: h.driverNet,
+		Networks:      h.networks,
+		Canary:        h.canary,
+		Ports:         h.ports,
 	}
 }

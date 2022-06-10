@@ -1,23 +1,35 @@
 <svg>
   <defs>
     <clipPath>
-      <rect class="mask" x="0" y="0" width="100%" height="100%" rx="2px" ry="2px" />
+      <rect
+        class="mask"
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        rx="2px"
+        ry="2px"
+      ></rect>
     </clipPath>
   </defs>
   <g class="bars"></g>
 </svg>
-{{#if hasBlock}}
-  {{yield (hash
-    data=this._data
-    activeDatum=this.activeDatum
-  )}}
+{{#if (has-block)}}
+  {{yield (hash data=this._data activeDatum=this.activeDatum)}}
 {{else}}
-  <div class="chart-tooltip with-active-datum {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
+  <div
+    class="chart-tooltip with-active-datum
+      {{if this.isActive 'active' 'inactive'}}"
+    style={{this.tooltipStyle}}
+  >
     <ol>
       {{#each this._data as |datum index|}}
-        <li class="{{if (eq datum.label this.activeDatum.label) "is-active"}}">
-          <span class="label {{if (eq datum.value 0) "is-empty"}}">
-            <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+        <li class="{{if (eq datum.label this.activeDatum.label) 'is-active'}}">
+          <span class="label {{if (eq datum.value 0) 'is-empty'}}">
+            <span
+              class="color-swatch
+                {{if datum.className datum.className (concat 'swatch-' index)}}"
+            ></span>
             {{datum.label}}
           </span>
           <span class="value">{{datum.value}}</span>

@@ -204,6 +204,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"config": func() (cli.Command, error) {
+			return &ConfigCommand{
+				Meta: meta,
+			}, nil
+		},
+		"config validate": func() (cli.Command, error) {
+			return &ConfigValidateCommand{
+				Meta: meta,
+			}, nil
+		},
 		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{
@@ -486,6 +496,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"operator api": func() (cli.Command, error) {
+			return &OperatorAPICommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"operator autopilot": func() (cli.Command, error) {
 			return &OperatorAutopilotCommand{
 				Meta: meta,
@@ -758,6 +774,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"service": func() (cli.Command, error) {
+			return &ServiceCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service list": func() (cli.Command, error) {
+			return &ServiceListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service info": func() (cli.Command, error) {
+			return &ServiceInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service delete": func() (cli.Command, error) {
+			return &ServiceDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 		"status": func() (cli.Command, error) {
 			return &StatusCommand{
 				Meta: meta,
@@ -841,6 +877,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume delete": func() (cli.Command, error) {
 			return &VolumeDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot": func() (cli.Command, error) {
+			return &VolumeSnapshotCommand{
 				Meta: meta,
 			}, nil
 		},

@@ -5,12 +5,18 @@ import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
-import { classNames, tagName } from '@ember-decorators/component';
+
+import {
+  classNames,
+  tagName,
+  attributeBindings,
+} from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @tagName('tr')
 @classNames('task-row', 'is-interactive')
+@attributeBindings('data-test-task-row')
 export default class TaskRow extends Component {
   @service store;
   @service token;
@@ -50,13 +56,11 @@ export default class TaskRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  @(task(function*() {
+  @(task(function* () {
     do {
       if (this.stats) {
         try {
-          yield this.get('stats.poll')
-            .linked()
-            .perform();
+          yield this.get('stats.poll').linked().perform();
           this.set('statsError', false);
         } catch (error) {
           this.set('statsError', true);
@@ -69,6 +73,7 @@ export default class TaskRow extends Component {
   fetchStats;
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     const allocation = this.get('task.allocation');
 
     if (allocation) {

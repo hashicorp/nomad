@@ -1,13 +1,13 @@
 package state
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -19,9 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
+func setupBoltStateDB(t *testing.T) *BoltStateDB {
+	dir := t.TempDir()
 
 	db, err := NewBoltStateDB(testlog.HCLogger(t), dir)
 	if err != nil {
@@ -31,21 +30,17 @@ func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
 		t.Fatalf("error creating boltdb: %v", err)
 	}
 
-	cleanup := func() {
+	t.Cleanup(func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing boltdb: %v", err)
 		}
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing boltdb dir: %v", err)
-		}
-	}
+	})
 
-	return db.(*BoltStateDB), cleanup
+	return db.(*BoltStateDB)
 }
 
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
-	boltdb, cleanup := setupBoltStateDB(t)
-	defer cleanup()
+	boltdb := setupBoltStateDB(t)
 
 	memdb := NewMemDB(testlog.HCLogger(t))
 
@@ -62,7 +57,7 @@ func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 // TestStateDB_Allocations asserts the behavior of GetAllAllocations, PutAllocation, and
 // DeleteAllocationBucket for all operational StateDB implementations.
 func TestStateDB_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -147,7 +142,7 @@ func ceilDiv(a, b int) int {
 // TestStateDB_Batch asserts the behavior of PutAllocation, PutNetworkStatus and
 // DeleteAllocationBucket in batch mode, for all operational StateDB implementations.
 func TestStateDB_Batch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -255,7 +250,7 @@ func TestStateDB_Batch(t *testing.T) {
 // TestStateDB_TaskState asserts the behavior of task state related StateDB
 // methods.
 func TestStateDB_TaskState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -307,7 +302,7 @@ func TestStateDB_TaskState(t *testing.T) {
 // TestStateDB_DeviceManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DeviceManager(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -332,7 +327,7 @@ func TestStateDB_DeviceManager(t *testing.T) {
 // TestStateDB_DriverManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DriverManager(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -357,7 +352,7 @@ func TestStateDB_DriverManager(t *testing.T) {
 // TestStateDB_DynamicRegistry asserts the behavior of dynamic registry state related StateDB
 // methods.
 func TestStateDB_DynamicRegistry(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -382,7 +377,7 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always
 // succeeds.
 func TestStateDB_Upgrade(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require.NoError(t, db.Upgrade())

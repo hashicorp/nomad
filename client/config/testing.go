@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -50,6 +51,12 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 		t.Fatalf("error creating alloc dir: %v", err)
 	}
 	conf.StateDir = stateDir
+
+	// Use a minimal chroot environment
+	conf.ChrootEnv = ci.TinyChroot
+
+	// Helps make sure we are respecting configured parent
+	conf.CgroupParent = "testing.slice"
 
 	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
 	conf.DevMode = true

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -49,7 +49,7 @@ type ServiceCheck struct {
 	Protocol               string              // Protocol to use if check is http, defaults to http
 	PortLabel              string              // The port to use for tcp/http checks
 	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode            string              // 'host' to use host ip:port or 'driver' to use driver's
+	AddressMode            string              // Must be empty, "alloc", "host", or "driver"
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
@@ -420,6 +420,15 @@ const (
 	AddressModeHost   = "host"
 	AddressModeDriver = "driver"
 	AddressModeAlloc  = "alloc"
+
+	// ServiceProviderConsul is the default service provider and the way Nomad
+	// worked before native service discovery.
+	ServiceProviderConsul = "consul"
+
+	// ServiceProviderNomad is the native service discovery provider. At the
+	// time of writing, there are a number of restrictions around its
+	// functionality and use.
+	ServiceProviderNomad = "nomad"
 )
 
 // Service represents a Consul service definition
@@ -440,9 +449,13 @@ type Service struct {
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
 	PortLabel string
 
-	// AddressMode specifies whether or not to use the host ip:port for
-	// this service.
+	// AddressMode specifies how the address in service registration is
+	// determined. Must be "auto" (default), "host", "driver", or "alloc".
 	AddressMode string
+
+	// Address enables explicitly setting a custom address to use in service
+	// registration. AddressMode must be "auto" if Address is set.
+	Address string
 
 	// EnableTagOverride will disable Consul's anti-entropy mechanism for the
 	// tags of this service. External updates to the service definition via
@@ -459,6 +472,10 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
+	// The values to set for tagged_addresses in Consul service registration.
+	// Does not affect Nomad networking, these are for Consul service discovery.
+	TaggedAddresses map[string]string
+
 	// The consul namespace in which this service will be registered. Namespace
 	// at the service.check level is not part of the Nomad API - it must be
 	// set at the job or group level. This field is managed internally so
@@ -468,6 +485,11 @@ type Service struct {
 	// OnUpdate Specifies how the service and its checks should be evaluated
 	// during an update
 	OnUpdate string
+
+	// Provider dictates which service discovery provider to use. This can be
+	// either ServiceProviderConsul or ServiceProviderNomad and defaults to the former when
+	// left empty by the operator.
+	Provider string
 }
 
 const (
@@ -498,13 +520,14 @@ func (s *Service) Copy() *Service {
 
 	ns.Meta = helper.CopyMapStringString(s.Meta)
 	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
+	ns.TaggedAddresses = helper.CopyMapStringString(s.TaggedAddresses)
 
 	return ns
 }
 
 // Canonicalize interpolates values of Job, Task Group and Task in the Service
 // Name. This also generates check names, service id and check ids.
-func (s *Service) Canonicalize(job string, taskGroup string, task string) {
+func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	// Ensure empty lists are treated as null to avoid scheduler issues when
 	// using DeepEquals
 	if len(s.Tags) == 0 {
@@ -515,6 +538,9 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
+	}
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
 	}
 
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
@@ -528,10 +554,23 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 		check.Canonicalize(s.Name)
 	}
 
+	// Set the provider to its default value. The value of consul ensures this
+	// new feature and parameter behaves in the same manner a previous versions
+	// which did not include this.
+	if s.Provider == "" {
+		s.Provider = ServiceProviderConsul
+	}
+
 	// Consul API returns "default" whether the namespace is empty or set as
-	// such, so we coerce our copy of the service to be the same.
-	if s.Namespace == "" {
+	// such, so we coerce our copy of the service to be the same if using the
+	// consul provider.
+	//
+	// When using ServiceProviderNomad, set the namespace to that of the job. This
+	// makes modifications and diffs on the service correct.
+	if s.Namespace == "" && s.Provider == ServiceProviderConsul {
 		s.Namespace = "default"
+	} else if s.Provider == ServiceProviderNomad {
+		s.Namespace = jobNamespace
 	}
 }
 
@@ -545,12 +584,16 @@ func (s *Service) Validate() error {
 	serviceNameStripped := args.ReplaceEnvWithPlaceHolder(s.Name, "ENV-VAR")
 
 	if err := s.ValidateName(serviceNameStripped); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
+		// Log actual service name, not the stripped version.
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("%v: %q", err, s.Name))
 	}
 
 	switch s.AddressMode {
-	case "", AddressModeAuto, AddressModeHost, AddressModeDriver, AddressModeAlloc:
-		// OK
+	case "", AddressModeAuto:
+	case AddressModeHost, AddressModeDriver, AddressModeAlloc:
+		if s.Address != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q if address is set", AddressModeAuto))
+		}
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
@@ -561,6 +604,26 @@ func (s *Service) Validate() error {
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service on_update must be %q, %q, or %q; not %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, s.OnUpdate))
 	}
+
+	// Up until this point, all service validation has been independent of the
+	// provider. From this point on, we have different validation paths. We can
+	// also catch an incorrect provider parameter.
+	switch s.Provider {
+	case ServiceProviderConsul:
+		s.validateConsulService(&mErr)
+	case ServiceProviderNomad:
+		s.validateNomadService(&mErr)
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service provider must be %q, or %q; not %q",
+			ServiceProviderConsul, ServiceProviderNomad, s.Provider))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// validateConsulService performs validation on a service which is using the
+// consul provider.
+func (s *Service) validateConsulService(mErr *multierror.Error) {
 
 	// check checks
 	for _, c := range s.Checks {
@@ -594,8 +657,23 @@ func (s *Service) Validate() error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the task", s.Name))
 		}
 	}
+}
 
-	return mErr.ErrorOrNil()
+// validateNomadService performs validation on a service which is using the
+// nomad provider.
+func (s *Service) validateNomadService(mErr *multierror.Error) {
+
+	// Service blocks for the Nomad provider do not support checks. We perform
+	// a nil check, as an empty check list is nilled within the service
+	// canonicalize function.
+	if s.Checks != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Service with provider nomad cannot include Check blocks"))
+	}
+
+	// Services using the Nomad provider do not support Consul connect.
+	if s.Connect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Service with provider nomad cannot include Connect blocks"))
+	}
 }
 
 // ValidateName checks if the service Name is valid and should be called after
@@ -607,13 +685,14 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc2782).
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
-		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
+		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters")
 	}
 	return nil
 }
 
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
-// as they're hashed independently.
+// as they're hashed independently and the provider in order to not cause churn
+// during cluster upgrades.
 func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	h := sha1.New()
 	hashString(h, allocID)
@@ -621,15 +700,22 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashString(h, s.Name)
 	hashString(h, s.PortLabel)
 	hashString(h, s.AddressMode)
+	hashString(h, s.Address)
 	hashTags(h, s.Tags)
 	hashTags(h, s.CanaryTags)
 	hashBool(h, canary, "Canary")
 	hashBool(h, s.EnableTagOverride, "ETO")
 	hashMeta(h, s.Meta)
 	hashMeta(h, s.CanaryMeta)
+	hashMeta(h, s.TaggedAddresses)
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
+
+	// Don't hash the provider parameter, so we don't cause churn of all
+	// registered services when upgrading Nomad versions. The provider is not
+	// used at the level the hash is and therefore is not needed to tell
+	// whether the service has changed.
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
@@ -648,6 +734,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 			hashConfig(h, p.Config)
 			for _, upstream := range p.Upstreams {
 				hashString(h, upstream.DestinationName)
+				hashString(h, upstream.DestinationNamespace)
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
@@ -686,11 +773,19 @@ func (s *Service) Equals(o *Service) bool {
 		return s == o
 	}
 
+	if s.Provider != o.Provider {
+		return false
+	}
+
 	if s.Namespace != o.Namespace {
 		return false
 	}
 
 	if s.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if s.Address != o.Address {
 		return false
 	}
 
@@ -731,11 +826,15 @@ OUTER:
 		return false
 	}
 
-	if !reflect.DeepEqual(s.Meta, o.Meta) {
+	if !helper.CompareMapStringString(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+	if !helper.CompareMapStringString(s.CanaryMeta, o.CanaryMeta) {
+		return false
+	}
+
+	if !helper.CompareMapStringString(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 
@@ -827,6 +926,14 @@ func (c *ConsulConnect) IsIngress() bool {
 // IsTerminating checks if the service is a terminating gateway.
 func (c *ConsulConnect) IsTerminating() bool {
 	return c.IsGateway() && c.Gateway.Terminating != nil
+}
+
+// IsCustomizedTLS checks if the service customizes ingress tls config.
+func (c *ConsulConnect) IsCustomizedTLS() bool {
+	return c.IsIngress() && c.Gateway.Ingress.TLS != nil &&
+		(c.Gateway.Ingress.TLS.TLSMinVersion != "" ||
+			c.Gateway.Ingress.TLS.TLSMaxVersion != "" ||
+			len(c.Gateway.Ingress.TLS.CipherSuites) != 0)
 }
 
 func (c *ConsulConnect) IsMesh() bool {
@@ -1278,6 +1385,9 @@ type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
 	DestinationName string
 
+	// DestinationNamespace is the namespace of the upstream service.
+	DestinationNamespace string
+
 	// LocalBindPort is the port the proxy will receive connections for the
 	// upstream on.
 	LocalBindPort int
@@ -1318,11 +1428,12 @@ func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	}
 
 	return &ConsulUpstream{
-		DestinationName:  u.DestinationName,
-		LocalBindPort:    u.LocalBindPort,
-		Datacenter:       u.Datacenter,
-		LocalBindAddress: u.LocalBindAddress,
-		MeshGateway:      u.MeshGateway.Copy(),
+		DestinationName:      u.DestinationName,
+		DestinationNamespace: u.DestinationNamespace,
+		LocalBindPort:        u.LocalBindPort,
+		Datacenter:           u.Datacenter,
+		LocalBindAddress:     u.LocalBindAddress,
+		MeshGateway:          u.MeshGateway.Copy(),
 	}
 }
 
@@ -1334,6 +1445,8 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 
 	switch {
 	case u.DestinationName != o.DestinationName:
+		return false
+	case u.DestinationNamespace != o.DestinationNamespace:
 		return false
 	case u.LocalBindPort != o.LocalBindPort:
 		return false
@@ -1384,9 +1497,7 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 		return nil
 	}
 	paths := make([]ConsulExposePath, len(e.Paths))
-	for i := 0; i < len(e.Paths); i++ {
-		paths[i] = e.Paths[i]
-	}
+	copy(paths, e.Paths)
 	return &ConsulExposeConfig{
 		Paths: paths,
 	}
@@ -1672,7 +1783,10 @@ func (p *ConsulGatewayProxy) Validate() error {
 
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled bool
+	Enabled       bool
+	TLSMinVersion string
+	TLSMaxVersion string
+	CipherSuites  []string
 }
 
 func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
@@ -1681,7 +1795,10 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 	}
 
 	return &ConsulGatewayTLSConfig{
-		Enabled: c.Enabled,
+		Enabled:       c.Enabled,
+		TLSMinVersion: c.TLSMinVersion,
+		TLSMaxVersion: c.TLSMaxVersion,
+		CipherSuites:  helper.CopySliceString(c.CipherSuites),
 	}
 }
 
@@ -1690,7 +1807,10 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 		return c == o
 	}
 
-	return c.Enabled == o.Enabled
+	return c.Enabled == o.Enabled &&
+		c.TLSMinVersion == o.TLSMinVersion &&
+		c.TLSMaxVersion == o.TLSMaxVersion &&
+		helper.CompareSliceSetString(c.CipherSuites, o.CipherSuites)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.

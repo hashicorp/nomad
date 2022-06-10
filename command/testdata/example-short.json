@@ -1,0 +1,127 @@
+{
+    "Job": {
+        "Region": null,
+        "Namespace": null,
+        "ID": "example",
+        "Name": "example",
+        "Type": null,
+        "Priority": null,
+        "AllAtOnce": null,
+        "Datacenters": [
+            "dc1"
+        ],
+        "Constraints": null,
+        "Affinities": null,
+        "TaskGroups": [
+            {
+                "Name": "cache",
+                "Count": null,
+                "Constraints": null,
+                "Affinities": null,
+                "Tasks": [
+                    {
+                        "Name": "redis",
+                        "Driver": "docker",
+                        "User": "",
+                        "Lifecycle": null,
+                        "Config": {
+                            "auth_soft_fail": true,
+                            "image": "redis:7",
+                            "ports": [
+                                "db"
+                            ]
+                        },
+                        "Constraints": null,
+                        "Affinities": null,
+                        "Env": null,
+                        "Services": null,
+                        "Resources": {
+                            "CPU": 500,
+                            "Cores": null,
+                            "MemoryMB": 256,
+                            "MemoryMaxMB": null,
+                            "DiskMB": null,
+                            "Networks": null,
+                            "Devices": null,
+                            "IOPS": null
+                        },
+                        "RestartPolicy": null,
+                        "Meta": null,
+                        "KillTimeout": null,
+                        "LogConfig": null,
+                        "Artifacts": null,
+                        "Vault": null,
+                        "Templates": null,
+                        "DispatchPayload": null,
+                        "VolumeMounts": null,
+                        "Leader": false,
+                        "ShutdownDelay": 0,
+                        "KillSignal": "",
+                        "Kind": "",
+                        "ScalingPolicies": null
+                    }
+                ],
+                "Spreads": null,
+                "Volumes": null,
+                "RestartPolicy": null,
+                "ReschedulePolicy": null,
+                "EphemeralDisk": null,
+                "Update": null,
+                "Migrate": null,
+                "Networks": [
+                    {
+                        "Mode": "",
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "DNS": null,
+                        "ReservedPorts": null,
+                        "DynamicPorts": [
+                            {
+                                "Label": "db",
+                                "Value": 0,
+                                "To": 6379,
+                                "HostNetwork": ""
+                            }
+                        ],
+                        "Hostname": "",
+                        "MBits": null
+                    }
+                ],
+                "Meta": null,
+                "Services": null,
+                "ShutdownDelay": null,
+                "StopAfterClientDisconnect": null,
+                "MaxClientDisconnect": null,
+                "Scaling": null,
+                "Consul": null
+            }
+        ],
+        "Update": null,
+        "Multiregion": null,
+        "Spreads": null,
+        "Periodic": null,
+        "ParameterizedJob": null,
+        "Reschedule": null,
+        "Migrate": null,
+        "Meta": null,
+        "ConsulToken": null,
+        "VaultToken": null,
+        "Stop": null,
+        "ParentID": null,
+        "Dispatched": false,
+        "DispatchIdempotencyToken": null,
+        "Payload": null,
+        "ConsulNamespace": null,
+        "VaultNamespace": null,
+        "NomadTokenID": null,
+        "Status": null,
+        "StatusDescription": null,
+        "Stable": null,
+        "Version": null,
+        "SubmitTime": null,
+        "CreateIndex": null,
+        "ModifyIndex": null,
+        "JobModifyIndex": null
+    }
+}

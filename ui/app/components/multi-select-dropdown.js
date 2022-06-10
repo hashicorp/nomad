@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { action } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { run } from '@ember/runloop';
+import { scheduleOnce } from '@ember/runloop';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
@@ -30,9 +30,10 @@ export default class MultiSelectDropdown extends Component {
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     const dropdown = this.dropdown;
     if (this.isOpen && dropdown) {
-      run.scheduleOnce('afterRender', this, this.repositionDropdown);
+      scheduleOnce('afterRender', this, this.repositionDropdown);
     }
   }
 
@@ -59,8 +60,12 @@ export default class MultiSelectDropdown extends Component {
       dropdown.actions.open(e);
       e.preventDefault();
     } else if (this.isOpen && (e.keyCode === TAB || e.keyCode === ARROW_DOWN)) {
-      const optionsId = this.element.querySelector('.dropdown-trigger').getAttribute('aria-owns');
-      const firstElement = document.querySelector(`#${optionsId} .dropdown-option`);
+      const optionsId = this.element
+        .querySelector('.dropdown-trigger')
+        .getAttribute('aria-owns');
+      const firstElement = document.querySelector(
+        `#${optionsId} .dropdown-option`
+      );
 
       if (firstElement) {
         firstElement.focus();

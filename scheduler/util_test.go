@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper"
@@ -17,6 +18,8 @@ import (
 )
 
 func TestMaterializeTaskGroups(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	index := materializeTaskGroups(job)
 	require.Equal(t, 10, len(index))
@@ -35,6 +38,8 @@ func newNode(name string) *structs.Node {
 }
 
 func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
+	ci.Parallel(t)
+
 	// For a sysbatch job, the scheduler should not re-place an allocation
 	// that has become terminal, unless the job has been updated.
 
@@ -62,7 +67,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		require.Empty(t, diff.place)
 		require.Empty(t, diff.update)
 		require.Empty(t, diff.stop)
@@ -88,7 +93,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		expAlloc := terminal["node1"]["my-sysbatch.pinger[0]"]
 		expAlloc.NodeID = "node1"
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		require.Empty(t, diff.place)
 		require.Len(t, diff.update, 1)
 		require.Empty(t, diff.stop)
@@ -99,6 +104,8 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 }
 
 func TestDiffSystemAllocsForNode(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	required := materializeTaskGroups(job)
 
@@ -192,7 +199,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal, true)
 
 	// We should update the first alloc
 	require.Len(t, diff.update, 1)
@@ -233,6 +240,8 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 // Test the desired diff for an updated system job running on a
 // ineligible node
 func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
 	required := materializeTaskGroups(job)
@@ -273,7 +282,7 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	// No terminal allocs
 	terminal := make(structs.TerminalByNodeByName)
 
-	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	require.Len(t, diff.place, 0)
 	require.Len(t, diff.update, 1)
@@ -284,6 +293,8 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.SystemJob()
 
 	drainNode := mock.DrainNode()
@@ -353,7 +364,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal)
+	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal, true)
 
 	// We should update the first alloc
 	require.Len(t, diff.update, 1)
@@ -391,6 +402,8 @@ func TestDiffSystemAllocs(t *testing.T) {
 }
 
 func TestReadyNodesInDCs(t *testing.T) {
+	ci.Parallel(t)
+
 	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
@@ -421,6 +434,8 @@ func TestReadyNodesInDCs(t *testing.T) {
 }
 
 func TestRetryMax(t *testing.T) {
+	ci.Parallel(t)
+
 	calls := 0
 	bad := func() (bool, error) {
 		calls += 1
@@ -454,6 +469,8 @@ func TestRetryMax(t *testing.T) {
 }
 
 func TestTaintedNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
@@ -491,6 +508,8 @@ func TestTaintedNodes(t *testing.T) {
 }
 
 func TestShuffleNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	// Use a large number of nodes to make the probability of shuffling to the
 	// original order very low.
 	nodes := []*structs.Node{
@@ -507,11 +526,22 @@ func TestShuffleNodes(t *testing.T) {
 	}
 	orig := make([]*structs.Node, len(nodes))
 	copy(orig, nodes)
-	shuffleNodes(nodes)
+	eval := mock.Eval() // will have random EvalID
+	plan := eval.MakePlan(mock.Job())
+	shuffleNodes(plan, 1000, nodes)
 	require.False(t, reflect.DeepEqual(nodes, orig))
+
+	nodes2 := make([]*structs.Node, len(nodes))
+	copy(nodes2, orig)
+	shuffleNodes(plan, 1000, nodes2)
+
+	require.True(t, reflect.DeepEqual(nodes, nodes2))
+
 }
 
 func TestTaskUpdatedAffinity(t *testing.T) {
+	ci.Parallel(t)
+
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
@@ -580,6 +610,8 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 }
 
 func TestTaskUpdatedSpread(t *testing.T) {
+	ci.Parallel(t)
+
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
@@ -645,6 +677,8 @@ func TestTaskUpdatedSpread(t *testing.T) {
 	require.False(t, tasksUpdated(j5, j6, name))
 }
 func TestTasksUpdated(t *testing.T) {
+	ci.Parallel(t)
+
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
@@ -777,9 +811,37 @@ func TestTasksUpdated(t *testing.T) {
 	// Compare changed Template wait configs
 	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = helper.TimeToPtr(10 * time.Second)
 	require.True(t, tasksUpdated(j22, j23, name))
+
+	// Add a volume
+	j24 := mock.Job()
+	j25 := j24.Copy()
+	j25.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"myvolume": {
+			Name:   "myvolume",
+			Type:   "csi",
+			Source: "test-volume[0]",
+		}}
+	require.True(t, tasksUpdated(j24, j25, name))
+
+	// Alter a volume
+	j26 := j25.Copy()
+	j26.TaskGroups[0].Volumes["myvolume"].ReadOnly = true
+	require.True(t, tasksUpdated(j25, j26, name))
+
+	// Alter a CSI plugin
+	j27 := mock.Job()
+	j27.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "myplugin",
+		Type: "node",
+	}
+	j28 := j27.Copy()
+	j28.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = "monolith"
+	require.True(t, tasksUpdated(j27, j28, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
+	ci.Parallel(t)
+
 	servicesA := []*structs.Service{{
 		Name:      "service1",
 		PortLabel: "1111",
@@ -859,7 +921,7 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 }
 
 func TestNetworkUpdated(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	cases := []struct {
 		name    string
 		a       []*structs.NetworkResource
@@ -926,6 +988,8 @@ func TestNetworkUpdated(t *testing.T) {
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
@@ -942,6 +1006,8 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 }
 
 func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
@@ -958,6 +1024,8 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 }
 
 func TestSetStatus(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 	logger := testlog.HCLogger(t)
 	eval := mock.Eval()
@@ -1018,6 +1086,8 @@ func TestSetStatus(t *testing.T) {
 }
 
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
@@ -1073,6 +1143,8 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 }
 
 func TestInplaceUpdate_AllocatedResources(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
@@ -1130,6 +1202,8 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 }
 
 func TestInplaceUpdate_NoMatch(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
@@ -1181,6 +1255,8 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 }
 
 func TestInplaceUpdate_Success(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
@@ -1270,6 +1346,8 @@ func TestInplaceUpdate_Success(t *testing.T) {
 }
 
 func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
@@ -1286,6 +1364,8 @@ func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 }
 
 func TestTaskGroupConstraints(t *testing.T) {
+	ci.Parallel(t)
+
 	constr := &structs.Constraint{RTarget: "bar"}
 	constr2 := &structs.Constraint{LTarget: "foo"}
 	constr3 := &structs.Constraint{Operand: "<"}
@@ -1327,6 +1407,8 @@ func TestTaskGroupConstraints(t *testing.T) {
 }
 
 func TestProgressMade(t *testing.T) {
+	ci.Parallel(t)
+
 	noopPlan := &structs.PlanResult{}
 	require.False(t, progressMade(nil) || progressMade(noopPlan), "no progress plan marked as making progress")
 
@@ -1351,6 +1433,8 @@ func TestProgressMade(t *testing.T) {
 }
 
 func TestDesiredUpdates(t *testing.T) {
+	ci.Parallel(t)
+
 	tg1 := &structs.TaskGroup{Name: "foo"}
 	tg2 := &structs.TaskGroup{Name: "bar"}
 	a2 := &structs.Allocation{TaskGroup: "bar"}
@@ -1407,6 +1491,8 @@ func TestDesiredUpdates(t *testing.T) {
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
@@ -1442,6 +1528,8 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 }
 
 func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
+	ci.Parallel(t)
+
 	node := mock.Node()
 	node.Status = structs.NodeStatusDown
 	alloc1 := mock.Alloc()
@@ -1494,6 +1582,8 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 }
 
 func TestUtil_connectUpdated(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("both nil", func(t *testing.T) {
 		require.False(t, connectUpdated(nil, nil))
 	})
@@ -1546,6 +1636,8 @@ func TestUtil_connectUpdated(t *testing.T) {
 }
 
 func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("both nil", func(t *testing.T) {
 		require.False(t, connectSidecarServiceUpdated(nil, nil))
 	})

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -29,7 +30,7 @@ func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
 
 // Tests that the watcher properly watches for deployments and reconciles them
 func TestWatcher_WatchDeployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -84,7 +85,7 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 
 // Tests that calls against an unknown deployment fail
 func TestWatcher_UnknownDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
@@ -141,7 +142,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 
 // Test setting an unknown allocation's health
 func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
@@ -186,7 +187,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 
 // Test setting allocation health
 func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -231,7 +232,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 
 // Test setting allocation unhealthy
 func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -283,7 +284,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 
 // Test setting allocation unhealthy and that there should be a rollback
 func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -350,7 +351,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 
 // Test setting allocation unhealthy on job with identical spec and there should be no rollback
 func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -415,7 +416,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 
 // Test promoting a deployment
 func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -475,7 +476,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 
 // Test promoting a deployment with unhealthy canaries
 func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -531,19 +532,23 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 }
 
 func TestWatcher_AutoPromoteDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	w, m := defaultTestDeploymentWatcher(t)
 	now := time.Now()
 
-	// Create 1 UpdateStrategy, 1 job (1 TaskGroup), 2 canaries, and 1 deployment
-	upd := structs.DefaultUpdateStrategy.Copy()
-	upd.AutoPromote = true
-	upd.MaxParallel = 2
-	upd.Canary = 2
-	upd.ProgressDeadline = 5 * time.Second
+	// Create 1 UpdateStrategy, 1 job (2 TaskGroups), 2 canaries, and 1 deployment
+	canaryUpd := structs.DefaultUpdateStrategy.Copy()
+	canaryUpd.AutoPromote = true
+	canaryUpd.MaxParallel = 2
+	canaryUpd.Canary = 2
+	canaryUpd.ProgressDeadline = 5 * time.Second
 
-	j := mock.Job()
-	j.TaskGroups[0].Update = upd
+	rollingUpd := structs.DefaultUpdateStrategy.Copy()
+	rollingUpd.ProgressDeadline = 5 * time.Second
+
+	j := mock.MultiTaskGroupJob()
+	j.TaskGroups[0].Update = canaryUpd
+	j.TaskGroups[1].Update = rollingUpd
 
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -551,14 +556,20 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// UpdateStrategy are copied in
 	d.TaskGroups = map[string]*structs.DeploymentState{
 		"web": {
-			AutoPromote:      upd.AutoPromote,
-			AutoRevert:       upd.AutoRevert,
-			ProgressDeadline: upd.ProgressDeadline,
+			AutoPromote:      canaryUpd.AutoPromote,
+			AutoRevert:       canaryUpd.AutoRevert,
+			ProgressDeadline: canaryUpd.ProgressDeadline,
+			DesiredTotal:     2,
+		},
+		"api": {
+			AutoPromote:      rollingUpd.AutoPromote,
+			AutoRevert:       rollingUpd.AutoRevert,
+			ProgressDeadline: rollingUpd.ProgressDeadline,
 			DesiredTotal:     2,
 		},
 	}
 
-	alloc := func() *structs.Allocation {
+	canaryAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
@@ -569,14 +580,36 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 		return a
 	}
 
-	a := alloc()
-	b := alloc()
+	rollingAlloc := func() *structs.Allocation {
+		a := mock.Alloc()
+		a.DeploymentID = d.ID
+		a.CreateTime = now.UnixNano()
+		a.ModifyTime = now.UnixNano()
+		a.TaskGroup = "api"
+		a.AllocatedResources.Tasks["api"] = a.AllocatedResources.Tasks["web"].Copy()
+		delete(a.AllocatedResources.Tasks, "web")
+		a.TaskResources["api"] = a.TaskResources["web"].Copy()
+		delete(a.TaskResources, "web")
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary: false,
+		}
+		return a
+	}
 
-	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID, b.ID}
-	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
+	// Web taskgroup (0)
+	ca1 := canaryAlloc()
+	ca2 := canaryAlloc()
+
+	// Api taskgroup (1)
+	ra1 := rollingAlloc()
+	ra2 := rollingAlloc()
+
+	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID}
+	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
+	d.TaskGroups[ra1.TaskGroup].PlacedAllocs = 2
 	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a, b}), "UpsertAllocs")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ra1, ra2}), "UpsertAllocs")
 
 	// =============================================================
 	// Support method calls
@@ -595,7 +628,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
 		DeploymentID: d.ID,
-		Healthy:      []string{a.ID, b.ID},
+		Healthy:      []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 		Eval:         true,
 	}
 	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
@@ -629,7 +662,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// Mark the canaries healthy
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         d.ID,
-		HealthyAllocationIDs: []string{a.ID, b.ID},
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 	}
 	var resp structs.DeploymentUpdateResponse
 	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
@@ -654,18 +687,18 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.Equal(t, "running", d.Status)
 	require.True(t, d.TaskGroups["web"].Promoted)
 
-	a1, _ := m.state.AllocByID(ws, a.ID)
+	a1, _ := m.state.AllocByID(ws, ca1.ID)
 	require.False(t, a1.DeploymentStatus.Canary)
 	require.Equal(t, "pending", a1.ClientStatus)
 	require.Equal(t, "run", a1.DesiredStatus)
 
-	b1, _ := m.state.AllocByID(ws, b.ID)
+	b1, _ := m.state.AllocByID(ws, ca2.ID)
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
 // Test pausing a deployment that is running
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -707,7 +740,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 
 // Test pausing a deployment that is paused
 func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -750,7 +783,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is paused
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -791,7 +824,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is running
 func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -831,7 +864,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 
 // Test failing a deployment that is running
 func TestWatcher_FailDeployment_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -871,7 +904,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 // Tests that the watcher properly watches for allocation changes and takes the
 // proper actions
 func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -991,7 +1024,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 }
 
 func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1067,7 +1100,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 
 // Test that progress deadline handling works when there are multiple groups
 func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1173,7 +1206,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 // Test that we will allow the progress deadline to be reached when the canaries
 // are healthy but we haven't promoted
 func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1255,7 +1288,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 // Test that a promoted deployment with alloc healthy updates create
 // evals to move the deployment forward
 func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1344,7 +1377,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 }
 
 func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	mtype := structs.MsgTypeTestSetup
 
@@ -1552,7 +1585,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 // Test scenario where deployment initially has no progress deadline
 // After the deployment is updated, a failed alloc's DesiredTransition should be set
 func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1614,7 +1647,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 
 // Tests that the watcher fails rollback when the spec hasn't changed
 func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1724,7 +1757,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 
 // Test allocation updates and evaluation creation is batched between watchers
 func TestWatcher_BatchAllocUpdates(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
 

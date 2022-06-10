@@ -10,7 +10,9 @@ export default class ResourcesDiffs {
     this.model = model;
     this.multiplier = multiplier;
     this.recommendations = recommendations;
-    this.excludedRecommendations = excludedRecommendations.filter(r => recommendations.includes(r));
+    this.excludedRecommendations = excludedRecommendations.filter((r) =>
+      recommendations.includes(r)
+    );
   }
 
   get cpu() {
@@ -28,8 +30,14 @@ export default class ResourcesDiffs {
   }
 
   get memory() {
-    const included = this.includedRecommendations.filterBy('resource', 'MemoryMB');
-    const excluded = this.excludedRecommendations.filterBy('resource', 'MemoryMB');
+    const included = this.includedRecommendations.filterBy(
+      'resource',
+      'MemoryMB'
+    );
+    const excluded = this.excludedRecommendations.filterBy(
+      'resource',
+      'MemoryMB'
+    );
 
     return new ResourceDiffs(
       this.model.reservedMemory,
@@ -42,7 +50,9 @@ export default class ResourcesDiffs {
   }
 
   get includedRecommendations() {
-    return this.recommendations.reject(r => this.excludedRecommendations.includes(r));
+    return this.recommendations.reject((r) =>
+      this.excludedRecommendations.includes(r)
+    );
   }
 }
 
@@ -67,7 +77,9 @@ class ResourceDiffs {
     if (this.included.length) {
       return (
         this.included.mapBy('value').reduce(sumAggregate, 0) +
-        this.excluded.mapBy(`task.${this.baseTaskPropertyName}`).reduce(sumAggregate, 0)
+        this.excluded
+          .mapBy(`task.${this.baseTaskPropertyName}`)
+          .reduce(sumAggregate, 0)
       );
     } else {
       return this.base;

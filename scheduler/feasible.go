@@ -15,17 +15,19 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes                 = "missing compatible host volumes"
-	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
-	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
-	FilterConstraintCSIPluginMaxVolumesTemplate = "CSI plugin %s has the maximum number of volumes on client %s"
-	FilterConstraintCSIVolumesLookupFailed      = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate   = "missing CSI Volume %s"
-	FilterConstraintCSIVolumeNoReadTemplate     = "CSI volume %s is unschedulable or has exhausted its available reader claims"
-	FilterConstraintCSIVolumeNoWriteTemplate    = "CSI volume %s is unschedulable or is read-only"
-	FilterConstraintCSIVolumeInUseTemplate      = "CSI volume %s has exhausted its available writer claims" //
-	FilterConstraintDrivers                     = "missing drivers"
-	FilterConstraintDevices                     = "missing devices"
+	FilterConstraintHostVolumes                    = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
+	FilterConstraintCSIVolumesLookupFailed         = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate        = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate       = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate         = "CSI volume %s has exhausted its available writer claims"
+	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
+	FilterConstraintDrivers                        = "missing drivers"
+	FilterConstraintDevices                        = "missing devices"
+	FilterConstraintsCSIPluginTopology             = "did not meet topology requirement"
 )
 
 var (
@@ -121,7 +123,8 @@ func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
-	shuffleNodes(nodes)
+	idx, _ := ctx.State().LatestIndex()
+	shuffleNodes(ctx.Plan(), idx, nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
@@ -311,6 +314,15 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
 		}
 
+		// CSI spec: "If requisite is specified, the provisioned
+		// volume MUST be accessible from at least one of the
+		// requisite topologies."
+		if len(vol.Topologies) > 0 {
+			if !plugin.NodeInfo.AccessibleTopology.MatchFound(vol.Topologies) {
+				return false, FilterConstraintsCSIPluginTopology
+			}
+		}
+
 		if req.ReadOnly {
 			if !vol.ReadSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
@@ -319,12 +331,21 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 			if !vol.WriteSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
-			if !vol.WriteFreeClaims() {
-				// Check the blocking allocations to see if they belong to this job
+			if !vol.HasFreeWriteClaims() {
 				for id := range vol.WriteAllocs {
 					a, err := c.ctx.State().AllocByID(ws, id)
-					if err != nil || a == nil ||
-						a.Namespace != c.namespace || a.JobID != c.jobID {
+					// the alloc for this blocking claim has been
+					// garbage collected but the volumewatcher hasn't
+					// finished releasing the claim (and possibly
+					// detaching the volume), so we need to block
+					// until it can be scheduled
+					if err != nil || a == nil {
+						return false, fmt.Sprintf(
+							FilterConstraintCSIVolumeGCdAllocationTemplate, vol.ID, id)
+					} else if a.Namespace != c.namespace || a.JobID != c.jobID {
+						// the blocking claim is for another live job
+						// so it's legitimately blocking more write
+						// claims
 						return false, fmt.Sprintf(
 							FilterConstraintCSIVolumeInUseTemplate, vol.ID)
 					}
@@ -1114,9 +1135,8 @@ OUTER:
 			if w.available(option) {
 				return option
 			}
-			// We match the class but are temporarily unavailable, the eval
-			// should be blocked
-			return nil
+			// We match the class but are temporarily unavailable
+			continue OUTER
 		case EvalComputedClassEscaped:
 			tgEscaped = true
 		case EvalComputedClassUnknown:

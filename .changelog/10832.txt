@@ -1,0 +1,4 @@
+```release-note:improvements
+deps: Update `docker/docker` dependency to `v20.10.12`
+deps: Update `opencontainers/runc` dependency to `v1.0.3`
+```

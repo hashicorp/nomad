@@ -81,7 +81,10 @@ export default create({
   },
 
   preempted: isPresent('[data-test-preemptions]'),
-  ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
+  ...allocations(
+    '[data-test-preemptions] [data-test-allocation]',
+    'preemptions'
+  ),
 
   ports: collection('[data-test-allocation-port]', {
     name: text('[data-test-allocation-port-name]'),

@@ -44,7 +44,9 @@ export default class GutterMenu extends Component {
     // an intent to reset context, but where to reset to depends on where the namespace
     // is being switched from. Jobs take precedence, but if the namespace is switched from
     // a storage-related page, context should be reset to volumes.
-    const destination = this.router.currentRouteName.startsWith('csi.') ? 'csi.volumes' : 'jobs';
+    const destination = this.router.currentRouteName.startsWith('csi.')
+      ? 'csi.volumes'
+      : 'jobs';
 
     this.router.transitionTo(destination, {
       queryParams: { namespace: namespace.get('id') },

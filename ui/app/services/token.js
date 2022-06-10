@@ -28,13 +28,15 @@ export default class TokenService extends Service {
     }
   }
 
-  @task(function*() {
+  @task(function* () {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
-      return yield TokenAdapter.findSelf();
+      var token = yield TokenAdapter.findSelf();
+      this.secret = token.secret;
+      return token;
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
-      if (errors.find(error => error === 'ACL support disabled')) {
+      if (errors.find((error) => error === 'ACL support disabled')) {
         this.set('aclEnabled', false);
       }
       return null;
@@ -51,7 +53,7 @@ export default class TokenService extends Service {
     this.secret = token.secret;
   }
 
-  @task(function*() {
+  @task(function* () {
     try {
       if (this.selfToken) {
         return yield this.selfToken.get('policies');
@@ -67,7 +69,7 @@ export default class TokenService extends Service {
 
   @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
 
-  @task(function*() {
+  @task(function* () {
     yield this.fetchSelfToken.perform();
     if (this.aclEnabled) {
       yield this.fetchSelfTokenPolicies.perform();

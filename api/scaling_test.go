@@ -3,11 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestScalingPolicies_ListPolicies(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -55,7 +56,7 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 }
 
 func TestScalingPolicies_GetPolicy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)

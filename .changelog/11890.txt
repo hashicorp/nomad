@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where garbage collected allocations could block new claims on a volume
+```

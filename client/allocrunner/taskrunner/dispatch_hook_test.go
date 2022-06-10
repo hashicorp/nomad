@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -21,7 +22,7 @@ var _ interfaces.TaskPrestartHook = (*dispatchHook)(nil)
 // TestTaskRunner_DispatchHook_NoPayload asserts that the hook is a noop and is
 // marked as done if there is no dispatch payload.
 func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()
@@ -57,7 +58,7 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 // TestTaskRunner_DispatchHook_Ok asserts that dispatch payloads are written to
 // a file in the task dir.
 func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()
@@ -101,7 +102,7 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 // TestTaskRunner_DispatchHook_Error asserts that on an error dispatch payloads
 // are not written and Done=false.
 func TestTaskRunner_DispatchHook_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()

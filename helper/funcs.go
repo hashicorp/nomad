@@ -11,6 +11,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"golang.org/x/exp/constraints"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -69,36 +70,57 @@ func HashUUID(input string) (output string, hashed bool) {
 }
 
 // BoolToPtr returns the pointer to a boolean.
+//
+// Deprecated; use pointer.Of instead.
 func BoolToPtr(b bool) *bool {
 	return &b
 }
 
-// IntToPtr returns the pointer to an int
+// IntToPtr returns the pointer to an int.
+//
+// Deprecated; use pointer.Of instead.
 func IntToPtr(i int) *int {
 	return &i
 }
 
-// Int8ToPtr returns the pointer to an int8
+// Int8ToPtr returns the pointer to an int8.
+//
+// Deprecated; use pointer.Of instead.
 func Int8ToPtr(i int8) *int8 {
 	return &i
 }
 
-// Int64ToPtr returns the pointer to an int
+// Int32ToPtr returns the pointer to an int32.
+//
+// Deprecated; use pointer.Of instead.
+func Int32ToPtr(i int32) *int32 {
+	return &i
+}
+
+// Int64ToPtr returns the pointer to an int64.
+//
+// Deprecated; use pointer.Of instead.
 func Int64ToPtr(i int64) *int64 {
 	return &i
 }
 
-// Uint64ToPtr returns the pointer to an uint64
+// Uint64ToPtr returns the pointer to an uint64.
+//
+// Deprecated; use pointer.Of instead.
 func Uint64ToPtr(u uint64) *uint64 {
 	return &u
 }
 
-// UintToPtr returns the pointer to an uint
+// UintToPtr returns the pointer to an uint.
+//
+// Deprecated; use pointer.Of instead.
 func UintToPtr(u uint) *uint {
 	return &u
 }
 
-// StringToPtr returns the pointer to a string
+// StringToPtr returns the pointer to a string.
+//
+// Deprecated; use pointer.Of instead.
 func StringToPtr(str string) *string {
 	return &str
 }
@@ -116,11 +138,32 @@ func CompareTimePtrs(a, b *time.Duration) bool {
 	return *a == *b
 }
 
-// Float64ToPtr returns the pointer to an float64
+// Float64ToPtr returns the pointer to an float64.
+//
+// Deprecated; use pointer.Of instead.
 func Float64ToPtr(f float64) *float64 {
 	return &f
 }
 
+// Min returns the minimum of a and b.
+func Min[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// Max returns the maximum of a and b.
+func Max[T constraints.Ordered](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// IntMin returns the minimum of a and b.
+//
+// Deprecated; use Min instead.
 func IntMin(a, b int) int {
 	if a < b {
 		return a
@@ -128,6 +171,9 @@ func IntMin(a, b int) int {
 	return b
 }
 
+// IntMax returns the maximum of a and b.
+//
+// Deprecated; use Max instead.
 func IntMax(a, b int) int {
 	if a > b {
 		return a
@@ -135,6 +181,9 @@ func IntMax(a, b int) int {
 	return b
 }
 
+// Uint64Max returns the maximum of a and b.
+//
+// Deprecated; use Max instead.
 func Uint64Max(a, b uint64) uint64 {
 	if a > b {
 		return a
@@ -164,6 +213,14 @@ func SliceStringToSet(s []string) map[string]struct{} {
 		m[k] = struct{}{}
 	}
 	return m
+}
+
+func SetToSliceString(set map[string]struct{}) []string {
+	flattened := make([]string, 0, len(set))
+	for x := range set {
+		flattened = append(flattened, x)
+	}
+	return flattened
 }
 
 // SliceStringIsSubset returns whether the smaller set of strings is a subset of
@@ -298,8 +355,24 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Below is helpers for copying generic structures.
+// CopyMap creates a copy of m. Struct values are not deep copies.
+//
+// If m is nil or contains no elements, the return value is nil.
+func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
+	if len(m) == 0 {
+		return nil
+	}
 
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+// CopyMapStringString creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {
@@ -313,6 +386,9 @@ func CopyMapStringString(m map[string]string) map[string]string {
 	return c
 }
 
+// CopyMapStringStruct creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	l := len(m)
 	if l == 0 {
@@ -326,6 +402,9 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	return c
 }
 
+// CopyMapStringInterface creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 	l := len(m)
 	if l == 0 {
@@ -339,6 +418,32 @@ func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 	return c
 }
 
+// MergeMapStringString will merge two maps into one. If a duplicate key exists
+// the value in the second map will replace the value in the first map. If both
+// maps are empty or nil this returns an empty map.
+func MergeMapStringString(m map[string]string, n map[string]string) map[string]string {
+	if len(m) == 0 && len(n) == 0 {
+		return map[string]string{}
+	}
+	if len(m) == 0 {
+		return n
+	}
+	if len(n) == 0 {
+		return m
+	}
+
+	result := CopyMapStringString(m)
+
+	for k, v := range n {
+		result[k] = v
+	}
+
+	return result
+}
+
+// CopyMapStringInt creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringInt(m map[string]int) map[string]int {
 	l := len(m)
 	if l == 0 {
@@ -352,6 +457,9 @@ func CopyMapStringInt(m map[string]int) map[string]int {
 	return c
 }
 
+// CopyMapStringFloat64 creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	l := len(m)
 	if l == 0 {
@@ -365,8 +473,9 @@ func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	return c
 }
 
-// CopyMapStringSliceString copies a map of strings to string slices such as
-// http.Header
+// CopyMapStringSliceString creates a copy of m.
+//
+// todo: a deep value copy version of CopyMap.
 func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	l := len(m)
 	if l == 0 {
@@ -380,6 +489,9 @@ func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	return c
 }
 
+// CopySliceString creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceString(s []string) []string {
 	l := len(s)
 	if l == 0 {
@@ -391,6 +503,9 @@ func CopySliceString(s []string) []string {
 	return c
 }
 
+// CopySliceInt creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceInt(s []int) []int {
 	l := len(s)
 	if l == 0 {
@@ -571,4 +686,31 @@ func PathEscapesSandbox(sandboxDir, path string) bool {
 		return true
 	}
 	return false
+}
+
+// StopFunc is used to stop a time.Timer created with NewSafeTimer
+type StopFunc func()
+
+// NewSafeTimer creates a time.Timer but does not panic if duration is <= 0.
+//
+// Using a time.Timer is recommended instead of time.After when it is necessary
+// to avoid leaking goroutines (e.g. in a select inside a loop).
+//
+// Returns the time.Timer and also a StopFunc, forcing the caller to deal
+// with stopping the time.Timer to avoid leaking a goroutine.
+func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTimer(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
 }

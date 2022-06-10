@@ -18,7 +18,9 @@ export default Mixin.create({
   maxFrameMisses: 5,
 
   fetch() {
-    assert('StatsTrackers need a fetch method, which should have an interface like window.fetch');
+    assert(
+      'StatsTrackers need a fetch method, which should have an interface like window.fetch'
+    );
   },
 
   append(/* frame */) {
@@ -56,7 +58,7 @@ export default Mixin.create({
   // references to the same tracker from flooding the tracker,
   // but also avoiding the issue where different places where the
   // same tracker is used needs to coordinate.
-  poll: task(function*() {
+  poll: task(function* () {
     // Interrupt any pause attempt
     this.signalPause.cancelAll();
 
@@ -66,7 +68,7 @@ export default Mixin.create({
 
       yield this.fetch(url)
         .then(jsonWithDefault({ error: true }))
-        .then(frame => this.handleResponse(frame));
+        .then((frame) => this.handleResponse(frame));
     } catch (error) {
       throw new Error(error);
     }
@@ -74,7 +76,7 @@ export default Mixin.create({
     yield timeout(Ember.testing ? 0 : 2000);
   }).drop(),
 
-  signalPause: task(function*() {
+  signalPause: task(function* () {
     // wait 2 seconds
     yield timeout(Ember.testing ? 0 : 2000);
     // if no poll called in 2 seconds, pause

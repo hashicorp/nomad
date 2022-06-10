@@ -8,6 +8,7 @@ import RSVP from 'rsvp';
 @classic
 export default class OptimizeRoute extends Route {
   @service can;
+  @service store;
 
   beforeModel() {
     if (this.can.cannot('accept recommendation')) {
@@ -21,9 +22,9 @@ export default class OptimizeRoute extends Route {
     const [namespaces] = await RSVP.all([
       this.store.findAll('namespace'),
       ...jobs
-        .filter(job => job)
+        .filter((job) => job)
         .filterBy('isPartial')
-        .map(j => j.reload()),
+        .map((j) => j.reload()),
     ]);
 
     return {

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestHeartbeatStop_allocHook(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	server, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
+	ci.Parallel(t)
+
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	f.(*EnvAWSFingerprint).endpoint = "http://127.0.0.1/latest"
 
@@ -28,6 +31,8 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 }
 
 func TestEnvAWSFingerprint_aws(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
@@ -47,6 +52,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		"platform.aws.ami-id",
 		"unique.platform.aws.hostname",
 		"unique.platform.aws.instance-id",
+		"platform.aws.instance-life-cycle",
 		"platform.aws.instance-type",
 		"unique.platform.aws.local-hostname",
 		"unique.platform.aws.local-ipv4",
@@ -69,6 +75,8 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
@@ -97,6 +105,8 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS_network(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
@@ -158,6 +168,8 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, noNetworkAWSStubs)
 	defer cleanup()
 
@@ -181,6 +193,8 @@ func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, incompleteAWSImitationStubs)
 	defer cleanup()
 
@@ -203,6 +217,8 @@ func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
 }
 
 func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
@@ -224,6 +240,8 @@ func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
 }
 
 func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
@@ -247,6 +265,8 @@ func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
 }
 
 func TestCPUFingerprint_AWS_InstanceNotFound(t *testing.T) {
+	ci.Parallel(t)
+
 	endpoint, cleanup := startFakeEC2Metadata(t, unknownInstanceType)
 	defer cleanup()
 
@@ -316,6 +336,11 @@ var awsStubs = []endpoint{
 		Body:        "i-b3ba3875",
 	},
 	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
+	},
+	{
 		Uri:         "/latest/meta-data/instance-type",
 		ContentType: "text/plain",
 		Body:        "t3a.2xlarge",
@@ -369,6 +394,11 @@ var unknownInstanceType = []endpoint{
 		Body:        "i-b3ba3875",
 	},
 	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
+	},
+	{
 		Uri:         "/latest/meta-data/instance-type",
 		ContentType: "text/plain",
 		Body:        "xyz123.uber",
@@ -397,6 +427,11 @@ var noNetworkAWSStubs = []endpoint{
 		Uri:         "/latest/meta-data/instance-id",
 		ContentType: "text/plain",
 		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
 	},
 	{
 		Uri:         "/latest/meta-data/instance-type",

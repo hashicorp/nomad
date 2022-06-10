@@ -30,7 +30,7 @@ job "countdash" {
       port = "9001"
 
       connect {
-        sidecar_service = {}
+        sidecar_service {}
 
         sidecar_task {
           resources {
@@ -45,7 +45,7 @@ job "countdash" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }

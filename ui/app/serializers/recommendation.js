@@ -12,7 +12,10 @@ export default class RecommendationSerializer extends ApplicationSerializer {
   separateNanos = ['SubmitTime'];
 
   extractRelationships(modelClass, hash) {
-    const namespace = !hash.Namespace || hash.Namespace === 'default' ? undefined : hash.Namespace;
+    const namespace =
+      !hash.Namespace || hash.Namespace === 'default'
+        ? undefined
+        : hash.Namespace;
 
     const [jobURL] = this.store
       .adapterFor('job')

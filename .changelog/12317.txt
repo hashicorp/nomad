@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: display the Raft version instead of the Serf protocol in the `nomad server members` command
+```
+
+```release-note:improvement
+cli: rename the `nomad server members` `-detailed` flag to `-verbose` so it matches other commands
+```

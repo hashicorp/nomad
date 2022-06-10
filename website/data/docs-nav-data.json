@@ -316,6 +316,19 @@
         ]
       },
       {
+        "title": "config",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/config"
+          },
+          {
+            "title": "validate",
+            "path": "commands/config/validate"
+          }
+        ]
+      },
+      {
         "title": "deployment",
         "routes": [
           {
@@ -525,6 +538,10 @@
             "path": "commands/operator"
           },
           {
+            "title": "api",
+            "path": "commands/operator/api"
+          },
+          {
             "title": "autopilot get-config",
             "path": "commands/operator/autopilot-get-config"
           },
@@ -721,6 +738,27 @@
           {
             "title": "members",
             "path": "commands/server/members"
+          }
+        ]
+      },
+      {
+        "title": "service",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/service"
+          },
+          {
+            "title": "service delete",
+            "path": "commands/service/delete"
+          },
+          {
+            "title": "service info",
+            "path": "commands/service/info"
+          },
+          {
+            "title": "service list",
+            "path": "commands/service/list"
           }
         ]
       },
@@ -1045,6 +1083,10 @@
                     "path": "job-specification/hcl2/functions/file/file"
                   },
                   {
+                    "title": "filebase64",
+                    "path": "job-specification/hcl2/functions/file/filebase64"
+                  },
+                  {
                     "title": "fileexists",
                     "path": "job-specification/hcl2/functions/file/fileexists"
                   },
@@ -1243,7 +1285,7 @@
         "path": "job-specification/constraint"
       },
       {
-        "title": "csi_plugin <sup>Beta</sup>",
+        "title": "csi_plugin",
         "path": "job-specification/csi_plugin"
       },
       {
@@ -1562,7 +1604,7 @@
           },
           {
             "title": "source",
-            "path": "autoscaling/agent/source"
+            "href": "/tools/autoscaling/agent/source"
           },
           {
             "title": "strategy",

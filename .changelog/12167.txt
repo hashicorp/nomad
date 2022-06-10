@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Allow volumes to be re-registered to be updated while not in use
+```

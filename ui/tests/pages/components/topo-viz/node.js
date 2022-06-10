@@ -21,7 +21,7 @@ const allocationRect = {
   pending: hasClass('pending'),
 };
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   label: text('[data-test-label]'),

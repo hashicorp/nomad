@@ -71,7 +71,7 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
@@ -82,6 +82,7 @@ job "countdash" {
 ## `upstreams` Parameters
 
 - `destination_name` `(string: <required>)` - Name of the upstream service.
+- `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
 - `local_bind_port` - `(int: <required>)` - The port the proxy will receive
   connections for the upstream on.
 - `datacenter` `(string: "")` - The Consul datacenter in which to issue the

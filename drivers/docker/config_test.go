@@ -3,12 +3,15 @@ package docker
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_ParseHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name string
 
@@ -18,10 +21,10 @@ func TestConfig_ParseHCL(t *testing.T) {
 		{
 			"basic image",
 			`config {
-				image = "redis:3.2"
+				image = "redis:7"
 			}`,
 			&TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Devices:          []DockerDevice{},
 				Mounts:           []DockerMount{},
 				MountsList:       []DockerMount{},
@@ -46,6 +49,8 @@ func TestConfig_ParseHCL(t *testing.T) {
 }
 
 func TestConfig_ParseJSON(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		input    string
@@ -113,6 +118,8 @@ func TestConfig_ParseJSON(t *testing.T) {
 }
 
 func TestConfig_PortMap_Deserialization(t *testing.T) {
+	ci.Parallel(t)
+
 	parser := hclutils.NewConfigParser(taskConfigSpec)
 
 	expectedMap := map[string]int{
@@ -185,9 +192,11 @@ config {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
-  image = "redis:3.2"
+  image = "redis:7"
   image_pull_timeout = "15m"
   advertise_ipv6_address = true
   args = ["command_arg1", "command_arg2"]
@@ -333,7 +342,7 @@ config {
 }`
 
 	expected := &TaskConfig{
-		Image:             "redis:3.2",
+		Image:             "redis:7",
 		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
@@ -493,6 +502,8 @@ config {
 // TestConfig_DriverConfig_GC asserts that gc is parsed
 // and populated with defaults as expected
 func TestConfig_DriverConfig_GC(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -598,6 +609,8 @@ func TestConfig_DriverConfig_GC(t *testing.T) {
 }
 
 func TestConfig_InternalCapabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -632,6 +645,8 @@ func TestConfig_InternalCapabilities(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -659,6 +674,8 @@ func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -686,6 +703,8 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string

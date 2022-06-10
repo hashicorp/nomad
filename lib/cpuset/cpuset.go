@@ -2,6 +2,7 @@ package cpuset
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -25,6 +26,17 @@ func New(cpus ...uint16) CPUSet {
 	}
 
 	return cpuset
+}
+
+// Copy returns a deep copy of CPUSet c.
+func (c CPUSet) Copy() CPUSet {
+	cpus := make(map[uint16]struct{}, len(c.cpus))
+	for k := range c.cpus {
+		cpus[k] = struct{}{}
+	}
+	return CPUSet{
+		cpus: cpus,
+	}
 }
 
 // String returns the cpuset as a comma delimited set of core values and ranged
@@ -153,6 +165,9 @@ func Parse(s string) (CPUSet, error) {
 				return New(), err
 			}
 
+			if v > math.MaxUint16 {
+				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
+			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 			continue
 		}
@@ -168,7 +183,11 @@ func Parse(s string) (CPUSet, error) {
 		if err != nil {
 			return New(), err
 		}
+
 		for v := lower; v <= upper; v++ {
+			if v > math.MaxUint16 {
+				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
+			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 		}
 	}

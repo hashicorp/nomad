@@ -46,6 +46,7 @@ export default class AgentMonitor extends Component {
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     this.updateLogger();
   }
 
@@ -57,7 +58,7 @@ export default class AgentMonitor extends Component {
     this.set(
       'logger',
       Log.create({
-        logFetch: url => this.token.authorizedRequest(url),
+        logFetch: (url) => this.token.authorizedRequest(url),
         params: this.monitorParams,
         url: this.monitorUrl,
         tail: currentTail,

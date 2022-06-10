@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -29,7 +30,7 @@ func (m *MockDiscover) Names() []string {
 }
 
 func TestRetryJoin_Integration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create two agents and have one retry join the other
 	agent := NewTestAgent(t, t.Name(), nil)
@@ -73,7 +74,7 @@ func TestRetryJoin_Integration(t *testing.T) {
 }
 
 func TestRetryJoin_Server_NonCloud(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -103,7 +104,7 @@ func TestRetryJoin_Server_NonCloud(t *testing.T) {
 }
 
 func TestRetryJoin_Server_Cloud(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -135,7 +136,7 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 }
 
 func TestRetryJoin_Server_MixedProvider(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -167,7 +168,7 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 }
 
 func TestRetryJoin_Client(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -197,7 +198,7 @@ func TestRetryJoin_Client(t *testing.T) {
 }
 
 func TestRetryJoin_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	type validateExpect struct {
 		config  *Config
 		isValid bool

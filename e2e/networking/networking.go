@@ -36,7 +36,7 @@ func (tc *NetworkingE2ETest) AfterEach(f *framework.F) {
 	}
 
 	for _, jobID := range tc.jobIDs {
-		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", jobID)
+		err := e2eutil.StopJob(jobID, "-purge")
 		f.NoError(err)
 	}
 	tc.jobIDs = []string{}

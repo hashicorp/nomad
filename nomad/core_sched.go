@@ -99,20 +99,8 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced job GC")
-	} else {
-		// Get the time table to calculate GC cutoffs.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("job GC scanning before cutoff index",
-			"index", oldThreshold, "job_gc_threshold", c.srv.config.JobGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "job",
+		"job_gc_threshold", c.srv.config.JobGCThreshold)
 
 	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval []string
@@ -231,27 +219,13 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Evals(ws)
+	iter, err := c.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced eval GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("eval GC scanning before cutoff index",
-			"index", oldThreshold, "eval_gc_threshold", c.srv.config.EvalGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "eval",
+		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
@@ -439,22 +413,8 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced node GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("node GC scanning before cutoff index",
-			"index", oldThreshold, "node_gc_threshold", c.srv.config.NodeGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "node",
+		"node_gc_threshold", c.srv.config.NodeGCThreshold)
 
 	// Collect the nodes to GC
 	var gcNode []string
@@ -545,27 +505,13 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws)
+	iter, err := c.snap.Deployments(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced deployment GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.DeploymentGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("deployment GC scanning before cutoff index",
-			"index", oldThreshold, "deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "deployment",
+		"deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
 
 	// Collect the deployments to GC
 	var gcDeployment []string
@@ -756,24 +702,9 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// Get the time table to calculate GC cutoffs.
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so
-		// everything will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced volume claim GC")
-	} else {
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIVolumeClaimGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-	}
-
-	c.logger.Debug("CSI volume claim GC scanning before cutoff index",
-		"index", oldThreshold,
+	oldThreshold := c.getThreshold(eval, "CSI volume claim",
 		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 
-NEXT_VOLUME:
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
 
@@ -785,31 +716,9 @@ NEXT_VOLUME:
 		// we only call the claim release RPC if the volume has claims
 		// that no longer have valid allocations. otherwise we'd send
 		// out a lot of do-nothing RPCs.
-		for id := range vol.ReadClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil || alloc.TerminalStatus() {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
-		}
-		for id := range vol.WriteClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil || alloc.TerminalStatus() {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
+		vol, err := c.snap.CSIVolumeDenormalize(ws, vol)
+		if err != nil {
+			return err
 		}
 		if len(vol.PastClaims) > 0 {
 			err = gcClaims(vol.Namespace, vol.ID)
@@ -833,21 +742,8 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// Get the time table to calculate GC cutoffs.
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so
-		// everything will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced plugin GC")
-	} else {
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-	}
-
-	c.logger.Debug("CSI plugin GC scanning before cutoff index",
-		"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
+	oldThreshold := c.getThreshold(eval, "CSI plugin",
+		"csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
@@ -882,4 +778,28 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 		},
 	}
 	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
+}
+
+// getThreshold returns the index threshold for determining whether an
+// object is old enough to GC
+func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, configName string, configThreshold time.Duration) uint64 {
+	var oldThreshold uint64
+	if eval.JobID == structs.CoreJobForceGC {
+		// The GC was forced, so set the threshold to its maximum so
+		// everything will GC.
+		oldThreshold = math.MaxUint64
+		c.logger.Debug(fmt.Sprintf("forced %s GC", objectName))
+	} else {
+		// Compute the old threshold limit for GC using the FSM
+		// time table.  This is a rough mapping of a time to the
+		// Raft index it belongs to.
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * configThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+		c.logger.Debug(
+			fmt.Sprintf("%s GC scanning before cutoff index", objectName),
+			"index", oldThreshold,
+			configName, configThreshold)
+	}
+	return oldThreshold
 }

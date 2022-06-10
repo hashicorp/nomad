@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -28,17 +29,6 @@ import (
 
 var _ interfaces.TaskPrestartHook = (*sidsHook)(nil)
 
-func tmpDir(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "sids-")
-	require.NoError(t, err)
-	return dir
-}
-
-func cleanupDir(t *testing.T, dir string) {
-	err := os.RemoveAll(dir)
-	require.NoError(t, err)
-}
-
 func sidecar(task string) (string, structs.TaskKind) {
 	name := structs.ConnectProxyPrefix + "-" + task
 	kind := structs.TaskKind(structs.ConnectProxyPrefix + ":" + task)
@@ -46,11 +36,10 @@ func sidecar(task string) (string, structs.TaskKind) {
 }
 
 func TestSIDSHook_recoverToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	taskName, taskKind := sidecar("foo")
 	h := newSIDSHook(sidsHookConfig{
@@ -71,11 +60,10 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 }
 
 func TestSIDSHook_recoverToken_empty(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	taskName, taskKind := sidecar("foo")
 	h := newSIDSHook(sidsHookConfig{
@@ -92,6 +80,7 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 }
 
 func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
+	ci.Parallel(t)
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
 	// file even though the permissions are set to 0200).
@@ -99,11 +88,9 @@ func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
-	t.Parallel()
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	err := os.Chmod(secrets, 0000)
 	r.NoError(err)
@@ -122,11 +109,10 @@ func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 }
 
 func TestSIDSHook_writeToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	id := uuid.Generate()
 	h := new(sidsHook)
@@ -139,6 +125,7 @@ func TestSIDSHook_writeToken(t *testing.T) {
 }
 
 func TestSIDSHook_writeToken_unWritable(t *testing.T) {
+	ci.Parallel(t)
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
 	// file even though the permissions are set to 0200).
@@ -146,11 +133,9 @@ func TestSIDSHook_writeToken_unWritable(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
-	t.Parallel()
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	err := os.Chmod(secrets, 0000)
 	r.NoError(err)
@@ -162,11 +147,10 @@ func TestSIDSHook_writeToken_unWritable(t *testing.T) {
 }
 
 func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
-	base := tmpDir(t)
-	defer cleanupDir(t, base)
+	base := t.TempDir()
 	secrets := filepath.Join(base, "does/not/exist")
 
 	id := uuid.Generate()
@@ -176,7 +160,7 @@ func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
 }
 
 func TestSIDSHook_deriveSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	taskName, taskKind := sidecar("task1")
@@ -197,7 +181,7 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 }
 
 func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	siClient := consulapi.NewMockServiceIdentitiesClient()
@@ -227,7 +211,7 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 }
 
 func TestSIDSHook_computeBackoff(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(i int, exp time.Duration) {
 		result := computeBackoff(i)
@@ -243,7 +227,7 @@ func TestSIDSHook_computeBackoff(t *testing.T) {
 }
 
 func TestSIDSHook_backoff(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	ctx := context.Background()
@@ -252,7 +236,7 @@ func TestSIDSHook_backoff(t *testing.T) {
 }
 
 func TestSIDSHook_backoffKilled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1)
@@ -263,6 +247,7 @@ func TestSIDSHook_backoffKilled(t *testing.T) {
 }
 
 func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
+	ci.Parallel(t)
 	// Normally this test would live in test_runner_test.go, but since it requires
 	// root and the check for root doesn't like Windows, we put this file in here
 	// for now.
@@ -274,7 +259,6 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
-	t.Parallel()
 	r := require.New(t)
 
 	alloc := mock.BatchConnectAlloc()
@@ -288,8 +272,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 
 	// make the si_token file un-writable, triggering a failure after a
 	// successful token derivation
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 	trConfig.TaskDir.SecretsDir = secrets
 	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
 	r.NoError(err)

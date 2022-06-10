@@ -9,12 +9,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
+	ci.Parallel(t)
+
 	os.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
@@ -207,9 +210,13 @@ const GCE_routes = `
 `
 
 func TestFingerprint_GCEWithExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_GCE(t, true)
 }
 
 func TestFingerprint_GCEWithoutExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_GCE(t, false)
 }

@@ -30,19 +30,22 @@ export default create({
 
   card: recommendationCard,
 
-  recommendationSummaries: collection('[data-test-recommendation-summary-row]', {
-    isActive: hasClass('is-active'),
-    isDisabled: hasClass('is-disabled'),
+  recommendationSummaries: collection(
+    '[data-test-recommendation-summary-row]',
+    {
+      isActive: hasClass('is-active'),
+      isDisabled: hasClass('is-disabled'),
 
-    slug: text('[data-test-slug]'),
-    namespace: text('[data-test-namespace]'),
-    date: text('[data-test-date]'),
-    allocationCount: text('[data-test-allocation-count]'),
-    cpu: text('[data-test-cpu]'),
-    memory: text('[data-test-memory]'),
-    aggregateCpu: text('[data-test-aggregate-cpu]'),
-    aggregateMemory: text('[data-test-aggregate-memory]'),
-  }),
+      slug: text('[data-test-slug]'),
+      namespace: text('[data-test-namespace]'),
+      date: text('[data-test-date]'),
+      allocationCount: text('[data-test-allocation-count]'),
+      cpu: text('[data-test-cpu]'),
+      memory: text('[data-test-memory]'),
+      aggregateCpu: text('[data-test-aggregate-cpu]'),
+      aggregateMemory: text('[data-test-aggregate-memory]'),
+    }
+  ),
 
   empty: {
     scope: '[data-test-empty-recommendations]',

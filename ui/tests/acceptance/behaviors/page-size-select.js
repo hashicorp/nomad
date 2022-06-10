@@ -2,10 +2,15 @@ import { pluralize } from 'ember-inflector';
 import { test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 
-export default function pageSizeSelect({ resourceName, pageObject, pageObjectList, setup }) {
+export default function pageSizeSelect({
+  resourceName,
+  pageObject,
+  pageObjectList,
+  setup,
+}) {
   test(`the number of ${pluralize(
     resourceName
-  )} is equal to the localStorage user setting for page size`, async function(assert) {
+  )} is equal to the localStorage user setting for page size`, async function (assert) {
     const storedPageSize = 10;
     window.localStorage.nomadPageSize = storedPageSize;
 
@@ -15,7 +20,7 @@ export default function pageSizeSelect({ resourceName, pageObject, pageObjectLis
     assert.equal(pageObject.pageSizeSelect.selectedOption, storedPageSize);
   });
 
-  test('when the page size user setting is unset, the default page size is 25', async function(assert) {
+  test('when the page size user setting is unset, the default page size is 25', async function (assert) {
     await setup.call(this);
 
     assert.equal(pageObjectList.length, pageObject.pageSize);
@@ -24,7 +29,7 @@ export default function pageSizeSelect({ resourceName, pageObject, pageObjectLis
 
   test(`changing the page size updates the ${pluralize(
     resourceName
-  )} list and also updates the user setting in localStorage`, async function(assert) {
+  )} list and also updates the user setting in localStorage`, async function (assert) {
     const desiredPageSize = 10;
 
     await setup.call(this);

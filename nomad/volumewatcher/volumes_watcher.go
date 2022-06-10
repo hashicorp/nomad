@@ -3,6 +3,7 @@ package volumewatcher
 import (
 	"context"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -34,8 +35,14 @@ type Watcher struct {
 	ctx    context.Context
 	exitFn context.CancelFunc
 
+	// quiescentTimeout is the time we wait until the volume has "settled"
+	// before stopping the child watcher goroutines
+	quiescentTimeout time.Duration
+
 	wlock sync.RWMutex
 }
+
+var defaultQuiescentTimeout = time.Minute * 5
 
 // NewVolumesWatcher returns a volumes watcher that is used to watch
 // volumes and trigger the scheduler as needed.
@@ -47,24 +54,26 @@ func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC, leaderAcl string) *W
 	ctx, exitFn := context.WithCancel(context.Background())
 
 	return &Watcher{
-		rpc:       rpc,
-		logger:    logger.Named("volumes_watcher"),
-		ctx:       ctx,
-		exitFn:    exitFn,
-		leaderAcl: leaderAcl,
+		rpc:              rpc,
+		logger:           logger.Named("volumes_watcher"),
+		ctx:              ctx,
+		exitFn:           exitFn,
+		leaderAcl:        leaderAcl,
+		quiescentTimeout: defaultQuiescentTimeout,
 	}
 }
 
 // SetEnabled is used to control if the watcher is enabled. The
 // watcher should only be enabled on the active leader. When being
-// enabled the state is passed in as it is no longer valid once a
-// leader election has taken place.
-func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
+// enabled the state and leader's ACL is passed in as it is no longer
+// valid once a leader election has taken place.
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore, leaderAcl string) {
 	w.wlock.Lock()
 	defer w.wlock.Unlock()
 
 	wasEnabled := w.enabled
 	w.enabled = enabled
+	w.leaderAcl = leaderAcl
 
 	if state != nil {
 		w.state = state
@@ -156,10 +165,10 @@ func (w *Watcher) getVolumesImpl(ws memdb.WatchSet, state *state.StateStore) (in
 }
 
 // add adds a volume to the watch list
-func (w *Watcher) add(d *structs.CSIVolume) error {
+func (w *Watcher) add(v *structs.CSIVolume) error {
 	w.wlock.Lock()
 	defer w.wlock.Unlock()
-	_, err := w.addLocked(d)
+	_, err := w.addLocked(v)
 	return err
 }
 
@@ -180,4 +189,11 @@ func (w *Watcher) addLocked(v *structs.CSIVolume) (*volumeWatcher, error) {
 	watcher := newVolumeWatcher(w, v)
 	w.watchers[v.ID+v.Namespace] = watcher
 	return watcher, nil
+}
+
+// removes a volume from the watch list
+func (w *Watcher) remove(volID string) {
+	w.wlock.Lock()
+	defer w.wlock.Unlock()
+	delete(w.watchers, volID)
 }

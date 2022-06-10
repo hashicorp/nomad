@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -16,35 +17,35 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper/envoy"
-	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/v3/host"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -54,6 +55,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/shirou/gopsutil/v3/host"
 )
 
 const (
@@ -156,6 +159,7 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
+	Reconnect(update *structs.Allocation) error
 
 	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
@@ -225,9 +229,18 @@ type Client struct {
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
-	// consulService is Nomad's custom Consul client for managing services
+	// consulService is the Consul handler implementation for managing services
 	// and checks.
-	consulService consulApi.ConsulServiceAPI
+	consulService serviceregistration.Handler
+
+	// nomadService is the Nomad handler implementation for managing service
+	// registrations.
+	nomadService serviceregistration.Handler
+
+	// serviceRegWrapper wraps the consulService and nomadService
+	// implementations so that the alloc and task runner service hooks can call
+	// this without needing to identify which backend provider should be used.
+	serviceRegWrapper *wrapper.HandlerWrapper
 
 	// consulProxies is Nomad's custom Consul client for looking up supported
 	// envoy versions
@@ -308,6 +321,9 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 var (
@@ -322,7 +338,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -365,7 +381,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		cpusetManager:        cgutil.NewCpusetManager(cfg.CgroupParent, logger.Named("cpuset_manager")),
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
+		getter:               getter.NewGetter(cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -390,11 +407,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.dynamicRegistry =
 		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
 			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller")), nil
 			},
 			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
-			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client")), nil
+			},
 		})
 
 	// Setup the clients RPC server
@@ -471,6 +488,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
 
+	// Set up the service registration wrapper using the Consul and Nomad
+	// implementations. The Nomad implementation is only ever used on the
+	// client, so we do that here rather than within the agent.
+	c.setupNomadServiceRegistrationHandler()
+	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
+
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup. This is the first RPC to the servers
 	go c.batchFirstFingerprints()
@@ -518,7 +541,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	if err := c.setupConsulTokenClient(); err != nil {
-		return nil, errors.Wrap(err, "failed to setup consul tokens client")
+		return nil, fmt.Errorf("failed to setup consul tokens client: %w", err)
 	}
 
 	// Setup the vault client for token and secret renewals
@@ -657,19 +680,23 @@ func (c *Client) init() error {
 
 	// Ensure cgroups are created on linux platform
 	if runtime.GOOS == "linux" && c.cpusetManager != nil {
-		err := c.cpusetManager.Init()
-		if err != nil {
-			// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
-			// will be disabled. this is common when running in dev mode under a non-root user for example
-			c.logger.Warn("could not initialize cpuset cgroup subsystem, cpuset management disabled", "error", err)
-			c.cpusetManager = cgutil.NoopCpusetManager()
+		// use the client configuration for reservable_cores if set
+		cores := c.config.ReservableCores
+		if len(cores) == 0 {
+			// otherwise lookup the effective cores from the parent cgroup
+			cores, _ = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
+		}
+		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
+			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
+			// will be disabled. this is common when running in dev mode under a non-root user for example.
+			c.logger.Warn("failed to initialize cpuset cgroup subsystem, cpuset management disabled", "error", cpuErr)
+			c.cpusetManager = new(cgutil.NoopCpusetManager)
 		}
 	}
 	return nil
 }
 
-// reloadTLSConnections allows a client to reload its TLS configuration on the
-// fly
+// reloadTLSConnections allows a client to reload its TLS configuration on the fly
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
@@ -749,18 +776,6 @@ func (c *Client) secretNodeID() string {
 	return c.config.Node.SecretID
 }
 
-// RPCMajorVersion returns the structs.ApiMajorVersion supported by the
-// client.
-func (c *Client) RPCMajorVersion() int {
-	return structs.ApiMajorVersion
-}
-
-// RPCMinorVersion returns the structs.ApiMinorVersion supported by the
-// client.
-func (c *Client) RPCMinorVersion() int {
-	return structs.ApiMinorVersion
-}
-
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
 	c.shutdownLock.Lock()
@@ -795,6 +810,13 @@ func (c *Client) Shutdown() error {
 		}
 	}
 	arGroup.Wait()
+
+	// Assert the implementation, so we can trigger the shutdown call. This is
+	// the only place this occurs, so it's OK to store the interface rather
+	// than the implementation.
+	if h, ok := c.nomadService.(*nsd.ServiceRegistrationHandler); ok {
+		h.Shutdown()
+	}
 
 	// Shutdown the plugin managers
 	c.pluginManagers.Shutdown()
@@ -1152,7 +1174,9 @@ func (c *Client) restoreState() error {
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			ServiceRegWrapper:   c.serviceRegWrapper,
 			RPCClient:           c,
+			Getter:              c.getter,
 		}
 		c.configLock.RUnlock()
 
@@ -1415,6 +1439,7 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
+	node.CgroupParent = c.config.CgroupParent
 	if node.HostVolumes == nil {
 		if l := len(c.config.HostVolumes); l != 0 {
 			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
@@ -1576,7 +1601,7 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 	if c.config.DevMode {
 		return devModeRetryIntv
 	}
-	return base + lib.RandomStagger(base)
+	return base + helper.RandomStagger(base)
 }
 
 // registerAndHeartbeat is a long lived goroutine used to register the client
@@ -1598,7 +1623,7 @@ func (c *Client) registerAndHeartbeat() {
 	if c.config.DevMode {
 		heartbeat = time.After(0)
 	} else {
-		heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+		heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 	}
 
 	for {
@@ -1615,7 +1640,7 @@ func (c *Client) registerAndHeartbeat() {
 				// Re-register the node
 				c.logger.Info("re-registering node")
 				c.retryRegisterNode()
-				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+				heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 			} else {
 				intv := c.getHeartbeatRetryIntv(err)
 				c.logger.Error("error heartbeating. retrying", "error", err, "period", intv)
@@ -1671,16 +1696,16 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 		// Make left the absolute value so we delay and jitter properly.
 		left *= -1
 	case left < 0:
-		return time.Second + lib.RandomStagger(time.Second)
+		return time.Second + helper.RandomStagger(time.Second)
 	default:
 	}
 
-	stagger := lib.RandomStagger(left)
+	stagger := helper.RandomStagger(left)
 	switch {
 	case stagger < time.Second:
-		return time.Second + lib.RandomStagger(time.Second)
+		return time.Second + helper.RandomStagger(time.Second)
 	case stagger > 30*time.Second:
-		return 25*time.Second + lib.RandomStagger(5*time.Second)
+		return 25*time.Second + helper.RandomStagger(5*time.Second)
 	default:
 		return stagger
 	}
@@ -1959,6 +1984,11 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	case c.allocUpdates <- stripped:
 	case <-c.shutdownCh:
 	}
+}
+
+// PutAllocation stores an allocation or returns an error if it could not be stored.
+func (c *Client) PutAllocation(alloc *structs.Allocation) error {
+	return c.stateDB.PutAllocation(alloc)
 }
 
 // allocSync is a long lived function that batches allocation updates to the
@@ -2403,6 +2433,15 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
+	// Reconnect unknown allocations
+	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+		err = ar.Reconnect(update)
+		if err != nil {
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
+		}
+		return
+	}
+
 	// Update local copy of alloc
 	if err := c.stateDB.PutAllocation(update); err != nil {
 		c.logger.Error("error persisting updated alloc locally", "error", err, "alloc_id", update.ID)
@@ -2473,7 +2512,9 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		ServiceRegWrapper:   c.serviceRegWrapper,
 		RPCClient:           c,
+		Getter:              c.getter,
 	}
 	c.configLock.RUnlock()
 
@@ -2518,6 +2559,20 @@ func (c *Client) setupVaultClient() error {
 	c.vaultClient.Start()
 
 	return nil
+}
+
+// setupNomadServiceRegistrationHandler sets up the registration handler to use
+// for native service discovery.
+func (c *Client) setupNomadServiceRegistrationHandler() {
+	cfg := nsd.ServiceRegistrationHandlerCfg{
+		Datacenter: c.Datacenter(),
+		Enabled:    c.config.NomadServiceDiscovery,
+		NodeID:     c.NodeID(),
+		NodeSecret: c.secretNodeID(),
+		Region:     c.Region(),
+		RPCFn:      c.RPC,
+	}
+	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
 }
 
 // deriveToken takes in an allocation and a set of tasks and derives vault
@@ -2732,7 +2787,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		// datacenterQueryLimit, the next heartbeat will pick
 		// a new set of servers so it's okay.
 		shuffleStrings(dcs[1:])
-		dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
+		dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
 	}
 
 	// Query for servers in this client's region only
@@ -2773,7 +2828,7 @@ DISCOLOOP:
 				continue
 			}
 			var peers []string
-			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.Peers", rpcargs, &peers); err != nil {
+			if err := c.connPool.RPC(region, addr, "Status.Peers", rpcargs, &peers); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}

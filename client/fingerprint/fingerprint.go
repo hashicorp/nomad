@@ -46,9 +46,10 @@ var (
 	// This should run after the host fingerprinters as they may override specific
 	// node resources with more detailed information.
 	envFingerprinters = map[string]Factory{
-		"env_aws":   NewEnvAWSFingerprint,
-		"env_gce":   NewEnvGCEFingerprint,
-		"env_azure": NewEnvAzureFingerprint,
+		"env_aws":          NewEnvAWSFingerprint,
+		"env_gce":          NewEnvGCEFingerprint,
+		"env_azure":        NewEnvAzureFingerprint,
+		"env_digitalocean": NewEnvDigitalOceanFingerprint,
 	}
 )
 

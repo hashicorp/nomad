@@ -1,6 +1,8 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class AllocationAdapter extends Watchable {
   stop = adapterAction('/stop');
 
@@ -14,13 +16,17 @@ export default class AllocationAdapter extends Watchable {
 
   ls(model, path) {
     return this.token
-      .authorizedRequest(`/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`)
+      .authorizedRequest(
+        `/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`
+      )
       .then(handleFSResponse);
   }
 
   stat(model, path) {
     return this.token
-      .authorizedRequest(`/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`)
+      .authorizedRequest(
+        `/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`
+      )
       .then(handleFSResponse);
   }
 }
@@ -39,8 +45,11 @@ async function handleFSResponse(response) {
 }
 
 function adapterAction(path, verb = 'POST') {
-  return function(allocation) {
-    const url = addToPath(this.urlForFindRecord(allocation.id, 'allocation'), path);
+  return function (allocation) {
+    const url = addToPath(
+      this.urlForFindRecord(allocation.id, 'allocation'),
+      path
+    );
     return this.ajax(url, verb);
   };
 }

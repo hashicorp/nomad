@@ -32,7 +32,7 @@ export default class ScaleEventsChart extends Component {
   }
 
   get annotations() {
-    return this.args.events.rejectBy('hasCount').map(ev => ({
+    return this.args.events.rejectBy('hasCount').map((ev) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
       event: copy(ev),
@@ -40,7 +40,10 @@ export default class ScaleEventsChart extends Component {
   }
 
   toggleEvent(ev) {
-    if (this.activeEvent && get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')) {
+    if (
+      this.activeEvent &&
+      get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')
+    ) {
       this.closeEventDetails();
     } else {
       this.activeEvent = ev;

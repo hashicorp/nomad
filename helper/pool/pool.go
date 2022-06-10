@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
@@ -48,7 +48,6 @@ type Conn struct {
 	addr     net.Addr
 	session  *yamux.Session
 	lastUsed time.Time
-	version  int
 
 	pool *ConnPool
 
@@ -278,7 +277,7 @@ func (p *ConnPool) SetConnListener(l chan<- *Conn) {
 
 // Acquire is used to get a connection that is
 // pooled or to return a new connection
-func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, error) {
+func (p *ConnPool) acquire(region string, addr net.Addr) (*Conn, error) {
 	// Check to see if there's a pooled connection available. This is up
 	// here since it should the vastly more common case than the rest
 	// of the code here.
@@ -305,7 +304,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 	// If we are the lead thread, make the new connection and then wake
 	// everybody else up to see if we got it.
 	if isLeadThread {
-		c, err := p.getNewConn(region, addr, version)
+		c, err := p.getNewConn(region, addr)
 		p.Lock()
 		delete(p.limiter, addr.String())
 		close(wait)
@@ -349,7 +348,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 }
 
 // getNewConn is used to return a new connection
-func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn, error) {
+func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 	// Try to dial the conn
 	conn, err := net.DialTimeout("tcp", addr.String(), 10*time.Second)
 	if err != nil {
@@ -404,7 +403,6 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 		session:  session,
 		clients:  list.New(),
 		lastUsed: time.Now(),
-		version:  version,
 		pool:     p,
 	}
 	return c, nil
@@ -429,12 +427,12 @@ func (p *ConnPool) clearConn(conn *Conn) {
 	}
 }
 
-// getClient is used to get a usable client for an address and protocol version
-func (p *ConnPool) getRPCClient(region string, addr net.Addr, version int) (*Conn, *StreamClient, error) {
+// getClient is used to get a usable client for an address
+func (p *ConnPool) getRPCClient(region string, addr net.Addr) (*Conn, *StreamClient, error) {
 	retries := 0
 START:
 	// Try to get a conn first
-	conn, err := p.acquire(region, addr, version)
+	conn, err := p.acquire(region, addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get conn: %v", err)
 	}
@@ -457,8 +455,8 @@ START:
 
 // StreamingRPC is used to make an streaming RPC call.  Callers must
 // close the connection when done.
-func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.Conn, error) {
-	conn, err := p.acquire(region, addr, version)
+func (p *ConnPool) StreamingRPC(region string, addr net.Addr) (net.Conn, error) {
+	conn, err := p.acquire(region, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conn: %v", err)
 	}
@@ -477,9 +475,9 @@ func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.
 }
 
 // RPC is used to make an RPC call to a remote host
-func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string, args interface{}, reply interface{}) error {
+func (p *ConnPool) RPC(region string, addr net.Addr, method string, args interface{}, reply interface{}) error {
 	// Get a usable client
-	conn, sc, err := p.getRPCClient(region, addr, version)
+	conn, sc, err := p.getRPCClient(region, addr)
 	if err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
@@ -493,7 +491,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 		// If we read EOF, the session is toast. Clear it and open a
 		// new session next time
 		// See https://github.com/hashicorp/consul/blob/v1.6.3/agent/pool/pool.go#L471-L477
-		if lib.IsErrEOF(err) {
+		if helper.IsErrEOF(err) {
 			p.clearConn(conn)
 		}
 

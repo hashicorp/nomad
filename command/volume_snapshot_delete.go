@@ -30,7 +30,7 @@ General Options:
 Snapshot Options:
 
   -secret
-    Secrets to pass to the plugin to create the snapshot. Accepts multiple
+    Secrets to pass to the plugin to delete the snapshot. Accepts multiple
     flags in the form -secret key=value
 
 `
@@ -77,7 +77,7 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 	}
 	// Check that we get exactly two arguments
 	args = flags.Args()
-	if l := len(args); l != 2 {
+	if l := len(args); l < 2 {
 		c.Ui.Error("This command takes two arguments: <plugin id> <snapshot id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
@@ -97,6 +97,9 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 		s := strings.Split(kv, "=")
 		if len(s) == 2 {
 			secrets[s[0]] = s[1]
+		} else {
+			c.Ui.Error("Secret must be in the format: -secret key=value")
+			return 1
 		}
 	}
 

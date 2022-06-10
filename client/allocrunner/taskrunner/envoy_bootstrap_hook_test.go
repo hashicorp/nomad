@@ -17,6 +17,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -42,18 +43,17 @@ const (
 )
 
 func writeTmp(t *testing.T, s string, fm os.FileMode) string {
-	dir, err := ioutil.TempDir("", "envoy-")
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	fPath := filepath.Join(dir, sidsTokenFile)
-	err = ioutil.WriteFile(fPath, []byte(s), fm)
+	err := ioutil.WriteFile(fPath, []byte(s), fm)
 	require.NoError(t, err)
 
 	return dir
 }
 
 func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
@@ -72,7 +72,6 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Run("load token from file", func(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0440)
-		defer cleanupDir(t, f)
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
 		cfg, err := h.maybeLoadSIToken("task1", f)
@@ -83,7 +82,6 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Run("file is unreadable", func(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0200)
-		defer cleanupDir(t, f)
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
 		cfg, err := h.maybeLoadSIToken("task1", f)
@@ -94,7 +92,7 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 }
 
 func TestEnvoyBootstrapHook_decodeTriState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Equal(t, "", decodeTriState(nil))
 	require.Equal(t, "true", decodeTriState(helper.BoolToPtr(true)))
@@ -118,11 +116,11 @@ var (
 )
 
 func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("excluding SI token", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -134,15 +132,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 		}, result)
 	})
 
 	t.Run("including SI token", func(t *testing.T) {
 		token := uuid.Generate()
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -155,15 +153,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 			"-token", token,
 		}, result)
 	})
 
 	t.Run("including certificates", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -175,8 +173,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 			"-ca-file", "/etc/tls/ca-file",
 			"-client-cert", "/etc/tls/cert-file",
 			"-client-key", "/etc/tls/key-file",
@@ -198,9 +196,9 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
-			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}, result)
 	})
 
@@ -219,15 +217,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 			"-bootstrap",
 			"-gateway", "my-mesh-gateway",
-			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 		}, result)
 	})
 }
 
 func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	environment := []string{"foo=bar", "baz=1"}
 
@@ -235,7 +233,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
 		require.Equal(t, []string{
 			"foo=bar", "baz=1",
 		}, envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "localhost:3333",
@@ -249,7 +247,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
 			"CONSUL_HTTP_SSL=true",
 			"CONSUL_HTTP_SSL_VERIFY=true",
 		}, envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
 			envoyAdminBind: "localhost:3333",
@@ -291,7 +289,7 @@ type envoyConfig struct {
 // TestEnvoyBootstrapHook_with_SI_token asserts the bootstrap file written for
 // Envoy contains a Consul SI token.
 func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -392,7 +390,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 // creates Envoy's bootstrap.json configuration based on Connect proxy sidecars
 // registered for the task.
 func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -487,7 +485,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	testConsul := getTestConsul(t)
@@ -570,7 +568,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
 // is a noop for non-Connect proxy sidecar / gateway tasks.
 func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.Alloc()
@@ -607,7 +605,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 // bootstrap hook returns a Recoverable error if the bootstrap command runs but
 // fails.
 func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -685,7 +683,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	testConsul := getTestConsul(t)
@@ -812,6 +810,8 @@ func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
+	ci.Parallel(t)
+
 	bridgeH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("bridge"),
 		new(config.ConsulConfig),
@@ -841,6 +841,8 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
+	ci.Parallel(t)
+
 	require.True(t, isConnectKind(structs.ConnectProxyPrefix))
 	require.True(t, isConnectKind(structs.ConnectIngressPrefix))
 	require.True(t, isConnectKind(structs.ConnectTerminatingPrefix))

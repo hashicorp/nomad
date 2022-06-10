@@ -1,7 +1,16 @@
-import { attribute, collection, clickable, isPresent, text } from 'ember-cli-page-object';
+import {
+  attribute,
+  collection,
+  clickable,
+  isPresent,
+  text,
+} from 'ember-cli-page-object';
 import { singularize } from 'ember-inflector';
 
-export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
+export default function (
+  selector = '[data-test-allocation]',
+  propKey = 'allocations'
+) {
   const lookupKey = `${singularize(propKey)}For`;
   // Remove the bracket notation
   const attr = selector.substring(1, selector.length - 1);
@@ -11,7 +20,10 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       id: attribute(attr),
       shortId: text('[data-test-short-id]'),
       createTime: text('[data-test-create-time]'),
-      createTooltip: attribute('aria-label', '[data-test-create-time] .tooltip'),
+      createTooltip: attribute(
+        'aria-label',
+        '[data-test-create-time] .tooltip'
+      ),
       modifyTime: text('[data-test-modify-time]'),
       health: text('[data-test-health]'),
       status: text('[data-test-client-status]'),
@@ -25,7 +37,9 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       cpuTooltip: attribute('aria-label', '[data-test-cpu] .tooltip'),
       mem: text('[data-test-mem]'),
       memTooltip: attribute('aria-label', '[data-test-mem] .tooltip'),
-      rescheduled: isPresent('[data-test-indicators] [data-test-icon="reschedule"]'),
+      rescheduled: isPresent(
+        '[data-test-indicators] [data-test-icon="reschedule"]'
+      ),
 
       visit: clickable('[data-test-short-id] a'),
       visitRow: clickable(),
@@ -33,8 +47,8 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       visitClient: clickable('[data-test-client] a'),
     }),
 
-    [lookupKey]: function(id) {
-      return this[propKey].toArray().find(allocation => allocation.id === id);
+    [lookupKey]: function (id) {
+      return this[propKey].toArray().find((allocation) => allocation.id === id);
     },
   };
 }

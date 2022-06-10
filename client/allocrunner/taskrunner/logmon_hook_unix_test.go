@@ -7,12 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -25,16 +25,12 @@ import (
 // Nomad client is restarting and asserts failing to reattach to logmon causes
 // nomad to spawn a new logmon.
 func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
-	}()
+	dir := t.TempDir()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}
@@ -83,7 +79,7 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 		logmonReattachKey: origHookData,
 	}
 	resp = interfaces.TaskPrestartResponse{}
-	err = hook.Prestart(context.Background(), &req, &resp)
+	err := hook.Prestart(context.Background(), &req, &resp)
 	require.NoError(t, err)
 	require.NotEqual(t, origState, resp.State)
 
@@ -94,16 +90,12 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 // TestTaskRunner_LogmonHook_ShutdownMidStart simulates logmon crashing while the
 // Nomad client is calling Start() and asserts that we recover and spawn a new logmon.
 func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
-	}()
+	dir := t.TempDir()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}

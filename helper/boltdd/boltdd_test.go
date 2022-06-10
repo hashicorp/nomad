@@ -3,83 +3,65 @@ package boltdd
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
-type testingT interface {
-	Fatalf(format string, args ...interface{})
-	Logf(format string, args ...interface{})
-}
-
-func setupBoltDB(t testingT) (*DB, func()) {
-	dir, err := ioutil.TempDir("", "nomadtest_")
-	if err != nil {
-		t.Fatalf("error creating tempdir: %v", err)
-	}
-
-	cleanup := func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing test dir: %v", err)
-		}
-	}
+func setupBoltDB(t testing.TB) *DB {
+	dir := t.TempDir()
 
 	dbFilename := filepath.Join(dir, "nomadtest.db")
 	db, err := Open(dbFilename, 0600, nil)
 	if err != nil {
-		cleanup()
 		t.Fatalf("error creating boltdb: %v", err)
 	}
 
-	return db, func() {
+	t.Cleanup(func() {
 		db.Close()
-		cleanup()
-	}
+	})
+
+	return db
 }
 
 func TestDB_Open(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	require.Equal(0, db.BoltDB().Stats().TxStats.Write)
 }
 
 func TestDB_Close(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	db.Close()
 
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucket([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 }
 
 func TestBucket_Create(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	name := []byte("create_test")
 
@@ -112,11 +94,10 @@ func TestBucket_Create(t *testing.T) {
 }
 
 func TestBucket_DedupeWrites(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	bname := []byte("dedupewrites_test")
 	k1name := []byte("k1")
@@ -166,11 +147,10 @@ func TestBucket_DedupeWrites(t *testing.T) {
 }
 
 func TestBucket_Delete(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	parentName := []byte("delete_test")
 	parentKey := []byte("parent_key")
@@ -274,8 +254,7 @@ func TestBucket_Delete(t *testing.T) {
 }
 
 func BenchmarkWriteDeduplication_On(b *testing.B) {
-	db, cleanup := setupBoltDB(b)
-	defer cleanup()
+	db := setupBoltDB(b)
 
 	bucketName := []byte("allocations")
 	alloc := mock.Alloc()
@@ -307,16 +286,7 @@ func BenchmarkWriteDeduplication_On(b *testing.B) {
 }
 
 func BenchmarkWriteDeduplication_Off(b *testing.B) {
-	dir, err := ioutil.TempDir("", "nomadtest_")
-	if err != nil {
-		b.Fatalf("error creating tempdir: %v", err)
-	}
-
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			b.Logf("error removing test dir: %v", err)
-		}
-	}()
+	dir := b.TempDir()
 
 	dbFilename := filepath.Join(dir, "nomadtest.db")
 	db, err := Open(dbFilename, 0600, nil)

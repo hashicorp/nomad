@@ -1,6 +1,15 @@
-import { create, clickable, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  create,
+  clickable,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 import { run } from '@ember/runloop';
-import { selectOpen, selectOpenChoose } from '../../utils/ember-power-select-extensions';
+import {
+  selectOpen,
+  selectOpenChoose,
+} from '../../utils/ember-power-select-extensions';
 
 export default create({
   visit: visitable('/servers/:name/monitor'),

@@ -1,63 +1,62 @@
-<JobPage::Parts::Body @job={{this.job}}>
-  <JobPage::Parts::Error @errorMessage={{this.errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{this.job}} @title={{this.job.trimmedName}} @handleError={{action "handleError"}} />
-
-  <JobPage::Parts::StatsBox @job={{this.job}}>
-    <:before-namespace>
-      <span class="pair" data-test-job-stat="parent">
-        <span class="term">Parent</span>
-        <LinkTo @route="jobs.job" @model={{this.job.parent}} @query={{hash jobNamespace=this.job.parent.namespace.name}}>
-          {{this.job.parent.name}}
-        </LinkTo>
-      </span>
-    </:before-namespace>
-  </JobPage::Parts::StatsBox>
-
-  {{#if this.job.hasClientStatus}}
-    <JobPage::Parts::JobClientStatusSummary
-      @job={{this.job}}
-      @nodes={{this.nodes}}
-      @forceCollapsed={{not this.shouldDisplayClientInformation}}
-      @gotoClients={{this.gotoClients}} />
-  {{/if}}
-
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
-
-  <JobPage::Parts::PlacementFailures @job={{this.job}} />
-
-  <JobPage::Parts::TaskGroups
-    @job={{this.job}}
-    @sortProperty={{this.sortProperty}}
-    @sortDescending={{this.sortDescending}}
-    @gotoTaskGroup={{this.gotoTaskGroup}} />
-
-  <JobPage::Parts::RecentAllocations @job={{this.job}} />
-
-  <div class="boxed-section">
-    <div class="boxed-section-head">
-      Meta
-    </div>
-    {{#if this.job.definition.Meta}}
-      <JobPage::Parts::Meta @job={{this.job}} />
-    {{else}}
-      <div class="boxed-section-body">
-        <div data-test-empty-meta-message class="empty-message">
-          <h3 class="empty-message-headline">No Meta Attributes</h3>
-          <p class="empty-message-body">This job is configured with no meta attributes.</p>
-        </div>
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title @title={{@job.trimmedName}} />
+    <jobPage.ui.StatsBox>
+      <:before-namespace>
+        <span class="pair" data-test-job-stat="parent">
+          <span class="term">
+            Parent
+          </span>
+          <LinkTo
+            @route="jobs.job"
+            @model={{@job.parent}}
+            @query={{hash namespace=@job.parent.namespace.name}}
+          >
+            {{@job.parent.name}}
+          </LinkTo>
+        </span>
+      </:before-namespace>
+    </jobPage.ui.StatsBox>
+    <jobPage.ui.JobClientStatusSummary />
+    <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
+    <jobPage.ui.PlacementFailures />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.RecentAllocations />
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Meta
       </div>
-    {{/if}}
-  </div>
-
-  <div class="boxed-section">
-    <div class="boxed-section-head">Payload</div>
-    <div class="boxed-section-body is-dark">
-      {{#if this.payloadJSON}}
-        <JsonViewer @json={{this.payloadJSON}} />
+      {{#if @job.definition.Meta}}
+        <jobPage.ui.Meta />
       {{else}}
-        <pre class="cli-window is-elastic"><code>{{this.payload}}</code></pre>
+        <div class="boxed-section-body">
+          <div data-test-empty-meta-message class="empty-message">
+            <h3 class="empty-message-headline">
+              No Meta Attributes
+            </h3>
+            <p class="empty-message-body">
+              This job is configured with no meta attributes.
+            </p>
+          </div>
+        </div>
       {{/if}}
     </div>
-  </div>
-</JobPage::Parts::Body>
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Payload
+      </div>
+      <div class="boxed-section-body is-dark">
+        {{#if this.payloadJSON}}
+          <JsonViewer @json={{this.payloadJSON}} />
+        {{else}}
+          <pre class="cli-window is-elastic">
+            <code>
+              {{this.payload}}
+            </code>
+          </pre>
+        {{/if}}
+      </div>
+    </div>
+  </jobPage.ui.Body>
+</JobPage>

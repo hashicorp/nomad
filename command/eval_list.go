@@ -35,6 +35,9 @@ Eval List Options:
   -page-token
     Where to start pagination.
 
+  -filter
+    Specifies an expression used to filter query results.
+
   -job
     Only show evaluations for this job ID.
 
@@ -61,6 +64,7 @@ func (c *EvalListCommand) AutocompleteFlags() complete.Flags {
 			"-json":       complete.PredictNothing,
 			"-t":          complete.PredictAnything,
 			"-verbose":    complete.PredictNothing,
+			"-filter":     complete.PredictAnything,
 			"-job":        complete.PredictAnything,
 			"-status":     complete.PredictAnything,
 			"-per-page":   complete.PredictAnything,
@@ -88,7 +92,7 @@ func (c *EvalListCommand) Name() string { return "eval list" }
 func (c *EvalListCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var perPage int
-	var tmpl, pageToken, filterJobID, filterStatus string
+	var tmpl, pageToken, filter, filterJobID, filterStatus string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -98,6 +102,7 @@ func (c *EvalListCommand) Run(args []string) int {
 	flags.StringVar(&tmpl, "t", "", "")
 	flags.IntVar(&perPage, "per-page", 0, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
+	flags.StringVar(&filter, "filter", "", "")
 	flags.StringVar(&filterJobID, "job", "", "")
 	flags.StringVar(&filterStatus, "status", "", "")
 
@@ -120,6 +125,7 @@ func (c *EvalListCommand) Run(args []string) int {
 	}
 
 	opts := &api.QueryOptions{
+		Filter:    filter,
 		PerPage:   int32(perPage),
 		NextToken: pageToken,
 		Params:    map[string]string{},

@@ -8,6 +8,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +25,8 @@ const (
 )
 
 func TestParse(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		File   string
 		Result *api.Job
@@ -198,6 +201,7 @@ func TestParse(t *testing.T) {
 							},
 						},
 						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
+						MaxClientDisconnect:       timeToPtr(120 * time.Hour),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: timeToPtr(12 * time.Hour),
 							Attempts: intToPtr(5),
@@ -843,6 +847,28 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-tagged-address.hcl",
+			&api.Job{
+				ID:   stringToPtr("service_tagged_address"),
+				Name: stringToPtr("service_tagged_address"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("group"),
+						Services: []*api.Service{
+							{
+								Name: "service1",
+								TaggedAddresses: map[string]string{
+									"public_wan": "1.2.3.4",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"service-check-driver-address.hcl",
 			&api.Job{
 				ID:   stringToPtr("address_mode_driver"),
@@ -1286,6 +1312,30 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-resources.hcl",
+			&api.Job{
+				ID:   stringToPtr("sidecar_task_resources"),
+				Name: stringToPtr("sidecar_task_resources"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarTask: &api.SidecarTask{
+								Resources: &api.Resources{
+									CPU:         intToPtr(111),
+									MemoryMB:    intToPtr(222),
+									MemoryMaxMB: intToPtr(333),
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-connect-proxy.hcl",
 			&api.Job{
 				ID:   stringToPtr("service-connect-proxy"),
@@ -1510,7 +1560,9 @@ func TestParse(t *testing.T) {
 								},
 								Ingress: &api.ConsulIngressConfigEntry{
 									TLS: &api.ConsulGatewayTLSConfig{
-										Enabled: true,
+										Enabled:       true,
+										TLSMinVersion: "TLSv1_2",
+										CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
 									},
 									Listeners: []*api.ConsulIngressListener{{
 										Port:     8001,
@@ -1739,6 +1791,32 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-provider.hcl",
+			&api.Job{
+				ID:   stringToPtr("service-provider"),
+				Name: stringToPtr("service-provider"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Services: []*api.Service{
+									{
+										Name:     "service-provider",
+										Provider: "nomad",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1760,6 +1838,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestBadPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1773,6 +1853,8 @@ func TestBadPorts(t *testing.T) {
 }
 
 func TestOverlappingPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1790,6 +1872,8 @@ func TestOverlappingPorts(t *testing.T) {
 }
 
 func TestIncorrectKey(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "basic_wrong_key.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)

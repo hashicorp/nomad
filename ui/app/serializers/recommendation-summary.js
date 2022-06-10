@@ -16,10 +16,11 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
     const slugToSummaryObject = {};
     const allRecommendations = [];
 
-    payload.forEach(recommendationHash => {
-      const slug = `${JSON.stringify([recommendationHash.JobID, recommendationHash.Namespace])}/${
-        recommendationHash.Group
-      }`;
+    payload.forEach((recommendationHash) => {
+      const slug = `${JSON.stringify([
+        recommendationHash.JobID,
+        recommendationHash.Namespace,
+      ])}/${recommendationHash.Group}`;
 
       if (!slugToSummaryObject[slug]) {
         slugToSummaryObject[slug] = {
@@ -37,15 +38,14 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
     });
 
     return {
-      data: Object.values(slugToSummaryObject).map(summaryObject => {
-        const latest = Math.max(...summaryObject.recommendations.mapBy('SubmitTime'));
+      data: Object.values(slugToSummaryObject).map((summaryObject) => {
+        const latest = Math.max(
+          ...summaryObject.recommendations.mapBy('SubmitTime')
+        );
 
         return {
           type: 'recommendation-summary',
-          id: summaryObject.recommendations
-            .mapBy('ID')
-            .sort()
-            .join('-'),
+          id: summaryObject.recommendations.mapBy('ID').sort().join('-'),
           attributes: {
             ...summaryObject.attributes,
             submitTime: new Date(Math.floor(latest / 1000000)),
@@ -61,7 +61,7 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
               },
             },
             recommendations: {
-              data: summaryObject.recommendations.map(r => {
+              data: summaryObject.recommendations.map((r) => {
                 return {
                   type: 'recommendation',
                   id: r.ID,
@@ -72,8 +72,11 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
         };
       }),
       included: allRecommendations.map(
-        recommendationHash =>
-          recommendationSerializer.normalize(RecommendationModel, recommendationHash).data
+        (recommendationHash) =>
+          recommendationSerializer.normalize(
+            RecommendationModel,
+            recommendationHash
+          ).data
       ),
     };
   }

@@ -9,11 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
@@ -376,11 +375,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
-	// COMPAT(0.10): pre 0.9 upgrade path check
-	if handle.Version == 0 {
-		return d.recoverPre09Task(handle)
-	}
-
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -587,6 +581,25 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 	return nil
 }
 
+// resetCgroup will re-create the v2 cgroup for the task after the task has been
+// destroyed by libcontainer. In the case of a task restart we call DestroyTask
+// which removes the cgroup - but we still need it!
+//
+// Ideally the cgroup management would be more unified - and we could do the creation
+// on a task runner pre-start hook, eliminating the need for this hack.
+func (d *Driver) resetCgroup(handle *taskHandle) {
+	if cgutil.UseV2 {
+		if handle.taskConfig.Resources != nil &&
+			handle.taskConfig.Resources.LinuxResources != nil &&
+			handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath != "" {
+			err := os.Mkdir(handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath, 0755)
+			if err != nil {
+				d.logger.Trace("failed to reset cgroup", "path", handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath)
+			}
+		}
+	}
+}
+
 func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
@@ -604,6 +617,9 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 
 		handle.pluginClient.Kill()
 	}
+
+	// workaround for the case where DestroyTask was issued on task restart
+	d.resetCgroup(handle)
 
 	d.tasks.Delete(taskID)
 	return nil

@@ -74,6 +74,10 @@ that volume.
 - `-eval-priority`: Override the priority of the evaluations produced as a result
   of this job submission. By default, this is set to the priority of the job.
 
+- `-json`: Parses the job file as JSON. If the outer object has a Job field,
+  such as from "nomad job inspect" or "nomad run -output", the value of the
+  field is used as the job. See [JSON Jobs] for details.
+
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
@@ -97,14 +101,20 @@ that volume.
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` stanza reading from Consul KV will
   scoped to the the specified Consul namespace. If Consul ACLs are enabled and the
-  [`allow_unauthenticated`] Nomad server Consul configuration is not enabled, then
+  [`consul` stanza `allow_unauthenticated`] is disabled in the Nomad server configuration, then
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.
 
-- `-vault-token`: If set, the passed Vault token is stored in the job before
-  sending to the Nomad servers. This allows passing the Vault token without
-  storing it in the job file. This overrides the token found in the
-  `$VAULT_TOKEN` environment variable and that found in the job.
+- `-vault-token`: Used to validate if the user submitting the job has
+  permission to run the job according to its Vault policies. A Vault token must
+  be supplied if the [`vault` stanza `allow_unauthenticated`] is disabled in
+  the Nomad server configuration. If the `-vault-token` flag is set, the passed
+  Vault token is added to the jobspec before sending to the Nomad servers. This
+  allows passing the Vault token without storing it in the job file. This
+  overrides the token found in the `$VAULT_TOKEN` environment variable and the
+  [`vault_token`] field in the job file. This token is cleared from the job
+  after validating and cannot be used within the job executing environment. Use
+  the `vault` stanza when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
@@ -225,11 +235,14 @@ $ nomad job run example.nomad
 ==> 2021-06-14T09:25:09-07:00: Evaluation "88a91284" finished with status "complete"
 ```
 
-[`go-getter`]: https://github.com/hashicorp/go-getter
-[deployment status]: /docs/commands/deployment#status
 [`batch`]: /docs/schedulers#batch
-[`system`]: /docs/schedulers#system
-[`job plan` command]: /docs/commands/job/plan
+[`consul` stanza `allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[deployment status]: /docs/commands/deployment#status
 [eval status]: /docs/commands/eval-status
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`job plan` command]: /docs/commands/job/plan
 [job specification]: /docs/job-specification
-[`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[JSON jobs]: /api-docs/json-jobs
+[`system`]: /docs/schedulers#system
+[`vault` stanza `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
+[`vault_token`]: /docs/job-specification/job#vault_token

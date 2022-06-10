@@ -1,13 +1,15 @@
 import Component from '@ember/component';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import { attributeBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
+@attributeBindings('data-test-job-editor')
 export default class JobEditor extends Component {
   @service store;
   @service config;
@@ -25,9 +27,18 @@ export default class JobEditor extends Component {
   set context(value) {
     const allowedValues = ['new', 'edit'];
 
-    assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
+    assert(
+      `context must be one of: ${allowedValues.join(', ')}`,
+      allowedValues.includes(value)
+    );
 
     this.set('_context', value);
+  }
+
+  @action updateCode(value) {
+    if (!this.job.isDestroying && !this.job.isDestroyed) {
+      this.job.set('_newDefinition', value);
+    }
   }
 
   _context = null;
@@ -45,7 +56,7 @@ export default class JobEditor extends Component {
     return this.planOutput ? 'plan' : 'editor';
   }
 
-  @(task(function*() {
+  @(task(function* () {
     this.reset();
 
     try {
@@ -68,7 +79,7 @@ export default class JobEditor extends Component {
   }).drop())
   plan;
 
-  @task(function*() {
+  @task(function* () {
     try {
       if (this.context === 'new') {
         yield this.job.run();

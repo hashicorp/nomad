@@ -1,5 +1,7 @@
 import ApplicationAdapter from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class AgentAdapter extends ApplicationAdapter {
   pathForType = () => 'agent/members';
 

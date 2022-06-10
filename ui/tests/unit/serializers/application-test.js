@@ -4,13 +4,18 @@ import ApplicationSerializer from 'nomad-ui/serializers/application';
 
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
+import classic from 'ember-classic-decorator';
 
+@classic
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];
 
   mapToArray = [
     'ArrayableMap',
-    { beforeName: 'OriginalNameArrayableMap', afterName: 'RenamedArrayableMap' },
+    {
+      beforeName: 'OriginalNameArrayableMap',
+      afterName: 'RenamedArrayableMap',
+    },
   ];
 
   separateNanos = ['Time'];
@@ -26,10 +31,10 @@ class TestModel extends Model {
   @attr() timeNanos;
 }
 
-module('Unit | Serializer | Application', function(hooks) {
+module('Unit | Serializer | Application', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.owner.register('model:test', TestModel);
     this.owner.register('serializer:test', TestSerializer);
@@ -99,9 +104,12 @@ module('Unit | Serializer | Application', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(TestModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(TestModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

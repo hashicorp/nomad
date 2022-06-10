@@ -1,9 +1,16 @@
 <BasicDropdown
   @horizontalPosition="left"
-  @onOpen={{action (queue (action (mut this.isOpen) true) (action this.capture))}}
-  @onClose={{action (mut this.isOpen) false}} as |dd|
+  @onOpen={{action
+    (queue (action (mut this.isOpen) true) (action this.capture))
+  }}
+  @onClose={{action (mut this.isOpen) false}}
+  as |dd|
 >
-  <dd.Trigger data-test-dropdown-trigger class="dropdown-trigger" {{on "keydown" (action "openOnArrowDown" dd)}}>
+  <dd.Trigger
+    data-test-dropdown-trigger
+    class="dropdown-trigger"
+    {{on "keyup" (action "openOnArrowDown" dd)}}
+  >
     <div class="dropdown-trigger-label" id="{{this.elementId}}-label">
       {{this.label}}
       {{#if this.selection.length}}
@@ -16,13 +23,17 @@
   </dd.Trigger>
   <dd.Content class="dropdown-options">
     {{#if this.options}}
-      <ul role="listbox" aria-labelledby="{{this.elementId}}-label" data-test-dropdown-options>
+      <ul
+        role="listbox"
+        aria-labelledby="{{this.elementId}}-label"
+        data-test-dropdown-options
+      >
         {{#each this.options key="key" as |option|}}
           <div
             data-test-dropdown-option={{option.key}}
             class="dropdown-option"
             tabindex="0"
-            onkeydown={{action "traverseList" option}}
+            onkeyup={{action "traverseList" option}}
           >
             <label>
               <input

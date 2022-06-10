@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -195,7 +195,7 @@ func (c *consulACLsAPI) readToken(ctx context.Context, secretID string) (*api.AC
 
 	// Ensure we are under our rate limit.
 	if err := c.limiter.Wait(ctx); err != nil {
-		return nil, errors.Wrap(err, "unable to read consul token")
+		return nil, fmt.Errorf("unable to read consul token: %w", err)
 	}
 
 	consulToken, _, err := c.aclClient.TokenReadSelf(&api.QueryOptions{
@@ -203,7 +203,7 @@ func (c *consulACLsAPI) readToken(ctx context.Context, secretID string) (*api.AC
 		Token:      secretID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to read consul token")
+		return nil, fmt.Errorf("unable to read consul token: %w", err)
 	}
 
 	return consulToken, nil
@@ -248,7 +248,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 		if err != nil {
 			return err
 		} else if !allowable {
-			return errors.Errorf("insufficient Consul ACL permissions to write service %q", service)
+			return fmt.Errorf("insufficient Consul ACL permissions to write service %q", service)
 		}
 	}
 
@@ -259,7 +259,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 		if err != nil {
 			return err
 		} else if !allowable {
-			return errors.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
+			return fmt.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
 		}
 	}
 
@@ -290,6 +290,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 		Description:       sir.Description(),
 		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: service}},
 		Namespace:         sir.ConsulNamespace,
+		Local:             true,
 	}
 
 	// Ensure we are under our rate limit.
@@ -389,9 +390,9 @@ func (c *consulACLsAPI) parallelRevoke(ctx context.Context, accessors []*structs
 						return nil
 					}
 					if err := c.singleRevoke(ctx, accessor); err != nil {
-						return errors.Wrapf(err,
-							"failed to revoke SI token accessor (alloc %q, node %q, task %q)",
-							accessor.AllocID, accessor.NodeID, accessor.TaskName,
+						return fmt.Errorf(
+							"failed to revoke SI token accessor (alloc %q, node %q, task %q): %w",
+							accessor.AllocID, accessor.NodeID, accessor.TaskName, err,
 						)
 					}
 				case <-pCtx.Done():
@@ -602,16 +603,19 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		})
 	}
 
-	tlsEnabled := false
-	if entry.TLS != nil && entry.TLS.Enabled {
-		tlsEnabled = true
+	tls := api.GatewayTLSConfig{}
+	if entry.TLS != nil {
+		tls.Enabled = entry.TLS.Enabled
+		tls.TLSMinVersion = entry.TLS.TLSMinVersion
+		tls.TLSMaxVersion = entry.TLS.TLSMaxVersion
+		tls.CipherSuites = helper.CopySliceString(entry.TLS.CipherSuites)
 	}
 
 	return &api.IngressGatewayConfigEntry{
 		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
-		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
+		TLS:       tls,
 		Listeners: listeners,
 	}
 }

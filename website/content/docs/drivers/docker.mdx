@@ -22,7 +22,7 @@ task "webservice" {
   driver = "docker"
 
   config {
-    image = "redis:3.2"
+    image = "redis:7"
     labels {
       group = "webservice-cache"
     }
@@ -42,7 +42,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
   ```hcl
   config {
-    image = "https://hub.docker.internal/redis:3.2"
+    image = "https://hub.docker.internal/redis:7"
   }
   ```
 
@@ -100,13 +100,21 @@ config {
 }
 ```
 
-- `dns_search_domains` - (Optional) A list of DNS search domains for the container
-  to use.
+- `dns_search_domains` - (Optional) A list of DNS search domains for
+  the container to use. If you are using bridge networking mode with a
+  `network` block in the task group, you must set all DNS options in
+  the `network.dns` block instead.
 
-- `dns_options` - (Optional) A list of DNS options for the container to use.
+- `dns_options` - (Optional) A list of DNS options for the container
+  to use. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
 
-- `dns_servers` - (Optional) A list of DNS servers for the container to use
-  (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
+- `dns_servers` - (Optional) A list of DNS servers for the container
+  to use (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or
+  greater. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
 
 - `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
@@ -191,11 +199,16 @@ config {
   ```
 
 - `load` - (Optional) Load an image from a `tar` archive file instead of from a
-  remote repository. Equivalent to the `docker load -i <filename>` command.
+  remote repository. Equivalent to the `docker load -i <filename>` command. If
+  you're using an `artifact` block to fetch the archive file, you'll need to
+  ensure that Nomad keeps the archive intact after download.
 
   ```hcl
   artifact {
     source = "http://path.to/redis.tar"
+    options {
+      archive = false
+    }
   }
   config {
     load = "redis.tar"
@@ -257,7 +270,14 @@ config {
   the group `network.mode = "bridge"` you should not set the Docker config
   `network_mode`, or the container will be unable to reach other containers in
   the task group. This will also prevent [Connect]-enabled tasks from reaching
-  the Envoy sidecar proxy.
+  the Envoy sidecar proxy. You must also set any DNS options in the `network.dns`
+  block and not in the task configuration.
+
+  If you are in the process of migrating from the default Docker network to
+  group-wide bridge networking, you may encounter issues preventing your
+  containers from reaching networks outside of the bridge interface on systems with
+  firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
+  network as trusted and can be resolved as described in the [network stanza] documentation.
 
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
@@ -314,9 +334,9 @@ config {
   working directory] is prevented by default and limits volumes to directories
   that exist inside the allocation working directory. You can allow mounting
   host paths outside of the [allocation working directory] on individual clients
-  by setting the `docker.volumes.enabled` option to `true` in the client's
-  configuration. We recommend using [`mounts`](#mounts) if you wish to have more
-  control over volume definitions.
+  by setting the `docker.volumes.enabled` option to `true` in the
+  [client's configuration](#client-requirements). We recommend using
+  [`mount`](#mount) if you wish to have more control over volume definitions.
 
   ```hcl
   config {
@@ -967,101 +987,6 @@ host system.
   wait before cancelling an in-progress pull of the Docker image as specified in
   `infra_image`. Defaults to `"5m"`.
 
-## Client Configuration
-
-~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza]
-documentation for more information.
-
-The `docker` driver has the following [client configuration
-options](/docs/configuration/client#options):
-
-- `docker.endpoint` - If using a non-standard socket, HTTP or another location,
-  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
-  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
-  variable and then fall back to the default listen address for the given
-  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
-  and `npipe:////./pipe/docker_engine` for Windows.
-
-- `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
-  JSON file which is in the dockercfg format containing authentication
-  information for a private registry, from either (in order) `auths`,
-  `credHelpers` or `credsStore`.
-
-- `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify a
-  [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
-  -like script on \$PATH to lookup authentication information from external
-  sources. The script's name must begin with `docker-credential-` and this
-  option should include only the basename of the script, not the path.
-
-- `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
-  this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or this
-  setting will be ignored.
-
-- `docker.tls.key` - Path to the client's private key (`.pem`). Specify this
-  along with `docker.tls.cert` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or this
-  setting will be ignored.
-
-- `docker.tls.ca` - Path to the server's CA file (`.pem`). Specify this along
-  with `docker.tls.cert` and `docker.tls.key` to use a TLS client to connect to
-  the docker daemon. `docker.endpoint` must also be specified or this setting
-  will be ignored.
-
-- `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
-  prevent Nomad from removing images from stopped tasks.
-
-- `docker.cleanup.image.delay` A time duration, as [defined
-  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
-  delay controls how long Nomad will wait between an image being unused and
-  deleting it. If a tasks is received that uses the same image within the delay,
-  the image will be reused.
-
-- `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
-  (`volumes`) inside their container and use volume drivers (`volume_driver`).
-  Binding relative paths is always allowed and will be resolved relative to the
-  allocation's directory.
-
-- `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux label to
-  the allocation and task local bind-mounts to containers. If used with
-  `docker.volumes.enabled` set to false, the labels will still be applied to the
-  standard binds in the container.
-
-- `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
-  allow containers to use `privileged` mode, which gives the containers full
-  access to the host's devices. Note that you must set a similar setting on the
-  Docker daemon for this to work.
-
-- `docker.caps.allowlist`: A list of allowed Linux capabilities. Defaults to
-  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP, SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of
-  capabilities allowed by docker by default, as [defined
-  here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Allows the operator to control which capabilities can be obtained by tasks
-  using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
-  shortcut for allowlisting all capabilities.
-
-- `docker.cleanup.container`: Defaults to `true`. This option can be used to
-  disable Nomad from removing a container when the task exits. Under a name
-  conflict, Nomad may still remove the dead container.
-
-- `docker.nvidia_runtime`: Defaults to `nvidia`. This option allows operators to select the runtime that should be used in order to expose Nvidia GPUs to the container.
-
-Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
-`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
-`docker.endpoint` is set Nomad will **only** read client configuration from the
-config file.
-
-An example is given below:
-
-```hcl
-client {
-  options {
-    "docker.cleanup.image" = "false"
-  }
-}
-```
-
 ## Client Attributes
 
 The `docker` driver will set the following client attributes:
@@ -1172,5 +1097,6 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [allow_caps]: /docs/drivers/docker#allow_caps
 [Connect]: /docs/job-specification/connect
-[`bridge`]: docs/job-specification/network#bridge
+[`bridge`]: /docs/job-specification/network#bridge
+[network stanza]: /docs/job-specification/network#bridge-mode
 [`pids_limit`]: /docs/drivers/docker#pids_limit

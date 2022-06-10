@@ -1,5 +1,5 @@
 import { run } from '@ember/runloop';
-import { find, settled, triggerKeyEvent } from '@ember/test-helpers';
+import { find, render, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -12,7 +12,7 @@ import Log from 'nomad-ui/utils/classes/log';
 const { assign } = Object;
 const A_KEY = 65;
 
-const stringifyValues = obj =>
+const stringifyValues = (obj) =>
   Object.keys(obj).reduce((newObj, key) => {
     newObj[key] = obj[key].toString();
     return newObj;
@@ -23,20 +23,20 @@ const makeLogger = (url, params) =>
     url,
     params,
     plainText: true,
-    logFetch: url => fetch(url).then(res => res),
+    logFetch: (url) => fetch(url).then((res) => res),
   });
 
-module('Integration | Component | streaming file', function(hooks) {
+module('Integration | Component | streaming file', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
-    this.server = new Pretender(function() {
+  hooks.beforeEach(function () {
+    this.server = new Pretender(function () {
       this.get('/file/endpoint', () => [200, {}, 'Hello World']);
       this.get('/file/stream', () => [200, {}, logEncode(['Hello World'], 0)]);
     });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -44,7 +44,9 @@ module('Integration | Component | streaming file', function(hooks) {
     <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
   `;
 
-  test('when mode is `head`, the logger signals head', async function(assert) {
+  test('when mode is `head`, the logger signals head', async function (assert) {
+    assert.expect(5);
+
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
     this.setProperties({
@@ -53,8 +55,7 @@ module('Integration | Component | streaming file', function(hooks) {
       isStreaming: false,
     });
 
-    await this.render(commonTemplate);
-    await settled();
+    await render(commonTemplate);
 
     const request = this.server.handledRequests[0];
     assert.equal(this.server.handledRequests.length, 1, 'One request made');
@@ -68,7 +69,7 @@ module('Integration | Component | streaming file', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when mode is `tail`, the logger signals tail', async function(assert) {
+  test('when mode is `tail`, the logger signals tail', async function (assert) {
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', limit: 50000 };
     this.setProperties({
@@ -77,8 +78,7 @@ module('Integration | Component | streaming file', function(hooks) {
       isStreaming: false,
     });
 
-    await this.render(commonTemplate);
-    await settled();
+    await render(commonTemplate);
 
     const request = this.server.handledRequests[0];
     assert.equal(this.server.handledRequests.length, 1, 'One request made');
@@ -91,7 +91,7 @@ module('Integration | Component | streaming file', function(hooks) {
     assert.equal(find('[data-test-output]').textContent, 'Hello World');
   });
 
-  test('when mode is `streaming` and `isStreaming` is true, streaming starts', async function(assert) {
+  test('when mode is `streaming` and `isStreaming` is true, streaming starts', async function (assert) {
     const url = '/file/stream';
     const params = { path: 'hello/world.txt', limit: 50000 };
     this.setProperties({
@@ -104,15 +104,14 @@ module('Integration | Component | streaming file', function(hooks) {
 
     run.later(run, run.cancelTimers, 500);
 
-    await this.render(commonTemplate);
-    await settled();
+    await render(commonTemplate);
 
     const request = this.server.handledRequests[0];
     assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
     assert.equal(find('[data-test-output]').textContent, 'Hello World');
   });
 
-  test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function(assert) {
+  test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function (assert) {
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
     this.setProperties({
@@ -121,32 +120,29 @@ module('Integration | Component | streaming file', function(hooks) {
       isStreaming: false,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       Extra text
       <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
       On either side
     `);
-    await settled();
 
     // Windows and Linux shortcut
-    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { ctrlKey: true });
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
+      ctrlKey: true,
+    });
     assert.equal(
-      window
-        .getSelection()
-        .toString()
-        .trim(),
+      window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim()
     );
 
     window.getSelection().removeAllRanges();
 
     // MacOS shortcut
-    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { metaKey: true });
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
+      metaKey: true,
+    });
     assert.equal(
-      window
-        .getSelection()
-        .toString()
-        .trim(),
+      window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim()
     );
   });

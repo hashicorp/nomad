@@ -9,7 +9,11 @@ export default class AllocationsAllocationTaskController extends Controller {
     return {
       title: 'Task',
       label: this.task.get('name'),
-      args: ['allocations.allocation.task', this.task.get('allocation'), this.task],
+      args: [
+        'allocations.allocation.task',
+        this.task.get('allocation'),
+        this.task,
+      ],
     };
   }
 }

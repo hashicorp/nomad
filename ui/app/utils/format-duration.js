@@ -13,9 +13,27 @@ const allUnits = [
   { name: 'years', suffix: 'year', inMoment: true, pluralizable: true },
   { name: 'months', suffix: 'month', inMoment: true, pluralizable: true },
   { name: 'days', suffix: 'day', inMoment: true, pluralizable: true },
-  { name: 'hours', suffix: 'h', longSuffix: 'hour', inMoment: true, pluralizable: false },
-  { name: 'minutes', suffix: 'm', longSuffix: 'minute', inMoment: true, pluralizable: false },
-  { name: 'seconds', suffix: 's', longSuffix: 'second', inMoment: true, pluralizable: false },
+  {
+    name: 'hours',
+    suffix: 'h',
+    longSuffix: 'hour',
+    inMoment: true,
+    pluralizable: false,
+  },
+  {
+    name: 'minutes',
+    suffix: 'm',
+    longSuffix: 'minute',
+    inMoment: true,
+    pluralizable: false,
+  },
+  {
+    name: 'seconds',
+    suffix: 's',
+    longSuffix: 'second',
+    inMoment: true,
+    pluralizable: false,
+  },
   { name: 'milliseconds', suffix: 'ms', inMoment: true, pluralizable: false },
   { name: 'microseconds', suffix: 'µs', inMoment: false, pluralizable: false },
   { name: 'nanoseconds', suffix: 'ns', inMoment: false, pluralizable: false },
@@ -30,7 +48,8 @@ const pluralizeUnits = (amount, unit, longForm) => {
     suffix = amount === 1 ? unit.longSuffix : pluralize(unit.longSuffix);
   } else {
     // In the normal case, only pluralize based on the pluralizable flag
-    suffix = amount === 1 || !unit.pluralizable ? unit.suffix : pluralize(unit.suffix);
+    suffix =
+      amount === 1 || !unit.pluralizable ? unit.suffix : pluralize(unit.suffix);
   }
 
   // A space should go between the value and the unit when the unit is a full word
@@ -47,7 +66,11 @@ const pluralizeUnits = (amount, unit, longForm) => {
  * @param {Boolean} longForm Whether or not to expand single character suffixes,
  *   used to ensure screen readers correctly read units.
  */
-export default function formatDuration(duration = 0, units = 'ns', longForm = false) {
+export default function formatDuration(
+  duration = 0,
+  units = 'ns',
+  longForm = false
+) {
   const durationParts = {};
 
   // Moment only handles up to millisecond precision.
@@ -72,7 +95,7 @@ export default function formatDuration(duration = 0, units = 'ns', longForm = fa
   allUnits
     .filterBy('inMoment')
     .mapBy('name')
-    .forEach(unit => {
+    .forEach((unit) => {
       durationParts[unit] = momentDuration[unit]();
     });
 

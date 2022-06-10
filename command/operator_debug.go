@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -21,6 +22,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-multierror"
+	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
@@ -36,26 +39,33 @@ type OperatorDebugCommand struct {
 	collectDir    string
 	duration      time.Duration
 	interval      time.Duration
+	pprofInterval time.Duration
 	pprofDuration time.Duration
 	logLevel      string
 	maxNodes      int
 	nodeClass     string
 	nodeIDs       []string
 	serverIDs     []string
+	topics        map[api.Topic][]string
+	index         uint64
 	consul        *external
 	vault         *external
 	manifest      []string
 	ctx           context.Context
 	cancel        context.CancelFunc
 	opts          *api.QueryOptions
+	verbose       bool
+	members       *api.ServerMembers
+	nodes         []*api.NodeListStub
 }
 
 const (
-	userAgent   = "nomad operator debug"
-	clusterDir  = "cluster"
-	clientDir   = "client"
-	serverDir   = "server"
-	intervalDir = "interval"
+	userAgent                     = "nomad operator debug"
+	clusterDir                    = "cluster"
+	clientDir                     = "client"
+	serverDir                     = "server"
+	intervalDir                   = "interval"
+	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -72,6 +82,11 @@ Usage: nomad operator debug [options]
   'list-jobs' capability for all namespaces. To collect pprof profiles the
   token will also require 'agent:write', or enable_debug configuration set to
   true.
+
+  If event stream capture is enabled, the Job, Allocation, Deployment,
+  and Evaluation topics require 'namespace:read-job' capabilities, the Node
+  topic requires 'node:read'.  A 'management' token is required to capture
+  ACLToken, ACLPolicy, or all all events.
 
 General Options:
 
@@ -137,7 +152,20 @@ Debug Options:
 
   -duration=<duration>
     Set the duration of the debug capture. Logs will be captured from specified servers and
-	nodes at "log-level". Defaults to 2m.
+    nodes at "log-level". Defaults to 2m.
+
+  -event-index=<index>
+    Specifies the index to start streaming events from. If the requested index is
+    no longer in the buffer the stream will start at the next available index.
+    Defaults to 0.
+
+  -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
+    Enable event stream capture, filtered by comma delimited list of topic filters.
+    Examples:
+      "all" or "*:*" for all events
+      "Evaluation" or "Evaluation:*" for all evaluation events
+      "*:example" for all events related to the job "example"
+    Defaults to "none" (disabled).
 
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
@@ -159,7 +187,12 @@ Debug Options:
     Filter client nodes based on node class.
 
   -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
+    Duration for pprof collection. Defaults to 1s or -duration, whichever is less.
+
+  -pprof-interval=<pprof-interval>
+    The interval between pprof collections. Set interval equal to
+    duration to capture a single snapshot. Defaults to 250ms or
+   -pprof-duration, whichever is less.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -173,7 +206,10 @@ Debug Options:
 
   -output=<path>
     Path to the parent directory of the output directory. If specified, no
-	archive is built. Defaults to the current directory.
+    archive is built. Defaults to the current directory.
+
+  -verbose
+    Enable verbose output.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -186,6 +222,8 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
+			"-event-index":    complete.PredictAnything,
+			"-event-topic":    complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
 			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
 			"-max-nodes":      complete.PredictAnything,
@@ -196,6 +234,7 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 			"-pprof-duration": complete.PredictAnything,
 			"-consul-token":   complete.PredictAnything,
 			"-vault-token":    complete.PredictAnything,
+			"-verbose":        complete.PredictAnything,
 		})
 }
 
@@ -225,7 +264,7 @@ func NodePredictor(factory ApiClientFactory) complete.Predictor {
 }
 
 // NodeClassPredictor returns a client node class predictor
-// TODO: Consider API options for node class filtering
+// TODO dmay: Consider API options for node class filtering
 func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()
@@ -261,7 +300,7 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 }
 
 // ServerPredictor returns a server member predictor
-// TODO: Consider API options for server member filtering
+// TODO dmay: Consider API options for server member filtering
 func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()
@@ -305,11 +344,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output, pprofDuration string
+	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
+	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
+	flags.Int64Var(&eventIndex, "event-index", 0, "")
+	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
@@ -319,6 +361,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
+	flags.StringVar(&pprofInterval, "pprof-interval", "250ms", "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
@@ -367,13 +411,42 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the pprof capture duration
+	// Parse and clamp the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
 		return 1
 	}
+	if pd.Seconds() > d.Seconds() {
+		pd = d
+	}
 	c.pprofDuration = pd
+
+	// Parse and clamp the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
+		return 1
+	}
+	if pi.Seconds() > pd.Seconds() {
+		pi = pd
+	}
+	c.pprofInterval = pi
+
+	// Parse event stream topic filter
+	t, err := topicsFromString(eventTopic)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing event topics: %v", err))
+		return 1
+	}
+	c.topics = t
+
+	// Validate and set initial event stream index
+	if eventIndex < 0 {
+		c.Ui.Error("Event stream index must be greater than zero")
+		return 1
+	}
+	c.index = uint64(eventIndex)
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -432,6 +505,16 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		AllowStale: allowStale,
 		AuthToken:  c.Meta.token,
 	}
+
+	// Get complete list of client nodes
+	c.nodes, _, err = client.Nodes().List(c.queryOpts())
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node info: %v", err))
+		return 1
+	}
+
+	// Write nodes to file
+	c.writeJSON(clusterDir, "nodes.json", c.nodes, err)
 
 	// Search all nodes If a node class is specified without a list of node id prefixes
 	if c.nodeClass != "" && nodeIDs == "" {
@@ -496,17 +579,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve servers
-	members, err := client.Agent().MembersOpts(c.queryOpts())
+	c.members, err = client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
 
 	// Write complete list of server members to file
-	c.writeJSON(clusterDir, "members.json", members, err)
+	c.writeJSON(clusterDir, "members.json", c.members, err)
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -515,8 +598,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	serversFound := 0
 	serverCaptureCount := 0
 
-	if members != nil {
-		serversFound = len(members.Members)
+	if c.members != nil {
+		serversFound = len(c.members.Members)
 	}
 	if c.serverIDs != nil {
 		serverCaptureCount = len(c.serverIDs)
@@ -547,8 +630,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	c.Ui.Output(fmt.Sprintf("   pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
+	}
+	if c.topics != nil {
+		c.Ui.Output(fmt.Sprintf("     Event topics: %+v", c.topics))
 	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
@@ -584,8 +671,11 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
-	// Collect cluster data
+	// Start background captures
+	c.startMonitors(client)
+	c.startEventStream(client)
 
+	// Collect cluster data
 	self, err := client.Agent().Self()
 	c.writeJSON(clusterDir, "agent-self.json", self, err)
 
@@ -609,9 +699,8 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	c.collectPprofs(client)
+	c.collectPeriodicPprofs(client)
 
-	c.startMonitors(client)
 	c.collectPeriodic(client)
 
 	return nil
@@ -686,6 +775,103 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 	}
 }
 
+// captureEventStream wraps the event stream capture process.
+func (c *OperatorDebugCommand) startEventStream(client *api.Client) {
+	c.verboseOut("Launching eventstream goroutine...")
+
+	go func() {
+		if err := c.captureEventStream(client); err != nil {
+			var es string
+			if mErr, ok := err.(*multierror.Error); ok {
+				es = multierror.ListFormatFunc(mErr.Errors)
+			} else {
+				es = err.Error()
+			}
+
+			c.Ui.Error(fmt.Sprintf("Error capturing event stream: %s", es))
+		}
+	}()
+}
+
+func (c *OperatorDebugCommand) captureEventStream(client *api.Client) error {
+	// Ensure output directory is present
+	path := clusterDir
+	if err := c.mkdir(c.path(path)); err != nil {
+		return err
+	}
+
+	// Create the output file
+	fh, err := os.Create(c.path(path, "eventstream.json"))
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	// Get handle to events endpoint
+	events := client.EventStream()
+
+	// Start streaming events
+	eventCh, err := events.Stream(c.ctx, c.topics, c.index, c.queryOpts())
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			c.verboseOut("Event stream canceled: No events captured")
+			return nil
+		}
+		return fmt.Errorf("failed to stream events: %w", err)
+	}
+
+	eventCount := 0
+	errCount := 0
+	heartbeatCount := 0
+	channelEventCount := 0
+
+	var mErrs *multierror.Error
+
+	for {
+		select {
+		case event := <-eventCh:
+			channelEventCount++
+			if event.Err != nil {
+				errCount++
+				c.verboseOutf("error from event stream: index; %d err: %v", event.Index, event.Err)
+				mErrs = multierror.Append(mErrs, fmt.Errorf("error at index: %d, Err: %w", event.Index, event.Err))
+				break
+			}
+
+			if event.IsHeartbeat() {
+				heartbeatCount++
+				continue
+			}
+
+			for _, e := range event.Events {
+				eventCount++
+				c.verboseOutf("Event: %4d, Index: %d, Topic: %-10s, Type: %s, FilterKeys: %s", eventCount, e.Index, e.Topic, e.Type, e.FilterKeys)
+
+				bytes, err := json.Marshal(e)
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to marshal json from Topic: %s, Type: %s, Err: %w", e.Topic, e.Type, err))
+				}
+
+				n, err := fh.Write(bytes)
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write bytes to eventstream.json; bytes written: %d, Err: %w", n, err))
+					break
+				}
+				n, err = fh.WriteString("\n")
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write string to eventstream.json; chars written: %d, Err: %w", n, err))
+				}
+			}
+		case <-c.ctx.Done():
+			c.verboseOutf("Event stream captured %d events, %d frames, %d heartbeats, %d errors", eventCount, channelEventCount, heartbeatCount, errCount)
+			return mErrs.ErrorOrNil()
+		}
+	}
+}
+
 // collectAgentHosts calls collectAgentHost for each selected node
 func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.nodeIDs {
@@ -707,6 +893,11 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 		host, err = client.Agent().Host("", id, c.queryOpts())
 	}
 
+	if isRedirectError(err) {
+		c.Ui.Warn(fmt.Sprintf("%s/%s: /v1/agent/host unavailable on this agent", path, id))
+		return
+	}
+
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s/%s: Failed to retrieve agent host data, err: %v", path, id, err))
 
@@ -721,19 +912,72 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	c.writeJSON(path, "agent-host.json", host, err)
 }
 
-// collectPprofs captures the /agent/pprof for each listed node
-func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
-	for _, n := range c.nodeIDs {
-		c.collectPprof(clientDir, n, client)
+func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
+
+	pprofNodeIDs := []string{}
+	pprofServerIDs := []string{}
+
+	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
+	for _, serverID := range c.serverIDs {
+		version := c.getNomadVersion(serverID, "")
+		err := checkVersion(version, minimumVersionPprofConstraint)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
+		}
+		pprofServerIDs = append(pprofServerIDs, serverID)
 	}
 
-	for _, n := range c.serverIDs {
-		c.collectPprof(serverDir, n, client)
+	for _, nodeID := range c.nodeIDs {
+		version := c.getNomadVersion("", nodeID)
+		err := checkVersion(version, minimumVersionPprofConstraint)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
+		}
+		pprofNodeIDs = append(pprofNodeIDs, nodeID)
+	}
+
+	// Take the first set of pprofs synchronously...
+	c.Ui.Output("    Capture pprofInterval 0000")
+	c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, 0)
+	if c.pprofInterval == c.pprofDuration {
+		return
+	}
+
+	// ... and then move the rest off into a goroutine
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
+		defer cancel()
+		timer, stop := helper.NewSafeTimer(c.pprofInterval)
+		defer stop()
+
+		pprofIntervalCount := 1
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
+				c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, pprofIntervalCount)
+				timer.Reset(c.pprofInterval)
+				pprofIntervalCount++
+			}
+		}
+	}()
+}
+
+// collectPprofs captures the /agent/pprof for each listed node
+func (c *OperatorDebugCommand) collectPprofs(client *api.Client, serverIDs, nodeIDs []string, interval int) {
+	for _, n := range nodeIDs {
+		c.collectPprof(clientDir, n, client, interval)
+	}
+
+	for _, n := range serverIDs {
+		c.collectPprof(serverDir, n, client, interval)
 	}
 }
 
 // collectPprof captures pprof data for the node
-func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
+func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client, interval int) {
 	pprofDurationSeconds := int(c.pprofDuration.Seconds())
 	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
 	if path == serverDir {
@@ -743,10 +987,11 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	path = filepath.Join(path, id)
+	filename := fmt.Sprintf("profile_%04d.prof", interval)
 
 	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %v", filename, path, err))
 		if structs.IsErrPermissionDenied(err) {
 			// All Profiles require the same permissions, so we only need to see
 			// one permission failure before we bail.
@@ -756,7 +1001,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			return // only exit on 403
 		}
 	} else {
-		err := c.writeBytes(path, "profile.prof", bs)
+		err := c.writeBytes(path, filename, bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 		}
@@ -778,12 +1023,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
 	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
 	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
-
-	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
-	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
-
-	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
-	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
@@ -1187,6 +1426,16 @@ func (c *OperatorDebugCommand) trap() {
 	}()
 }
 
+func (c *OperatorDebugCommand) verboseOut(out string) {
+	if c.verbose {
+		c.Ui.Output(out)
+	}
+}
+
+func (c *OperatorDebugCommand) verboseOutf(format string, a ...interface{}) {
+	c.verboseOut(fmt.Sprintf(format, a...))
+}
+
 // TarCZF like the tar command, recursively builds a gzip compressed tar
 // archive from a directory. If not empty, all files in the bundle are prefixed
 // with the target path.
@@ -1305,6 +1554,63 @@ func stringToSlice(input string) []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
+	topics := make(map[api.Topic][]string)
+
+	var mErrs *multierror.Error
+
+	for _, topic := range topicList {
+		k, v, err := parseTopic(topic)
+		if err != nil {
+			mErrs = multierror.Append(mErrs, err)
+		}
+
+		topics[api.Topic(k)] = append(topics[api.Topic(k)], v)
+	}
+
+	return topics, mErrs.ErrorOrNil()
+}
+
+func parseTopic(input string) (string, string, error) {
+	var topic, filter string
+
+	parts := strings.Split(input, ":")
+	switch len(parts) {
+	case 1:
+		// infer wildcard if only given a topic
+		topic = input
+		filter = "*"
+	case 2:
+		topic = parts[0]
+		filter = parts[1]
+	default:
+		return "", "", fmt.Errorf("Invalid key value pair for topic: %s", topic)
+	}
+
+	return strings.Title(topic), filter, nil
+}
+
+func allTopics() map[api.Topic][]string {
+	return map[api.Topic][]string{"*": {"*"}}
+}
+
+// topicsFromString parses a comma separated list into a topicMap
+func topicsFromString(topicList string) (map[api.Topic][]string, error) {
+	if topicList == "none" {
+		return nil, nil
+	}
+	if topicList == "all" {
+		return allTopics(), nil
+	}
+
+	topics := stringToSlice(topicList)
+	topicMap, err := parseEventTopics(topics)
+	if err != nil {
+		return nil, err
+	}
+	return topicMap, nil
 }
 
 // external holds address configuration for Consul and Vault APIs
@@ -1427,4 +1733,64 @@ func defaultHttpClient() *http.Client {
 	}
 
 	return httpClient
+}
+
+// isRedirectError returns true if an error is a redirect error.
+func isRedirectError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	const redirectErr string = `invalid character '<' looking for beginning of value`
+	return strings.Contains(err.Error(), redirectErr)
+}
+
+// getNomadVersion fetches the version of Nomad running on a given server/client node ID
+func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) string {
+	if serverID == "" && nodeID == "" {
+		return ""
+	}
+
+	version := ""
+	if serverID != "" {
+		for _, server := range c.members.Members {
+			// Raft v2 server
+			if server.Name == serverID {
+				version = server.Tags["build"]
+			}
+
+			// Raft v3 server
+			if server.Tags["id"] == serverID {
+				version = server.Tags["version"]
+			}
+		}
+	}
+
+	if nodeID != "" {
+		for _, node := range c.nodes {
+			if node.ID == nodeID {
+				version = node.Version
+			}
+		}
+	}
+
+	return version
+}
+
+// checkVersion verifies that version satisfies the constraint
+func checkVersion(version string, versionConstraint string) error {
+	v, err := goversion.NewVersion(version)
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+
+	c, err := goversion.NewConstraint(versionConstraint)
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+
+	if !c.Check(v) {
+		return nil
+	}
+	return fmt.Errorf("unsupported version=%s matches version filter %s", version, minimumVersionPprofConstraint)
 }

@@ -12,12 +12,14 @@ export default Mixin.create({
   url: '',
   params: overridable(() => ({})),
   logFetch() {
-    assert('Loggers need a logFetch method, which should have an interface like window.fetch');
+    assert(
+      'Loggers need a logFetch method, which should have an interface like window.fetch'
+    );
   },
 
   endOffset: null,
 
-  offsetParams: computed('endOffset', function() {
+  offsetParams: computed('endOffset', function () {
     const endOffset = this.endOffset;
     return endOffset
       ? { origin: 'start', offset: endOffset }
@@ -26,10 +28,16 @@ export default Mixin.create({
 
   additionalParams: overridable(() => ({})),
 
-  fullUrl: computed('url', 'params', 'offsetParams', 'additionalParams', function() {
-    const queryParams = queryString.stringify(
-      assign({}, this.params, this.offsetParams, this.additionalParams)
-    );
-    return `${this.url}?${queryParams}`;
-  }),
+  fullUrl: computed(
+    'url',
+    'params',
+    'offsetParams',
+    'additionalParams',
+    function () {
+      const queryParams = queryString.stringify(
+        assign({}, this.params, this.offsetParams, this.additionalParams)
+      );
+      return `${this.url}?${queryParams}`;
+    }
+  ),
 });

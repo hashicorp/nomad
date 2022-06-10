@@ -1,3 +1,3 @@
-```bug
+```release-note:bug
 freebsd: Fixed a build failure on FreeBSD ARM7 32-bit systems
 ```

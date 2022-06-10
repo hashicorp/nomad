@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +13,7 @@ import (
 var _ cli.Command = &LicenseGetCommand{}
 
 func TestCommand_LicenseGet_OSSErr(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
@@ -30,6 +31,8 @@ func TestCommand_LicenseGet_OSSErr(t *testing.T) {
 }
 
 func TestOutputLicenseReply(t *testing.T) {
+	ci.Parallel(t)
+
 	now := time.Now()
 	lic := &api.LicenseReply{
 		License: &api.License{

@@ -3,21 +3,21 @@ import { setupTest } from 'ember-qunit';
 import sinon from 'sinon';
 import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
-module('Unit | Component | scale-events-chart', function(hooks) {
+module('Unit | Component | scale-events-chart', function (hooks) {
   setupTest(hooks);
   setupGlimmerComponentFactory(hooks, 'scale-events-chart');
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.refTime = new Date();
     this.clock = sinon.useFakeTimers(this.refTime);
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.clock.restore();
     delete this.refTime;
   });
 
-  test('the current date is appended as a datum for the line chart to render', function(assert) {
+  test('the current date is appended as a datum for the line chart to render', function (assert) {
     const events = [
       { time: new Date('2020-08-02T04:06:00'), count: 2, hasCount: true },
       { time: new Date('2020-08-01T04:06:00'), count: 2, hasCount: true },
@@ -33,7 +33,7 @@ module('Unit | Component | scale-events-chart', function(hooks) {
     assert.equal(+appendedDatum.time, +this.refTime);
   });
 
-  test('if the earliest annotation is outside the domain of the events, the earliest annotation time is added as a datum for the line chart to render', function(assert) {
+  test('if the earliest annotation is outside the domain of the events, the earliest annotation time is added as a datum for the line chart to render', function (assert) {
     const annotationOutside = [
       { time: new Date('2020-08-01T04:06:00'), hasCount: false, error: true },
       { time: new Date('2020-08-02T04:06:00'), count: 2, hasCount: true },

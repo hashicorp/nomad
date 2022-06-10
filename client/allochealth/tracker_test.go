@@ -8,9 +8,10 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestTracker_Checks_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -39,9 +40,9 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -59,13 +60,13 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -90,7 +91,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 }
 
 func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.LifecycleAllocWithPoststopDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -111,7 +112,7 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
@@ -129,8 +130,49 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	}
 }
 
+func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.LifecycleAllocWithPoststartDeploy()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = time.Millisecond * 1
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+		"post": {
+			State:      structs.TaskStateDead,
+			StartedAt:  time.Now(),
+			FinishedAt: time.Now().Add(alloc.Job.TaskGroups[0].Migrate.MinHealthyTime / 2),
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+		alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	select {
+	case <-time.After(alloc.Job.TaskGroups[0].Migrate.MinHealthyTime * 2):
+		require.Fail(t, "timed out while waiting for health")
+	case h := <-tracker.HealthyCh():
+		require.True(t, h)
+	}
+}
+
 func TestTracker_Checks_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -158,9 +200,9 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 		Name:   task.Services[0].Checks[1].Name,
 		Status: consulapi.HealthCritical,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -178,13 +220,13 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -220,7 +262,7 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 }
 
 func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)
@@ -271,7 +313,7 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 // TestTracker_Checks_Healthy_Before_TaskHealth asserts that we mark an alloc
 // healthy, if the checks pass before task health pass
 func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -300,9 +342,9 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -320,13 +362,13 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -378,7 +420,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 }
 
 func TestTracker_Checks_OnUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		desc          string
@@ -439,9 +481,9 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 				Name:   task.Services[0].Checks[0].Name,
 				Status: tc.consulResp,
 			}
-			taskRegs := map[string]*agentconsul.ServiceRegistrations{
+			taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*agentconsul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						task.Services[0].Name: {
 							Service: &consulapi.AgentService{
 								ID:      "foo",
@@ -462,13 +504,13 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 
 			// Don't reply on the first call
 			var called uint64
-			consul := consul.NewMockConsulServiceClient(t, logger)
-			consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+			consul := regMock.NewServiceRegistrationHandler(logger)
+			consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 				if atomic.AddUint64(&called, 1) == 1 {
 					return nil, nil
 				}
 
-				reg := &agentconsul.AllocRegistration{
+				reg := &serviceregistration.AllocRegistration{
 					Tasks: taskRegs,
 				}
 

@@ -32,10 +32,9 @@ General Options:
 
 Server Members Options:
 
-  -detailed
-    Show detailed information about each member. This dumps
-    a raw set of tags which shows more information than the
-    default output format.
+  -verbose
+    Show detailed information about each member. This dumps a raw set of tags
+    which shows more information than the default output format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -58,11 +57,12 @@ func (c *ServerMembersCommand) Synopsis() string {
 func (c *ServerMembersCommand) Name() string { return "server members" }
 
 func (c *ServerMembersCommand) Run(args []string) int {
-	var detailed bool
+	var detailed, verbose bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
+	flags.BoolVar(&verbose, "verbose", false, "Show detailed output")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -74,6 +74,11 @@ func (c *ServerMembersCommand) Run(args []string) int {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	// Keep support for previous flag name
+	if detailed {
+		verbose = true
 	}
 
 	// Get the HTTP client
@@ -103,8 +108,8 @@ func (c *ServerMembersCommand) Run(args []string) int {
 
 	// Format the list
 	var out []string
-	if detailed {
-		out = detailedOutput(srvMembers.Members)
+	if verbose {
+		out = verboseOutput(srvMembers.Members, leaders)
 	} else {
 		out = standardOutput(srvMembers.Members, leaders)
 	}
@@ -125,25 +130,15 @@ func (c *ServerMembersCommand) Run(args []string) int {
 func standardOutput(mem []*api.AgentMember, leaders map[string]string) []string {
 	// Format the members list
 	members := make([]string, len(mem)+1)
-	members[0] = "Name|Address|Port|Status|Leader|Protocol|Build|Datacenter|Region"
+	members[0] = "Name|Address|Port|Status|Leader|Raft Version|Build|Datacenter|Region"
 	for i, member := range mem {
-		reg := member.Tags["region"]
-		regLeader, ok := leaders[reg]
-		isLeader := false
-		if ok {
-			if regLeader == net.JoinHostPort(member.Addr, member.Tags["port"]) {
-
-				isLeader = true
-			}
-		}
-
-		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%t|%d|%s|%s|%s",
+		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%t|%s|%s|%s|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
 			member.Status,
-			isLeader,
-			member.ProtocolCur,
+			isLeader(member, leaders),
+			member.Tags["raft_vsn"],
 			member.Tags["build"],
 			member.Tags["dc"],
 			member.Tags["region"])
@@ -151,10 +146,10 @@ func standardOutput(mem []*api.AgentMember, leaders map[string]string) []string 
 	return members
 }
 
-func detailedOutput(mem []*api.AgentMember) []string {
+func verboseOutput(mem []*api.AgentMember, leaders map[string]string) []string {
 	// Format the members list
 	members := make([]string, len(mem)+1)
-	members[0] = "Name|Address|Port|Tags"
+	members[0] = "Name|Address|Port|Status|Leader|Protocol|Raft Version|Build|Datacenter|Region|Tags"
 	for i, member := range mem {
 		// Format the tags
 		tagPairs := make([]string, 0, len(member.Tags))
@@ -163,11 +158,19 @@ func detailedOutput(mem []*api.AgentMember) []string {
 		}
 		tags := strings.Join(tagPairs, ",")
 
-		members[i+1] = fmt.Sprintf("%s|%s|%d|%s",
+		members[i+1] = fmt.Sprintf("%s|%s|%d|%s|%t|%d|%s|%s|%s|%s|%s",
 			member.Name,
 			member.Addr,
 			member.Port,
-			tags)
+			member.Status,
+			isLeader(member, leaders),
+			member.ProtocolCur,
+			member.Tags["raft_vsn"],
+			member.Tags["build"],
+			member.Tags["dc"],
+			member.Tags["region"],
+			tags,
+		)
 	}
 	return members
 }
@@ -205,4 +208,11 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 	}
 
 	return leaders, mErr.ErrorOrNil()
+}
+
+func isLeader(member *api.AgentMember, leaders map[string]string) bool {
+	addr := net.JoinHostPort(member.Addr, member.Tags["port"])
+	reg := member.Tags["region"]
+	regLeader, ok := leaders[reg]
+	return ok && regLeader == addr
 }

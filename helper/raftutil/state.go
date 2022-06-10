@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	"go.etcd.io/bbolt"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {
 	opts := raftboltdb.Options{
 		Path: p,
-		BoltOptions: &bolt.Options{
+		BoltOptions: &bbolt.Options{
 			ReadOnly: true,
 			Timeout:  1 * time.Second,
 		},

@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
@@ -33,11 +34,12 @@ export default class ApplicationRoute extends Route {
     if (transition.queryParamsOnly) {
       promises = Promise.resolve(true);
     } else {
-
       let exchangeOneTimeToken;
 
       if (transition.to.queryParams.ott) {
-        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(
+          transition.to.queryParams.ott
+        );
       } else {
         exchangeOneTimeToken = Promise.resolve(true);
       }
@@ -48,15 +50,17 @@ export default class ApplicationRoute extends Route {
         this.controllerFor('application').set('error', e);
       }
 
-      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      const fetchSelfTokenAndPolicies = this.get(
+        'token.fetchSelfTokenAndPolicies'
+      )
         .perform()
         .catch();
 
-      const fetchLicense = this.get('system.fetchLicense')
-        .perform()
-        .catch();
+      const fetchLicense = this.get('system.fetchLicense').perform().catch();
 
-      const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+      const checkFuzzySearchPresence = this.get(
+        'system.checkFuzzySearchPresence'
+      )
         .perform()
         .catch();
 

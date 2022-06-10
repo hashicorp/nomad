@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	tomb "gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
@@ -19,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -150,24 +150,20 @@ type VaultStats struct {
 
 	// TokenExpiry is the recorded expiry time of the current token
 	TokenExpiry time.Time
+
+	// LastRenewalTime is the time since the token was last renewed
+	LastRenewalTime     time.Time
+	TimeFromLastRenewal time.Duration
+
+	// NextRenewalTime is the time the token will attempt to renew
+	NextRenewalTime   time.Time
+	TimeToNextRenewal time.Duration
 }
 
 // PurgeVaultAccessorFn is called to remove VaultAccessors from the system. If
 // the function returns an error, the token will still be tracked and revocation
 // will retry till there is a success
 type PurgeVaultAccessorFn func(accessors []*structs.VaultAccessor) error
-
-// tokenData holds the relevant information about the Vault token passed to the
-// client.
-type tokenData struct {
-	CreationTTL   int      `mapstructure:"creation_ttl"`
-	TTL           int      `mapstructure:"ttl"`
-	Renewable     bool     `mapstructure:"renewable"`
-	Policies      []string `mapstructure:"policies"`
-	Role          string   `mapstructure:"role"`
-	NamespacePath string   `mapstructure:"namespace_path"`
-	Root          bool
-}
 
 // vaultClient is the Servers implementation of the VaultClient interface. The
 // client renews the PeriodicToken given in the Vault configuration and provides
@@ -206,7 +202,7 @@ type vaultClient struct {
 	token string
 
 	// tokenData is the data of the passed Vault token
-	tokenData *tokenData
+	tokenData *structs.VaultTokenData
 
 	// revoking tracks the VaultAccessors that must be revoked
 	revoking map[*structs.VaultAccessor]time.Time
@@ -231,6 +227,9 @@ type vaultClient struct {
 	// currentExpiration is the time the current token lease expires
 	currentExpiration     time.Time
 	currentExpirationLock sync.Mutex
+	lastRenewalTime       time.Time
+	nextRenewalTime       time.Time
+	renewalTimeLock       sync.Mutex
 
 	tomb   *tomb.Tomb
 	logger log.Logger
@@ -510,7 +509,7 @@ OUTER:
 	v.client.SetWrappingLookupFunc(v.getWrappingFn())
 
 	// If we are given a non-root token, start renewing it
-	if v.tokenData.Root && v.tokenData.CreationTTL == 0 {
+	if v.tokenData.Root() && v.tokenData.CreationTTL == 0 {
 		v.logger.Debug("not renewing token as it is root")
 	} else {
 		v.logger.Debug("starting renewal loop", "creation_ttl", time.Duration(v.tokenData.CreationTTL)*time.Second)
@@ -556,6 +555,11 @@ func (v *vaultClient) renewalLoop() {
 			if err == nil {
 				// Attempt to renew the token at half the expiration time
 				durationUntilRenew := time.Until(currentExpiration) / 2
+				v.renewalTimeLock.Lock()
+				now := time.Now()
+				v.lastRenewalTime = now
+				v.nextRenewalTime = now.Add(durationUntilRenew)
+				v.renewalTimeLock.Unlock()
 
 				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
 				authRenewTimer.Reset(durationUntilRenew)
@@ -586,6 +590,9 @@ func (v *vaultClient) renewalLoop() {
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
+			v.renewalTimeLock.Lock()
+			v.nextRenewalTime = time.Now().Add(durationUntilRetry)
+			v.renewalTimeLock.Unlock()
 			v.logger.Info("backing off renewal", "retry", durationUntilRetry)
 
 			authRenewTimer.Reset(durationUntilRetry)
@@ -700,18 +707,10 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	// Read and parse the fields
-	var data tokenData
-	if err := mapstructure.WeakDecode(secret.Data, &data); err != nil {
+	var data structs.VaultTokenData
+	if err := structs.DecodeVaultSecretData(secret, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault token's data block: %v", err)
 	}
-	root := false
-	for _, p := range data.Policies {
-		if p == "root" {
-			root = true
-			break
-		}
-	}
-	data.Root = root
 	v.tokenData = &data
 	v.extendExpiration(data.TTL)
 
@@ -732,7 +731,7 @@ func (v *vaultClient) parseSelfToken() error {
 
 	var mErr multierror.Error
 	role := v.getRole()
-	if !data.Root {
+	if !data.Root() {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
 			_ = multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
@@ -764,7 +763,7 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	// Check we have the correct capabilities
-	if err := v.validateCapabilities(role, data.Root); err != nil {
+	if err := v.validateCapabilities(role, data.Root()); err != nil {
 		_ = multierror.Append(&mErr, err)
 	}
 
@@ -903,15 +902,8 @@ func (v *vaultClient) validateRole(role string) error {
 	}
 
 	// Read and parse the fields
-	var data struct {
-		ExplicitMaxTtl      int `mapstructure:"explicit_max_ttl"`
-		TokenExplicitMaxTtl int `mapstructure:"token_explicit_max_ttl"`
-		Orphan              bool
-		Period              int
-		TokenPeriod         int `mapstructure:"token_period"`
-		Renewable           bool
-	}
-	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
+	var data structs.VaultTokenRoleData
+	if err := structs.DecodeVaultSecretData(rsecret, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
 	}
 
@@ -973,17 +965,17 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	defer metrics.MeasureSince([]string{"nomad", "vault", "create_token"}, time.Now())
 
 	// Retrieve the Vault block for the task
-	policies := a.Job.VaultPolicies()
-	if policies == nil {
-		return nil, fmt.Errorf("Job doesn't require Vault policies")
+	vaultBlocks := a.Job.Vault()
+	if vaultBlocks == nil {
+		return nil, fmt.Errorf("Job does not require Vault token")
 	}
-	tg, ok := policies[a.TaskGroup]
+	tg, ok := vaultBlocks[a.TaskGroup]
 	if !ok {
-		return nil, fmt.Errorf("Task group does not require Vault policies")
+		return nil, fmt.Errorf("Task group does not require Vault token")
 	}
 	taskVault, ok := tg[task]
 	if !ok {
-		return nil, fmt.Errorf("Task does not require Vault policies")
+		return nil, fmt.Errorf("Task does not require Vault token")
 	}
 
 	// Set namespace for task
@@ -1024,12 +1016,12 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, err
 	}
 
-	if v.tokenData.Root && role == "" {
+	if v.tokenData.Root() && role == "" {
 		req.Period = v.childTTL
 		secret, err = taskClient.Auth().Token().Create(req)
 	} else {
 		// Make the token using the role
-		secret, err = taskClient.Auth().Token().CreateWithRole(req, v.getRole())
+		secret, err = taskClient.Auth().Token().CreateWithRole(req, role)
 	}
 
 	// Determine whether it is unrecoverable
@@ -1089,27 +1081,6 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 
 	// Lookup the token
 	return v.auth.Lookup(token)
-}
-
-// PoliciesFrom parses the set of policies returned by a token lookup.
-func PoliciesFrom(s *vapi.Secret) ([]string, error) {
-	return s.TokenPolicies()
-}
-
-// PolicyDataFrom parses the Data returned by a token lookup.
-// It should not be used to parse TokenPolicies as the list will not be
-// exhaustive.
-func PolicyDataFrom(s *vapi.Secret) (tokenData, error) {
-	if s == nil {
-		return tokenData{}, fmt.Errorf("cannot parse nil Vault secret")
-	}
-	var data tokenData
-
-	if err := mapstructure.WeakDecode(s.Data, &data); err != nil {
-		return tokenData{}, fmt.Errorf("failed to parse Vault token's data block: %v", err)
-	}
-
-	return data, nil
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the
@@ -1390,15 +1361,26 @@ func (v *vaultClient) Stats() map[string]string {
 	stat := v.stats()
 
 	expireTimeStr := ""
-
 	if !stat.TokenExpiry.IsZero() {
 		expireTimeStr = stat.TokenExpiry.Format(time.RFC3339)
 	}
 
+	lastRenewTimeStr := ""
+	if !stat.LastRenewalTime.IsZero() {
+		lastRenewTimeStr = stat.LastRenewalTime.Format(time.RFC3339)
+	}
+
+	nextRenewTimeStr := ""
+	if !stat.NextRenewalTime.IsZero() {
+		nextRenewTimeStr = stat.NextRenewalTime.Format(time.RFC3339)
+	}
+
 	return map[string]string{
-		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
-		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
-		"token_expire_time":   expireTimeStr,
+		"tracked_for_revoked":     strconv.Itoa(stat.TrackedForRevoke),
+		"token_ttl":               stat.TokenTTL.Round(time.Second).String(),
+		"token_expire_time":       expireTimeStr,
+		"token_last_renewal_time": lastRenewTimeStr,
+		"token_next_renewal_time": nextRenewTimeStr,
 	}
 }
 
@@ -1414,8 +1396,20 @@ func (v *vaultClient) stats() *VaultStats {
 	stats.TokenExpiry = v.currentExpiration
 	v.currentExpirationLock.Unlock()
 
+	v.renewalTimeLock.Lock()
+	stats.NextRenewalTime = v.nextRenewalTime
+	stats.LastRenewalTime = v.lastRenewalTime
+	v.renewalTimeLock.Unlock()
+
 	if !stats.TokenExpiry.IsZero() {
 		stats.TokenTTL = time.Until(stats.TokenExpiry)
+	}
+
+	if !stats.LastRenewalTime.IsZero() {
+		stats.TimeFromLastRenewal = time.Since(stats.LastRenewalTime)
+	}
+	if !stats.NextRenewalTime.IsZero() {
+		stats.TimeToNextRenewal = time.Until(stats.NextRenewalTime)
 	}
 
 	return stats
@@ -1423,12 +1417,19 @@ func (v *vaultClient) stats() *VaultStats {
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
 func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
 			metrics.SetGauge([]string{"nomad", "vault", "token_ttl"}, float32(stats.TokenTTL/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "token_last_renewal"}, float32(stats.TimeFromLastRenewal/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "token_next_renewal"}, float32(stats.TimeToNextRenewal/time.Millisecond))
 
 		case <-stopCh:
 			return

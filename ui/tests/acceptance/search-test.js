@@ -1,4 +1,5 @@
-/* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
+/* eslint-disable ember-a11y-testing/a11y-audit-called */
+/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -8,11 +9,11 @@ import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import { selectSearch } from 'ember-power-select/test-support';
 import Response from 'ember-cli-mirage/response';
 
-module('Acceptance | search', function(hooks) {
+module('Acceptance | search', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
+  test('search exposes and navigates to results from the fuzzy search endpoint', async function (assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
@@ -29,7 +30,12 @@ module('Acceptance | search', function(hooks) {
       groupsCount: 1,
       groupTaskCount: 1,
     });
-    server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
+    server.create('job', {
+      id: 'abc',
+      namespaceId: 'default',
+      groupsCount: 1,
+      groupTaskCount: 1,
+    });
 
     const firstAllocation = server.schema.allocations.all().models[0];
     const firstTaskGroup = server.schema.taskGroups.all().models[0];
@@ -40,33 +46,33 @@ module('Acceptance | search', function(hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
-    Layout.navbar.search.as(search => {
+    Layout.navbar.search.as((search) => {
       assert.equal(search.groups.length, 5);
 
-      search.groups[0].as(jobs => {
+      search.groups[0].as((jobs) => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
         assert.equal(jobs.options[0].text, 'default > vwxyz');
         assert.equal(jobs.options[1].text, 'default > xyz job');
       });
 
-      search.groups[1].as(clients => {
+      search.groups[1].as((clients) => {
         assert.equal(clients.name, 'Clients (1)');
         assert.equal(clients.options.length, 1);
         assert.equal(clients.options[0].text, 'xyz');
       });
 
-      search.groups[2].as(allocs => {
+      search.groups[2].as((allocs) => {
         assert.equal(allocs.name, 'Allocations (0)');
         assert.equal(allocs.options.length, 0);
       });
 
-      search.groups[3].as(groups => {
+      search.groups[3].as((groups) => {
         assert.equal(groups.name, 'Task Groups (0)');
         assert.equal(groups.options.length, 0);
       });
 
-      search.groups[4].as(plugins => {
+      search.groups[4].as((plugins) => {
         assert.equal(plugins.name, 'CSI Plugins (1)');
         assert.equal(plugins.options.length, 1);
         assert.equal(plugins.options[0].text, 'xyz-plugin');
@@ -100,13 +106,16 @@ module('Acceptance | search', function(hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
 
-    const fuzzySearchQueries = server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy');
+    const fuzzySearchQueries = server.pretender.handledRequests.filterBy(
+      'url',
+      '/v1/search/fuzzy'
+    );
 
-    const featureDetectionQueries = fuzzySearchQueries.filter(request =>
+    const featureDetectionQueries = fuzzySearchQueries.filter((request) =>
       request.requestBody.includes('feature-detection-query')
     );
 
-    assert.ok(
+    assert.equal(
       featureDetectionQueries.length,
       1,
       'expect the feature detection query to only run once'
@@ -121,21 +130,22 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
-  test('search does not perform a request when only one character has been entered', async function(assert) {
+  test('search does not perform a request when only one character has been entered', async function (assert) {
     await visit('/');
 
     await selectSearch(Layout.navbar.search.scope, 'q');
 
     assert.ok(Layout.navbar.search.noOptionsShown);
     assert.equal(
-      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length,
+      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy')
+        .length,
       1,
       'expect the feature detection query'
     );
   });
 
-  test('when fuzzy search is disabled on the server, the search control is hidden', async function(assert) {
-    server.post('/search/fuzzy', function() {
+  test('when fuzzy search is disabled on the server, the search control is hidden', async function (assert) {
+    server.post('/search/fuzzy', function () {
       return new Response(500, {}, '');
     });
 
@@ -144,7 +154,7 @@ module('Acceptance | search', function(hooks) {
     assert.ok(Layout.navbar.search.isHidden);
   });
 
-  test('results are truncated at 10 per group', async function(assert) {
+  test('results are truncated at 10 per group', async function (assert) {
     server.create('node', { name: 'xyz' });
 
     for (let i = 0; i < 11; i++) {
@@ -155,15 +165,15 @@ module('Acceptance | search', function(hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'job');
 
-    Layout.navbar.search.as(search => {
-      search.groups[0].as(jobs => {
+    Layout.navbar.search.as((search) => {
+      search.groups[0].as((jobs) => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 11)');
         assert.equal(jobs.options.length, 10);
       });
     });
   });
 
-  test('server-side truncation is indicated in the group label', async function(assert) {
+  test('server-side truncation is indicated in the group label', async function (assert) {
     server.create('node', { name: 'xyz' });
 
     for (let i = 0; i < 21; i++) {
@@ -174,14 +184,14 @@ module('Acceptance | search', function(hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'job');
 
-    Layout.navbar.search.as(search => {
-      search.groups[0].as(jobs => {
+    Layout.navbar.search.as((search) => {
+      search.groups[0].as((jobs) => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 20+)');
       });
     });
   });
 
-  test('clicking the search field starts search immediately', async function(assert) {
+  test('clicking the search field starts search immediately', async function (assert) {
     await visit('/');
 
     assert.notOk(Layout.navbar.search.field.isPresent);
@@ -191,7 +201,7 @@ module('Acceptance | search', function(hooks) {
     assert.ok(Layout.navbar.search.field.isPresent);
   });
 
-  test('pressing slash starts a search', async function(assert) {
+  test('pressing slash starts a search', async function (assert) {
     await visit('/');
 
     assert.notOk(Layout.navbar.search.field.isPresent);
@@ -201,7 +211,7 @@ module('Acceptance | search', function(hooks) {
     assert.ok(Layout.navbar.search.field.isPresent);
   });
 
-  test('pressing slash when an input element is focused does not start a search', async function(assert) {
+  test('pressing slash when an input element is focused does not start a search', async function (assert) {
     server.create('node');
     server.create('job');
 

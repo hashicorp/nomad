@@ -22,11 +22,11 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
@@ -39,8 +39,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
 )
 
 const (
@@ -262,25 +263,23 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status     *Status
-	Node       *Node
-	Job        *Job
-	Eval       *Eval
-	Plan       *Plan
-	Alloc      *Alloc
-	CSIVolume  *CSIVolume
-	CSIPlugin  *CSIPlugin
-	Deployment *Deployment
-	Region     *Region
-	Search     *Search
-	Periodic   *Periodic
-	System     *System
-	Operator   *Operator
-	ACL        *ACL
-	Scaling    *Scaling
-	Enterprise *EnterpriseEndpoints
-	Event      *Event
-	Namespace  *Namespace
+	Status              *Status
+	Node                *Node
+	Job                 *Job
+	CSIVolume           *CSIVolume
+	CSIPlugin           *CSIPlugin
+	Deployment          *Deployment
+	Region              *Region
+	Search              *Search
+	Periodic            *Periodic
+	System              *System
+	Operator            *Operator
+	ACL                 *ACL
+	Scaling             *Scaling
+	Enterprise          *EnterpriseEndpoints
+	Event               *Event
+	Namespace           *Namespace
+	ServiceRegistration *ServiceRegistration
 
 	// Client endpoints
 	ClientStats       *ClientStats
@@ -293,10 +292,6 @@ type endpoints struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
-	// Check the protocol version
-	if err := config.CheckVersion(); err != nil {
-		return nil, err
-	}
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
@@ -889,7 +884,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// `bootstrap_expect`.
 			raftPeers, err := s.numPeers()
 			if err != nil {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}
 
@@ -898,7 +893,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// Consul.  Let the normal timeout-based strategy
 			// take over.
 			if raftPeers >= bootstrapExpect {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}
 		}
@@ -908,7 +903,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		dcs, err := s.consulCatalog.Datacenters()
 		if err != nil {
-			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+			peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 			return fmt.Errorf("server.nomad: unable to query Consul datacenters: %v", err)
 		}
 		if len(dcs) > 2 {
@@ -918,7 +913,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
 		}
 
 		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
@@ -957,13 +952,13 @@ func (s *Server) setupBootstrapHandler() error {
 
 		if len(nomadServerServices) == 0 {
 			if len(mErr.Errors) > 0 {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return mErr.ErrorOrNil()
 			}
 
 			// Log the error and return nil so future handlers
 			// can attempt to register the `nomad` service.
-			pollInterval := peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor)
+			pollInterval := peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor)
 			s.logger.Trace("no Nomad Servers advertising Nomad service in Consul datacenters", "service_name", nomadServerServiceName, "datacenters", dcs, "retry", pollInterval)
 			peersTimeout.Reset(pollInterval)
 			return nil
@@ -971,7 +966,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		numServersContacted, err := s.Join(nomadServerServices)
 		if err != nil {
-			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+			peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 			return fmt.Errorf("contacted %d Nomad Servers: %v", numServersContacted, err)
 		}
 
@@ -1151,18 +1146,13 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
-		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
-		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Job = NewJobEndpoints(s)
-		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
 		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
 		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
-		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
 		s.staticEndpoints.Operator.register()
 
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
-		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
 		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
 		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
@@ -1170,6 +1160,14 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// These endpoints are dynamic because they need access to the
+		// RPCContext, but they also need to be called directly in some cases,
+		// so store them into staticEndpoints for later access, but don't
+		// register them as static.
+		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
+		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
+		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
@@ -1191,15 +1189,11 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 	// Register the static handlers
 	server.Register(s.staticEndpoints.ACL)
-	server.Register(s.staticEndpoints.Alloc)
-	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
 	server.Register(s.staticEndpoints.CSIVolume)
 	server.Register(s.staticEndpoints.CSIPlugin)
-	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
-	server.Register(s.staticEndpoints.Plan)
 	server.Register(s.staticEndpoints.Region)
 	server.Register(s.staticEndpoints.Scaling)
 	server.Register(s.staticEndpoints.Status)
@@ -1214,14 +1208,25 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Namespace)
 
 	// Create new dynamic endpoints and add them to the RPC server.
+	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
+	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
+	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
+	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
+	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
 
 	// Register the dynamic endpoints
+	server.Register(alloc)
+	server.Register(deployment)
+	server.Register(eval)
 	server.Register(node)
+	server.Register(plan)
+	_ = server.Register(serviceReg)
 }
 
 // setupRaft is used to setup and initialize Raft
 func (s *Server) setupRaft() error {
+
 	// If we have an unclean exit then attempt to close the Raft store.
 	defer func() {
 		if s.raft == nil && s.raftStore != nil {
@@ -1282,13 +1287,33 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 
-		// Create the BoltDB backend
-		store, err := raftboltdb.NewBoltStore(filepath.Join(path, "raft.db"))
-		if err != nil {
+		// Check Raft version and update the version file.
+		raftVersionFilePath := filepath.Join(path, "version")
+		raftVersionFileContent := strconv.Itoa(int(s.config.RaftConfig.ProtocolVersion))
+		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
 			return err
+		}
+		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
+			return fmt.Errorf("failed to write Raft version file: %v", err)
+		}
+
+		// Create the BoltDB backend, with NoFreelistSync option
+		store, raftErr := raftboltdb.New(raftboltdb.Options{
+			Path:   filepath.Join(path, "raft.db"),
+			NoSync: false, // fsync each log write
+			BoltOptions: &bbolt.Options{
+				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
+			},
+		})
+		if raftErr != nil {
+			return raftErr
 		}
 		s.raftStore = store
 		stable = store
+		s.logger.Info("setting up raft bolt store", "no_freelist_sync", s.config.RaftBoltNoFreelistSync)
+
+		// Start publishing bboltdb metrics
+		go store.RunMetrics(s.shutdownCtx, 0)
 
 		// Wrap the store in a LogCache to improve performance
 		cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
@@ -1318,7 +1343,7 @@ func (s *Server) setupRaft() error {
 		peersFile := filepath.Join(path, "peers.json")
 		peersInfoFile := filepath.Join(path, "peers.info")
 		if _, err := os.Stat(peersInfoFile); os.IsNotExist(err) {
-			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0755); err != nil {
+			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0644); err != nil {
 				return fmt.Errorf("failed to write peers.info file: %v", err)
 			}
 
@@ -1387,6 +1412,42 @@ func (s *Server) setupRaft() error {
 	return nil
 }
 
+// checkRaftVersionFile reads the Raft version file and returns an error if
+// the Raft version is incompatible with the current version configured.
+// Provide best-effort check if the file cannot be read.
+func (s *Server) checkRaftVersionFile(path string) error {
+	raftVersion := s.config.RaftConfig.ProtocolVersion
+	baseWarning := "use the 'nomad operator raft list-peers' command to make sure the Raft protocol versions are consistent"
+
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	v, err := ioutil.ReadFile(path)
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	previousVersion, err := strconv.Atoi(strings.TrimSpace(string(v)))
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("invalid Raft protocol version in Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	if raft.ProtocolVersion(previousVersion) > raftVersion {
+		return fmt.Errorf("downgrading Raft is not supported, current version is %d, previous version was %d", raftVersion, previousVersion)
+	}
+
+	return nil
+}
+
 // setupSerf is used to setup and initialize a Serf
 func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	conf.Init()
@@ -1394,9 +1455,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["role"] = "nomad"
 	conf.Tags["region"] = s.config.Region
 	conf.Tags["dc"] = s.config.Datacenter
-	conf.Tags["vsn"] = fmt.Sprintf("%d", structs.ApiMajorVersion)
-	conf.Tags["mvn"] = fmt.Sprintf("%d", structs.ApiMinorVersion)
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["vsn"] = deprecatedAPIMajorVersionStr // for Nomad <= v1.2 compat
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers
@@ -1429,7 +1489,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 			return nil, err
 		}
 	}
-	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
 	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
 	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
@@ -1640,9 +1699,7 @@ func (s *Server) setupNewWorkersLocked() error {
 	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
 	oldWorkers := make([]*Worker, len(s.workers))
 	defer s.stopOldWorkers(oldWorkers)
-	for i, w := range s.workers {
-		oldWorkers[i] = w
-	}
+	copy(oldWorkers, s.workers)
 	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
 
 	// build a clean backing array and call setupWorkersLocked like setupWorkers
@@ -1852,9 +1909,14 @@ func (s *Server) Stats() map[string]map[string]string {
 
 // EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
 func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			lastIndex := s.raft.LastIndex()
 			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
 			appliedIndex := s.raft.AppliedIndex()
@@ -1869,6 +1931,32 @@ func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
 			return
 		}
 	}
+}
+
+// setReplyQueryMeta is an RPC helper function to properly populate the query
+// meta for a read response. It populates the index using a floored value
+// obtained from the index table as well as leader and last contact
+// information.
+//
+// If the passed state.StateStore is nil, a new handle is obtained.
+func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, reply *structs.QueryMeta) error {
+
+	// Protect against an empty stateStore object to avoid panic.
+	if stateStore == nil {
+		stateStore = s.fsm.State()
+	}
+
+	// Get the index from the index table and ensure the value is floored to at
+	// least one.
+	index, err := stateStore.Index(table)
+	if err != nil {
+		return err
+	}
+	reply.Index = helper.Uint64Max(1, index)
+
+	// Set the query response.
+	s.setQueryMeta(reply)
+	return nil
 }
 
 // Region returns the region of the server

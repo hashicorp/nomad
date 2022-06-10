@@ -8,146 +8,218 @@ description: |-
 
 # JSON Job Specification
 
-This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
-for generating valid JSON versions of HCL jobs is:
+Nomad's HTTP API uses JSON formatted job specifications except for the
+[`/job/parse` API][job-parse] which exists to convert HCL to JSON.
+
+The Nomad CLI includes a number of useful commands for working with JSON jobs.
+
+The [`nomad job run -output`][job-output] flag converts HCL jobs to JSON
+without submitting the job:
 
 ```shell-session
 $ nomad job run -output my-job.nomad
 ```
 
+The [`nomad job inspect`][job-inspect] command retrieves the JSON specification
+for an existing job:
+
+```shell-session
+$ nomad job inspect example
+```
+
+The [`nomad job run -json`][job-run-json] flag submits a JSON formatted job:
+
+```shell-session
+$ nomad job run -json example.json
+```
+
+[job-inspect]: /docs/commands/job/inspect
+[job-output]: /docs/commands/job/run#output
+[job-parse]: /api-docs/jobs#parse-job
+[job-run-json]: /docs/commands/job/run#json
+
 ## Syntax
 
-Below is the JSON representation of the job outputted by `$ nomad init`:
+Below is the JSON representation of the example job as well as the commands to
+reproduce it:
+
+```shell-session
+$ nomad init
+Example job file written to example.nomad
+$ nomad job run -output example.nomad
+```
 
 ```json
 {
   "Job": {
+    "Region": null,
+    "Namespace": null,
     "ID": "example",
     "Name": "example",
     "Type": "service",
-    "Priority": 50,
-    "Datacenters": ["dc1"],
+    "Priority": null,
+    "AllAtOnce": null,
+    "Datacenters": [
+      "dc1"
+    ],
+    "Constraints": null,
+    "Affinities": null,
     "TaskGroups": [
       {
         "Name": "cache",
         "Count": 1,
-        "Migrate": {
-          "HealthCheck": "checks",
-          "HealthyDeadline": 300000000000,
-          "MaxParallel": 1,
-          "MinHealthyTime": 10000000000
-        },
+        "Constraints": null,
+        "Affinities": null,
         "Tasks": [
           {
             "Name": "redis",
             "Driver": "docker",
             "User": "",
+            "Lifecycle": null,
             "Config": {
-              "image": "redis:3.2",
-              "port_map": [
-                {
-                  "db": 6379
-                }
+              "image": "redis:7",
+              "ports": [
+                "db"
               ]
             },
-            "Services": [
-              {
-                "Id": "",
-                "Name": "redis-cache",
-                "Tags": ["global", "cache"],
-                "Meta": {
-                  "meta": "for my service"
-                },
-                "PortLabel": "db",
-                "AddressMode": "",
-                "Checks": [
-                  {
-                    "Id": "",
-                    "Name": "alive",
-                    "Type": "tcp",
-                    "Command": "",
-                    "Args": null,
-                    "Header": {},
-                    "Method": "",
-                    "Path": "",
-                    "Protocol": "",
-                    "PortLabel": "",
-                    "Interval": 10000000000,
-                    "Timeout": 2000000000,
-                    "InitialStatus": "",
-                    "TLSSkipVerify": false,
-                    "CheckRestart": {
-                      "Limit": 3,
-                      "Grace": 30000000000,
-                      "IgnoreWarnings": false
-                    }
-                  }
-                ]
-              }
-            ],
+            "Constraints": null,
+            "Affinities": null,
+            "Env": null,
+            "Services": null,
             "Resources": {
               "CPU": 500,
+              "Cores": null,
               "MemoryMB": 256,
-              "Networks": [
-                {
-                  "Device": "",
-                  "CIDR": "",
-                  "IP": "",
-                  "MBits": 10,
-                  "DynamicPorts": [
-                    {
-                      "Label": "db",
-                      "Value": 0
-                    }
-                  ]
-                }
-              ]
+              "MemoryMaxMB": null,
+              "DiskMB": null,
+              "Networks": null,
+              "Devices": null,
+              "IOPS": null
             },
-            "Leader": false
+            "RestartPolicy": null,
+            "Meta": null,
+            "KillTimeout": null,
+            "LogConfig": null,
+            "Artifacts": null,
+            "Vault": null,
+            "Templates": null,
+            "DispatchPayload": null,
+            "VolumeMounts": null,
+            "Leader": false,
+            "ShutdownDelay": 0,
+            "KillSignal": "",
+            "Kind": "",
+            "ScalingPolicies": null
           }
         ],
+        "Spreads": null,
+        "Volumes": null,
         "RestartPolicy": {
           "Interval": 1800000000000,
           "Attempts": 2,
           "Delay": 15000000000,
           "Mode": "fail"
         },
-        "ReschedulePolicy": {
-          "Attempts": 10,
-          "Delay": 30000000000,
-          "DelayFunction": "exponential",
-          "Interval": 0,
-          "MaxDelay": 3600000000000,
-          "Unlimited": true
-        },
+        "ReschedulePolicy": null,
         "EphemeralDisk": {
+          "Sticky": null,
+          "Migrate": null,
           "SizeMB": 300
-        }
+        },
+        "Update": null,
+        "Migrate": null,
+        "Networks": [
+          {
+            "Mode": "",
+            "Device": "",
+            "CIDR": "",
+            "IP": "",
+            "DNS": null,
+            "ReservedPorts": null,
+            "DynamicPorts": [
+              {
+                "Label": "db",
+                "Value": 0,
+                "To": 6379,
+                "HostNetwork": ""
+              }
+            ],
+            "Hostname": "",
+            "MBits": null
+          }
+        ],
+        "Meta": null,
+        "Services": [
+          {
+            "Id": "",
+            "Name": "redis-cache",
+            "Tags": [
+              "global",
+              "cache"
+            ],
+            "CanaryTags": null,
+            "EnableTagOverride": false,
+            "PortLabel": "db",
+            "AddressMode": "",
+            "Checks": null,
+            "CheckRestart": null,
+            "Connect": null,
+            "Meta": null,
+            "CanaryMeta": null,
+            "TaskName": "",
+            "OnUpdate": "",
+            "Provider": ""
+          }
+        ],
+        "ShutdownDelay": null,
+        "StopAfterClientDisconnect": null,
+        "MaxClientDisconnect": null,
+        "Scaling": null,
+        "Consul": null
       }
     ],
     "Update": {
+      "Stagger": null,
       "MaxParallel": 1,
+      "HealthCheck": null,
       "MinHealthyTime": 10000000000,
       "HealthyDeadline": 180000000000,
+      "ProgressDeadline": 600000000000,
+      "Canary": 0,
       "AutoRevert": false,
-      "Canary": 0
-    }
+      "AutoPromote": null
+    },
+    "Multiregion": null,
+    "Spreads": null,
+    "Periodic": null,
+    "ParameterizedJob": null,
+    "Reschedule": null,
+    "Migrate": {
+      "MaxParallel": 1,
+      "HealthCheck": "checks",
+      "MinHealthyTime": 10000000000,
+      "HealthyDeadline": 300000000000
+    },
+    "Meta": null,
+    "ConsulToken": null,
+    "VaultToken": null,
+    "Stop": null,
+    "ParentID": null,
+    "Dispatched": false,
+    "DispatchIdempotencyToken": null,
+    "Payload": null,
+    "ConsulNamespace": null,
+    "VaultNamespace": null,
+    "NomadTokenID": null,
+    "Status": null,
+    "StatusDescription": null,
+    "Stable": null,
+    "Version": null,
+    "SubmitTime": null,
+    "CreateIndex": null,
+    "ModifyIndex": null,
+    "JobModifyIndex": null
   }
-}
-```
-
-The example JSON could be submitted as a job using the following:
-
-```shell-session
-$ curl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
-{
-  "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
-  "EvalCreateIndex": 12,
-  "JobModifyIndex": 11,
-  "Warnings": "",
-  "Index": 12,
-  "LastContact": 0,
-  "KnownLeader": false
 }
 ```
 
@@ -183,6 +255,15 @@ The `Job` object supports the following keys:
 
 - `Meta` - Annotates the job with opaque metadata.
 
+- `ConsulToken` - Specifies the Consul token that proves the submitter of the
+  job has access to the Service Identity policies associated with the job's
+  Consul Connect enabled services. This field is only used to transfer the
+  token and is not stored after job submission.
+
+- `VaultToken` - Specifies the Vault token that proves the submitter of the job
+  has access to the specified policies in the `vault` stanza. This field is
+  only used to transfer the token and is not stored after job submission.
+
 - `Namespace` - The namespace to execute the job in, defaults to "default".
   Prior to Nomad 1.0 namespaces were Enterprise-only.
 
@@ -199,6 +280,9 @@ The `Job` object supports the following keys:
   - `Payload` - Specifies the requirement of providing a payload when
     dispatching against the parameterized job. The options for this field are
     "optional", "required" and "forbidden". The default value is "optional".
+
+- `DispatchIdempotencyToken` - Optional identifier used to prevent more than one
+  instance of the job from being dispatched.
 
 - `Payload` - The payload may not be set when submitting a job but may appear in
   a dispatched job. The `Payload` will be a base64 encoded string containing the
@@ -437,6 +521,15 @@ The `Task` object supports the following keys:
     a port with the service. If specified, the port label must match one
     defined in the resources block. This could be a label of either a
     dynamic or a static port.
+
+  - `Provider`: Specifies the service registration provider to use for service
+    registrations. Valid options are either `consul` or `nomad`. All services
+    within a single task group must utilise the same provider value.
+
+  - `Address`: Specifies a custom address to advertise in Consul or Nomad
+    service registration. If set, `AddressMode` must be in `auto` mode. Useful
+    with interpolation - for example to advertise the public IP address of an
+    AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
 
   - `AddressMode`: Specifies what address (host or driver-specific) this
     service should advertise. This setting is supported in Docker since

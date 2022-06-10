@@ -18,13 +18,6 @@ adding expressions and input variables support to improve job spec
 reusability and readability. Also, the new HCL2 parser improves the error
 messages for invalid jobs.
 
-<!---
-TODO: Re-Add after guide
-This page describes the features of HCL2 exhaustively, if you would like to give
-a quick try to HCL2, you can also read the quicker [HCL2 getting started
-guide](/guides/hcl).
---->
-
 ## HCL Parsing Context
 
 The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
@@ -38,11 +31,28 @@ context from the local environment of the CLI (e.g., files, environment variable
 
 [jobs-api]: /api-docs/jobs
 
-## Syntax
+## JSON Jobs
 
-The main purpose of the HCL language in Nomad is defining jobs. All other
-language features exist only to make the definition of builds more flexible and
-convenient.
+Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
+parse a JSON job using the HCL parser. However, the JSON format accepted by
+the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The 
+HCL parser's JSON format is unspecified, so the API format is preferred. You can 
+use the API format with the [`-json` command line flag][run-json]:
+
+```shell-session
+$ # Generate an HCL formatted job
+$ nomad init
+
+$ # Convert HCL to API JSON format
+$ nomad job run -output example.nomad > example.json
+
+$ # Submit with the -json flag
+$ nomad job run -json example.json
+```
+
+
+[json-jobs-api]: /api-docs/json-jobs
+[run-json]: /docs/commands/job/run#json
 
 ## Arguments, Blocks, and Expressions
 
@@ -157,7 +167,7 @@ Or better yet, the new [`mount`](/docs/drivers/docker#mount) syntax, introduced 
 ```hcl
 mount {
   type = "tmpfs"
-  tmpf_options {
+  tmpfs_options {
     size = 10000
   }
 }

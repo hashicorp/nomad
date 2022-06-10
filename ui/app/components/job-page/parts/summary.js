@@ -3,7 +3,7 @@ import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
-
+import { camelize } from '@ember/string';
 @classic
 @classNames('boxed-section')
 export default class Summary extends Component {
@@ -24,7 +24,7 @@ export default class Summary extends Component {
 
   @action
   onSliceClick(ev, slice) {
-    this.gotoAllocations([slice.label.camelize()]);
+    this.gotoAllocations([camelize(slice.label)]);
   }
 
   @computed('forceCollapsed')

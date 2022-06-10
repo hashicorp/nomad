@@ -3,15 +3,12 @@ version: 2.1
 references:
   # environment specific references - aim to avoid conflicts
   go-machine-image: &go_machine_image
-    circleci/classic:201808-01
-  go-machine-recent-image: &go_machine_recent_image
-    ubuntu-1604:201903-01
+    ubuntu-2004:202111-02
   go-windows-image: &go_windows_image
     windows-server-2019-vs2019:stable
 
   # common references
   common_envs: &common_envs
-    GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
@@ -161,43 +158,6 @@ commands:
             fi
 
 jobs:
-  website-docker-image:
-    docker:
-      - image: docker.mirror.hashicorp.services/circleci/buildpack-deps
-    shell: /usr/bin/env bash -euo pipefail -c
-    steps:
-      - checkout
-      - run:
-          name: Skip building if nothing changed
-          command: |
-            # There is an edge case that would cause an issue here - if dependencies are updated to an exact copy
-            # of a previous version, for example if packge-lock.json is reverted, we need to manually push the new
-            # image to the "latest" tag
-            # Ignore job if running an enterprise build
-            IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
-            echo "Using $IMAGE_TAG"
-
-            if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
-              echo "Not Nomad OSS Repo, not building website docker image"
-              circleci-agent step halt
-            elif curl https://hub.docker.com/v2/repositories/hashicorp/nomad-website/tags/$IMAGE_TAG -fsL > /dev/null; then
-              echo "Dependencies have not changed, not building a new website docker image."
-              circleci-agent step halt
-            fi
-
-      - setup_remote_docker
-      - run:
-          name: Build Docker Image
-          command: |
-            IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
-            echo "Using $IMAGE_TAG"
-
-            cd website/
-            docker build -t hashicorp/nomad-website:$IMAGE_TAG .
-            docker tag hashicorp/nomad-website:$IMAGE_TAG hashicorp/nomad-website:latest
-            docker login -u $WEBSITE_DOCKER_USER -p $WEBSITE_DOCKER_PASS
-            docker push hashicorp/nomad-website
-
   test-windows:
     executor: go-windows
 
@@ -219,21 +179,21 @@ jobs:
       - run:
           name: Install golang dependencies
           command: |
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             make deps
       - run:
           name: Pre-download docker test image
-          command: docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
+          command: docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
       - run:
           name: Build nomad
           command: |
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             go build -o $GOBIN\nomad.exe
       - run:
           name: Run tests with gotestsum
           command: |
             # Only test docker driver tests for now
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             gotestsum --format=short-verbose \
               --junitfile $GOTESTSUM_PATH/results.xml \
               github.com/hashicorp/nomad/drivers/docker \
@@ -246,7 +206,7 @@ jobs:
           path: c:\tmp\test-reports
   test-ui:
     docker:
-      - image: docker.mirror.hashicorp.services/circleci/node:12-browsers
+      - image: docker.mirror.hashicorp.services/circleci/node:14-browsers
         environment:
           # See https://git.io/vdao3 for details.
           JOBS: 2
@@ -289,7 +249,7 @@ jobs:
         default: ""
       executor:
         type: string
-        default: "go-machine-recent"
+        default: "go-machine"
       goarch:
         type: string
         default: "amd64"
@@ -419,6 +379,7 @@ jobs:
             ./scripts/vagrant-linux-unpriv-ui.sh
 
             export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+            
             source ${BASH_ENV}
             . ~/.nvm/nvm.sh
             cd ui && yarn install --frozen-lockfile && cd ..
@@ -492,27 +453,12 @@ jobs:
       - store_artifacts:
           path: /tmp/ui-assets
           destination: /ui-assets
-  algolia_index:
-    docker:
-      - image: docker.mirror.hashicorp.services/node:14
-    steps:
-      - checkout
-      - run:
-          name: Push content to Algolia Index
-          command: |
-            if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
-              echo "Not Nomad OSS Repo, not indexing Algolia"
-              exit 0
-            fi
-
-            cd website/
-            npm install
-            node scripts/index_search_content.js
 executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.17.5
+      - image: docker.mirror.hashicorp.services/golang:1.18.2
+    resource_class: medium
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -521,18 +467,10 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: *go_machine_image
+      resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOPATH: /home/circleci/go
-      GOLANG_VERSION: 1.17.5
-
-  # uses a more recent image with unattended upgrades disabled properly
-  # but seems to break docker builds
-  go-machine-recent:
-    working_directory: ~/go/src/github.com/hashicorp/nomad
-    machine:
-      image: *go_machine_recent_image
-    environment: *machine_env
+      GOLANG_VERSION: 1.18.2
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -541,7 +479,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.17.5
+      GOLANG_VERSION: 1.18.2
 
   go-windows:
     machine:
@@ -553,8 +491,8 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.17.5
-      GOTESTSUM_VERSION: 0.4.2
+      GOLANG_VERSION: 1.18.2
+      GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
 workflows:
@@ -567,7 +505,6 @@ workflows:
             branches:
               ignore:
                 - stable-website
-                - /^.-ui\b.*/
 
       - lint-go:
           # check branches are almost all the backend branches
@@ -636,9 +573,6 @@ workflows:
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
-          # docker is misbehaving in docker-machine-recent image
-          # and we get unexpected failures
-          # e.g. https://circleci.com/gh/hashicorp/nomad/3854
           executor: go-machine
           filters: *backend_test_branches_filter
       - test-machine:
@@ -656,20 +590,3 @@ workflows:
           test_packages: "./client/fingerprint"
           goarch: "386"
           filters: *backend_test_branches_filter
-  website:
-    when:
-      equal: [ "https://github.com/hashicorp/nomad", << pipeline.project.git_url >> ]
-    jobs:
-      - website-docker-image:
-          context: static-sites
-          filters:
-            branches:
-              only:
-                - main
-
-      - algolia_index:
-          context: static-sites
-          filters:
-            branches:
-              only:
-                - stable-website
