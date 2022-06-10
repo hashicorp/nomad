@@ -346,11 +346,11 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 	return false
 }
 
-func isAllowedDriveInterface(driveInterface string) bool {
-	// hardocoded list of drive interfaces, Qemu currently supports
-	var interfaceList = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
+// hardcoded list of drive interfaces, Qemu currently supports
+var allowedDriveInterfaces = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
 
-	for _, ai := range interfaceList {
+func isAllowedDriveInterface(driveInterface string) bool {
+	for _, ai := range allowedDriveInterfaces {
 		if driveInterface == ai {
 			return true
 		}
