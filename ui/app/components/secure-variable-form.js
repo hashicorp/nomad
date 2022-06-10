@@ -5,6 +5,8 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
+import { copy } from 'ember-copy';
+import EmberObject from '@ember/object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -30,6 +32,14 @@ export default class SecureVariableFormComponent extends Component {
     return !this.args.model?.path;
   }
 
+  @tracked keyValues = copy(this.args.model.keyValues).map((kv) => {
+    return {
+      key: kv.key,
+      value: kv.value,
+      warnings: EmberObject.create(),
+    };
+  });
+
   @action
   validatePath(e) {
     const value = trimPath([e.target.value]);
@@ -47,24 +57,37 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   @action
+  validateKey(entry, e) {
+    const value = e.target.value;
+    if (value.includes('.')) {
+      entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
+    } else {
+      delete entry.warnings.dottedKeyError;
+      entry.warnings.notifyPropertyChange('dottedKeyError');
+    }
+  }
+
+  @action
   toggleShowHide() {
     this.shouldHideValues = !this.shouldHideValues;
   }
 
   @action appendRow() {
-    this.args.model.keyValues.pushObject({
+    this.keyValues.pushObject({
       key: '',
       value: '',
+      warnings: EmberObject.create(),
     });
   }
 
   @action deleteRow(row) {
-    this.args.model.keyValues.removeObject(row);
+    this.keyValues.removeObject(row);
   }
 
   @action
   async save(e) {
     e.preventDefault();
+    this.args.model.set('keyValues', this.keyValues);
     this.args.model.setAndTrimPath();
     await this.args.model.save();
     this.router.transitionTo('variables.variable', this.args.model.path);

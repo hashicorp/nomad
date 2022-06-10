@@ -224,5 +224,22 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       assert.dom('.duplicate-path-error').doesNotExist();
       assert.dom('.path-input').doesNotHaveClass('error');
     });
+
+    test('warns you when you set a key with . in it', async function (assert) {
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          keyValues: [{ key: '', value: '' }],
+        })
+      );
+
+      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+      await typeIn('.key-value label:nth-child(1) input', 'foo');
+
+      await typeIn('.key-value label:nth-child(1) input', 'superSecret');
+      assert.dom('.key-value-error').doesNotExist();
+      await typeIn('.key-value label:nth-child(1) input', 'super.secret');
+      assert.dom('.key-value-error').exists();
+    });
   });
 });

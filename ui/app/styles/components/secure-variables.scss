@@ -32,8 +32,13 @@
   .key-value {
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
-    gap: 1rem;
+    gap: 0 1rem;
     align-items: end;
+
+    input.error {
+      color: $red;
+      border-color: $red;
+    }
 
     .value-label {
       display: grid;
@@ -52,6 +57,13 @@
 
     button.add-more[disabled] {
       border-color: #dbdbdb;
+    }
+
+    .key-value-error {
+      grid-column: -1 / 1;
+      position: relative;
+      animation: slide-in 0.3s ease-out;
+      margin: 0;
     }
   }
 }
