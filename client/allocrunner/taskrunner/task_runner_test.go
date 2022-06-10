@@ -2509,7 +2509,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 }
 
 // TestTaskRunner_Shutdown_Stops_Vault_Token_Renewal asserts that when the alloc completes,
-// the Vault hook detects that the shutdownCtx is canceled and stops the renewal process.
+// the Vault hook detects that the shutdownCtx or killCtx is canceled and stops the renewal process.
 func TestTaskRunner_Shutdown_Stops_Vault_Token_Renewal(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2545,10 +2545,6 @@ func TestTaskRunner_Shutdown_Stops_Vault_Token_Renewal(t *testing.T) {
 		vltHook = hook.(*vaultHook)
 		break
 	}
-
-	//ctx, cancel := context.WithCancel(context.Background())
-	//vltHook.ctx = ctx
-	//vltHook.cancel = cancel
 
 	// Wait for a Vault token
 	var token string
