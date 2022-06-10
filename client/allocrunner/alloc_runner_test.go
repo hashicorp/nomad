@@ -1679,8 +1679,8 @@ func TestAllocRunner_Lifecycle_Shutdown_Order(t *testing.T) {
 	})
 
 	last := upd.Last()
-	require.Less(t, last.TaskStates[ephemeralTask.Name].FinishedAt, last.TaskStates[mainTask.Name].FinishedAt)
-	require.Less(t, last.TaskStates[mainTask.Name].FinishedAt, last.TaskStates[sidecarTask.Name].FinishedAt)
+	require.True(t, last.TaskStates[ephemeralTask.Name].FinishedAt.Before(last.TaskStates[mainTask.Name].FinishedAt))
+	require.True(t, last.TaskStates[mainTask.Name].FinishedAt.Before(last.TaskStates[sidecarTask.Name].FinishedAt))
 
 	// Wait for poststop task to stop.
 	testutil.WaitForResult(func() (bool, error) {
@@ -1700,5 +1700,5 @@ func TestAllocRunner_Lifecycle_Shutdown_Order(t *testing.T) {
 	})
 
 	last = upd.Last()
-	require.Less(t, last.TaskStates[sidecarTask.Name].FinishedAt, last.TaskStates[poststopTask.Name].FinishedAt)
+	require.True(t, last.TaskStates[sidecarTask.Name].FinishedAt.Before(last.TaskStates[poststopTask.Name].FinishedAt))
 }
