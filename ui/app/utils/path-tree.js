@@ -25,7 +25,7 @@ import { trimPath } from '../helpers/trim-path';
  * @param {string} path - the file path
  * @return {VariablePathObject}
  */
-function PATH_TO_OBJECT(path) {
+export function pathToObject(path) {
   const split = path.split('/');
   const [name, ...folderPath] = [split.pop(), ...split];
   return {
@@ -73,7 +73,7 @@ export default class PathTree {
   generatePaths = () => {
     const paths = this.variables
       .map((variable) => trimPath([variable.path]))
-      .map(PATH_TO_OBJECT)
+      .map(pathToObject)
       .reduce(
         (acc, cur) => {
           const { name, absoluteFilePath } = cur;
