@@ -195,4 +195,34 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       .dom('input.path-input')
       .isNotDisabled('New variable is not in disabled state');
   });
+
+  module('Validation', function () {
+    test('warns when you try to create a path that already exists', async function (assert) {
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          path: '',
+          keyValues: [{ key: '', value: '' }],
+        })
+      );
+
+      this.set(
+        'existingVariables',
+        server.createList('variable', 1, {
+          path: 'baz/bat',
+        })
+      );
+
+      await render(
+        hbs`<SecureVariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`
+      );
+      await typeIn('.path-input', 'baz/bat');
+      assert.dom('.duplicate-path-error').exists();
+      assert.dom('.path-input').hasClass('error');
+
+      await typeIn('.path-input', 'foo/bar');
+      assert.dom('.duplicate-path-error').doesNotExist();
+      assert.dom('.path-input').doesNotHaveClass('error');
+    });
+  });
 });

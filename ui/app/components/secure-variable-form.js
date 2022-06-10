@@ -8,7 +8,6 @@ import { trimPath } from '../helpers/trim-path';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
-  @service store;
 
   @tracked
   shouldHideValues = true;
@@ -34,8 +33,8 @@ export default class SecureVariableFormComponent extends Component {
   @action
   validatePath(e) {
     const value = trimPath([e.target.value]);
-    let existingVariable = this.store
-      .peekAll('variable')
+    const existingVariables = this.args.existingVariables || [];
+    let existingVariable = existingVariables
       .without(this.args.model)
       .find((v) => v.path === value);
     if (existingVariable) {
