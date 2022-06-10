@@ -1,10 +1,12 @@
 // @ts-check
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
+import { computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { trimPath } from '../helpers/trim-path';
+import { pathToObject } from '../utils/path-tree';
 
 /**
  * @typedef KeyValue
@@ -53,6 +55,11 @@ export default class VariableModel extends Model {
   @attr('string') modifyTime;
   /** @type {string} */
   @attr('string') namespace;
+
+  @computed('type')
+  get folderPath() {
+    return pathToObject(this.path).path;
+  }
 
   /**
    * Removes starting and trailing slashes, and sets the ID property

@@ -5,7 +5,6 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
-import { pathToObject } from '../utils/path-tree';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;

@@ -3,7 +3,6 @@ import { task } from 'ember-concurrency';
 import messageForError from '../../../utils/message-from-adapter-error';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
-import PathTree, { pathToObject } from 'nomad-ui/utils/path-tree';
 
 export default class VariablesVariableIndexController extends Controller {
   @service router;
@@ -15,16 +14,10 @@ export default class VariablesVariableIndexController extends Controller {
     try {
       yield this.model.deleteRecord();
       yield this.model.save();
-      console.log('what i got', this.model);
-      console.log('and path transition if', pathToObject(this.model.path).path);
-      const parentPath = pathToObject(this.model.path).path;
-      console.log({ parentPath });
-      // TODO: work on this conditional transition to parent path
-
-      if (this.modelFor('variables').pathTree.findPath(parentPath)) {
-        this.router.transitionTo('variables.path', parentPath);
+      if (this.model.folderPath) {
+        this.router.transitionTo('variables.path', this.model.folderPath);
       } else {
-        this.router.transitionTo('variables.index');
+        this.router.transitionTo('variables');
       }
       // TODO: alert the user that the variable was successfully deleted
     } catch (err) {
