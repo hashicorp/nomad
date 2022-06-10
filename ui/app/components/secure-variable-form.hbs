@@ -25,7 +25,7 @@
       </p>
     {{/if}}
   </div>
-  {{#each @model.keyValues as |entry iter|}}
+  {{#each this.keyValues as |entry iter|}}
   <div class="key-value">
 
     <label>
@@ -35,6 +35,7 @@
         @value={{entry.key}}
         class="input"
         {{autofocus ignore=(eq iter 0)}}
+        {{on "input" (fn this.validateKey entry)}}
         />
     </label>
 
@@ -60,7 +61,7 @@
       </button>
     </label>
 
-    {{#if (eq entry @model.keyValues.lastObject)}}
+    {{#if (eq entry this.keyValues.lastObject)}}
       <button
         {{on "click" this.appendRow}}
         class="add-more button is-info is-inverted"
@@ -72,11 +73,16 @@
         {{on "click" (action this.deleteRow entry)}}
         class="delete-row button is-danger is-inverted" type="button">Delete</button>
     {{/if}}
+
+    {{#each-in entry.warnings as |k v|}}
+      <span class="key-value-error help is-danger">{{v}}</span>
+    {{/each-in}}
   </div>
   {{/each}}
+
   <footer>
     <button
       disabled={{this.shouldDisableSave}}
-      class="button is-primary" type="submit">Save {{pluralize 'Variable' @model.keyValues.length}}</button>
+      class="button is-primary" type="submit">Save {{pluralize 'Variable' @this.keyValues.length}}</button>
   </footer>
 </form>
