@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"golang.org/x/crypto/blake2b"
 
@@ -9579,6 +9580,11 @@ type Allocation struct {
 	// to stop running because it got preempted
 	PreemptedByAllocation string
 
+	// SignedIdentities is a map of task names to signed
+	// identity/capability claim tokens for those tasks. If needed, it
+	// is populated in the plan applier
+	SignedIdentities map[string]string `json:"-"`
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -10271,6 +10277,42 @@ func (a *Allocation) Reconnected() (bool, bool) {
 	}
 
 	return true, a.Expired(lastReconnect)
+}
+
+func (a *Allocation) ToIdentityClaims() *IdentityClaims {
+	now := jwt.NewNumericDate(time.Now().UTC())
+	return &IdentityClaims{
+		Namespace:    a.Namespace,
+		JobID:        a.JobID,
+		AllocationID: a.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			// TODO: in Nomad 1.5.0 we'll have a refresh loop to
+			// prevent allocation identities from expiring before the
+			// allocation is terminal. Once that's implemented, add an
+			// ExpiresAt here ExpiresAt: &jwt.NumericDate{},
+			NotBefore: now,
+			IssuedAt:  now,
+		},
+	}
+}
+
+func (a *Allocation) ToTaskIdentityClaims(taskName string) *IdentityClaims {
+	claims := a.ToIdentityClaims()
+	if claims != nil {
+		claims.TaskName = taskName
+	}
+	return claims
+}
+
+// IdentityClaims are the input to a JWT identifying a workload. It
+// should never be serialized to msgpack unsigned.
+type IdentityClaims struct {
+	Namespace    string `json:"nomad_namespace"`
+	JobID        string `json:"nomad_job_id"`
+	AllocationID string `json:"nomad_allocation_id"`
+	TaskName     string `json:"nomad_task"`
+
+	jwt.RegisteredClaims
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

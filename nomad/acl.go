@@ -35,6 +35,10 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 	return resolveTokenFromSnapshotCache(snap, s.aclCache, secretID)
 }
 
+func (s *Server) ResolveClaim(token string) (*structs.IdentityClaims, error) {
+	return s.encrypter.VerifyClaim(token)
+}
+
 // resolveTokenFromSnapshotCache is used to resolve an ACL object from a snapshot of state,
 // using a cache to avoid parsing and ACL construction when possible. It is split from resolveToken
 // to simplify testing.
