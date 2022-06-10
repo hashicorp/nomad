@@ -408,7 +408,7 @@ func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, ca
 
 	err = sv.authValidatePrefix(alloc, claim.TaskName, pathOrPrefix)
 	if err != nil {
-		sv.logger.Trace("allocation identity did not have permission for path")
+		sv.logger.Trace("allocation identity did not have permission for path", "error", err)
 		return structs.ErrPermissionDenied
 	}
 

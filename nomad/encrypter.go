@@ -231,7 +231,7 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
 	keyset, err := e.keysetByID(keyID)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return keyset.rootKey.Key, nil
 }
