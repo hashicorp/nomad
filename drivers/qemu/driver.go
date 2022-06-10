@@ -86,6 +86,7 @@ var (
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"image_path":        hclspec.NewAttr("image_path", "string", true),
+		"drive_interface":   hclspec.NewAttr("drive_interface", "string", false),
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
 		"guest_agent":       hclspec.NewAttr("guest_agent", "bool", false),
@@ -116,6 +117,7 @@ type TaskConfig struct {
 	Args             []string           `codec:"args"`     // extra arguments to qemu executable
 	PortMap          hclutils.MapStrInt `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
 	GracefulShutdown bool               `codec:"graceful_shutdown"`
+	DriveInterface   string             `codec:"drive_interface"` // Use interface for image
 	GuestAgent       bool               `codec:"guest_agent"`
 }
 
@@ -353,6 +355,19 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 	return false
 }
 
+// hardcoded list of drive interfaces, Qemu currently supports
+var allowedDriveInterfaces = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
+
+func isAllowedDriveInterface(driveInterface string) bool {
+	for _, ai := range allowedDriveInterfaces {
+		if driveInterface == ai {
+			return true
+		}
+	}
+
+	return false
+}
+
 // validateArgs ensures that all QEMU command line params are in the
 // allowlist. This function must be called after all interpolation has
 // taken place.
@@ -423,12 +438,20 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, err
 	}
 
+	driveInterface := "ide"
+	if driverConfig.DriveInterface != "" {
+		driveInterface = driverConfig.DriveInterface
+	}
+	if !isAllowedDriveInterface(driveInterface) {
+		return nil, nil, fmt.Errorf("Unsupported drive_interface")
+	}
+
 	args := []string{
 		absPath,
 		"-machine", "type=pc,accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
-		"-drive", "file=" + vmPath,
+		"-drive", "file=" + vmPath + ",if=" + driveInterface,
 		"-nographic",
 	}
 
