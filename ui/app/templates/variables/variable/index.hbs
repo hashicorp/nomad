@@ -1,10 +1,56 @@
-<LinkTo
-  class="button is-primary"
-  @model={{this.model}}
-  @route="variables.variable.edit"
->
-  Edit
-</LinkTo>
+{{#if this.error}}
+  <div data-test-inline-error class="notification is-danger">
+    <div class="columns">
+      <div class="column">
+        <h3 data-test-inline-error-title class="title is-4">
+          {{this.error.title}}
+        </h3>
+        <p data-test-inline-error-body>
+          {{this.error.description}}
+        </p>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button
+          data-test-inline-error-close
+          class="button is-danger"
+          onclick={{action this.onDismissError}}
+          type="button"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  </div>
+{{/if}}
+
+<h1 class="title with-flex">
+  <div>
+    <FlightIcon @name="file-text" />
+    {{this.model.path}}
+  </div>
+  <div>
+    <div class="two-step-button">
+    <LinkTo
+      class="button is-info is-inverted is-small"
+      @model={{this.model}}
+      @route="variables.variable.edit"
+    >
+      Edit
+    </LinkTo>
+    </div>
+
+    <TwoStepButton
+      data-test-delete-button
+      @alignRight={{true}}
+      @idleText="Delete"
+      @cancelText="Cancel"
+      @confirmText="Yes, delete"
+      @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+      @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+      @onConfirm={{perform this.deleteVariableFile}} />
+  </div>
+</h1>
+
 <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
   <t.body as |row|>
     <tr>

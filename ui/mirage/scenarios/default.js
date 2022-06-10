@@ -67,7 +67,7 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
-  ].forEach((path) => server.create('variable', { path }));
+  ].forEach((path) => server.create('variable', { id: path }));
 
   // #region evaluations
 

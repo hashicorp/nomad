@@ -837,12 +837,15 @@ export default function () {
   );
 
   //#region Secure Variables
+
   this.get('/vars', function (schema) {
     return schema.variables.all();
   });
+
   this.get('/var/:id', function ({ variables }, { params }) {
     return variables.find(params.id);
   });
+
   this.put('/var/:id', function (schema, request) {
     const { Path, Namespace, Items } = JSON.parse(request.requestBody);
     server.create('variable', {
@@ -851,8 +854,13 @@ export default function () {
       Items,
       id: Path,
     });
-
     return okEmpty(); // TODO: consider returning the created object.
+  });
+
+  this.delete('/var/:id', function (schema, request) {
+    const { id } = request.params;
+    server.db.variables.remove(id);
+    return okEmpty();
   });
 
   //#endregion Secure Variables
