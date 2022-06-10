@@ -56,7 +56,7 @@ export default class VariableModel extends Model {
   /** @type {string} */
   @attr('string') namespace;
 
-  @computed('type')
+  @computed('path')
   get folderPath() {
     return pathToObject(this.path).path;
   }
@@ -65,7 +65,7 @@ export default class VariableModel extends Model {
    * Removes starting and trailing slashes, and sets the ID property
    */
   setAndTrimPath() {
-    this.path = trimPath([this.path]);
+    this.set('path', trimPath([this.path]));
     this.id = this.path;
   }
 }
