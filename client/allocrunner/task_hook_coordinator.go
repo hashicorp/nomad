@@ -179,8 +179,7 @@ func (c *taskHookCoordinator) StartPoststopTasks() {
 // hasNonSidecarTasks returns false if all the passed tasks are sidecar tasks
 func hasNonSidecarTasks(tasks []*taskrunner.TaskRunner) bool {
 	for _, tr := range tasks {
-		lc := tr.Task().Lifecycle
-		if lc == nil || !lc.Sidecar {
+		if !tr.IsSidecarTask() {
 			return true
 		}
 	}
@@ -188,11 +187,10 @@ func hasNonSidecarTasks(tasks []*taskrunner.TaskRunner) bool {
 	return false
 }
 
-// hasSidecarTasks returns true if all the passed tasks are sidecar tasks
+// hasSidecarTasks returns true if any of the passed tasks are sidecar tasks
 func hasSidecarTasks(tasks map[string]*taskrunner.TaskRunner) bool {
 	for _, tr := range tasks {
-		lc := tr.Task().Lifecycle
-		if lc != nil && lc.Sidecar {
+		if tr.IsSidecarTask() {
 			return true
 		}
 	}

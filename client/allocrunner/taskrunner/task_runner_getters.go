@@ -33,6 +33,11 @@ func (tr *TaskRunner) IsPoststopTask() bool {
 	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPoststop
 }
 
+// IsSidecarTask returns true if this task is a sidecar task in its task group.
+func (tr *TaskRunner) IsSidecarTask() bool {
+	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Sidecar
+}
+
 func (tr *TaskRunner) Task() *structs.Task {
 	tr.taskLock.RLock()
 	defer tr.taskLock.RUnlock()
