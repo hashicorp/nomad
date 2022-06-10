@@ -97,8 +97,8 @@ module('Acceptance | secure variables', function (hooks) {
     await click(find('[data-test-confirm-button]'));
     assert.equal(
       currentURL(),
-      '/variables',
-      'correctly returns to the variables page after deletion'
+      '/variables/path/a/b/c',
+      'correctly returns to the parent path page after deletion'
     );
 
     // Re-find folder a/b/c
