@@ -247,7 +247,7 @@ chroot as doing so would cause infinite recursion.
   access files only within the [task working directory].
 
 - `max_stale` `(string: "87600h")` - This is the maximum interval to allow "stale"
-  data. If `max_stale` is not set, only the Consul leader will respond to queries, and
+  data. If `max_stale` is set to `0`, only the Consul leader will respond to queries, and
   requests that reach a follower will forward to the leader. In large clusters with
   many requests, this is not as scalable. This option allows any follower to respond
   to a query, so long as the last-replicated data is within this bound. Higher values
