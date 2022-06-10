@@ -17,6 +17,7 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
   async model() {
     try {
       const variables = await this.store.findAll('variable');
+      console.log('pathtree', new PathTree(variables));
       return {
         variables,
         pathTree: new PathTree(variables),

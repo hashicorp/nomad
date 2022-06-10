@@ -10,6 +10,7 @@ import EmberObject from '@ember/object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
+  @service flashMessages;
 
   @tracked
   shouldHideValues = true;
@@ -61,9 +62,19 @@ export default class SecureVariableFormComponent extends Component {
     const value = e.target.value;
     if (value.includes('.')) {
       entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
+      this.flashMessages.danger('Key should not contain a period.');
     } else {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
+      this.flashMessages.add({
+        title: 'woohoo',
+        message: value,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 4000,
+        // sticky: Math.random() > 0.5 ? true : false,
+        showProgress: true,
+      });
     }
   }
 
