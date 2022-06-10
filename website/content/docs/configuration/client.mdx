@@ -247,15 +247,17 @@ chroot as doing so would cause infinite recursion.
   access files only within the [task working directory].
 
 - `max_stale` `(string: "87600h")` - This is the maximum interval to allow "stale"
-  data. By default, only the Consul leader will respond to queries. Requests to
-  a follower will forward to the leader. In large clusters with many requests,
-  this is not as scalable. This option allows any follower to respond to a query,
-  so long as the last-replicated data is within this bound. Higher values result
-  in less cluster load, but are more likely to have outdated data.
+  data. If `max_stale` is set to `0`, only the Consul leader will respond to queries, and
+  requests that reach a follower will forward to the leader. In large clusters with
+  many requests, this is not as scalable. This option allows any follower to respond
+  to a query, so long as the last-replicated data is within this bound. Higher values
+  result in less cluster load, but are more likely to have outdated data. This default
+  of 10 years (`87600h`) matches the default Consul configuration.
 
 - `wait` `(map: { min = "5s" max = "4m" })` - Defines the minimum and maximum amount
-  of time to wait before attempting to re-render a template. By default, Consul Template
-  will loop continually and re-render. If this value is set, Nomad will configure Consul
+  of time to wait before attempting to re-render a template. Consul Template re-renders
+  templates whenever rendered variables from Consul, Nomad, or Vault change. However in
+  order to minimize how often tasks are restarted or reloaded, Nomad will configure Consul
   Template with a backoff timer that will tick on an interval equal to the specified `min`
   value. Consul Template will always wait at least the as long as the `min` value specified.
   If the underlying data has not changed between two tick intervals, Consul Template will
