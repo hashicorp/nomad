@@ -242,6 +242,11 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		// to approximate the scheduling time.
 		updateAllocTimestamps(req.AllocsUpdated, now)
 
+		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
 				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, now))
@@ -365,6 +370,25 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 		}
 		alloc.ModifyTime = timestamp
 	}
+}
+
+func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation) error {
+
+	encrypter := p.Server.encrypter
+
+	for _, alloc := range allocations {
+		alloc.SignedIdentities = map[string]string{}
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+		for _, task := range tg.Tasks {
+			claims := alloc.ToTaskIdentityClaims(task.Name)
+			token, err := encrypter.SignClaims(claims)
+			if err != nil {
+				return err
+			}
+			alloc.SignedIdentities[task.Name] = token
+		}
+	}
+	return nil
 }
 
 // asyncPlanWait is used to apply and respond to a plan async. On successful

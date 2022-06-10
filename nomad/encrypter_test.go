@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -20,7 +21,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
 	tmpDir := t.TempDir()
-	encrypter, err := NewEncrypter(tmpDir)
+	encrypter, err := NewEncrypter(nil, tmpDir)
 	require.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
@@ -270,5 +271,29 @@ func TestKeyringReplicator(t *testing.T) {
 	require.Eventually(t, checkReplicationFn(keyID3),
 		time.Second*5, time.Second,
 		"expected keys to be replicated to followers after election")
+}
 
+func TestEncrypter_SignVerify(t *testing.T) {
+
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	alloc := mock.Alloc()
+	claim := alloc.ToTaskIdentityClaims("web")
+	e := srv.encrypter
+
+	out, err := e.SignClaims(claim)
+	require.NoError(t, err)
+
+	got, err := e.VerifyClaim(out)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.NoError(t, got.Valid())
+	require.Equal(t, alloc.ID, got.AllocationID)
+	require.Equal(t, alloc.JobID, got.JobID)
+	require.Equal(t, "web", got.TaskName)
 }

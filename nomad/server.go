@@ -394,7 +394,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 
 	// Set up the keyring
-	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "keystore"))
+	encrypter, err := NewEncrypter(s, filepath.Join(s.config.DataDir, "keystore"))
 	if err != nil {
 		return nil, err
 	}

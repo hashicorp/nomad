@@ -187,6 +187,11 @@ type TaskRunner struct {
 	vaultToken     string
 	vaultTokenLock sync.Mutex
 
+	// nomadToken is the current Nomad workload identity token. It
+	// should be accessed with the getter.
+	nomadToken     string
+	nomadTokenLock sync.Mutex
+
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
