@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-export default class VariablesNewController extends Controller {
+export default class VariablesVariableEditController extends Controller {
   @service store;
   queryParams = ['path'];
   get existingVariables() {
