@@ -62,19 +62,9 @@ export default class SecureVariableFormComponent extends Component {
     const value = e.target.value;
     if (value.includes('.')) {
       entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
-      this.flashMessages.danger('Key should not contain a period.');
     } else {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
-      this.flashMessages.add({
-        title: 'woohoo',
-        message: value,
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 4000,
-        // sticky: Math.random() > 0.5 ? true : false,
-        showProgress: true,
-      });
     }
   }
 
@@ -98,9 +88,26 @@ export default class SecureVariableFormComponent extends Component {
   @action
   async save(e) {
     e.preventDefault();
-    this.args.model.set('keyValues', this.keyValues);
-    this.args.model.setAndTrimPath();
-    await this.args.model.save();
+    try {
+      this.args.model.set('keyValues', this.keyValues);
+      this.args.model.setAndTrimPath();
+      await this.args.model.save();
+      this.flashMessages.add({
+        title: `${this.args.model.path} successfully aved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 4000,
+        showProgress: true,
+      });
+    } catch (error) {
+      this.flashMessages.add({
+        title: `Error saving ${this.args.model.path}`,
+        message: error,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
     this.router.transitionTo('variables.variable', this.args.model.path);
   }
 }
