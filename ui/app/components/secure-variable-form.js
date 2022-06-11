@@ -93,10 +93,11 @@ export default class SecureVariableFormComponent extends Component {
       this.args.model.setAndTrimPath();
       await this.args.model.save();
       this.flashMessages.add({
-        title: `${this.args.model.path} successfully aved`,
+        title: 'Secure Variable saved',
+        message: `${this.args.model.path} successfully saved`,
         type: 'success',
         destroyOnClick: false,
-        timeout: 4000,
+        timeout: 5000,
         showProgress: true,
       });
     } catch (error) {
