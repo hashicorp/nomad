@@ -11,6 +11,7 @@ section.notifications {
     box-shadow: 1px 1px 4px 0px rgb(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    padding-right: 20px;
 
     &.alert-success {
       background-color: lighten($nomad-green, 50%);
