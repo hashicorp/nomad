@@ -428,6 +428,10 @@ func (d *Driver) createContainer(client createContainerClient, config docker.Cre
 	image string) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // TODO: update arbitrary timeout
+	defer cancel()
+	config.Context = ctx
+
 CREATE:
 	container, createErr := client.CreateContainer(config)
 	if createErr == nil {
@@ -464,8 +468,9 @@ CREATE:
 		if container != nil {
 			// Delete matching containers
 			err = client.RemoveContainer(docker.RemoveContainerOptions{
-				ID:    container.ID,
-				Force: true,
+				ID:      container.ID,
+				Force:   true,
+				Context: ctx,
 			})
 			if err != nil {
 				d.logger.Error("failed to purge container", "container_id", container.ID)
@@ -1427,8 +1432,11 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // TODO: update arbitrary timeout
+	defer cancel()
 	c, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
-		ID: h.containerID,
+		ID:      h.containerID,
+		Context: ctx,
 	})
 	if err != nil {
 		switch err.(type) {
@@ -1449,7 +1457,12 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		}
 
 		if h.removeContainerOnExit {
-			if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
+			if err := h.client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:            h.containerID,
+				RemoveVolumes: true,
+				Force:         true,
+				Context:       ctx,
+			}); err != nil {
 				h.logger.Error("error removing container", "error", err)
 			}
 		} else {
@@ -1485,8 +1498,11 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // TODO: update arbitrary timeout
+	defer cancel()
 	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
-		ID: h.containerID,
+		ID:      h.containerID,
+		Context: ctx,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %q: %v", h.containerID, err)
@@ -1541,7 +1557,9 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 	// TODO: review whether we can timeout in this and other Docker API
 	// calls without breaking the expected client behavior.
 	// see https://github.com/hashicorp/nomad/issues/9503
-	return h.Signal(context.Background(), sig)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // TODO: update arbitrary timeout
+	defer cancel()
+	return h.Signal(ctx, sig)
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
