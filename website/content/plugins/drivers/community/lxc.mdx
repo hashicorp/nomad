@@ -114,6 +114,8 @@ The `lxc` driver supports the following configuration in the job spec:
 
 - `gpg_key_id`: GPG key ID used for checking image signatures. Default is set by the underlying LXC library.
 
+- `config_file` - The `lxc` configuration file to load (commonly defaults to `/etc/lxc/default.conf`). See [`lxc.conf`][lxc-conf] for more details.
+
 ## Networking
 
 Currently the `lxc` driver only supports host networking. See the `none`
@@ -184,6 +186,7 @@ This driver supports CPU and memory isolation via the `lxc` library. Network
 isolation is not supported as of now.
 
 [lxc-create]: https://linuxcontainers.org/lxc/manpages/man1/lxc-create.1.html
+[lxc-conf]: https://linuxcontainers.org/lxc/manpages/man5/lxc.conf.5.html
 [lxc-driver]: https://releases.hashicorp.com/nomad-driver-lxc
 [lxc-guide]: https://learn.hashicorp.com/tutorials/nomad/plugin-lxc
 [lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
