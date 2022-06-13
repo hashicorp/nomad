@@ -103,6 +103,10 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 	socketMountPoint := filepath.Join(config.clientStateDirPath, "csi",
 		"plugins", config.runner.Alloc().ID)
 
+	if task.CSIPluginConfig.HealthTimeout == 0 {
+		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
+	}
+
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
 	hook := &csiPluginSupervisorHook{
