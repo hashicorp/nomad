@@ -33,194 +33,40 @@ When ACLs are enabled, this command requires a token with the
 
 ## Volume Specification
 
-The file may be provided as either HCL or JSON. An example HCL configuration:
+<!--
+Redirection rules are applied server-side, so we can't redirect these sections
+that used to be located in this page since they use URL fragments. Creating
+these hidden anchors will at least point users to the new page, although not to
+the exact section.
+-->
 
-```hcl
-id           = "ebs_prod_db1"
-namespace    = "default"
-name         = "database"
-type         = "csi"
-plugin_id    = "ebs-prod"
-snapshot_id  = "snap-12345" # or clone_id, see below
-capacity_max = "200G"
-capacity_min = "100G"
+<span id="volume-specification-parameters" />
+<span id="id" />
+<span id="namespace-1" />
+<span id="name" />
+<span id="type" />
+<span id="plugin_id" />
+<span id="snapshot_id" />
+<span id="clone_id" />
+<span id="capacity_min" />
+<span id="capacity_max" />
+<span id="capability" />
+<span id="access_mode" />
+<span id="attachment_mode" />
+<span id="mount_options" />
+<span id="fs_type" />
+<span id="mount_flags" />
+<span id="topology_request" />
+<span id="secrets" />
+<span id="parameters" />
+<span id="topology_request-parameters" />
+<span id="segments" />
+<span id="unused-fields" />
 
-capability {
-  access_mode     = "single-node-reader-only"
-  attachment_mode = "file-system"
-}
-
-capability {
-  access_mode     = "single-node-writer"
-  attachment_mode = "file-system"
-}
-
-mount_options {
-  fs_type     = "ext4"
-  mount_flags = ["noatime"]
-}
-
-topology_request {
-  required {
-    topology { segments { "rack" = "R2" } }
-    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
-  }
-  preferred {
-    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
-  }
-}
-
-secrets {
-  example_secret = "xyzzy"
-}
-
-parameters {
-  skuname = "Premium_LRS"
-}
-```
-
-## Volume Specification Parameters
-
-- `id` `(string: <required>)` - The unique ID of the volume. This is how the
-  [`volume.source`][csi_volume_source] field in a job specification will refer
-  to the volume.
-
-- `namespace` `(string: <optional>)` - The namespace of the volume. This field
-  overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
-  environment variable. Defaults to `"default"` if unset.
-
-- `name` `(string: <required>)` - The display name of the volume. This field
-  may be used by the external storage provider to tag the volume.
-
-- `type` `(string: <required>)` - The type of volume. Currently only `"csi"`
-  is supported.
-
-- `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
-  that manages this volume.
-
-- `snapshot_id` `(string: <optional>)` - If the storage provider supports
-  snapshots, the external ID of the snapshot to restore when creating this
-  volume. If omitted, the volume will be created from scratch. The
-  `snapshot_id` cannot be set if the `clone_id` field is set.
-
-- `clone_id` `(string: <optional>)` - If the storage provider supports
-  cloning, the external ID of the volume to clone when creating this
-  volume. If omitted, the volume will be created from scratch. The
-  `clone_id` cannot be set if the `snapshot_id` field is set.
-
-- `capacity_min` `(string: <optional>)` - Option for requesting a
-  minimum capacity, in bytes. The capacity of a volume may be the
-  physical size of a disk, or a quota, depending on the storage
-  provider. The specific size of the resulting volume will be
-  somewhere between `capacity_min` and `capacity_max`; the exact
-  behavior is up to the storage provider. If you want to specify an
-  exact size, you should set `capacity_min` and `capacity_max` to the
-  same value. Accepts human-friendly suffixes such as `"100GiB"`. This
-  field may not be supported by all storage providers.
-
-- `capacity_max` `(string: <optional>)` - Option for requesting a
-  maximum capacity, in bytes. The capacity of a volume may be the
-  physical size of a disk, or a quota, depending on the storage
-  provider. The specific size of the resulting volume will be
-  somewhere between `capacity_min` and `capacity_max`; the exact
-  behavior is up to the storage provider. If you want to specify an
-  exact size, you should set `capacity_min` and `capacity_max` to the
-  same value. Accepts human-friendly suffixes such as `"100GiB"`. This
-  field may not be supported by all storage providers.
-
-- `capability` `(Capability: <required>)` - Option for validating the
-  capability of a volume. You must provide at least one `capability` block, and
-  you must provide a block for each capability you intend to use in a job's
-  [`volume`] block. Each `capability` block must have the following fields:
-
-  - `access_mode` `(string: <required>)` - Defines whether a volume should be
-    available concurrently. Can be one of `"single-node-reader-only"`,
-    `"single-node-writer"`, `"multi-node-reader-only"`,
-    `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
-    plugins support only single-node modes. Consult the documentation of the
-    storage provider and CSI plugin.
-
-  - `attachment_mode` `(string: <required>)` - The storage API that will be used
-    by the volume. Most storage providers will support `"file-system"`, to mount
-    volumes using the CSI filesystem API. Some storage providers will support
-    `"block-device"`, which will mount the volume with the CSI block device API
-    within the container.
-
-- `mount_options` - Options for mounting `file-system` volumes that don't
-  already have a pre-formatted file system. This block will be validated
-  during volume creation against the `capability` field. The `mount_options`
-  provided in a job specification's [`volume`] block will override this
-  block. Consult the documentation for your storage provider and CSI plugin as
-  to whether these options are required or necessary.
-
-  - `fs_type` `(string <optional>)` - File system type (ex. `"ext4"`)
-  - `mount_flags` `([]string: <optional>)` - The flags passed to `mount`
-    (ex. `["ro", "noatime"]`)
-
-- `topology_request` <code>([TopologyRequest](#topology_request-parameters): nil)</code> -
-  Specify locations (region, zone, rack, etc.)  where the provisioned
-  volume must be accessible from. Consult the documentation for your
-  storage provider and CSI plugin as to whether it supports defining
-  topology and what values it expects for topology
-  segments. Specifying topology segments that aren't supported by the
-  storage provider may return an error or may be silently removed by
-  the plugin.
-
-- `secrets` <code>(map<string|string>:nil)</code> - An optional
-  key-value map of strings used as credentials for publishing and
-  unpublishing volumes.
-
-- `parameters` <code>(map<string|string>:nil)</code> - An optional
-  key-value map of strings passed directly to the CSI plugin to
-  configure the volume. The details of these parameters are specific
-  to each storage provider, so please see the specific plugin
-  documentation for more information.
-
-### `topology_request` Parameters
-
-For the `topology_request` field, you may specify a list of either
-`required` or `preferred` topologies (or both). The `required`
-topologies indicate that the volume must be created in a location
-accessible from at least one of the listed topologies. The `preferred`
-topologies indicate that you would prefer the storage provider to
-create the volume in one of the provided topologies.
-
-Each topology listed has a single field:
-
-- `segments` `(map[string]string)` - A map of location types to their
- values. The specific fields required are defined by the CSI
- plugin. For example, a plugin might require defining both a rack and
- a zone: `segments {rack = "R2", zone = "us-east-1a"}`.
-
-For example:
-
-```hcl
-topology_request {
-  required {
-    topology { segments { "rack" = "R1", "zone" = "us-east-1a" } }
-    topology { segments { "rack" = "R2", "zone" = "us-east-1a" } }
-  }
-  preferred {
-    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
-  }
-}
-```
-
-This configuration indicates you require the volume to be created
-within racks `R1` or `R2`, but that you prefer the volume to be
-created within `R1`.
-
-### Unused Fields
-
-Note that several fields used in the [`volume register`] command are set
-automatically by the plugin when `volume create` is successful. You should not
-set the `external_id` or `context` fields described on that page.
+The volume specification is documented in the [Volume
+Specification][volume_specification] page.
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
-[volume_specification]: #volume-specification
-[csi_plugin]: /docs/job-specification/csi_plugin
-[csi_volume_source]: /docs/job-specification/volume#source
 [registered]: /docs/commands/volume/register
-[`volume register`]: /docs/commands/volume/register
-[`volume`]: /docs/job-specification/volume
+[volume_specification]: /docs/other-specifications/volume
