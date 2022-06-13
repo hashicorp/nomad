@@ -31,6 +31,9 @@ type MockVaultClient struct {
 	// a token is generated and returned
 	DeriveTokenFn func(a *structs.Allocation, tasks []string) (map[string]string, error)
 
+	// running tracks whether the renewal loop is running
+	running bool
+
 	mu sync.Mutex
 }
 
@@ -111,9 +114,23 @@ func (vc *MockVaultClient) StopRenewToken(token string) error {
 	return nil
 }
 
-func (vc *MockVaultClient) Start() {}
+func (vc *MockVaultClient) Running() bool {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	return vc.running
+}
 
-func (vc *MockVaultClient) Stop() {}
+func (vc *MockVaultClient) Start() {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.running = true
+}
+
+func (vc *MockVaultClient) Stop() {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.running = false
+}
 
 func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
 

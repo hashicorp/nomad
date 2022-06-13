@@ -2571,6 +2571,7 @@ func TestTaskRunner_Shutdown_Stops_Vault_Token_Renewal(t *testing.T) {
 	// If the context cancellation worked we should only have 1 renew token and 1 stopped renew token.
 	require.Len(t, mockVaultClient.RenewTokens(), 1)
 	require.Len(t, mockVaultClient.StoppedTokens(), 1)
+	require.False(t, mockVaultClient.Running())
 }
 
 // TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
