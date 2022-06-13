@@ -2,14 +2,21 @@ package resources
 
 import (
 	"fmt"
+	"github.com/hashicorp/hcl/v2/ext/dynblock"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/nomad/jobspec2/hclutil"
+	"reflect"
+
 	"github.com/hashicorp/go-multierror"
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 )
 
 // Resource is a custom resource that users can configure to expose custom capabilities
 // available per client.
 type Resource struct {
-	Name  string `hcl:"key"`
-	Range *Range `hcl:"range,expand,optional"`
+	Name  string `hcl:"name,label"`
+	Range *Range `hcl:"range,optional"`
 }
 
 func (r *Resource) ValidateConfig() error {
@@ -51,4 +58,113 @@ func (r *Range) validateConfig() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+var hclDecoder *gohcl.Decoder
+
+func init() {
+	hclDecoder := &gohcl.Decoder{}
+	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(Resource{}), decodeCustomResource)
+}
+
+// Parse parses the resource spec from the given string.
+func Parse(tmplContent string, filename string) (*Resource, error) {
+	file, diags := hclsyntax.ParseConfig([]byte(tmplContent), filename, hcl.Pos{Byte: 0, Line: 1, Column: 1})
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("error parsing: %s", diags)
+	}
+
+	content, schemaDiags := file.Body.Content(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "resource",
+				LabelNames: []string{"name"},
+			},
+			{
+				Type: "range",
+			},
+		},
+	})
+
+	diags = append(diags, schemaDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	result := &Resource{}
+	decoder := &gohcl.Decoder{}
+	for _, block := range content.Blocks {
+		if block.Type != "resource" {
+			continue
+		}
+		body := hclutil.BlocksAsAttrs(block.Body)
+		body = dynblock.Expand(body, nil)
+
+		result.Name = block.Labels[0]
+
+		resourceContent, resourceBody, resourceDiags := body.PartialContent(&hcl.BodySchema{
+			Attributes: []hcl.AttributeSchema{
+				{
+					Name:     "lower",
+					Required: true,
+				},
+				{
+					Name:     "upper",
+					Required: true,
+				},
+			},
+			Blocks: []hcl.BlockHeaderSchema{
+				{
+					Type: "range",
+				},
+			},
+		})
+		diags = append(diags, resourceDiags...)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		// diags = append(diags, decoder.DecodeBody(resourceContent, nil, result.Range)...)
+
+		for _, resourceBlock := range resourceContent.Blocks {
+			switch resourceBlock.Type {
+			case "range":
+				result.Range = &Range{}
+				decodeDiags := decoder.DecodeBody(resourceBody, nil, result.Range)
+				diags = append(diags, decodeDiags...)
+				if diags.HasErrors() {
+					return nil, diags
+				}
+			default:
+				// Shouldn't get here, because the above cases are exhaustive for
+				// our test file schema.
+				panic(fmt.Sprintf("unsupported block type %q", block.Type))
+			}
+		}
+
+	}
+
+	return result, nil
+}
+
+func decodeCustomResource(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	//t := val.(*Resource)
+	var diags hcl.Diagnostics
+
+	b, remain, moreDiags := body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{Type: "resource", LabelNames: []string{"name"}},
+		},
+	})
+
+	diags = append(diags, moreDiags...)
+
+	if len(b.Blocks) == 0 {
+		return nil
+	}
+
+	decoder := &gohcl.Decoder{}
+	diags = append(diags, decoder.DecodeBody(remain, ctx, val)...)
+
+	return diags
 }
