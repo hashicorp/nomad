@@ -67,6 +67,8 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, tr.getter, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		// TODO(luiz): make this hook optional.
+		newOtelHook(tr.Alloc(), tr.Task(), tr.clientConfig.Node, hookLogger),
 	}
 
 	// If the task has a CSI stanza, add the hook.
