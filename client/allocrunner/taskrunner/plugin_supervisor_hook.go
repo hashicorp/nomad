@@ -88,6 +88,10 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 	pluginRoot := filepath.Join(config.clientStateDirPath, "csi",
 		string(task.CSIPluginConfig.Type), task.CSIPluginConfig.ID)
 
+	if task.CSIPluginConfig.HealthTimeout == 0 {
+		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
+	}
+
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
 	hook := &csiPluginSupervisorHook{
@@ -231,7 +235,7 @@ func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
 
 	// We're in Poststart at this point, so if we can't connect within
 	// this deadline, assume it's broken so we can restart the task
-	startCtx, startCancelFn := context.WithTimeout(ctx, 30*time.Second)
+	startCtx, startCancelFn := context.WithTimeout(ctx, h.task.CSIPluginConfig.HealthTimeout)
 	defer startCancelFn()
 
 	var err error
@@ -414,7 +418,7 @@ func (h *csiPluginSupervisorHook) kill(ctx context.Context, reason error) {
 	if err := h.lifecycle.Kill(ctx,
 		structs.NewTaskEvent(structs.TaskKilling).
 			SetFailsTask().
-			SetDisplayMessage("CSI plugin did not become healthy before timeout"),
+			SetDisplayMessage(fmt.Sprintf("CSI plugin did not become healthy before configured %v health timeout", h.task.CSIPluginConfig.HealthTimeout.String())),
 	); err != nil {
 		h.logger.Error("failed to kill task", "kill_reason", reason, "error", err)
 	}
