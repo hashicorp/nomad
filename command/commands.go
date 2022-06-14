@@ -577,7 +577,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
+		"operator secure-variables keyring install": func() (cli.Command, error) {
+			return &OperatorSecureVariablesKeyringInstallCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator secure-variables keyring list": func() (cli.Command, error) {
+			return &OperatorSecureVariablesKeyringListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator secure-variables keyring remove": func() (cli.Command, error) {
+			return &OperatorSecureVariablesKeyringRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator secure-variables keyring rotate": func() (cli.Command, error) {
+			return &OperatorSecureVariablesKeyringRotateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator snapshot": func() (cli.Command, error) {
 			return &OperatorSnapshotCommand{
 				Meta: meta,
