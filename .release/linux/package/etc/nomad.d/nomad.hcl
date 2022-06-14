@@ -5,7 +5,7 @@ bind_addr = "0.0.0.0"
 
 server {
   # license_path is required as of Nomad v1.1.1+
-  #license_path = "/etc/nomad.d/nomad.hcl"
+  #license_path = "/opt/nomad/license.hclic"
   enabled          = true
   bootstrap_expect = 1
 }
