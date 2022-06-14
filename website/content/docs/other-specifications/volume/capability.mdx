@@ -1,0 +1,72 @@
+---
+layout: docs
+page_title: capability Block - Volume Specification
+description: The "capability" block allows for validating the capability of a volume.
+---
+
+# `capability` Block
+
+<Placement
+  groups={[
+    ['volume', 'capability'],
+  ]}
+/>
+
+The `capability` block allows validating that a volume meets the requested
+capabilities.
+
+```hcl
+id           = "ebs_prod_db1"
+name         = "database"
+type         = "csi"
+plugin_id    = "ebs-prod"
+capacity_max = "200G"
+capacity_min = "100G"
+
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+```
+
+You must provide at least one `capability` block, and you must provide a block
+for each capability you intend to use in a job's [`volume`] block.
+
+## `capability` Parameters
+
+- `access_mode` `(string: <required>)` - Defines whether a volume should be
+available concurrently. Can be one of `"single-node-reader-only"`,
+`"single-node-writer"`, `"multi-node-reader-only"`,
+`"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI plugins
+support only single-node modes. Consult the documentation of the storage
+provider and CSI plugin.
+
+- `attachment_mode` `(string: <required>)` - The storage API that will be used
+by the volume. Most storage providers will support `"file-system"`, to mount
+volumes using the CSI filesystem API. Some storage providers will support
+`"block-device"`, which will mount the volume with the CSI block device API
+within the container.
+
+## `capability` Examples
+
+The following examples only show the `capability` blocks. Remember that the
+`capability` block is only valid in the placement shown above.
+
+### Multiple capabilities
+
+This examples shows a volume that must satisfy multiple capability
+requirements.
+
+```hcl
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+```
+
+[`volume`]: /docs/job-specification/volume
