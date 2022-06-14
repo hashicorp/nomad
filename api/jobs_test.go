@@ -1993,6 +1993,19 @@ func TestJobs_NewSystemJob(t *testing.T) {
 	}
 }
 
+func TestJobs_NewSysbatchJob(t *testing.T) {
+	testutil.Parallel(t)
+	job := NewSysbatchJob("job1", "myjob", "global", 5)
+	expect := &Job{
+		Region:   stringToPtr("global"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeSysbatch),
+		Priority: intToPtr(5),
+	}
+	require.Equal(t, expect, job)
+}
+
 func TestJobs_SetMeta(t *testing.T) {
 	testutil.Parallel(t)
 	job := &Job{Meta: nil}
