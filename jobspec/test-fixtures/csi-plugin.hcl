@@ -4,9 +4,10 @@ job "binstore-storagelocker" {
       driver = "docker"
 
       csi_plugin {
-        id        = "org.hashicorp.csi"
-        type      = "monolith"
-        mount_dir = "/csi/test"
+        id             = "org.hashicorp.csi"
+        type           = "monolith"
+        mount_dir      = "/csi/test"
+        health_timeout = "1m"
       }
     }
   }

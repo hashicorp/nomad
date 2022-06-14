@@ -1,0 +1,3 @@
+```release-note:improvements
+csi: Made the CSI Plugin supervisor health check configurable with a new CSI Stanza health_timeout field
+```
