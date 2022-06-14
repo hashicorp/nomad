@@ -1039,10 +1039,18 @@ type TaskCSIPluginConfig struct {
 	//
 	// Default is /csi.
 	MountDir string `mapstructure:"mount_dir" hcl:"mount_dir,optional"`
+
+	// HealthTimeout is the time after which the CSI plugin tasks will be killed
+	// if the CSI Plugin is not healthy.
+	HealthTimeout time.Duration `mapstructure:"health_timeout" hcl:"health_timeout,optional"`
 }
 
 func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.MountDir == "" {
 		t.MountDir = "/csi"
+	}
+
+	if t.HealthTimeout == 0 {
+		t.HealthTimeout = 30 * time.Second
 	}
 }
