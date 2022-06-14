@@ -67,6 +67,10 @@ type TaskCSIPluginConfig struct {
 	// to be created by the plugin, and will provide references into
 	// "MountDir/CSIIntermediaryDirname/{VolumeName}/{AllocID} for mounts.
 	MountDir string
+
+	// HealthTimeout is the time after which the CSI plugin tasks will be killed
+	// if the CSI Plugin is not healthy.
+	HealthTimeout time.Duration `mapstructure:"health_timeout" hcl:"health_timeout,optional"`
 }
 
 func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {
