@@ -58,6 +58,9 @@ type ACL struct {
 	// We use an iradix for the purposes of ordered iteration.
 	wildcardHostVolumes *iradix.Tree
 
+	secureVariables         *iradix.Tree
+	wildcardSecureVariables *iradix.Tree
+
 	agent    string
 	node     string
 	operator string
@@ -95,6 +98,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	wnsTxn := iradix.New().Txn()
 	hvTxn := iradix.New().Txn()
 	whvTxn := iradix.New().Txn()
+	svTxn := iradix.New().Txn()
+	wsvTxn := iradix.New().Txn()
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -120,6 +125,33 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 				} else {
 					capabilities = make(capabilitySet)
 					nsTxn.Insert([]byte(ns.Name), capabilities)
+				}
+			}
+
+			if ns.SecureVariables != nil {
+				for _, pathPolicy := range ns.SecureVariables.Paths {
+					key := []byte(ns.Name + "\x00" + pathPolicy.PathSpec)
+					var svCapabilities capabilitySet
+					if globDefinition || strings.Contains(pathPolicy.PathSpec, "*") {
+						raw, ok := wsvTxn.Get(key)
+						if ok {
+							svCapabilities = raw.(capabilitySet)
+						} else {
+							svCapabilities = make(capabilitySet)
+						}
+						wsvTxn.Insert(key, svCapabilities)
+					} else {
+						raw, ok := svTxn.Get(key)
+						if ok {
+							svCapabilities = raw.(capabilitySet)
+						} else {
+							svCapabilities = make(capabilitySet)
+						}
+						svTxn.Insert(key, svCapabilities)
+					}
+					for _, cap := range pathPolicy.Capabilities {
+						svCapabilities.Set(cap)
+					}
 				}
 			}
 
@@ -206,6 +238,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl.wildcardNamespaces = wnsTxn.Commit()
 	acl.hostVolumes = hvTxn.Commit()
 	acl.wildcardHostVolumes = whvTxn.Commit()
+	acl.secureVariables = svTxn.Commit()
+	acl.wildcardSecureVariables = wsvTxn.Commit()
 
 	return acl, nil
 }
@@ -291,6 +325,21 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
+func (a *ACL) AllowSecureVariableOperation(ns, path, op string) bool {
+	if a.management {
+		return true
+	}
+
+	// Check for a matching capability set
+	capabilities, ok := a.matchingSecureVariablesCapabilitySet(ns, path)
+	if !ok {
+		return false
+	}
+
+	return capabilities.Check(op)
+
+}
+
 // matchingNamespaceCapabilitySet looks for a capabilitySet that matches the namespace,
 // if no concrete definitions are found, then we return the closest matching
 // glob.
@@ -321,6 +370,22 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
 	return a.findClosestMatchingGlob(a.wildcardHostVolumes, name)
+}
+
+// matchingSecureVariablesCapabilitySet looks for a capabilitySet that matches the namespace and path,
+// if no concrete definitions are found, then we return the closest matching
+// glob.
+// The closest matching glob is the one that has the smallest character
+// difference between the namespace and the glob.
+func (a *ACL) matchingSecureVariablesCapabilitySet(ns, path string) (capabilitySet, bool) {
+	// Check for a concrete matching capability set
+	raw, ok := a.secureVariables.Get([]byte(ns + "\x00" + path))
+	if ok {
+		return raw.(capabilitySet), true
+	}
+
+	// We didn't find a concrete match, so lets try and evaluate globs.
+	return a.findClosestMatchingGlob(a.wildcardSecureVariables, ns+"\x00"+path)
 }
 
 type matchingGlob struct {
