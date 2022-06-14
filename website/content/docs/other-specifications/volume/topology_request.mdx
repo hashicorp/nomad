@@ -1,0 +1,82 @@
+---
+layout: docs
+page_title: topology_request Block - Volume Specification
+description: The "topology_request" block allows specifying locations where the provisioned volume must be accessible from.
+---
+
+# `topology_request` Block
+
+<Placement
+  groups={[
+    ['volume', 'topology_request'],
+  ]}
+/>
+
+Specify locations (region, zone, rack, etc.) where the provisioned volume must
+be accessible from or from where an existing volume is accessible from.
+
+```hcl
+id           = "ebs_prod_db1"
+namespace    = "default"
+name         = "database"
+type         = "csi"
+plugin_id    = "ebs-prod"
+capacity_max = "200G"
+capacity_min = "100G"
+
+topology_request {
+  required {
+    topology { segments { rack = "R2" } }
+    topology { segments { rack = "R1", zone = "us-east-1a"} }
+  }
+  preferred {
+    topology { segments { rack = "R1", zone = "us-east-1a"} }
+  }
+}
+```
+
+Consult the documentation for your storage provider and CSI plugin as to
+whether it supports defining topology and what values it expects for topology
+segments. Specifying topology segments that aren't supported by the storage
+provider may return an error or may be silently removed by the plugin.
+
+## `topology_request` Parameters
+
+- `required` <code>([Topology][topology]: nil)</code> - On **volume creation**,
+  the `required` topologies indicate that the volume must be created in a
+  location accessible from at least one of the listed topologies. On **volume
+  registration** the `required` topologies indicate that the volume was created
+  in a location accessible from all the listed topologies.
+
+- `preferred` <code>([Topology][topology]: nil)</code> - Indicate that you
+  would prefer the storage provider to create the volume in one of the provided
+  topologies. Only allowed on **volume creation**.
+
+### `topology` Parameters
+
+- `segments` `(map[string]string)` - A map of location types to their values.
+  The specific fields required are defined by the CSI plugin.
+
+## `topology_request` Examples
+
+The following examples only show the `topology_request` blocks. Remember that
+the `topology_request` block is only valid in the placements listed above.
+
+### Volume creation with `preferred` and `required` topologies
+
+This configuration indicates you require the volume to be created within racks
+`R1` or `R2`, but that you prefer the volume to be created within `R1`.
+
+```hcl
+topology_request {
+  required {
+    topology { segments { rack = "R1", zone = "us-east-1a" } }
+    topology { segments { rack = "R2", zone = "us-east-1a" } }
+  }
+  preferred {
+    topology { segments { rack = "R1", zone = "us-east-1a"} }
+  }
+}
+```
+
+[topology]: #topology-parameters
