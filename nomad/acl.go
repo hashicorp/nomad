@@ -183,10 +183,10 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 	// Find any implicit policies associated with this task
 	policies := []*structs.ACLPolicy{}
 	implicitPolicyNames := []string{
-		fmt.Sprintf("_auto:%s/%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup, claims.TaskName),
-		fmt.Sprintf("_auto:%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup),
-		fmt.Sprintf("_auto:%s/%s", alloc.Namespace, alloc.Job.ID),
-		fmt.Sprintf("_auto:%s", alloc.Namespace),
+		fmt.Sprintf("_:%s/%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup, claims.TaskName),
+		fmt.Sprintf("_:%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup),
+		fmt.Sprintf("_:%s/%s", alloc.Namespace, alloc.Job.ID),
+		fmt.Sprintf("_:%s", alloc.Namespace),
 	}
 
 	for _, policyName := range implicitPolicyNames {

@@ -62,7 +62,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
 	policy := mock.ACLPolicy()
-	policy.Name = fmt.Sprintf("_auto:%s/%s/%s", ns, jobID, alloc1.TaskGroup)
+	policy.Name = fmt.Sprintf("_:%s/%s/%s", ns, jobID, alloc1.TaskGroup)
 	policy.Rules = `namespace "nondefault-namespace" {
 		secure_variables {
 		    path "jobs/*" { capabilities = ["read"] }
