@@ -20,6 +20,10 @@ const (
 	// JobTypeSystem indicates a system process that should run on all clients
 	JobTypeSystem = "system"
 
+	// JobTypeSysbatch indicates a short-lived system process that should run
+	// on all clients.
+	JobTypeSysbatch = "sysbatch"
+
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
 
@@ -1083,6 +1087,13 @@ func NewBatchJob(id, name, region string, pri int) *Job {
 // the relative job priority.
 func NewSystemJob(id, name, region string, pri int) *Job {
 	return newJob(id, name, region, JobTypeSystem, pri)
+}
+
+// NewSysbatchJob creates and returns a new sysbatch-style job for short-lived
+// processes designed to run on all clients, using the provided name and ID
+// along with the relative job priority.
+func NewSysbatchJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeSysbatch, pri)
 }
 
 // newJob is used to create a new Job struct.
