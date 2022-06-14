@@ -104,14 +104,27 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 	return encrypter, nil
 }
 
-// Encrypt takes the serialized map[string][]byte from
-// SecureVariable.UnencryptedData, generates an appropriately-sized nonce
-// for the algorithm, and encrypts the data with the ciper for the
-// CurrentRootKeyID. The buffer returned includes the nonce.
-func (e *Encrypter) Encrypt(unencryptedData []byte, keyID string) []byte {
+// Encrypt encrypts the data with the ciper for the CurrentRootKeyID.
+// The buffer returned includes the nonce. Both the buffer and the
+// CurrentRootKeyID are returned to the caller.
+func (e *Encrypter) Encrypt(unencryptedData []byte) ([]byte, string) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
+	var keyID string
+	for k, v := range e.keyring {
+		if v.rootKey.Meta.Active {
+			keyID = k
+			break
+		}
+	}
+	return e.encryptLocked(unencryptedData, keyID), keyID
+}
 
+// encryptLocked must be called with a read lock on e.lock. It takes the
+// passed []byte, generates an appropriately-sized nonce for the algorithm,
+// and encrypts the data with the ciper for the CurrentRootKeyID. The buffer
+// returned includes the nonce.
+func (e *Encrypter) encryptLocked(unencryptedData []byte, keyID string) []byte {
 	// TODO: actually encrypt!
 	return unencryptedData
 }

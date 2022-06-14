@@ -3376,7 +3376,7 @@ func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
 	testState := fsm.State()
 
 	// Generate and upsert some secure variables.
-	msvs := mock.SecureVariables(3, 3)
+	msvs := mock.SecureVariablesEncrypted(3, 3)
 	svs := msvs.List()
 	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, 10, svs))
 
@@ -3385,8 +3385,7 @@ func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
 	require.NoError(t, err)
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.SecureVariable)
-		msvs[sv.Path].UnencryptedData = nil
+		sv := raw.(*structs.SecureVariableEncrypted)
 		msvs[sv.Path].CreateIndex = sv.CreateIndex
 		msvs[sv.Path].CreateTime = sv.CreateTime
 		msvs[sv.Path].ModifyIndex = sv.ModifyIndex
@@ -3406,10 +3405,10 @@ func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
 	iter, err = restoredState.SecureVariables(memdb.NewWatchSet())
 	require.NoError(t, err)
 
-	var restoredSVs []*structs.SecureVariable
+	var restoredSVs []*structs.SecureVariableEncrypted
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredSVs = append(restoredSVs, raw.(*structs.SecureVariable))
+		restoredSVs = append(restoredSVs, raw.(*structs.SecureVariableEncrypted))
 	}
 	require.ElementsMatch(t, restoredSVs, svs)
 }

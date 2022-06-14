@@ -2300,9 +2300,9 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 	}
 }
 
-type MockSecureVariables map[string]*structs.SecureVariable
+type MockSecureVariables map[string]*structs.SecureVariableDecrypted
 
-func SecureVariable() *structs.SecureVariable {
+func SecureVariable() *structs.SecureVariableDecrypted {
 	envs := []string{"dev", "test", "prod"}
 	envIdx := rand.Intn(3)
 	env := envs[envIdx]
@@ -2311,25 +2311,19 @@ func SecureVariable() *structs.SecureVariable {
 	// owner := fake.Person()
 	createIdx := uint64(rand.Intn(100) + 100)
 	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
-	sv := &structs.SecureVariable{
-		Path:      path,
-		Namespace: "default",
-		// CustomMeta: map[string]string{
-		// 	"owner_name":  owner.FirstName + " " + owner.LastName,
-		// 	"owner_email": fmt.Sprintf("%v%s@%s", owner.FirstName[0], owner.LastName, domain),
-		// },
-		UnencryptedData: map[string]string{
-			"username": fake.Username(),
-			"password": fake.Password(true, true, true, true, false, 16),
+	sv := &structs.SecureVariableDecrypted{
+		SecureVariableMetadata: structs.SecureVariableMetadata{
+			Path:        path,
+			Namespace:   "default",
+			CreateIndex: createIdx,
+			ModifyIndex: createIdx,
+			CreateTime:  createDT,
+			ModifyTime:  createDT,
 		},
-		EncryptedData: &structs.SecureVariableData{
-			KeyID: fake.UUID(),
-			Data:  []byte{},
+		Items: structs.SecureVariableItems{
+			"key1": "value1",
+			"key2": "value2",
 		},
-		CreateIndex: createIdx,
-		ModifyIndex: createIdx,
-		CreateTime:  createDT,
-		ModifyTime:  createDT,
 	}
 	// Flip a coin to see if we should return a "modified" object
 	if fake.Bool() {
@@ -2351,8 +2345,8 @@ func SecureVariables(minU, maxU uint8) MockSecureVariables {
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	svs := make([]*structs.SecureVariable, vc)
-	paths := make(map[string]*structs.SecureVariable, vc)
+	svs := make([]*structs.SecureVariableDecrypted, vc)
+	paths := make(map[string]*structs.SecureVariableDecrypted, vc)
 	for i := 0; i < vc; i++ {
 		nv := SecureVariable()
 		// There is an extremely rare chance of path collision because the mock
@@ -2376,10 +2370,90 @@ func (svs MockSecureVariables) ListPaths() []string {
 	return out
 }
 
-func (svs MockSecureVariables) List() []*structs.SecureVariable {
-	out := make([]*structs.SecureVariable, 0, len(svs))
+func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
+	out := make([]*structs.SecureVariableDecrypted, 0, len(svs))
 	for _, p := range svs.ListPaths() {
-		out = append(out, svs[p].Copy())
+		pc := svs[p].Copy()
+		out = append(out, &pc)
+	}
+	return out
+}
+
+type MockSecureVariablesEncrypted map[string]*structs.SecureVariableEncrypted
+
+func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
+	envs := []string{"dev", "test", "prod"}
+	envIdx := rand.Intn(3)
+	env := envs[envIdx]
+	domain := fake.DomainName()
+	path := strings.ReplaceAll(env+"."+domain, ".", "/")
+	// owner := fake.Person()
+	createIdx := uint64(rand.Intn(100) + 100)
+	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
+	sv := &structs.SecureVariableEncrypted{
+		SecureVariableMetadata: structs.SecureVariableMetadata{
+			Path:        path,
+			Namespace:   "default",
+			CreateIndex: createIdx,
+			ModifyIndex: createIdx,
+			CreateTime:  createDT,
+			ModifyTime:  createDT,
+		},
+		SecureVariableData: structs.SecureVariableData{
+			KeyID: "foo",
+			Data:  []byte("foo"),
+		},
+	}
+	// Flip a coin to see if we should return a "modified" object
+	if fake.Bool() {
+		sv.ModifyTime = fake.DateRange(sv.CreateTime, time.Now())
+		sv.ModifyIndex = sv.CreateIndex + uint64(rand.Intn(100))
+	}
+	return sv
+}
+
+// SecureVariables returns a random number of secure variables between min
+// and max inclusive.
+func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
+	// the unsignedness of the args is to prevent goofy parameters, they're
+	// easier to work with as ints in this code.
+	min := int(minU)
+	max := int(maxU)
+	vc := min
+	// handle cases with irrational arguments. Max < Min = min
+	if max > min {
+		vc = rand.Intn(max-min) + min
+	}
+	svs := make([]*structs.SecureVariableEncrypted, vc)
+	paths := make(map[string]*structs.SecureVariableEncrypted, vc)
+	for i := 0; i < vc; i++ {
+		nv := SecureVariableEncrypted()
+		// There is an extremely rare chance of path collision because the mock
+		// secure variables generate their paths randomly. This check will add
+		// an extra component on conflict to (ideally) disambiguate them.
+		if _, found := paths[nv.Path]; found {
+			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
+		}
+		paths[nv.Path] = nv
+		svs[i] = nv
+	}
+	return paths
+}
+
+func (svs MockSecureVariablesEncrypted) ListPaths() []string {
+	out := make([]string, 0, len(svs))
+	for _, sv := range svs {
+		out = append(out, sv.Path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypted {
+	out := make([]*structs.SecureVariableEncrypted, 0, len(svs))
+	for _, p := range svs.ListPaths() {
+		pc := svs[p].Copy()
+		out = append(out, &pc)
 	}
 	return out
 }

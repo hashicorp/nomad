@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -43,24 +44,23 @@ const (
 	SecureVariablesReadRPCMethod = "SecureVariables.Read"
 )
 
-// SecureVariable is the metadata envelope for a Secure Variable
-type SecureVariable struct {
+// SecureVariableMetadata is the metadata envelope for a Secure Variable, it
+// is the list object and is shared data between an SecureVariableEncrypted and
+// a SecureVariableDecrypted object.
+type SecureVariableMetadata struct {
 	Namespace   string
 	Path        string
 	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
 	ModifyTime  time.Time
+}
 
-	// reserved for post-1.4.0 work
-	// LockIndex      uint64
-	// Session        string
-	// DeletedAt      time.Time
-	// Version        uint64
-	// CustomMetaData map[string]string
-
-	EncryptedData   *SecureVariableData `json:"-"`     // removed during serialization
-	UnencryptedData map[string]string   `json:"Items"` // empty until serialized
+// SecureVariableEncrypted structs are returned from the Encrypter's encrypt
+// method. They are the only form that should ever be persisted to storage.
+type SecureVariableEncrypted struct {
+	SecureVariableMetadata
+	SecureVariableData
 }
 
 // SecureVariableData is the secret data for a Secure Variable
@@ -69,90 +69,90 @@ type SecureVariableData struct {
 	KeyID string // ID of root key used to encrypt this entry
 }
 
-func (sv SecureVariableData) Copy() *SecureVariableData {
+// SecureVariableDecrypted structs are returned from the Encrypter's decrypt
+// method. Since they contains sensitive material, they should never be
+// persisted to disk.
+type SecureVariableDecrypted struct {
+	SecureVariableMetadata
+	Items SecureVariableItems
+}
+
+// SecureVariableItems are the actual secrets stored in a secure variable. They
+// are always encrypted and decrypted as a single unit.
+type SecureVariableItems map[string]string
+
+func (sv SecureVariableData) Copy() SecureVariableData {
 	out := make([]byte, len(sv.Data))
 	copy(out, sv.Data)
-	return &SecureVariableData{
+	return SecureVariableData{
 		Data:  out,
 		KeyID: sv.KeyID,
 	}
 }
 
-func (sv *SecureVariable) Copy() *SecureVariable {
-	if sv == nil {
-		return nil
+func (sv SecureVariableEncrypted) Copy() SecureVariableEncrypted {
+	return SecureVariableEncrypted{
+		SecureVariableMetadata: sv.SecureVariableMetadata,
+		SecureVariableData:     sv.SecureVariableData.Copy(),
 	}
-	out := *sv
-	if sv.UnencryptedData != nil {
-		out.UnencryptedData = make(map[string]string, len(sv.UnencryptedData))
-		for k, v := range sv.UnencryptedData {
-			out.UnencryptedData[k] = v
-		}
-	}
-	if sv.EncryptedData != nil {
-		out.EncryptedData = sv.EncryptedData.Copy()
-	}
-	return &out
 }
 
-func (sv SecureVariable) Equals(sv2 SecureVariable) bool {
+func (sv SecureVariableMetadata) Equals(sv2 SecureVariableMetadata) bool {
+	return sv == sv2
+}
+
+func (sv SecureVariableDecrypted) Equals(sv2 SecureVariableDecrypted) bool {
 	// FIXME: This should be a smarter equality check
-	return reflect.DeepEqual(sv, sv2)
+	return sv.SecureVariableMetadata.Equals(sv2.SecureVariableMetadata) &&
+		len(sv.Items) == len(sv2.Items) &&
+		reflect.DeepEqual(sv.Items, sv2.Items)
 }
 
-func (sv SecureVariable) Validate() error {
-	// FIXME: Placeholder for more extensive validation
+func (sv SecureVariableDecrypted) Copy() SecureVariableDecrypted {
+	out := SecureVariableDecrypted{
+		SecureVariableMetadata: sv.SecureVariableMetadata,
+		Items:                  make(SecureVariableItems, len(sv.Items)),
+	}
+	for k, v := range sv.Items {
+		out.Items[k] = v
+	}
+	return out
+}
+
+func (sv SecureVariableEncrypted) Equals(sv2 SecureVariableEncrypted) bool {
+	// FIXME: This should be a smarter equality check
+	return sv.SecureVariableMetadata.Equals(sv2.SecureVariableMetadata) &&
+		sv.KeyID == sv2.KeyID &&
+
+		reflect.DeepEqual(sv.SecureVariableData, sv2.SecureVariableData)
+}
+
+func (sv SecureVariableDecrypted) Validate() error {
+	if len(sv.Items) == 0 {
+		return errors.New("empty variables are invalid")
+	}
 	return nil
 }
 
-func (sv *SecureVariable) Canonicalize() {
+func (sv *SecureVariableDecrypted) Canonicalize() {
 	if sv.Namespace == "" {
 		sv.Namespace = DefaultNamespace
 	}
 }
 
 // GetNamespace returns the secure variable's namespace. Used for pagination.
-func (sv SecureVariable) GetNamespace() string {
+func (sv SecureVariableMetadata) GetNamespace() string {
 	return sv.Namespace
 }
 
 // GetID returns the secure variable's path. Used for pagination.
-func (sv SecureVariable) GetID() string {
+func (sv SecureVariableMetadata) GetID() string {
 	return sv.Path
 }
 
 // GetCreateIndex returns the secure variable's create index. Used for pagination.
-func (sv SecureVariable) GetCreateIndex() uint64 {
+func (sv SecureVariableMetadata) GetCreateIndex() uint64 {
 	return sv.CreateIndex
-}
-
-func (sv SecureVariable) Stub() SecureVariableStub {
-	return SecureVariableStub{
-		Namespace:   sv.Namespace,
-		Path:        sv.Path,
-		CreateIndex: sv.CreateIndex,
-		CreateTime:  sv.CreateTime,
-		ModifyIndex: sv.ModifyIndex,
-		ModifyTime:  sv.ModifyTime,
-	}
-}
-
-// SecureVariableStub is the metadata envelope for a Secure Variable omitting
-// the actual data. Intended to be used in list operations.
-type SecureVariableStub struct {
-	Namespace   string
-	Path        string
-	CreateTime  time.Time
-	CreateIndex uint64
-	ModifyIndex uint64
-	ModifyTime  time.Time
-
-	// reserved for post-1.4.0 work
-	// LockIndex      uint64
-	// Session        string
-	// DeletedAt      time.Time
-	// Version        uint64
-	// CustomMetaData map[string]string
 }
 
 // SecureVariablesQuota is used to track the total size of secure
@@ -167,12 +167,12 @@ type SecureVariablesQuota struct {
 }
 
 type SecureVariablesUpsertRequest struct {
-	Data []*SecureVariable
+	Data []*SecureVariableDecrypted
 	WriteRequest
 }
 
-type SecureVariableUpsertRequest struct {
-	Data *SecureVariable
+type SecureVariablesEncryptedUpsertRequest struct {
+	Data []*SecureVariableEncrypted
 	WriteRequest
 }
 
@@ -186,7 +186,7 @@ type SecureVariablesListRequest struct {
 }
 
 type SecureVariablesListResponse struct {
-	Data []*SecureVariableStub
+	Data []*SecureVariableMetadata
 	QueryMeta
 }
 
@@ -196,7 +196,7 @@ type SecureVariablesReadRequest struct {
 }
 
 type SecureVariablesReadResponse struct {
-	Data *SecureVariable
+	Data *SecureVariableDecrypted
 	QueryMeta
 }
 

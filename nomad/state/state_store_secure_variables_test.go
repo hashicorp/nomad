@@ -17,6 +17,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestStateStore_GetSecureVariable(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+	ws := memdb.NewWatchSet()
+	sve, err := testState.GetSecureVariable(ws, "default", "not/a/path")
+	require.NoError(t, err)
+	require.Nil(t, sve)
+}
+
 func TestStateStore_UpsertSecureVariables(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
@@ -53,18 +62,23 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 			count++
 
 			// Ensure the create and modify indexes are populated correctly.
-			sv := raw.(*structs.SecureVariable)
+			sv := raw.(*structs.SecureVariableEncrypted)
 			require.Equal(t, insertIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 			require.Equal(t, insertIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 			// update the mock element so the test element has the correct create/modify
 			// indexes and times now that we have validated them
-			svm[sv.Path] = sv.Copy()
+			nv := sv.Copy()
+			svm[sv.Path] = &nv
 		}
 		require.Equal(t, len(svs), count, "incorrect number of secure variables found")
 	})
 	svs = svm.List()
 	t.Log(printSecureVariables(svs))
-
+	t.Run("1a fetch variable", func(t *testing.T) {
+		sve, err := testState.GetSecureVariable(ws, svs[0].Namespace, svs[0].Path)
+		require.NoError(t, err)
+		require.NotNil(t, sve)
+	})
 	t.Run("2 upsert same", func(t *testing.T) {
 		// SubTest Marker: This section attempts to upsert the exact same secure
 		// variables without any modification. In this case, the index table
@@ -82,8 +96,8 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		// index table is modified correctly and that each secure variable is
 		// updated, or not, as expected.
 		sv1Update := svs[0].Copy()
-		sv1Update.EncryptedData.KeyID = "sv1-update"
-		svs1Update := []*structs.SecureVariable{sv1Update}
+		sv1Update.KeyID = "sv1-update"
+		svs1Update := []*structs.SecureVariableEncrypted{&sv1Update}
 
 		update1Index := uint64(40)
 		require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, update1Index, svs1Update))
@@ -99,7 +113,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		// Iterate all the stored registrations and assert they are as expected.
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.SecureVariable)
+			sv := raw.(*structs.SecureVariableEncrypted)
 			t.Logf("S " + printSecureVariable(sv))
 
 			var expectedModifyIndex uint64
@@ -117,7 +131,8 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 			require.Equal(t, expectedModifyIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 			// update the mock element so the test element has the correct create/modify
 			// indexes and times now that we have validated them
-			svm[sv.Path] = sv.Copy()
+			nv := sv.Copy()
+			svm[sv.Path] = &nv
 		}
 	})
 	svs = svm.List()
@@ -127,11 +142,11 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		// upsert request that includes this and the already modified registration.
 		update2Index := uint64(50)
 		sv2 := svs[1].Copy()
-		sv2.EncryptedData.KeyID = "sv2-update"
+		sv2.KeyID = "sv2-update"
 		sv2.ModifyIndex = update2Index
-		svs2Update := []*structs.SecureVariable{svs[0], sv2}
+		svs2Update := []*structs.SecureVariableEncrypted{svs[0], &sv2}
 		t.Logf("* " + printSecureVariable(svs[0]))
-		t.Logf("* " + printSecureVariable(sv2))
+		t.Logf("* " + printSecureVariable(&sv2))
 
 		require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, update2Index, svs2Update))
 
@@ -146,18 +161,18 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		// Iterate all the stored registrations and assert they are as expected.
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.SecureVariable)
+			sv := raw.(*structs.SecureVariableEncrypted)
 			t.Logf("S " + printSecureVariable(sv))
 
 			var (
 				expectedModifyIndex uint64
-				expectedSV          *structs.SecureVariable
+				expectedSV          *structs.SecureVariableEncrypted
 			)
 
 			switch sv.Path {
 			case sv2.Path:
 				expectedModifyIndex = update2Index
-				expectedSV = sv2
+				expectedSV = &sv2
 			case svs[0].Path:
 				expectedModifyIndex = svs[0].ModifyIndex
 				expectedSV = svs[0]
@@ -227,8 +242,8 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 	// SubTest Marker: Delete the remaining variable and ensure all indexes
 	// are updated as expected and the table is empty.
 	delete2Index := uint64(30)
-	require.NoError(t, testState.DeleteSecureVariables(
-		structs.MsgTypeTestSetup, delete2Index, svs[1].Namespace, []string{svs[1].Path}))
+	require.NoError(t, testState.DeleteSecureVariable(
+		delete2Index, svs[1].Namespace, svs[1].Path))
 
 	// Check that the index for the table was modified as expected.
 	actualDelete2Index, err := testState.Index(TableSecureVariables)
@@ -268,8 +283,8 @@ func TestStateStore_ListSecureVariablesByNamespace(t *testing.T) {
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count1++
-		sv := raw.(*structs.SecureVariable)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.EncryptedData.KeyID)
+		sv := raw.(*structs.SecureVariableEncrypted)
+		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
 		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 		require.Equal(t, svs[0].Namespace, sv.Namespace)
@@ -284,8 +299,8 @@ func TestStateStore_ListSecureVariablesByNamespace(t *testing.T) {
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count2++
-		sv := raw.(*structs.SecureVariable)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.EncryptedData.KeyID)
+		sv := raw.(*structs.SecureVariableEncrypted)
+		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
 		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 		require.Equal(t, svs[1].Namespace, sv.Namespace)
@@ -330,8 +345,8 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count1++
-		sv := raw.(*structs.SecureVariable)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.EncryptedData.KeyID)
+		sv := raw.(*structs.SecureVariableEncrypted)
+		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
 		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 		require.Equal(t, svs[0].Namespace, sv.Namespace)
@@ -347,8 +362,8 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count1++
-		sv := raw.(*structs.SecureVariable)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.EncryptedData.KeyID)
+		sv := raw.(*structs.SecureVariableEncrypted)
+		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
 		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 		require.Equal(t, svs[0].Namespace, sv.Namespace)
@@ -364,7 +379,7 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count2++
-		sv := raw.(*structs.SecureVariable)
+		sv := raw.(*structs.SecureVariableEncrypted)
 		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
 		require.Equal(t, svs[1].Namespace, sv.Namespace)
@@ -389,12 +404,12 @@ func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 	testState := testStateStore(t)
 
 	// Generate some test secure variables and upsert them.
-	svs, _ := mockSecureVariables(7, 7)
+	svs, _ := mockSecureVariablesEncrypted(7, 7)
 	keyID := uuid.Generate()
 
 	expectedForKey := []string{}
 	for i := 0; i < 5; i++ {
-		svs[i].EncryptedData.KeyID = keyID
+		svs[i].KeyID = keyID
 		expectedForKey = append(expectedForKey, svs[i].Path)
 		sort.Strings(expectedForKey)
 	}
@@ -411,8 +426,8 @@ func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 
 	var count int
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.SecureVariable)
-		require.Equal(t, keyID, sv.EncryptedData.KeyID)
+		sv := raw.(*structs.SecureVariableEncrypted)
+		require.Equal(t, keyID, sv.KeyID)
 		require.Equal(t, expectedForKey[count], sv.Path)
 		require.NotContains(t, expectedOrphaned, sv.Path)
 		count++
@@ -423,7 +438,7 @@ func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 // mockSecureVariables returns a random number of secure variables between min
 // and max inclusive.
 func mockSecureVariables(minU, maxU uint8) (
-	[]*structs.SecureVariable, secureVariableMocks) {
+	[]*structs.SecureVariableEncrypted, secureVariableMocks) {
 	// the unsignedness of the args is to prevent goofy parameters, they're
 	// easier to work with as ints in this code.
 	min := int(minU)
@@ -433,9 +448,9 @@ func mockSecureVariables(minU, maxU uint8) (
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	var svm secureVariableMocks = make(map[string]*structs.SecureVariable, vc)
+	var svm secureVariableMocks = make(map[string]*structs.SecureVariableEncrypted, vc)
 	for i := 0; i < int(vc); i++ {
-		nv := mock.SecureVariable()
+		nv := mock.SecureVariableEncrypted()
 		// There is an extremely rare chance of path collision because the mock
 		// secure variables generate their paths randomly. This check will add
 		// an extra component on conflict to (ideally) disambiguate them.
@@ -447,10 +462,10 @@ func mockSecureVariables(minU, maxU uint8) (
 	return svm.List(), svm
 }
 
-type secureVariableMocks map[string]*structs.SecureVariable
+type secureVariableMocks map[string]*structs.SecureVariableEncrypted
 
-func (svm secureVariableMocks) List() []*structs.SecureVariable {
-	out := make([]*structs.SecureVariable, len(svm))
+func (svm secureVariableMocks) List() []*structs.SecureVariableEncrypted {
+	out := make([]*structs.SecureVariableEncrypted, len(svm))
 	i := 0
 	for _, v := range svm {
 		out[i] = v
@@ -466,13 +481,59 @@ func (svm secureVariableMocks) List() []*structs.SecureVariable {
 	return out
 }
 
-func printSecureVariable(tsv *structs.SecureVariable) string {
+// mockSecureVariables returns a random number of secure variables between min
+// and max inclusive.
+func mockSecureVariablesEncrypted(minU, maxU uint8) (
+	[]*structs.SecureVariableEncrypted, secureVariableMocks) {
+	// the unsignedness of the args is to prevent goofy parameters, they're
+	// easier to work with as ints in this code.
+	min := int(minU)
+	max := int(maxU)
+	vc := min
+	// handle cases with irrational arguments. Max < Min = min
+	if max > min {
+		vc = rand.Intn(max-min) + min
+	}
+	var svm secureVariableMocks = make(map[string]*structs.SecureVariableEncrypted, vc)
+	for i := 0; i < int(vc); i++ {
+		nv := mock.SecureVariableEncrypted()
+		// There is an extremely rare chance of path collision because the mock
+		// secure variables generate their paths randomly. This check will add
+		// an extra component on conflict to (ideally) disambiguate them.
+		if _, found := svm[nv.Path]; found {
+			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
+		}
+		svm[nv.Path] = nv
+	}
+	return svm.List(), svm
+}
+
+type secureVariableMocksEncrypted map[string]*structs.SecureVariableEncrypted
+
+func (svm secureVariableMocksEncrypted) List() []*structs.SecureVariableEncrypted {
+	out := make([]*structs.SecureVariableEncrypted, len(svm))
+	i := 0
+	for _, v := range svm {
+		out[i] = v
+		i++
+	}
+	// objects will always come out of state store in namespace, path order.
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Namespace != out[j].Namespace {
+			return out[i].Namespace < out[j].Namespace
+		}
+		return out[i].Path < out[j].Path
+	})
+	return out
+}
+
+func printSecureVariable(tsv *structs.SecureVariableEncrypted) string {
 	// b, _ := json.MarshalIndent(tsv, "", "  ")
 	b, _ := json.Marshal(tsv)
 	return string(b)
 }
 
-func printSecureVariables(tsvs []*structs.SecureVariable) string {
+func printSecureVariables(tsvs []*structs.SecureVariableEncrypted) string {
 	if len(tsvs) == 0 {
 		return ""
 	}
