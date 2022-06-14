@@ -578,14 +578,14 @@ func TestStateStore_SecureVariablesRestore(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
-	// Set up our test registrations and index.
+	// Set up our test variables and index.
 	expectedIndex := uint64(13)
 	svs := mock.SecureVariablesEncrypted(5, 5)
 
 	restore, err := testState.Restore()
 	require.NoError(t, err)
 
-	// Iterate the service registrations, restore, and commit. Set the indexes
+	// Iterate the variables, restore, and commit. Set the indexes
 	// on the objects, so we can check these.
 	for i := range svs {
 		svs[i].ModifyIndex = expectedIndex
@@ -595,7 +595,7 @@ func TestStateStore_SecureVariablesRestore(t *testing.T) {
 	require.NoError(t, restore.Commit())
 
 	// Check the state is now populated as we expect and that we can find the
-	// restored registrations.
+	// restored variables.
 	ws := memdb.NewWatchSet()
 
 	for i := range svs {
