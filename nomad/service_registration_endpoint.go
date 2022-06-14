@@ -456,7 +456,7 @@ func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions,
 		// identity claim if it's not a secret ID.
 		// COMPAT(1.4.0): we can remove this conditional in 1.5.0
 		if !helper.IsUUID(args.AuthToken) {
-			claims, err := s.srv.ResolveClaim(args.AuthToken)
+			claims, err := s.srv.VerifyClaim(args.AuthToken)
 			if err != nil {
 				return err
 			}

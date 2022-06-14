@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -33,6 +34,34 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 
 	// Resolve the ACL
 	return resolveTokenFromSnapshotCache(snap, s.aclCache, secretID)
+}
+
+// VerifyClaim asserts that the token is valid and that the resulting
+// allocation ID belongs to a non-terminal allocation
+func (s *Server) VerifyClaim(token string) (*structs.IdentityClaims, error) {
+
+	claims, err := s.encrypter.VerifyClaim(token)
+	if err != nil {
+		return nil, err
+	}
+	snap, err := s.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	alloc, err := snap.AllocByID(nil, claims.AllocationID)
+	if err != nil {
+		return nil, err
+	}
+	if alloc == nil || alloc.Job == nil {
+		return nil, fmt.Errorf("allocation does not exist")
+	}
+
+	// the claims for terminal allocs are always treated as expired
+	if alloc.TerminalStatus() {
+		return nil, fmt.Errorf("allocation is terminal")
+	}
+
+	return claims, nil
 }
 
 func (s *Server) ResolveClaim(token string) (*structs.IdentityClaims, error) {
