@@ -50,7 +50,12 @@ provider may return an error or may be silently removed by the plugin.
 
 - `preferred` <code>([Topology][topology]: nil)</code> - Indicate that you
   would prefer the storage provider to create the volume in one of the provided
-  topologies. Only allowed on **volume registration**.
+  topologies. Only allowed on **volume creation**.
+
+### `topology` Parameters
+
+- `segments` `(map[string]string)` - A map of location types to their values.
+  The specific fields required are defined by the CSI plugin.
 
 ## `topology_request` Examples
 
@@ -74,4 +79,4 @@ topology_request {
 }
 ```
 
-[topology]: /docs/other-specifications/volume/topology
+[topology]: #topology-parameters

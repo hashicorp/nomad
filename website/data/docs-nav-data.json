@@ -1441,10 +1441,6 @@
             "path": "other-specifications/volume/mount_options"
           },
           {
-            "title": "topology",
-            "path": "other-specifications/volume/topology"
-          },
-          {
             "title": "topology_request",
             "path": "other-specifications/volume/topology_request"
           }
