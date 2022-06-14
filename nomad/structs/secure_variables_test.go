@@ -21,13 +21,13 @@ func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
 	}
 	sv := SecureVariableDecrypted{
 		SecureVariableMetadata: a,
-		SecureVariableItems: SecureVariableItems{
+		Items: SecureVariableItems{
 			"foo": "bar",
 			"k1":  "v1",
 		},
 	}
 	sv2 := sv.Copy()
 	require.True(t, sv.Equals(sv2), "sv and sv2 should be equal")
-	sv2.SecureVariableItems["new"] = "new"
+	sv2.Items["new"] = "new"
 	require.False(t, sv.Equals(sv2), "sv and sv2 should not be equal")
 }

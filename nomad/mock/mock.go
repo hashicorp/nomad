@@ -2320,7 +2320,7 @@ func SecureVariable() *structs.SecureVariableDecrypted {
 			CreateTime:  createDT,
 			ModifyTime:  createDT,
 		},
-		SecureVariableItems: structs.SecureVariableItems{
+		Items: structs.SecureVariableItems{
 			"key1": "value1",
 			"key2": "value2",
 		},

@@ -186,7 +186,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		t.Run("create_no_items", func(t *testing.T) {
 			sv2 := sv1.Copy()
-			sv2.SecureVariableItems = nil
+			sv2.Items = nil
 			buf := encodeReq(sv2)
 			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
 			require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		rpcResetSV(s)
 
 		sv1U := sv1.Copy()
-		sv1U.SecureVariableItems["new"] = "new"
+		sv1U.Items["new"] = "new"
 
 		t.Run("error_parse_update", func(t *testing.T) {
 			// break the request body
@@ -276,7 +276,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
 			require.Equal(t, sv1.Path, out.Path)
 			require.NotEqual(t, sv1, out)
-			require.Equal(t, "new", out.SecureVariableItems["new"])
+			require.Equal(t, "new", out.Items["new"])
 		})
 		rpcResetSV(s)
 

@@ -350,7 +350,7 @@ func (s *SecureVariables) listAllSecureVariables(
 }
 
 func (sv *SecureVariables) encrypt(v *structs.SecureVariableDecrypted) (*structs.SecureVariableEncrypted, error) {
-	b, err := json.Marshal(v.SecureVariableItems)
+	b, err := json.Marshal(v.Items)
 	if err != nil {
 		return nil, err
 	}
@@ -369,8 +369,8 @@ func (sv *SecureVariables) decrypt(v *structs.SecureVariableEncrypted) (*structs
 	dv := structs.SecureVariableDecrypted{
 		SecureVariableMetadata: v.SecureVariableMetadata,
 	}
-	dv.SecureVariableItems = make(map[string]string)
-	err = json.Unmarshal(b, &dv.SecureVariableItems)
+	dv.Items = make(map[string]string)
+	err = json.Unmarshal(b, &dv.Items)
 	if err != nil {
 		return nil, err
 	}

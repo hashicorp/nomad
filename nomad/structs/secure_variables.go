@@ -74,7 +74,7 @@ type SecureVariableData struct {
 // persisted to disk.
 type SecureVariableDecrypted struct {
 	SecureVariableMetadata
-	SecureVariableItems
+	Items SecureVariableItems
 }
 
 // SecureVariableItems are the actual secrets stored in a secure variable. They
@@ -104,17 +104,17 @@ func (sv SecureVariableMetadata) Equals(sv2 SecureVariableMetadata) bool {
 func (sv SecureVariableDecrypted) Equals(sv2 SecureVariableDecrypted) bool {
 	// FIXME: This should be a smarter equality check
 	return sv.SecureVariableMetadata.Equals(sv2.SecureVariableMetadata) &&
-		len(sv.SecureVariableItems) == len(sv2.SecureVariableItems) &&
-		reflect.DeepEqual(sv.SecureVariableItems, sv2.SecureVariableItems)
+		len(sv.Items) == len(sv2.Items) &&
+		reflect.DeepEqual(sv.Items, sv2.Items)
 }
 
 func (sv SecureVariableDecrypted) Copy() SecureVariableDecrypted {
 	out := SecureVariableDecrypted{
 		SecureVariableMetadata: sv.SecureVariableMetadata,
-		SecureVariableItems:    make(SecureVariableItems, len(sv.SecureVariableItems)),
+		Items:                  make(SecureVariableItems, len(sv.Items)),
 	}
-	for k, v := range sv.SecureVariableItems {
-		out.SecureVariableItems[k] = v
+	for k, v := range sv.Items {
+		out.Items[k] = v
 	}
 	return out
 }
@@ -128,7 +128,7 @@ func (sv SecureVariableEncrypted) Equals(sv2 SecureVariableEncrypted) bool {
 }
 
 func (sv SecureVariableDecrypted) Validate() error {
-	if len(sv.SecureVariableItems) == 0 {
+	if len(sv.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
 	return nil
