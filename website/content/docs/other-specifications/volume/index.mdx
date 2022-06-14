@@ -157,6 +157,54 @@ You should not set the [`snapshot_id`](#snapshot_id), [`clone_id`](#clone_id),
 And you should not set the [`external_id`](#external_id) or
 [`context`](#context) fields on **volume creation**.
 
+## Examples
+
+### Volume registration
+
+This is an example file used for the [`volume register`] commad.
+
+```hcl
+id              = "ebs_prod_db1"
+name            = "database"
+type            = "csi"
+external_id     = "vol-23452345"
+plugin_id       = "ebs-prod"
+
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+
+mount_options {
+  fs_type     = "ext4"
+  mount_flags = ["noatime"]
+}
+
+topology_request {
+  required {
+    topology { segments { "rack" = "R2" } }
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+}
+
+secrets {
+  example_secret = "xyzzy"
+}
+
+parameters {
+  skuname = "Premium_LRS"
+}
+
+context {
+  endpoint = "http://192.168.1.101:9425"
+}
+```
+
 [api_volume_create]: /api-docs/volumes#create-volume
 [api_volume_register]: /api-docs/volumes#register-volume
 [capability]: /docs/other-specifications/volume/capability
