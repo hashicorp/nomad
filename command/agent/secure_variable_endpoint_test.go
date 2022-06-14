@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -23,212 +24,303 @@ var (
 	}
 )
 
-func TestHTTP_SecureVariableList(t *testing.T) {
-	//ci.Parallel(t)
+func TestHTTP_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
 
 	httpTest(t, cb, func(s *TestAgent) {
-		// Test the empty list case
-		req, err := http.NewRequest("GET", "/v1/vars", nil)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
+		// These tests are run against the same running server in order to reduce
+		// the costs of server startup and allow as much parallelization as possible
+		// given the port reuse issue that we have seen with the current freeport
+		t.Run("error_badverb_list", func(t *testing.T) {
+			req, err := http.NewRequest("LOLWUT", "/v1/vars", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.SecureVariablesListRequest(respW, req)
+			require.EqualError(t, err, ErrInvalidMethod)
+		})
+		t.Run("error_parse_list", func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/vars?wait=99a", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			_, _ = s.Server.SecureVariablesListRequest(respW, req)
+			require.Equal(t, http.StatusBadRequest, respW.Code)
+			require.Equal(t, "Invalid wait time", string(respW.Body.Bytes()))
+		})
+		t.Run("error_rpc_list", func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/vars?region=bad", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariablesListRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+		t.Run("list", func(t *testing.T) {
+			// Test the empty list case
+			req, err := http.NewRequest("GET", "/v1/vars", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
 
-		// Make the request
-		obj, err := s.Server.SecureVariablesListRequest(respW, req)
-		require.NoError(t, err)
+			// Make the request
+			obj, err := s.Server.SecureVariablesListRequest(respW, req)
+			require.NoError(t, err)
 
-		// add vars and test a populated backend
-		svMap := mock.SecureVariables(4, 4)
-		svs := svMap.List()
-		svs[3].Path = svs[0].Path + "/child"
-		for _, sv := range svs {
-			require.NoError(t, rpcWriteSV(s, sv))
-		}
+			// add vars and test a populated backend
+			svMap := mock.SecureVariables(4, 4)
+			svs := svMap.List()
+			svs[3].Path = svs[0].Path + "/child"
+			for _, sv := range svs {
+				require.NoError(t, rpcWriteSV(s, sv))
+			}
 
-		// Make the HTTP request
-		req, err = http.NewRequest("GET", "/v1/vars", nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
+			// Make the HTTP request
+			req, err = http.NewRequest("GET", "/v1/vars", nil)
+			require.NoError(t, err)
+			respW = httptest.NewRecorder()
 
-		// Make the request
-		obj, err = s.Server.SecureVariablesListRequest(respW, req)
-		require.NoError(t, err)
+			// Make the request
+			obj, err = s.Server.SecureVariablesListRequest(respW, req)
+			require.NoError(t, err)
 
-		// Check for the index
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
-		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
-		// Check the output (the 3 we register )
-		require.Len(t, obj.([]*structs.SecureVariableStub), 4)
+			// Check the output (the 3 we register )
+			require.Len(t, obj.([]*structs.SecureVariableMetadata), 4)
 
-		// test prefix query
-		req, err = http.NewRequest("GET", "/v1/vars?prefix="+svs[0].Path, nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
+			// test prefix query
+			req, err = http.NewRequest("GET", "/v1/vars?prefix="+svs[0].Path, nil)
+			require.NoError(t, err)
+			respW = httptest.NewRecorder()
 
-		// Make the request
-		obj, err = s.Server.SecureVariablesListRequest(respW, req)
-		require.NoError(t, err)
-		require.Len(t, obj.([]*structs.SecureVariableStub), 2)
-	})
-}
+			// Make the request
+			obj, err = s.Server.SecureVariablesListRequest(respW, req)
+			require.NoError(t, err)
+			require.Len(t, obj.([]*structs.SecureVariableMetadata), 2)
+		})
+		rpcResetSV(s)
 
-func TestHTTP_SecureVariableQuery(t *testing.T) {
-	//ci.Parallel(t)
-	httpTest(t, cb, func(s *TestAgent) {
-		// Make a request for a non-existing variable
-		req, err := http.NewRequest("GET", "/v1/var/does/not/exist", nil)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
-		obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-		require.EqualError(t, err, "Secure variable not found")
+		t.Run("error_badverb_query", func(t *testing.T) {
+			req, err := http.NewRequest("LOLWUT", "/v1/var/does/not/exist", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, ErrInvalidMethod)
+			require.Nil(t, obj)
+		})
+		t.Run("error_parse_query", func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/var/does/not/exist?wait=99a", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			_, _ = s.Server.SecureVariableSpecificRequest(respW, req)
+			require.Equal(t, http.StatusBadRequest, respW.Code)
+			require.Equal(t, "Invalid wait time", string(respW.Body.Bytes()))
+		})
+		t.Run("error_rpc_query", func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/var/does/not/exist?region=bad", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+		t.Run("query_unset_path", func(t *testing.T) {
+			// Make a request for a non-existing variable
+			req, err := http.NewRequest("GET", "/v1/var/", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "Missing secure variable path")
+			require.Nil(t, obj)
+		})
+		t.Run("query_unset_variable", func(t *testing.T) {
+			// Make a request for a non-existing variable
+			req, err := http.NewRequest("GET", "/v1/var/not/real", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "Secure variable not found")
+			require.Nil(t, obj)
+		})
+		t.Run("query", func(t *testing.T) {
+			// Use RPC to make a test variable
+			sv1 := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv1))
 
-		// Don't pass a path
-		req, err = http.NewRequest("GET", "/v1/var/", nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.SecureVariableSpecificRequest(respW, req)
-		require.EqualError(t, err, "Missing secure variable path")
+			// Query a variable
+			req, err := http.NewRequest("GET", "/v1/var/"+sv1.Path, nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.NoError(t, err)
 
-		// Use an incorrect verb
-		req, err = http.NewRequest("LOLWUT", "/v1/var/foo", nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.SecureVariableSpecificRequest(respW, req)
-		require.EqualError(t, err, ErrInvalidMethod)
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
-		// Use RPC to make a test variable
+			// Check the output
+			require.Equal(t, sv1.Path, obj.(*structs.SecureVariableDecrypted).Path)
+		})
+		rpcResetSV(s)
+
 		sv1 := mock.SecureVariable()
-		require.NoError(t, rpcWriteSV(s, sv1))
+		t.Run("error_parse_create", func(t *testing.T) {
+			buf := encodeBrokenReq(&sv1)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "unexpected EOF")
+			require.Nil(t, obj)
+		})
+		t.Run("error_rpc_create", func(t *testing.T) {
+			buf := encodeReq(sv1)
+			req, err := http.NewRequest("PUT", "/v1/var/does/not/exist?region=bad", buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+		t.Run("create_no_items", func(t *testing.T) {
+			sv2 := sv1.Copy()
+			sv2.Items = nil
+			buf := encodeReq(sv2)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "Secure variable missing required Items object.")
+			require.Nil(t, obj)
+		})
+		t.Run("create", func(t *testing.T) {
+			buf := encodeReq(sv1)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+			require.Nil(t, obj)
 
-		// Query a variable
-		req, err = http.NewRequest("GET", "/v1/var/"+sv1.Path, nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
-		// Make the request
-		obj, err = s.Server.SecureVariableSpecificRequest(respW, req)
-		require.NoError(t, err)
+			// Check the variable was put
+			out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
+			require.NoError(t, err)
+			require.NotNil(t, out)
 
-		// Check for the index
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
-		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
+			// fixup times and indexes so the equality check is less gross
+			sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
+			sv1.CreateTime, sv1.ModifyTime = out.CreateTime, out.ModifyTime
+			require.Equal(t, sv1.Path, out.Path)
+			require.Equal(t, sv1, out)
+		})
+		rpcResetSV(s)
 
-		// Check the output
-		require.Equal(t, sv1.Path, obj.(*structs.SecureVariable).Path)
-	})
-}
-
-func TestHTTP_SecureVariableCreate(t *testing.T) {
-	//ci.Parallel(t)
-	httpTest(t, cb, func(s *TestAgent) {
-		sv1 := mock.SecureVariable()
 		sv1U := sv1.Copy()
+		sv1U.Items["new"] = "new"
 
-		require.NoError(t, rpcWriteSV(s, sv1))
+		t.Run("error_parse_update", func(t *testing.T) {
+			// break the request body
+			badBuf := encodeBrokenReq(&sv1U)
 
-		// Make a change for update
-		sv1U.UnencryptedData["newness"] = "awwyeah"
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, badBuf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
 
-		// Make the HTTP request
-		buf := encodeReq(&sv1U)
-		req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
+			// Make the request
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "unexpected EOF")
+			var cErr HTTPCodedError
+			require.ErrorAs(t, err, &cErr)
+			require.Equal(t, http.StatusBadRequest, cErr.Code())
+			require.Nil(t, obj)
+		})
+		t.Run("error_rpc_update", func(t *testing.T) {
+			// test broken rpc error
+			buf := encodeReq(&sv1U)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?region=bad", buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
 
-		// Make the request
-		obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-		require.NoError(t, err)
-		require.Nil(t, obj)
+			// Make the request
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+		t.Run("update", func(t *testing.T) {
+			require.NoError(t, rpcWriteSV(s, sv1))
 
-		// Check for the index
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			// Make the HTTP request
+			buf := encodeReq(&sv1U)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
 
-		// Check the variable was created
-		out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
-		require.NoError(t, err)
-		require.NotNil(t, out)
+			// Make the request
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+			require.Nil(t, obj)
 
-		sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
-		require.Equal(t, sv1.Path, out.Path)
-		require.NotEqual(t, sv1, out)
-		require.Contains(t, out.UnencryptedData, "newness")
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
-		// break the request body
-		badBuf := encodeBrokenReq(&sv1U)
+			// Check the variable was created
+			out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
+			require.NoError(t, err)
+			require.NotNil(t, out)
 
-		req, err = http.NewRequest("PUT", "/v1/var/"+sv1.Path, badBuf)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
+			sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
+			require.Equal(t, sv1.Path, out.Path)
+			require.NotEqual(t, sv1, out)
+			require.Equal(t, "new", out.Items["new"])
+		})
+		rpcResetSV(s)
 
-		// Make the request
-		obj, err = s.Server.SecureVariableSpecificRequest(respW, req)
-		require.EqualError(t, err, "unexpected EOF")
-		var cErr HTTPCodedError
-		require.ErrorAs(t, err, &cErr)
-		require.Equal(t, http.StatusBadRequest, cErr.Code())
+		t.Run("error_rpc_delete", func(t *testing.T) {
+			sv1 := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv1))
+
+			// Make the HTTP request
+			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path+"?region=bad", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+		t.Run("delete", func(t *testing.T) {
+			sv1 := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv1))
+
+			// Make the HTTP request
+			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path, nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+			require.Nil(t, obj)
+
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+
+			// Check variable was deleted
+			sv, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
+			require.NoError(t, err)
+			require.Nil(t, sv)
+		})
 	})
 }
 
-func TestHTTP_SecureVariableUpdate(t *testing.T) {
-	//ci.Parallel(t)
-	httpTest(t, cb, func(s *TestAgent) {
-		// Make the HTTP request
-		sv1 := mock.SecureVariable()
-		sv1.EncryptedData = nil
-
-		buf := encodeReq(sv1)
-		req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
-
-		// Make the request
-		obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-		require.NoError(t, err)
-		require.Nil(t, obj)
-
-		// Check for the index
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
-
-		// Check the variable was updated
-		out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
-		require.NoError(t, err)
-		require.NotNil(t, out)
-
-		sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
-		sv1.CreateTime, sv1.ModifyTime = out.CreateTime, out.ModifyTime
-		require.Equal(t, sv1.Path, out.Path)
-		require.Equal(t, sv1, out)
-	})
-}
-
-func TestHTTP_SecureVariableDelete(t *testing.T) {
-	//ci.Parallel(t)
-	httpTest(t, cb, func(s *TestAgent) {
-		sv1 := mock.SecureVariable()
-		require.NoError(t, rpcWriteSV(s, sv1))
-
-		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path, nil)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
-
-		// Make the request
-		obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-		require.NoError(t, err)
-		require.Nil(t, obj)
-
-		// Check for the index
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
-
-		// Check variable was deleted
-		sv, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
-		require.NoError(t, err)
-		require.Nil(t, sv)
-	})
-}
-
+// encodeBrokenReq is a test helper that damages input JSON in order to create
+// a parsing error for testing error pathways.
 func encodeBrokenReq(obj interface{}) io.ReadCloser {
 	// var buf *bytes.Buffer
 	// enc := json.NewEncoder(buf)
@@ -238,16 +330,18 @@ func encodeBrokenReq(obj interface{}) io.ReadCloser {
 	return ioutil.NopCloser(bytes.NewReader(b))
 }
 
-func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariable, error) {
+// rpcReadSV lets this test read a secure variable using the RPC endpoint
+func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariableDecrypted, error) {
 	checkArgs := structs.SecureVariablesReadRequest{Path: p, QueryOptions: structs.QueryOptions{Namespace: ns, Region: "global"}}
 	var checkResp structs.SecureVariablesReadResponse
 	err := s.Agent.RPC(structs.SecureVariablesReadRPCMethod, &checkArgs, &checkResp)
 	return checkResp.Data, err
 }
 
-func rpcWriteSV(s *TestAgent, sv *structs.SecureVariable) error {
+// rpcWriteSV lets this test write a secure variable using the RPC endpoint
+func rpcWriteSV(s *TestAgent, sv *structs.SecureVariableDecrypted) error {
 	args := structs.SecureVariablesUpsertRequest{
-		Data:         []*structs.SecureVariable{sv},
+		Data:         []*structs.SecureVariableDecrypted{sv},
 		WriteRequest: structs.WriteRequest{Namespace: sv.Namespace, Region: "global"},
 	}
 	var resp structs.SecureVariablesUpsertResponse
@@ -264,4 +358,38 @@ func rpcWriteSV(s *TestAgent, sv *structs.SecureVariable) error {
 	sv.ModifyIndex = nv.ModifyIndex
 	sv.ModifyTime = nv.ModifyTime
 	return nil
+}
+
+// rpcResetSV lists all the secure variables for every namespace in the global
+// region and deletes them using the RPC endpoints
+func rpcResetSV(s *TestAgent) {
+	var lArgs structs.SecureVariablesListRequest
+	var lResp structs.SecureVariablesListResponse
+
+	lArgs = structs.SecureVariablesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: "*",
+			Region:    "global",
+		},
+	}
+	err := s.Agent.RPC(structs.SecureVariablesListRPCMethod, &lArgs, &lResp)
+	require.NoError(s.T, err)
+
+	var dArgs structs.SecureVariablesDeleteRequest
+	var dResp structs.SecureVariablesDeleteResponse
+	for _, v := range lResp.Data {
+		dArgs = structs.SecureVariablesDeleteRequest{
+			Path: v.Path,
+			WriteRequest: structs.WriteRequest{
+				Namespace: v.Namespace,
+				Region:    "global",
+			},
+		}
+		err := s.Agent.RPC(structs.SecureVariablesDeleteRPCMethod, &dArgs, &dResp)
+		require.NoError(s.T, err)
+	}
+
+	err = s.Agent.RPC(structs.SecureVariablesListRPCMethod, &lArgs, &lResp)
+	require.NoError(s.T, err)
+	require.Equal(s.T, 0, len(lResp.Data))
 }

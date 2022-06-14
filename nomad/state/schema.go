@@ -1277,16 +1277,12 @@ func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([
 // an index value from an object or to indicate that the index value
 // is missing.
 func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
-	variable, ok := obj.(*structs.SecureVariable)
+	variable, ok := obj.(*structs.SecureVariableEncrypted)
 	if !ok {
 		return false, nil, fmt.Errorf("object %#v is not a SecureVariable", obj)
 	}
 
-	if variable.EncryptedData == nil {
-		return false, nil, nil
-	}
-
-	keyID := variable.EncryptedData.KeyID
+	keyID := variable.KeyID
 	if keyID == "" {
 		return false, nil, nil
 	}

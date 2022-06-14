@@ -72,7 +72,7 @@ func (s *StateStore) GetSecureVariablesByKeyID(
 // GetSecureVariable returns an single secure variable at a given namespace and
 // path.
 func (s *StateStore) GetSecureVariable(
-	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariable, error) {
+	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariableEncrypted, error) {
 	txn := s.db.ReadTxn()
 
 	// Try to fetch the secure variable.
@@ -84,11 +84,11 @@ func (s *StateStore) GetSecureVariable(
 		return nil, nil
 	}
 
-	sv := raw.(*structs.SecureVariable)
+	sv := raw.(*structs.SecureVariableEncrypted)
 	return sv, nil
 }
 
-func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, svs []*structs.SecureVariable) error {
+func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, svs []*structs.SecureVariableEncrypted) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -111,17 +111,12 @@ func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index ui
 }
 
 // upsertSecureVariableImpl is used to upsert a secure variable
-func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *structs.SecureVariable, updated *bool) error {
-	sv := svar.Copy()
-
+func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *structs.SecureVariableEncrypted, updated *bool) error {
 	// TODO: Ensure the EncryptedData hash is non-nil. This should be done outside the state store
 	// for performance reasons, but we check here for defense in depth.
 	// if len(sv.Hash) == 0 {
 	// 	sv.SetHash()
 	// }
-
-	// For maximum safety, nil UnencryptedData
-	sv.UnencryptedData = nil
 
 	// Check if the secure variable already exists
 	existing, err := txn.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
@@ -132,7 +127,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *stru
 	// Setup the indexes correctly
 	now := time.Now().Round(0)
 	if existing != nil {
-		exist := existing.(*structs.SecureVariable)
+		exist := existing.(*structs.SecureVariableEncrypted)
 		if !shouldWrite(sv, exist) {
 			*updated = false
 			return nil
@@ -158,7 +153,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *stru
 }
 
 // shouldWrite can be used to determine if a write needs to happen.
-func shouldWrite(sv, existing *structs.SecureVariable) bool {
+func shouldWrite(sv, existing *structs.SecureVariableEncrypted) bool {
 	if existing == nil {
 		return true
 	}

@@ -50,26 +50,32 @@ func (sv *SecureVariables) Upsert(
 	// Use a multierror, so we can capture all validation errors and pass this
 	// back so they can be addressed by the caller in a single pass.
 	var mErr multierror.Error
+	uArgs := structs.SecureVariablesEncryptedUpsertRequest{
+		Data:         make([]*structs.SecureVariableEncrypted, len(args.Data)),
+		WriteRequest: args.WriteRequest,
+	}
 
 	// Iterate the secure variables and validate them. Any error results in the
 	// call failing.
-	for _, i := range args.Data {
-		i.Canonicalize()
-		if err := i.Validate(); err != nil {
+	for i, v := range args.Data {
+		v.Canonicalize()
+		if err := v.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
-		if err := sv.encrypt(i); err != nil {
+		ev, err := sv.encrypt(v)
+		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
+		uArgs.Data[i] = ev
 	}
 	if err := mErr.ErrorOrNil(); err != nil {
 		return err
 	}
 
 	// Update via Raft.
-	out, index, err := sv.srv.raftApply(structs.SecureVariableUpsertRequestType, args)
+	out, index, err := sv.srv.raftApply(structs.SecureVariableUpsertRequestType, uArgs)
 	if err != nil {
 		return err
 	}
@@ -150,10 +156,12 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 			// Setup the output
 			reply.Data = nil
 			if out != nil {
-				reply.Data = out.Copy()
-				if err := sv.decrypt(reply.Data); err != nil {
+				dv, err := sv.decrypt(out)
+				if err != nil {
 					return err
 				}
+				ov := dv.Copy()
+				reply.Data = &ov
 				reply.Index = out.ModifyIndex
 			} else {
 				sv.srv.replySetIndex(state.TableSecureVariables, &reply.QueryMeta)
@@ -212,15 +220,15 @@ func (sv *SecureVariables) List(
 			)
 
 			// Set up our output after we have checked the error.
-			var svs []*structs.SecureVariableStub
+			var svs []*structs.SecureVariableMetadata
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the secure variables
 			// stubs slice.
 			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
-					sv := raw.(*structs.SecureVariable)
-					svStub := sv.Stub()
+					sv := raw.(*structs.SecureVariableEncrypted)
+					svStub := sv.SecureVariableMetadata
 					svs = append(svs, &svStub)
 					return nil
 				})
@@ -280,7 +288,7 @@ func (s *SecureVariables) listAllSecureVariables(
 			allowedNSes, err := allowedNSes(aclObj, stateStore, allowFunc)
 			switch err {
 			case structs.ErrPermissionDenied:
-				reply.Data = make([]*structs.SecureVariableStub, 0)
+				reply.Data = make([]*structs.SecureVariableMetadata, 0)
 				return nil
 			case nil:
 				// Fallthrough.
@@ -294,7 +302,7 @@ func (s *SecureVariables) listAllSecureVariables(
 				return err
 			}
 
-			var svs []*structs.SecureVariableStub
+			var svs []*structs.SecureVariableMetadata
 
 			// Generate the tokenizer to use for pagination using namespace and
 			// ID to ensure complete uniqueness.
@@ -309,11 +317,11 @@ func (s *SecureVariables) listAllSecureVariables(
 			// responsible for appending a variable to the stubs array.
 			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
-					sv := raw.(*structs.SecureVariable)
+					sv := raw.(*structs.SecureVariableEncrypted)
 					if allowedNSes != nil && !allowedNSes[sv.Namespace] {
 						return nil
 					}
-					svStub := sv.Stub()
+					svStub := sv.SecureVariableMetadata
 					svs = append(svs, &svStub)
 					return nil
 				})
@@ -341,32 +349,32 @@ func (s *SecureVariables) listAllSecureVariables(
 	})
 }
 
-func (sv *SecureVariables) encrypt(v *structs.SecureVariable) error {
-	b, err := json.Marshal(v.UnencryptedData)
+func (sv *SecureVariables) encrypt(v *structs.SecureVariableDecrypted) (*structs.SecureVariableEncrypted, error) {
+	b, err := json.Marshal(v.Items)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ed := &structs.SecureVariableData{
-		Data:  b,
-		KeyID: "TODO",
+	ev := structs.SecureVariableEncrypted{
+		SecureVariableMetadata: v.SecureVariableMetadata,
 	}
-	v.EncryptedData = ed
-	v.UnencryptedData = nil
-	return nil
+	ev.Data, ev.KeyID = sv.encrypter.Encrypt(b)
+	return &ev, nil
 }
 
-func (sv *SecureVariables) decrypt(v *structs.SecureVariable) error {
-	if v.EncryptedData == nil {
-		return fmt.Errorf("secure variable %q.%q not encrypted", v.Namespace, v.Path)
-	}
-
-	v.UnencryptedData = make(map[string]string)
-	err := json.Unmarshal(v.EncryptedData.Data, &v.UnencryptedData)
+func (sv *SecureVariables) decrypt(v *structs.SecureVariableEncrypted) (*structs.SecureVariableDecrypted, error) {
+	b, err := sv.encrypter.Decrypt(v.Data, v.KeyID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	v.EncryptedData = nil
-	return nil
+	dv := structs.SecureVariableDecrypted{
+		SecureVariableMetadata: v.SecureVariableMetadata,
+	}
+	dv.Items = make(map[string]string)
+	err = json.Unmarshal(b, &dv.Items)
+	if err != nil {
+		return nil, err
+	}
+	return &dv, nil
 }
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
