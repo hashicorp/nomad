@@ -1166,6 +1166,7 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	sc.ID = apiConfig.ID
 	sc.Type = structs.CSIPluginType(apiConfig.Type)
 	sc.MountDir = apiConfig.MountDir
+	sc.HealthTimeout = apiConfig.HealthTimeout
 	return sc
 }
 

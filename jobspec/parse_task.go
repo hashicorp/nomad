@@ -158,12 +158,20 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		i := o.Elem().Items[0]
 
 		var m map[string]interface{}
+		var cfg api.TaskCSIPluginConfig
 		if err := hcl.DecodeObject(&m, i.Val); err != nil {
 			return nil, err
 		}
 
-		var cfg api.TaskCSIPluginConfig
-		if err := mapstructure.WeakDecode(m, &cfg); err != nil {
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &cfg,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := dec.Decode(m); err != nil {
 			return nil, err
 		}
 
