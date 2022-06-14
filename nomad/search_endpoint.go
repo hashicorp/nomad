@@ -426,6 +426,13 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 		}
 		return store.AllocsByNamespace(ws, namespace)
 
+	case structs.SecureVariables:
+		if wildcard(namespace) {
+			iter, err := store.SecureVariables(ws)
+			return nsCapIterFilter(iter, err, aclObj)
+		}
+		return store.GetSecureVariablesByNamespace(ws, namespace)
+
 	case structs.Nodes:
 		if wildcard(namespace) {
 			iter, err := store.Nodes(ws)
