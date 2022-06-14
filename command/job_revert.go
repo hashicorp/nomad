@@ -164,7 +164,13 @@ func (c *JobRevertCommand) Run(args []string) int {
 
 	// Nothing to do
 	evalCreated := resp.EvalID != ""
-	if detach || !evalCreated {
+
+	if !evalCreated {
+		return 0
+	}
+
+	if detach {
+		c.Ui.Output("Evaluation ID: " + resp.EvalID)
 		return 0
 	}
 
