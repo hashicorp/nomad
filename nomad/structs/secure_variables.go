@@ -228,8 +228,12 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 	switch algorithm {
 	case EncryptionAlgorithmAES256GCM:
 		key := make([]byte, 32)
-		if _, err := cryptorand.Read(key); err != nil {
+		n, err := cryptorand.Read(key)
+		if err != nil {
 			return nil, err
+		}
+		if n < 32 {
+			return nil, fmt.Errorf("failed to generate key: entropy exhausted")
 		}
 		rootKey.Key = key
 	}

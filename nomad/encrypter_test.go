@@ -273,6 +273,25 @@ func TestKeyringReplicator(t *testing.T) {
 		"expected keys to be replicated to followers after election")
 }
 
+func TestEncrypter_EncryptDecrypt(t *testing.T) {
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	e := srv.encrypter
+
+	cleartext := []byte("the quick brown fox jumps over the lazy dog")
+	ciphertext, keyID, err := e.Encrypt(cleartext)
+	require.NoError(t, err)
+
+	got, err := e.Decrypt(ciphertext, keyID)
+	require.NoError(t, err)
+	require.Equal(t, cleartext, got)
+}
+
 func TestEncrypter_SignVerify(t *testing.T) {
 
 	ci.Parallel(t)

@@ -357,7 +357,10 @@ func (sv *SecureVariables) encrypt(v *structs.SecureVariableDecrypted) (*structs
 	ev := structs.SecureVariableEncrypted{
 		SecureVariableMetadata: v.SecureVariableMetadata,
 	}
-	ev.Data, ev.KeyID = sv.encrypter.Encrypt(b)
+	ev.Data, ev.KeyID, err = sv.encrypter.Encrypt(b)
+	if err != nil {
+		return nil, err
+	}
 	return &ev, nil
 }
 
