@@ -172,9 +172,6 @@ func (h *vaultHook) Shutdown() {
 func (h *vaultHook) run(token string) {
 	// Helper for stopping token renewal
 	stopRenewal := func() {
-		// Stop the client renewal loop.
-		h.client.Stop()
-		// Remove the token from the heap.
 		if err := h.client.StopRenewToken(h.future.Get()); err != nil {
 			h.logger.Warn("failed to stop token renewal", "error", err)
 		}

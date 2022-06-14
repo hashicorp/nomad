@@ -2530,6 +2530,73 @@ func TestTaskRunner_Shutdown_Stops_Vault_Token_Renewal(t *testing.T) {
 	// Add our own mock vault client so that we can reference it later
 	mockVaultClient := vaultclient.NewMockVaultClient()
 	conf.Vault = mockVaultClient
+	mockVaultClient.Start()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	require.True(t, mockVaultClient.Running())
+
+	var vltHook *vaultHook
+	for _, hook := range tr.runnerHooks {
+		if hook.Name() != "vault" {
+			continue
+		}
+
+		vltHook = hook.(*vaultHook)
+		break
+	}
+
+	// Wait for a Vault token
+	var token string
+	testutil.WaitForResult(func() (bool, error) {
+		token = tr.getVaultToken()
+
+		if token == "" {
+			return false, fmt.Errorf("no Vault token")
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	require.NotEmpty(t, token)
+
+	tr.Shutdown()
+
+	require.NotNil(t, vltHook)
+	require.Error(t, vltHook.ctx.Err())
+	require.Equal(t, vltHook.ctx.Err().Error(), "context canceled")
+
+	// If the context cancellation worked we should only have 1 renew token and 1 stopped renew token.
+	require.Len(t, mockVaultClient.RenewTokens(), 1)
+	require.Len(t, mockVaultClient.StoppedTokens(), 1)
+	require.False(t, mockVaultClient.Running())
+}
+
+func TestTaskRunner_Vault_Clients_Are_Distinct(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: `{{key "foo"}}`,
+			DestPath:     "local/test",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+		},
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Add our own mock vault client so that we can reference it later
+	mockVaultClient := vaultclient.NewMockVaultClient()
+	conf.Vault = mockVaultClient
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
