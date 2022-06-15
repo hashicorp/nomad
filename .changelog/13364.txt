@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the evaluation ID was not returned from `job revert` when the `-detach` flag was used
+``
