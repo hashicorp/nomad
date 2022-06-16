@@ -63,43 +63,74 @@ export default class PathTree {
    */
   constructor(variables) {
     this.variables = variables;
-    this.paths = this.generatePaths();
+    this.paths = this.generatePaths(variables);
   }
+
+  root = { children: {}, files: [], absolutePath: '' };
 
   /**
    * Takes our variables array and groups them by common path
    * @returns {NestedPathTreeNode}
    */
-  generatePaths = () => {
-    const paths = this.variables
-      .map((variable) => trimPath([variable.path]))
-      .map(pathToObject)
-      .reduce(
-        (acc, cur) => {
-          const { name, absoluteFilePath } = cur;
-          if (cur.path) {
-            acc.root.children[cur.path]
-              ? acc.root.children[cur.path].files.push({
-                  name,
-                  absoluteFilePath,
-                })
-              : (acc.root.children[cur.path] = {
-                  files: [{ name, absoluteFilePath }],
-                  children: {},
-                });
-            acc.root.children[cur.path].absolutePath = cur.path;
-          } else {
-            acc.root.files
-              ? acc.root.files.push({ name, absoluteFilePath })
-              : (acc.root.files = [{ name, absoluteFilePath }]);
+  generatePaths = (variables) => {
+    variables.forEach((variable) => {
+      const path = trimPath([variable.path]).split('/');
+      // const fileName = path.pop();
+      // console.log('thus path', path, fileName);
+      path.reduce((acc, segment, index, arr) => {
+        console.log('abacus', segment, index, arr);
+        if (index === arr.length - 1) {
+          acc.files.push({
+            name: segment,
+            absoluteFilePath: path.join('/'),
+            path: arr.slice(0, index + 1).join('/'),
+            variable,
+          });
+        } else {
+          if (!acc.children[segment]) {
+            acc.children[segment] = {
+              children: {},
+              files: [],
+              absolutePath: trimPath([`${acc.absolutePath || ''}/${segment}`]),
+            };
           }
-          return acc;
-        },
-        { root: { files: [], children: {}, absolutePath: '' } }
-      );
+        }
+        return acc.children[segment];
+      }, this.root);
+    });
+    console.log('and done', this.root);
+    return { root: this.root };
 
-    COMPACT_EMPTY_DIRS(paths.root.children);
-    return paths;
+    //     const paths = this.variables
+    //       .map((variable) => trimPath([variable.path]))
+    //       .map(pathToObject)
+    //       .reduce(
+    //         (acc, cur) => {
+    //           const { name, absoluteFilePath } = cur;
+    //           if (cur.path) {
+    //             acc.root.children[cur.path]
+    //               ? acc.root.children[cur.path].files.push({
+    //                   name,
+    //                   absoluteFilePath,
+    //                 })
+    //               : (acc.root.children[cur.path] = {
+    //                   files: [{ name, absoluteFilePath }],
+    //                   children: {},
+    //                 });
+    //             acc.root.children[cur.path].absolutePath = cur.path;
+    //           } else {
+    //             acc.root.files
+    //               ? acc.root.files.push({ name, absoluteFilePath })
+    //               : (acc.root.files = [{ name, absoluteFilePath }]);
+    //           }
+    //           return acc;
+    //         },
+    //         { root: { files: [], children: {}, absolutePath: '' } }
+    //       );
+
+    //     console.log("checking before compaction", paths);
+    //     COMPACT_EMPTY_DIRS(paths.root.children);
+    //     return paths;
   };
 
   /**
