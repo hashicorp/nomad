@@ -157,12 +157,12 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 	// where the staging and per-alloc directories will be mounted
 	volumeStagingMounts := &drivers.MountConfig{
-		// TODO(tgross): add this TaskPath to the CSIPluginConfig as well
-		TaskPath:        "/local/csi",
+		TaskPath:        h.task.CSIPluginConfig.StagePublishDir,
 		HostPath:        h.mountPoint,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
 	}
+	h.logger.Info("", "volumeStagingMounts", volumeStagingMounts) // TODO: Remove this before merge.
 	// devices from the host
 	devMount := &drivers.MountConfig{
 		TaskPath: "/dev",
@@ -360,7 +360,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(client csi.CSIPlugin, socketPat
 			Options: map[string]string{
 				"Provider":            info.Name, // vendor name
 				"MountPoint":          h.mountPoint,
-				"ContainerMountPoint": "/local/csi",
+				"ContainerMountPoint": h.task.CSIPluginConfig.StagePublishDir,
 			},
 		}
 	}

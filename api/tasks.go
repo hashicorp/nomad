@@ -1032,13 +1032,16 @@ type TaskCSIPluginConfig struct {
 	// CSIPluginType instructs Nomad on how to handle processing a plugin
 	Type CSIPluginType `mapstructure:"type" hcl:"type,optional"`
 
-	// MountDir is the destination that nomad should mount in its CSI
-	// directory for the plugin. It will then expect a file called CSISocketName
-	// to be created by the plugin, and will provide references into
-	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
-	//
-	// Default is /csi.
+	// MountDir is the directory (within its container) in which the plugin creates a
+	// socket (called CSISocketName) for communication with Nomad. Default is /csi.
 	MountDir string `mapstructure:"mount_dir" hcl:"mount_dir,optional"`
+
+	// StagePublishDir is the base directory (within its container) in which the plugin
+	// mounts volumes being staged and bind mounts volumes being published.
+	// e.g. staging_target_path = {StagePublishDir}/staging/{volume-id}/{usage-mode}
+	// e.g. target_path = {StagePublishDir}/per-alloc/{alloc-id}/{volume-id}/{usage-mode}
+	// Default is /local/csi.
+	StagePublishDir string `mapstructure:"stage_publish_dir" hcl:"stage_publish_dir,optional"`
 
 	// HealthTimeout is the time after which the CSI plugin tasks will be killed
 	// if the CSI Plugin is not healthy.
@@ -1048,6 +1051,10 @@ type TaskCSIPluginConfig struct {
 func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.MountDir == "" {
 		t.MountDir = "/csi"
+	}
+
+	if t.StagePublishDir == "" {
+		t.StagePublishDir = filepath.Join("/local", "csi")
 	}
 
 	if t.HealthTimeout == 0 {
