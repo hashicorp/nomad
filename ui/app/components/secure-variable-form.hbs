@@ -46,29 +46,7 @@
           {{on "input" (fn this.validateKey entry)}}
         />
       </label>
-      <label class="value-label">
-        <span>
-          Value
-        </span>
-        <Input
-          @type={{this.valueFieldType}}
-          @value={{entry.value}}
-          class="input value-input"
-          autocomplete="new-password"
-          {{! prevent auto-fill }}
-        />
-        <button
-          class="show-hide-values button is-light"
-          type="button"
-          tabindex="-1"
-          {{on "click" this.toggleShowHide}}
-        >
-          <FlightIcon
-            @name={{if this.shouldHideValues "eye-off" "eye"}}
-            @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
-          />
-        </button>
-      </label>
+      <SecureVariableForm::InputGroup @entry={{entry}} />
       {{#if (eq entry this.keyValues.lastObject)}}
         <button
           class="add-more button is-info is-inverted"
