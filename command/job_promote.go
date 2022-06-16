@@ -161,9 +161,15 @@ func (c *JobPromoteCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Nothing to do
 	evalCreated := u.EvalID != ""
-	if detach || !evalCreated {
+
+	// Nothing to do
+	if !evalCreated {
+		return 0
+	}
+
+	if detach {
+		c.Ui.Output("Evaluation ID: " + u.EvalID)
 		return 0
 	}
 
