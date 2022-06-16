@@ -179,7 +179,7 @@ to be added.
 
 ### Upgrading a Production Cluster to Raft Version 3
 
-For production raft clusters with 3 or more memebrs, the easiest way
+For production raft clusters with 3 or more members, the easiest way
 to upgrade servers is to have each server leave the cluster, upgrade
 its [`raft_protocol`] version in the `server` stanza (if upgrading to
 a version lower than v1.3.0), and then add it back. Make sure the new
