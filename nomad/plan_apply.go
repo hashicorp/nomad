@@ -153,12 +153,15 @@ func (p *planner) planApply() {
 		// Ensure any parallel apply is complete before starting the next one.
 		// This also limits how out of date our snapshot can be.
 		if planIndexCh != nil {
+			fmt.Println("waiting for idx...") // DEBUG
 			idx := <-planIndexCh
+			fmt.Println("got index", idx) // DEBUG
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
 				p.logger.Error("failed to update snapshot state", "error", err)
 				pending.respond(nil, err)
+				planIndexCh = nil
 				continue
 			}
 		}
@@ -368,14 +371,12 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 	result *structs.PlanResult, pending *pendingPlan) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+	defer close(indexCh)
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
 		p.logger.Error("failed to apply plan", "error", err)
 		pending.respond(nil, err)
-
-		// Close indexCh on error
-		close(indexCh)
 		return
 	}
 

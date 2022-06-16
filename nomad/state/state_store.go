@@ -185,6 +185,9 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	return snap, nil
 }
 
+// DEBUG: this is to introduce a one-time timeout
+var stop = true
+
 // SnapshotMinIndex is used to create a state snapshot where the index is
 // guaranteed to be greater than or equal to the index parameter.
 //
@@ -202,6 +205,13 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 	const backoffLimit = 1 * time.Second
 	var retries uint
 	var retryTimer *time.Timer
+
+	// DEBUG: this is to introduce a one-time timeout
+	if index == 7 && stop {
+		stop = false
+		time.Sleep(6000 * time.Millisecond)
+		return nil, ctx.Err()
+	}
 
 	// XXX: Potential optimization is to set up a watch on the state
 	// store's index table and only unblock via a trigger rather than
