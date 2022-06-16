@@ -1,0 +1,3 @@
+```release-note:improvements
+api: Added `NewSysbatchJob` helper function to create a base sysbatch job object
+```
