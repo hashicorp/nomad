@@ -81,7 +81,7 @@ var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 //       Per-allocation directories of unix domain sockets used to communicate
 //       with the CSI plugin. Nomad creates the directory and the plugin creates
 //       the socket file. This directory is bind-mounted to the
-//       csi_plugin.mount_config dir in the plugin task.
+//       csi_plugin.mount_dir in the plugin task.
 //
 // {plugin-type}/{plugin-id}/
 //    staging/
