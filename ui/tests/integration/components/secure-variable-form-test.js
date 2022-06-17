@@ -81,42 +81,52 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     );
   });
 
-  test('Values can be toggled to show/hide', async function (assert) {
-    this.set(
-      'mockedModel',
-      server.create('variable', {
-        keyValues: [{ key: 'foo', value: 'bar' }],
-      })
-    );
-
-    assert.expect(6);
-
-    await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
-    await click('.key-value button.add-more'); // add a second variable
-
-    findAll('input.value-input').forEach((input, iter) => {
-      assert.equal(
-        input.getAttribute('type'),
-        'password',
-        `Value ${iter + 1} is hidden by default`
+  module('editing and creating new key/value pairs', function () {
+    test('it should allow each key/value row to toggle password visibility', async function (assert) {
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          keyValues: [{ key: 'foo', value: 'bar' }],
+        })
       );
-    });
 
-    await click('.key-value button.show-hide-values');
-    findAll('input.value-input').forEach((input, iter) => {
+      assert.expect(6);
+
+      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+      await click('.key-value button.add-more'); // add a second variable
+
+      findAll('input.value-input').forEach((input, iter) => {
+        assert.equal(
+          input.getAttribute('type'),
+          'password',
+          `Value ${iter + 1} is hidden by default`
+        );
+      });
+
+      await click('.key-value button.show-hide-values');
+      const [firstRow, secondRow] = findAll('input.value-input');
+
       assert.equal(
-        input.getAttribute('type'),
+        firstRow.getAttribute('type'),
         'text',
-        `Value ${iter + 1} is shown when toggled`
+        'Only the row that is clicked on toggles visibility'
       );
-    });
-
-    await click('.key-value button.show-hide-values');
-    findAll('input.value-input').forEach((input, iter) => {
       assert.equal(
-        input.getAttribute('type'),
+        secondRow.getAttribute('type'),
         'password',
-        `Value ${iter + 1} is hidden when toggled again`
+        'Rows that are not clicked remain obscured'
+      );
+
+      await click('.key-value button.show-hide-values');
+      assert.equal(
+        firstRow.getAttribute('type'),
+        'password',
+        'Only the row that is clicked on toggles visibility'
+      );
+      assert.equal(
+        secondRow.getAttribute('type'),
+        'password',
+        'Rows that are not clicked remain obscured'
       );
     });
   });
