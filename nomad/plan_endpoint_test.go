@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -139,6 +140,18 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+
+	planApplyFn := func(buf []byte, index uint64) interface{} {
+		if index == 8 {
+			fmt.Println("introducing delay")
+			time.Sleep(6000 * time.Millisecond)
+		}
+		return s1.fsm.applyPlanResults(structs.MsgTypeTestSetup, buf, index)
+	}
+
+	s1.fsm.interceptionAppliers = map[structs.MessageType]LogApplier{
+		structs.ApplyPlanResultsRequestType: planApplyFn,
+	}
 
 	plans := []*structs.Plan{}
 

@@ -92,6 +92,10 @@ type nomadFSM struct {
 	// enterpriseRestorers holds the set of enterprise only snapshot restorers
 	enterpriseRestorers SnapshotRestorers
 
+	// faultInjectionAppliers holds a set of test-only LogAppliers
+	// used to intercept raft messages to inject faults
+	interceptionAppliers LogAppliers
+
 	// stateLock is only used to protect outside callers to State() from
 	// racing with Restore(), which is called by Raft (it puts in a totally
 	// new state store). Everything internal here is synchronized by the
@@ -153,15 +157,16 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:          config.EvalBroker,
-		periodicDispatcher:  config.Periodic,
-		blockedEvals:        config.Blocked,
-		logger:              config.Logger.Named("fsm"),
-		config:              config,
-		state:               state,
-		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
-		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
-		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
+		evalBroker:           config.EvalBroker,
+		periodicDispatcher:   config.Periodic,
+		blockedEvals:         config.Blocked,
+		logger:               config.Logger.Named("fsm"),
+		config:               config,
+		state:                state,
+		timetable:            NewTimeTable(timeTableGranularity, timeTableLimit),
+		enterpriseAppliers:   make(map[structs.MessageType]LogApplier, 8),
+		enterpriseRestorers:  make(map[SnapshotType]SnapshotRestorer, 8),
+		interceptionAppliers: make(map[structs.MessageType]LogApplier, 8),
 	}
 
 	// Register all the log applier functions
@@ -205,6 +210,11 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	if msgType&structs.IgnoreUnknownTypeFlag == structs.IgnoreUnknownTypeFlag {
 		msgType &= ^structs.IgnoreUnknownTypeFlag
 		ignoreUnknown = true
+	}
+
+	// Check interception message types.
+	if applier, ok := n.interceptionAppliers[msgType]; ok {
+		return applier(buf[1:], log.Index)
 	}
 
 	switch msgType {
