@@ -19,7 +19,7 @@ export default class VariablesVariableIndexController extends Controller {
   }
 
   @action
-  onCancel() {
+  onDeleteCancel() {
     this.isDeleting = false;
   }
 
