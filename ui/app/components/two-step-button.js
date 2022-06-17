@@ -24,6 +24,7 @@ export default class TwoStepButton extends Component {
   inlineText = false;
   onConfirm() {}
   onCancel() {}
+  onPrompt() {}
 
   state = 'idle';
   @equal('state', 'idle') isIdle;
@@ -42,11 +43,19 @@ export default class TwoStepButton extends Component {
   @action
   setToIdle() {
     this.set('state', 'idle');
+
+    if (this.onCancel) {
+      this.onCancel();
+    }
+
     this.cancelOnClickOutside.cancelAll();
   }
 
   @action
   promptForConfirmation() {
+    if (this.onPrompt) {
+      this.onPrompt();
+    }
     this.set('state', 'prompt');
     next(() => {
       this.cancelOnClickOutside.perform();
