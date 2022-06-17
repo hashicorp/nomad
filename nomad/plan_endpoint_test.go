@@ -131,7 +131,7 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 	require.Zero(t, s1.planner.planQueue.Stats().Depth)
 }
 
-func TestPlanEndpoint_ApplyDeadlock(t *testing.T) {
+func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {

@@ -153,9 +153,7 @@ func (p *planner) planApply() {
 		// Ensure any parallel apply is complete before starting the next one.
 		// This also limits how out of date our snapshot can be.
 		if planIndexCh != nil {
-			fmt.Println("waiting for idx...") // DEBUG
 			idx := <-planIndexCh
-			fmt.Println("got index", idx) // DEBUG
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
