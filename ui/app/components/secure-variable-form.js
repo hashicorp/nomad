@@ -10,6 +10,7 @@ import EmberObject from '@ember/object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
+  @service flashMessages;
 
   @tracked
   shouldHideValues = true;
@@ -87,9 +88,27 @@ export default class SecureVariableFormComponent extends Component {
   @action
   async save(e) {
     e.preventDefault();
-    this.args.model.set('keyValues', this.keyValues);
-    this.args.model.setAndTrimPath();
-    await this.args.model.save();
+    try {
+      this.args.model.set('keyValues', this.keyValues);
+      this.args.model.setAndTrimPath();
+      await this.args.model.save();
+      this.flashMessages.add({
+        title: 'Secure Variable saved',
+        message: `${this.args.model.path} successfully saved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+        showProgress: true,
+      });
+    } catch (error) {
+      this.flashMessages.add({
+        title: `Error saving ${this.args.model.path}`,
+        message: error,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
     this.router.transitionTo('variables.variable', this.args.model.path);
   }
 }
