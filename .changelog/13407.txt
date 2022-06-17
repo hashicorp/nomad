@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where the plan applier could deadlock if raft load prevented a state store snapshot from completing within 5 seconds
+```
