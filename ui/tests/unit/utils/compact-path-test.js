@@ -31,12 +31,12 @@ module('Unit | Utility | compact-path', function () {
       'Path z/y is compacted to y/x, since it has a single child'
     );
     assert.equal(
-      compactPath(tree.findPath('z/y/x'), 'x'),
+      compactPath(tree.findPath('z/y/x'), 'x').name,
       'x',
       'Path z/y/x is uncompacted, since it has multiple children'
     );
     assert.equal(
-      compactPath(tree.findPath('a/b/c/d/e/z'), 'z'),
+      compactPath(tree.findPath('a/b/c/d/e/z'), 'z').name,
       'z/z/z/z/z/z/z/z/z/z',
       'Long path is recursively compacted'
     );
