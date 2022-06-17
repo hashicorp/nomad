@@ -10,10 +10,7 @@ export default class VariablePathsComponent extends Component {
    * @returns {Array<Object.<string, Object>>}
    */
   get folders() {
-    return Object.entries(this.args.branch.children).map(([name, data]) => {
-      console.log('checking to see if I can compact', name);
-      console.log(compactPath(this.args.branch.children[name], name));
-      // return { name, data };
+    return Object.entries(this.args.branch.children).map(([name]) => {
       return compactPath(this.args.branch.children[name], name);
     });
   }

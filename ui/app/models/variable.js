@@ -6,7 +6,6 @@ import classic from 'ember-classic-decorator';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { trimPath } from '../helpers/trim-path';
-import { pathToObject } from '../utils/path-tree';
 
 /**
  * @typedef KeyValue
@@ -57,8 +56,10 @@ export default class VariableModel extends Model {
   @attr('string') namespace;
 
   @computed('path')
-  get folderPath() {
-    return pathToObject(this.path).path;
+  get parentFolderPath() {
+    const split = this.path.split('/');
+    const [, ...folderPath] = [split.pop(), ...split];
+    return folderPath.join('/');
   }
 
   /**
