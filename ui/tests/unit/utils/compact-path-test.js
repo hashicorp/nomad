@@ -16,27 +16,28 @@ const PATHSTRINGS = [
 module('Unit | Utility | compact-path', function () {
   test('it compacts empty folders correctly', function (assert) {
     const tree = new pathTree(PATHSTRINGS);
-    console.log('tree', tree, compactPath(tree.root.children['a'], 'a'));
     assert.ok(
       'a' in tree.paths.root.children,
       'root.a exists in the path tree despite having no files and only a single path'
     );
-    assert.ok(
-      compactPath(tree.root.children['a'], 'a').name === 'a/b/c/d/e',
+    assert.equal(
+      compactPath(tree.root.children['a'], 'a').name,
+      'a/b/c/d/e',
       'but root.a is displayed compacted down to /e from its root level folder'
     );
-    assert.ok(
-      compactPath(tree.findPath('z/y'), 'y').name === 'y/x',
+    assert.equal(
+      compactPath(tree.findPath('z/y'), 'y').name,
+      'y/x',
       'Path z/y is compacted to y/x, since it has a single child'
     );
-    assert.ok(
-      compactPath(tree.findPath('z/y/x'), 'x').name === 'x',
+    assert.equal(
+      compactPath(tree.findPath('z/y/x'), 'x'),
+      'x',
       'Path z/y/x is uncompacted, since it has multiple children'
     );
-    console.log('ah fuck', compactPath(tree.findPath('a/b/c/d/e/z'), 'z'));
-    assert.ok(
-      compactPath(tree.findPath('a/b/c/d/e/z'), 'z').name ===
-        'z/z/z/z/z/z/z/z/z/z',
+    assert.equal(
+      compactPath(tree.findPath('a/b/c/d/e/z'), 'z'),
+      'z/z/z/z/z/z/z/z/z/z',
       'Long path is recursively compacted'
     );
   });
