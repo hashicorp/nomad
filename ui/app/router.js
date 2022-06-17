@@ -84,7 +84,7 @@ Router.map(function () {
     this.route(
       'variable',
       {
-        path: '/*path',
+        path: '/var/*path',
       },
       function () {
         this.route('edit');
