@@ -34,6 +34,9 @@ export default class TwoStepButton extends Component {
     while (true) {
       let ev = yield waitForEvent(document.body, 'click');
       if (!this.element.contains(ev.target) && !this.awaitingConfirmation) {
+        if (this.onCancel) {
+          this.onCancel();
+        }
         this.send('setToIdle');
       }
     }
@@ -43,11 +46,6 @@ export default class TwoStepButton extends Component {
   @action
   setToIdle() {
     this.set('state', 'idle');
-
-    if (this.onCancel) {
-      this.onCancel();
-    }
-
     this.cancelOnClickOutside.cancelAll();
   }
 
