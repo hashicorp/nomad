@@ -436,6 +436,17 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("deploy_query_rate_limit must be greater than 0")
 	}
 
+	// Set plan rejection tracker configuration.
+	if planRejectConf := agentConfig.Server.PlanRejectionTracker; planRejectConf != nil {
+		conf.NodePlanRejectionThreshold = planRejectConf.NodeThreshold
+
+		if planRejectConf.NodeWindow == 0 {
+			return nil, fmt.Errorf("plan_rejection_tracker.node_window must be greater than 0")
+		} else {
+			conf.NodePlanRejectionWindow = planRejectConf.NodeWindow
+		}
+	}
+
 	// Add Enterprise license configs
 	conf.LicenseEnv = agentConfig.Server.LicenseEnv
 	conf.LicensePath = agentConfig.Server.LicensePath
