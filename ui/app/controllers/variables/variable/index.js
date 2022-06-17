@@ -14,8 +14,8 @@ export default class VariablesVariableIndexController extends Controller {
     try {
       yield this.model.deleteRecord();
       yield this.model.save();
-      if (this.model.folderPath) {
-        this.router.transitionTo('variables.path', this.model.folderPath);
+      if (this.model.parentFolderPath) {
+        this.router.transitionTo('variables.path', this.model.parentFolderPath);
       } else {
         this.router.transitionTo('variables');
       }
