@@ -35,24 +35,24 @@ export function pathToObject(path) {
   };
 }
 
-/**
- * Compacts an object of path:file key-values so any same-common-ancestor paths are collapsed into a single path.
- * @param {NestedPathTreeNode} vars
- * @returns {void}}
- */
-function COMPACT_EMPTY_DIRS(vars) {
-  Object.keys(vars).map((pathString) => {
-    const encompasser = Object.keys(vars).find(
-      (ps) => ps !== pathString && pathString.startsWith(ps)
-    );
-    if (encompasser) {
-      vars[encompasser].children[pathString.replace(encompasser, '')] =
-        vars[pathString];
-      delete vars[pathString];
-      COMPACT_EMPTY_DIRS(vars[encompasser].children);
-    }
-  });
-}
+// /**
+//  * Compacts an object of path:file key-values so any same-common-ancestor paths are collapsed into a single path.
+//  * @param {NestedPathTreeNode} vars
+//  * @returns {void}}
+//  */
+// function COMPACT_EMPTY_DIRS(vars) {
+//   Object.keys(vars).map((pathString) => {
+//     const encompasser = Object.keys(vars).find(
+//       (ps) => ps !== pathString && pathString.startsWith(ps)
+//     );
+//     if (encompasser) {
+//       vars[encompasser].children[pathString.replace(encompasser, '')] =
+//         vars[pathString];
+//       delete vars[pathString];
+//       COMPACT_EMPTY_DIRS(vars[encompasser].children);
+//     }
+//   });
+// }
 
 /**
  * @returns {NestedPathTreeNode}
@@ -78,8 +78,8 @@ export default class PathTree {
       // const fileName = path.pop();
       // console.log('thus path', path, fileName);
       path.reduce((acc, segment, index, arr) => {
-        console.log('abacus', segment, index, arr);
         if (index === arr.length - 1) {
+          // If it's a file (end of the segment array)
           acc.files.push({
             name: segment,
             absoluteFilePath: path.join('/'),
@@ -87,6 +87,7 @@ export default class PathTree {
             variable,
           });
         } else {
+          // Otherwise, it's a folder
           if (!acc.children[segment]) {
             acc.children[segment] = {
               children: {},

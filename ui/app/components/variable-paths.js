@@ -2,7 +2,7 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-
+import compactPath from '../utils/compact-path';
 export default class VariablePathsComponent extends Component {
   @service router;
 
@@ -11,7 +11,10 @@ export default class VariablePathsComponent extends Component {
    */
   get folders() {
     return Object.entries(this.args.branch.children).map(([name, data]) => {
-      return { name, data };
+      console.log('checking to see if I can compact', name);
+      console.log(compactPath(this.args.branch.children[name], name));
+      // return { name, data };
+      return compactPath(this.args.branch.children[name], name);
     });
   }
 
