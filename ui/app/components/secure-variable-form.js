@@ -12,9 +12,6 @@ export default class SecureVariableFormComponent extends Component {
   @service router;
   @service flashMessages;
 
-  @tracked
-  shouldHideValues = true;
-
   /**
    * @typedef {Object} DuplicatePathWarning
    * @property {string} path
@@ -24,10 +21,6 @@ export default class SecureVariableFormComponent extends Component {
    * @type {DuplicatePathWarning}
    */
   @tracked duplicatePathWarning = null;
-
-  get valueFieldType() {
-    return this.shouldHideValues ? 'password' : 'text';
-  }
 
   get shouldDisableSave() {
     return !this.args.model?.path;
@@ -66,11 +59,6 @@ export default class SecureVariableFormComponent extends Component {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
     }
-  }
-
-  @action
-  toggleShowHide() {
-    this.shouldHideValues = !this.shouldHideValues;
   }
 
   @action appendRow() {

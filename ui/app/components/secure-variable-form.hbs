@@ -1,12 +1,10 @@
-<form
-  class="new-secure-variables"
-  {{on "submit" this.save}}
-  autocomplete="off"
->
+<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
   {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
   <div>
     <label>
-      <span>Path</span>
+      <span>
+        Path
+      </span>
       <Input
         @type="text"
         @value={{@model.path}}
@@ -15,74 +13,73 @@
         disabled={{not @model.isNew}}
         {{on "input" this.validatePath}}
         {{autofocus}}
-        />
+      />
     </label>
     {{#if this.duplicatePathWarning}}
       <p class="duplicate-path-error help is-danger">
-        There is already a Secure Variable located at {{@model.path}}.
+        There is already a Secure Variable located at
+        {{@model.path}}
+        .
         <br />
-        Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathWarning.path}}>edit the existing Secure Variable</LinkTo>.
+        Please choose a different path, or
+        <LinkTo
+          @route="variables.variable.edit"
+          @model={{this.duplicatePathWarning.path}}
+        >
+          edit the existing Secure Variable
+        </LinkTo>
+        .
       </p>
     {{/if}}
   </div>
   {{#each this.keyValues as |entry iter|}}
-  <div class="key-value">
-
-    <label>
-      <span>Key</span>
-      <Input
-        @type="text"
-        @value={{entry.key}}
-        class="input"
-        {{autofocus ignore=(eq iter 0)}}
-        {{on "input" (fn this.validateKey entry)}}
+    <div class="key-value">
+      <label>
+        <span>
+          Key
+        </span>
+        <Input
+          @type="text"
+          @value={{entry.key}}
+          class="input"
+          {{autofocus ignore=(eq iter 0)}}
+          {{on "input" (fn this.validateKey entry)}}
         />
-    </label>
-
-    <label class="value-label">
-      <span>Value
-      </span>
-      <Input
-        @type={{this.valueFieldType}}
-        @value={{entry.value}}
-        class="input value-input"
-        autocomplete="new-password" {{!-- prevent auto-fill --}}
-        />
-      <button
-        class="show-hide-values button is-light"
-        type="button"
-        tabindex="-1"
-        {{on "click" this.toggleShowHide}}
-      >
-        <FlightIcon
-          @name={{if this.shouldHideValues "eye-off" "eye"}}
-          @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
-        />
-      </button>
-    </label>
-
-    {{#if (eq entry this.keyValues.lastObject)}}
-      <button
-        {{on "click" this.appendRow}}
-        class="add-more button is-info is-inverted"
-        type="button"
-        disabled={{not (and entry.key entry.value)}}
-      >Add More</button>
-    {{else}}
-      <button
-        {{on "click" (action this.deleteRow entry)}}
-        class="delete-row button is-danger is-inverted" type="button">Delete</button>
-    {{/if}}
-
-    {{#each-in entry.warnings as |k v|}}
-      <span class="key-value-error help is-danger">{{v}}</span>
-    {{/each-in}}
-  </div>
+      </label>
+      <SecureVariableForm::InputGroup @entry={{entry}} />
+      {{#if (eq entry this.keyValues.lastObject)}}
+        <button
+          class="add-more button is-info is-inverted"
+          type="button"
+          disabled={{not (and entry.key entry.value)}}
+          {{on "click" this.appendRow}}
+        >
+          Add More
+        </button>
+      {{else}}
+        <button
+          class="delete-row button is-danger is-inverted"
+          type="button"
+          {{on "click" (action this.deleteRow entry)}}
+        >
+          Delete
+        </button>
+      {{/if}}
+      {{#each-in entry.warnings as |k v|}}
+        <span class="key-value-error help is-danger">
+          {{v}}
+        </span>
+      {{/each-in}}
+    </div>
   {{/each}}
-
   <footer>
     <button
       disabled={{this.shouldDisableSave}}
-      class="button is-primary" type="submit">Save {{pluralize 'Variable' @this.keyValues.length}}</button>
+      class="button is-primary"
+      type="submit"
+    >
+      Save
+      {{pluralize "Variable" @this.keyValues.length}}
+    </button>
   </footer>
 </form>

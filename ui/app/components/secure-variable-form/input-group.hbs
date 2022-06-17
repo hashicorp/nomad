@@ -1,0 +1,23 @@
+<label class="value-label">
+  <span>
+    Value
+  </span>
+  <Input
+    @type={{this.inputType}}
+    @value={{@entry.value}}
+    class="input value-input"
+    autocomplete="new-password"
+    {{! prevent auto-fill }}
+  />
+  <button
+    class="show-hide-values button is-light"
+    type="button"
+    tabindex="-1"
+    {{on "click" this.toggleInputType}}
+  >
+    <FlightIcon
+      @name={{if this.isObscured "eye-off" "eye"}}
+      @title={{if this.isObscured "Show Values" "Hide Values"}}
+    />
+  </button>
+</label>
