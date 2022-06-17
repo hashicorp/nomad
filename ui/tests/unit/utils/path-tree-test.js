@@ -32,27 +32,6 @@ module('Unit | Utility | path-tree', function () {
     );
   });
 
-  test('it compacts empty folders correctly', function (assert) {
-    const tree = new pathTree(PATHSTRINGS);
-    assert.ok(
-      'a' in tree.paths.root.children,
-      'root.a is uncompacted since it contains a file (b)'
-    );
-    assert.notOk(
-      'foo' in tree.paths.root.children,
-      'root.foo does not exist since it contains no files'
-    );
-    assert.ok(
-      'foo/bar' in tree.paths.root.children,
-      'root.foo/bar is compacted since the only child from foo is bar'
-    );
-    assert.equal(
-      tree.paths.root.children['foo/bar'].files.length,
-      3,
-      'A compacted directory contains all terminal files'
-    );
-  });
-
   test('it allows for node-based search and traversal', function (assert) {
     const tree = new pathTree(PATHSTRINGS);
     assert.deepEqual(
@@ -60,10 +39,10 @@ module('Unit | Utility | path-tree', function () {
       tree.findPath(''),
       'Returns tree root on default findPath'
     );
-    assert.notOk(
+    assert.ok(
       tree.findPath('foo'),
-      'No path found at the first part of a concatenated folder'
-    ); // TODO: but maybe we want this to work eventually, so if this test fails because you add mid-tree traversal? Great!
+      'Path found at the first part of a concatenated folder'
+    );
     assert.ok(
       tree.findPath('foo/bar'),
       'Finds a path at the concatenated folder path'

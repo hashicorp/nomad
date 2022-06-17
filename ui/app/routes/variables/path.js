@@ -1,5 +1,4 @@
 import Route from '@ember/routing/route';
-
 export default class VariablesPathRoute extends Route {
   model({ absolutePath }) {
     const treeAtPath =
