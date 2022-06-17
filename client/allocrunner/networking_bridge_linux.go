@@ -143,6 +143,9 @@ const nomadCNIConfigTemplate = `{
 	"name": "nomad",
 	"plugins": [
 		{
+			"type": "loopback"
+		},
+		{
 			"type": "bridge",
 			"bridge": "%s",
 			"ipMasq": true,
