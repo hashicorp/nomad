@@ -148,6 +148,10 @@ func TestConfig_Merge(t *testing.T) {
 			UpgradeVersion:         "foo",
 			EnableEventBroker:      helper.BoolToPtr(false),
 			EventBufferSize:        helper.IntToPtr(0),
+			PlanRejectionTracker: &PlanRejectionTracker{
+				NodeThreshold: 100,
+				NodeWindow:    11 * time.Minute,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -343,6 +347,10 @@ func TestConfig_Merge(t *testing.T) {
 			UpgradeVersion:         "bar",
 			EnableEventBroker:      helper.BoolToPtr(true),
 			EventBufferSize:        helper.IntToPtr(100),
+			PlanRejectionTracker: &PlanRejectionTracker{
+				NodeThreshold: 100,
+				NodeWindow:    11 * time.Minute,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,

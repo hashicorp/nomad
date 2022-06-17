@@ -365,6 +365,74 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 	}
 }
 
+func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		trackerConfig  *PlanRejectionTracker
+		expectedConfig *PlanRejectionTracker
+		expectedErr    string
+	}{
+		{
+			name:          "default",
+			trackerConfig: nil,
+			expectedConfig: &PlanRejectionTracker{
+				NodeThreshold: 15,
+				NodeWindow:    10 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "valid config",
+			trackerConfig: &PlanRejectionTracker{
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedConfig: &PlanRejectionTracker{
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "invalid node window",
+			trackerConfig: &PlanRejectionTracker{
+				NodeThreshold: 123,
+			},
+			expectedErr: "node_window must be greater than 0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := DevConfig(nil)
+			require.NoError(t, config.normalizeAddrs())
+
+			if tc.trackerConfig != nil {
+				config.Server.PlanRejectionTracker = tc.trackerConfig
+			}
+
+			serverConfig, err := convertServerConfig(config)
+
+			if tc.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t,
+					tc.expectedConfig.NodeThreshold,
+					serverConfig.NodePlanRejectionThreshold,
+				)
+				require.Equal(t,
+					tc.expectedConfig.NodeWindow,
+					serverConfig.NodePlanRejectionWindow,
+				)
+			}
+		})
+	}
+}
+
 func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 	ci.Parallel(t)
 

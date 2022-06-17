@@ -232,6 +232,14 @@ type Config struct {
 	// additional delay is selected from this range randomly.
 	EvalFailedFollowupDelayRange time.Duration
 
+	// NodePlanRejectionThreshold is the number of times a node must have a
+	// plan rejection before it is set as ineligible.
+	NodePlanRejectionThreshold int
+
+	// NodePlanRejectionWindow is the time window used to track plan
+	// rejections for nodes.
+	NodePlanRejectionWindow time.Duration
+
 	// MinHeartbeatTTL is the minimum time between heartbeats.
 	// This is used as a floor to prevent excessive updates.
 	MinHeartbeatTTL time.Duration
@@ -395,6 +403,8 @@ func DefaultConfig() *Config {
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,
 		FailoverHeartbeatTTL:             300 * time.Second,
+		NodePlanRejectionThreshold:       15,
+		NodePlanRejectionWindow:          10 * time.Minute,
 		ConsulConfig:                     config.DefaultConsulConfig(),
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,
