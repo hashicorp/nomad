@@ -1,6 +1,7 @@
 module.exports = [
   // Define your custom redirects within this file.
-  // Vercel's redirect documentation: https://vercel.com/docs/configuration#project/redirects
+  // Vercel's redirect documentation: https://nextjs.org/docs/api-reference/next.config.js/redirects
+  // Relative paths with fragments (#) are not supported. For destinations with fragments use an absolute URL.
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
   {
     source: '/home',
@@ -198,7 +199,8 @@ module.exports = [
   // change its destination in the future.
   {
     source: '/s/port-plan-failure',
-    destination: '/docs/operations/monitoring-nomad#progress',
+    destination:
+      'https://www.nomadproject.io/docs/operations/monitoring-nomad#progress',
     permanent: false,
   },
 
@@ -688,7 +690,8 @@ module.exports = [
   // Sometimes code names are too good not to mention
   {
     source: '/heartyeet',
-    destination: '/docs/job-specification/group#stop_after_client_disconnect',
+    destination:
+      'https://www.nomadproject.io/docs/job-specification/group#stop_after_client_disconnect',
     permanent: true,
   },
 
@@ -1217,27 +1220,29 @@ module.exports = [
   // Reorganized Enterprise into single pager
   {
     source: '/docs/enterprise/namespaces',
-    destination: '/docs/enterprise#namespaces',
+    destination: 'https://www.nomadproject.io/docs/enterprise#namespaces',
     permanent: true,
   },
   {
     source: '/docs/enterprise/quotas',
-    destination: '/docs/enterprise#resource-quotas',
+    destination: 'https://www.nomadproject.io/docs/enterprise#resource-quotas',
     permanent: true,
   },
   {
     source: '/docs/enterprise/preemption',
-    destination: '/docs/enterprise#preemption',
+    destination: 'https://www.nomadproject.io/docs/enterprise#preemption',
     permanent: true,
   },
   {
     source: '/docs/enterprise/sentinel',
-    destination: '/docs/enterprise#sentinel-policies',
+    destination:
+      'https://www.nomadproject.io/docs/enterprise#sentinel-policies',
     permanent: true,
   },
   {
     source: '/docs/enterprise/autopilot',
-    destination: '/docs/enterprise#nomad-enterprise-platform',
+    destination:
+      'https://www.nomadproject.io/docs/enterprise#nomad-enterprise-platform',
     permanent: true,
   },
 
