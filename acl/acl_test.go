@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCapabilitySet(t *testing.T) {
@@ -379,6 +380,115 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 		})
 	}
 }
+
+func TestSecureVariablesMatching(t *testing.T) {
+	ci.Parallel(t)
+
+	tests := []struct {
+		name   string
+		policy string
+		ns     string
+		path   string
+		op     string
+		allow  bool
+	}{
+		{
+			name: "concrete namespace with concrete path matches",
+			policy: `namespace "ns" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with concrete path matches for expanded caps",
+			policy: `namespace "ns" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "list",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with wildcard path matches",
+			policy: `namespace "ns" {
+					secure_variables { path "foo/*" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with invalid concrete path fails",
+			policy: `namespace "ns" {
+					secure_variables { path "bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: false,
+		},
+		{
+			name: "concrete namespace with invalid wildcard path fails",
+			policy: `namespace "ns" {
+					secure_variables { path "*/foo" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: false,
+		},
+		{
+			name: "wildcard namespace with concrete path matches",
+			policy: `namespace "*" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: true,
+		},
+		{
+			name: "wildcard namespace with invalid concrete path fails",
+			policy: `namespace "*" {
+					secure_variables { path "bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: false,
+		},
+		{
+			name: "wildcard in user provided path fails",
+			policy: `namespace "ns" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "*",
+			op:    "read",
+			allow: false,
+		},
+		{
+			name: "wildcard attempt to bypass delimiter null byte fails",
+			policy: `namespace "ns" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns*",
+			path:  "bar",
+			op:    "read",
+			allow: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy)
+			require.NoError(t, err)
+			require.NotNil(t, policy.Namespaces[0].SecureVariables)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			require.NoError(t, err)
+			require.Equal(t, tc.allow, acl.AllowSecureVariableOperation(tc.ns, tc.path, tc.op))
+		})
+	}
+}
+
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 	ci.Parallel(t)
 
