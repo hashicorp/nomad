@@ -4,7 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
-import { click, find, findAll } from '@ember/test-helpers';
+import { click, find, findAll, typeIn } from '@ember/test-helpers';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -117,6 +117,25 @@ module('Acceptance | secure variables', function (hooks) {
     )[0];
 
     assert.notOk(fooLink, 'foo0 file is no longer present');
+  });
+
+  test('it does not allow you to save if you lack Items', async function (assert) {
+    defaultScenario(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await Variables.visitNew();
+    assert.equal(currentURL(), '/variables/new');
+    await typeIn('.path-input', 'foo/bar');
+    await click('button[type="submit"]');
+    assert.dom('.flash-message.alert-error').exists();
+    await click('.flash-message.alert-error .close-button');
+    assert.dom('.flash-message.alert-error').doesNotExist();
+
+    await typeIn('.key-value label:nth-child(1) input', 'myKey');
+    await typeIn('.key-value label:nth-child(2) input', 'superSecret');
+    await click('button[type="submit"]');
+
+    assert.dom('.flash-message.alert-success').exists();
+    assert.equal(currentURL(), '/variables/var/foo/bar');
   });
 
   test('it passes an accessibility audit', async function (assert) {

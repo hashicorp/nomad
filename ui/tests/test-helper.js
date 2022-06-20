@@ -5,6 +5,7 @@ import * as QUnit from 'qunit';
 import { setApplication } from '@ember/test-helpers';
 import start from 'ember-exam/test-support/start';
 import { setup } from 'qunit-dom';
+import './helpers/flash-message';
 
 setApplication(Application.create(config.APP));
 

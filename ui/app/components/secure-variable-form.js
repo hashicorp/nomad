@@ -77,9 +77,19 @@ export default class SecureVariableFormComponent extends Component {
   async save(e) {
     e.preventDefault();
     try {
+      const nonEmptyItems = this.keyValues.filter(
+        (item) => item.key.trim() && item.value
+      );
+      if (!nonEmptyItems.length) {
+        throw new Error('Please provide at least one key/value pair.');
+      } else {
+        this.keyValues = nonEmptyItems;
+      }
+
       this.args.model.set('keyValues', this.keyValues);
       this.args.model.setAndTrimPath();
       await this.args.model.save();
+
       this.flashMessages.add({
         title: 'Secure Variable saved',
         message: `${this.args.model.path} successfully saved`,
@@ -88,6 +98,7 @@ export default class SecureVariableFormComponent extends Component {
         timeout: 5000,
         showProgress: true,
       });
+      this.router.transitionTo('variables.variable', this.args.model.path);
     } catch (error) {
       this.flashMessages.add({
         title: `Error saving ${this.args.model.path}`,
@@ -97,6 +108,5 @@ export default class SecureVariableFormComponent extends Component {
         sticky: true,
       });
     }
-    this.router.transitionTo('variables.variable', this.args.model.path);
   }
 }
