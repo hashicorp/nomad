@@ -79,14 +79,13 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	}()
 
 	updateReq.RootKey.Meta.CreateTime = time.Now()
-
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), updateResp.Index)
 
 	// wait for the blocking query to complete and check the response
 	wg.Wait()
-	require.Greater(t, listResp.Index, getResp.Index)
+	require.Equal(t, listResp.Index, updateResp.Index)
 	require.Len(t, listResp.Keys, 2) // bootstrap + new one
 
 	// Delete the key and verify that it's gone
