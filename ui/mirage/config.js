@@ -848,13 +848,13 @@ export default function () {
 
   this.put('/var/:id', function (schema, request) {
     const { Path, Namespace, Items } = JSON.parse(request.requestBody);
-    const newVar = server.create('variable', {
+    server.create('variable', {
       Path,
       Namespace,
       Items,
       id: Path,
     });
-    return newVar;
+    return okEmpty(); // TODO: consider returning the created object.
   });
 
   this.delete('/var/:id', function (schema, request) {
