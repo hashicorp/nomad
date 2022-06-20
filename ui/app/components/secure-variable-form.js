@@ -98,7 +98,6 @@ export default class SecureVariableFormComponent extends Component {
         timeout: 5000,
         showProgress: true,
       });
-
       this.router.transitionTo('variables.variable', this.args.model.path);
     } catch (error) {
       this.flashMessages.add({
