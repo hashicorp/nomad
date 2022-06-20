@@ -16,6 +16,10 @@ import (
 	"sync"
 	"time"
 
+	// note: this is aliased so that it's more noticeable if someone
+	// accidentally swaps it out for math/rand via running goimports
+	cryptorand "crypto/rand"
+
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -104,29 +108,55 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 	return encrypter, nil
 }
 
-// Encrypt encrypts the data with the ciper for the CurrentRootKeyID.
-// The buffer returned includes the nonce. Both the buffer and the
-// CurrentRootKeyID are returned to the caller.
-func (e *Encrypter) Encrypt(unencryptedData []byte) ([]byte, string) {
+// Encrypt encrypts the clear data with the cipher for the current
+// root key, and returns the cipher text (including the nonce), and
+// the key ID used to encrypt it
+func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	var keyID string
-	for k, v := range e.keyring {
-		if v.rootKey.Meta.Active {
-			keyID = k
-			break
-		}
+
+	keyset, err := e.activeKeySetLocked()
+	if err != nil {
+		return nil, "", err
 	}
-	return e.encryptLocked(unencryptedData, keyID), keyID
+
+	nonceSize := keyset.cipher.NonceSize()
+	nonce := make([]byte, nonceSize)
+	n, err := cryptorand.Read(nonce)
+	if err != nil {
+		return nil, "", err
+	}
+	if n < nonceSize {
+		return nil, "", fmt.Errorf("failed to encrypt: entropy exhausted")
+	}
+
+	keyID := keyset.rootKey.Meta.KeyID
+	additional := []byte(keyID) // include the keyID in the signature inputs
+
+	// we use the nonce as the dst buffer so that the ciphertext is
+	// appended to that buffer and we always keep the nonce and
+	// ciphertext together, and so that we're not tempted to reuse
+	// the cleartext buffer which the caller still owns
+	ciphertext := keyset.cipher.Seal(nonce, nonce, cleartext, additional)
+	return ciphertext, keyID, nil
 }
 
-// encryptLocked must be called with a read lock on e.lock. It takes the
-// passed []byte, generates an appropriately-sized nonce for the algorithm,
-// and encrypts the data with the ciper for the CurrentRootKeyID. The buffer
-// returned includes the nonce.
-func (e *Encrypter) encryptLocked(unencryptedData []byte, keyID string) []byte {
-	// TODO: actually encrypt!
-	return unencryptedData
+// Decrypt takes an encrypted buffer and then root key ID. It extracts
+// the nonce, decrypts the content, and returns the cleartext data.
+func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
+
+	keyset, err := e.keysetByIDLocked(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := keyset.cipher.NonceSize()
+	nonce := ciphertext[:nonceSize] // nonce was stored alongside ciphertext
+	additional := []byte(keyID)     // keyID was included in the signature inputs
+
+	return keyset.cipher.Open(nil, nonce, ciphertext[nonceSize:], additional)
 }
 
 // keyIDHeader is the JWT header for the Nomad Key ID used to sign the
@@ -137,8 +167,10 @@ const keyIDHeader = "kid"
 // SignClaims signs the identity claim for the task and returns an
 // encoded JWT with both the claim and its signature
 func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
-	keyset, err := e.activeKeySet()
+	keyset, err := e.activeKeySetLocked()
 	if err != nil {
 		return "", err
 	}
@@ -157,6 +189,8 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
 // VerifyClaim accepts a previously-signed encoded claim and validates
 // it before returning the claim
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	token, err := jwt.ParseWithClaims(tokenString, &structs.IdentityClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
@@ -167,7 +201,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 			return nil, fmt.Errorf("missing key ID header")
 		}
 		keyID := raw.(string)
-		keyset, err := e.keysetByID(keyID)
+		keyset, err := e.keysetByIDLocked(keyID)
 		if err != nil {
 			return nil, err
 		}
@@ -185,18 +219,12 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 	return claims, nil
 }
 
-// Decrypt takes an encrypted buffer and then root key ID. It extracts
-// the nonce, decrypts the content, and returns the cleartext data.
-func (e *Encrypter) Decrypt(encryptedData []byte, keyID string) ([]byte, error) {
-	e.lock.RLock()
-	defer e.lock.RUnlock()
-
-	// TODO: actually decrypt!
-	return encryptedData, nil
-}
-
 // AddKey stores the key in the keystore and creates a new cipher for it.
 func (e *Encrypter) AddKey(rootKey *structs.RootKey) error {
+
+	// note: we don't lock the keyring here but inside addCipher
+	// instead, so that we're not holding the lock while performing
+	// local disk writes
 	if err := e.addCipher(rootKey); err != nil {
 		return err
 	}
@@ -242,27 +270,32 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 
 // GetKey retrieves the key material by ID from the keyring
 func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
-	keyset, err := e.keysetByID(keyID)
+	e.lock.RLock()
+	defer e.lock.RUnlock()
+
+	keyset, err := e.keysetByIDLocked(keyID)
 	if err != nil {
 		return nil, err
 	}
 	return keyset.rootKey.Key, nil
 }
 
-func (e *Encrypter) activeKeySet() (*keyset, error) {
+// activeKeySetLocked returns the keyset that belongs to the key marked as
+// active in the state store (so that it's consistent with raft). The
+// called must read-lock the keyring
+func (e *Encrypter) activeKeySetLocked() (*keyset, error) {
 	store := e.srv.fsm.State()
 	keyMeta, err := store.GetActiveRootKeyMeta(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return e.keysetByID(keyMeta.KeyID)
+	return e.keysetByIDLocked(keyMeta.KeyID)
 }
 
-func (e *Encrypter) keysetByID(keyID string) (*keyset, error) {
-	e.lock.RLock()
-	defer e.lock.RUnlock()
-
+// keysetByIDLocked returns the keyset for the specified keyID. The
+// caller must read-lock the keyring
+func (e *Encrypter) keysetByIDLocked(keyID string) (*keyset, error) {
 	keyset, ok := e.keyring[keyID]
 	if !ok {
 		return nil, fmt.Errorf("no such key %s in keyring", keyID)
