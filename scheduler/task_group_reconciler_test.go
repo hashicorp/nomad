@@ -118,10 +118,10 @@ func TestTaskGroupReconciler_BuildsCandidates_ByAllocName(t *testing.T) {
 			reconciler := NewTaskGroupReconciler(logger, allocUpdateFnDestructive, false, updatedJob.ID, updatedJob,
 				structs.NewDeployment(updatedJob, 50), tc.allocs, nil, uuid.Generate(), 50, true)
 
-			slots := reconciler.allocSlots[updatedJob.TaskGroups[0].Name]
-			require.Len(t, slots, 3)
+			slot := reconciler.allocSlots[updatedJob.TaskGroups[0].Name]
+			require.Len(t, slot, tc.)
 
-			for name, slot := range slots {
+			for name, _ := range slots.Candidates {
 				allocCountByName := 0
 				for _, alloc := range tc.allocs {
 					if alloc.Name == name {
