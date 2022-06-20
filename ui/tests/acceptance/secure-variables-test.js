@@ -83,7 +83,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(fooLink);
     assert.equal(
       currentURL(),
-      '/variables/a/b/c/foo0',
+      '/variables/var/a/b/c/foo0',
       'correctly traverses to a deeply nested variable file'
     );
     const deleteButton = find('[data-test-delete-button] button');
