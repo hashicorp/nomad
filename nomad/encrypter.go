@@ -280,7 +280,7 @@ func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
 	return keyset.rootKey.Key, nil
 }
 
-// activeKeySet returns the keyset that belongs to the key marked as
+// activeKeySetLocked returns the keyset that belongs to the key marked as
 // active in the state store (so that it's consistent with raft). The
 // called must read-lock the keyring
 func (e *Encrypter) activeKeySetLocked() (*keyset, error) {
@@ -293,8 +293,8 @@ func (e *Encrypter) activeKeySetLocked() (*keyset, error) {
 	return e.keysetByIDLocked(keyMeta.KeyID)
 }
 
-// keysetByIDLocked returns the keyset for the specified keyID.. The
-// called must read-lock the keyring
+// keysetByIDLocked returns the keyset for the specified keyID. The
+// caller must read-lock the keyring
 func (e *Encrypter) keysetByIDLocked(keyID string) (*keyset, error) {
 	keyset, ok := e.keyring[keyID]
 	if !ok {
