@@ -26,7 +26,7 @@ export default class SecureVariableFormComponent extends Component {
     return !this.args.model?.path;
   }
 
-  @tracked keyValues = copy(this.args.model?.keyValues)?.map((kv) => {
+  @tracked keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
     return {
       key: kv.key,
       value: kv.value,
