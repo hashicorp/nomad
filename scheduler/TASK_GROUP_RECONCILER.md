@@ -67,13 +67,13 @@ the `GenericScheduler` can use to create a `Plan`. The workflow is as follows.
     - slice based on `Allocation.Name`.
     - `Allocation` instances that don't match an `allocSlot.Name` can immediately be discarded or
       added to the `reconcileResults.stop` slice since they do not target a currently valid slot.
-- `computeGroup` resumes and calls `BuildResult`
-- Internally, `BuildResult` iterates over each `allocSlot` and calls a domain method for each
-  on each instance that is purpose build to return appendable results for each slice field
+- `computeGroup` resumes and calls `AppendResults` passing it the `allocRunner.result` instance.
+- Internally, `AppendResults` iterates over each `allocSlot` and calls a domain method
+  on each instance that is purpose built to return appendable results for each slice field
   the `reconcileResults` requires. This simplifies debugging, because now the set of `Allocation`
   instances being analyzed is limited to what should be a very finite subset.
 - `computeGroup` resumes and merges the result of the previous call with the `allocReconciler.results`
   instance.
-- Finally, `computeGroup` returns the result of `TaskGroupReconciler.IsDeploymentComplete` to
+- Finally, `computeGroup` returns the result of `TaskGroupReconciler.DeploymentComplete` to
   the initiating loop found in `computeDeploymentComplete`.
 

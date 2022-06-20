@@ -113,7 +113,7 @@ func (tgr *TaskGroupReconciler) DeploymentFailed() bool {
 	return false
 }
 
-func (tgr *TaskGroupReconciler) BuildResult() {
+func (tgr *TaskGroupReconciler) AppendResults(result *reconcileResults) {
 	tgr.result = &reconcileResults{
 		deployment:           tgr.deployment,
 		deploymentUpdates:    []*structs.DeploymentStatusUpdate{},
@@ -139,6 +139,10 @@ func (tgr *TaskGroupReconciler) BuildResult() {
 		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.DisconnectUpdates())
 		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.ReconnectUpdates())
 	}
+}
+
+func (tgr *TaskGroupReconciler) DeploymentComplete() bool {
+	return false
 }
 
 type allocSlot struct {
