@@ -8,11 +8,11 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func TestKeygenCommand(t *testing.T) {
+func TestGossipKeyringGenerateCommand(t *testing.T) {
 	ci.Parallel(t)
 
 	ui := cli.NewMockUi()
-	c := &OperatorKeygenCommand{Meta: Meta{Ui: ui}}
+	c := &OperatorGossipKeyringGenerateCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)
 	if code != 0 {
 		t.Fatalf("bad: %d", code)

@@ -44,7 +44,7 @@ func (c *DeprecatedCommand) Run(args []string) int {
 func (c *DeprecatedCommand) warn() {
 	c.Ui.Warn(wrapAtLength(fmt.Sprintf(
 		"WARNING! The \"nomad %s\" command is deprecated. Please use \"nomad %s\" "+
-			"instead. This command will be removed in Nomad 0.10 (or later).",
+			"instead. This command will be removed a later version of Nomad.",
 		c.Old,
 		c.New)))
 	c.Ui.Warn("")
@@ -300,16 +300,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"keygen": func() (cli.Command, error) {
-			return &OperatorKeygenCommand{
-				Meta: meta,
-			}, nil
-		},
-		"keyring": func() (cli.Command, error) {
-			return &OperatorKeyringCommand{
-				Meta: meta,
-			}, nil
-		},
 		"job": func() (cli.Command, error) {
 			return &JobCommand{
 				Meta: meta,
@@ -524,16 +514,49 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator keygen": func() (cli.Command, error) {
-			return &OperatorKeygenCommand{
-				Meta: meta,
-			}, nil
-		},
+
+		// COMPAT(1.4.0): deprecated, remove in Nomad 1.5.0
+		// Note: we can't just put this in the DeprecatedCommand list
+		// because the flags have changed too. So we've provided the
+		// deprecation warning in the original command and when it's
+		// time to remove it we can remove the entire command
 		"operator keyring": func() (cli.Command, error) {
 			return &OperatorKeyringCommand{
 				Meta: meta,
 			}, nil
 		},
+
+		"operator gossip keyring": func() (cli.Command, error) {
+			return &OperatorGossipKeyringCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip keyring install": func() (cli.Command, error) {
+			return &OperatorGossipKeyringInstallCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip keyring use": func() (cli.Command, error) {
+			return &OperatorGossipKeyringUseCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip keyring list": func() (cli.Command, error) {
+			return &OperatorGossipKeyringListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip keyring remove": func() (cli.Command, error) {
+			return &OperatorGossipKeyringRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip keyring generate": func() (cli.Command, error) {
+			return &OperatorGossipKeyringGenerateCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"operator metrics": func() (cli.Command, error) {
 			return &OperatorMetricsCommand{
 				Meta: meta,
@@ -942,9 +965,20 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		"keygen": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "keygen",
-				New:  "operator keygen",
+				New:  "operator gossip keyring generate",
 				Meta: meta,
-				Command: &OperatorKeygenCommand{
+				Command: &OperatorGossipKeyringGenerateCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+
+		"operator keygen": func() (cli.Command, error) {
+			return &DeprecatedCommand{
+				Old:  "operator keygen",
+				New:  "operator gossip keyring generate",
+				Meta: meta,
+				Command: &OperatorGossipKeyringGenerateCommand{
 					Meta: meta,
 				},
 			}, nil
@@ -953,7 +987,7 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		"keyring": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "keyring",
-				New:  "operator keyring",
+				New:  "operator gossip keyring",
 				Meta: meta,
 				Command: &OperatorKeyringCommand{
 					Meta: meta,
