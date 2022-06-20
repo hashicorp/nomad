@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -33,9 +34,6 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Full {
-		// TODO: implement full key rotation via a core job
-	}
 	if args.Algorithm == "" {
 		args.Algorithm = structs.EncryptionAlgorithmAES256GCM
 	}
@@ -69,6 +67,34 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	}
 	reply.Key = rootKey.Meta
 	reply.Index = index
+
+	if args.Full {
+		eval := &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   "-",
+			Priority:    structs.CoreJobPriority,
+			Type:        structs.JobTypeCore,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       structs.CoreJobSecureVariablesRekey,
+			Status:      structs.EvalStatusPending,
+			ModifyIndex: index,
+		}
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// unlike most core jobs, we commit this to raft b/c it's not
+		// going to be periodically recreated
+		_, index, err = k.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			k.logger.Error("eval create failed", "error", err)
+			return err
+		}
+		reply.Index = index
+		return nil
+	}
+
 	return nil
 }
 

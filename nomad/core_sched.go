@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -60,6 +61,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.expiredOneTimeTokenGC(eval)
 	case structs.CoreJobRootKeyRotateOrGC:
 		return c.rootKeyRotateOrGC(eval)
+	case structs.CoreJobSecureVariablesRekey:
+		return c.secureVariablesRekey(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -890,6 +893,94 @@ func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) 
 	}
 
 	return true, nil
+}
+
+// secureVariablesReKey is optionally run after rotating the active
+// root key. It iterates over all the variables for the non-active
+// keys, decrypts them, and re-encrypts them in batches with the
+// currently active key. This job does not GC the keys, which is
+// handled in the normal periodic GC job.
+func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.Active {
+			continue // never rotate
+		}
+		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		err = c.batchRotateVariables(varIter, eval)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rootKeyFullRotatePerKey runs over an iterator of secure variables
+// and decrypts them, and then sends them back as batches to be
+// re-encrypted with the currently active key.
+func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+
+	upsertFn := func(variables []*structs.SecureVariableDecrypted) error {
+		if len(variables) == 0 {
+			return nil
+		}
+		args := &structs.SecureVariablesUpsertRequest{
+			Data: variables,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL, // TODO: will this work?
+			},
+		}
+		reply := &structs.SecureVariablesUpsertResponse{}
+		return c.srv.RPC("SecureVariables.Upsert", args, reply)
+	}
+
+	variables := []*structs.SecureVariableDecrypted{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ev := raw.(*structs.SecureVariableEncrypted)
+		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
+		if err != nil {
+			return err
+		}
+		dv := &structs.SecureVariableDecrypted{
+			SecureVariableMetadata: ev.SecureVariableMetadata,
+		}
+		dv.Items = make(map[string]string)
+		err = json.Unmarshal(cleartext, &dv.Items)
+		if err != nil {
+			return err
+		}
+		variables = append(variables, dv)
+		if len(variables) == 20 {
+			err := upsertFn(variables)
+			if err != nil {
+				return err
+			}
+			variables = []*structs.SecureVariableDecrypted{}
+		}
+	}
+
+	// ensure we submit any partial batch
+	return upsertFn(variables)
 }
 
 // getThreshold returns the index threshold for determining whether an
