@@ -26,6 +26,9 @@ export default class extends AbstractAbility {
 
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableCreation() {
-    return true; // TODO: check SecureVariables.<path>.capabilities[]
+    return this.rulesForNamespace.some((rules) => {
+      const capabilities = get(rules, 'SecureVariables.Path "*"') || [];
+      return capabilities.includes('create');
+    });
   }
 }
