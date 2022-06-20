@@ -107,14 +107,16 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 				return err
 			}
 
+			keys := []*structs.RootKeyMeta{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
 				keyMeta := raw.(*structs.RootKeyMeta)
-				reply.Keys = append(reply.Keys, keyMeta)
+				keys = append(keys, keyMeta)
 			}
+			reply.Keys = keys
 			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
 		},
 	}
