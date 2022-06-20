@@ -74,7 +74,7 @@ func NewTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, is
 		evalPriority:                evalPriority,
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
-		allocSlots: map[string]*allocSlot{},
+		allocSlots:                  map[string]*allocSlot{},
 		result: &reconcileResults{
 			attributeUpdates:     make(map[string]*structs.Allocation),
 			disconnectUpdates:    make(map[string]*structs.Allocation),
@@ -154,9 +154,12 @@ func newAllocSlots(jobID string, taskGroup *structs.TaskGroup, allocs allocSet) 
 
 	for index, name := range nameIndex.Next(uint(taskGroup.Count)) {
 		slot := &allocSlot{
-			Name:       name,
-			Index:      index,
-			TaskGroup:  taskGroup,
+			Name:      name,
+			Index:     index,
+			TaskGroup: taskGroup,
+			// TODO: This can be optimized to a single iteration
+			// creating a map[string]*Allocation of name to allocations once
+			// and then retrieving by key.
 			Candidates: allocs.filterByName(name),
 		}
 		slots[slot.Name] = slot
