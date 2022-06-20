@@ -7,6 +7,10 @@ export default Factory.extend({
     return this.id;
   },
   namespace: 'default',
+  createdIndex: 100,
+  modifiedIndex: 100,
+  createTime: () => faker.date.past(15),
+  modifyTime: () => faker.date.recent(1),
   items() {
     return (
       this.Items || {

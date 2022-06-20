@@ -3,11 +3,17 @@
     <th>
       Path
     </th>
+    <th>
+      Namespace
+    </th>
+    <th>
+      Last Modified
+    </th>
   </t.head>
   <tbody>
     {{#each this.folders as |folder|}}
       <tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
-        <td>
+        <td colspan="3">
           <span>
             <FlightIcon @name="folder" />
             <LinkTo @route="variables.path" @model={{folder.data.absolutePath}}>
@@ -28,6 +34,14 @@
           >
             {{file.name}}
           </LinkTo>
+        </td>
+        <td>
+          {{file.variable.namespace}}
+        </td>
+        <td>
+          <span class="tooltip" aria-label="{{format-ts file.variable.modifyTime}}">
+            {{moment-from-now file.variable.modifyTime}}
+          </span>
         </td>
       </tr>
     {{/each}}
