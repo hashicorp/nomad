@@ -88,9 +88,10 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Error(`nomad operator keyring is deprecated and will be removed in Nomad 1.5.0.
-Use nomad operator gossip keyring`)
-
+	c.Ui.Warn(wrapAtLength("WARNING! The \"nomad operator keyring\" command " +
+		"is deprecated. Please use \"nomad operator gossip keyring\" instead. " +
+		"This command will be removed in Nomad 1.5.0."))
+	c.Ui.Warn("")
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "",
 		InfoPrefix:   "==> ",
