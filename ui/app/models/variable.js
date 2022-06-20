@@ -69,4 +69,15 @@ export default class VariableModel extends Model {
     this.set('path', trimPath([this.path]));
     this.id = this.path;
   }
+
+  /**
+   * Translates the key-value pairs into an object structure.
+   */
+  @computed('keyValues')
+  get items() {
+    return this.keyValues.reduce((acc, { key, value }) => {
+      acc[key] = value;
+      return acc;
+    }, {});
+  }
 }

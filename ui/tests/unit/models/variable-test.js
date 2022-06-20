@@ -30,4 +30,22 @@ module('Unit | Model | variable', function (hooks) {
     });
     assert.equal(model.keyValues.length, 1);
   });
+
+  test('it correctly moves between keyValues and itmes', function (assert) {
+    let store = this.owner.lookup('service:store');
+
+    let model = store.createRecord('variable');
+    model.setProperties({
+      path: 'my/fun/path',
+      keyValues: [
+        { key: 'foo', value: 'bar' },
+        { key: 'myVar', value: 'myValue' },
+      ],
+    });
+    assert.equal(model.keyValues.length, 2);
+    assert.equal(Object.entries(model.items)[0][0], 'foo');
+    assert.equal(Object.entries(model.items)[0][1], 'bar');
+    assert.equal(Object.entries(model.items)[1][0], 'myVar');
+    assert.equal(Object.entries(model.items)[1][1], 'myValue');
+  });
 });

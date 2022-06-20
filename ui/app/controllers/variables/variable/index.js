@@ -45,4 +45,14 @@ export default class VariablesVariableIndexController extends Controller {
   onDismissError() {
     this.error = null;
   }
+
+  //#region Code View
+  @tracked
+  isCodeView = false;
+
+  toggleCodeView() {
+    this.isCodeView = !this.isCodeView;
+  }
+
+  //#endregion Code View
 }
