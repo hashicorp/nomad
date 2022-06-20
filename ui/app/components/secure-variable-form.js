@@ -26,7 +26,7 @@ export default class SecureVariableFormComponent extends Component {
     return !this.args.model?.path;
   }
 
-  @tracked keyValues = copy(this.args.model?.keyValues)?.map((kv) => {
+  @tracked keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
     return {
       key: kv.key,
       value: kv.value,
@@ -107,6 +107,16 @@ export default class SecureVariableFormComponent extends Component {
         destroyOnClick: false,
         sticky: true,
       });
+    }
+  }
+
+  /**
+   * Appends a row to the end of the Items list if you're editing an existing variable.
+   * This will allow it to auto-focus and make all other rows deletable
+   */
+  @action appendItemIfEditing() {
+    if (!this.args.model?.isNew) {
+      this.appendRow();
     }
   }
 }
