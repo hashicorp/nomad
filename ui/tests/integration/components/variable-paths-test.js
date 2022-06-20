@@ -77,21 +77,21 @@ module('Integration | Component | variable-paths', function (hooks) {
       .dom('tbody tr:first-child td:first-child a')
       .hasAttribute(
         'href',
-        '/ui/variables/foo/bar/baz',
+        '/ui/variables/var/foo/bar/baz',
         'Correctly links the first file'
       );
     assert
       .dom('tbody tr:nth-child(2) td:first-child a')
       .hasAttribute(
         'href',
-        '/ui/variables/foo/bar/bay',
+        '/ui/variables/var/foo/bar/bay',
         'Correctly links the second file'
       );
     assert
       .dom('tbody tr:nth-child(3) td:first-child a')
       .hasAttribute(
         'href',
-        '/ui/variables/foo/bar/bax',
+        '/ui/variables/var/foo/bar/bax',
         'Correctly links the third file'
       );
     assert
