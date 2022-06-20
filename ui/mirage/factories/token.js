@@ -56,7 +56,7 @@ node {
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
               SecureVariables: {
                 'Path "*"': {
-                  Capabilities: ['list'],
+                  Capabilities: ['list', 'create'],
                 },
               },
             },

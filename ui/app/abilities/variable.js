@@ -24,10 +24,11 @@ export default class extends AbstractAbility {
     });
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
+  @computed('rulesForNamespace.@each.capabilities') // TODO:  edit computed property to be SecureVariables.Path "DYNAMIC PATH"
   get policiesSupportVariableCreation() {
     return this.rulesForNamespace.some((rules) => {
-      const capabilities = get(rules, 'SecureVariables.Path "*"') || [];
+      const keyName = `SecureVariables.Path "*".Capabilities`; // TODO:  add ability to edit path, however computed properties can't take parameters
+      const capabilities = get(rules, keyName) || [];
       return capabilities.includes('create');
     });
   }
