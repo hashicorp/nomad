@@ -105,7 +105,7 @@ export default class SecureVariableFormComponent extends Component {
    * This will allow it to auto-focus and make all other rows deletable
    */
   @action appendItemIfEditing() {
-    if (!this.args.model.isNew) {
+    if (!this.args.model?.isNew) {
       this.appendRow();
     }
   }
