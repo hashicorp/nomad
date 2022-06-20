@@ -78,7 +78,7 @@ export default class SecureVariableFormComponent extends Component {
     e.preventDefault();
     try {
       const nonEmptyItems = this.keyValues.filter(
-        (item) => item.key && item.value
+        (item) => item.key.trim() && item.value
       );
       if (!nonEmptyItems.length) {
         throw new Error('Please provide at least one key/value pair.');
