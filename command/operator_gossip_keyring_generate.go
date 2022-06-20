@@ -7,19 +7,20 @@ import (
 	"strings"
 )
 
-// OperatorKeygenCommand is a Command implementation that generates an encryption
-// key for use in `nomad agent`.
-type OperatorKeygenCommand struct {
+// OperatorGossipKeyringGenerateCommand is a Command implementation that
+// generates an encryption key for use in `nomad agent`.
+type OperatorGossipKeyringGenerateCommand struct {
 	Meta
 }
 
-func (c *OperatorKeygenCommand) Synopsis() string {
+func (c *OperatorGossipKeyringGenerateCommand) Synopsis() string {
 	return "Generates a new encryption key"
 }
 
-func (c *OperatorKeygenCommand) Help() string {
+func (c *OperatorGossipKeyringGenerateCommand) Help() string {
 	helpText := `
-Usage: nomad operator keygen
+Usage: nomad operator gossip keying generate
+Alias: nomad operator keygen
 
   Generates a new 32-byte encryption key that can be used to configure the
   agent to encrypt traffic. The output of this command is already
@@ -28,9 +29,11 @@ Usage: nomad operator keygen
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorKeygenCommand) Name() string { return "operator keygen" }
+func (c *OperatorGossipKeyringGenerateCommand) Name() string {
+	return "operator gossip keyring generate"
+}
 
-func (c *OperatorKeygenCommand) Run(_ []string) int {
+func (c *OperatorGossipKeyringGenerateCommand) Run(_ []string) int {
 	key := make([]byte, 32)
 	n, err := rand.Reader.Read(key)
 	if err != nil {
