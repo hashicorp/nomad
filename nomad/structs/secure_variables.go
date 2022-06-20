@@ -167,8 +167,13 @@ type SecureVariablesQuota struct {
 }
 
 type SecureVariablesUpsertRequest struct {
-	Data []*SecureVariableDecrypted
+	Data       []*SecureVariableDecrypted
+	CheckIndex *uint64
 	WriteRequest
+}
+
+func (svur *SecureVariablesUpsertRequest) SetCheckIndex(ci uint64) {
+	svur.CheckIndex = &ci
 }
 
 type SecureVariablesEncryptedUpsertRequest struct {
@@ -177,6 +182,7 @@ type SecureVariablesEncryptedUpsertRequest struct {
 }
 
 type SecureVariablesUpsertResponse struct {
+	Conflict []*SecureVariableDecrypted
 	WriteMeta
 }
 
@@ -201,8 +207,13 @@ type SecureVariablesReadResponse struct {
 }
 
 type SecureVariablesDeleteRequest struct {
-	Path string
+	Path       string
+	CheckIndex *uint64
 	WriteRequest
+}
+
+func (svdr *SecureVariablesDeleteRequest) SetCheckIndex(ci uint64) {
+	svdr.CheckIndex = &ci
 }
 
 type SecureVariablesDeleteResponse struct {
