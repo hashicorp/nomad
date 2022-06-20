@@ -1,4 +1,6 @@
-<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
+<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}
+  {{did-insert this.appendItemIfEditing}}
+>
   {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
   <div>
     <label>

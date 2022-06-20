@@ -99,4 +99,14 @@ export default class SecureVariableFormComponent extends Component {
     }
     this.router.transitionTo('variables.variable', this.args.model.path);
   }
+
+  /**
+   * Appends a row to the end of the Items list if you're editing an existing variable.
+   * This will allow it to auto-focus and make all other rows deletable
+   */
+  @action appendItemIfEditing() {
+    if (!this.args.model.isNew) {
+      this.appendRow();
+    }
+  }
 }
