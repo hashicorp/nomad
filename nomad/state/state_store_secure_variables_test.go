@@ -263,8 +263,7 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 	}
 	require.Equal(t, 0, delete2Count, "unexpected number of variables in table")
 }
-
-func TestStateStore_ListSecureVariablesByNamespace(t *testing.T) {
+func TestStateStore_GetSecureVariables(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
@@ -325,80 +324,165 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 	testState := testStateStore(t)
 
 	// Generate some test secure variables and upsert them.
-	svs, _ := mockSecureVariables(4, 4)
-	svs[0].Namespace = "~*magical*~"
-	svs[0].Path = "a/b/c"
+	svs, _ := mockSecureVariables(6, 6)
+	svs[0].Path = "a/b"
 	svs[1].Path = "a/b/c"
-	svs[2].Path = "a/b"
-	svs[3].Path = "unrelated/b/c"
+	svs[2].Path = "unrelated/b/c"
+	svs[3].Namespace = "other"
+	svs[3].Path = "a/b/c"
+	svs[4].Namespace = "other"
+	svs[4].Path = "a/q/z"
+	svs[5].Namespace = "other"
+	svs[5].Path = "a/z/z"
 
 	initialIndex := uint64(10)
 	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, initialIndex, svs))
 
-	// Look up secure variables using the namespace of the first mock variable
-	// and a path prefix.
-	ws := memdb.NewWatchSet()
-	iter, err := testState.GetSecureVariablesByNamespaceAndPrefix(ws, svs[0].Namespace, "a")
-	require.NoError(t, err)
+	t.Run("ByNamespace", func(t *testing.T) {
+		testCases := []struct {
+			desc          string
+			namespace     string
+			expectedCount int
+		}{
+			{
+				desc:          "default",
+				namespace:     "default",
+				expectedCount: 2,
+			},
+			{
+				desc:          "other",
+				namespace:     "other",
+				expectedCount: 3,
+			},
+			{
+				desc:          "nonexistent",
+				namespace:     "BAD",
+				expectedCount: 0,
+			},
+		}
 
-	var count1 int
+		ws := memdb.NewWatchSet()
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				iter, err := testState.GetSecureVariablesByNamespace(ws, tC.namespace)
+				require.NoError(t, err)
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		count1++
-		sv := raw.(*structs.SecureVariableEncrypted)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
-		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
-		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
-		require.Equal(t, svs[0].Namespace, sv.Namespace)
-	}
-	require.Equal(t, 1, count1)
+				var count int = 0
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					count++
+					sv := raw.(*structs.SecureVariableEncrypted)
+					t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
+					require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
+					require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
+					require.Equal(t, tC.namespace, sv.Namespace)
+				}
+			})
+		}
+	})
 
-	// Look up secure variables using the namespace of the first mock variable
-	// and a path prefix that doesn't exist.
-	iter, err = testState.GetSecureVariablesByNamespaceAndPrefix(ws, svs[0].Namespace, "b")
-	require.NoError(t, err)
+	t.Run("ByNamespaceAndPrefix", func(t *testing.T) {
+		testCases := []struct {
+			desc          string
+			namespace     string
+			prefix        string
+			expectedCount int
+		}{
+			{
+				desc:          "ns1 with good path",
+				namespace:     "default",
+				prefix:        "a",
+				expectedCount: 2,
+			},
+			{
+				desc:          "ns2 with good path",
+				namespace:     "other",
+				prefix:        "a",
+				expectedCount: 3,
+			},
+			{
+				desc:          "ns1 path valid for ns2",
+				namespace:     "default",
+				prefix:        "a/b/c",
+				expectedCount: 1,
+			},
+			{
+				desc:          "ns2 empty prefix",
+				namespace:     "other",
+				prefix:        "",
+				expectedCount: 3,
+			},
+			{
+				desc:          "nonexistent ns",
+				namespace:     "BAD",
+				prefix:        "",
+				expectedCount: 0,
+			},
+		}
 
-	count1 = 0
+		ws := memdb.NewWatchSet()
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				iter, err := testState.GetSecureVariablesByNamespaceAndPrefix(ws, tC.namespace, tC.prefix)
+				require.NoError(t, err)
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		count1++
-		sv := raw.(*structs.SecureVariableEncrypted)
-		t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
-		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
-		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
-		require.Equal(t, svs[0].Namespace, sv.Namespace)
-	}
-	require.Equal(t, 0, count1)
+				var count int = 0
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					count++
+					sv := raw.(*structs.SecureVariableEncrypted)
+					t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
+					require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
+					require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
+					require.Equal(t, tC.namespace, sv.Namespace)
+					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
+				}
+				require.Equal(t, tC.expectedCount, count)
+			})
+		}
+	})
 
-	// Look up variables using the namespace of the second mock variable and a
-	// good prefix.
-	iter, err = testState.GetSecureVariablesByNamespaceAndPrefix(ws, svs[1].Namespace, "a")
-	require.NoError(t, err)
+	t.Run("ByPrefix", func(t *testing.T) {
+		testCases := []struct {
+			desc          string
+			prefix        string
+			expectedCount int
+		}{
+			{
+				desc:          "bad prefix",
+				prefix:        "bad",
+				expectedCount: 0,
+			},
+			{
+				desc:          "multiple ns",
+				prefix:        "a/b/c",
+				expectedCount: 2,
+			},
+			{
+				desc:          "all",
+				prefix:        "",
+				expectedCount: 6,
+			},
+		}
 
-	var count2 int
+		ws := memdb.NewWatchSet()
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				iter, err := testState.GetSecureVariablesByPrefix(ws, tC.prefix)
+				require.NoError(t, err)
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		count2++
-		sv := raw.(*structs.SecureVariableEncrypted)
-		require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
-		require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
-		require.Equal(t, svs[1].Namespace, sv.Namespace)
-	}
-	require.Equal(t, 2, count2)
-
-	// Look up variables using a namespace that shouldn't contain any
-	// secure variables.
-	iter, err = testState.GetSecureVariablesByNamespace(ws, "pony-club")
-	require.NoError(t, err)
-
-	var count3 int
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		count3++
-	}
-	require.Equal(t, 0, count3)
+				var count int = 0
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					count++
+					sv := raw.(*structs.SecureVariableEncrypted)
+					t.Logf("- sv: n=%q p=%q ci=%v mi=%v ed.ki=%q", sv.Namespace, sv.Path, sv.CreateIndex, sv.ModifyIndex, sv.KeyID)
+					require.Equal(t, initialIndex, sv.CreateIndex, "incorrect create index", sv.Path)
+					require.Equal(t, initialIndex, sv.ModifyIndex, "incorrect modify index", sv.Path)
+					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
+				}
+				require.Equal(t, tC.expectedCount, count)
+			})
+		}
+	})
 }
-
 func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
