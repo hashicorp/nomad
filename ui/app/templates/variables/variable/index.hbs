@@ -29,8 +29,8 @@
     {{this.model.path}}
     <Toggle
       data-test-memory-toggle
-      @isActive={{this.isCodeView}}
-      @onToggle={{action this.toggleCodeView}}
+      @isActive={{eq this.view "json"}}
+      @onToggle={{action this.toggleView}}
       title="JSON"
     >JSON</Toggle>
   </div>
@@ -60,7 +60,7 @@
     />
   </div>
 </h1>
-{{#if this.isCodeView}}
+{{#if (eq this.view "json")}}
   <div class="boxed-section">
     <div class="boxed-section-head">
       Key/Value Data
