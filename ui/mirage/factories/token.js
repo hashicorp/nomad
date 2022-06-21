@@ -58,6 +58,9 @@ node {
                 'Path "*"': {
                   Capabilities: ['list', 'create'],
                 },
+                'Path "blue/berkshire"': {
+                  Capabilities: ['create'],
+                },
               },
             },
           ],
