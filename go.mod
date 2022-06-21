@@ -45,7 +45,6 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fsouza/go-dockerclient v1.6.5
-	github.com/go-bindata/go-bindata v3.1.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.0
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.5
