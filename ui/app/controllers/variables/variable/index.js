@@ -6,6 +6,8 @@ import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 export default class VariablesVariableIndexController extends Controller {
+  queryParams = ['view'];
+
   @service router;
 
   @tracked
@@ -45,4 +47,21 @@ export default class VariablesVariableIndexController extends Controller {
   onDismissError() {
     this.error = null;
   }
+
+  //#region Code View
+  /**
+   * @type {"table" | "json"}
+   */
+  @tracked
+  view = 'table';
+
+  toggleView() {
+    if (this.view === 'table') {
+      this.view = 'json';
+    } else {
+      this.view = 'table';
+    }
+  }
+
+  //#endregion Code View
 }

@@ -9,6 +9,18 @@
   }
 }
 
+.variable-title {
+  .toggle {
+    font-size: 0.8rem;
+    margin-left: 1rem;
+    position: relative;
+    top: -0.25rem;
+    .toggler {
+      margin-right: 0.25rem;
+    }
+  }
+}
+
 .new-secure-variables {
   & > div {
     margin-bottom: 1rem;
