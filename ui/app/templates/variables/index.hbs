@@ -12,10 +12,9 @@
     </div>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
-      {{#if (can "create variable" namespace=this.qpNamespace)}}
+      {{#if (can "create variable")}}
         <LinkTo
           @route="variables.new"
-          @query={{hash namespace=this.qpNamespace}}
           class="button is-primary"
         >
           Create Secure Variable
