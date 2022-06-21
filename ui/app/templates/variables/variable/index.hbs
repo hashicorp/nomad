@@ -22,10 +22,17 @@
     </div>
   </div>
 {{/if}}
-<h1 class="title with-flex">
+
+<h1 class="variable-title title with-flex">
   <div>
     <FlightIcon @name="file-text" />
     {{this.model.path}}
+    <Toggle
+      data-test-memory-toggle
+      @isActive={{eq this.view "json"}}
+      @onToggle={{action this.toggleView}}
+      title="JSON"
+    >JSON</Toggle>
   </div>
   <div>
     {{#unless this.isDeleting}}
@@ -53,15 +60,32 @@
     />
   </div>
 </h1>
-<ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
-  <t.body as |row|>
-    <tr>
-      <td>
-        {{row.model.key}}
-      </td>
-      <td>
-        {{row.model.value}}
-      </td>
-    </tr>
-  </t.body>
-</ListTable>
+{{#if (eq this.view "json")}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Key/Value Data
+      <CopyButton
+        class="pull-right"
+        @compact={{true}}
+        @border={{true}}
+        @clipboardText={{stringify-object this.model.items}}
+          />
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <JsonViewer @json={{this.model.items}} />
+    </div>
+  </div>
+{{else}}
+  <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
+    <t.body as |row|>
+      <tr>
+        <td>
+          {{row.model.key}}
+        </td>
+        <td>
+          {{row.model.value}}
+        </td>
+      </tr>
+    </t.body>
+  </ListTable>
+{{/if}}
