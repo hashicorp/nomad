@@ -735,7 +735,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc = tc
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.v.Merge(tc.update)
 			if tc.expected == "" {
