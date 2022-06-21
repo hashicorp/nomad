@@ -7,6 +7,9 @@ import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
 import EmberObject from '@ember/object';
+// eslint-disable-next-line no-unused-vars
+import MutableArray from '@ember/array/mutable';
+import { A } from '@ember/array';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -26,13 +29,29 @@ export default class SecureVariableFormComponent extends Component {
     return !this.args.model?.path;
   }
 
-  @tracked keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
-    return {
-      key: kv.key,
-      value: kv.value,
-      warnings: EmberObject.create(),
-    };
-  });
+  /**
+   * @type {MutableArray<{key: string, value: string, warnings: EmberObject}>}
+   */
+  @tracked keyValues = A([]);
+  @action
+  establishKeyValues() {
+    this.keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
+      return {
+        key: kv.key,
+        value: kv.value,
+        warnings: EmberObject.create(),
+      };
+    });
+
+    /**
+     * Appends a row to the end of the Items list if you're editing an existing variable.
+     * This will allow it to auto-focus and make all other rows deletable
+     */
+    console.log('so just checking here and', this.args.model?.isNew);
+    if (!this.args.model?.isNew) {
+      this.appendRow();
+    }
+  }
 
   @action
   validatePath(e) {
@@ -77,8 +96,8 @@ export default class SecureVariableFormComponent extends Component {
   async save(e) {
     e.preventDefault();
     try {
-      const nonEmptyItems = this.keyValues.filter(
-        (item) => item.key.trim() && item.value
+      const nonEmptyItems = A(
+        this.keyValues.filter((item) => item.key.trim() && item.value)
       );
       if (!nonEmptyItems.length) {
         throw new Error('Please provide at least one key/value pair.');
@@ -110,13 +129,43 @@ export default class SecureVariableFormComponent extends Component {
     }
   }
 
-  /**
-   * Appends a row to the end of the Items list if you're editing an existing variable.
-   * This will allow it to auto-focus and make all other rows deletable
-   */
-  @action appendItemIfEditing() {
-    if (!this.args.model?.isNew) {
-      this.appendRow();
+  //#region JSON Editing
+
+  @action
+  translateAndValidateItems([view]) {
+    console.log('translating view to', view);
+    console.log('do we have KVs', this.keyValues);
+    console.log('and JSO', this.JSONItems);
+    // TODO: move the translation functions in serializers/variable.js to generic importable functions.
+    if (view === 'json') {
+      // Translate table to JSON
+      this.JSONItems = this.keyValues.reduce((acc, { key, value }) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+    } else if (view === 'table') {
+      // Translate JSON to table
+      this.keyValues = A(
+        Object.entries(this.JSONItems).map(([key, value]) => {
+          return {
+            key,
+            value,
+            warnings: EmberObject.create(),
+          };
+        })
+      );
     }
+    // return this.keyValues.reduce((acc, { key, value }) => {
+    //   acc[key] = value;
+    //   return acc;
+    // }, {});
   }
+  get stringifiedItems() {
+    return JSON.stringify(this.args.model.items, null, 2);
+  }
+
+  @action updateCode(value) {
+    console.log('updating', value);
+  }
+  //#endregion JSON Editing
 }

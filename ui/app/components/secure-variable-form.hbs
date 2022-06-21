@@ -1,6 +1,9 @@
-<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}
-  {{did-insert this.appendItemIfEditing}}
->
+{{!-- {{did-insert this.translateAndValidateItems @view}} --}}
+{{did-update this.translateAndValidateItems @view}}
+{{did-insert this.establishKeyValues}}
+{{did-update this.establishKeyValues @model.keyValues}}
+
+<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
   {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
   <div>
     <label>
@@ -34,46 +37,66 @@
       </p>
     {{/if}}
   </div>
-  {{#each this.keyValues as |entry iter|}}
-    <div class="key-value">
-      <label>
-        <span>
-          Key
-        </span>
-        <Input
-          @type="text"
-          @value={{entry.key}}
-          class="input"
-          {{autofocus ignore=(eq iter 0)}}
-          {{on "input" (fn this.validateKey entry)}}
-        />
-      </label>
-      <SecureVariableForm::InputGroup @entry={{entry}} />
-      {{#if (eq entry this.keyValues.lastObject)}}
-        <button
-          class="add-more button is-info is-inverted"
-          type="button"
-          disabled={{not (and entry.key entry.value)}}
-          {{on "click" this.appendRow}}
-        >
-          Add More
-        </button>
-      {{else}}
-        <button
-          class="delete-row button is-danger is-inverted"
-          type="button"
-          {{on "click" (action this.deleteRow entry)}}
-        >
-          Delete
-        </button>
-      {{/if}}
-      {{#each-in entry.warnings as |k v|}}
-        <span class="key-value-error help is-danger">
-          {{v}}
-        </span>
-      {{/each-in}}
+  {{#if (eq @view "json")}}
+    <div class="boxed-section-body is-full-bleed">
+      <IvyCodemirror
+        data-test-editor
+        aria-label="Job definition"
+        @value={{stringify-object this.JSONItems}}
+        @valueUpdated={{this.updateCode}}
+        @options={{hash
+          mode="javascript"
+          theme="hashi"
+          screenReaderLabel="Job definition editor"
+          tabSize=2
+          lineNumbers=true
+        }}
+      />
+
+      <JsonViewer @json={{@model.items}} />
     </div>
-  {{/each}}
+  {{else}}
+    {{#each this.keyValues as |entry iter|}}
+      <div class="key-value">
+        <label>
+          <span>
+            Key
+          </span>
+          <Input
+            @type="text"
+            @value={{entry.key}}
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (fn this.validateKey entry)}}
+          />
+        </label>
+        <SecureVariableForm::InputGroup @entry={{entry}} />
+        {{#if (eq entry this.keyValues.lastObject)}}
+          <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            disabled={{not (and entry.key entry.value)}}
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
+        {{else}}
+          <button
+            class="delete-row button is-danger is-inverted"
+            type="button"
+            {{on "click" (action this.deleteRow entry)}}
+          >
+            Delete
+          </button>
+        {{/if}}
+        {{#each-in entry.warnings as |k v|}}
+          <span class="key-value-error help is-danger">
+            {{v}}
+          </span>
+        {{/each-in}}
+      </div>
+    {{/each}}
+  {{/if}}
   <footer>
     <button
       disabled={{this.shouldDisableSave}}
