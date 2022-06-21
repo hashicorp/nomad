@@ -1,8 +1,11 @@
-import AbstractAbility from './abstract';
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
+import AbstractAbility from './abstract';
 
-export default class extends AbstractAbility {
+export default class Variable extends AbstractAbility {
+  @service router;
+
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
@@ -24,10 +27,14 @@ export default class extends AbstractAbility {
     });
   }
 
-  @computed('rulesForNamespace.@each.capabilities') // TODO:  edit computed property to be SecureVariables.Path "DYNAMIC PATH"
+  @computed(
+    'rulesForNamespace.@each.capabilities',
+    'router.currentRoute.params.absolutePath'
+  )
   get policiesSupportVariableCreation() {
+    const path = get(this, 'router.currentRoute.params.absolutePath') || '*';
     return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "*".Capabilities`; // TODO:  add ability to edit path, however computed properties can't take parameters
+      const keyName = `SecureVariables.Path "${path}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
       return capabilities.includes('create');
     });
