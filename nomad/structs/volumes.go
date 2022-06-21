@@ -154,10 +154,16 @@ func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
 			if taskGroupCount > 1 && !v.PerAlloc {
 				addErr("volume with %s access mode allows only one reader", v.AccessMode)
 			}
+			if canaries > 0 {
+				addErr("volume with %s access mode does not support canaries", v.AccessMode)
+			}
 		case CSIVolumeAccessModeSingleNodeWriter:
 			// note: we allow read-only mount of this volume, but only one
 			if taskGroupCount > 1 && !v.PerAlloc {
 				addErr("volume with %s access mode allows only one reader or writer", v.AccessMode)
+			}
+			if canaries > 0 {
+				addErr("volume with %s access mode does not support canaries", v.AccessMode)
 			}
 		case CSIVolumeAccessModeMultiNodeReader:
 			if !v.ReadOnly {
