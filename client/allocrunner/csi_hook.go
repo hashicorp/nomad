@@ -167,24 +167,29 @@ type volumeAndRequest struct {
 func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) {
 	result := make(map[string]*volumeAndRequest)
 	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+	supportsVolumes := false
+
+	for _, task := range tg.Tasks {
+		caps, err := c.taskCapabilityGetter.GetTaskDriverCapabilities(task.Name)
+		if err != nil {
+			return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+		}
+
+		if caps.MountConfigs == drivers.MountConfigSupportNone {
+			continue
+		}
+
+		supportsVolumes = true
+		break
+	}
+
+	if !supportsVolumes {
+		return nil, fmt.Errorf("no task supports CSI")
+	}
 
 	// Initially, populate the result map with all of the requests
 	for alias, volumeRequest := range tg.Volumes {
-
 		if volumeRequest.Type == structs.VolumeTypeCSI {
-
-			for _, task := range tg.Tasks {
-				caps, err := c.taskCapabilityGetter.GetTaskDriverCapabilities(task.Name)
-				if err != nil {
-					return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
-				}
-
-				if caps.MountConfigs == drivers.MountConfigSupportNone {
-					return nil, fmt.Errorf(
-						"task driver %q for %q does not support CSI", task.Driver, task.Name)
-				}
-			}
-
 			result[alias] = &volumeAndRequest{request: volumeRequest}
 		}
 	}
