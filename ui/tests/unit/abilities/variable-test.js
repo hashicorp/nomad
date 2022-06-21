@@ -15,87 +15,151 @@ module('Unit | Ability | variable', function (hooks) {
     this.owner.register('service:system', mockSystem);
   });
 
-  test('it does not permit listing variables by default', function (assert) {
-    const mockToken = Service.extend({
-      aclEnabled: true,
+  module('#list', function () {
+    test('it does not permit listing variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
     });
 
-    this.owner.register('service:token', mockToken);
+    test('it does not permit listing variables when token type is client', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+      });
 
-    assert.notOk(this.ability.canList);
-  });
+      this.owner.register('service:token', mockToken);
 
-  test('it does not permit listing variables when token type is client', function (assert) {
-    const mockToken = Service.extend({
-      aclEnabled: true,
-      selfToken: { type: 'client' },
+      assert.notOk(this.ability.canList);
     });
 
-    this.owner.register('service:token', mockToken);
+    test('it permits listing variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
 
-    assert.notOk(this.ability.canList);
-  });
+      this.owner.register('service:token', mockToken);
 
-  test('it permits listing variables when token type is management', function (assert) {
-    const mockToken = Service.extend({
-      aclEnabled: true,
-      selfToken: { type: 'management' },
+      assert.ok(this.ability.canList);
     });
 
-    this.owner.register('service:token', mockToken);
-
-    assert.ok(this.ability.canList);
-  });
-
-  test('it permits listing variables when token has SecureVariables with list capabilities in its rules', function (assert) {
-    const mockToken = Service.extend({
-      aclEnabled: true,
-      selfToken: { type: 'client' },
-      selfTokenPolicies: [
-        {
-          rulesJSON: {
-            Namespaces: [
-              {
-                Name: 'default',
-                Capabilities: [],
-                SecureVariables: {
-                  'Path "*"': {
-                    Capabilities: ['list'],
+    test('it permits listing variables when token has SecureVariables with list capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "*"': {
+                      Capabilities: ['list'],
+                    },
                   },
                 },
-              },
-            ],
+              ],
+            },
           },
-        },
-      ],
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canList);
     });
 
-    this.owner.register('service:token', mockToken);
+    test('it permits listing variables when token has SecureVariables alone in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {},
+                },
+              ],
+            },
+          },
+        ],
+      });
 
-    assert.ok(this.ability.canList);
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canList);
+    });
   });
 
-  test('it permits listing variables when token has SecureVariables alone in its rules', function (assert) {
-    const mockToken = Service.extend({
-      aclEnabled: true,
-      selfToken: { type: 'client' },
-      selfTokenPolicies: [
-        {
-          rulesJSON: {
-            Namespaces: [
-              {
-                Name: 'default',
-                Capabilities: [],
-                SecureVariables: {},
-              },
-            ],
-          },
-        },
-      ],
+  module('#create', function () {
+    test('it does not permit creating variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canCreate);
     });
 
-    this.owner.register('service:token', mockToken);
+    test('it permits creating variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
 
-    assert.ok(this.ability.canList);
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canCreate);
+    });
+
+    test('it permits creating variables when acl is disabled', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: false,
+        selfToken: { type: 'client' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canCreate);
+    });
+
+    test('it permits creating variables when token has SecureVariables with create capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "*"': {
+                      Capabilities: ['create'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canCreate);
+    });
   });
 });
