@@ -115,7 +115,7 @@ func TestTaskGroupReconciler_BuildsCandidates_ByAllocName(t *testing.T) {
 				alloc.JobID = alloc.Job.ID
 			}
 
-			reconciler := NewTaskGroupReconciler(logger, allocUpdateFnDestructive, false, updatedJob.ID, updatedJob,
+			reconciler := newTaskGroupReconciler(logger, allocUpdateFnDestructive, false, updatedJob.ID, updatedJob,
 				structs.NewDeployment(updatedJob, 50), tc.allocs, nil, uuid.Generate(), 50, true)
 
 			slot := reconciler.allocSlots[updatedJob.TaskGroups[0].Name]

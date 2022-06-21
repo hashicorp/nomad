@@ -1372,7 +1372,7 @@ func emitRescheduleInfo(alloc *structs.Allocation, followupEval *structs.Evaluat
 // reconcileGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) reconcileGroup(groupName, all allocSet) bool {
-	tgReconciler := NewTaskGroupReconciler(a.logger, a.allocUpdateFn, a.batch, a.jobID, a.job, a.deployment,
+	tgReconciler := newTaskGroupReconciler(a.logger, a.allocUpdateFn, a.batch, a.jobID, a.job, a.deployment,
 		a.existingAllocs, a.taintedNodes, a.evalID, a.evalPriority, a.supportsDisconnectedClients)
 
 	tgReconciler.AppendResults(a.result)

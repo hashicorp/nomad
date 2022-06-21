@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type TaskGroupReconciler struct {
+type taskGroupReconciler struct {
 	// logger is used to log debug information. Logging should be kept at a
 	// minimal here
 	logger        log.Logger
@@ -58,10 +58,11 @@ type TaskGroupReconciler struct {
 	allocSlots map[string]*allocSlot
 }
 
-func NewTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, isBatchJob bool,
-	jobID string, job *structs.Job, deployment *structs.Deployment, existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int, supportsDisconnectedClients bool) *TaskGroupReconciler {
-	tgr := &TaskGroupReconciler{
+func newTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, isBatchJob bool,
+	jobID string, job *structs.Job, deployment *structs.Deployment, existingAllocs []*structs.Allocation,
+	taintedNodes map[string]*structs.Node, evalID string, evalPriority int, supportsDisconnectedClients bool) *taskGroupReconciler {
+
+	tgr := &taskGroupReconciler{
 		logger:                      logger.Named("task_group_reconciler"),
 		allocUpdateFn:               allocUpdateFn,
 		job:                         job,
@@ -75,13 +76,6 @@ func NewTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, is
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
 		allocSlots:                  map[string]*allocSlot{},
-		result: &reconcileResults{
-			attributeUpdates:     make(map[string]*structs.Allocation),
-			disconnectUpdates:    make(map[string]*structs.Allocation),
-			reconnectUpdates:     make(map[string]*structs.Allocation),
-			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
-			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
-		},
 	}
 
 	for _, taskGroup := range tgr.job.TaskGroups {
@@ -97,7 +91,7 @@ func NewTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, is
 	return tgr
 }
 
-func (tgr *TaskGroupReconciler) DeploymentPaused() bool {
+func (tgr *taskGroupReconciler) DeploymentPaused() bool {
 	if tgr.deployment != nil {
 		return tgr.deployment.Status == structs.DeploymentStatusPaused ||
 			tgr.deployment.Status == structs.DeploymentStatusPending
@@ -105,7 +99,7 @@ func (tgr *TaskGroupReconciler) DeploymentPaused() bool {
 	return true
 }
 
-func (tgr *TaskGroupReconciler) DeploymentFailed() bool {
+func (tgr *taskGroupReconciler) DeploymentFailed() bool {
 	if tgr.deployment != nil {
 		return tgr.deployment.Status == structs.DeploymentStatusFailed
 	}
@@ -113,14 +107,8 @@ func (tgr *TaskGroupReconciler) DeploymentFailed() bool {
 	return false
 }
 
-func (tgr *TaskGroupReconciler) AppendResults(result *reconcileResults) {
+func (tgr *taskGroupReconciler) AppendResults(result *reconcileResults) {
 	tgr.result = &reconcileResults{
-		deployment:           tgr.deployment,
-		deploymentUpdates:    []*structs.DeploymentStatusUpdate{},
-		place:                []allocPlaceResult{},
-		destructiveUpdate:    []allocDestructiveResult{},
-		inplaceUpdate:        []*structs.Allocation{},
-		stop:                 []allocStopResult{},
 		attributeUpdates:     map[string]*structs.Allocation{},
 		disconnectUpdates:    map[string]*structs.Allocation{},
 		reconnectUpdates:     map[string]*structs.Allocation{},
@@ -141,7 +129,7 @@ func (tgr *TaskGroupReconciler) AppendResults(result *reconcileResults) {
 	}
 }
 
-func (tgr *TaskGroupReconciler) DeploymentComplete() bool {
+func (tgr *taskGroupReconciler) DeploymentComplete() bool {
 	return false
 }
 
