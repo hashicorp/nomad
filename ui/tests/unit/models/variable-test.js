@@ -31,7 +31,7 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(model.keyValues.length, 1);
   });
 
-  test('it correctly moves between keyValues and itmes', function (assert) {
+  test('it correctly moves between keyValues and items', function (assert) {
     let store = this.owner.lookup('service:store');
 
     let model = store.createRecord('variable');

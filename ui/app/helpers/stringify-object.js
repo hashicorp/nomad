@@ -4,6 +4,8 @@
 
 import { helper } from '@ember/component/helper';
 
-export default helper(function stringifyObject(positional /*, named*/) {
-  return JSON.stringify(positional[0], null, 2);
-});
+function stringifyObject([obj], { replacer = null, whitespace = 2 }) {
+  return JSON.stringify(obj, replacer, whitespace);
+}
+
+export default helper(stringifyObject);

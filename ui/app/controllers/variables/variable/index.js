@@ -6,11 +6,7 @@ import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 export default class VariablesVariableIndexController extends Controller {
-  queryParams = [
-    {
-      view: 'view',
-    },
-  ];
+  queryParams = ['view'];
 
   @service router;
 
