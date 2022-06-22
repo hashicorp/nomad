@@ -237,6 +237,99 @@ func TestCSIHook(t *testing.T) {
 
 }
 
+// TestCSIHook_claimVolumesFromAlloc_Validation tests that the validation of task
+// capabilities in claimVolumesFromAlloc ensures at least one task supports CSI.
+func TestCSIHook_claimVolumesFromAlloc_Validation(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	logger := testlog.HCLogger(t)
+	volumeRequests := map[string]*structs.VolumeRequest{
+		"vol0": {
+			Name:           "vol0",
+			Type:           structs.VolumeTypeCSI,
+			Source:         "testvolume0",
+			ReadOnly:       true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+			MountOptions:   &structs.CSIMountOptions{},
+			PerAlloc:       false,
+		},
+	}
+
+	type testCase struct {
+		name             string
+		caps             *drivers.Capabilities
+		capFunc          func() (*drivers.Capabilities, error)
+		expectedClaimErr error
+	}
+
+	testcases := []testCase{
+		{
+			name: "invalid - driver does not support CSI",
+			caps: &drivers.Capabilities{
+				MountConfigs: drivers.MountConfigSupportNone,
+			},
+			capFunc:          nil,
+			expectedClaimErr: errors.New("claim volumes: no task supports CSI"),
+		},
+
+		{
+			name: "invalid - driver error",
+			caps: &drivers.Capabilities{},
+			capFunc: func() (*drivers.Capabilities, error) {
+				return nil, errors.New("error thrown by driver")
+			},
+			expectedClaimErr: errors.New("claim volumes: could not validate task driver capabilities: error thrown by driver"),
+		},
+
+		{
+			name: "valid - driver supports CSI",
+			caps: &drivers.Capabilities{
+				MountConfigs: drivers.MountConfigSupportAll,
+			},
+			capFunc:          nil,
+			expectedClaimErr: nil,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.Job.TaskGroups[0].Volumes = volumeRequests
+
+			callCounts := map[string]int{}
+			mgr := mockPluginManager{mounter: mockVolumeMounter{callCounts: callCounts}}
+
+			rpcer := mockRPCer{
+				alloc:            alloc,
+				callCounts:       callCounts,
+				hasExistingClaim: helper.BoolToPtr(false),
+				schedulable:      helper.BoolToPtr(true),
+			}
+
+			ar := mockAllocRunner{
+				res:     &cstructs.AllocHookResources{},
+				caps:    tc.caps,
+				capFunc: tc.capFunc,
+			}
+
+			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar, "secret")
+			require.NotNil(t, hook)
+
+			if tc.expectedClaimErr != nil {
+				require.EqualError(t, hook.Prerun(), tc.expectedClaimErr.Error())
+				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				require.Nil(t, mounts)
+			} else {
+				require.NoError(t, hook.Prerun())
+				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				require.NotNil(t, mounts)
+				require.NoError(t, hook.Postrun())
+			}
+		})
+	}
+}
+
 // HELPERS AND MOCKS
 
 type mockRPCer struct {
@@ -338,8 +431,9 @@ func (mgr mockPluginManager) PluginManager() pluginmanager.PluginManager { retur
 func (mgr mockPluginManager) Shutdown()                                  {}
 
 type mockAllocRunner struct {
-	res  *cstructs.AllocHookResources
-	caps *drivers.Capabilities
+	res     *cstructs.AllocHookResources
+	caps    *drivers.Capabilities
+	capFunc func() (*drivers.Capabilities, error)
 }
 
 func (ar mockAllocRunner) GetAllocHookResources() *cstructs.AllocHookResources {
@@ -351,5 +445,8 @@ func (ar mockAllocRunner) SetAllocHookResources(res *cstructs.AllocHookResources
 }
 
 func (ar mockAllocRunner) GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error) {
+	if ar.capFunc != nil {
+		return ar.capFunc()
+	}
 	return ar.caps, nil
 }
