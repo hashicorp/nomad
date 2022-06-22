@@ -1,10 +1,6 @@
-{{!-- {{did-insert this.translateAndValidateItems @view}} --}}
-{{did-update this.translateAndValidateItems @view}}
+{{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
-{{did-update this.establishKeyValues @model.keyValues}}
-
 <form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
-  {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
   <div>
     <label>
       <span>
@@ -37,23 +33,25 @@
       </p>
     {{/if}}
   </div>
-  {{#if (eq @view "json")}}
-    <div class="boxed-section-body is-full-bleed">
+  {{#if (eq this.view "json")}}
+    <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
       <IvyCodemirror
-        data-test-editor
-        aria-label="Job definition"
-        @value={{stringify-object this.JSONItems}}
+        aria-label="Secure Variable Items"
+        @value={{or this._editedJSONItems (stringify-object this.JSONItems)}}
         @valueUpdated={{this.updateCode}}
         @options={{hash
           mode="javascript"
           theme="hashi"
-          screenReaderLabel="Job definition editor"
+          screenReaderLabel="Secure Variable Items editor"
           tabSize=2
           lineNumbers=true
         }}
       />
-
-      <JsonViewer @json={{@model.items}} />
+      {{#if this.JSONError}}
+        <p class="help is-danger">
+          {{this.JSONError}}
+        </p>
+      {{/if}}
     </div>
   {{else}}
     {{#each this.keyValues as |entry iter|}}

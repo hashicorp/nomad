@@ -78,6 +78,18 @@
       margin: 0;
     }
   }
+
+  .editor-wrapper {
+    &.error {
+      .CodeMirror {
+        box-shadow: 0 0 0 3px $red;
+      }
+      .help {
+        padding: 1rem 0;
+        font-size: 1rem;
+      }
+    }
+  }
 }
 
 table.path-tree {

@@ -10,6 +10,7 @@ import EmberObject from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
+import { set } from '@ember/object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -26,16 +27,22 @@ export default class SecureVariableFormComponent extends Component {
   @tracked duplicatePathWarning = null;
 
   get shouldDisableSave() {
-    return !this.args.model?.path;
+    return this.JSONError || !this.args.model?.path;
   }
 
   /**
    * @type {MutableArray<{key: string, value: string, warnings: EmberObject}>}
    */
-  @tracked keyValues = A([]);
+  keyValues = A([]);
+
+  /**
+   * @type {Object<string, string>}
+   */
+  JSONItems = {};
+
   @action
   establishKeyValues() {
-    this.keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
+    const keyValues = copy(this.args.model?.keyValues || [])?.map((kv) => {
       return {
         key: kv.key,
         value: kv.value,
@@ -47,10 +54,20 @@ export default class SecureVariableFormComponent extends Component {
      * Appends a row to the end of the Items list if you're editing an existing variable.
      * This will allow it to auto-focus and make all other rows deletable
      */
-    console.log('so just checking here and', this.args.model?.isNew);
+    // TODO: make the object pushed a const object
     if (!this.args.model?.isNew) {
-      this.appendRow();
+      keyValues.pushObject({
+        key: '',
+        value: '',
+        warnings: EmberObject.create(),
+      });
     }
+    this.keyValues = keyValues;
+
+    this.JSONItems = this.keyValues.reduce((acc, { key, value }) => {
+      acc[key] = value;
+      return acc;
+    }, {});
   }
 
   @action
@@ -95,6 +112,10 @@ export default class SecureVariableFormComponent extends Component {
   @action
   async save(e) {
     e.preventDefault();
+    // TODO: temp, hacky way to force translation to tabular keyValues
+    if (this.view === 'json') {
+      this.translateAndValidateItems('table');
+    }
     try {
       const nonEmptyItems = A(
         this.keyValues.filter((item) => item.key.trim() && item.value)
@@ -131,28 +152,48 @@ export default class SecureVariableFormComponent extends Component {
 
   //#region JSON Editing
 
+  view = this.args.view;
+  // Prevent duplicate onUpdate events when @view is set to its already-existing value,
+  // which happens because parent's queryParams and toggle button both resolve independently.
+  @action onViewChange([view]) {
+    if (view !== this.view) {
+      set(this, 'view', view);
+      this.translateAndValidateItems(view);
+    }
+  }
+
   @action
-  translateAndValidateItems([view]) {
-    console.log('translating view to', view);
-    console.log('do we have KVs', this.keyValues);
-    console.log('and JSO', this.JSONItems);
+  translateAndValidateItems(view) {
     // TODO: move the translation functions in serializers/variable.js to generic importable functions.
     if (view === 'json') {
       // Translate table to JSON
-      this.JSONItems = this.keyValues.reduce((acc, { key, value }) => {
-        acc[key] = value;
-        return acc;
-      }, {});
+      set(
+        this,
+        'JSONItems',
+        this.keyValues.reduce((acc, { key, value }) => {
+          acc[key] = value;
+          return acc;
+        }, {})
+      );
+
+      set(this, '_editedJSONItems', null);
     } else if (view === 'table') {
+      // Reset any error state, since the errorring json will not persist
+      set(this, 'JSONError', null);
+
       // Translate JSON to table
-      this.keyValues = A(
-        Object.entries(this.JSONItems).map(([key, value]) => {
-          return {
-            key,
-            value,
-            warnings: EmberObject.create(),
-          };
-        })
+      set(
+        this,
+        'keyValues',
+        A(
+          Object.entries(this.JSONItems).map(([key, value]) => {
+            return {
+              key,
+              value,
+              warnings: EmberObject.create(),
+            };
+          })
+        )
       );
     }
     // return this.keyValues.reduce((acc, { key, value }) => {
@@ -163,9 +204,19 @@ export default class SecureVariableFormComponent extends Component {
   get stringifiedItems() {
     return JSON.stringify(this.args.model.items, null, 2);
   }
-
+  _editedJSONItems = '';
+  @tracked JSONError = null;
   @action updateCode(value) {
-    console.log('updating', value);
+    set(this, '_editedJSONItems', value);
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed) {
+        set(this, 'JSONItems', parsed);
+        set(this, 'JSONError', null);
+      }
+    } catch (error) {
+      set(this, 'JSONError', error);
+    }
   }
   //#endregion JSON Editing
 }
