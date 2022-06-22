@@ -429,6 +429,30 @@ func TestSecureVariablesMatching(t *testing.T) {
 			allow: true,
 		},
 		{
+			name: "concrete namespace with overlapping wildcard path first matches",
+			policy: `namespace "ns" {
+					secure_variables {
+						path "foo/*" { capabilities = ["write"] }
+						path "*/bar" { capabilities = ["list"] }
+					}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "write",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with overlapping wildcard path second denied",
+			policy: `namespace "ns" {
+					secure_variables {
+						path "foo/*" { capabilities = ["write"] }
+						path "*/bar" { capabilities = ["list"] }
+					}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "list",
+			allow: false,
+		},
+		{
 			name: "concrete namespace with wildcard path matches most specific only",
 			policy: `namespace "ns" {
 					secure_variables {
