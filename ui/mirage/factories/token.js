@@ -59,7 +59,7 @@ node {
                   Capabilities: ['list', 'create'],
                 },
                 'Path "blue/berkshire"': {
-                  Capabilities: ['create'],
+                  Capabilities: ['list', 'create', 'edit', 'delete'],
                 },
               },
             },
