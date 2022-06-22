@@ -12,7 +12,7 @@
     </div>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
-      {{#if (can "create variable")}}
+      {{#if (can "create variable" path="*")}}
         <LinkTo
           @route="variables.new"
           class="button is-primary"

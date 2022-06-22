@@ -1,10 +1,16 @@
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
 import AbstractAbility from './abstract';
 
 export default class Variable extends AbstractAbility {
-  @service router;
+  // Pass in a namespace to `can` or `cannot` calls to override
+  // https://github.com/minutebase/ember-can#additional-attributes
+  path = '*';
+
+  get _path() {
+    if (!this.path) return '*';
+    return this.path;
+  }
 
   @or(
     'bypassAuthorization',
@@ -27,14 +33,10 @@ export default class Variable extends AbstractAbility {
     });
   }
 
-  @computed(
-    'rulesForNamespace.@each.capabilities',
-    'router.currentRoute.params.absolutePath'
-  )
+  @computed('rulesForNamespace.@each.capabilities', 'path')
   get policiesSupportVariableCreation() {
-    const path = get(this, 'router.currentRoute.params.absolutePath') || '*';
     return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "${path}".Capabilities`;
+      const keyName = `SecureVariables.Path "${this.path}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
       return capabilities.includes('create');
     });
