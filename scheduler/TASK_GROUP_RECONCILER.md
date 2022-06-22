@@ -56,6 +56,59 @@ Rather than adopting a paradigm based on set theory, the `TaskGroupReconciler` r
 `TaskGroup` using a domain model. The following diagram illustrates the component model.
 
 ```mermaid
+classDiagram
+    class taskGroupReconciler {
+      Deployment
+      Job : Job
+      List~Node~ taintedNodes
+      List~Allocation~ existingAllocs
+      List~allocSlot~ allocSlots
+    }
+
+    class Deployment {
+      List~DeploymentState~ TaskGroups
+    }
+
+    class DeploymentState {
+
+    }
+
+    class Job {
+      Name
+      List<TaskGroup> TaskGroups
+    }
+
+    class TaskGroup {
+      List<Task> Tasks
+    }
+
+    class Allocation {
+      Job
+      Node
+    }
+
+    class allocSlot {
+      TaskGroup
+      List~Allocation~ Candidates
+    }
+
+    taskGroupReconciler o-- "0..*" Allocation
+    taskGroupReconciler o-- "0..*" Node
+    taskGroupReconciler o-- "1" Job
+
+    Deployment o-- "1" Job
+    Deployment o-- "0..*" DeploymentState
+
+    Allocation o-- "1" Job
+    Allocation o-- "1" Node
+
+    allocSlot o-- "0..*" Allocation
+    allocSlot o-- "1" TaskGroup
+```
+
+#### allocReconciler
+
+```mermaid
   graph TD;
       TaskGroupReconciler-->Job;
       TaskGroupReconciler-->Deployment;
