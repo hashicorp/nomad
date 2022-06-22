@@ -431,6 +431,19 @@ type ServerConfig struct {
 	// GCed but the threshold can be used to filter by age.
 	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
 
+	// RootKeyGCInterval is how often we dispatch a job to GC
+	// encryption key metadata
+	RootKeyGCInterval string `hcl:"root_key_gc_interval"`
+
+	// RootKeyGCThreshold is how "old" encryption key metadata must be
+	// to be eligible for GC.
+	RootKeyGCThreshold string `hcl:"root_key_gc_threshold"`
+
+	// RootKeyRotationThreshold is how "old" an encryption key must be
+	// before it is automatically rotated on the next garbage
+	// collection interval.
+	RootKeyRotationThreshold string `hcl:"root_key_rotation_threshold"`
+
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
 	HeartbeatGrace    time.Duration
@@ -1525,6 +1538,15 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.CSIPluginGCThreshold != "" {
 		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
+	}
+	if b.RootKeyGCInterval != "" {
+		result.RootKeyGCInterval = b.RootKeyGCInterval
+	}
+	if b.RootKeyGCThreshold != "" {
+		result.RootKeyGCThreshold = b.RootKeyGCThreshold
+	}
+	if b.RootKeyRotationThreshold != "" {
+		result.RootKeyRotationThreshold = b.RootKeyRotationThreshold
 	}
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
