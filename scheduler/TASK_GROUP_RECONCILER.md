@@ -53,73 +53,71 @@ A partial list of factors that go into this process include:
 ### Proposed Solution
 
 Rather than adopting a paradigm based on set theory, the `TaskGroupReconciler` reconciles a
-`TaskGroup` using a domain model. The following diagram illustrates the component model.
+`TaskGroup` using the domain model approach. The idea is to break the problem into a set of
+components that process a focused area of the problem. The following diagram illustrates the
+relationships between the different components.
 
 ```mermaid
 classDiagram
     class taskGroupReconciler {
       Deployment
-      Job : Job
+      Job
       List~Node~ taintedNodes
       List~Allocation~ existingAllocs
       List~allocSlot~ allocSlots
     }
 
-    class Deployment {
-      List~DeploymentState~ TaskGroups
-    }
-
-    class DeploymentState {
-
-    }
-
-    class Job {
-      Name
-      List<TaskGroup> TaskGroups
-    }
-
-    class TaskGroup {
-      List<Task> Tasks
-    }
-
-    class Allocation {
-      Job
-      Node
-    }
-
     class allocSlot {
+      Name
+      Index
       TaskGroup
       List~Allocation~ Candidates
     }
 
-    taskGroupReconciler o-- "0..*" Allocation
-    taskGroupReconciler o-- "0..*" Node
+    class Deployment {
+      Job
+      List~DeploymentState~ TaskGroups
+    }
+
+    class Job {
+      Name
+      List~TaskGroup~ TaskGroups
+    }
+
+    class TaskGroup {
+      List~Task~ Tasks
+    }
+
+    class Task {
+      Driver
+    }
+
+    class Allocation {
+      Name
+      JobID
+      NodeID
+      TaskGroup
+    }
+
+    taskGroupReconciler o-- "1" Deployment
     taskGroupReconciler o-- "1" Job
+    taskGroupReconciler o-- "0..*" Node
+    taskGroupReconciler o-- "0..*" Allocation
+    taskGroupReconciler o-- "1..*" allocSlot
 
     Deployment o-- "1" Job
     Deployment o-- "0..*" DeploymentState
 
+    Job o-- "1..*" TaskGroup
+
+    TaskGroup o-- "1..*" Task
+
     Allocation o-- "1" Job
     Allocation o-- "1" Node
+    Allocation o-- "1" TaskGroup
 
     allocSlot o-- "0..*" Allocation
     allocSlot o-- "1" TaskGroup
-```
-
-#### allocReconciler
-
-```mermaid
-  graph TD;
-      TaskGroupReconciler-->Job;
-      TaskGroupReconciler-->Deployment;
-      TaskGroupReconciler-->taintedNodes;
-      TaskGroupReconciler-->existingAllocs;
-      TaskGroupReconciler-->allocSlots;
-      Job-->TaskGroup;
-      TaskGroup-->Tasks;
-      existingAllocs-->Allocation;
-      allocSlots-->TaskGroup;
-      allocSlots-->Allocation;
 ```
 
 #### allocReconciler
