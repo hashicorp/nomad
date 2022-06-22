@@ -162,4 +162,56 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canCreate);
     });
   });
+
+  module('#capabiltiesOfNearestPath', function () {
+    test('returns capabilities for an exact path match', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo"': {
+                      Capabilities: ['create'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      const path = 'foo';
+
+      const nearestMatchingPath = this.ability._nearestMatchingPath(path);
+
+      assert.equal(
+        nearestMatchingPath,
+        'foo',
+        'It should return the exact path match.'
+      );
+    });
+    test('returns capabilities for the nearest ancestor if no exact match', function (assert) {
+      assert.ok(false, 'Write an assertion message here.');
+    });
+    test('handles wildcard prefix matches', function (assert) {
+      assert.ok(false, 'Write an assertion message here.');
+    });
+    test('handles wildcard suffix matches', function (assert) {
+      assert.ok(false, 'Write an assertion message here.');
+    });
+    test('prioritizes wildcard prefix matches over wildcard suffix matches', function (assert) {
+      assert.ok(false, 'Write an assertion message here.');
+    });
+    test('defaults to the glob path if there is no exact match or wildcard matches', function (assert) {
+      assert.ok(false, 'Write an assertion message here.');
+    });
+  });
 });
