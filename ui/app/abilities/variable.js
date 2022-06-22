@@ -41,4 +41,24 @@ export default class Variable extends AbstractAbility {
       return capabilities.includes('create');
     });
   }
+
+  _nearestMatchingPath(path) {
+    const formattedPathKey = `Path "${path}"`;
+    const pathNames = Object.keys(this.allPaths);
+
+    if (pathNames.includes(formattedPathKey)) return path;
+  }
+
+  @computed('token.selfTokenPolicies.[]')
+  get allPaths() {
+    return get(this, 'token.selfTokenPolicies')
+      .toArray()
+      .reduce((paths, policy) => {
+        const [variables] = get(policy, 'rulesJSON.Namespaces').mapBy(
+          'SecureVariables'
+        );
+        paths = { ...paths, ...variables };
+        return paths;
+      }, {});
+  }
 }
