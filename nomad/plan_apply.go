@@ -154,12 +154,12 @@ func (p *planner) planApply() {
 		// This also limits how out of date our snapshot can be.
 		if planIndexCh != nil {
 			idx := <-planIndexCh
+			planIndexCh = nil
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
 				p.logger.Error("failed to update snapshot state", "error", err)
 				pending.respond(nil, err)
-				planIndexCh = nil
 				continue
 			}
 		}
