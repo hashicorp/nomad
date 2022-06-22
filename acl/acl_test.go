@@ -420,6 +420,15 @@ func TestSecureVariablesMatching(t *testing.T) {
 			allow: true,
 		},
 		{
+			name: "concrete namespace with non-prefix wildcard path matches",
+			policy: `namespace "ns" {
+					secure_variables { path "*/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: true,
+		},
+		{
 			name: "concrete namespace with wildcard path matches most specific only",
 			policy: `namespace "ns" {
 					secure_variables {
