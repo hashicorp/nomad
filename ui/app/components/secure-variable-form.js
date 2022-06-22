@@ -55,7 +55,7 @@ export default class SecureVariableFormComponent extends Component {
      * This will allow it to auto-focus and make all other rows deletable
      */
     // TODO: make the object pushed a const object
-    if (!this.args.model?.isNew) {
+    if (!this.args.model?.isNew && this.view === 'table') {
       keyValues.pushObject({
         key: '',
         value: '',
@@ -170,10 +170,12 @@ export default class SecureVariableFormComponent extends Component {
       set(
         this,
         'JSONItems',
-        this.keyValues.reduce((acc, { key, value }) => {
-          acc[key] = value;
-          return acc;
-        }, {})
+        this.keyValues
+          .filter((item) => item.key.trim() && item.value) // remove empty items when translating to JSON
+          .reduce((acc, { key, value }) => {
+            acc[key] = value;
+            return acc;
+          }, {})
       );
 
       set(this, '_editedJSONItems', null);
