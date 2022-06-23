@@ -181,15 +181,26 @@ to the `TaskGroupReconciler.AppendResults` function, and returns the result of
 
 ```mermaid
 sequenceDiagram
-    allocReconciler->TaskGroupReconciler: Instantiate
+    allocReconciler->taskGroupReconciler: newTaskGroupReconciler
     loop For each existingAlloc
-        TaskGroupReconciler-->TaskGroupReconciler: create map entry by alloc Name
+        taskGroupReconciler-->taskGroupReconciler: create map entry by alloc Name
     end
-    loop For 0 to TaskGroup Count
-        TaskGroupReconciler-->allocSlot: Instantiate with map entry
+    loop For each map entry
+        taskGroupReconciler-->allocSlot: newAllocSlot
     end
-    allocReconciler->TaskGroupReconciler: ApppendResults
-    allocReconciler->TaskGroupReconciler: DeploymentComplete
+    allocReconciler->taskGroupReconciler: ApppendResults
+    loop For each allocSlot
+      taskGroupReconciler-->allocSlot: PlaceResults
+      taskGroupReconciler-->allocSlot: StopResults
+      taskGroupReconciler-->allocSlot: DeploymentStatusUpdates
+      taskGroupReconciler-->allocSlot: DestructiveResults
+      taskGroupReconciler-->allocSlot: InplaceUpdates
+      taskGroupReconciler-->allocSlot: AttributeUpdates
+      taskGroupReconciler-->allocSlot: DisconnectUpdates
+      taskGroupReconciler-->allocSlot: ReconnectUpdates
+      taskGroupReconciler-->allocSlot: DesiredTGUpdates
+    end
+    allocReconciler->taskGroupReconciler: DeploymentComplete
 ```
 
 
