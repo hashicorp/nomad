@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -81,13 +82,53 @@ type SecureVariableDecrypted struct {
 // are always encrypted and decrypted as a single unit.
 type SecureVariableItems map[string]string
 
-func (sv SecureVariableData) Copy() SecureVariableData {
-	out := make([]byte, len(sv.Data))
-	copy(out, sv.Data)
-	return SecureVariableData{
-		Data:  out,
-		KeyID: sv.KeyID,
+// Equals checks both the metadata and items in a SecureVariableDecrypted
+// struct
+func (v1 SecureVariableDecrypted) Equals(v2 SecureVariableDecrypted) bool {
+	return v1.SecureVariableMetadata.Equals(v2.SecureVariableMetadata) &&
+		v1.Items.Equals(v2.Items)
+}
+
+// Equals is a convenience method to provide similar equality checking
+// syntax for metadata and the SecureVariablesData or SecureVariableItems
+// struct
+func (sv SecureVariableMetadata) Equals(sv2 SecureVariableMetadata) bool {
+	return sv == sv2
+}
+
+// Equals performs deep equality checking on the cleartext items
+// of a SecureVariableDecrypted. Uses reflect.DeepEqual
+func (i1 SecureVariableItems) Equals(i2 SecureVariableItems) bool {
+	return reflect.DeepEqual(i1, i2)
+}
+
+// Equals checks both the metadata and encrypted data for a
+// SecureVariableEncrypted struct
+func (v1 SecureVariableEncrypted) Equals(v2 SecureVariableEncrypted) bool {
+	return v1.SecureVariableMetadata.Equals(v2.SecureVariableMetadata) &&
+		v1.SecureVariableData.Equals(v2.SecureVariableData)
+}
+
+// Equals performs deep equality checking on the encrypted data part
+// of a SecureVariableEncrypted
+func (d1 SecureVariableData) Equals(d2 SecureVariableData) bool {
+	return d1.KeyID == d2.KeyID &&
+		bytes.Equal(d1.Data, d2.Data)
+}
+
+func (sv SecureVariableDecrypted) Copy() SecureVariableDecrypted {
+	return SecureVariableDecrypted{
+		SecureVariableMetadata: sv.SecureVariableMetadata,
+		Items:                  sv.Items.Copy(),
 	}
+}
+
+func (sv SecureVariableItems) Copy() SecureVariableItems {
+	out := make(SecureVariableItems, len(sv))
+	for k, v := range sv {
+		out[k] = v
+	}
+	return out
 }
 
 func (sv SecureVariableEncrypted) Copy() SecureVariableEncrypted {
@@ -97,34 +138,13 @@ func (sv SecureVariableEncrypted) Copy() SecureVariableEncrypted {
 	}
 }
 
-func (sv SecureVariableMetadata) Equals(sv2 SecureVariableMetadata) bool {
-	return sv == sv2
-}
-
-func (sv SecureVariableDecrypted) Equals(sv2 SecureVariableDecrypted) bool {
-	// FIXME: This should be a smarter equality check
-	return sv.SecureVariableMetadata.Equals(sv2.SecureVariableMetadata) &&
-		len(sv.Items) == len(sv2.Items) &&
-		reflect.DeepEqual(sv.Items, sv2.Items)
-}
-
-func (sv SecureVariableDecrypted) Copy() SecureVariableDecrypted {
-	out := SecureVariableDecrypted{
-		SecureVariableMetadata: sv.SecureVariableMetadata,
-		Items:                  make(SecureVariableItems, len(sv.Items)),
+func (sv SecureVariableData) Copy() SecureVariableData {
+	out := make([]byte, len(sv.Data))
+	copy(out, sv.Data)
+	return SecureVariableData{
+		Data:  out,
+		KeyID: sv.KeyID,
 	}
-	for k, v := range sv.Items {
-		out.Items[k] = v
-	}
-	return out
-}
-
-func (sv SecureVariableEncrypted) Equals(sv2 SecureVariableEncrypted) bool {
-	// FIXME: This should be a smarter equality check
-	return sv.SecureVariableMetadata.Equals(sv2.SecureVariableMetadata) &&
-		sv.KeyID == sv2.KeyID &&
-
-		reflect.DeepEqual(sv.SecureVariableData, sv2.SecureVariableData)
 }
 
 func (sv SecureVariableDecrypted) Validate() error {
