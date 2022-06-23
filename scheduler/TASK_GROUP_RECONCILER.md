@@ -1,61 +1,103 @@
-# Why?
+# What?
 
-The current logic for Task Group reconciliation has grown organically over time. Logic is 
-sprawled across several files & functions, state is mutated in multiple places, and testing 
-requires a significant mental lift. Adding new features or alternate behaviors is difficult
-in that it requires changes in numerous coupled functions. The relationship between coupled
-functions is not immediately apparent.
-
-The current approach is reminiscent of a stored procedure that tries tommanage a number of
-in-memory result sets. Specifically, it starts with a set of entities of  interest, in this
-case `Allocations`, and then progressively groups and/or filters the set. This approach to 
-applying business rules is particularly challenging because it introduces the cognitive 
-overhead of understanding the state mutations that have already been applied to each set prior
-at any given point in the processing chain. 
-
-While SQL is limited to set manipulation, `go` is a full-featured language that is not limited
-to a single paradigm. Since a `TaskGroup` is a struct that contains other structs, It should be
-possible to devise a domain model that provides the correct results in a more readable, maintainable,
-extensible, and testable way.
-
-Beyond the academic analysis, practical business reasons support the need to refactor. Multiple
-engineers on the team have commented that the code is “hard to maintain”, “scary” or that they do
-not feel confident making changes. Having a core piece of the codebase that engineers do not feel
-confident changing leads to code stagnation and devious bugs. Beyond the maintenance cost, there
-may be opportunities to create customer value that are not pursued because of the team's aversion
-to changing this, and other hard to maintain areas of the code base.
-
-## Requirements
-
-- Needs to be completely backwards compatible.
-- Must be hot swappable with current unit tests and not fail.
-- Must clearly improve readability
-- Must clearly improve maintainability.
-- Must clearly improve our extensibility position.
-- Should be backport friendly or slated for a release target includes major changes.
-
-## How
-
-The `TaskGroupReconciler` (working name) is designed to be usable as a drop-in replacement of the current
-`allocReconciler.computeGroup` method. Its purpose is to assess the current cluster state for a given
-`TaskGroup` versus the desired state, and compute the changes that need to be made to reconcile the current
-cluster with the desired state.
+`TaskGroup` reconciliation is the process by which a scheduler worker assesses
+the current cluster state for a given `TaskGroup`, and computes the changes that
+need to be made to reconcile the current state with the desired state.
 
 A partial list of factors that go into this process include:
 
 - Client node status
 - Job version
 - Allocation desired status, client status, and reschedule policy
-- Deployment status
-- Canary status
+- Deployment lifecycle management
+- Canary configuration and status
 - Disconnect configuration
+
+## Why?
+
+The current logic for `TaskGroup` reconciliation has grown organically over time.
+The current approach is reminiscent of a stored procedure that tries to manage a number of
+in-memory result sets. It starts with a set of `Allocations`, and then progressively groups
+and/or filters each set.
+
+This approach to applying domain logic is particularly difficult when complex or numerous
+rules need to be applied because it requires engineers to keep in their working memory all
+the state mutations that have been applied to each set up to the point in the processing 
+chain they are currently working on.
+
+Some additional deficiencies with the current implementation include:
+
+- The domain logic is sprawled across several files and functions.
+- Any given subroutine call may mutate shared state.
+- Adding new features or alternate behaviors is difficult because it requires 
+  changes to numerous coupled functions.
+- The coupling between functions is difficult to identify and easy to forget.
+- Testing requires a significant mental lift. The current approach requires 
+  engineers to try to imagine all possible cluster states, and then manually
+  model them as test cases.
+- Testing the function sprawl at the possible test points results in significant 
+  near duplication of complex state setup.
+
+Beyond the academic analysis, business concerns support the need to refactor.
+Some of these include:
+
+- Multiple engineers on the team have commented that the code is “hard to maintain”, 
+  “scary” or that they do not feel confident making changes.
+- Having a core piece of the codebase that only a few engineers feel confident
+  changing is a "bus-risk".
+- Having a core piece of the codebase that engineers do not feel confident changing
+  leads to code stagnation, clever hacks, and ultimately devious bugs.
+- Beyond the maintenance risks, there may be opportunities to create customer value
+  that are not pursued because of the team's aversion to changing this hard to modify
+  areas of the code base.
+- Complicated legacy code is a barrier for community contributions.
+
+## Requirements
+
+The following requirements are designed to minimize risk, and clearly define success.
+
+- Must be a minimal code change blast radius that requires no changes outside
+  the `allocReconciler`.
+- Must require minimal changes to the `allocReconciler`.
+- Must be completely backwards compatible.
+- Must be hot swappable with current tests.
+- Must clearly improve readability, maintainability, and our extensibility position.
+- Must be backport friendly or slated for a release target that does not require backports.
+- Should improve the ability to test with less complex setup.
+
+## How?
+
+Currently, the `allocReconciler.computeGroup` function is a procedural function call
+chain. It creates several `allocSet` instances and passes them to subroutines that 
+manipulate them. Many of those subroutines rely on processing logic that was applied
+in another previously executed subroutine. Many of them perform work not implied
+by their name.
 
 ### Proposed Solution
 
-Rather than adopting a paradigm based on set theory, the `TaskGroupReconciler` reconciles a
-`TaskGroup` using the domain model approach. The idea is to break the problem into a set of
-components that process a focused area of the problem. The following diagram illustrates the
+The proposal is to introduce two new domain components to handle allocation reconciliation
+with the goals of:
+
+- Changing the mental model for reconciling allocations from _sets_ to _slots_.
+- 
+- Simplifying coding and debugging by:
+  - Constraining the number of allocations being handled at any given point in time
+    to those that are all candidates for the same slot.
+
+#### `taskGroupReconciler`
+
+The `TaskGroupReconciler` (working name) is designed to be usable as a drop-in
+replacement for the `allocReconciler.computeGroup` method.
+
+Rather than adopting a paradigm based on set theory and procedural programming, the 
+`TaskGroupReconciler` reconciles a `TaskGroup` using a domain model approach. The 
+idea is to break the problem into a set of components that process a focused area
+of the problem. The following diagram illustrates the domain model in terms of the
 relationships between the different components.
+
+**Note that only the `TaskGroupReconciler` and `allocSlot` are new components.**
+With the exception of the `allocReconciler`, the rest of the components in the
+diagram are domain entities or pure data objects.
 
 ```mermaid
 classDiagram
@@ -102,10 +144,6 @@ classDiagram
     }
 
     class reconcileResults {
-
-    }
-
-    class reconcileResults {
       Deployment
       DeploymentStatusUpdate
 	    List~allocPlaceResult~ place
@@ -114,7 +152,7 @@ classDiagram
 	    List~allocStopResult~ stop
 	    List~Allocation~ attributeUpdates
     	List~Allocation~ disconnectUpdates
-   	  List~Allocation~ reconnectUpdates
+   	    List~Allocation~ reconnectUpdates
     	List~DesiredUpdates~ desiredTGUpdates
       List~Evaluation~ desiredFollowupEvals
     }
@@ -123,19 +161,15 @@ classDiagram
     }
 
     class allocDestructiveUpdateResult {
-
     }
 
     class allocStopResult {
-
     }
 
     class DesiredUpdates {
-
     }
 
     class Evaluation {
-
     }
 
     taskGroupReconciler o-- "1" Deployment
@@ -170,14 +204,22 @@ classDiagram
     reconcileResults o-- "0..*" Evaluation
 ```
 
-#### allocReconciler
+#### Workflow
 
 Changes to the `allocReconciler` are limited. The `computeDeploymentComplete` function
 is changed to call `reconcileGroup` instead of `computeGroup`. The new `reconcileGroup`
-function is appended to the file. This function is responsible for instantiating a new
-`TaskGroupReconciler` instance. It passes the `allocRunner.reconcileResults` instance
-to the `TaskGroupReconciler.AppendResults` function, and returns the result of
-`DeploymentComplete` to the `computeDeploymentComplete` outer loop.
+function is appended to the end of the file. The `taskGroupReconciler` and `allocSlot`
+types are defined in new code files. **This limits the impact on merge conflicts, 
+and eases backporting, if desired.**
+
+The `reconcileGroup` function is responsible for instantiating a new `taskGroupReconciler`
+instance. It passes the all required state as well as the `allocRunner.results` instance
+during instantiation. It then calls `taskGroupReconciler.AppendResults()` which
+updates the `allocRunner.result` instance. Finally, it returns the result of
+`DeploymentComplete` to the `computeDeploymentComplete` outer loop. This breaks
+the processing into three distinct phases: Instantiation, `AppendResults`, and
+`DeployComplete`. Each is discussed in further detail below. The following sequence diagram
+illustrates the high level flow.
 
 ```mermaid
 sequenceDiagram
