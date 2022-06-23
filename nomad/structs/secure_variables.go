@@ -187,7 +187,6 @@ type SecureVariablesUpsertResponse struct {
 }
 
 type SecureVariablesListRequest struct {
-	// TODO: do we need any fields here?
 	QueryOptions
 }
 
