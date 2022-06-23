@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,4 +129,70 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 
 	// Ensure no plans were enqueued
 	require.Zero(t, s1.planner.planQueue.Stats().Depth)
+}
+
+func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	plans := []*structs.Plan{}
+
+	for i := 0; i < 5; i++ {
+
+		// Create a node to place on
+		node := mock.Node()
+		store := s1.fsm.State()
+		require.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
+		// Create the eval
+		eval1 := mock.Eval()
+		s1.evalBroker.Enqueue(eval1)
+		require.NoError(t, store.UpsertEvals(
+			structs.MsgTypeTestSetup, 150, []*structs.Evaluation{eval1}))
+
+		evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+		require.NoError(t, err)
+		require.Equal(t, eval1, evalOut)
+
+		// Submit a plan
+		plan := mock.Plan()
+		plan.EvalID = eval1.ID
+		plan.EvalToken = token
+		plan.Job = mock.Job()
+
+		alloc := mock.Alloc()
+		alloc.JobID = plan.Job.ID
+		alloc.Job = plan.Job
+
+		plan.NodeAllocation = map[string][]*structs.Allocation{
+			node.ID: []*structs.Allocation{alloc}}
+
+		plans = append(plans, plan)
+	}
+
+	var wg sync.WaitGroup
+
+	for _, plan := range plans {
+		plan := plan
+		wg.Add(1)
+		go func() {
+
+			req := &structs.PlanRequest{
+				Plan:         plan,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var resp structs.PlanResponse
+			err := s1.RPC("Plan.Submit", req, &resp)
+			assert.NoError(t, err)
+			assert.NotNil(t, resp.Result, "missing result")
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
 }

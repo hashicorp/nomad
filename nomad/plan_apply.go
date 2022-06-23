@@ -154,6 +154,7 @@ func (p *planner) planApply() {
 		// This also limits how out of date our snapshot can be.
 		if planIndexCh != nil {
 			idx := <-planIndexCh
+			planIndexCh = nil
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
@@ -177,7 +178,7 @@ func (p *planner) planApply() {
 	}
 }
 
-// snapshotMinIndex wraps SnapshotAfter with a 5s timeout and converts timeout
+// snapshotMinIndex wraps SnapshotAfter with a 10s timeout and converts timeout
 // errors to a more descriptive error message. The snapshot is guaranteed to
 // include both the previous plan and all objects referenced by the plan or
 // return an error.
@@ -188,7 +189,11 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 	// plan result's and current plan's snapshot index.
 	minIndex := max(prevPlanResultIndex, planSnapshotIndex)
 
-	const timeout = 5 * time.Second
+	// This timeout creates backpressure where any concurrent
+	// Plan.Submit RPCs will block waiting for results. This sheds
+	// load across all servers and gives raft some CPU to catch up,
+	// because schedulers won't dequeue more work while waiting.
+	const timeout = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	snap, err := p.fsm.State().SnapshotMinIndex(ctx, minIndex)
 	cancel()
@@ -368,14 +373,12 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 	result *structs.PlanResult, pending *pendingPlan) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+	defer close(indexCh)
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
 		p.logger.Error("failed to apply plan", "error", err)
 		pending.respond(nil, err)
-
-		// Close indexCh on error
-		close(indexCh)
 		return
 	}
 
