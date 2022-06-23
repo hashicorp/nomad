@@ -3,7 +3,7 @@ import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 
 export default class ParameterizedChild extends Component {
-  @alias('job.decodedPayload') payload;
+  @alias('args.job.decodedPayload') payload;
 
   @computed('payload')
   get payloadJSON() {
