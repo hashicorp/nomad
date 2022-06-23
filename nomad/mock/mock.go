@@ -2303,34 +2303,13 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 type MockSecureVariables map[string]*structs.SecureVariableDecrypted
 
 func SecureVariable() *structs.SecureVariableDecrypted {
-	envs := []string{"dev", "test", "prod"}
-	envIdx := rand.Intn(3)
-	env := envs[envIdx]
-	domain := fake.DomainName()
-	path := strings.ReplaceAll(env+"."+domain, ".", "/")
-	// owner := fake.Person()
-	createIdx := uint64(rand.Intn(100) + 100)
-	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
-	sv := &structs.SecureVariableDecrypted{
-		SecureVariableMetadata: structs.SecureVariableMetadata{
-			Path:        path,
-			Namespace:   "default",
-			CreateIndex: createIdx,
-			ModifyIndex: createIdx,
-			CreateTime:  createDT,
-			ModifyTime:  createDT,
-		},
+	return &structs.SecureVariableDecrypted{
+		SecureVariableMetadata: mockSecureVariableMetadata(),
 		Items: structs.SecureVariableItems{
 			"key1": "value1",
 			"key2": "value2",
 		},
 	}
-	// Flip a coin to see if we should return a "modified" object
-	if fake.Bool() {
-		sv.ModifyTime = fake.DateRange(sv.CreateTime, time.Now())
-		sv.ModifyIndex = sv.CreateIndex + uint64(rand.Intn(100))
-	}
-	return sv
 }
 
 // SecureVariables returns a random number of secure variables between min
@@ -2382,34 +2361,13 @@ func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
 type MockSecureVariablesEncrypted map[string]*structs.SecureVariableEncrypted
 
 func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
-	envs := []string{"dev", "test", "prod"}
-	envIdx := rand.Intn(3)
-	env := envs[envIdx]
-	domain := fake.DomainName()
-	path := strings.ReplaceAll(env+"."+domain, ".", "/")
-	// owner := fake.Person()
-	createIdx := uint64(rand.Intn(100) + 100)
-	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
-	sv := &structs.SecureVariableEncrypted{
-		SecureVariableMetadata: structs.SecureVariableMetadata{
-			Path:        path,
-			Namespace:   "default",
-			CreateIndex: createIdx,
-			ModifyIndex: createIdx,
-			CreateTime:  createDT,
-			ModifyTime:  createDT,
-		},
+	return &structs.SecureVariableEncrypted{
+		SecureVariableMetadata: mockSecureVariableMetadata(),
 		SecureVariableData: structs.SecureVariableData{
 			KeyID: "foo",
 			Data:  []byte("foo"),
 		},
 	}
-	// Flip a coin to see if we should return a "modified" object
-	if fake.Bool() {
-		sv.ModifyTime = fake.DateRange(sv.CreateTime, time.Now())
-		sv.ModifyIndex = sv.CreateIndex + uint64(rand.Intn(100))
-	}
-	return sv
 }
 
 // SecureVariables returns a random number of secure variables between min
@@ -2454,6 +2412,26 @@ func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypte
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
+	}
+	return out
+}
+
+func mockSecureVariableMetadata() structs.SecureVariableMetadata {
+	envs := []string{"dev", "test", "prod"}
+	envIdx := rand.Intn(3)
+	env := envs[envIdx]
+	domain := fake.DomainName()
+
+	out := structs.SecureVariableMetadata{
+		Namespace:   "default",
+		Path:        strings.ReplaceAll(env+"."+domain, ".", "/"),
+		CreateIndex: uint64(rand.Intn(100) + 100),
+		CreateTime:  fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now()).UnixNano(),
+	}
+	// Flip a coin to see if we should return a "modified" object
+	if fake.Bool() {
+		out.ModifyTime = fake.DateRange(time.Unix(0, out.CreateTime), time.Now()).UnixNano()
+		out.ModifyIndex = out.CreateIndex + uint64(rand.Intn(100))
 	}
 	return out
 }
