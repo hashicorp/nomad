@@ -50,10 +50,10 @@ const (
 type SecureVariableMetadata struct {
 	Namespace   string
 	Path        string
-	CreateTime  time.Time
 	CreateIndex uint64
+	CreateTime  int64
 	ModifyIndex uint64
-	ModifyTime  time.Time
+	ModifyTime  int64
 }
 
 // SecureVariableEncrypted structs are returned from the Encrypter's encrypt
