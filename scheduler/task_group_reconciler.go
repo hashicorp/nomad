@@ -35,7 +35,7 @@ type taskGroupReconciler struct {
 	taintedNodes map[string]*structs.Node
 
 	// existingAllocs is non-terminal existing allocations
-	existingAllocs []*structs.Allocation
+	existingAllocs allocSet
 
 	// evalID and evalPriority is the ID and Priority of the evaluation that
 	// triggered the reconciler.
@@ -88,11 +88,12 @@ func ensureResultDefaults(result *reconcileResults) {
 	}
 }
 
-func newTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, isBatchJob bool,
-	jobID string, job *structs.Job, deployment *structs.Deployment, existingAllocs []*structs.Allocation,
+func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdateFn allocUpdateType, isBatchJob bool,
+	jobID string, job *structs.Job, deployment *structs.Deployment, existingAllocs allocSet,
 	taintedNodes map[string]*structs.Node, evalID string, evalPriority int,
 	result *reconcileResults, supportsDisconnectedClients bool) *taskGroupReconciler {
 
+	// TODO: Add noop guards from computeGroup
 	ensureResultDefaults(result)
 
 	tgr := &taskGroupReconciler{
@@ -112,6 +113,7 @@ func newTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, is
 		result:                      result,
 	}
 
+	// TODO: Refactor all this based on allocSet that is passed
 	for _, taskGroup := range tgr.job.TaskGroups {
 		allocs := make(allocSet)
 		for _, alloc := range existingAllocs {

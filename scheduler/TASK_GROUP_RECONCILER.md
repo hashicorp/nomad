@@ -179,6 +179,19 @@ function is appended to the file. This function is responsible for instantiating
 to the `TaskGroupReconciler.AppendResults` function, and returns the result of
 `DeploymentComplete` to the `computeDeploymentComplete` outer loop.
 
+```mermaid
+sequenceDiagram
+    allocReconciler->TaskGroupReconciler: Instantiate
+    loop For each existingAlloc
+        TaskGroupReconciler-->TaskGroupReconciler: create map entry by alloc Name
+    end
+    loop For 0 to TaskGroup Count
+        TaskGroupReconciler-->allocSlot: Instantiate with map entry
+    end
+    allocReconciler->TaskGroupReconciler: ApppendResults
+    allocReconciler->TaskGroupReconciler: DeploymentComplete
+```
+
 
 #### taskGroupReconciler
 
