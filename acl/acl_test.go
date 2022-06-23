@@ -420,6 +420,52 @@ func TestSecureVariablesMatching(t *testing.T) {
 			allow: true,
 		},
 		{
+			name: "concrete namespace with non-prefix wildcard path matches",
+			policy: `namespace "ns" {
+					secure_variables { path "*/bar" { capabilities = ["read"] }}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with overlapping wildcard path prefix over suffix matches",
+			policy: `namespace "ns" {
+					secure_variables {
+						path "*/bar" { capabilities = ["list"] }
+						path "foo/*" { capabilities = ["write"] }
+					}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "write",
+			allow: true,
+		},
+		{
+			name: "concrete namespace with overlapping wildcard path prefix over suffix denied",
+			policy: `namespace "ns" {
+					secure_variables {
+						path "*/bar" { capabilities = ["list"] }
+						path "foo/*" { capabilities = ["write"] }
+					}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "list",
+			allow: false,
+		},
+		{
+			name: "concrete namespace with wildcard path matches most specific only",
+			policy: `namespace "ns" {
+					secure_variables {
+						path "*" { capabilities = ["read"] }
+						path "foo/*" { capabilities = ["read"] }
+						path "foo/bar" { capabilities = ["list"] }
+					}}`,
+			ns:    "ns",
+			path:  "foo/bar",
+			op:    "read",
+			allow: false,
+		},
+		{
 			name: "concrete namespace with invalid concrete path fails",
 			policy: `namespace "ns" {
 					secure_variables { path "bar" { capabilities = ["read"] }}}`,
