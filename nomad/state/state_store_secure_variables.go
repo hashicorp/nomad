@@ -142,7 +142,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 	}
 
 	// Setup the indexes correctly
-	now := time.Now().Round(0)
+	nowNano := time.Now().UnixNano()
 	if existing != nil {
 		exist := existing.(*structs.SecureVariableEncrypted)
 		if !shouldWrite(sv, exist) {
@@ -152,13 +152,13 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		sv.CreateIndex = exist.CreateIndex
 		sv.CreateTime = exist.CreateTime
 		sv.ModifyIndex = index
-		sv.ModifyTime = now
+		sv.ModifyTime = nowNano
 
 	} else {
 		sv.CreateIndex = index
-		sv.CreateTime = now
+		sv.CreateTime = nowNano
 		sv.ModifyIndex = index
-		sv.ModifyTime = now
+		sv.ModifyTime = nowNano
 	}
 
 	// Insert the secure variable
