@@ -75,25 +75,71 @@ by their name.
 
 ### Proposed Solution
 
-The proposal is to introduce two new domain components to handle allocation reconciliation
-with the goals of:
-
-- Changing the mental model for reconciling allocations from _sets_ to _slots_.
-- 
-- Simplifying coding and debugging by:
-  - Constraining the number of allocations being handled at any given point in time
-    to those that are all candidates for the same slot.
-
-#### `taskGroupReconciler`
-
-The `TaskGroupReconciler` (working name) is designed to be usable as a drop-in
-replacement for the `allocReconciler.computeGroup` method.
-
-Rather than adopting a paradigm based on set theory and procedural programming, the 
-`TaskGroupReconciler` reconciles a `TaskGroup` using a domain model approach. The 
+Rather than adopting a paradigm based on set theory and procedural programming, the
+`taskGroupReconciler` reconciles a `TaskGroup` using a domain model approach. The
 idea is to break the problem into a set of components that process a focused area
 of the problem. The following diagram illustrates the domain model in terms of the
 relationships between the different components.
+
+The proposal introduces two new domain components to handle allocation reconciliation:
+
+- `taskGroupReconciler`
+- `allocSlot`
+
+The design of these two components center around simplifying reconciliation by changing
+the mental model for reconciling allocations from _sets_ to _slots_.
+
+#### taskGroupReconciler
+
+The `taskGroupReconciler` acts as the primary aggregate root. That means its job is to
+manage the relationships between components and provide or execute domain logic. It accepts
+incoming cluster state and desired `TaskGroup` configuration. From the configuration and
+the state, it can append values to the `allocRunner.reconcileResults` instance which is
+then used by the `GenericScheduler` to create a `Plan`. Processing takes place in three
+phases. The phases are as follows.
+
+- Initialization:
+  - Creates a `map[stromg]*structs.Allocation` where the map key is the `Allocation.Name`.
+  - Creates a slice of `allocSlot` instances with a `len` equal to the `TaskGroup.Count`
+  - configuration value.
+  - As each `allocSlot` is created, existing `Allocation` instances are added to it's `Candidates`
+  - slice based on `Allocation.Name`.
+  - `Allocation` instances that don't match an `allocSlot.Name` can immediately be discarded or
+    added to the `reconcileResults.stop` slice since they do not target a currently valid slot.
+  -
+- `AppendResults`:
+  - Iterates over each `allocSlot` and calls a domain method
+    on each instance that is purpose built to return appendable results for each slice field
+    that `reconcileResults` requires.
+  - This simplifies debugging, because now the set of `Allocation` instances being analyzed is
+    limited to what should be a very finite subset.
+- `DeploymentComplete`:
+  - Peforms essentially the same logic as the current `isDeploymentComplete` function
+
+#### `allocSlot`
+
+Given that a `TaskGroup` has a `Count` field, we can mentally model `Count` as
+a number of slots that need to be filled. The `existingAllocs` that are passed
+during instantiation are `Allocation` instances that map to these slots by `Name`.
+We are also passed a `Job` which contains the desired configuration for all its
+`TaskGroup` members.
+
+The `Allocation.Name` field is a rich text field that includes the `Job.Name`, 
+`TaskGroup.Name`, and an index value(e.g `exmaple.web[0]`). The index values 
+are constrained from 0 to `TaskGroup.Count` - 1.
+
+To manage this relationship between `existingAllocs` and the `Job` specification, we
+create an `allocSlot`. An `allocSlot` is a subordinate of the `taskGroupReconciler`, but
+acts as a separate aggregate root for`Allocation` instances that share the same _`Name`_.
+Its job is to apply the domain logic for reconciliation for a given slot against
+all the possible allocations that target that slot. The map of potential `Allocations`
+are called the `Candidates`.
+
+Constraining the number of allocations being handled at any given point in time
+to those that are all candidates for the same slot simplifies both development
+and debugging.
+
+#### Domain Model
 
 **Note that only the `TaskGroupReconciler` and `allocSlot` are new components.**
 With the exception of the `allocReconciler`, the rest of the components in the
@@ -245,56 +291,10 @@ sequenceDiagram
     allocReconciler->taskGroupReconciler: DeploymentComplete
 ```
 
-
-#### taskGroupReconciler
-
-The `taskGroupReconciler` acts as the primary aggregate root. That means its job is to 
-manage the relationships between structs and provide or execute domain logic. It accepts
-incoming cluster state and desired `TaskGroup` configuration. From the configuration and
-the state, it can append values to the `allocRunner.reconcileResults` instance which is
-then used by the `GenericScheduler` to create a `Plan`. Processing takes place in three
-phases. The workflow is as follows.
-
-- Initialization:
-  - Creates a `map[stromg]*structs.Allocation` where the map key is the `Allocation.Name`.
-  - Creates a slice of `allocSlot` instances with a `len` equal to the `TaskGroup.Count`
-  - configuration value.
-  - As each `allocSlot` is created, existing `Allocation` instances are added to it's `Candidates`
-  - slice based on `Allocation.Name`.
-  - `Allocation` instances that don't match an `allocSlot.Name` can immediately be discarded or
-    added to the `reconcileResults.stop` slice since they do not target a currently valid slot.
-  - 
-- `AppendResults`:
-  - Iterates over each `allocSlot` and calls a domain method
-    on each instance that is purpose built to return appendable results for each slice field
-    that `reconcileResults` requires.
-  - This simplifies debugging, because now the set of `Allocation` instances being analyzed is
-    limited to what should be a very finite subset.
-- `DeploymentComplete`:
-  - Peforms essentially the same logic as the current `isDeploymentComplete` function
-
-#### allocSlot
-
-Given that a `TaskGroup` has a `Count` field, we can mentally model `Count` as a number of slots that
-need to be filled. The `existingAllocs` that are passed during instantiation are part of the cluster
-are existing `Allocation` instances that map to these slots, and they map by name. We are also passed
-a `Job` which contains the desired configuration for all its `TaskGroup` members.
-
-`Allocation` instances for a `TaskGroup` have a `Name` field, which is rich text field that includes
-the `Job.Name`, `TaskGroup.Name`, and an index value (e.g `exmaple.web[0]`). The index values are 
-constrained from 0 to `TaskGroup.Count` - 1.
-
-To manage this relationship between `existingAllocs` and the `Job` specification, we use an `allocSet`.
-An `allocSlot` is a subordinate of the `taskGroupReconciler`, but acts as a separate aggregate root for
-`Allocation` instances that share the same _`Name`_.
-
-#### reconcileResults
-
+### Backwards compatibility
 
 The following sections go into more detail about how the proposed solutions meets
 the requirements.
-
-### Backwards compatibility
 
 Provides backward compatibility by:
 
