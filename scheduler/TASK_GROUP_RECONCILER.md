@@ -62,9 +62,11 @@ classDiagram
     class taskGroupReconciler {
       Deployment
       Job
+      reconcileResults
       List~Node~ taintedNodes
       List~Allocation~ existingAllocs
       List~allocSlot~ allocSlots
+      AppendResults()
     }
 
     class allocSlot {
@@ -99,8 +101,46 @@ classDiagram
       TaskGroup
     }
 
+    class reconcileResults {
+
+    }
+
+    class reconcileResults {
+      Deployment
+      DeploymentStatusUpdate
+	    List~allocPlaceResult~ place
+	    List~allocDestructiveResult~ destructiveUpdate
+    	List~Allocation~ inplaceUpdate
+	    List~allocStopResult~ stop
+	    List~Allocation~ attributeUpdates
+    	List~Allocation~ disconnectUpdates
+   	  List~Allocation~ reconnectUpdates
+    	List~DesiredUpdates~ desiredTGUpdates
+      List~Evaluation~ desiredFollowupEvals
+    }
+
+    class allocPlaceResult {
+    }
+
+    class allocDestructiveUpdateResult {
+
+    }
+
+    class allocStopResult {
+
+    }
+
+    class DesiredUpdates {
+
+    }
+
+    class Evaluation {
+
+    }
+
     taskGroupReconciler o-- "1" Deployment
     taskGroupReconciler o-- "1" Job
+    taskGroupReconciler o-- "1" reconcileResults
     taskGroupReconciler o-- "0..*" Node
     taskGroupReconciler o-- "0..*" Allocation
     taskGroupReconciler o-- "1..*" allocSlot
@@ -118,6 +158,16 @@ classDiagram
 
     allocSlot o-- "0..*" Allocation
     allocSlot o-- "1" TaskGroup
+
+    reconcileResults o-- "0..*" allocPlaceResult
+    reconcileResults o-- "0..*" allocDestructiveUpdateResult
+    reconcileResults o-- "0..*" Allocation
+    reconcileResults o-- "0..*" allocStopResult
+    reconcileResults o-- "0..*" Allocation
+    reconcileResults o-- "0..*" Allocation
+    reconcileResults o-- "0..*" Allocation
+    reconcileResults o-- "0..*" DesiredUpdates
+    reconcileResults o-- "0..*" Evaluation
 ```
 
 #### allocReconciler

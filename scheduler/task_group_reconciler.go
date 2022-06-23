@@ -58,9 +58,42 @@ type taskGroupReconciler struct {
 	allocSlots map[string]*allocSlot
 }
 
+func ensureResultDefaults(result *reconcileResults) {
+	if result.place == nil {
+		result.place = []allocPlaceResult{}
+	}
+	if result.destructiveUpdate == nil {
+		result.destructiveUpdate = []allocDestructiveResult{}
+	}
+	if result.inplaceUpdate == nil {
+		result.inplaceUpdate = []*structs.Allocation{}
+	}
+	if result.stop == nil {
+		result.stop = []allocStopResult{}
+	}
+	if result.attributeUpdates == nil {
+		result.attributeUpdates = map[string]*structs.Allocation{}
+	}
+	if result.disconnectUpdates == nil {
+		result.disconnectUpdates = map[string]*structs.Allocation{}
+	}
+	if result.reconnectUpdates == nil {
+		result.reconnectUpdates = map[string]*structs.Allocation{}
+	}
+	if result.desiredTGUpdates == nil {
+		result.desiredTGUpdates = map[string]*structs.DesiredUpdates{}
+	}
+	if result.desiredFollowupEvals == nil {
+		result.desiredFollowupEvals = map[string][]*structs.Evaluation{}
+	}
+}
+
 func newTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, isBatchJob bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment, existingAllocs []*structs.Allocation,
-	taintedNodes map[string]*structs.Node, evalID string, evalPriority int, supportsDisconnectedClients bool) *taskGroupReconciler {
+	taintedNodes map[string]*structs.Node, evalID string, evalPriority int,
+	result *reconcileResults, supportsDisconnectedClients bool) *taskGroupReconciler {
+
+	ensureResultDefaults(result)
 
 	tgr := &taskGroupReconciler{
 		logger:                      logger.Named("task_group_reconciler"),
@@ -76,6 +109,7 @@ func newTaskGroupReconciler(logger log.Logger, allocUpdateFn allocUpdateType, is
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
 		allocSlots:                  map[string]*allocSlot{},
+		result:                      result,
 	}
 
 	for _, taskGroup := range tgr.job.TaskGroups {
@@ -107,21 +141,13 @@ func (tgr *taskGroupReconciler) DeploymentFailed() bool {
 	return false
 }
 
-func (tgr *taskGroupReconciler) AppendResults(result *reconcileResults) {
-	tgr.result = &reconcileResults{
-		attributeUpdates:     map[string]*structs.Allocation{},
-		disconnectUpdates:    map[string]*structs.Allocation{},
-		reconnectUpdates:     map[string]*structs.Allocation{},
-		desiredTGUpdates:     map[string]*structs.DesiredUpdates{},
-		desiredFollowupEvals: map[string][]*structs.Evaluation{},
-	}
-
+func (tgr *taskGroupReconciler) AppendResults() {
 	for _, slot := range tgr.allocSlots {
-		tgr.result.deploymentUpdates = append(tgr.result.deploymentUpdates, slot.DeploymentUpdates()...)
-		tgr.result.place = append(tgr.result.place, slot.Place()...)
-		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.DestructiveUpdates()...)
+		tgr.result.deploymentUpdates = append(tgr.result.deploymentUpdates, slot.DeploymentStatusUpdates()...)
+		tgr.result.place = append(tgr.result.place, slot.PlaceResults()...)
+		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.DestructiveResults()...)
 		tgr.result.inplaceUpdate = append(tgr.result.inplaceUpdate, slot.InplaceUpdates()...)
-		tgr.result.stop = append(tgr.result.stop, slot.Stop()...)
+		tgr.result.stop = append(tgr.result.stop, slot.StopResults()...)
 		// TODO (derek): replace all this boilerplate with generics once we update go version.
 		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.AttributeUpdates())
 		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.DisconnectUpdates())
@@ -160,19 +186,19 @@ func newAllocSlots(jobID string, taskGroup *structs.TaskGroup, allocs allocSet) 
 	return slots
 }
 
-func (as *allocSlot) Place() []allocPlaceResult {
+func (as *allocSlot) PlaceResults() []allocPlaceResult {
 	return nil
 }
 
-func (as *allocSlot) Stop() []allocStopResult {
+func (as *allocSlot) StopResults() []allocStopResult {
 	return nil
 }
 
-func (as *allocSlot) DeploymentUpdates() []*structs.DeploymentStatusUpdate {
+func (as *allocSlot) DeploymentStatusUpdates() []*structs.DeploymentStatusUpdate {
 	return nil
 }
 
-func (as *allocSlot) DestructiveUpdates() []allocDestructiveResult {
+func (as *allocSlot) DestructiveResults() []allocDestructiveResult {
 	return nil
 }
 
