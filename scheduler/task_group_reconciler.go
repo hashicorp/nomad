@@ -57,13 +57,13 @@ type taskGroupReconciler struct {
 
 	// DesiredUpdates is a count of changes to the reconcileResults fields. This is
 	// useful for consistency checking and metrics emission.
-	DesiredUpdates *structs.DesiredUpdates
+	desiredUpdates *structs.DesiredUpdates
 
 	// FollowUpEvals is the set of evals that need to be created based on changes
 	// proposed by the reconciler. These evals are configured to trigger at some
 	// future time based on the reason they are delayed. Evals may be delayed for
 	// reasons such as reschedulePolicy or disconnect timeout.
-	FollowupEvals []*structs.Evaluation
+	followupEvals []*structs.Evaluation
 
 	// result is the results of the reconciliation.
 	result *reconcileResults
@@ -71,6 +71,9 @@ type taskGroupReconciler struct {
 	// allocSlots holds the set of available slots equal to the task group count
 	// and are responsible for determining how to fill the slot.
 	allocSlots map[string]*allocSlot
+
+	// validSlotNames holds the set of allowable slot names based on task group count.
+	validSlotNames map[string]struct{}
 }
 
 func ensureResultDefaults(result *reconcileResults) {
@@ -133,17 +136,19 @@ func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdate
 		now:                         time.Now(),
 		allocSlots:                  map[string]*allocSlot{},
 		result:                      result,
+		desiredUpdates:              &structs.DesiredUpdates{},
+		followupEvals:               []*structs.Evaluation{},
 	}
 
-	var allocsBySlotName map[string][]*structs.Allocation
+	existingAllocsBySlotName := map[string][]*structs.Allocation{}
 	for _, alloc := range existingAllocs {
 		if alloc.TaskGroup != taskGroup.Name {
 			continue
 		}
-		if allocs, ok := allocsBySlotName[alloc.Name]; ok {
-			allocsBySlotName[alloc.Name] = append(allocs, alloc)
+		if allocs, ok := existingAllocsBySlotName[alloc.Name]; ok {
+			existingAllocsBySlotName[alloc.Name] = append(allocs, alloc)
 		} else {
-			allocsBySlotName[alloc.Name] = []*structs.Allocation{alloc}
+			existingAllocsBySlotName[alloc.Name] = []*structs.Allocation{alloc}
 		}
 	}
 
@@ -151,24 +156,52 @@ func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdate
 
 	for index, name := range nameIndex.Next(uint(taskGroup.Count)) {
 		slot := &allocSlot{
-			Name:      name,
-			Index:     index,
-			TaskGroup: taskGroup,
-			// TODO: This can be optimized to a single iteration
-			Candidates: allocsBySlotName[name],
+			name:       name,
+			index:      index,
+			taskGroup:  taskGroup,
+			candidates: existingAllocsBySlotName[name],
 		}
-		tgr.allocSlots[slot.Name] = slot
+		tgr.allocSlots[slot.name] = slot
 	}
 
-	tgr.StopInvalidTargets(allocsBySlotName)
+	tgr.StopInvalidTargets(existingAllocsBySlotName)
 
 	return tgr
 }
 
+func (tgr *taskGroupReconciler) ValidSlotName() map[string]struct{} {
+	if tgr.validSlotNames == nil {
+		tgr.validSlotNames = map[string]struct{}{}
+		for i := 0; i < tgr.taskGroup.Count; i++ {
+			slotName := structs.AllocName(tgr.job.ID, tgr.taskGroup.Name, uint(i))
+			tgr.validSlotNames[slotName] = struct{}{}
+		}
+	}
+
+	return tgr.validSlotNames
+}
+
 // StopInvalidTargets stops existing allocations that target a slot that the TaskGroup.Count
 // no longer supports.
-func (tgr *taskGroupReconciler) StopInvalidTargets(allocsBySlotName map[string][]*structs.Allocation) {
-	// TODO
+func (tgr *taskGroupReconciler) StopInvalidTargets(existingAllocsBySlotName map[string][]*structs.Allocation) {
+	validSlotNames := tgr.ValidSlotName()
+
+	for existingSlotName, existingAllocs := range existingAllocsBySlotName {
+		// Stop allocs that are for a slot with an index higher than currently configured.
+		if _, ok := validSlotNames[existingSlotName]; !ok {
+			for _, existingAlloc := range existingAllocs {
+				if existingAlloc.ClientTerminalStatus() {
+					continue
+				}
+				tgr.result.stop = append(tgr.result.stop, allocStopResult{
+					alloc:             existingAlloc,
+					statusDescription: allocNotNeeded,
+				})
+				tgr.desiredUpdates.Stop++
+				// TODO: Remove from slice to prevent further loop iterations.
+			}
+		}
+	}
 }
 
 func (tgr *taskGroupReconciler) DeploymentPaused() bool {
@@ -196,12 +229,12 @@ func (tgr *taskGroupReconciler) AppendResults() {
 		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.AttributeUpdates())
 		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.DisconnectUpdates())
 		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.ReconnectUpdates())
-		tgr.result.desiredFollowupEvals[tgr.taskGroupName] = append(tgr.result.desiredFollowupEvals[tgr.taskGroupName], slot.FollowupEvals...)
+		tgr.result.desiredFollowupEvals[tgr.taskGroupName] = append(tgr.result.desiredFollowupEvals[tgr.taskGroupName], slot.followupEvals...)
 		tgr.HandleDesiredUpdates(slot)
 	}
 
 	tgr.DeploymentStatusUpdate()
-	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.DesiredUpdates
+	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.desiredUpdates
 }
 
 func (tgr *taskGroupReconciler) DeploymentStatusUpdate() {
@@ -213,23 +246,23 @@ func (tgr *taskGroupReconciler) DeploymentComplete() bool {
 }
 
 func (tgr *taskGroupReconciler) HandleDesiredUpdates(slot *allocSlot) {
-	tgr.DesiredUpdates.Stop += slot.DesiredUpdates.Stop
-	tgr.DesiredUpdates.Place += slot.DesiredUpdates.Place
-	tgr.DesiredUpdates.DestructiveUpdate += slot.DesiredUpdates.DestructiveUpdate
-	tgr.DesiredUpdates.InPlaceUpdate += slot.DesiredUpdates.InPlaceUpdate
-	tgr.DesiredUpdates.Canary += slot.DesiredUpdates.Canary
-	tgr.DesiredUpdates.Ignore += slot.DesiredUpdates.Ignore
-	tgr.DesiredUpdates.Migrate += slot.DesiredUpdates.Migrate
-	tgr.DesiredUpdates.Preemptions += slot.DesiredUpdates.Preemptions
+	tgr.desiredUpdates.Stop += slot.desiredUpdates.Stop
+	tgr.desiredUpdates.Place += slot.desiredUpdates.Place
+	tgr.desiredUpdates.DestructiveUpdate += slot.desiredUpdates.DestructiveUpdate
+	tgr.desiredUpdates.InPlaceUpdate += slot.desiredUpdates.InPlaceUpdate
+	tgr.desiredUpdates.Canary += slot.desiredUpdates.Canary
+	tgr.desiredUpdates.Ignore += slot.desiredUpdates.Ignore
+	tgr.desiredUpdates.Migrate += slot.desiredUpdates.Migrate
+	tgr.desiredUpdates.Preemptions += slot.desiredUpdates.Preemptions
 }
 
 type allocSlot struct {
-	Name           string
-	Index          int
-	TaskGroup      *structs.TaskGroup
-	Candidates     []*structs.Allocation
-	DesiredUpdates *structs.DesiredUpdates
-	FollowupEvals  []*structs.Evaluation
+	name           string
+	index          int
+	taskGroup      *structs.TaskGroup
+	candidates     []*structs.Allocation
+	desiredUpdates *structs.DesiredUpdates
+	followupEvals  []*structs.Evaluation
 }
 
 func (as *allocSlot) PlaceResults() []allocPlaceResult {

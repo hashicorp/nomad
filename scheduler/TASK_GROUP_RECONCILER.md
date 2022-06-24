@@ -121,7 +121,7 @@ phases. The phases are as follows:
 Given that a `TaskGroup` has a `Count` field, we can mentally model `Count` as
 a number of slots that need to be filled. The `existingAllocs` that are passed
 during instantiation are `Allocation` instances that map to these slots by `Name`.
-The `Allocation.Name` field is a rich text field that includes the `Job.Name`, 
+The `Allocation.Name` field is a rich text field that includes the `Job.ID`, 
 `TaskGroup.Name`, and an index value(e.g `exmaple.web[0]`). The index values 
 are constrained from 0 to `TaskGroup.Count` - 1. This specially formatted `Name`
 is the unique identifier for each slot.
