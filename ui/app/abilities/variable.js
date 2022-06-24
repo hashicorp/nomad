@@ -55,10 +55,10 @@ export default class Variable extends AbstractAbility {
       .toArray()
       .reduce((paths, policy) => {
         const matchingNamespace = this._findMatchingNamespace(
-          get(policy, 'rulesJSON.Namespaces'),
+          get(policy, 'rulesJSON.Namespaces') || [],
           this._namespace
         );
-        const variables = get(policy, 'rulesJSON.Namespaces').find(
+        const variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
           (namespace) => namespace.Name === matchingNamespace
         )?.SecureVariables;
         paths = { ...paths, ...variables };
