@@ -93,14 +93,10 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 
 	var out structs.SecureVariablesUpsertResponse
 	if err := s.agent.RPC(structs.SecureVariablesUpsertRPCMethod, &args, &out); err != nil {
-		if strings.Contains(err.Error(), "check-and-set conflict") {
-			q, _ := s.secureVariableQuery(resp, req, path)
-			sv := q.(*structs.SecureVariableDecrypted)
-			out.Conflict = make([]*structs.SecureVariableDecrypted, 1)
-			out.Conflict[0] = sv
+		if strings.Contains(err.Error(), "cas error:") {
 			resp.WriteHeader(http.StatusConflict)
-			return sv, nil
 		}
+		setIndex(resp, out.WriteMeta.Index)
 		return nil, err
 	}
 	setIndex(resp, out.WriteMeta.Index)
@@ -120,9 +116,10 @@ func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Re
 
 	var out structs.SecureVariablesDeleteResponse
 	if err := s.agent.RPC(structs.SecureVariablesDeleteRPCMethod, &args, &out); err != nil {
-		if strings.HasPrefix(err.Error(), "check-and-set conflict") {
+		if strings.HasPrefix(err.Error(), "cas error:") {
 			resp.WriteHeader(http.StatusConflict)
 		}
+		setIndex(resp, out.WriteMeta.Index)
 		return nil, err
 	}
 	setIndex(resp, out.WriteMeta.Index)
