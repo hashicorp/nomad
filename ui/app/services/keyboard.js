@@ -44,11 +44,6 @@ export default class KeyboardService extends Service {
       action: () => this.router.transitionTo('jobs'),
     },
     {
-      label: 'Go to Storage',
-      pattern: ['g', 'v'],
-      action: () => this.router.transitionTo('csi.volumes'),
-    },
-    {
       label: 'Go to Servers',
       pattern: ['g', 's'],
       action: () => this.router.transitionTo('servers'),
