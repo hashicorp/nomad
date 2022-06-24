@@ -66,9 +66,11 @@ func (sv *SecureVariables) Upsert(
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
-		if err := sv.handleCheckAndSet(v.Path, args.CheckIndex, args.WriteRequest); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-			continue
+		if args.CheckIndex != nil {
+			if err := sv.validateCASUpdate(*args.CheckIndex, v); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+				continue
+			}
 		}
 		ev, err := sv.encrypt(v)
 		if err != nil {
@@ -78,7 +80,7 @@ func (sv *SecureVariables) Upsert(
 		uArgs.Data[i] = ev
 	}
 	if err := mErr.ErrorOrNil(); err != nil {
-		return err
+		return &mErr
 	}
 
 	// Update via Raft.
@@ -117,11 +119,11 @@ func (sv *SecureVariables) Delete(
 			return structs.ErrPermissionDenied
 		}
 	}
-
-	if err := sv.handleCheckAndSet(args.Path, args.CheckIndex, args.WriteRequest); err != nil {
-		return err
+	if args.CheckIndex != nil {
+		if err := sv.validateCASDelete(*args.CheckIndex, args.Namespace, args.Path); err != nil {
+			return err
+		}
 	}
-
 	// Update via Raft.
 	out, index, err := sv.srv.raftApply(structs.SecureVariableDeleteRequestType, args)
 	if err != nil {
@@ -474,31 +476,32 @@ func (sv *SecureVariables) authValidatePrefix(claims *structs.IdentityClaims, ns
 	return nil
 }
 
-func (sv *SecureVariables) handleCheckAndSet(path string, idx *uint64, wo structs.WriteRequest) error {
-	if idx == nil {
-		return nil
-	}
-	ci := *idx
-	var reply = new(structs.SecureVariablesReadResponse)
-	var rArgs = &structs.SecureVariablesReadRequest{
-		Path: path,
-		QueryOptions: structs.QueryOptions{
-			Region:    wo.Region,
-			AuthToken: wo.AuthToken,
-			Namespace: wo.Namespace,
-		},
-	}
-	sv.Read(rArgs, reply)
+func (s *SecureVariables) validateCASUpdate(cidx uint64, sv *structs.SecureVariableDecrypted) error {
+	return s.validateCAS(cidx, sv.Namespace, sv.Path)
+}
 
-	if reply.Data == nil {
-		if ci != 0 {
-			return errors.New("check-and-set error: cas index > 0 and no existing value found")
-		}
-		return nil
+func (s *SecureVariables) validateCASDelete(cidx uint64, namespace, path string) error {
+	return s.validateCAS(cidx, namespace, path)
+}
+
+func (s *SecureVariables) validateCAS(cidx uint64, namespace, path string) error {
+
+	// lookup any existing key and validate the update
+	snap, err := s.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	exist, err := snap.GetSecureVariable(ws, namespace, path)
+	if err != nil {
+		return fmt.Errorf("cas error: %w", err)
+	}
+	if exist == nil && cidx != 0 {
+		return errors.New("cas error: requested index > 0 and no existing value found")
+	}
+	if exist != nil && exist.ModifyIndex != cidx {
+		return fmt.Errorf("cas error: requested index %v; found index %v", cidx, exist.ModifyIndex)
 	}
 
-	if reply.Data.ModifyIndex != ci {
-		return fmt.Errorf("check-and-set error: expected cas index %v; found index %v", ci, reply.Data.ModifyIndex)
-	}
 	return nil
 }
