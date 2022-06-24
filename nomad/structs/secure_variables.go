@@ -161,6 +161,12 @@ func (sv *SecureVariableDecrypted) Canonicalize() {
 }
 
 // GetNamespace returns the secure variable's namespace. Used for pagination.
+func (sv *SecureVariableMetadata) Copy() *SecureVariableMetadata {
+	var out SecureVariableMetadata = *sv
+	return &out
+}
+
+// GetNamespace returns the secure variable's namespace. Used for pagination.
 func (sv SecureVariableMetadata) GetNamespace() string {
 	return sv.Namespace
 }
