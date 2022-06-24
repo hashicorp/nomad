@@ -41,21 +41,26 @@ export default class Variable extends AbstractAbility {
 
   @computed('rulesForNamespace.@each.capabilities', 'path')
   get policiesSupportVariableCreation() {
+    const matchingPath = this._nearestMatchingPath(this.path);
     return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "${this.path}".Capabilities`;
+      const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
       return capabilities.includes('create');
     });
   }
 
-  @computed('token.selfTokenPolicies.[]')
+  @computed('token.selfTokenPolicies.[]', '_namespace')
   get allPaths() {
-    return get(this, 'token.selfTokenPolicies')
+    return (get(this, 'token.selfTokenPolicies') || [])
       .toArray()
       .reduce((paths, policy) => {
-        const [variables] = get(policy, 'rulesJSON.Namespaces').mapBy(
-          'SecureVariables'
+        const matchingNamespace = this._findMatchingNamespace(
+          get(policy, 'rulesJSON.Namespaces') || [],
+          this._namespace
         );
+        const variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
+          (namespace) => namespace.Name === matchingNamespace
+        )?.SecureVariables;
         paths = { ...paths, ...variables };
         return paths;
       }, {});

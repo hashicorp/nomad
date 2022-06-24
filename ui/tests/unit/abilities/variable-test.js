@@ -161,6 +161,45 @@ module('Unit | Ability | variable', function (hooks) {
 
       assert.ok(this.ability.canCreate);
     });
+
+    test('it handles namespace matching', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['list'],
+                    },
+                  },
+                },
+                {
+                  Name: 'pablo',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['create'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.path = 'foo/bar';
+      this.ability.namespace = 'pablo';
+
+      assert.ok(this.ability.canCreate);
+    });
   });
 
   module('#_nearestMatchingPath', function () {
