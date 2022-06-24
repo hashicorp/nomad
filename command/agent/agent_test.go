@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -468,6 +469,31 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 			_, err := convertServerConfig(conf)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "raft_multiplier cannot be")
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []int{
+		0, 1, 2, 3, 4,
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("protocol_version %d", tc), func(t *testing.T) {
+			conf := DevConfig(nil)
+			conf.Server.RaftProtocol = tc
+			must.NoError(t, conf.normalizeAddrs())
+			_, err := convertServerConfig(conf)
+
+			switch tc {
+			case 0, 3: // 0 defers to default
+				must.NoError(t, err)
+			default:
+				exp := fmt.Sprintf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", tc)
+				must.EqError(t, err, exp)
+			}
 		})
 	}
 }

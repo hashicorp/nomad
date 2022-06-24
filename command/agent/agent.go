@@ -201,6 +201,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
+	if v := conf.RaftConfig.ProtocolVersion; v != 3 {
+		return nil, fmt.Errorf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", v)
+	}
 	raftMultiplier := int(DefaultRaftMultiplier)
 	if agentConfig.Server.RaftMultiplier != nil && *agentConfig.Server.RaftMultiplier != 0 {
 		raftMultiplier = *agentConfig.Server.RaftMultiplier
