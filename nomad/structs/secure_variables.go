@@ -182,7 +182,7 @@ type SecureVariablesEncryptedUpsertRequest struct {
 }
 
 type SecureVariablesUpsertResponse struct {
-	Conflict []*SecureVariableDecrypted
+	Conflicts []*SecureVariableDecrypted
 	WriteMeta
 }
 
