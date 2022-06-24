@@ -115,20 +115,36 @@ func TestTaskGroupReconciler_BuildsCandidates_ByAllocName(t *testing.T) {
 				alloc.JobID = alloc.Job.ID
 			}
 
-			reconciler := newTaskGroupReconciler(logger, allocUpdateFnDestructive, false, updatedJob.ID, updatedJob,
-				structs.NewDeployment(updatedJob, 50), tc.allocs, nil, uuid.Generate(), 50, true)
-
-			slot := reconciler.allocSlots[updatedJob.TaskGroups[0].Name]
-			require.Len(t, slot, tc.)
-
-			for name, _ := range slots.Candidates {
-				allocCountByName := 0
-				for _, alloc := range tc.allocs {
-					if alloc.Name == name {
-						allocCountByName++
-					}
+			allocs := allocSet{}
+			allocNames := map[string]int{}
+			for _, alloc := range tc.allocs {
+				allocs[alloc.ID] = alloc
+				if _, ok := allocNames[alloc.Name]; ok {
+					allocNames[alloc.Name]++
+				} else {
+					allocNames[alloc.Name] = 1
 				}
-				require.Len(t, slot.Candidates, allocCountByName)
+			}
+
+			reconciler := newTaskGroupReconciler(
+				"web",
+				logger,
+				allocUpdateFnDestructive,
+				false,
+				updatedJob.ID,
+				updatedJob,
+				structs.NewDeployment(updatedJob, 50),
+				allocs,
+				nil,
+				uuid.Generate(),
+				50,
+				&reconcileResults{},
+				true)
+
+			require.Len(t, reconciler.allocSlots, len(allocNames))
+
+			for _, slot := range reconciler.allocSlots {
+				require.Len(t, slot.Candidates, allocNames[slot.Name])
 			}
 		})
 	}
