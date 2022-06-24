@@ -65,8 +65,8 @@
             Summary
           </th>
         </t.head>
-        <t.body @key="model.id" as |row|>
-          <JobRow data-test-job-row @job={{row.model}} @context="child" />
+        <t.body @key="model.id" as |row iter|>
+          <JobRow data-test-job-row @job={{row.model}} @context="child" @iter={{iter}} />
         </t.body>
       </ListTable>
       <div class="table-foot">
