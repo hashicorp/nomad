@@ -147,8 +147,8 @@
             Summary
           </th>
         </t.head>
-        <t.body @key="model.id" as |row iter|>
-          <JobRow @data-test-job-row={{row.model.plainId}} @job={{row.model}} @iter={{iter}} />
+        <t.body @key="model.id" as |row|>
+          <JobRow @data-test-job-row={{row.model.plainId}} @job={{row.model}} />
         </t.body>
       </ListTable>
       <div class="table-foot">

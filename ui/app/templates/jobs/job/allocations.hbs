@@ -62,6 +62,10 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoAllocation" row.model)
+              }}
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"

@@ -67,7 +67,7 @@
             Placement Failures
           </th>
         </t.head>
-        <t.body as |row iter|>
+        <t.body as |row|>
           <tr
             data-test-evaluation="{{row.model.shortId}}"
             style="cursor: pointer;"
@@ -78,7 +78,7 @@
           >
             <td data-test-id
                 {{keyboard-shortcut 
-                  pattern=(array (concat "Shift+" iter))
+                  enumerated=true
                   action=(fn this.handleEvaluationClick row.model)
                 }}
             >
