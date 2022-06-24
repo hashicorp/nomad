@@ -47,7 +47,13 @@
           </LinkTo>
         </li>
         {{#if (can "accept recommendation")}}
-          <li>
+          <li
+            {{keyboard-shortcut
+              menuLevel=true
+              pattern=(array "g" "o")
+              action=(action this.transitionTo 'optimize')
+            }}
+          >
             <LinkTo
               @route="optimize"
               @activeClass="is-active"
@@ -62,7 +68,7 @@
         Integrations
       </p>
       <ul class="menu-list">
-        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "v") }}>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "r") }}>
           <LinkTo
             @route="csi"
             @activeClass="is-active"
