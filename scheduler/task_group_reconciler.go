@@ -8,6 +8,7 @@ import (
 )
 
 type taskGroupReconciler struct {
+	taskGroupName string
 	// logger is used to log debug information. Logging should be kept at a
 	// minimal here
 	logger        log.Logger
@@ -20,6 +21,10 @@ type taskGroupReconciler struct {
 	// jobID is the ID of the job being operated on. The job may be nil if it is
 	// being stopped, so we require this separately.
 	jobID string
+
+	// taskGroup is the taskGroup configuration extracted from the job based
+	// on the passed taskGroupName
+	taskGroup *structs.TaskGroup
 
 	// isBatchJob indicates whether the job is a batch job. The job may be nil if it is
 	//	// being stopped, so we require this separately.
@@ -38,7 +43,7 @@ type taskGroupReconciler struct {
 	existingAllocs allocSet
 
 	// evalID and evalPriority is the ID and Priority of the evaluation that
-	// triggered the reconciler.
+	// triggered the reconciliation.
 	evalID       string
 	evalPriority int
 
@@ -49,6 +54,16 @@ type taskGroupReconciler struct {
 	// now is the time used when determining rescheduling eligibility
 	// defaults to time.Now, and overridden in unit tests
 	now time.Time
+
+	// DesiredUpdates is a count of changes to the reconcileResults fields. This is
+	// useful for consistency checking and metrics emission.
+	DesiredUpdates *structs.DesiredUpdates
+
+	// FollowUpEvals is the set of evals that need to be created based on changes
+	// proposed by the reconciler. These evals are configured to trigger at some
+	// future time based on the reason they are delayed. Evals may be delayed for
+	// reasons such as reschedulePolicy or disconnect timeout.
+	FollowupEvals []*structs.Evaluation
 
 	// result is the results of the reconciliation.
 	result *reconcileResults
@@ -93,14 +108,21 @@ func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdate
 	taintedNodes map[string]*structs.Node, evalID string, evalPriority int,
 	result *reconcileResults, supportsDisconnectedClients bool) *taskGroupReconciler {
 
-	// TODO: Add noop guards from computeGroup
+	// TODO: Add/make consistent noop guards from computeGroup
+	taskGroup := job.LookupTaskGroup(taskGroupName)
+	if taskGroup == nil {
+		return nil
+	}
+
 	ensureResultDefaults(result)
 
 	tgr := &taskGroupReconciler{
+		taskGroupName:               taskGroupName,
 		logger:                      logger.Named("task_group_reconciler"),
 		allocUpdateFn:               allocUpdateFn,
 		job:                         job,
 		jobID:                       jobID,
+		taskGroup:                   taskGroup,
 		isBatchJob:                  isBatchJob,
 		deployment:                  deployment.Copy(),
 		existingAllocs:              existingAllocs,
@@ -113,18 +135,40 @@ func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdate
 		result:                      result,
 	}
 
-	// TODO: Refactor all this based on allocSet that is passed
-	for _, taskGroup := range tgr.job.TaskGroups {
-		allocs := make(allocSet)
-		for _, alloc := range existingAllocs {
-			if alloc.TaskGroup == taskGroup.Name {
-				allocs[alloc.ID] = alloc
-			}
+	var allocsBySlotName map[string][]*structs.Allocation
+	for _, alloc := range existingAllocs {
+		if alloc.TaskGroup != taskGroup.Name {
+			continue
 		}
-		tgr.allocSlots = newAllocSlots(tgr.jobID, taskGroup, allocs)
+		if allocs, ok := allocsBySlotName[alloc.Name]; ok {
+			allocsBySlotName[alloc.Name] = append(allocs, alloc)
+		} else {
+			allocsBySlotName[alloc.Name] = []*structs.Allocation{alloc}
+		}
 	}
 
+	nameIndex := newAllocNameIndex(jobID, taskGroup.Name, taskGroup.Count, existingAllocs)
+
+	for index, name := range nameIndex.Next(uint(taskGroup.Count)) {
+		slot := &allocSlot{
+			Name:      name,
+			Index:     index,
+			TaskGroup: taskGroup,
+			// TODO: This can be optimized to a single iteration
+			Candidates: allocsBySlotName[name],
+		}
+		tgr.allocSlots[slot.Name] = slot
+	}
+
+	tgr.StopInvalidTargets(allocsBySlotName)
+
 	return tgr
+}
+
+// StopInvalidTargets stops existing allocations that target a slot that the TaskGroup.Count
+// no longer supports.
+func (tgr *taskGroupReconciler) StopInvalidTargets(allocsBySlotName map[string][]*structs.Allocation) {
+	// TODO
 }
 
 func (tgr *taskGroupReconciler) DeploymentPaused() bool {
@@ -145,47 +189,47 @@ func (tgr *taskGroupReconciler) DeploymentFailed() bool {
 
 func (tgr *taskGroupReconciler) AppendResults() {
 	for _, slot := range tgr.allocSlots {
-		tgr.result.deploymentUpdates = append(tgr.result.deploymentUpdates, slot.DeploymentStatusUpdates()...)
+		tgr.result.stop = append(tgr.result.stop, slot.StopResults()...)
 		tgr.result.place = append(tgr.result.place, slot.PlaceResults()...)
 		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.DestructiveResults()...)
 		tgr.result.inplaceUpdate = append(tgr.result.inplaceUpdate, slot.InplaceUpdates()...)
-		tgr.result.stop = append(tgr.result.stop, slot.StopResults()...)
-		// TODO (derek): replace all this boilerplate with generics once we update go version.
 		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.AttributeUpdates())
 		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.DisconnectUpdates())
 		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.ReconnectUpdates())
+		tgr.result.desiredFollowupEvals[tgr.taskGroupName] = append(tgr.result.desiredFollowupEvals[tgr.taskGroupName], slot.FollowupEvals...)
+		tgr.HandleDesiredUpdates(slot)
 	}
+
+	tgr.DeploymentStatusUpdate()
+	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.DesiredUpdates
+}
+
+func (tgr *taskGroupReconciler) DeploymentStatusUpdate() {
+	// TODO
 }
 
 func (tgr *taskGroupReconciler) DeploymentComplete() bool {
 	return false
 }
 
-type allocSlot struct {
-	Name       string
-	Index      int
-	TaskGroup  *structs.TaskGroup
-	Candidates allocSet
+func (tgr *taskGroupReconciler) HandleDesiredUpdates(slot *allocSlot) {
+	tgr.DesiredUpdates.Stop += slot.DesiredUpdates.Stop
+	tgr.DesiredUpdates.Place += slot.DesiredUpdates.Place
+	tgr.DesiredUpdates.DestructiveUpdate += slot.DesiredUpdates.DestructiveUpdate
+	tgr.DesiredUpdates.InPlaceUpdate += slot.DesiredUpdates.InPlaceUpdate
+	tgr.DesiredUpdates.Canary += slot.DesiredUpdates.Canary
+	tgr.DesiredUpdates.Ignore += slot.DesiredUpdates.Ignore
+	tgr.DesiredUpdates.Migrate += slot.DesiredUpdates.Migrate
+	tgr.DesiredUpdates.Preemptions += slot.DesiredUpdates.Preemptions
 }
 
-func newAllocSlots(jobID string, taskGroup *structs.TaskGroup, allocs allocSet) map[string]*allocSlot {
-	slots := map[string]*allocSlot{}
-	nameIndex := newAllocNameIndex(jobID, taskGroup.Name, taskGroup.Count, allocs)
-
-	for index, name := range nameIndex.Next(uint(taskGroup.Count)) {
-		slot := &allocSlot{
-			Name:      name,
-			Index:     index,
-			TaskGroup: taskGroup,
-			// TODO: This can be optimized to a single iteration
-			// creating a map[string]*Allocation of name to allocations once
-			// and then retrieving by key.
-			Candidates: allocs.filterByName(name),
-		}
-		slots[slot.Name] = slot
-	}
-
-	return slots
+type allocSlot struct {
+	Name           string
+	Index          int
+	TaskGroup      *structs.TaskGroup
+	Candidates     []*structs.Allocation
+	DesiredUpdates *structs.DesiredUpdates
+	FollowupEvals  []*structs.Evaluation
 }
 
 func (as *allocSlot) PlaceResults() []allocPlaceResult {
@@ -220,14 +264,7 @@ func (as *allocSlot) ReconnectUpdates() map[string]*structs.Allocation {
 	return nil
 }
 
-func (as *allocSlot) DesiredTGUpdates() map[string]*structs.DesiredUpdates {
-	return nil
-}
-
-func (as *allocSlot) DesiredFollowupEvals() map[string][]*structs.Evaluation {
-	return nil
-}
-
+// TODO (derek): replace all this boilerplate with generics now that we have updated go version.
 func mergeAllocMaps(m map[string]*structs.Allocation, n map[string]*structs.Allocation) map[string]*structs.Allocation {
 	if len(m) == 0 && len(n) == 0 {
 		return map[string]*structs.Allocation{}

@@ -277,16 +277,18 @@ sequenceDiagram
     end
     allocReconciler->taskGroupReconciler: ApppendResults
     loop For each allocSlot
-      taskGroupReconciler-->allocSlot: PlaceResults
       taskGroupReconciler-->allocSlot: StopResults
-      taskGroupReconciler-->allocSlot: DeploymentStatusUpdates
+      taskGroupReconciler-->allocSlot: PlaceResults
       taskGroupReconciler-->allocSlot: DestructiveResults
       taskGroupReconciler-->allocSlot: InplaceUpdates
       taskGroupReconciler-->allocSlot: AttributeUpdates
       taskGroupReconciler-->allocSlot: DisconnectUpdates
       taskGroupReconciler-->allocSlot: ReconnectUpdates
-      taskGroupReconciler-->allocSlot: DesiredTGUpdates
+      taskGroupReconciler-->allocSlot: FollowupEvals
     end
+    taskGroupReconciler->taskGroupReconciler: DeploymentStatusUpdates
+    taskGroupReconciler-->taskGroupReconciler: DesiredTGUpdates
+    
     allocReconciler->taskGroupReconciler: DeploymentComplete
 ```
 
