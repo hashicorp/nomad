@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/term"
 	"github.com/gosuri/uilive"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
+	"github.com/moby/term"
 	"github.com/posener/complete"
 )
 
