@@ -77,8 +77,8 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	if err := decodeBody(req, &SecureVariable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
-	if SecureVariable.Items == nil {
-		return nil, CodedError(http.StatusBadRequest, "Secure variable missing required Items object.")
+	if len(SecureVariable.Items) == 0 {
+		return nil, CodedError(http.StatusBadRequest, "secure variable missing required Items object")
 	}
 
 	SecureVariable.Path = path

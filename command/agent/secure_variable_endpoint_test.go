@@ -194,7 +194,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Secure variable missing required Items object.")
+			require.EqualError(t, err, "secure variable missing required Items object")
 			require.Nil(t, obj)
 		})
 		t.Run("create", func(t *testing.T) {
