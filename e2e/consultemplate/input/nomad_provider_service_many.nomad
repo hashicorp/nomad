@@ -1,4 +1,4 @@
-job "nomad_provider_service" {
+job "nomad_provider_service_many" {
   datacenters = ["dc1"]
   type        = "service"
 
@@ -7,18 +7,13 @@ job "nomad_provider_service" {
     value     = "linux"
   }
 
-  group "nomad_provider_service" {
+  group "caching" {
+
+    count = 4
 
     service {
-      name     = "${NOMAD_NAMESPACE}-nomad-provider-service-primary"
+      name     = "redis"
       provider = "nomad"
-      tags     = ["foo", "bar"]
-    }
-
-    service {
-      name     = "${NOMAD_NAMESPACE}-nomad-provider-service-secondary"
-      provider = "nomad"
-      tags     = ["baz", "buz"]
     }
 
     task "test" {

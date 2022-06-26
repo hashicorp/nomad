@@ -256,7 +256,7 @@ job: {{ env "NOMAD_JOB_NAME" }}
 // properly interpolated into template source and destination paths without
 // being treated as escaping.
 func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Ok(f *framework.F) {
-	jobID := "template-paths-" + uuid.Generate()[:8]
+	jobID := "template-paths-" + uuid.Short()
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	allocStubs := e2eutil.RegisterAndWaitForAllocs(
@@ -283,7 +283,7 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Bad(f *framework.F) 
 	wc := &e2eutil.WaitConfig{}
 	interval, retries := wc.OrDefault()
 
-	jobID := "bad-template-paths-" + uuid.Generate()[:8]
+	jobID := "bad-template-paths-" + uuid.Short()
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	allocStubs := e2eutil.RegisterAndWaitForAllocs(
@@ -375,7 +375,7 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	// Set up our base job that will be used in various manners.
 	serviceJob, err := jobspec.ParseFile("consultemplate/input/nomad_provider_service.nomad")
 	f.NoError(err)
-	serviceJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	serviceJobID := "test-consul-template-nomad-lookups" + uuid.Short()
 	serviceJob.ID = &serviceJobID
 
 	_, _, err = tc.Nomad().Jobs().Register(serviceJob, nil)
@@ -398,14 +398,14 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	// Register a job which includes services destined for the Nomad provider
 	// into the platform namespace. This is used to ensure consul-template
 	// lookups stay bound to the allocation namespace.
-	diffNamespaceServiceJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	diffNamespaceServiceJobID := "test-consul-template-nomad-lookups" + uuid.Short()
 	f.NoError(e2eutil.Register(diffNamespaceServiceJobID, "consultemplate/input/nomad_provider_service_ns.nomad"))
 	tc.namespacedJobIDs["platform"] = append(tc.namespacedJobIDs["platform"], diffNamespaceServiceJobID)
 	f.NoError(e2eutil.WaitForAllocStatusExpected(diffNamespaceServiceJobID, "platform", []string{"running"}), "job should be running")
 
 	// Register a job which includes consul-template function performing Nomad
 	// service listing and reads.
-	serviceLookupJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	serviceLookupJobID := "test-consul-template-nomad-lookups" + uuid.Short()
 	f.NoError(e2eutil.Register(serviceLookupJobID, "consultemplate/input/nomad_provider_service_lookup.nomad"))
 	tc.jobIDs = append(tc.jobIDs, serviceLookupJobID)
 	f.NoError(e2eutil.WaitForAllocStatusExpected(serviceLookupJobID, "default", []string{"running"}), "job should be running")
@@ -474,6 +474,45 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 				}
 			}
 			return true
+		}, nil)
+	f.NoError(err)
+}
+
+// TestConsulTemplate_NomadServiceLookup_Choose tests consul-template's nomadService
+// 3-parameter lookup functionality. It runs a job which registers 4 services,
+// then another which performs a read template function choosing 2 of them.
+func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookup_Choose(f *framework.F) {
+	// Setup the base job with 4 copies of the same service ("redis").
+	serviceJob, err := jobspec.ParseFile("consultemplate/input/nomad_provider_service_many.nomad")
+	f.NoError(err)
+	serviceJobID := "nomad_provider_service_many" + uuid.Short()
+	serviceJob.ID = &serviceJobID
+
+	// Run the job of 4 redis services.
+	_, _, err = tc.Nomad().Jobs().Register(serviceJob, nil)
+	f.NoError(err)
+	tc.jobIDs = append(tc.jobIDs, serviceJobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(
+		serviceJobID, "default", []string{"running", "running", "running", "running"},
+	), "job should be running")
+
+	// Register the job using 3-argument nomadServices in consul template, which will
+	// just cat 2 of the 4 services.
+	catJobID := "nomad_provider_service_many_cat" + uuid.Short()
+	f.NoError(e2eutil.Register(catJobID, "consultemplate/input/nomad_provider_service_many_cat.nomad"))
+	tc.jobIDs = append(tc.jobIDs, catJobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(catJobID, "default", []string{"running"}), "job should be running")
+
+	// Find allocation ID for the cat job.
+	catJobAllocs, err := e2eutil.AllocsForJob(catJobID, "default")
+	f.NoError(err)
+	f.Len(catJobAllocs, 1)
+	catAllocID := catJobAllocs[0]["ID"]
+
+	err = waitForTaskFile(catAllocID, "cat", "${NOMAD_TASK_DIR}/redis.txt",
+		func(out string) bool {
+			fmt.Println("out:", out)
+			return false
 		}, nil)
 	f.NoError(err)
 }

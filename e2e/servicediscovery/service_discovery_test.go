@@ -2,6 +2,7 @@ package servicediscovery
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,14 +30,19 @@ const (
 // such as Consul Connect, which have their own test suite.
 func TestServiceDiscovery(t *testing.T) {
 
+	fmt.Println("A")
+
 	// Wait until we have a usable cluster before running the tests.
 	nomadClient := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomadClient)
+	fmt.Println("B")
 	e2eutil.WaitForNodesReady(t, nomadClient, 1)
+	fmt.Println("C")
 
 	// Run our test cases.
-	t.Run("TestServiceDiscovery_MultiProvider", testMultiProvider)
+	// t.Run("TestServiceDiscovery_MultiProvider", testMultiProvider)
 	t.Run("TestServiceDiscovery_UpdateProvider", testUpdateProvider)
+	fmt.Println("Complete.")
 }
 
 // testMultiProvider tests service discovery where multi providers are used
