@@ -6610,20 +6610,6 @@ func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
 }
 
-// SecureVariablesQuotas queries all the quotas and is used only for
-// snapshot/restore and key rotation
-func (s *StateStore) SecureVariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableSecureVariablesQuotas, indexID)
-	if err != nil {
-		return nil, err
-	}
-
-	ws.Add(iter.WatchCh())
-	return iter, nil
-}
-
 // UpsertRootKeyMeta saves root key meta or updates it in-place.
 func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta) error {
 	txn := s.db.WriteTxn(index)

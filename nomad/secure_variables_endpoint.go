@@ -93,6 +93,10 @@ func (sv *SecureVariables) Upsert(
 		return &mErr
 	}
 
+	if err := sv.enforceQuota(uArgs); err != nil {
+		return err
+	}
+
 	// Update via Raft.
 	out, index, err := sv.srv.raftApply(structs.SecureVariableUpsertRequestType, uArgs)
 	if err != nil {
