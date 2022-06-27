@@ -46,6 +46,7 @@
           class="input"
           {{autofocus ignore=(eq iter 0)}}
           {{on "input" (fn this.validateKey entry)}}
+          data-test-var-key
         />
       </label>
       <SecureVariableForm::InputGroup @entry={{entry}} />
@@ -79,6 +80,7 @@
       disabled={{this.shouldDisableSave}}
       class="button is-primary"
       type="submit"
+      data-test-submit-var
     >
       Save
       {{pluralize "Variable" @this.keyValues.length}}

@@ -1,10 +1,16 @@
-import { module, test } from 'qunit';
-import { currentURL } from '@ember/test-helpers';
-import { setupApplicationTest } from 'ember-qunit';
+import {
+  currentRouteName,
+  currentURL,
+  click,
+  find,
+  findAll,
+  typeIn,
+} from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import { setupApplicationTest } from 'ember-qunit';
+import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
-import { click, find, findAll, typeIn } from '@ember/test-helpers';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -145,5 +151,47 @@ module('Acceptance | secure variables', function (hooks) {
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     await Variables.visit();
     await a11yAudit(assert);
+  });
+
+  module('create flow - happy path', function (hooks) {
+    hooks.beforeEach(async function () {
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+    });
+
+    hooks.afterEach(async function () {
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('allows a user with correct permissions to create a secure variable', async function (assert) {
+      assert
+        .dom('[data-test-create-var]')
+        .exists(
+          'It should display an enabled button to create a secure variable'
+        );
+      await click('[data-test-create-var]');
+
+      assert.equal(currentRouteName(), 'variables.new');
+
+      await typeIn('[data-test-path-input]', 'foo/bar');
+      await typeIn('[data-test-var-key]', 'kiki');
+      await typeIn('[data-test-var-value]', 'do you love me');
+      await click('[data-test-submit-var]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.index',
+        'Navigates user back to variables list page after creating variable.'
+      );
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on creation.');
+      assert
+        .dom('[data-test-var=kiki]')
+        .exists('The new variable key should appear in the list.');
+    });
   });
 });

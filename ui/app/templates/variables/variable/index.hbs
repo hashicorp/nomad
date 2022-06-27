@@ -55,7 +55,7 @@
 </h1>
 <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
   <t.body as |row|>
-    <tr>
+    <tr data-test-var={{row.model.key}}>
       <td>
         {{row.model.key}}
       </td>
