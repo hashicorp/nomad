@@ -943,7 +943,7 @@ host system.
   - `image_delay` - A time duration, as [defined
     here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
     The delay controls how long Nomad will wait between an image being unused
-    and deleting it. If a tasks is received that uses the same image within
+    and deleting it. If a task is received that uses the same image within
     the delay, the image will be reused.
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
