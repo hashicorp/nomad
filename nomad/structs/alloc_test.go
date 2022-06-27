@@ -103,6 +103,34 @@ func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
 			expectedOutput: "platform",
 			name:           "nomad task service",
 		},
+		{
+			inputAllocation: &Allocation{
+				Job: &Job{
+					Namespace: "platform",
+					TaskGroups: []*TaskGroup{
+						{
+							Name: "test-group",
+							Tasks: []*Task{
+								{
+									Name: "task1",
+								},
+								{
+									Name: "task2",
+									Services: []*Service{
+										{
+											Provider: ServiceProviderNomad,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				TaskGroup: "test-group",
+			},
+			expectedOutput: "platform",
+			name:           "multiple tasks with service not in first",
+		},
 	}
 
 	for _, tc := range testCases {
