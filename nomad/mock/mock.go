@@ -2308,13 +2308,12 @@ func SecureVariable() *structs.SecureVariableDecrypted {
 	env := envs[envIdx]
 	domain := fake.DomainName()
 	path := strings.ReplaceAll(env+"."+domain, ".", "/")
-	// owner := fake.Person()
 	createIdx := uint64(rand.Intn(100) + 100)
 	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
 	sv := &structs.SecureVariableDecrypted{
 		SecureVariableMetadata: structs.SecureVariableMetadata{
 			Path:        path,
-			Namespace:   "default",
+			Namespace:   structs.DefaultNamespace,
 			CreateIndex: createIdx,
 			ModifyIndex: createIdx,
 			CreateTime:  createDT,
@@ -2393,7 +2392,7 @@ func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
 	sv := &structs.SecureVariableEncrypted{
 		SecureVariableMetadata: structs.SecureVariableMetadata{
 			Path:        path,
-			Namespace:   "default",
+			Namespace:   structs.DefaultNamespace,
 			CreateIndex: createIdx,
 			ModifyIndex: createIdx,
 			CreateTime:  createDT,

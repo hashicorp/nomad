@@ -34,7 +34,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 	svs, svm := mockSecureVariables(2, 2)
 	t.Log(printSecureVariables(svs))
 	insertIndex := uint64(20)
-	t.Run("1 create new varibles", func(t *testing.T) {
+	t.Run("1 create new variables", func(t *testing.T) {
 		// SubTest Marker: This ensures new secure variables are inserted as
 		// expected with their correct indexes, along with an update to the index
 		// table.
@@ -71,7 +71,16 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 			svm[sv.Path] = &nv
 		}
 		require.Equal(t, len(svs), count, "incorrect number of secure variables found")
+
+		var expectedQuotaSize uint64
+		for _, v := range svs {
+			expectedQuotaSize += uint64(len(v.Data))
+		}
+		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		require.NoError(t, err)
+		require.Equal(t, expectedQuotaSize, quotaUsed.Size)
 	})
+
 	svs = svm.List()
 	t.Log(printSecureVariables(svs))
 	t.Run("1a fetch variable", func(t *testing.T) {
@@ -231,13 +240,19 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 	require.NoError(t, err)
 
 	var delete1Count int
+	var expectedQuotaSize uint64
 
 	// Iterate all the stored variables and assert we have the expected
 	// number.
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		delete1Count++
+		v := raw.(*structs.SecureVariableEncrypted)
+		expectedQuotaSize += uint64(len(v.Data))
 	}
 	require.Equal(t, 1, delete1Count, "unexpected number of variables in table")
+	quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+	require.NoError(t, err)
+	require.Equal(t, expectedQuotaSize, quotaUsed.Size)
 
 	// SubTest Marker: Delete the remaining variable and ensure all indexes
 	// are updated as expected and the table is empty.

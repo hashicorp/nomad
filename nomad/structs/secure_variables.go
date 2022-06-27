@@ -166,6 +166,15 @@ type SecureVariablesQuota struct {
 	ModifyIndex uint64
 }
 
+func (svq *SecureVariablesQuota) Copy() *SecureVariablesQuota {
+	if svq == nil {
+		return nil
+	}
+	nq := new(SecureVariablesQuota)
+	*nq = *svq
+	return nq
+}
+
 type SecureVariablesUpsertRequest struct {
 	Data []*SecureVariableDecrypted
 	WriteRequest

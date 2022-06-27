@@ -141,6 +141,11 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		return fmt.Errorf("secure variable lookup failed: %v", err)
 	}
 
+	existingQuota, err := txn.First(TableSecureVariablesQuotas, indexID, sv.Namespace)
+	if err != nil {
+		return fmt.Errorf("secure variable quota lookup failed: %v", err)
+	}
+
 	// Setup the indexes correctly
 	now := time.Now().Round(0)
 	if existing != nil {
@@ -165,6 +170,24 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 	if err := txn.Insert(TableSecureVariables, sv); err != nil {
 		return fmt.Errorf("secure variable insert failed: %v", err)
 	}
+
+	// Track quota usage
+	var quotaUsed *structs.SecureVariablesQuota
+	if existingQuota != nil {
+		quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = quotaUsed.Copy()
+	} else {
+		quotaUsed = &structs.SecureVariablesQuota{
+			Namespace:   sv.Namespace,
+			CreateIndex: index,
+		}
+	}
+	quotaUsed.Size += uint64(len(sv.Data))
+	quotaUsed.ModifyIndex = index
+	if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
+		return fmt.Errorf("secure variable quota insert failed: %v", err)
+	}
+
 	*updated = true
 	return nil
 }
@@ -225,6 +248,10 @@ func (s *StateStore) DeleteSecureVariableTxn(index uint64, namespace, path strin
 	if existing == nil {
 		return fmt.Errorf("secure variable not found")
 	}
+	existingQuota, err := txn.First(TableSecureVariablesQuotas, indexID, namespace)
+	if err != nil {
+		return fmt.Errorf("secure variable quota lookup failed: %v", err)
+	}
 
 	// Delete the variable
 	if err := txn.Delete(TableSecureVariables, existing); err != nil {
@@ -234,5 +261,47 @@ func (s *StateStore) DeleteSecureVariableTxn(index uint64, namespace, path strin
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Track quota usage
+	if existingQuota != nil {
+		quotaUsed := existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = quotaUsed.Copy()
+		sv := existing.(*structs.SecureVariableEncrypted)
+		quotaUsed.Size -= uint64(len(sv.Data))
+		quotaUsed.ModifyIndex = index
+		if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
+			return fmt.Errorf("secure variable quota insert failed: %v", err)
+		}
+	}
+
 	return nil
+}
+
+// SecureVariablesQuotas queries all the quotas and is used only for
+// snapshot/restore and key rotation
+func (s *StateStore) SecureVariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableSecureVariablesQuotas, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// SecureVariablesQuotaByNamespace queries for quotas for a particular namespace
+func (s *StateStore) SecureVariablesQuotaByNamespace(ws memdb.WatchSet, namespace string) (*structs.SecureVariablesQuota, error) {
+	txn := s.db.ReadTxn()
+	watchCh, raw, err := txn.FirstWatch(TableSecureVariablesQuotas, indexID, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("secure variable quota lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if raw == nil {
+		return nil, nil
+	}
+	quotaUsed := raw.(*structs.SecureVariablesQuota)
+	return quotaUsed, nil
 }
