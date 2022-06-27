@@ -35,7 +35,7 @@ func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *h
 func (s *HTTPServer) SecureVariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/var/")
 	if len(path) == 0 {
-		return nil, CodedError(http.StatusBadRequest, "Missing secure variable path")
+		return nil, CodedError(http.StatusBadRequest, "missing secure variable path")
 	}
 	switch req.Method {
 	case http.MethodGet:
@@ -65,7 +65,7 @@ func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Req
 	setMeta(resp, &out.QueryMeta)
 
 	if out.Data == nil {
-		return nil, CodedError(http.StatusNotFound, "Secure variable not found")
+		return nil, CodedError(http.StatusNotFound, "secure variable not found")
 	}
 	return out.Data, nil
 }
@@ -78,7 +78,7 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 	if len(SecureVariable.Items) == 0 {
-		return nil, CodedError(http.StatusBadRequest, "Secure variable missing required Items object")
+		return nil, CodedError(http.StatusBadRequest, "secure variable missing required Items object")
 	}
 
 	SecureVariable.Path = path

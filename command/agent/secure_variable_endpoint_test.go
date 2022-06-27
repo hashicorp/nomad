@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -133,7 +132,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Missing secure variable path")
+			require.EqualError(t, err, "missing secure variable path")
 			require.Nil(t, obj)
 		})
 		t.Run("query_unset_variable", func(t *testing.T) {
@@ -142,7 +141,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Secure variable not found")
+			require.EqualError(t, err, "secure variable not found")
 			require.Nil(t, obj)
 		})
 		t.Run("query", func(t *testing.T) {
@@ -282,11 +281,17 @@ func TestHTTP_SecureVariables(t *testing.T) {
 				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
 				require.NoError(t, err)
 				require.NotNil(t, out)
+
+				// Check that written varible does not equal the input to rule out input mutation
 				require.NotEqual(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
 
+				// Update the input token with the updated metadata so that we
+				// can use a simple equality check
 				svU.CreateIndex, svU.ModifyIndex = out.CreateIndex, out.ModifyIndex
 				svU.CreateTime, svU.ModifyTime = out.CreateTime, out.ModifyTime
 				require.Equal(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+
+				// fmt writes sorted output of maps for testability.
 				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
 			}
 		})
@@ -309,7 +314,12 @@ func TestHTTP_SecureVariables(t *testing.T) {
 				// Make the request
 				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
 				require.Equal(t, http.StatusConflict, respW.Result().StatusCode)
-				require.Nil(t, obj)
+
+				// Evaluate the conflict variable
+				require.NotNil(t, obj)
+				conflict, ok := obj.(*structs.SecureVariableDecrypted)
+				require.True(t, ok, "Expected *structs.SecureVariableDecrypted, got %T", obj)
+				require.True(t, sv.Equals(*conflict))
 
 				// Check for the index
 				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
@@ -340,12 +350,17 @@ func TestHTTP_SecureVariables(t *testing.T) {
 				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
 				require.NoError(t, err)
 				require.NotNil(t, out)
+
+				require.NotEqual(t, sv, out)
 				require.NotEqual(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
 
+				// Update the input token with the updated metadata so that we
+				// can use a simple equality check
 				svU.CreateIndex, svU.ModifyIndex = out.CreateIndex, out.ModifyIndex
 				svU.CreateTime, svU.ModifyTime = out.CreateTime, out.ModifyTime
 				require.Equal(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
-				require.NotEqual(t, sv, out)
+
+				// fmt writes sorted output of maps for testability.
 				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
 			}
 		})
@@ -379,10 +394,14 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 				// Make the request
 				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-				require.NotNil(t, err)
+				require.NoError(t, err)
 				require.Equal(t, http.StatusConflict, respW.Result().StatusCode)
-				require.True(t, strings.HasPrefix(err.Error(), "cas error:"), "Expected error to start with \"cas error:\"; received %q", err.Error())
-				require.Nil(t, obj)
+
+				// Evaluate the conflict variable
+				require.NotNil(t, obj)
+				conflict, ok := obj.(*structs.SecureVariableDecrypted)
+				require.True(t, ok, "Expected *structs.SecureVariableDecrypted, got %T", obj)
+				require.True(t, sv.Equals(*conflict))
 
 				// Check for the index
 				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
@@ -429,6 +448,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 			// Check for the index
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, http.StatusNoContent, respW.Result().StatusCode)
 
 			// Check variable was deleted
 			sv, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
