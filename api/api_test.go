@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -117,31 +116,22 @@ func TestRequestTime(t *testing.T) {
 
 func TestDefaultConfig_env(t *testing.T) {
 	t.Parallel()
-	url := "http://1.2.3.4:5678"
+	testURL := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
 	region := "test"
 	namespace := "dev"
 	token := "foobar"
 
-	os.Setenv("NOMAD_ADDR", url)
-	defer os.Setenv("NOMAD_ADDR", "")
-
-	os.Setenv("NOMAD_REGION", region)
-	defer os.Setenv("NOMAD_REGION", "")
-
-	os.Setenv("NOMAD_NAMESPACE", namespace)
-	defer os.Setenv("NOMAD_NAMESPACE", "")
-
-	os.Setenv("NOMAD_HTTP_AUTH", strings.Join(auth, ":"))
-	defer os.Setenv("NOMAD_HTTP_AUTH", "")
-
-	os.Setenv("NOMAD_TOKEN", token)
-	defer os.Setenv("NOMAD_TOKEN", "")
+	t.Setenv("NOMAD_ADDR", testURL)
+	t.Setenv("NOMAD_REGION", region)
+	t.Setenv("NOMAD_NAMESPACE", namespace)
+	t.Setenv("NOMAD_HTTP_AUTH", strings.Join(auth, ":"))
+	t.Setenv("NOMAD_TOKEN", token)
 
 	config := DefaultConfig()
 
-	if config.Address != url {
-		t.Errorf("expected %q to be %q", config.Address, url)
+	if config.Address != testURL {
+		t.Errorf("expected %q to be %q", config.Address, testURL)
 	}
 
 	if config.Region != region {
