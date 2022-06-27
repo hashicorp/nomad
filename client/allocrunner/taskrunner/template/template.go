@@ -375,10 +375,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				continue
 			}
 
-			tm.config.Lifecycle.Kill(context.Background(),
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
+				SetDisplayMessage(fmt.Sprintf("Template re-render failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
 			tm.onTemplateRendered(handledRenders, allRenderedTime)
 		}
