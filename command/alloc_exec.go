@@ -11,10 +11,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/pkg/term"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/escapingio"
+	"github.com/moby/term"
 	"github.com/posener/complete"
 )
 
