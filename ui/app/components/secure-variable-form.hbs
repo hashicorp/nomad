@@ -15,6 +15,7 @@
         disabled={{not @model.isNew}}
         {{on "input" this.validatePath}}
         {{autofocus}}
+        data-test-path-input
       />
     </label>
     {{#if this.duplicatePathWarning}}
