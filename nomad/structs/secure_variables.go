@@ -242,6 +242,7 @@ func (svdr *SecureVariablesDeleteRequest) SetCheckIndex(ci uint64) {
 }
 
 type SecureVariablesDeleteResponse struct {
+	Conflict *SecureVariableDecrypted
 	WriteMeta
 }
 

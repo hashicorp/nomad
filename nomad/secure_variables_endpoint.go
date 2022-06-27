@@ -67,8 +67,12 @@ func (sv *SecureVariables) Upsert(
 			continue
 		}
 		if args.CheckIndex != nil {
-			if err := sv.validateCASUpdate(*args.CheckIndex, v); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
+			var conflict *structs.SecureVariableDecrypted
+			if err := sv.validateCASUpdate(*args.CheckIndex, v, &conflict); err != nil {
+				if reply.Conflicts == nil {
+					reply.Conflicts = make([]*structs.SecureVariableDecrypted, len(args.Data))
+				}
+				reply.Conflicts[i] = conflict
 				continue
 			}
 		}
@@ -78,6 +82,12 @@ func (sv *SecureVariables) Upsert(
 			continue
 		}
 		uArgs.Data[i] = ev
+	}
+	if len(reply.Conflicts) != 0 {
+		// This is a reply with CAS conflicts so it needs to return here
+		// "successfully". The caller needs to check to see if Conflicts
+		// is non-Nil.
+		return nil
 	}
 	if err := mErr.ErrorOrNil(); err != nil {
 		return &mErr
@@ -120,7 +130,19 @@ func (sv *SecureVariables) Delete(
 		}
 	}
 	if args.CheckIndex != nil {
-		if err := sv.validateCASDelete(*args.CheckIndex, args.Namespace, args.Path); err != nil {
+
+		if err := sv.validateCASDelete(*args.CheckIndex, args.Namespace, args.Path, &reply.Conflict); err != nil {
+
+			// If the validateCASDelete func sends back the conflict sentinel
+			// error value then it will have put the conflict into the reply,
+			// and we need to "succeed".
+			if err.Error() == "conflict" {
+				reply.Index = reply.Conflict.ModifyIndex
+				return nil
+			}
+
+			// There are a few cases where validateCASDelete can error that
+			// aren't conflicts.
 			return err
 		}
 	}
@@ -476,16 +498,16 @@ func (sv *SecureVariables) authValidatePrefix(claims *structs.IdentityClaims, ns
 	return nil
 }
 
-func (s *SecureVariables) validateCASUpdate(cidx uint64, sv *structs.SecureVariableDecrypted) error {
-	return s.validateCAS(cidx, sv.Namespace, sv.Path)
+func (s *SecureVariables) validateCASUpdate(cidx uint64, sv *structs.SecureVariableDecrypted, conflict **structs.SecureVariableDecrypted) error {
+	return s.validateCAS(cidx, sv.Namespace, sv.Path, conflict)
 }
 
-func (s *SecureVariables) validateCASDelete(cidx uint64, namespace, path string) error {
-	return s.validateCAS(cidx, namespace, path)
+func (s *SecureVariables) validateCASDelete(cidx uint64, namespace, path string, conflict **structs.SecureVariableDecrypted) error {
+	return s.validateCAS(cidx, namespace, path, conflict)
 }
 
-func (s *SecureVariables) validateCAS(cidx uint64, namespace, path string) error {
-
+func (s *SecureVariables) validateCAS(cidx uint64, namespace, path string, conflictOut **structs.SecureVariableDecrypted) error {
+	casConflict := errors.New("conflict")
 	// lookup any existing key and validate the update
 	snap, err := s.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -497,10 +519,30 @@ func (s *SecureVariables) validateCAS(cidx uint64, namespace, path string) error
 		return fmt.Errorf("cas error: %w", err)
 	}
 	if exist == nil && cidx != 0 {
-		return errors.New("cas error: requested index > 0 and no existing value found")
+		// return a zero value with the namespace and path applied
+		zeroVal := &structs.SecureVariableDecrypted{
+			SecureVariableMetadata: structs.SecureVariableMetadata{
+				Namespace:   namespace,
+				Path:        path,
+				CreateIndex: 0,
+				CreateTime:  0,
+				ModifyIndex: 0,
+				ModifyTime:  0,
+			},
+			Items: nil,
+		}
+		*conflictOut = zeroVal
+		return casConflict
 	}
 	if exist != nil && exist.ModifyIndex != cidx {
-		return fmt.Errorf("cas error: requested index %v; found index %v", cidx, exist.ModifyIndex)
+		dec, err := s.decrypt(exist)
+		if err != nil {
+			// we can't return the conflict and we will have to bail out
+			decErrStr := fmt.Sprintf(". Additional error decrypting conflict: %s", err)
+			return fmt.Errorf("cas error: requested index %v; found index %v%s", cidx, exist.ModifyIndex, decErrStr)
+		}
+		*conflictOut = dec
+		return casConflict
 	}
 
 	return nil
