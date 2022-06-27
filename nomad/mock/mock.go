@@ -2428,9 +2428,9 @@ func mockSecureVariableMetadata() structs.SecureVariableMetadata {
 		CreateIndex: uint64(rand.Intn(100) + 100),
 		CreateTime:  fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now()).UnixNano(),
 	}
-  out.ModifyIndex = out.CreateIndex
-  out.ModifyTime = out.CreateTime
-  
+	out.ModifyIndex = out.CreateIndex
+	out.ModifyTime = out.CreateTime
+
 	// Flip a coin to see if we should return a "modified" object
 	if fake.Bool() {
 		out.ModifyTime = fake.DateRange(time.Unix(0, out.CreateTime), time.Now()).UnixNano()
