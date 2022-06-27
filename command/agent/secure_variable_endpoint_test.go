@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -131,7 +132,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Missing secure variable path")
+			require.EqualError(t, err, "missing secure variable path")
 			require.Nil(t, obj)
 		})
 		t.Run("query_unset_variable", func(t *testing.T) {
@@ -140,7 +141,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Secure variable not found")
+			require.EqualError(t, err, "secure variable not found")
 			require.Nil(t, obj)
 		})
 		t.Run("query", func(t *testing.T) {
@@ -192,7 +193,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
-			require.EqualError(t, err, "Secure variable missing required Items object.")
+			require.EqualError(t, err, "secure variable missing required Items object")
 			require.Nil(t, obj)
 		})
 		t.Run("create", func(t *testing.T) {
@@ -220,10 +221,10 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		rpcResetSV(s)
 
-		sv1U := sv1.Copy()
-		sv1U.Items["new"] = "new"
-
 		t.Run("error_parse_update", func(t *testing.T) {
+			sv1U := sv1.Copy()
+			sv1U.Items["new"] = "new"
+
 			// break the request body
 			badBuf := encodeBrokenReq(&sv1U)
 
@@ -240,6 +241,9 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.Nil(t, obj)
 		})
 		t.Run("error_rpc_update", func(t *testing.T) {
+			sv1U := sv1.Copy()
+			sv1U.Items["new"] = "new"
+
 			// test broken rpc error
 			buf := encodeReq(&sv1U)
 			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?region=bad", buf)
@@ -252,11 +256,16 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.Nil(t, obj)
 		})
 		t.Run("update", func(t *testing.T) {
-			require.NoError(t, rpcWriteSV(s, sv1))
+			sv := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv))
+			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
+			require.NoError(t, err)
 
+			svU := sv.Copy()
+			svU.Items["new"] = "new"
 			// Make the HTTP request
-			buf := encodeReq(&sv1U)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			buf := encodeReq(&svU)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv.Path, buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -268,15 +277,92 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			// Check for the index
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
-			// Check the variable was created
-			out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
-			require.NoError(t, err)
-			require.NotNil(t, out)
+			{
+				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.NotNil(t, out)
 
-			sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
-			require.Equal(t, sv1.Path, out.Path)
-			require.NotEqual(t, sv1, out)
-			require.Equal(t, "new", out.Items["new"])
+				// Check that written varible does not equal the input to rule out input mutation
+				require.NotEqual(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+
+				// Update the input token with the updated metadata so that we
+				// can use a simple equality check
+				svU.CreateIndex, svU.ModifyIndex = out.CreateIndex, out.ModifyIndex
+				svU.CreateTime, svU.ModifyTime = out.CreateTime, out.ModifyTime
+				require.Equal(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+
+				// fmt writes sorted output of maps for testability.
+				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
+			}
+		})
+		t.Run("update-cas", func(t *testing.T) {
+			sv := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv))
+			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
+			require.NoError(t, err)
+
+			svU := sv.Copy()
+			svU.Items["new"] = "new"
+
+			// Make the HTTP request
+			{
+				buf := encodeReq(&svU)
+				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas=0", buf)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+				require.Equal(t, http.StatusConflict, respW.Result().StatusCode)
+
+				// Evaluate the conflict variable
+				require.NotNil(t, obj)
+				conflict, ok := obj.(*structs.SecureVariableDecrypted)
+				require.True(t, ok, "Expected *structs.SecureVariableDecrypted, got %T", obj)
+				require.True(t, sv.Equals(*conflict))
+
+				// Check for the index
+				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			}
+			// Check the variable was not updated
+			{
+				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.Equal(t, sv, out)
+			}
+			// Make the HTTP request
+			{
+				buf := encodeReq(&svU)
+				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), buf)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Nil(t, obj)
+
+				// Check for the index
+				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			}
+			// Check the variable was created correctly
+			{
+				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.NotNil(t, out)
+
+				require.NotEqual(t, sv, out)
+				require.NotEqual(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+
+				// Update the input token with the updated metadata so that we
+				// can use a simple equality check
+				svU.CreateIndex, svU.ModifyIndex = out.CreateIndex, out.ModifyIndex
+				svU.CreateTime, svU.ModifyTime = out.CreateTime, out.ModifyTime
+				require.Equal(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+
+				// fmt writes sorted output of maps for testability.
+				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
+			}
 		})
 		rpcResetSV(s)
 
@@ -294,6 +380,58 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.EqualError(t, err, "No path to region")
 			require.Nil(t, obj)
 		})
+		t.Run("delete-cas", func(t *testing.T) {
+			sv := mock.SecureVariable()
+			require.NoError(t, rpcWriteSV(s, sv))
+			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
+			require.NoError(t, err)
+
+			// Make the HTTP request
+			{
+				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas=0", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusConflict, respW.Result().StatusCode)
+
+				// Evaluate the conflict variable
+				require.NotNil(t, obj)
+				conflict, ok := obj.(*structs.SecureVariableDecrypted)
+				require.True(t, ok, "Expected *structs.SecureVariableDecrypted, got %T", obj)
+				require.True(t, sv.Equals(*conflict))
+
+				// Check for the index
+				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			}
+
+			// Check variable was not deleted
+			{
+				svChk, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.NotNil(t, svChk)
+				require.Equal(t, sv, svChk)
+			}
+			// Make the HTTP request
+			{
+				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Nil(t, obj)
+			}
+			// Check variable was deleted
+			{
+				svChk, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.Nil(t, svChk)
+			}
+		})
 		t.Run("delete", func(t *testing.T) {
 			sv1 := mock.SecureVariable()
 			require.NoError(t, rpcWriteSV(s, sv1))
@@ -310,6 +448,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 			// Check for the index
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, http.StatusNoContent, respW.Result().StatusCode)
 
 			// Check variable was deleted
 			sv, err := rpcReadSV(s, sv1.Namespace, sv1.Path)

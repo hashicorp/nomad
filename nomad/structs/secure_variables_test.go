@@ -15,9 +15,9 @@ func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
 		Namespace:   "a",
 		Path:        "a/b/c",
 		CreateIndex: 1,
-		CreateTime:  n,
+		CreateTime:  n.UnixNano(),
 		ModifyIndex: 2,
-		ModifyTime:  n.Add(48 * time.Hour),
+		ModifyTime:  n.Add(48 * time.Hour).UnixNano(),
 	}
 	sv := SecureVariableDecrypted{
 		SecureVariableMetadata: a,
