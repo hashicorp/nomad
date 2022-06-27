@@ -158,7 +158,6 @@ export default class KeyboardService extends Service {
    * @param {string[]} pattern
    */
   cleanPattern(pattern) {
-    console.log('paterrnnnn', pattern);
     let patternNumber = pattern.length === 1 && pattern[0].match(/\d+/g);
     if (!patternNumber) {
       return pattern;
@@ -177,16 +176,15 @@ export default class KeyboardService extends Service {
   addCommands(commands) {
     commands.forEach((command) => {
       if (command.enumerated) {
-        // TODO: Monday: New enumerates are being added before old ones are being removed.
-        // Either add a route qualifier in, or wait for keyCommands.filterBy('enumerated') to be empty in order to solve.
-        console.log(
-          'enumerated and currently have',
-          this.keyCommands.map((x) => isDestroying(x)),
-          this.keyCommands.map((x) => isDestroyed(x)),
-          this.keyCommands.filterBy('enumerated').length
-        );
+        // Ember's registerDestructor on destroyables fires AFTER a page load, meaning our enumerated array will be full of both old and new commands.
+        // Filter not only by enumerated, but also make sure we're only counting by those commands with our new command's URL.
+        // Without this second filterBy, moving from tabled-page to tabled-page will start your new commands at a number greater than 01.
         command.pattern = this.cleanPattern([
-          `${this.keyCommands.filterBy('enumerated').length}`,
+          `${
+            this.keyCommands
+              .filterBy('enumerated')
+              .filter((c) => c.url === command.url).length
+          }`,
         ]);
         this.keyCommands.pushObjects(commands);
       } else {
@@ -196,7 +194,6 @@ export default class KeyboardService extends Service {
   }
 
   removeCommands(commands) {
-    console.log('removing', commands);
     this.keyCommands.removeObjects(commands);
   }
 

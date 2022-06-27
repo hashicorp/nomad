@@ -4,10 +4,11 @@ import { registerDestructor } from '@ember/destroyable';
 
 export default class KeyboardShortcutModifier extends Modifier {
   @service keyboard;
+  @service router;
 
   modify(
     element,
-    [eventName],
+    _positional,
     {
       label,
       pattern = '',
@@ -24,11 +25,11 @@ export default class KeyboardShortcutModifier extends Modifier {
         element,
         menuLevel,
         enumerated,
+        url: this.router.currentURL,
       },
     ];
     this.keyboard.addCommands(commands);
     registerDestructor(this, () => {
-      console.log('regDest', commands);
       this.keyboard.removeCommands(commands);
     });
   }
