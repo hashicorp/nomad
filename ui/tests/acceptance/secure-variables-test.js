@@ -153,20 +153,16 @@ module('Acceptance | secure variables', function (hooks) {
     await a11yAudit(assert);
   });
 
-  module('create flow - happy path', function (hooks) {
-    hooks.beforeEach(async function () {
+  module('create flow', function () {
+    test('allows a user with correct permissions to create a secure variable', async function (assert) {
+      // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await Variables.visit();
-    });
+      // End Test Set-up
 
-    hooks.afterEach(async function () {
-      window.localStorage.nomadTokenSecret = null;
-    });
-
-    test('allows a user with correct permissions to create a secure variable', async function (assert) {
       assert
         .dom('[data-test-create-var]')
         .exists(
@@ -192,6 +188,31 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-var=kiki]')
         .exists('The new variable key should appear in the list.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('prevents users from creating a secure variable without proper permissions', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      const policy = server.db.policies.find('Variable Maker');
+      policy.rulesJSON.Namespaces[0].SecureVariables['Path "*"'].Capabilities =
+        ['list'];
+      await Variables.visit();
+      // End Test Set-up
+
+      assert
+        .dom('[data-test-disabled-create-var]')
+        .exists(
+          'It should display an enabled button to create a secure variable on the main listings page'
+        );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
     });
   });
 });
