@@ -2,14 +2,13 @@ package resources
 
 import (
 	"fmt"
-	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/nomad/jobspec2/hclutil"
 	"reflect"
 
 	"github.com/hashicorp/go-multierror"
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // Resource is a custom resource that users can configure to expose custom capabilities
@@ -74,77 +73,91 @@ func Parse(tmplContent string, filename string) (*Resource, error) {
 		return nil, fmt.Errorf("error parsing: %s", diags)
 	}
 
-	content, schemaDiags := file.Body.Content(&hcl.BodySchema{
+	resourceContent, resourceDiags := file.Body.Content(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
 			{
 				Type:       "resource",
 				LabelNames: []string{"name"},
 			},
+		},
+	})
+
+	diags = append(diags, resourceDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	result := &Resource{}
+
+	if len(resourceContent.Blocks) == 0 {
+		return nil, fmt.Errorf("no resource found")
+	}
+
+	for _, block := range resourceContent.Blocks {
+		if block.Type != "resource" {
+			continue
+		}
+
+		result.Name = block.Labels[0]
+
+		rangeDiags := parseRange(block, result)
+		diags = append(diags, rangeDiags...)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+
+	return result, nil
+}
+
+func parseRange(block *hcl.Block, result *Resource) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	rangeContent, _, rangeDiags := block.Body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
 			{
 				Type: "range",
 			},
 		},
 	})
 
-	diags = append(diags, schemaDiags...)
+	diags = append(diags, rangeDiags...)
 	if diags.HasErrors() {
-		return nil, diags
+		return diags
 	}
 
-	result := &Resource{}
-	decoder := &gohcl.Decoder{}
-	for _, block := range content.Blocks {
-		if block.Type != "resource" {
-			continue
-		}
-		body := hclutil.BlocksAsAttrs(block.Body)
-		body = dynblock.Expand(body, nil)
-
-		result.Name = block.Labels[0]
-
-		resourceContent, resourceBody, resourceDiags := body.PartialContent(&hcl.BodySchema{
-			Attributes: []hcl.AttributeSchema{
-				{
-					Name:     "lower",
-					Required: true,
-				},
-				{
-					Name:     "upper",
-					Required: true,
-				},
-			},
-			Blocks: []hcl.BlockHeaderSchema{
-				{
-					Type: "range",
-				},
-			},
-		})
-		diags = append(diags, resourceDiags...)
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		// diags = append(diags, decoder.DecodeBody(resourceContent, nil, result.Range)...)
-
-		for _, resourceBlock := range resourceContent.Blocks {
-			switch resourceBlock.Type {
-			case "range":
-				result.Range = &Range{}
-				decodeDiags := decoder.DecodeBody(resourceBody, nil, result.Range)
-				diags = append(diags, decodeDiags...)
-				if diags.HasErrors() {
-					return nil, diags
-				}
-			default:
-				// Shouldn't get here, because the above cases are exhaustive for
-				// our test file schema.
-				panic(fmt.Sprintf("unsupported block type %q", block.Type))
+	for _, rangeBlock := range rangeContent.Blocks {
+		result.Range = &Range{}
+		switch rangeBlock.Type {
+		case "range":
+			attrs, attrDiags := rangeBlock.Body.JustAttributes()
+			diags = append(diags, attrDiags...)
+			if diags.HasErrors() {
+				return diags
 			}
+			for _, attr := range attrs {
+				val, valDiags := attr.Expr.Value(nil)
+				diags = append(diags, valDiags...)
+				if diags.HasErrors() {
+					return diags
+				}
+				switch attr.Name {
+				case "upper":
+					gocty.FromCtyValue(val, &result.Range.Upper)
+				case "lower":
+					gocty.FromCtyValue(val, &result.Range.Lower)
+				}
+			}
+		default:
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "unsupported block type",
+				Detail:   fmt.Sprintf("block type %q is not supported", rangeBlock.Type),
+				Subject:  &rangeBlock.TypeRange,
+			})
 		}
-
 	}
 
-	return result, nil
+	return diags
 }
 
 func decodeCustomResource(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {

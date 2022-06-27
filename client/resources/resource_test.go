@@ -43,7 +43,7 @@ resource "%s" {
 			value:     5,
 			lower:     nil,
 			upper:     10,
-			parseErr:  "invalid expression token",
+			parseErr:  "Missing required argument",
 			cfgErrMsg: "",
 			errMsg:    "",
 			tmpl: `
@@ -73,7 +73,7 @@ resource "%s" {
 			value:     5,
 			lower:     0,
 			upper:     10,
-			parseErr:  "illegal char",
+			parseErr:  "Argument or block definition required",
 			cfgErrMsg: "",
 			errMsg:    "",
 			tmpl: `
@@ -90,7 +90,7 @@ resource "%s" {
 			value:     5,
 			lower:     0,
 			upper:     "foo",
-			parseErr:  "illegal char",
+			parseErr:  "Invalid expression",
 			cfgErrMsg: "",
 			errMsg:    "",
 			tmpl:      rangeTmpl,
@@ -175,13 +175,13 @@ resource "%s" {
 			resource, diags := Parse(resourceHCL, tc.name)
 
 			if tc.parseErr != "" {
+				require.NotNil(t, diags)
 				require.Contains(t, diags.Error(), tc.parseErr)
 				return
 			}
 
 			require.NoError(t, diags)
 			require.NotNil(t, resource)
-			// require.Len(t, resource.Custom, 1)
 			require.Equal(t, tc.name, resource.Name)
 			require.NotNil(t, resource.Range)
 
