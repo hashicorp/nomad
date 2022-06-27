@@ -298,7 +298,7 @@ func (e *Encrypter) activeKeySetLocked() (*keyset, error) {
 func (e *Encrypter) keysetByIDLocked(keyID string) (*keyset, error) {
 	keyset, ok := e.keyring[keyID]
 	if !ok {
-		return nil, fmt.Errorf("no such key %s in keyring", keyID)
+		return nil, fmt.Errorf("no such key %q in keyring", keyID)
 	}
 	return keyset, nil
 }
