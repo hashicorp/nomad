@@ -1,15 +1,18 @@
+// @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { timeout, restartableTask } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { compare } from '@ember/utils';
 import { A } from '@ember/array';
+// eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
 import { action } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
-import { isDestroying, isDestroyed } from '@ember/destroyable';
+// eslint-disable-next-line no-unused-vars
+import MutableArray from '@ember/array/mutable';
 
 const DEBOUNCE_MS = 750;
 
@@ -39,7 +42,10 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
-  keyCommands = [
+  /**
+   * @type {MutableArray<Object>}
+   */
+  keyCommands = A([
     {
       label: 'Go to Jobs',
       pattern: ['g', 'j'],
@@ -146,31 +152,21 @@ export default class KeyboardService extends Service {
         console.log('Extra Lives +30');
       },
     },
-  ];
+  ]);
 
   /**
-   * For Dynamic/iterative keyboard shortcuts, our patterns look like "Shift+0" by default
-   * Do a couple things to make them more human-friendly:
+   * For Dynamic/iterative keyboard shortcuts, we want to do a couple things to make them more human-friendly:
    * 1. Make them 1-based, instead of 0-based
    * 2. Prefix numbers 1-9 with "0" to make it so "Shift+10" doesn't trigger "Shift+1" then "0", etc.
    * ^--- stops being a good solution with 100+ row lists/tables, but a better UX than waiting for shift key-up otherwise
    *
-   * @param {string[]} pattern
+   * @param {number} iter
+   * @returns {string[]}
    */
-  cleanPattern(pattern) {
-    let patternNumber = pattern.length === 1 && pattern[0].match(/\d+/g);
-    if (!patternNumber) {
-      return pattern;
-    } else {
-      patternNumber = +patternNumber[0]; // regex'd string[0] to num
-      patternNumber = patternNumber + 1; // first item should be Shift+1, not Shift+0
-      assert(
-        'Dynamic keyboard shortcuts only work up to 99 digits',
-        patternNumber < 100
-      );
-      pattern = [`Shift+${('0' + patternNumber).slice(-2)}`]; // Shift+01, not Shift+1
-    }
-    return pattern;
+  cleanPattern(iter) {
+    iter = iter + 1; // first item should be Shift+1, not Shift+0
+    assert('Dynamic keyboard shortcuts only work up to 99 digits', iter < 100);
+    return [`Shift+${('0' + iter).slice(-2)}`]; // Shift+01, not Shift+1
   }
 
   addCommands(commands) {
@@ -179,13 +175,11 @@ export default class KeyboardService extends Service {
         // Ember's registerDestructor on destroyables fires AFTER a page load, meaning our enumerated array will be full of both old and new commands.
         // Filter not only by enumerated, but also make sure we're only counting by those commands with our new command's URL.
         // Without this second filterBy, moving from tabled-page to tabled-page will start your new commands at a number greater than 01.
-        command.pattern = this.cleanPattern([
-          `${
-            this.keyCommands
-              .filterBy('enumerated')
-              .filter((c) => c.url === command.url).length
-          }`,
-        ]);
+        command.pattern = this.cleanPattern(
+          this.keyCommands
+            .filterBy('enumerated')
+            .filter((c) => c.url === command.url).length
+        );
         this.keyCommands.pushObjects(commands);
       } else {
         this.keyCommands.pushObjects(commands);

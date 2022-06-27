@@ -1,6 +1,5 @@
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
-import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 import Tether from 'tether';
 
@@ -28,7 +27,7 @@ export default class KeyboardShortcutsModalComponent extends Component {
    * hints: filter keyCommands to those that have an element property,
    * and then compute a position on screen to place the hint.
    */
-  @computed('keyboard.keyCommands.length', 'keyboard.displayHints')
+  @computed('keyboard.{keyCommands.length,displayHints}')
   get hints() {
     if (this.keyboard.displayHints) {
       return this.keyboard.keyCommands.filter((c) => c.element);
@@ -47,7 +46,7 @@ export default class KeyboardShortcutsModalComponent extends Component {
     });
     hint.binder = binder;
   }
-  untetherFromElement(self, _, { element, hint }) {
+  untetherFromElement(self, _, { hint }) {
     hint.binder.destroy();
   }
 }
