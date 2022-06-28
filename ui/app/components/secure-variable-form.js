@@ -111,7 +111,9 @@ export default class SecureVariableFormComponent extends Component {
 
   @action
   async save(e) {
-    e.preventDefault();
+    if (e.type === 'submit') {
+      e.preventDefault();
+    }
     // TODO: temp, hacky way to force translation to tabular keyValues
     if (this.view === 'json') {
       this.translateAndValidateItems('table');
@@ -177,12 +179,7 @@ export default class SecureVariableFormComponent extends Component {
             return acc;
           }, {})
       );
-
-      set(this, '_editedJSONItems', null);
     } else if (view === 'table') {
-      // Reset any error state, since the errorring json will not persist
-      set(this, 'JSONError', null);
-
       // Translate JSON to table
       set(
         this,
@@ -198,26 +195,31 @@ export default class SecureVariableFormComponent extends Component {
         )
       );
     }
-    // return this.keyValues.reduce((acc, { key, value }) => {
-    //   acc[key] = value;
-    //   return acc;
-    // }, {});
+
+    // Reset any error state, since the errorring json will not persist
+    set(this, 'JSONError', null);
   }
+
   get stringifiedItems() {
     return JSON.stringify(this.args.model.items, null, 2);
   }
-  _editedJSONItems = '';
+
+  /**
+   * @type {string}
+   */
   @tracked JSONError = null;
-  @action updateCode(value) {
-    set(this, '_editedJSONItems', value);
-    try {
-      const parsed = JSON.parse(value);
-      if (parsed) {
-        set(this, 'JSONItems', parsed);
-        set(this, 'JSONError', null);
-      }
-    } catch (error) {
-      set(this, 'JSONError', error);
+  /**
+   *
+   * @param {string} value
+   */
+  @action updateCode(value, codemirror) {
+    codemirror.performLint();
+    const hasErrors = codemirror?.state.lint.marked?.length > 0;
+    if (hasErrors) {
+      set(this, 'JSONError', 'Invalid JSON');
+    } else {
+      set(this, 'JSONError', null);
+      set(this, 'JSONItems', JSON.parse(value));
     }
   }
   //#endregion JSON Editing
