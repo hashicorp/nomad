@@ -23,9 +23,6 @@ export default class CodeMirrorModifier extends Modifier {
       return;
     }
     if (this._editor.getValue() !== this.args.named.content) {
-      console.log('celui', this);
-      debugger;
-      this.performLint();
       this._editor.setValue(this.args.named.content);
     }
   }
