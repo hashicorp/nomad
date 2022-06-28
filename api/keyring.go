@@ -33,13 +33,23 @@ type RootKey struct {
 
 // RootKeyMeta is the metadata used to refer to a RootKey.
 type RootKeyMeta struct {
-	Active      bool
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
 	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
+	State       RootKeyState
 }
+
+// RootKeyState enum describes the lifecycle of a root key.
+type RootKeyState string
+
+const (
+	RootKeyStateInactive   RootKeyState = "inactive"
+	RootKeyStateActive                  = "active"
+	RootKeyStateRekeying                = "rekeying"
+	RootKeyStateDeprecated              = "deprecated"
+)
 
 // List lists all the keyring metadata
 func (k *Keyring) List(q *QueryOptions) ([]*RootKeyMeta, *QueryMeta, error) {

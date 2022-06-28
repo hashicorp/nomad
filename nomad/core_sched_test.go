@@ -2469,13 +2469,13 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	// insert an "old" and inactive key
 	key1 := structs.NewRootKeyMeta()
-	key1.Active = false
-	require.NoError(t, store.UpsertRootKeyMeta(500, key1))
+	key1.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(500, key1, false))
 
 	// insert an "old" and inactive key with a variable that's using it
 	key2 := structs.NewRootKeyMeta()
-	key2.Active = false
-	require.NoError(t, store.UpsertRootKeyMeta(600, key2))
+	key2.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(600, key2, false))
 
 	variable := mock.SecureVariableEncrypted()
 	variable.KeyID = key2.KeyID
@@ -2490,8 +2490,8 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	// insert an "old" key that's newer than oldest alloc
 	key3 := structs.NewRootKeyMeta()
-	key3.Active = false
-	require.NoError(t, store.UpsertRootKeyMeta(750, key3))
+	key3.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(750, key3, false))
 
 	// insert a time table index before the last key
 	tt := srv.fsm.TimeTable()
@@ -2499,8 +2499,8 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	// insert a "new" but inactive key
 	key4 := structs.NewRootKeyMeta()
-	key4.Active = false
-	require.NoError(t, store.UpsertRootKeyMeta(1500, key4))
+	key4.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(1500, key4, false))
 
 	// run the core job
 	snap, err := store.Snapshot()
@@ -2599,6 +2599,19 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 		return true
 	}, time.Second*5, 100*time.Millisecond,
 		"secure variable rekey should be complete")
+
+	iter, err := store.RootKeyMetas(memdb.NewWatchSet())
+	require.NoError(t, err)
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.KeyID != newKeyID {
+			require.True(t, keyMeta.Deprecated())
+		}
+	}
 }
 
 func TestCoreScheduler_FailLoop(t *testing.T) {

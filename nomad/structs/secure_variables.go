@@ -245,19 +245,30 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 // RootKeyMeta is the metadata used to refer to a RootKey. It is
 // stored in raft.
 type RootKeyMeta struct {
-	Active      bool
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
 	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
+	State       RootKeyState
 }
+
+// RootKeyState enum describes the lifecycle of a root key.
+type RootKeyState string
+
+const (
+	RootKeyStateInactive   RootKeyState = "inactive"
+	RootKeyStateActive                  = "active"
+	RootKeyStateRekeying                = "rekeying"
+	RootKeyStateDeprecated              = "deprecated"
+)
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values
 func NewRootKeyMeta() *RootKeyMeta {
 	return &RootKeyMeta{
 		KeyID:      uuid.Generate(),
 		Algorithm:  EncryptionAlgorithmAES256GCM,
+		State:      RootKeyStateInactive,
 		CreateTime: time.Now(),
 	}
 }
@@ -270,7 +281,41 @@ type RootKeyMetaStub struct {
 	KeyID      string
 	Algorithm  EncryptionAlgorithm
 	CreateTime time.Time
-	Active     bool
+	State      RootKeyState
+}
+
+// Active indicates his key is the one currently being used for
+// crypto operations (at most one key can be Active)
+func (rkm *RootKeyMeta) Active() bool {
+	return rkm.State == RootKeyStateActive
+}
+
+func (rkm *RootKeyMeta) SetActive() {
+	rkm.State = RootKeyStateActive
+}
+
+// Rekeying indicates that variables encrypted with this key should be
+// rekeyed
+func (rkm *RootKeyMeta) Rekeying() bool {
+	return rkm.State == RootKeyStateRekeying
+}
+
+func (rkm *RootKeyMeta) SetRekeying() {
+	rkm.State = RootKeyStateRekeying
+}
+
+func (rkm *RootKeyMeta) SetInactive() {
+	rkm.State = RootKeyStateInactive
+}
+
+// Deprecated indicates that variables encrypted with this key
+// have been rekeyed
+func (rkm *RootKeyMeta) Deprecated() bool {
+	return rkm.State == RootKeyStateDeprecated
+}
+
+func (rkm *RootKeyMeta) SetDeprecated() {
+	rkm.State = RootKeyStateDeprecated
 }
 
 func (rkm *RootKeyMeta) Stub() *RootKeyMetaStub {
@@ -281,7 +326,7 @@ func (rkm *RootKeyMeta) Stub() *RootKeyMetaStub {
 		KeyID:      rkm.KeyID,
 		Algorithm:  rkm.Algorithm,
 		CreateTime: rkm.CreateTime,
-		Active:     rkm.Active,
+		State:      rkm.State,
 	}
 
 }
@@ -302,6 +347,12 @@ func (rkm *RootKeyMeta) Validate() error {
 	}
 	if rkm.Algorithm == "" {
 		return fmt.Errorf("root key algorithm is required")
+	}
+	switch rkm.State {
+	case RootKeyStateInactive, RootKeyStateActive,
+		RootKeyStateRekeying, RootKeyStateDeprecated:
+	default:
+		return fmt.Errorf("root key state %q is invalid", rkm.State)
 	}
 	return nil
 }
@@ -342,6 +393,7 @@ type KeyringListRootKeyMetaResponse struct {
 // (see below)
 type KeyringUpdateRootKeyRequest struct {
 	RootKey *RootKey
+	Rekey   bool
 	WriteRequest
 }
 
@@ -366,6 +418,7 @@ type KeyringGetRootKeyResponse struct {
 // metadata to the FSM without including the key material
 type KeyringUpdateRootKeyMetaRequest struct {
 	RootKeyMeta *RootKeyMeta
+	Rekey       bool
 	WriteRequest
 }
 

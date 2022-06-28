@@ -9877,10 +9877,10 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		key := structs.NewRootKeyMeta()
 		keyIDs = append(keyIDs, key.KeyID)
 		if i == 0 {
-			key.Active = true
+			key.SetActive()
 		}
 		index++
-		require.NoError(t, store.UpsertRootKeyMeta(index, key))
+		require.NoError(t, store.UpsertRootKeyMeta(index, key, false))
 	}
 
 	// retrieve the active key
@@ -9894,9 +9894,9 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 	require.NotNil(t, inactiveKey)
 	oldCreateIndex := inactiveKey.CreateIndex
 	newlyActiveKey := inactiveKey.Copy()
-	newlyActiveKey.Active = true
+	newlyActiveKey.SetActive()
 	index++
-	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey))
+	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey, false))
 
 	iter, err := store.RootKeyMetas(nil)
 	require.NoError(t, err)
@@ -9907,10 +9907,10 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		}
 		key := raw.(*structs.RootKeyMeta)
 		if key.KeyID == newlyActiveKey.KeyID {
-			require.True(t, key.Active, "expected updated key to be active")
+			require.True(t, key.Active(), "expected updated key to be active")
 			require.Equal(t, oldCreateIndex, key.CreateIndex)
 		} else {
-			require.False(t, key.Active, "expected other keys to be inactive")
+			require.False(t, key.Active(), "expected other keys to be inactive")
 		}
 	}
 
@@ -9928,7 +9928,7 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		}
 		key := raw.(*structs.RootKeyMeta)
 		require.NotEqual(t, keyIDs[1], key.KeyID)
-		require.False(t, key.Active, "expected remaining keys to be inactive")
+		require.False(t, key.Active(), "expected remaining keys to be inactive")
 		found++
 	}
 	require.Equal(t, 2, found, "expected only 2 keys remaining")

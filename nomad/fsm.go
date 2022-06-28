@@ -2024,7 +2024,7 @@ func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byt
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertRootKeyMeta(index, req.RootKeyMeta); err != nil {
+	if err := n.state.UpsertRootKeyMeta(index, req.RootKeyMeta, req.Rekey); err != nil {
 		n.logger.Error("UpsertRootKeyMeta failed", "error", err)
 		return err
 	}

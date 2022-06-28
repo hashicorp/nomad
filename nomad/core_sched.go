@@ -827,7 +827,7 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 			break
 		}
 		keyMeta := raw.(*structs.RootKeyMeta)
-		if keyMeta.Active {
+		if keyMeta.Active() {
 			continue // never GC the active key
 		}
 		if keyMeta.CreateIndex > oldThreshold {
@@ -914,8 +914,8 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 			break
 		}
 		keyMeta := raw.(*structs.RootKeyMeta)
-		if keyMeta.Active {
-			continue // never rotate
+		if !keyMeta.Rekeying() {
+			continue
 		}
 		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
 		if err != nil {
@@ -923,6 +923,30 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 		}
 		err = c.batchRotateVariables(varIter, eval)
 		if err != nil {
+			return err
+		}
+
+		// we've now rotated all this key's variables, so set its state
+		keyMeta = keyMeta.Copy()
+		keyMeta.SetDeprecated()
+
+		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		req := &structs.KeyringUpdateRootKeyRequest{
+			RootKey: &structs.RootKey{
+				Meta: keyMeta,
+				Key:  key,
+			},
+			Rekey: false,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL},
+		}
+		if err := c.srv.RPC("Keyring.Update",
+			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
+			c.logger.Error("root key update failed", "error", err)
 			return err
 		}
 	}
@@ -943,7 +967,7 @@ func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *st
 			Data: variables,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL, // TODO: will this work?
+				AuthToken: eval.LeaderACL,
 			},
 		}
 		reply := &structs.SecureVariablesUpsertResponse{}

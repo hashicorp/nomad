@@ -1708,7 +1708,7 @@ func (s *Server) initializeKeyring() error {
 	s.logger.Named("core").Trace("initializing keyring")
 
 	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
-	rootKey.Meta.Active = true
+	rootKey.Meta.SetActive()
 	if err != nil {
 		return fmt.Errorf("could not initialize keyring: %v", err)
 	}

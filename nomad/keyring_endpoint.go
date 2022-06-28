@@ -43,7 +43,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		return err
 	}
 
-	rootKey.Meta.Active = true
+	rootKey.Meta.SetActive()
 
 	// make sure it's been added to the local keystore before we write
 	// it to raft, so that followers don't try to Get a key that
@@ -56,6 +56,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	// Update metadata via Raft so followers can retrieve this key
 	req := structs.KeyringUpdateRootKeyMetaRequest{
 		RootKeyMeta:  rootKey.Meta,
+		Rekey:        args.Full,
 		WriteRequest: args.WriteRequest,
 	}
 	out, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
@@ -69,6 +70,8 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	reply.Index = index
 
 	if args.Full {
+		// like most core jobs, we don't commit this to raft b/c it's not
+		// going to be periodically recreated and the ACL is from this leader
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   "-",
@@ -78,21 +81,9 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 			JobID:       structs.CoreJobSecureVariablesRekey,
 			Status:      structs.EvalStatusPending,
 			ModifyIndex: index,
+			LeaderACL:   k.srv.getLeaderAcl(),
 		}
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// unlike most core jobs, we commit this to raft b/c it's not
-		// going to be periodically recreated
-		_, index, err = k.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			k.logger.Error("eval create failed", "error", err)
-			return err
-		}
-		reply.Index = index
-		return nil
+		k.srv.evalBroker.Enqueue(eval)
 	}
 
 	return nil
@@ -310,7 +301,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	if keyMeta == nil {
 		return nil // safe to bail out early
 	}
-	if keyMeta.Active {
+	if keyMeta.Active() {
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
 	}
 
