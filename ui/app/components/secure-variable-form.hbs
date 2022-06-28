@@ -35,18 +35,18 @@
   </div>
   {{#if (eq this.view "json")}}
     <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
+      <div
+        {{code-mirror
+          content=(stringify-object this.JSONItems)
+          onUpdate=this.updateCode
+          extraKeys=(hash Cmd-Enter=(action "save"))
+        }}
+      ></div>
       {{#if this.JSONError}}
         <p class="help is-danger">
           {{this.JSONError}}
         </p>
       {{/if}}
-      <div
-        {{code-mirror
-          content=(or this._editedJSONItems (stringify-object this.JSONItems))
-          onUpdate=this.updateCode
-          extraKeys=(hash Cmd-Enter=(action "save"))
-        }}
-      ></div>
     </div>
   {{else}}
     {{#each this.keyValues as |entry iter|}}

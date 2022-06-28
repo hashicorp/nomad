@@ -23,6 +23,9 @@ export default class CodeMirrorModifier extends Modifier {
       return;
     }
     if (this._editor.getValue() !== this.args.named.content) {
+      console.log('celui', this);
+      debugger;
+      this.performLint();
       this._editor.setValue(this.args.named.content);
     }
   }
@@ -45,7 +48,7 @@ export default class CodeMirrorModifier extends Modifier {
       tabSize: 2,
       // all values we can pass into the JsonEditor
       extraKeys: this.args.named.extraKeys || '',
-      lineNumbers: this.args.named.lineNumbers || true,
+      lineNumbers: this.args.named.lineNumbers,
       mode: this.args.named.mode || 'application/json',
       readOnly: this.args.named.readOnly || false,
       theme: this.args.named.theme || 'hashi',

@@ -179,12 +179,7 @@ export default class SecureVariableFormComponent extends Component {
             return acc;
           }, {})
       );
-
-      set(this, '_editedJSONItems', null);
     } else if (view === 'table') {
-      // // Reset any error state, since the errorring json will not persist
-      // set(this, 'JSONError', null);
-
       // Translate JSON to table
       set(
         this,
@@ -200,15 +195,18 @@ export default class SecureVariableFormComponent extends Component {
         )
       );
     }
-    // return this.keyValues.reduce((acc, { key, value }) => {
-    //   acc[key] = value;
-    //   return acc;
-    // }, {});
+
+    // Reset any error state, since the errorring json will not persist
+    set(this, 'JSONError', null);
   }
+
   get stringifiedItems() {
     return JSON.stringify(this.args.model.items, null, 2);
   }
-  _editedJSONItems = '';
+
+  /**
+   * @type {string}
+   */
   @tracked JSONError = null;
   /**
    *
