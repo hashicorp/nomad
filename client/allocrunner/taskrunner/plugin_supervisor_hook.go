@@ -140,7 +140,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 
 	// Create the mount directory that the container will access if it doesn't
 	// already exist. Default to only nomad user access.
-	if err := os.MkdirAll(h.mountPoint, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(h.mountPoint, 0750); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create mount point: %v", err)
 	}
 

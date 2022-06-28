@@ -86,7 +86,7 @@ func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume, usage *UsageOpt
 	stagingPath := v.stagingDirForVolume(v.mountRoot, vol.ID, usage)
 
 	// Make the staging path, owned by the Nomad User
-	if err := os.MkdirAll(stagingPath, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(stagingPath, 0750); err != nil && !os.IsExist(err) {
 		return "", false, fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
 
 	}
@@ -111,7 +111,7 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 	allocPath := v.allocDirForVolume(v.mountRoot, vol.ID, alloc.ID)
 
 	// Make the alloc path, owned by the Nomad User
-	if err := os.MkdirAll(allocPath, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(allocPath, 0750); err != nil && !os.IsExist(err) {
 		return "", false, fmt.Errorf("failed to create allocation directory for volume (%s): %v", vol.ID, err)
 	}
 
