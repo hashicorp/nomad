@@ -180,11 +180,9 @@ export default class KeyboardService extends Service {
             .filterBy('enumerated')
             .filter((c) => c.url === command.url).length
         );
-        this.keyCommands.pushObjects(commands);
-      } else {
-        this.keyCommands.pushObjects(commands);
       }
     });
+    this.keyCommands.pushObjects(commands);
   }
 
   removeCommands(commands) {
