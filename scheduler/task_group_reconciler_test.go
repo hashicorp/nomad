@@ -155,6 +155,7 @@ func TestTaskGroupReconciler_BuildsCandidates_ByAllocName(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			util.SetIDs(tc.allocs)
+			util.SetTaskGroup("web", tc.allocs)
 
 			allocs := allocSet{}
 			allocNames := map[string]int{}
