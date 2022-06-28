@@ -1375,7 +1375,7 @@ func (a *allocReconciler) reconcileGroup(taskGroupName string, all allocSet) boo
 	tgReconciler := newTaskGroupReconciler(taskGroupName, a.logger, a.allocUpdateFn, a.batch, a.jobID, a.job, a.deployment,
 		all, a.taintedNodes, a.evalID, a.evalPriority, a.result, a.supportsDisconnectedClients)
 
-	tgReconciler.AppendResults()
+	tgReconciler.appendResults()
 
-	return tgReconciler.DeploymentComplete()
+	return tgReconciler.deploymentComplete()
 }

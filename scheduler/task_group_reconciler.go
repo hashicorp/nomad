@@ -198,7 +198,7 @@ func (tgr *taskGroupReconciler) addToStop(alloc *structs.Allocation, reason stri
 	tgr.desiredUpdates.Stop++
 }
 
-func (tgr *taskGroupReconciler) DeploymentPaused() bool {
+func (tgr *taskGroupReconciler) deploymentPaused() bool {
 	if tgr.deployment != nil {
 		return tgr.deployment.Status == structs.DeploymentStatusPaused ||
 			tgr.deployment.Status == structs.DeploymentStatusPending
@@ -206,7 +206,7 @@ func (tgr *taskGroupReconciler) DeploymentPaused() bool {
 	return true
 }
 
-func (tgr *taskGroupReconciler) DeploymentFailed() bool {
+func (tgr *taskGroupReconciler) deploymentFailed() bool {
 	if tgr.deployment != nil {
 		return tgr.deployment.Status == structs.DeploymentStatusFailed
 	}
@@ -214,33 +214,33 @@ func (tgr *taskGroupReconciler) DeploymentFailed() bool {
 	return false
 }
 
-func (tgr *taskGroupReconciler) AppendResults() {
+func (tgr *taskGroupReconciler) appendResults() {
 	for _, slot := range tgr.allocSlots {
-		tgr.result.stop = append(tgr.result.stop, slot.StopResults()...)
-		tgr.result.place = append(tgr.result.place, slot.PlaceResults()...)
-		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.DestructiveResults()...)
-		tgr.result.inplaceUpdate = append(tgr.result.inplaceUpdate, slot.InplaceUpdates()...)
-		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.AttributeUpdates())
-		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.DisconnectUpdates())
-		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.ReconnectUpdates())
+		tgr.result.stop = append(tgr.result.stop, slot.stopResults()...)
+		tgr.result.place = append(tgr.result.place, slot.placeResults()...)
+		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.destructiveResults()...)
+		tgr.result.inplaceUpdate = append(tgr.result.inplaceUpdate, slot.inplaceUpdates()...)
+		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.attributeUpdates())
+		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.disconnectUpdates())
+		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.reconnectUpdates())
 		tgr.result.desiredFollowupEvals[tgr.taskGroupName] = append(tgr.result.desiredFollowupEvals[tgr.taskGroupName], slot.followupEvals...)
-		tgr.HandleDesiredUpdates(slot)
+		tgr.handleDesiredUpdates(slot)
 	}
 
-	tgr.DeploymentStatusUpdate()
+	tgr.deploymentStatusUpdate()
 	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.desiredUpdates
 }
 
-func (tgr *taskGroupReconciler) DeploymentStatusUpdate() {
+func (tgr *taskGroupReconciler) deploymentStatusUpdate() {
 	// TODO
 }
 
-func (tgr *taskGroupReconciler) DeploymentComplete() bool {
+func (tgr *taskGroupReconciler) deploymentComplete() bool {
 	return false
 }
 
 // TODO: Experiment with whether to handle along the way versus at the end.
-func (tgr *taskGroupReconciler) HandleDesiredUpdates(slot *allocSlot) {
+func (tgr *taskGroupReconciler) handleDesiredUpdates(slot *allocSlot) {
 	tgr.desiredUpdates.Stop += slot.desiredUpdates.Stop
 	tgr.desiredUpdates.Place += slot.desiredUpdates.Place
 	tgr.desiredUpdates.DestructiveUpdate += slot.desiredUpdates.DestructiveUpdate

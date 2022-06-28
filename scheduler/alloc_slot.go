@@ -11,35 +11,35 @@ type allocSlot struct {
 	followupEvals  []*structs.Evaluation
 }
 
-func (as *allocSlot) PlaceResults() []allocPlaceResult {
+func (as *allocSlot) placeResults() []allocPlaceResult {
 	return nil
 }
 
-func (as *allocSlot) StopResults() []allocStopResult {
+func (as *allocSlot) stopResults() []allocStopResult {
 	return nil
 }
 
-func (as *allocSlot) DeploymentStatusUpdates() []*structs.DeploymentStatusUpdate {
+func (as *allocSlot) deploymentStatusUpdates() []*structs.DeploymentStatusUpdate {
 	return nil
 }
 
-func (as *allocSlot) DestructiveResults() []allocDestructiveResult {
+func (as *allocSlot) destructiveResults() []allocDestructiveResult {
 	return nil
 }
 
-func (as *allocSlot) InplaceUpdates() []*structs.Allocation {
+func (as *allocSlot) inplaceUpdates() []*structs.Allocation {
 	return nil
 }
 
-func (as *allocSlot) AttributeUpdates() map[string]*structs.Allocation {
+func (as *allocSlot) attributeUpdates() map[string]*structs.Allocation {
 	return nil
 }
 
-func (as *allocSlot) DisconnectUpdates() map[string]*structs.Allocation {
+func (as *allocSlot) disconnectUpdates() map[string]*structs.Allocation {
 	return nil
 }
 
-func (as *allocSlot) ReconnectUpdates() map[string]*structs.Allocation {
+func (as *allocSlot) reconnectUpdates() map[string]*structs.Allocation {
 	return nil
 }
 
