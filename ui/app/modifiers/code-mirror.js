@@ -7,9 +7,6 @@ import 'codemirror/addon/edit/matchbrackets';
 import 'codemirror/addon/selection/active-line';
 import 'codemirror/addon/lint/lint.js';
 import 'codemirror/addon/lint/json-lint.js';
-// right now we only use the ruby and javascript, if you use another mode you'll need to import it.
-// https://codemirror.net/mode/
-import 'codemirror/mode/ruby/ruby';
 import 'codemirror/mode/javascript/javascript';
 
 export default class CodeMirrorModifier extends Modifier {
@@ -45,7 +42,7 @@ export default class CodeMirrorModifier extends Modifier {
       tabSize: 2,
       // all values we can pass into the JsonEditor
       extraKeys: this.args.named.extraKeys || '',
-      lineNumbers: this.args.named.lineNumbers,
+      lineNumbers: this.args.named.lineNumbers || true,
       mode: this.args.named.mode || 'application/json',
       readOnly: this.args.named.readOnly || false,
       theme: this.args.named.theme || 'hashi',
