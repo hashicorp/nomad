@@ -31,6 +31,7 @@
     {{#unless this.isDeleting}}
       <div class="two-step-button">
         <LinkTo
+          data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
           @route="variables.variable.edit"
