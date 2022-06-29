@@ -31,6 +31,7 @@
     {{#unless this.isDeleting}}
       <div class="two-step-button">
         <LinkTo
+          data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
           @route="variables.variable.edit"
@@ -55,7 +56,7 @@
 </h1>
 <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
   <t.body as |row|>
-    <tr>
+    <tr data-test-var={{row.model.key}}>
       <td>
         {{row.model.key}}
       </td>
