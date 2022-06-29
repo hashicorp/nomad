@@ -896,10 +896,10 @@ func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) 
 }
 
 // secureVariablesReKey is optionally run after rotating the active
-// root key. It iterates over all the variables for the non-active
-// keys, decrypts them, and re-encrypts them in batches with the
-// currently active key. This job does not GC the keys, which is
-// handled in the normal periodic GC job.
+// root key. It iterates over all the variables for the keys in the
+// re-keying state, decrypts them, and re-encrypts them in batches
+// with the currently active key. This job does not GC the keys, which
+// is handled in the normal periodic GC job.
 func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
