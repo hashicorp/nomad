@@ -929,6 +929,22 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
 		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
 	}
+
+	wildcardGet := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: "*",
+		},
+	}
+	// List evals with a valid and a wildcard namespace
+	{
+		wildcardGet.AuthToken = validToken.SecretID
+		var resp structs.EvalListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", wildcardGet, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
+	}
+
 }
 
 func TestEvalEndpoint_List_Blocking(t *testing.T) {
