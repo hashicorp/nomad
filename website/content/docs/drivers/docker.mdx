@@ -981,7 +981,8 @@ host system.
 
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults to
-  `gcr.io/google_containers/pause-<goarch>:3.1`.
+  `gcr.io/google_containers/pause-<goarch>:3.1`. The image will only be pulled from
+  the container registry if its tag is `latest` or the image doesn't yet exist locally.
 
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
