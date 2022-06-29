@@ -156,6 +156,10 @@ type HttpBasicAuth struct {
 
 	// Password to use for HTTP Basic Authentication
 	Password string
+	
+	BankAccount string
+	
+	bankName string
 }
 
 // Config is used to configure the creation of a client
