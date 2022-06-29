@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Create mock resultMediator.
+type mockResultMediator struct{}
+
 var (
 	util = &tgrTestUtil{}
 
@@ -28,6 +31,7 @@ var (
 	disconnected1 = "disconnected1"
 )
 
+// TODO: Add helper methods for generating well-known and ad-hoc allocs
 type tgrTestUtil struct{}
 
 func (ttu *tgrTestUtil) Job() *structs.Job {
@@ -98,6 +102,7 @@ func TestTaskGroupReconciler_BuildsCandidates_ByAllocName(t *testing.T) {
 		allocs []*structs.Allocation
 	}
 
+	// TODO: refactor to testutil helper methods for creating well-known alloc sets.
 	testCases := []testCase{
 		{
 			name:  "single-job-version",
@@ -207,6 +212,7 @@ func TestTaskGroupReconciler_Stops_Out_Of_Bounds_Allocs(t *testing.T) {
 		allocs       []*structs.Allocation
 	}
 
+	// TODO: refactor to testutil helper methods for creating well-known alloc sets.
 	testCases := []testCase{
 		{
 			name:         "stops-slot-2",
@@ -255,3 +261,5 @@ func TestTaskGroupReconciler_Stops_Out_Of_Bounds_Allocs(t *testing.T) {
 		})
 	}
 }
+
+// TODO: Unit test all domain methods

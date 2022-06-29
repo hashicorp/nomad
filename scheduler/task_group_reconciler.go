@@ -1,11 +1,22 @@
 package scheduler
 
 import (
+	"github.com/hashicorp/nomad/helper"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// resultMediator encapsulates the set of functions alloc slots need to
+// call to mutate shared state, without exposing state to each slot instance.
+// This ensures only the task group reconciler can mutate shared state, and
+// in predictable places. This also enables easy mocking of the task group
+// reconciler for unit testing alloc slot behavior.
+type resultMediator interface {
+	addToStop(alloc *structs.Allocation, reason string)
+	stopMigrating(alloc *structs.Allocation)
+}
 
 type taskGroupReconciler struct {
 	taskGroupName string
@@ -71,6 +82,22 @@ type taskGroupReconciler struct {
 	// allocSlots holds the set of available slots equal to the task group count
 	// and are responsible for determining how to fill the slot.
 	allocSlots map[string]*allocSlot
+
+	// rescheduleNow is the set of Allocations that need to be rescheduled immediately
+	// due to failure or client disconnect.
+	rescheduleNow []*structs.Allocation
+
+	// rescheduleLater is the set of Allocations that need to be rescheduled
+	// at a future time. Rescheduling is delayed either due to rescheduling
+	// policy or the max_client_disconnect setting.
+	rescheduleLater []*delayedRescheduleInfo
+
+	// deploymentState tracks the state of a deployment for the task group.
+	deploymentState *structs.DeploymentState
+
+	// deploymentInProgress indicates whether a deployment state for the task group
+	// was found or whether this is the first pass for the deployment.
+	deploymentInProgress bool
 }
 
 func ensureResultDefaults(result *reconcileResults) {
@@ -135,6 +162,20 @@ func newTaskGroupReconciler(taskGroupName string, logger log.Logger, allocUpdate
 		result:                      result,
 		desiredUpdates:              &structs.DesiredUpdates{},
 		followupEvals:               []*structs.Evaluation{},
+		rescheduleNow:               []*structs.Allocation{},
+		rescheduleLater:             []*delayedRescheduleInfo{},
+	}
+
+	// Set the desired updates reference for the group.
+	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.desiredUpdates
+
+	tgr.taskGroup = tgr.job.LookupTaskGroup(tgr.taskGroupName)
+	// If the task group is nil, we can return with no further processing.
+	// Later appendResults will create stop results for all existing allocs
+	// and deploymentComplete will return true. A nil task groups indicates
+	// the job was updated such that the task group no longer exists.
+	if tgr.taskGroup == nil {
+		return tgr
 	}
 
 	// TODO: See if we can do without this map
@@ -168,11 +209,13 @@ func (tgr *taskGroupReconciler) buildAllocSlots(existingAllocsBySlotName map[str
 			index:      index,
 			taskGroup:  tgr.taskGroup,
 			candidates: existingAllocsBySlotName[name],
+			mediator:   tgr,
 		}
 		tgr.allocSlots[slot.name] = slot
 	}
 }
 
+// TODO: Add or integrate with tests.
 // stopInvalidTargets stops existing allocations that target a slot that the TaskGroup.Count no longer supports.
 func (tgr *taskGroupReconciler) stopInvalidTargets(existingAllocsBySlotName map[string][]*structs.Allocation) {
 	for existingSlotName, existingAllocs := range existingAllocsBySlotName {
@@ -184,6 +227,7 @@ func (tgr *taskGroupReconciler) stopInvalidTargets(existingAllocsBySlotName map[
 	}
 }
 
+// TODO: Add or integrate with tests.
 func (tgr *taskGroupReconciler) addToStop(alloc *structs.Allocation, reason string) {
 	// TODO: Is there the potential this has been mutated during processing but not persisted?
 	// TODO: Do we need to check the index?
@@ -195,7 +239,17 @@ func (tgr *taskGroupReconciler) addToStop(alloc *structs.Allocation, reason stri
 		alloc:             alloc,
 		statusDescription: reason,
 	})
+
 	tgr.desiredUpdates.Stop++
+}
+
+// TODO: Add or integrate with tests.
+func (tgr *taskGroupReconciler) stopMigrating(alloc *structs.Allocation) {
+	tgr.result.stop = append(tgr.result.stop, allocStopResult{
+		alloc:             alloc,
+		statusDescription: allocMigrating,
+	})
+	tgr.desiredUpdates.Migrate++
 }
 
 func (tgr *taskGroupReconciler) deploymentPaused() bool {
@@ -214,41 +268,144 @@ func (tgr *taskGroupReconciler) deploymentFailed() bool {
 	return false
 }
 
+// TODO: Add or integrate with tests.
+// TODO: Do we want to manage desiredUpdates here or along the way in each slot handler?
+// appendResults iterates over alloc slots and invokes the appendResults function
+// for each slot. Application of domain logic for that slot is delegated to the
+// slot instance. The task group reconciler is passed by interface to each domain
+// method so that management of shared state is consolidated within a single component.
+// This is useful for mock testing as well.
 func (tgr *taskGroupReconciler) appendResults() {
-	for _, slot := range tgr.allocSlots {
-		tgr.result.stop = append(tgr.result.stop, slot.stopResults()...)
-		tgr.result.place = append(tgr.result.place, slot.placeResults()...)
-		tgr.result.destructiveUpdate = append(tgr.result.destructiveUpdate, slot.destructiveResults()...)
-		tgr.result.inplaceUpdate = append(tgr.result.inplaceUpdate, slot.inplaceUpdates()...)
-		tgr.result.attributeUpdates = mergeAllocMaps(tgr.result.attributeUpdates, slot.attributeUpdates())
-		tgr.result.disconnectUpdates = mergeAllocMaps(tgr.result.disconnectUpdates, slot.disconnectUpdates())
-		tgr.result.reconnectUpdates = mergeAllocMaps(tgr.result.reconnectUpdates, slot.reconnectUpdates())
-		tgr.result.desiredFollowupEvals[tgr.taskGroupName] = append(tgr.result.desiredFollowupEvals[tgr.taskGroupName], slot.followupEvals...)
-		tgr.handleDesiredUpdates(slot)
+	// If the task group is nil, then the task group has been removed so all we
+	// need to do is stop everything and return.
+	if tgr.taskGroup == nil {
+		for _, alloc := range tgr.existingAllocs {
+			tgr.addToStop(alloc, allocNotNeeded)
+		}
+		return
 	}
 
-	tgr.deploymentStatusUpdate()
-	tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.desiredUpdates
+	tgr.initDeploymentState()
+
+	for _, slot := range tgr.allocSlots {
+		slot.resolveCandidates()
+	}
 }
 
-func (tgr *taskGroupReconciler) deploymentStatusUpdate() {
-	// TODO
+// TODO: Add or integrate with tests.
+// initDeploymentState ensures the deployment state for the current reconciliation pass
+// is either initialized from state if a deployment is in progress, or creates a new one
+// if this is the first pass for the deployment. When creating a new deployment state, this
+// function ensures the deployment is configured to apply the task group update policy if set.
+func (tgr *taskGroupReconciler) initDeploymentState() {
+	if tgr.deployment != nil {
+		tgr.deploymentState, tgr.deploymentInProgress = tgr.deployment.TaskGroups[tgr.taskGroupName]
+	}
+
+	if tgr.deploymentInProgress {
+		return
+	}
+
+	tgr.deploymentState = &structs.DeploymentState{}
+
+	update := tgr.taskGroup.Update
+	if !update.IsEmpty() {
+		tgr.deploymentState.AutoRevert = update.AutoRevert
+		tgr.deploymentState.AutoPromote = update.AutoPromote
+		tgr.deploymentState.ProgressDeadline = update.ProgressDeadline
+	}
+
+	return
 }
 
+// TODO: Add or integrate with tests.
+// deploymentComplete inspects the current deployment state and the desired updates
+// for this reconciliation pass to determine whether the deployment will be complete
+// once the results from this pass are applied.
 func (tgr *taskGroupReconciler) deploymentComplete() bool {
-	return false
+	if tgr.taskGroup == nil {
+		return true
+	}
+
+	deploymentComplete := !tgr.requiresCanaries() && !tgr.requiresUpdates()
+
+	if !deploymentComplete || tgr.deployment == nil {
+		return false
+	}
+
+	// Final check to see if the deployment is deploymentComplete is to ensure everything is healthy
+
+	if tgr.deploymentState.HealthyAllocs < helper.IntMax(tgr.deploymentState.DesiredTotal, tgr.deploymentState.DesiredCanaries) ||
+		// Make sure we have enough healthy allocs
+		(tgr.deploymentState.DesiredCanaries > 0 && !tgr.deploymentState.Promoted) { // Make sure we are promoted if we have canaries
+		deploymentComplete = false
+	}
+
+	tgr.updateDeploymentStatus(deploymentComplete)
+	// TODO: Ensure the pointer is correctly manipulated and we don't need to reset.
+	// tgr.result.desiredTGUpdates[tgr.taskGroupName] = tgr.desiredUpdates
+
+	return deploymentComplete
 }
 
-// TODO: Experiment with whether to handle along the way versus at the end.
-func (tgr *taskGroupReconciler) handleDesiredUpdates(slot *allocSlot) {
-	tgr.desiredUpdates.Stop += slot.desiredUpdates.Stop
-	tgr.desiredUpdates.Place += slot.desiredUpdates.Place
-	tgr.desiredUpdates.DestructiveUpdate += slot.desiredUpdates.DestructiveUpdate
-	tgr.desiredUpdates.InPlaceUpdate += slot.desiredUpdates.InPlaceUpdate
-	tgr.desiredUpdates.Canary += slot.desiredUpdates.Canary
-	tgr.desiredUpdates.Ignore += slot.desiredUpdates.Ignore
-	tgr.desiredUpdates.Migrate += slot.desiredUpdates.Migrate
-	tgr.desiredUpdates.Preemptions += slot.desiredUpdates.Preemptions
+// TODO: Add or integrate with tests.
+// requiresCanaries compares the task group update configuration with
+// the deployment state and desired updates for this reconciliation
+// pass and returns whether further canaries are needed.
+func (tgr *taskGroupReconciler) requiresCanaries() bool {
+	canariesPromoted := tgr.deploymentState != nil && tgr.deploymentState.Promoted
+
+	return tgr.taskGroup.Update != nil &&
+		tgr.desiredUpdates.DestructiveUpdate != 0 &&
+		tgr.desiredUpdates.Canary < uint64(tgr.taskGroup.Update.Canary) &&
+		!canariesPromoted
+}
+
+// TODO: Add or integrate with tests.
+// requiresUpdates examines the desiredUpdates and reschedule results
+// and returns whether the task group requires further updates.
+func (tgr *taskGroupReconciler) requiresUpdates() bool {
+	updates := tgr.desiredUpdates
+	rescheduleCount := uint64(len(tgr.rescheduleNow) + len(tgr.rescheduleLater))
+	return (updates.DestructiveUpdate + updates.InPlaceUpdate + updates.Place + updates.Migrate + rescheduleCount) > 0
+}
+
+// TODO: Add or integrate with tests.
+// updateDeploymentStatus manages the status and status description of the current
+// deployment based on the results of the current reconciliation pass.
+func (tgr *taskGroupReconciler) updateDeploymentStatus(deploymentComplete bool) {
+	// Mark the deployment as complete if possible
+	if tgr.deployment != nil && deploymentComplete {
+		if tgr.job.IsMultiregion() {
+			// the unblocking/successful states come after blocked, so we
+			// need to make sure we don't revert those states.
+			if tgr.deployment.Status != structs.DeploymentStatusUnblocking &&
+				tgr.deployment.Status != structs.DeploymentStatusSuccessful {
+				tgr.result.deploymentUpdates = append(tgr.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      tgr.deployment.ID,
+					Status:            structs.DeploymentStatusBlocked,
+					StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+				})
+			}
+		} else {
+			tgr.result.deploymentUpdates = append(tgr.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      tgr.deployment.ID,
+				Status:            structs.DeploymentStatusSuccessful,
+				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			})
+		}
+	}
+
+	// Set the description of a created deployment
+	if d := tgr.result.deployment; d != nil {
+		if d.RequiresPromotion() {
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+		}
+	}
 }
 
 // TODO (derek): replace all this boilerplate with generics now that we have updated go version.
