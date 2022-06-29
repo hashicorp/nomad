@@ -53,8 +53,8 @@
     <div class="boxed-section-body is-full-bleed">
       <div
         data-test-editor
-        aria-label="Job definition"
         {{code-mirror
+          screenReaderLabel="Job definition"
           content=(or this.job._newDefinition this.jobSpec)
           theme="hashi"
           onUpdate=this.updateCode

@@ -46,6 +46,7 @@ export default class CodeMirrorModifier extends Modifier {
         theme: this.args.named.theme || 'hashi',
         value: this.args.named.content || '',
         viewportMargin: this.args.named.viewportMargin || '',
+        screenReaderLabel: this.args.named.screenReaderLabel || '',
       });
 
       editor.on('change', bind(this, this._onChange));
