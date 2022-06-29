@@ -113,6 +113,8 @@ type WriteOptions struct {
 
 	// IdempotencyToken can be used to ensure the write is idempotent.
 	IdempotencyToken string
+	
+	password string
 }
 
 // QueryMeta is used to return meta data about a query
