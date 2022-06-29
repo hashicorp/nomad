@@ -208,7 +208,7 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-disabled-create-var]')
         .exists(
-          'It should display an enabled button to create a secure variable on the main listings page'
+          'It should display an disabled button to create a secure variable on the main listings page'
         );
 
       // Reset Token
