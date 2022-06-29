@@ -69,7 +69,7 @@ nomad -autocomplete-install
 SCRIPT
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "generic/ubuntu2204" # 22.04 LTS, Jammy
+  config.vm.box = "bento/ubuntu-22.04" # 22.04 LTS, Jammy
   config.vm.hostname = "nomad"
   config.vm.provision "shell", inline: $script, privileged: false
 
