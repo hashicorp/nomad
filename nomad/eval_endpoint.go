@@ -574,6 +574,8 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		// TODO: a wildcard namespace here (structs.AllNamespacesSentinel) isn't checked until further down, so we throw a 403 even if token has job.read and namespace is *
+		// Reproducible w/ nomad operator api '/v1/evaluations?filter=&namespace=*&next_token=&per_page=25&reverse=true'
 		return structs.ErrPermissionDenied
 	}
 
