@@ -1,9 +1,5 @@
-const invariant = (truthy, error) => {
-  if (!truthy) throw new Error(error);
-};
-
-export function getCodeMirrorInstance(container) {
-  return function (selector) {
+export function getCodeMirrorInstance() {
+  return function () {
     return document.querySelector('.CodeMirror').CodeMirror;
   };
 }
