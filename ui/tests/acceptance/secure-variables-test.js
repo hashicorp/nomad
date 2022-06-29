@@ -215,4 +215,72 @@ module('Acceptance | secure variables', function (hooks) {
       window.localStorage.nomadTokenSecret = null;
     });
   });
+
+  module('edit flow', function () {
+    test('allows a user with correct permissions to edit a secure variable', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+      await click('[data-test-file-row]');
+      // End Test Set-up
+
+      assert.equal(currentRouteName(), 'variables.variable.index');
+      assert
+        .dom('[data-test-edit-button]')
+        .exists('The edit button is enabled in the view.');
+      await click('[data-test-edit-button]');
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.edit',
+        'Clicking the button navigates you to editing view.'
+      );
+
+      assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
+
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'kiki');
+      await typeIn('[data-test-var-value]', 'do you love me');
+      await click('[data-test-submit-var]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.index',
+        'Navigates user back to variables list page after creating variable.'
+      );
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on edit.');
+      assert
+        .dom('[data-test-var=kiki]')
+        .exists('The edited variable key should appear in the list.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('prevents users from editing a secure variable without proper permissions', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      const policy = server.db.policies.find('Variable Maker');
+      policy.rulesJSON.Namespaces[0].SecureVariables['Path "*"'].Capabilities =
+        ['list'];
+      await Variables.visit();
+      await click('[data-test-file-row]');
+      // End Test Set-up
+
+      assert.equal(currentRouteName(), 'variables.variable.index');
+      assert
+        .dom('[data-test-edit-button]')
+        .doesNotExist('The edit button is hidden in the view.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+  });
 });
