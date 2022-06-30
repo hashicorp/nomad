@@ -60,7 +60,7 @@ export default class SecureVariableFormComponent extends Component {
      * This will allow it to auto-focus and make all other rows deletable
      */
     if (!this.args.model?.isNew) {
-      keyValues.pushObject(EMPTY_KV);
+      keyValues.pushObject(copy(EMPTY_KV));
     }
     this.keyValues = keyValues;
 
@@ -98,7 +98,7 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   @action appendRow() {
-    this.keyValues.pushObject(EMPTY_KV);
+    this.keyValues.pushObject(copy(EMPTY_KV));
   }
 
   @action deleteRow(row) {
