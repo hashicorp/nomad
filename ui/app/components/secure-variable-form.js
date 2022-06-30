@@ -10,7 +10,6 @@ import EmberObject, { set } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
-import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -198,10 +197,6 @@ export default class SecureVariableFormComponent extends Component {
 
     // Reset any error state, since the errorring json will not persist
     set(this, 'JSONError', null);
-  }
-
-  get stringifiedItems() {
-    return stringifyObject([this.args.model.items]);
   }
 
   /**

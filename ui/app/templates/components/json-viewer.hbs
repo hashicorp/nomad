@@ -1,7 +1,7 @@
 <div
   data-test-json-viewer
   {{code-mirror
-    content=this.jsonStr
+    content=(stringify-object @json)
     theme="hashi-read-only"
     readOnly=true
     screenReaderLabel="JSON Viewer"

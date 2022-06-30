@@ -55,7 +55,7 @@
         data-test-editor
         {{code-mirror
           screenReaderLabel="Job definition"
-          content=(or this.job._newDefinition this.jobSpec)
+          content=this.job._newDefinition
           theme="hashi"
           onUpdate=this.updateCode
           mode="javascript"
