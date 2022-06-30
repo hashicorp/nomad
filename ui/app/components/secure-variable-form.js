@@ -134,7 +134,6 @@ export default class SecureVariableFormComponent extends Component {
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
-        showProgress: true,
       });
       this.router.transitionTo('variables.variable', this.args.model.path);
     } catch (error) {
@@ -175,6 +174,11 @@ export default class SecureVariableFormComponent extends Component {
             return acc;
           }, {})
       );
+
+      // Give the user a foothold if they're transitioning an empty K/V form into JSON
+      if (!Object.keys(this.JSONItems).length) {
+        set(this, 'JSONItems', { '': '' });
+      }
     } else if (view === 'table') {
       // Translate JSON to table
       set(
