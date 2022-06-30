@@ -11,6 +11,12 @@ import EmberObject, { set } from '@ember/object';
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 
+const EMPTY_KV = {
+  key: '',
+  value: '',
+  warnings: EmberObject.create(),
+};
+
 export default class SecureVariableFormComponent extends Component {
   @service router;
   @service flashMessages;
@@ -53,13 +59,8 @@ export default class SecureVariableFormComponent extends Component {
      * Appends a row to the end of the Items list if you're editing an existing variable.
      * This will allow it to auto-focus and make all other rows deletable
      */
-    // TODO: make the object pushed a const object
-    if (!this.args.model?.isNew && this.view === 'table') {
-      keyValues.pushObject({
-        key: '',
-        value: '',
-        warnings: EmberObject.create(),
-      });
+    if (!this.args.model?.isNew) {
+      keyValues.pushObject(EMPTY_KV);
     }
     this.keyValues = keyValues;
 
@@ -97,11 +98,7 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   @action appendRow() {
-    this.keyValues.pushObject({
-      key: '',
-      value: '',
-      warnings: EmberObject.create(),
-    });
+    this.keyValues.pushObject(EMPTY_KV);
   }
 
   @action deleteRow(row) {
@@ -187,7 +184,7 @@ export default class SecureVariableFormComponent extends Component {
           Object.entries(this.JSONItems).map(([key, value]) => {
             return {
               key,
-              value,
+              value: typeof value === 'string' ? value : JSON.stringify(value),
               warnings: EmberObject.create(),
             };
           })
