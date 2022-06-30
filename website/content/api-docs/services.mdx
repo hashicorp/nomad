@@ -94,6 +94,11 @@ The table below shows this endpoint's support for
   used to filter the results. Consider using pagination or a query parameter to
   reduce resource used to serve the request.
 
+- `choose` `(string: "")` - Specifies the number of services to return and a hash
+  key. Must be in the form `<number>|<key>`. Nomad uses [rendezvous hashing][hash] to deliver
+  consistent results for a given key, and stable results when the number of services
+  changes.
+
 ### Sample Request
 
 ```shell-session
@@ -173,3 +178,5 @@ $ curl \
     --request DELETE \
     https://localhost:4646/v1/service/example-cache-redis/_nomad-task-ba731da0-6df9-9858-ef23-806e9758a899-redis-example-cache-redis-db
 ```
+
+[hash]: https://en.wikipedia.org/wiki/Rendezvous_hashing
