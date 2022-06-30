@@ -6,11 +6,10 @@ import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
-import EmberObject from '@ember/object';
+import EmberObject, { set } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
-import { set } from '@ember/object';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -27,7 +26,7 @@ export default class SecureVariableFormComponent extends Component {
   @tracked duplicatePathWarning = null;
 
   get shouldDisableSave() {
-    return this.JSONError || !this.args.model?.path;
+    return !!this.JSONError || !this.args.model?.path;
   }
 
   /**
@@ -198,10 +197,6 @@ export default class SecureVariableFormComponent extends Component {
 
     // Reset any error state, since the errorring json will not persist
     set(this, 'JSONError', null);
-  }
-
-  get stringifiedItems() {
-    return JSON.stringify(this.args.model.items, null, 2);
   }
 
   /**

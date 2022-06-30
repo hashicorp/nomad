@@ -7,9 +7,6 @@ import 'codemirror/addon/edit/matchbrackets';
 import 'codemirror/addon/selection/active-line';
 import 'codemirror/addon/lint/lint.js';
 import 'codemirror/addon/lint/json-lint.js';
-// right now we only use the ruby and javascript, if you use another mode you'll need to import it.
-// https://codemirror.net/mode/
-import 'codemirror/mode/ruby/ruby';
 import 'codemirror/mode/javascript/javascript';
 
 export default class CodeMirrorModifier extends Modifier {
@@ -33,28 +30,28 @@ export default class CodeMirrorModifier extends Modifier {
   }
 
   _setup() {
-    if (!this.element) {
-      throw new Error('CodeMirror modifier has no element');
+    if (this.element) {
+      const editor = codemirror(this.element, {
+        gutters: this.args.named.gutters || ['CodeMirror-lint-markers'],
+        matchBrackets: true,
+        lint: { lintOnChange: true },
+        showCursorWhenSelecting: true,
+        styleActiveLine: true,
+        tabSize: 2,
+        // all values we can pass into the modifier
+        extraKeys: this.args.named.extraKeys || '',
+        lineNumbers: this.args.named.lineNumbers || true,
+        mode: this.args.named.mode || 'application/json',
+        readOnly: this.args.named.readOnly || false,
+        theme: this.args.named.theme || 'hashi',
+        value: this.args.named.content || '',
+        viewportMargin: this.args.named.viewportMargin || '',
+        screenReaderLabel: this.args.named.screenReaderLabel || '',
+      });
+
+      editor.on('change', bind(this, this._onChange));
+
+      this._editor = editor;
     }
-    const editor = codemirror(this.element, {
-      gutters: this.args.named.gutters || ['CodeMirror-lint-markers'],
-      matchBrackets: true,
-      lint: { lintOnChange: true },
-      showCursorWhenSelecting: true,
-      styleActiveLine: true,
-      tabSize: 2,
-      // all values we can pass into the JsonEditor
-      extraKeys: this.args.named.extraKeys || '',
-      lineNumbers: this.args.named.lineNumbers,
-      mode: this.args.named.mode || 'application/json',
-      readOnly: this.args.named.readOnly || false,
-      theme: this.args.named.theme || 'hashi',
-      value: this.args.named.content || '',
-      viewportMargin: this.args.named.viewportMargin || '',
-    });
-
-    editor.on('change', bind(this, this._onChange));
-
-    this._editor = editor;
   }
 }
