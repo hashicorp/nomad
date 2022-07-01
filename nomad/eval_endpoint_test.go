@@ -454,6 +454,33 @@ func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 	}
 }
 
+func TestEvalEndpoint_Dequeue_BrokerDisabled(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue.
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register a request.
+	eval1 := mock.Eval()
+	s1.evalBroker.Enqueue(eval1)
+
+	// Disable the eval broker and try to dequeue.
+	s1.evalBroker.SetEnabled(false)
+
+	get := &structs.EvalDequeueRequest{
+		Schedulers:       defaultSched,
+		SchedulerVersion: scheduler.SchedulerVersion,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.EvalDequeueResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp))
+	require.Empty(t, resp.Eval)
+}
+
 func TestEvalEndpoint_Ack(t *testing.T) {
 	ci.Parallel(t)
 

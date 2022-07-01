@@ -190,6 +190,18 @@ type Server struct {
 	// capacity changes.
 	blockedEvals *BlockedEvals
 
+	// evalBroker is used to manage the in-progress evaluations
+	// that are waiting to be brokered to a sub-scheduler
+	evalBroker *EvalBroker
+
+	// brokerLock is used to synchronise the alteration of the blockedEvals and
+	// evalBroker enabled state. These two subsystems change state when
+	// leadership changes or when the user modifies the setting via the
+	// operator scheduler configuration. This lock allows these actions to be
+	// performed safely, without potential for user interactions and leadership
+	// transitions to collide and create inconsistent state.
+	brokerLock sync.Mutex
+
 	// deploymentWatcher is used to watch deployments and their allocations and
 	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
@@ -199,10 +211,6 @@ type Server struct {
 
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
-
-	// evalBroker is used to manage the in-progress evaluations
-	// that are waiting to be brokered to a sub-scheduler
-	evalBroker *EvalBroker
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
 	periodicDispatcher *PeriodicDispatch
@@ -422,6 +430,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to create volume watcher", "error", err)
 		return nil, fmt.Errorf("failed to create volume watcher: %v", err)
 	}
+
+	// Start the eval broker notification system so any subscribers can get
+	// updates when the processes SetEnabled is triggered.
+	go s.evalBroker.enabledNotifier.Run(s.shutdownCh)
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()

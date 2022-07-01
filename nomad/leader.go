@@ -289,8 +289,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.getOrCreateAutopilotConfig()
 	s.autopilot.Start()
 
-	// Initialize scheduler configuration
-	s.getOrCreateSchedulerConfig()
+	// Initialize scheduler configuration.
+	schedulerConfig := s.getOrCreateSchedulerConfig()
 
 	// Initialize the ClusterID
 	_, _ = s.ClusterID()
@@ -302,12 +302,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Start the plan evaluator
 	go s.planApply()
 
-	// Enable the eval broker, since we are now the leader
-	s.evalBroker.SetEnabled(true)
-
-	// Enable the blocked eval tracker, since we are now the leader
-	s.blockedEvals.SetEnabled(true)
-	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
+	// Start the eval broker and blocked eval broker if these are not paused by
+	// the operator.
+	restoreEvals := s.handleEvalBrokerStateChange(schedulerConfig)
 
 	// Enable the deployment watcher, since we are now the leader
 	s.deploymentWatcher.SetEnabled(true, s.State())
@@ -318,9 +315,12 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the volume watcher, since we are now the leader
 	s.volumeWatcher.SetEnabled(true, s.State(), s.getLeaderAcl())
 
-	// Restore the eval broker state
-	if err := s.restoreEvals(); err != nil {
-		return err
+	// Restore the eval broker state and blocked eval state. If these are
+	// currently paused, we do not need to do this.
+	if restoreEvals {
+		if err := s.restoreEvals(); err != nil {
+			return err
+		}
 	}
 
 	// Activate the vault client
@@ -1110,11 +1110,13 @@ func (s *Server) revokeLeadership() error {
 	// Disable the plan queue, since we are no longer leader
 	s.planQueue.SetEnabled(false)
 
-	// Disable the eval broker, since it is only useful as a leader
+	// Disable the eval broker and blocked evals. We do not need to check the
+	// scheduler configuration paused eval broker value, as the brokers should
+	// always be paused on the non-leader.
+	s.brokerLock.Lock()
 	s.evalBroker.SetEnabled(false)
-
-	// Disable the blocked eval tracker, since it is only useful as a leader
 	s.blockedEvals.SetEnabled(false)
+	s.brokerLock.Unlock()
 
 	// Disable the periodic dispatcher, since it is only useful as a leader
 	s.periodicDispatcher.SetEnabled(false)
@@ -1692,4 +1694,71 @@ func (s *Server) generateClusterID() (string, error) {
 
 	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
 	return newMeta.ClusterID, nil
+}
+
+// handleEvalBrokerStateChange handles changing the evalBroker and blockedEvals
+// enabled status based on the passed scheduler configuration. The boolean
+// response indicates whether the caller needs to call restoreEvals() due to
+// the brokers being enabled. It is for use when the change must take the
+// scheduler configuration into account. This is not needed when calling
+// revokeLeadership, as the configuration doesn't matter, and we need to ensure
+// the brokers are stopped.
+//
+// The function checks the server is the leader and uses a mutex to avoid any
+// potential timings problems. Consider the following timings:
+//  - operator updates the configuration via the API
+//  - the RPC handler applies the change via Raft
+//  - leadership transitions with write barrier
+//  - the RPC handler call this function to enact the change
+//
+// The mutex also protects against a situation where leadership is revoked
+// while this function is being called. Ensuring the correct series of actions
+// occurs so that state stays consistent.
+func (s *Server) handleEvalBrokerStateChange(schedConfig *structs.SchedulerConfiguration) bool {
+
+	// Grab the lock first. Once we have this we can be sure to run everything
+	// needed before any leader transition can attempt to modify the state.
+	s.brokerLock.Lock()
+	defer s.brokerLock.Unlock()
+
+	// If we are no longer the leader, exit early.
+	if !s.IsLeader() {
+		return false
+	}
+
+	// enableEvalBroker tracks whether the evalBroker and blockedEvals
+	// processes should be enabled or not. It allows us to answer this question
+	// whether using a persisted Raft configuration, or the default bootstrap
+	// config.
+	var enableBrokers, restoreEvals bool
+
+	// The scheduler config can only be persisted to Raft once quorum has been
+	// established. If this is a fresh cluster, we need to use the default
+	// scheduler config, otherwise we can use the persisted object.
+	switch schedConfig {
+	case nil:
+		enableBrokers = !s.config.DefaultSchedulerConfig.PauseEvalBroker
+	default:
+		enableBrokers = !schedConfig.PauseEvalBroker
+	}
+
+	// If the evalBroker status is changing, set the new state.
+	if enableBrokers != s.evalBroker.Enabled() {
+		s.logger.Info("eval broker status modified", "paused", !enableBrokers)
+		s.evalBroker.SetEnabled(enableBrokers)
+		restoreEvals = enableBrokers
+	}
+
+	// If the blockedEvals status is changing, set the new state.
+	if enableBrokers != s.blockedEvals.Enabled() {
+		s.logger.Info("blocked evals status modified", "paused", !enableBrokers)
+		s.blockedEvals.SetEnabled(enableBrokers)
+		restoreEvals = enableBrokers
+
+		if enableBrokers {
+			s.blockedEvals.SetTimetable(s.fsm.TimeTable())
+		}
+	}
+
+	return restoreEvals
 }
