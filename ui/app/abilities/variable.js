@@ -85,20 +85,9 @@ export default class Variable extends AbstractAbility {
     for (const pathName of pathNames) {
       const pathSubString = pathName.match(PATH_PATTERN_REGEX)[1];
       const sanitizedPath = JSON.parse(pathSubString);
-      const doesEndWithWildcard =
-        sanitizedPath[sanitizedPath.length - 1] === WILDCARD_GLOB;
-      const doesStartWithWildcard = sanitizedPath[0] === WILDCARD_GLOB;
 
-      if (doesEndWithWildcard) {
-        const formattedPath = this._formatMatchingPathRegEx(sanitizedPath);
-        if (path.match(formattedPath)) matches.push(sanitizedPath);
-      } else if (doesStartWithWildcard) {
-        const formattedPath = this._formatMatchingPathRegEx(
-          sanitizedPath,
-          'start'
-        );
-        if (path.match(formattedPath)) matches.push(sanitizedPath);
-      }
+      if (this._doesMatchPattern(sanitizedPath, path))
+        matches.push(sanitizedPath);
     }
 
     return matches;
@@ -116,23 +105,7 @@ export default class Variable extends AbstractAbility {
 
     if (!allMatchingPaths.length) return WILDCARD_GLOB;
 
-    return allMatchingPaths.reduce((matchingPath, currentPath) => {
-      if (matchingPath === '') {
-        matchingPath = currentPath;
-        return matchingPath;
-      }
-      const count = matchingPath.match(WILDCARD_PATTERN_REGEX)?.length || 0;
-      if (currentPath.match(WILDCARD_PATTERN_REGEX)?.length > count) {
-        matchingPath = currentPath;
-      } else if (currentPath.match(WILDCARD_PATTERN_REGEX)?.length === count) {
-        // Chose suffix over prefix
-        if (currentPath.endsWith(WILDCARD_GLOB)) {
-          matchingPath = currentPath;
-        }
-      }
-
-      return matchingPath;
-    });
+    return this._smallestDifference(allMatchingPaths, path);
   }
 
   _doesMatchPattern(pattern, path) {
