@@ -310,11 +310,10 @@ job-type schedulers.
 ```hcl
 server {
   default_scheduler_config {
-    scheduler_algorithm = "spread"
-
+    scheduler_algorithm             = "spread"
     memory_oversubscription_enabled = true
-
-    reject_job_registration = false
+    reject_job_registration         = false
+    pause_eval_broker               = false # New in Nomad 1.3.2
 
     preemption_config {
       batch_scheduler_enabled    = true

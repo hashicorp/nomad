@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: 'Commands: operator scheduler get-config'
+description: |
+  Display the current scheduler configuration.
+---
+
+# Command: operator scheduler get-config
+
+The scheduler operator get-config command is used to view the current scheduler
+configuration.
+
+## Usage
+
+```plaintext
+nomad operator scheduler get-config [options]
+```
+
+If ACLs are enabled, this command requires a token with the `operator:read`
+capability.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Get Config Options
+
+- `-json`: Output the scheduler config in its JSON format.
+
+- `-t`: Format and display the scheduler config using a Go template.
+
+## Examples
+
+Display the current scheduler configuration:
+
+```shell-session
+$ nomad operator scheduler get-config
+Scheduler Algorithm           = binpack
+Memory Oversubscription       = false
+Reject Job Registration       = false
+Pause Eval Broker             = false
+Preemption System Scheduler   = true
+Preemption Service Scheduler  = false
+Preemption Batch Scheduler    = false
+Preemption SysBatch Scheduler = false
+Modify Index                  = 5
+```

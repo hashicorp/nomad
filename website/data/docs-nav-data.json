@@ -586,6 +586,14 @@
             "path": "commands/operator/raft-state"
           },
           {
+            "title": "scheduler get-config",
+            "path": "commands/operator/scheduler-get-config"
+          },
+          {
+            "title": "scheduler set-config",
+            "path": "commands/operator/scheduler-set-config"
+          },
+          {
             "title": "snapshot agent",
             "path": "commands/operator/snapshot-agent"
           },
