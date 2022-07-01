@@ -202,6 +202,107 @@ module('Unit | Ability | variable', function (hooks) {
     });
   });
 
+  module('#edit', function () {
+    test('it does not permit editing variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canEdit);
+    });
+
+    test('it permits editing variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canEdit);
+    });
+
+    test('it permits editing variables when acl is disabled', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: false,
+        selfToken: { type: 'client' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canEdit);
+    });
+
+    test('it permits editing variables when token has SecureVariables with edit capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "*"': {
+                      Capabilities: ['edit'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canEdit);
+    });
+
+    test('it handles namespace matching', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['list'],
+                    },
+                  },
+                },
+                {
+                  Name: 'pablo',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['edit'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.path = 'foo/bar';
+      this.ability.namespace = 'pablo';
+
+      assert.ok(this.ability.canEdit);
+    });
+  });
+
   module('#_nearestMatchingPath', function () {
     test('returns capabilities for an exact path match', function (assert) {
       const mockToken = Service.extend({
