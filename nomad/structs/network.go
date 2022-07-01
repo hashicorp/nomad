@@ -145,9 +145,7 @@ func copyAvailAddresses(a map[string][]NodeNetworkAddress) map[string][]NodeNetw
 			continue
 		}
 		c[k] = make([]NodeNetworkAddress, len(v))
-		for i, a := range v {
-			c[k][i] = a
-		}
+		copy(c[k], v)
 	}
 
 	return c
