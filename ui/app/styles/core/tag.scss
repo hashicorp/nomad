@@ -68,6 +68,11 @@
     vertical-align: 2px;
   }
 
+  &.is-service-tag {
+    background: darken($grey-blue, 20%);
+    color: $primary-invert;
+  }
+
   .icon {
     height: 1rem;
     width: 1rem;
