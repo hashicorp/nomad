@@ -178,4 +178,20 @@ export default class Variable extends AbstractAbility {
 
     return path?.length - pattern?.length + countGlobsInPattern;
   }
+
+  _smallestDifference(matches, path) {
+    const sortingCallBack = (patternA, patternB) =>
+      this._computeLengthDiff(patternA, path) -
+      this._computeLengthDiff(patternB, path);
+
+    const sortedMatches = matches?.sort(sortingCallBack);
+    const isTie =
+      this._computeLengthDiff(sortedMatches[0], path) ===
+      this._computeLengthDiff(sortedMatches[1], path);
+    const doesFirstMatchHaveLeadingGlob = sortedMatches[0][0] === WILDCARD_GLOB;
+
+    return isTie && doesFirstMatchHaveLeadingGlob
+      ? sortedMatches[1]
+      : sortedMatches[0];
+  }
 }

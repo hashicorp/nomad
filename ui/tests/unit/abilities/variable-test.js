@@ -1,5 +1,5 @@
 /* eslint-disable ember/avoid-leaking-state-in-ember-objects */
-import { module, test } from 'qunit';
+import { assert, module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
@@ -758,6 +758,25 @@ module('Unit | Ability | variable', function (hooks) {
         result,
         1,
         'it adds the number of globs in the pattern to the difference'
+      );
+    });
+  });
+
+  module('#_smallestDifference', function () {
+    test('returns the smallest difference in the list', function (assert) {
+      // arrange
+      const path = 'foo/bar';
+      const matchingPath = 'foo/*';
+      const matches = ['*/baz', '*', matchingPath];
+
+      // act
+      const result = this.ability._smallestDifference(matches, path);
+
+      // assert
+      assert.equal(
+        result,
+        matchingPath,
+        'It should return the smallest difference path.'
       );
     });
   });
