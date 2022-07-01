@@ -1664,3 +1664,89 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 
 	return leader
 }
+
+func TestServer_handleEvalBrokerStateChange(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		startValue                  bool
+		testServerCallBackConfig    func(c *Config)
+		inputSchedulerConfiguration *structs.SchedulerConfiguration
+		expectedOutput              bool
+		name                        string
+	}{
+		{
+			startValue:                  false,
+			testServerCallBackConfig:    func(c *Config) { c.DefaultSchedulerConfig.PauseEvalBroker = false },
+			inputSchedulerConfiguration: nil,
+			expectedOutput:              true,
+			name:                        "bootstrap un-paused",
+		},
+		{
+			startValue:                  false,
+			testServerCallBackConfig:    func(c *Config) { c.DefaultSchedulerConfig.PauseEvalBroker = true },
+			inputSchedulerConfiguration: nil,
+			expectedOutput:              false,
+			name:                        "bootstrap paused",
+		},
+		{
+			startValue:                  true,
+			testServerCallBackConfig:    nil,
+			inputSchedulerConfiguration: &structs.SchedulerConfiguration{PauseEvalBroker: true},
+			expectedOutput:              false,
+			name:                        "state change to paused",
+		},
+		{
+			startValue:                  false,
+			testServerCallBackConfig:    nil,
+			inputSchedulerConfiguration: &structs.SchedulerConfiguration{PauseEvalBroker: true},
+			expectedOutput:              false,
+			name:                        "no state change to paused",
+		},
+		{
+			startValue:                  false,
+			testServerCallBackConfig:    nil,
+			inputSchedulerConfiguration: &structs.SchedulerConfiguration{PauseEvalBroker: false},
+			expectedOutput:              true,
+			name:                        "state change to un-paused",
+		},
+		{
+			startValue:                  false,
+			testServerCallBackConfig:    nil,
+			inputSchedulerConfiguration: &structs.SchedulerConfiguration{PauseEvalBroker: true},
+			expectedOutput:              false,
+			name:                        "no state change to un-paused",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Create a new server and wait for leadership to be established.
+			testServer, cleanupFn := TestServer(t, nil)
+			_ = waitForStableLeadership(t, []*Server{testServer})
+			defer cleanupFn()
+
+			// If we set a callback config, we are just testing the eventual
+			// state of the brokers. Otherwise, we set our starting value and
+			// then perform our state modification change and check.
+			if tc.testServerCallBackConfig == nil {
+				testServer.evalBroker.SetEnabled(tc.startValue)
+				testServer.blockedEvals.SetEnabled(tc.startValue)
+				actualOutput := testServer.handleEvalBrokerStateChange(tc.inputSchedulerConfiguration)
+				require.Equal(t, tc.expectedOutput, actualOutput)
+			}
+
+			// Check the brokers are in the expected state.
+			var expectedEnabledVal bool
+
+			if tc.inputSchedulerConfiguration == nil {
+				expectedEnabledVal = !testServer.config.DefaultSchedulerConfig.PauseEvalBroker
+			} else {
+				expectedEnabledVal = !tc.inputSchedulerConfiguration.PauseEvalBroker
+			}
+			require.Equal(t, expectedEnabledVal, testServer.evalBroker.Enabled())
+			require.Equal(t, expectedEnabledVal, testServer.blockedEvals.Enabled())
+		})
+	}
+}
