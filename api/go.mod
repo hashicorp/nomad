@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/kr/pretty v0.3.0
 	github.com/mitchellh/go-testing-interface v1.14.1
-	github.com/mitchellh/mapstructure v1.4.3
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.8.0
 )
 
