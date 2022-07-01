@@ -507,7 +507,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 
 	// Delete one allocation
-	if err := state.DeleteEval(103, nil, []string{alloc1.ID}); err != nil {
+	if err := state.DeleteEval(103, nil, []string{alloc1.ID}, false); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
