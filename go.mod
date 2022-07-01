@@ -111,7 +111,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.21.12
 	github.com/shoenig/test v0.2.6
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
-	github.com/stretchr/testify v1.7.5
+	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/zclconf/go-cty v1.8.0
 	github.com/zclconf/go-cty-yaml v1.0.2
