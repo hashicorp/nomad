@@ -170,4 +170,12 @@ export default class Variable extends AbstractAbility {
 
     return hasTrailingGlob || path.endsWith(lastPartOfPattern);
   }
+
+  _computeLengthDiff(pattern, path) {
+    return (
+      path?.length -
+      pattern?.length +
+      pattern?.split('').filter((el) => el === '*').length
+    );
+  }
 }

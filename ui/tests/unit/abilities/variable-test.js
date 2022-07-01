@@ -727,4 +727,38 @@ module('Unit | Ability | variable', function (hooks) {
       });
     });
   });
+
+  module('#_computeLengthDiff', function () {
+    test('should return the difference in length between a path and a pattern', function (assert) {
+      // arrange
+      const path = 'foo';
+      const pattern = 'bar';
+
+      // act
+      const result = this.ability._computeLengthDiff(pattern, path);
+
+      // assert
+      assert.equal(
+        result,
+        0,
+        'it returns the difference in length between path and pattern'
+      );
+    });
+
+    test('should factor the number of globs into consideration', function (assert) {
+      // arrange
+      const pattern = 'foo*';
+      const path = 'bark';
+
+      // act
+      const result = this.ability._computeLengthDiff(pattern, path);
+
+      // assert
+      assert.equal(
+        result,
+        1,
+        'it adds the number of globs in the pattern to the difference'
+      );
+    });
+  });
 });
