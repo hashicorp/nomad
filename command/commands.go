@@ -265,6 +265,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval delete": func() (cli.Command, error) {
+			return &EvalDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval list": func() (cli.Command, error) {
 			return &EvalListCommand{
 				Meta: meta,
