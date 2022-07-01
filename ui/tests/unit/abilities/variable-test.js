@@ -1,5 +1,5 @@
 /* eslint-disable ember/avoid-leaking-state-in-ember-objects */
-import { assert, module, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
