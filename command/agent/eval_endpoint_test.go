@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -108,6 +110,135 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 			t.Fatalf("expected eval ID: %v, Actual: %v", eval2.ID, e[0].ID)
 		}
 	})
+}
+
+func TestHTTP_EvalsDelete(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		testFn func()
+		name   string
+	}{
+		{
+			testFn: func() {
+				httpTest(t, nil, func(s *TestAgent) {
+
+					// Create an empty request object which doesn't contain any
+					// eval IDs.
+					deleteReq := api.EvalDeleteRequest{}
+					buf := encodeReq(&deleteReq)
+
+					// Generate the HTTP request.
+					req, err := http.NewRequest(http.MethodDelete, "/v1/evaluations", buf)
+					require.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					// Make the request and check the response.
+					obj, err := s.Server.EvalsRequest(respW, req)
+					require.Equal(t,
+						CodedError(http.StatusBadRequest, "request does not include any evaluation IDs"), err)
+					require.Nil(t, obj)
+				})
+			},
+			name: "too few eval IDs",
+		},
+		{
+			testFn: func() {
+				httpTest(t, nil, func(s *TestAgent) {
+
+					deleteReq := api.EvalDeleteRequest{EvalIDs: make([]string, 8000)}
+
+					// Generate a UUID and add it 8000 times to the eval ID
+					// request array.
+					evalID := uuid.Generate()
+
+					for i := 0; i < 8000; i++ {
+						deleteReq.EvalIDs[i] = evalID
+					}
+
+					buf := encodeReq(&deleteReq)
+
+					// Generate the HTTP request.
+					req, err := http.NewRequest(http.MethodDelete, "/v1/evaluations", buf)
+					require.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					// Make the request and check the response.
+					obj, err := s.Server.EvalsRequest(respW, req)
+					require.Equal(t,
+						CodedError(http.StatusBadRequest,
+							"request includes 8000 evaluations IDs, must be 7281 or fewer"), err)
+					require.Nil(t, obj)
+				})
+			},
+			name: "too many eval IDs",
+		},
+		{
+			testFn: func() {
+				httpTest(t, func(c *Config) {
+					c.NomadConfig.DefaultSchedulerConfig.PauseEvalBroker = true
+				}, func(s *TestAgent) {
+
+					// Generate a request with an eval ID that doesn't exist
+					// within state.
+					deleteReq := api.EvalDeleteRequest{EvalIDs: []string{uuid.Generate()}}
+					buf := encodeReq(&deleteReq)
+
+					// Generate the HTTP request.
+					req, err := http.NewRequest(http.MethodDelete, "/v1/evaluations", buf)
+					require.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					// Make the request and check the response.
+					obj, err := s.Server.EvalsRequest(respW, req)
+					require.Contains(t, err.Error(), "eval not found")
+					require.Nil(t, obj)
+				})
+			},
+			name: "eval doesn't exist",
+		},
+		{
+			testFn: func() {
+				httpTest(t, func(c *Config) {
+					c.NomadConfig.DefaultSchedulerConfig.PauseEvalBroker = true
+				}, func(s *TestAgent) {
+
+					// Upsert an eval into state.
+					mockEval := mock.Eval()
+
+					err := s.Agent.server.State().UpsertEvals(
+						structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval})
+					require.NoError(t, err)
+
+					// Generate a request with the ID of the eval previously upserted.
+					deleteReq := api.EvalDeleteRequest{EvalIDs: []string{mockEval.ID}}
+					buf := encodeReq(&deleteReq)
+
+					// Generate the HTTP request.
+					req, err := http.NewRequest(http.MethodDelete, "/v1/evaluations", buf)
+					require.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					// Make the request and check the response.
+					obj, err := s.Server.EvalsRequest(respW, req)
+					require.Nil(t, err)
+					require.Nil(t, obj)
+
+					// Ensure the eval is not found.
+					readEval, err := s.Agent.server.State().EvalByID(nil, mockEval.ID)
+					require.NoError(t, err)
+					require.Nil(t, readEval)
+				})
+			},
+			name: "successfully delete eval",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn()
+		})
+	}
 }
 
 func TestHTTP_EvalAllocations(t *testing.T) {
