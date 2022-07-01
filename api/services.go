@@ -122,7 +122,7 @@ func (s *Services) Get(serviceName string, q *QueryOptions) ([]*ServiceRegistrat
 // by its service name and service ID.
 func (s *Services) Delete(serviceName, serviceID string, q *WriteOptions) (*WriteMeta, error) {
 	path := fmt.Sprintf("/v1/service/%s/%s", url.PathEscape(serviceName), url.PathEscape(serviceID))
-	wm, err := s.client.delete(path, nil, q)
+	wm, err := s.client.delete(path, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}
