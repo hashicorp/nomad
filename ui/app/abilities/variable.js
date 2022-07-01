@@ -172,10 +172,10 @@ export default class Variable extends AbstractAbility {
   }
 
   _computeLengthDiff(pattern, path) {
-    return (
-      path?.length -
-      pattern?.length +
-      pattern?.split('').filter((el) => el === '*').length
-    );
+    const countGlobsInPattern = pattern
+      ?.split('')
+      .filter((el) => el === WILDCARD_GLOB).length;
+
+    return path?.length - pattern?.length + countGlobsInPattern;
   }
 }
