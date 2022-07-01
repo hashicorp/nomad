@@ -1141,7 +1141,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 		"Eval.Reblock": &structs.EvalUpdateRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
-		"Eval.Reap": &structs.EvalDeleteRequest{
+		"Eval.Reap": &structs.EvalReapRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
 		"Plan.Submit": &structs.PlanRequest{

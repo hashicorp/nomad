@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -3107,9 +3108,21 @@ func (s *StateStore) updateEvalModifyIndex(txn *txn, index uint64, evalID string
 }
 
 // DeleteEval is used to delete an evaluation
-func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
+func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitiated bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
+
+	// If this deletion has been initiated by an operator, ensure the eval
+	// broker is paused.
+	if userInitiated {
+		_, schedConfig, err := s.schedulerConfigTxn(txn)
+		if err != nil {
+			return err
+		}
+		if schedConfig == nil || !schedConfig.PauseEvalBroker {
+			return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+		}
+	}
 
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 
@@ -5890,9 +5903,13 @@ func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
 func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
 	tx := s.db.ReadTxn()
 	defer tx.Abort()
+	return s.schedulerConfigTxn(tx)
+}
+
+func (s *StateStore) schedulerConfigTxn(txn *txn) (uint64, *structs.SchedulerConfiguration, error) {
 
 	// Get the scheduler config
-	c, err := tx.First("scheduler_config", "id")
+	c, err := txn.First("scheduler_config", "id")
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed scheduler config lookup: %s", err)
 	}

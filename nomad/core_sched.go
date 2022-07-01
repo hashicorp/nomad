@@ -14,13 +14,6 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 )
 
-var (
-	// maxIdsPerReap is the maximum number of evals and allocations to reap in a
-	// single Raft transaction. This is to ensure that the Raft message does not
-	// become too large.
-	maxIdsPerReap = (1024 * 256) / 36 // 0.25 MB of ids.
-)
-
 // CoreScheduler is a special "scheduler" that is registered
 // as "_core". It is used to run various administrative work
 // across the cluster.
@@ -193,7 +186,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		if remaining := len(jobs) - submittedJobs; remaining > 0 {
 			if remaining <= available {
@@ -359,20 +352,20 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	return nil
 }
 
-// partitionEvalReap returns a list of EvalDeleteRequest to make, ensuring a single
+// partitionEvalReap returns a list of EvalReapRequest to make, ensuring a single
 // request does not contain too many allocations and evaluations. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalDeleteRequest {
-	var requests []*structs.EvalDeleteRequest
+func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalReapRequest {
+	var requests []*structs.EvalReapRequest
 	submittedEvals, submittedAllocs := 0, 0
 	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
-		req := &structs.EvalDeleteRequest{
+		req := &structs.EvalReapRequest{
 			WriteRequest: structs.WriteRequest{
 				Region: c.srv.config.Region,
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		// Add the allocs first
 		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
@@ -484,7 +477,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 	}
 
 	// Call to the leader to issue the reap
-	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
+	for _, ids := range partitionAll(structs.MaxUUIDsPerWriteRequest, nodeIDs) {
 		req := structs.NodeBatchDeregisterRequest{
 			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
@@ -584,7 +577,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		if remaining := len(deployments) - submittedDeployments; remaining > 0 {
 			if remaining <= available {
