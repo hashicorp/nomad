@@ -225,7 +225,7 @@ module('Acceptance | secure variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable Maker');
       policy.rulesJSON.Namespaces[0].SecureVariables['Path "*"'].Capabilities =
-        ['list', 'edit'];
+        ['list', 'create'];
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up

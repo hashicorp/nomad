@@ -32,13 +32,6 @@ export default class Variable extends AbstractAbility {
   )
   canCreate;
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportVariableEditing'
-  )
-  canEdit;
-
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableView() {
     return this.rulesForNamespace.some((rules) => {
@@ -53,16 +46,6 @@ export default class Variable extends AbstractAbility {
       const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
       return capabilities.includes('create');
-    });
-  }
-
-  @computed('rulesForNamespace.@each.capabilities', 'path')
-  get policiesSupportVariableEditing() {
-    const matchingPath = this._nearestMatchingPath(this.path);
-    return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
-      const capabilities = get(rules, keyName) || [];
-      return capabilities.includes('edit');
     });
   }
 
