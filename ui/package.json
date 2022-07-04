@@ -170,7 +170,7 @@
     ]
   },
   "dependencies": {
-    "@percy/cli": "^1.1.0",
+    "@percy/cli": "^1.5.1",
     "@percy/ember": "^3.0.0",
     "codemirror": "^5.56.0",
     "curved-arrows": "^0.1.0",
