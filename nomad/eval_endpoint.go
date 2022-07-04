@@ -407,14 +407,27 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
+	var allow func(string) bool
 
 	// Check for read-job permissions
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	switch {
+	case err != nil:
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
-		// TODO: a wildcard namespace here (structs.AllNamespacesSentinel) isn't checked until further down, so we throw a 403 even if token has job.read and namespace is *
-		// Reproducible w/ nomad operator api '/v1/evaluations?filter=&namespace=*&next_token=&per_page=25&reverse=true'
+	case aclObj == nil:
+		allow = func(string) bool {
+			return true
+		}
+	case namespace == structs.AllNamespacesSentinel:
+		allow = func(ns string) bool {
+			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		}
+	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
 		return structs.ErrPermissionDenied
+	default:
+		allow = func(string) bool {
+			return true
+		}
 	}
 
 	if args.Filter != "" {
@@ -436,57 +449,72 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			var iter memdb.ResultIterator
 			var opts paginator.StructsTokenizerOptions
 
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
-			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
-			} else {
-				iter, err = store.Evals(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
-			}
-			if err != nil {
+			// check if user has permission to all namespaces
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty evals if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Evaluations = make([]*structs.Evaluation, 0)
+			} else if err != nil {
 				return err
-			}
-
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-				if eval := raw.(*structs.Evaluation); eval != nil {
-					return args.ShouldBeFiltered(eval)
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithID: true,
+					}
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
+				} else {
+					iter, err = store.Evals(ws, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
 				}
-				return false
-			})
+				if err != nil {
+					return err
+				}
 
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			var evals []*structs.Evaluation
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					eval := raw.(*structs.Evaluation)
-					evals = append(evals, eval)
-					return nil
+				iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+					if eval := raw.(*structs.Evaluation); eval != nil {
+						return args.ShouldBeFiltered(eval)
+					}
+					return false
 				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
 
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
+				tokenizer := paginator.NewStructsTokenizer(iter, opts)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+				}
 
-			reply.QueryMeta.NextToken = nextToken
-			reply.Evaluations = evals
+				var evals []*structs.Evaluation
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						eval := raw.(*structs.Evaluation)
+						evals = append(evals, eval)
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Evaluations = evals
+			}
 
 			// Use the last index that affected the jobs table
 			index, err := store.Index("evals")
