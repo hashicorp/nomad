@@ -51,17 +51,14 @@
       {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">
-      <IvyCodemirror
+      <div
         data-test-editor
-        aria-label="Job definition"
-        @value={{or this.job._newDefinition this.jobSpec}}
-        @valueUpdated={{this.updateCode}}
-        @options={{hash
-          mode="javascript"
+        {{code-mirror
+          screenReaderLabel="Job definition"
+          content=this.job._newDefinition
           theme="hashi"
-          screenReaderLabel="Job definition editor"
-          tabSize=2
-          lineNumbers=true
+          onUpdate=this.updateCode
+          mode="javascript"
         }}
       />
     </div>

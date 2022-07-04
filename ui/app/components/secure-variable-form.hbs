@@ -1,7 +1,6 @@
-<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}
-  {{did-insert this.appendItemIfEditing}}
->
-  {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
+{{did-update this.onViewChange @view}}
+{{did-insert this.establishKeyValues}}
+<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
   <div>
     <label>
       <span>
@@ -34,46 +33,64 @@
       </p>
     {{/if}}
   </div>
-  {{#each this.keyValues as |entry iter|}}
-    <div class="key-value">
-      <label>
-        <span>
-          Key
-        </span>
-        <Input
-          @type="text"
-          @value={{entry.key}}
-          class="input"
-          {{autofocus ignore=(eq iter 0)}}
-          {{on "input" (fn this.validateKey entry)}}
-        />
-      </label>
-      <SecureVariableForm::InputGroup @entry={{entry}} />
-      {{#if (eq entry this.keyValues.lastObject)}}
-        <button
-          class="add-more button is-info is-inverted"
-          type="button"
-          disabled={{not (and entry.key entry.value)}}
-          {{on "click" this.appendRow}}
-        >
-          Add More
-        </button>
-      {{else}}
-        <button
-          class="delete-row button is-danger is-inverted"
-          type="button"
-          {{on "click" (action this.deleteRow entry)}}
-        >
-          Delete
-        </button>
+  {{#if (eq this.view "json")}}
+    <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
+      <div
+        data-test-json-editor
+        {{code-mirror
+          content=this.JSONItems
+          onUpdate=this.updateCode
+          extraKeys=(hash Cmd-Enter=(action "save"))
+        }}
+      />
+      {{#if this.JSONError}}
+        <p class="help is-danger">
+          {{this.JSONError}}
+        </p>
       {{/if}}
-      {{#each-in entry.warnings as |k v|}}
-        <span class="key-value-error help is-danger">
-          {{v}}
-        </span>
-      {{/each-in}}
     </div>
-  {{/each}}
+  {{else}}
+    {{#each this.keyValues as |entry iter|}}
+      <div class="key-value">
+        <label>
+          <span>
+            Key
+          </span>
+          <Input
+            @type="text"
+            @value={{entry.key}}
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (fn this.validateKey entry)}}
+          />
+        </label>
+        <SecureVariableForm::InputGroup @entry={{entry}} />
+        {{#if (eq entry this.keyValues.lastObject)}}
+          <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            disabled={{not (and entry.key entry.value)}}
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
+        {{else}}
+          <button
+            class="delete-row button is-danger is-inverted"
+            type="button"
+            {{on "click" (action this.deleteRow entry)}}
+          >
+            Delete
+          </button>
+        {{/if}}
+        {{#each-in entry.warnings as |k v|}}
+          <span class="key-value-error help is-danger">
+            {{v}}
+          </span>
+        {{/each-in}}
+      </div>
+    {{/each}}
+  {{/if}}
   <footer>
     <button
       disabled={{this.shouldDisableSave}}
