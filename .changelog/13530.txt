@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fix listing evaluations with the wildcard namespace and an ACL token
+```
