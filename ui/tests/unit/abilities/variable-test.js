@@ -761,4 +761,23 @@ module('Unit | Ability | variable', function (hooks) {
       );
     });
   });
+
+  module('#_smallestDifference', function () {
+    test('returns the smallest difference in the list', function (assert) {
+      // arrange
+      const path = 'foo/bar';
+      const matchingPath = 'foo/*';
+      const matches = ['*/baz', '*', matchingPath];
+
+      // act
+      const result = this.ability._smallestDifference(matches, path);
+
+      // assert
+      assert.equal(
+        result,
+        matchingPath,
+        'It should return the smallest difference path.'
+      );
+    });
+  });
 });
