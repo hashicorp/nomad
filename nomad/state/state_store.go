@@ -3281,7 +3281,8 @@ func evalNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
-		return eval.Namespace != namespace
+		return namespace != structs.AllNamespacesSentinel &&
+			eval.Namespace != namespace
 	}
 }
 
