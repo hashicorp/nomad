@@ -73,9 +73,13 @@ func TestClient_BaseLabels(t *testing.T) {
 	assert.NotEqual(0, len(baseLabels))
 
 	nodeID := client.Node().ID
+	nodeIP, _, _ := net.SplitHostPort(client.Node().HTTPAddr)
 	for _, e := range baseLabels {
 		if e.Name == "node_id" {
 			assert.Equal(nodeID, e.Value)
+		}
+		if e.Name == "node_ip" {
+			assert.Equal(nodeIP, e.Value)
 		}
 	}
 }
