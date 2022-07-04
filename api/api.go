@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	rootcerts "github.com/hashicorp/go-rootcerts"
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-rootcerts"
 )
 
 var (
