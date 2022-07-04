@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: add `node_ip` label to host metrics
+```
