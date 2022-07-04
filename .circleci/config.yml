@@ -179,7 +179,7 @@ jobs:
       - run:
           name: Install golang dependencies
           command: |
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             make deps
       - run:
           name: Pre-download docker test image
@@ -187,13 +187,13 @@ jobs:
       - run:
           name: Build nomad
           command: |
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             go build -o $GOBIN\nomad.exe
       - run:
           name: Run tests with gotestsum
           command: |
             # Only test docker driver tests for now
-            export PATH=$PATH:/c/go/bin:/c/gopath/bin
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
             gotestsum --format=short-verbose \
               --junitfile $GOTESTSUM_PATH/results.xml \
               github.com/hashicorp/nomad/drivers/docker \
