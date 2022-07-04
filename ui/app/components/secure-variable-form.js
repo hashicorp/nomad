@@ -225,12 +225,27 @@ export default class SecureVariableFormComponent extends Component {
    */
   @action updateCode(value, codemirror) {
     codemirror.performLint();
-    const hasErrors = codemirror?.state.lint.marked?.length > 0;
-    if (hasErrors) {
-      set(this, 'JSONError', 'Invalid JSON');
-    } else {
+    try {
+      const hasLintErrors = codemirror?.state.lint.marked?.length > 0;
+      if (hasLintErrors || !JSON.parse(value)) {
+        throw new Error('Invalid JSON');
+      }
+
+      // "myString" is valid JSON, but it's not a valid Secure Variable.
+      // Ditto for an array of objects. We expect a single object to be a Secure Variable.
+      const hasFormatErrors =
+        JSON.parse(value) instanceof Array ||
+        typeof JSON.parse(value) !== 'object';
+      if (hasFormatErrors) {
+        throw new Error(
+          'A Secure Variable must be formatted as a single JSON object'
+        );
+      }
+
       set(this, 'JSONError', null);
       set(this, 'JSONItems', value);
+    } catch (error) {
+      set(this, 'JSONError', error);
     }
   }
   //#endregion JSON Editing
