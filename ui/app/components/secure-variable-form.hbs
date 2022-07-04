@@ -37,7 +37,7 @@
     <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
       <div
         {{code-mirror
-          content=(stringify-object this.JSONItems)
+          content=this.JSONItems
           onUpdate=this.updateCode
           extraKeys=(hash Cmd-Enter=(action "save"))
         }}

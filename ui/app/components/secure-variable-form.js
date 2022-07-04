@@ -10,6 +10,7 @@ import EmberObject, { set } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
+import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
 
 const EMPTY_KV = {
   key: '',
@@ -41,9 +42,9 @@ export default class SecureVariableFormComponent extends Component {
   keyValues = A([]);
 
   /**
-   * @type {Object<string, string>}
+   * @type {string}
    */
-  JSONItems = {};
+  JSONItems = '{}';
 
   @action
   establishKeyValues() {
@@ -64,10 +65,12 @@ export default class SecureVariableFormComponent extends Component {
     }
     this.keyValues = keyValues;
 
-    this.JSONItems = this.keyValues.reduce((acc, { key, value }) => {
-      acc[key] = value;
-      return acc;
-    }, {});
+    this.JSONItems = stringifyObject([
+      this.keyValues.reduce((acc, { key, value }) => {
+        acc[key] = value;
+        return acc;
+      }, {}),
+    ]);
   }
 
   @action
@@ -177,17 +180,19 @@ export default class SecureVariableFormComponent extends Component {
       set(
         this,
         'JSONItems',
-        this.keyValues
-          .filter((item) => item.key.trim() && item.value) // remove empty items when translating to JSON
-          .reduce((acc, { key, value }) => {
-            acc[key] = value;
-            return acc;
-          }, {})
+        stringifyObject([
+          this.keyValues
+            .filter((item) => item.key.trim() && item.value) // remove empty items when translating to JSON
+            .reduce((acc, { key, value }) => {
+              acc[key] = value;
+              return acc;
+            }, {}),
+        ])
       );
 
       // Give the user a foothold if they're transitioning an empty K/V form into JSON
       if (!Object.keys(this.JSONItems).length) {
-        set(this, 'JSONItems', { '': '' });
+        set(this, 'JSONItems', stringifyObject([{ '': '' }]));
       }
     } else if (view === 'table') {
       // Translate JSON to table
@@ -195,7 +200,7 @@ export default class SecureVariableFormComponent extends Component {
         this,
         'keyValues',
         A(
-          Object.entries(this.JSONItems).map(([key, value]) => {
+          Object.entries(JSON.parse(this.JSONItems)).map(([key, value]) => {
             return {
               key,
               value: typeof value === 'string' ? value : JSON.stringify(value),
@@ -225,7 +230,7 @@ export default class SecureVariableFormComponent extends Component {
       set(this, 'JSONError', 'Invalid JSON');
     } else {
       set(this, 'JSONError', null);
-      set(this, 'JSONItems', JSON.parse(value));
+      set(this, 'JSONItems', value);
     }
   }
   //#endregion JSON Editing
