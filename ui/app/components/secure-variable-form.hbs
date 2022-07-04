@@ -36,6 +36,7 @@
   {{#if (eq this.view "json")}}
     <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
       <div
+        data-test-json-editor
         {{code-mirror
           content=this.JSONItems
           onUpdate=this.updateCode
