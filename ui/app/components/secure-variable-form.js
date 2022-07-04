@@ -89,11 +89,21 @@ export default class SecureVariableFormComponent extends Component {
   @action
   validateKey(entry, e) {
     const value = e.target.value;
+    // No dots in key names
     if (value.includes('.')) {
       entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
     } else {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
+    }
+
+    // no duplicate keys
+    const existingKeys = this.keyValues.map((kv) => kv.key);
+    if (existingKeys.includes(value)) {
+      entry.warnings.set('duplicateKeyError', 'Key already exists.');
+    } else {
+      delete entry.warnings.duplicateKeyError;
+      entry.warnings.notifyPropertyChange('duplicateKeyError');
     }
   }
 
