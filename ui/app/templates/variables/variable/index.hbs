@@ -29,6 +29,7 @@
   </div>
   <div>
     {{#unless this.isDeleting}}
+      {{#if (can "create variable" path=this.model.absolutePath)}}
       <div class="two-step-button">
         <LinkTo
           data-test-edit-button
@@ -39,6 +40,7 @@
           Edit
         </LinkTo>
       </div>
+      {{/if}}
     {{/unless}}
     <TwoStepButton
       data-test-delete-button
