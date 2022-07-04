@@ -2,12 +2,15 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import { click, typeIn, findAll, render } from '@ember/test-helpers';
+import { click, typeIn, find, findAll, render } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
+import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 
 module('Integration | Component | secure-variable-form', function (hooks) {
   setupRenderingTest(hooks);
   setupMirage(hooks);
+  setupCodeMirror(hooks);
 
   test('passes an accessibility audit', async function (assert) {
     assert.expect(1);
@@ -244,12 +247,150 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       );
 
       await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
-      await typeIn('.key-value label:nth-child(1) input', 'foo');
 
       await typeIn('.key-value label:nth-child(1) input', 'superSecret');
       assert.dom('.key-value-error').doesNotExist();
+
+      find('.key-value:nth-child(2) label:nth-child(1) input').value = '';
+
       await typeIn('.key-value label:nth-child(1) input', 'super.secret');
       assert.dom('.key-value-error').exists();
+    });
+
+    test('warns you when you create a duplicate key', async function (assert) {
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          keyValues: [{ key: 'myKey', value: 'myVal' }],
+        })
+      );
+
+      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+
+      await click('.key-value button.add-more');
+
+      await typeIn(
+        '.key-value:nth-child(3) label:nth-child(1) input',
+        'myWonderfulKey'
+      );
+      assert.dom('.key-value-error').doesNotExist();
+
+      find('.key-value:nth-child(3) label:nth-child(1) input').value = '';
+
+      await typeIn('.key-value:nth-child(3) label:nth-child(1) input', 'myKey');
+      assert.dom('.key-value-error').exists();
+    });
+  });
+
+  module('Views', function () {
+    test('Allows you to swap between JSON and Key/Value Views', async function (assert) {
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          path: '',
+          keyValues: [{ key: '', value: '' }],
+        })
+      );
+
+      this.set(
+        'existingVariables',
+        server.createList('variable', 1, {
+          path: 'baz/bat',
+        })
+      );
+
+      this.set('view', 'table');
+
+      await render(
+        hbs`<SecureVariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} @view={{this.view}} />`
+      );
+      assert.dom('.key-value').exists();
+      assert.dom('.CodeMirror').doesNotExist();
+
+      this.set('view', 'json');
+      assert.dom('.key-value').doesNotExist();
+      assert.dom('.CodeMirror').exists();
+    });
+
+    test('Persists Key/Values table data to JSON', async function (assert) {
+      const keyValues = [
+        { key: 'foo', value: '123' },
+        { key: 'bar', value: '456' },
+      ];
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          path: '',
+          keyValues,
+        })
+      );
+
+      this.set('view', 'json');
+
+      await render(
+        hbs`<SecureVariableForm @model={{this.mockedModel}} @view={{this.view}} />`
+      );
+
+      const keyValuesAsJSON = keyValues.reduce((acc, { key, value }) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+
+      assert.equal(
+        code('.editor-wrapper').get(),
+        JSON.stringify(keyValuesAsJSON, null, 2),
+        'JSON editor contains the key values, stringified, by default'
+      );
+
+      this.set('view', 'table');
+
+      await click('.key-value button.add-more');
+
+      await typeIn('.key-value:last-of-type label:nth-child(1) input', 'howdy');
+      await typeIn(
+        '.key-value:last-of-type label:nth-child(2) input',
+        'partner'
+      );
+
+      this.set('view', 'json');
+
+      assert.ok(
+        code('[data-test-json-editor]').get().includes('"howdy": "partner"'),
+        'JSON editor contains the new key value'
+      );
+    });
+
+    test('Persists JSON data to Key/Values table', async function (assert) {
+      const keyValues = [{ key: '', value: '' }];
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          path: '',
+          keyValues,
+        })
+      );
+
+      this.set('view', 'json');
+
+      await render(
+        hbs`<SecureVariableForm @model={{this.mockedModel}} @view={{this.view}} />`
+      );
+
+      codeFillable('[data-test-json-editor]').get()(
+        JSON.stringify({ golden: 'gate' }, null, 2)
+      );
+      this.set('view', 'table');
+      assert.equal(
+        find(`.key-value:last-of-type label:nth-child(1) input`).value,
+        'golden',
+        'Key persists from JSON to Table'
+      );
+
+      assert.equal(
+        find(`.key-value:last-of-type label:nth-child(2) input`).value,
+        'gate',
+        'Value persists from JSON to Table'
+      );
     });
   });
 });

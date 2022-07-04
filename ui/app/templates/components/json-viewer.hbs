@@ -1,11 +1,9 @@
-<IvyCodemirror
+<div
   data-test-json-viewer
-  @value={{this.jsonStr}}
-  @options={{hash
-    mode="javascript"
+  {{code-mirror
+    content=(stringify-object @json)
     theme="hashi-read-only"
-    screenReaderLabel="Job definition"
-    tabSize=2
-    lineNumbers=true
     readOnly=true
-  }} />
+    screenReaderLabel="JSON Viewer"
+  }}
+/>

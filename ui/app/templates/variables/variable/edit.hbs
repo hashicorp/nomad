@@ -1,6 +1,6 @@
 {{page-title "Edit Secure Variable"}}
 
-<h1 class="title">
+<h1 class="title variable-title">
   <LinkTo class="back-link" @route="variables.variable.index">
     <FlightIcon
       @name="chevron-left"
@@ -10,6 +10,17 @@
   </LinkTo>
   Edit
   {{this.model.path}}
+  <Toggle
+    data-test-memory-toggle
+    @isActive={{eq this.view "json"}}
+    @onToggle={{action this.toggleView}}
+    title="JSON"
+  >JSON</Toggle>
+
 </h1>
 
-<SecureVariableForm @model={{this.model}} @existingVariables={{this.existingVariables}} />
+<SecureVariableForm
+  @model={{this.model}}
+  @existingVariables={{this.existingVariables}}
+  @view={{this.view}}
+/>
