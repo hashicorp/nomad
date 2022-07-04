@@ -85,20 +85,9 @@ export default class Variable extends AbstractAbility {
     for (const pathName of pathNames) {
       const pathSubString = pathName.match(PATH_PATTERN_REGEX)[1];
       const sanitizedPath = JSON.parse(pathSubString);
-      const doesEndWithWildcard =
-        sanitizedPath[sanitizedPath.length - 1] === WILDCARD_GLOB;
-      const doesStartWithWildcard = sanitizedPath[0] === WILDCARD_GLOB;
 
-      if (doesEndWithWildcard) {
-        const formattedPath = this._formatMatchingPathRegEx(sanitizedPath);
-        if (path.match(formattedPath)) matches.push(sanitizedPath);
-      } else if (doesStartWithWildcard) {
-        const formattedPath = this._formatMatchingPathRegEx(
-          sanitizedPath,
-          'start'
-        );
-        if (path.match(formattedPath)) matches.push(sanitizedPath);
-      }
+      if (this._doesMatchPattern(sanitizedPath, path))
+        matches.push(sanitizedPath);
     }
 
     return matches;
@@ -116,23 +105,7 @@ export default class Variable extends AbstractAbility {
 
     if (!allMatchingPaths.length) return WILDCARD_GLOB;
 
-    return allMatchingPaths.reduce((matchingPath, currentPath) => {
-      if (matchingPath === '') {
-        matchingPath = currentPath;
-        return matchingPath;
-      }
-      const count = matchingPath.match(WILDCARD_PATTERN_REGEX)?.length || 0;
-      if (currentPath.match(WILDCARD_PATTERN_REGEX)?.length > count) {
-        matchingPath = currentPath;
-      } else if (currentPath.match(WILDCARD_PATTERN_REGEX)?.length === count) {
-        // Chose suffix over prefix
-        if (currentPath.endsWith(WILDCARD_GLOB)) {
-          matchingPath = currentPath;
-        }
-      }
-
-      return matchingPath;
-    });
+    return this._smallestDifference(allMatchingPaths, path);
   }
 
   _doesMatchPattern(pattern, path) {
@@ -169,5 +142,29 @@ export default class Variable extends AbstractAbility {
     }
 
     return hasTrailingGlob || path.endsWith(lastPartOfPattern);
+  }
+
+  _computeLengthDiff(pattern, path) {
+    const countGlobsInPattern = pattern
+      ?.split('')
+      .filter((el) => el === WILDCARD_GLOB).length;
+
+    return path?.length - pattern?.length + countGlobsInPattern;
+  }
+
+  _smallestDifference(matches, path) {
+    const sortingCallBack = (patternA, patternB) =>
+      this._computeLengthDiff(patternA, path) -
+      this._computeLengthDiff(patternB, path);
+
+    const sortedMatches = matches?.sort(sortingCallBack);
+    const isTie =
+      this._computeLengthDiff(sortedMatches[0], path) ===
+      this._computeLengthDiff(sortedMatches[1], path);
+    const doesFirstMatchHaveLeadingGlob = sortedMatches[0][0] === WILDCARD_GLOB;
+
+    return isTie && doesFirstMatchHaveLeadingGlob
+      ? sortedMatches[1]
+      : sortedMatches[0];
   }
 }
