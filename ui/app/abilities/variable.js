@@ -6,7 +6,6 @@ const WILDCARD_GLOB = '*';
 const WILDCARD_PATTERN = '/';
 const GLOBAL_FLAG = 'g';
 const WILDCARD_PATTERN_REGEX = new RegExp(WILDCARD_PATTERN, GLOBAL_FLAG);
-const PATH_PATTERN_REGEX = new RegExp(/Path(.*)/);
 
 export default class Variable extends AbstractAbility {
   // Pass in a namespace to `can` or `cannot` calls to override
@@ -46,24 +45,20 @@ export default class Variable extends AbstractAbility {
     });
   }
 
-  @computed('rulesForNamespace.@each.capabilities', 'path')
+  @computed('path', 'allPaths')
   get policiesSupportVariableWriting() {
     const matchingPath = this._nearestMatchingPath(this.path);
-    return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
-      const capabilities = get(rules, keyName) || [];
-      return capabilities.includes('write');
-    });
+    return this.allPaths
+      .find((path) => path.name === matchingPath)
+      ?.capabilities?.includes('write');
   }
 
-  @computed('rulesForNamespace.@each.capabilities', 'path')
+  @computed('path', 'allPaths')
   get policiesSupportVariableDestroy() {
     const matchingPath = this._nearestMatchingPath(this.path);
-    return this.rulesForNamespace.some((rules) => {
-      const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
-      const capabilities = get(rules, keyName) || [];
-      return capabilities.includes('destroy');
-    });
+    return this.allPaths
+      .find((path) => path.name === matchingPath)
+      ?.capabilities?.includes('destroy');
   }
 
   @computed('token.selfTokenPolicies.[]', '_namespace')
@@ -75,12 +70,22 @@ export default class Variable extends AbstractAbility {
           get(policy, 'rulesJSON.Namespaces') || [],
           this._namespace
         );
+
         const variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
           (namespace) => namespace.Name === matchingNamespace
         )?.SecureVariables;
-        paths = { ...paths, ...variables };
+
+        const pathNames = variables?.Paths?.map((path) => ({
+          name: path.PathSpec,
+          capabilities: path.Capabilities,
+        }));
+
+        if (pathNames) {
+          paths = [...paths, ...pathNames];
+        }
+
         return paths;
-      }, {});
+      }, []);
   }
 
   _formatMatchingPathRegEx(path, wildCardPlacement = 'end') {
@@ -100,21 +105,16 @@ export default class Variable extends AbstractAbility {
     const matches = [];
 
     for (const pathName of pathNames) {
-      const pathSubString = pathName.match(PATH_PATTERN_REGEX)[1];
-      const sanitizedPath = JSON.parse(pathSubString);
-
-      if (this._doesMatchPattern(sanitizedPath, path))
-        matches.push(sanitizedPath);
+      if (this._doesMatchPattern(pathName, path)) matches.push(pathName);
     }
 
     return matches;
   }
 
   _nearestMatchingPath(path) {
-    const formattedPathKey = `Path "${path}"`;
-    const pathNames = Object.keys(this.allPaths);
+    const pathNames = this.allPaths.map((path) => path.name);
 
-    if (pathNames.includes(formattedPathKey)) {
+    if (pathNames.includes(path)) {
       return path;
     }
 
