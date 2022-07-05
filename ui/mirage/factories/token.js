@@ -39,7 +39,7 @@ namespace "default" {
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
   secure_variables {
     # full access to secrets in all project paths
-    path "project/*" {
+    path "blue/*" {
       capabilities = ["write", "read", "destroy", "list"]
     }
 

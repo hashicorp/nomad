@@ -28,9 +28,9 @@ export default class Variable extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableCreation'
+    'policiesSupportVariableWriting'
   )
-  canCreate;
+  canWrite;
 
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableView() {
@@ -40,12 +40,12 @@ export default class Variable extends AbstractAbility {
   }
 
   @computed('rulesForNamespace.@each.capabilities', 'path')
-  get policiesSupportVariableCreation() {
+  get policiesSupportVariableWriting() {
     const matchingPath = this._nearestMatchingPath(this.path);
     return this.rulesForNamespace.some((rules) => {
       const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
-      return capabilities.includes('create');
+      return capabilities.includes('write');
     });
   }
 

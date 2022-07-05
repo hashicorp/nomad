@@ -109,7 +109,7 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.notOk(this.ability.canCreate);
+      assert.notOk(this.ability.canWrite);
     });
 
     test('it permits creating variables when token type is management', function (assert) {
@@ -120,7 +120,7 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.ok(this.ability.canCreate);
+      assert.ok(this.ability.canWrite);
     });
 
     test('it permits creating variables when acl is disabled', function (assert) {
@@ -131,10 +131,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.ok(this.ability.canCreate);
+      assert.ok(this.ability.canWrite);
     });
 
-    test('it permits creating variables when token has SecureVariables with create capabilities in its rules', function (assert) {
+    test('it permits creating variables when token has SecureVariables with write capabilities in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -147,7 +147,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -159,7 +159,7 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.ok(this.ability.canCreate);
+      assert.ok(this.ability.canWrite);
     });
 
     test('it handles namespace matching', function (assert) {
@@ -184,7 +184,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "foo/bar"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -198,7 +198,7 @@ module('Unit | Ability | variable', function (hooks) {
       this.ability.path = 'foo/bar';
       this.ability.namespace = 'pablo';
 
-      assert.ok(this.ability.canCreate);
+      assert.ok(this.ability.canWrite);
     });
   });
 
@@ -216,7 +216,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "foo"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -251,10 +251,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "foo/*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                     'Path "foo/bar/*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -289,7 +289,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "foo/*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -324,10 +324,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "*/bar"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                     'Path "*/bar/baz"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -362,10 +362,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "*/bar"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                     'Path "foo/*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
@@ -400,10 +400,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Capabilities: [],
                   SecureVariables: {
                     'Path "*"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                     'Path "foo"': {
-                      Capabilities: ['create'],
+                      Capabilities: ['write'],
                     },
                   },
                 },
