@@ -407,28 +407,16 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-	var allow func(string) bool
 
 	// Check for read-job permissions
 	aclObj, err := e.srv.ResolveToken(args.AuthToken)
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case aclObj == nil:
-		allow = func(string) bool {
-			return true
-		}
-	case namespace == structs.AllNamespacesSentinel:
-		allow = func(ns string) bool {
-			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
-		}
-	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
-		return structs.ErrPermissionDenied
-	default:
-		allow = func(string) bool {
-			return true
-		}
 	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
 	if args.Filter != "" {
 		// Check for incompatible filtering.
@@ -449,7 +437,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			var iter memdb.ResultIterator
 			var opts paginator.StructsTokenizerOptions
 
-			// check if user has permission to all namespaces
+			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty evals if token isn't authorized for any

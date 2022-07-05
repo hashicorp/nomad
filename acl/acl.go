@@ -9,6 +9,9 @@ import (
 	glob "github.com/ryanuber/go-glob"
 )
 
+// Redefine this value from structs to avoid circular dependency.
+const AllNamespacesSentinel = "*"
+
 // ManagementACL is a singleton used for management tokens
 var ManagementACL *ACL
 
@@ -215,10 +218,20 @@ func (a *ACL) AllowNsOp(ns string, op string) bool {
 	return a.AllowNamespaceOperation(ns, op)
 }
 
-// AllowNamespaceOperation checks if a given operation is allowed for a namespace
+// AllowNsOpFunc is a helper that returns a function that can be used to check
+// namespace permissions.
+func (a *ACL) AllowNsOpFunc(ops ...string) func(string) bool {
+	return func(ns string) bool {
+		return NamespaceValidator(ops...)(a, ns)
+	}
+}
+
+// AllowNamespaceOperation checks if a given operation is allowed for a namespace.
+//
+// If the namespaces is the all namespaces wildcard (*) this will always return
+// true and permissions must be checked for each namespaced object.
 func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
-	// Hot path management tokens
-	if a.management {
+	if a.skipNamespaceCheck(ns) {
 		return true
 	}
 
@@ -234,8 +247,7 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 
 // AllowNamespace checks if any operations are allowed for a namespace
 func (a *ACL) AllowNamespace(ns string) bool {
-	// Hot path management tokens
-	if a.management {
+	if a.skipNamespaceCheck(ns) {
 		return true
 	}
 
@@ -289,6 +301,29 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 	}
 
 	return !capabilities.Check(PolicyDeny)
+}
+
+// skipNamespaceCheck returns true if the ACL object should not be checked
+// for individual capabilities in the given namespace.
+func (a *ACL) skipNamespaceCheck(ns string) bool {
+	// Hot path if ACL is not enabled.
+	if a == nil {
+		return true
+	}
+
+	// Hot path management tokens
+	if a.management {
+		return true
+	}
+
+	// Hot path if the token has a namespace rule and the requested namemespace
+	// is the all namespaces wildcard.
+	hasNamespace := a.namespaces.Len() > 0 || a.wildcardNamespaces.Len() > 0
+	if hasNamespace && ns == AllNamespacesSentinel {
+		return true
+	}
+
+	return false
 }
 
 // matchingNamespaceCapabilitySet looks for a capabilitySet that matches the namespace,

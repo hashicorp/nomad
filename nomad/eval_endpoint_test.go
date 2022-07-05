@@ -1047,6 +1047,12 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// Create non-default namespace
+	nondefaultNS := mock.Namespace()
+	nondefaultNS.Name = "non-default"
+	err := s1.fsm.State().UpsertNamespaces(999, []*structs.Namespace{nondefaultNS})
+	require.NoError(t, err)
+
 	// create a set of evals and field values to filter on. these are
 	// in the order that the state store will return them from the
 	// iterator (sorted by create index), for ease of writing tests
@@ -1058,7 +1064,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 	}{
 		{ids: []string{"aaaa1111-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 0
 		{ids: []string{"aaaaaa22-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 1
-		{ids: []string{"aaaaaa33-3350-4b4b-d185-0e1992ed43e9"}, namespace: "non-default"},            // 2
+		{ids: []string{"aaaaaa33-3350-4b4b-d185-0e1992ed43e9"}, namespace: nondefaultNS.Name},        // 2
 		{ids: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example", status: "blocked"}, // 3
 		{ids: []string{"aaaaaabb-3350-4b4b-d185-0e1992ed43e9"}},                                      // 4
 		{ids: []string{"aaaaaacc-3350-4b4b-d185-0e1992ed43e9"}},                                      // 5
