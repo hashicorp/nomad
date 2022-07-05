@@ -155,20 +155,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	if len(evals) > 1 {
-		// Format the evals
-		out := make([]string, len(evals)+1)
-		out[0] = "ID|Priority|Triggered By|Status|Placement Failures"
-		for i, eval := range evals {
-			failures, _ := evalFailureStatus(eval)
-			out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
-				limit(eval.ID, length),
-				eval.Priority,
-				eval.TriggeredBy,
-				eval.Status,
-				failures,
-			)
-		}
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatEvalList(evals, verbose)))
 		return 1
 	}
 
@@ -223,6 +210,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status Description|%s", statusDesc),
 		fmt.Sprintf("Type|%s", eval.Type),
 		fmt.Sprintf("TriggeredBy|%s", eval.TriggeredBy),
+		fmt.Sprintf("Job ID|%s", eval.JobID),
+		fmt.Sprintf("Namespace|%s", eval.Namespace),
 	}
 
 	if triggerNoun != "" && triggerSubj != "" {
@@ -282,8 +271,6 @@ func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []strin
 
 func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	switch eval.TriggeredBy {
-	case "job-register", "job-deregister", "periodic-job", "rolling-update", "deployment-watcher":
-		return "Job ID", eval.JobID
 	case "node-update":
 		return "Node ID", eval.NodeID
 	case "max-plan-attempts":

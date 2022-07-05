@@ -41,10 +41,10 @@ List all tracked evaluations:
 
 ```shell-session
 $ nomad eval list -per-page 3 -status complete
-ID        Priority  Triggered By        Job ID   Status    Placement Failures
-456e37aa  50        deployment-watcher  example  complete  false
-1a1eafe6  50        alloc-stop          example  complete  false
-3411e37b  50        job-register        example  complete  false
+ID        Priority  Triggered By        Job ID   Namespace  Node ID  Status    Placement Failures
+456e37aa  50        deployment-watcher  example  default    <none>   complete  false
+1a1eafe6  50        alloc-stop          example  default    <node>   complete  false
+3411e37b  50        job-register        example  default    <node>   complete  false
 
 Results have been paginated. To get the next page run:
 
