@@ -202,6 +202,107 @@ module('Unit | Ability | variable', function (hooks) {
     });
   });
 
+  module('#destroy', function () {
+    test('it does not permit destroying variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canWrite);
+    });
+
+    test('it permits destroying variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canWrite);
+    });
+
+    test('it permits creating variables when acl is disabled', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: false,
+        selfToken: { type: 'client' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canWrite);
+    });
+
+    test('it permits destroying variables when token has SecureVariables with write capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "*"': {
+                      Capabilities: ['destroy'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canDestroy);
+    });
+
+    test('it handles namespace matching', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['list'],
+                    },
+                  },
+                },
+                {
+                  Name: 'pablo',
+                  Capabilities: [],
+                  SecureVariables: {
+                    'Path "foo/bar"': {
+                      Capabilities: ['destroy'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.path = 'foo/bar';
+      this.ability.namespace = 'pablo';
+
+      assert.ok(this.ability.canDestroy);
+    });
+  });
+
   module('#_nearestMatchingPath', function () {
     test('returns capabilities for an exact path match', function (assert) {
       const mockToken = Service.extend({
