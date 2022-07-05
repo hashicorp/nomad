@@ -42,18 +42,20 @@
       </div>
       {{/if}}
     {{/unless}}
-    <TwoStepButton
-      data-test-delete-button
-      @alignRight={{true}}
-      @idleText="Delete"
-      @cancelText="Cancel"
-      @confirmText="Yes, delete"
-      @confirmationMessage="Are you sure you want to delete this variable and all its items?"
-      @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
-      @onConfirm={{perform this.deleteVariableFile}}
-      @onPrompt={{this.onDeletePrompt}}
-      @onCancel={{this.onDeleteCancel}}
-    />
+    {{#if (can "destroy variable" path=this.model.absolutePath)}}
+      <TwoStepButton
+        data-test-delete-button
+        @alignRight={{true}}
+        @idleText="Delete"
+        @cancelText="Cancel"
+        @confirmText="Yes, delete"
+        @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+        @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+        @onConfirm={{perform this.deleteVariableFile}}
+        @onPrompt={{this.onDeletePrompt}}
+        @onCancel={{this.onDeleteCancel}}
+      />
+    {{/if}}
   </div>
 </h1>
 <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>

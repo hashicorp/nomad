@@ -32,6 +32,13 @@ export default class Variable extends AbstractAbility {
   )
   canWrite;
 
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportVariableDestroy'
+  )
+  canDestroy;
+
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableView() {
     return this.rulesForNamespace.some((rules) => {
@@ -46,6 +53,16 @@ export default class Variable extends AbstractAbility {
       const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
       const capabilities = get(rules, keyName) || [];
       return capabilities.includes('write');
+    });
+  }
+
+  @computed('rulesForNamespace.@each.capabilities', 'path')
+  get policiesSupportVariableDestroy() {
+    const matchingPath = this._nearestMatchingPath(this.path);
+    return this.rulesForNamespace.some((rules) => {
+      const keyName = `SecureVariables.Path "${matchingPath}".Capabilities`;
+      const capabilities = get(rules, keyName) || [];
+      return capabilities.includes('destroy');
     });
   }
 
