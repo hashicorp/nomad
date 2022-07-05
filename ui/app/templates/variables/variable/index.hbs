@@ -29,7 +29,7 @@
   </div>
   <div>
     {{#unless this.isDeleting}}
-      {{#if (can "create variable" path=this.model.absolutePath)}}
+      {{#if (can "write variable" path=this.model.absolutePath)}}
       <div class="two-step-button">
         <LinkTo
           data-test-edit-button
