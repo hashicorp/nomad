@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { alias } from '@ember/object/computed';
 import classic from 'ember-classic-decorator';
+import { inject as service } from '@ember/service';
 
 @classic
 export default class DefinitionController extends Controller.extend(
@@ -9,6 +10,7 @@ export default class DefinitionController extends Controller.extend(
 ) {
   @alias('model.job') job;
   @alias('model.definition') definition;
+  @service router;
 
   isEditing = false;
 
@@ -21,9 +23,7 @@ export default class DefinitionController extends Controller.extend(
     this.set('isEditing', false);
   }
 
-  onSubmit(id, jobNamespace) {
-    this.transitionToRoute('jobs.job', id, {
-      queryParams: { jobNamespace },
-    });
+  onSubmit() {
+    this.router.transitionTo('jobs.job', this.job.idWithNamespace);
   }
 }

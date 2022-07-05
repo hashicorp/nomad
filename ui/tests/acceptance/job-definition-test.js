@@ -95,7 +95,7 @@ module('Acceptance | job definition', function (hooks) {
     await Definition.editor.run();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Now on the job overview page'
     );
   });
