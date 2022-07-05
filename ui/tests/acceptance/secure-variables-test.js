@@ -286,4 +286,63 @@ module('Acceptance | secure variables', function (hooks) {
       window.localStorage.nomadTokenSecret = null;
     });
   });
+
+  module('delete flow', function () {
+    test('allows a user with correct permissions to delete a secure variable', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      const policy = server.db.policies.find('Variable Maker');
+      policy.rulesJSON.Namespaces[0].SecureVariables['Path "*"'].Capabilities =
+        ['list', 'destroy'];
+      await Variables.visit();
+      await click('[data-test-file-row]');
+      // End Test Set-up
+
+      assert.equal(currentRouteName(), 'variables.variable.index');
+      assert
+        .dom('[data-test-delete-button]')
+        .exists('The delete button is enabled in the view.');
+      await click('[data-test-delete-button]');
+
+      assert
+        .dom('[data-test-confirmation-message]')
+        .exists('Deleting a variable requires two-step confirmation.');
+
+      await click('[data-test-confirm-button]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables',
+        'Navigates user back to variables list page after destroying a variable.'
+      );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('prevents users from delete a secure variable without proper permissions', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      const policy = server.db.policies.find('Variable Maker');
+      policy.rulesJSON.Namespaces[0].SecureVariables['Path "*"'].Capabilities =
+        ['list'];
+      await Variables.visit();
+      await click('[data-test-file-row]');
+      // End Test Set-up
+
+      assert.equal(currentRouteName(), 'variables.variable.index');
+      assert
+        .dom('[data-test-delete-button]')
+        .doesNotExist('The delete button is hidden in the view.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+  });
 });
