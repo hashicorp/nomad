@@ -48,10 +48,10 @@ export default class VariableModel extends Model {
   @attr('number') createIndex;
   /** @type {number} */
   @attr('number') modifyIndex;
-  /** @type {string} */
-  @attr('string') createTime;
-  /** @type {string} */
-  @attr('string') modifyTime;
+  /** @type {Date} */
+  @attr('date') createTime;
+  /** @type {Date} */
+  @attr('date') modifyTime;
   /** @type {string} */
   @attr('string') namespace;
 
