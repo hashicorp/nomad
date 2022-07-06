@@ -135,7 +135,7 @@ func TestBucket_Iterate(t *testing.T) {
 			b := tx.Bucket(bucket)
 			// will fail to encode employee into an int
 			return Iterate(b, nil, func(key []byte, i int) {
-				must.True(t, false) // must not get here
+				must.Unreachable(t)
 			})
 		})
 		must.Error(t, err)
