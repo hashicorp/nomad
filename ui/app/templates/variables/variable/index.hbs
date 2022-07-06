@@ -36,8 +36,10 @@
   </div>
   <div>
     {{#unless this.isDeleting}}
+      {{#if (can "write variable" path=this.model.absolutePath)}}
       <div class="two-step-button">
         <LinkTo
+          data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
           @route="variables.variable.edit"
@@ -46,19 +48,22 @@
           Edit
         </LinkTo>
       </div>
+      {{/if}}
     {{/unless}}
-    <TwoStepButton
-      data-test-delete-button
-      @alignRight={{true}}
-      @idleText="Delete"
-      @cancelText="Cancel"
-      @confirmText="Yes, delete"
-      @confirmationMessage="Are you sure you want to delete this variable and all its items?"
-      @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
-      @onConfirm={{perform this.deleteVariableFile}}
-      @onPrompt={{this.onDeletePrompt}}
-      @onCancel={{this.onDeleteCancel}}
-    />
+    {{#if (can "destroy variable" path=this.model.absolutePath)}}
+      <TwoStepButton
+        data-test-delete-button
+        @alignRight={{true}}
+        @idleText="Delete"
+        @cancelText="Cancel"
+        @confirmText="Yes, delete"
+        @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+        @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+        @onConfirm={{perform this.deleteVariableFile}}
+        @onPrompt={{this.onDeletePrompt}}
+        @onCancel={{this.onDeleteCancel}}
+      />
+    {{/if}}
   </div>
 </h1>
 {{#if (eq this.view "json")}}
@@ -79,7 +84,7 @@
 {{else}}
   <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
     <t.body as |row|>
-      <tr>
+      <tr data-test-var={{row.model.key}}>
         <td>
           {{row.model.key}}
         </td>

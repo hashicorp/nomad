@@ -38,8 +38,19 @@ namespace "default" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
   secure_variables {
+    # full access to secrets in all project paths
+    path "blue/*" {
+      capabilities = ["write", "read", "destroy", "list"]
+    }
+
+    # full access to secrets in all project paths
     path "*" {
-      capabilities = ["list"]
+      capabilities = ["write", "read", "destroy", "list"]
+    }
+
+    # read/list access within a "system" path belonging to administrators
+    path "system/*" {
+      capabilities = ["read", "list"]
     }
   }
 }
@@ -55,12 +66,20 @@ node {
               Name: 'default',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
               SecureVariables: {
-                'Path "*"': {
-                  Capabilities: ['list', 'create'],
-                },
-                'Path "blue/berkshire"': {
-                  Capabilities: ['list', 'create', 'edit', 'delete'],
-                },
+                Paths: [
+                  {
+                    Capabilities: ['write', 'read', 'destroy', 'list'],
+                    PathSpec: 'blue/*',
+                  },
+                  {
+                    Capabilities: ['write', 'read', 'destroy', 'list'],
+                    PathSpec: '*',
+                  },
+                  {
+                    Capabilities: ['read', 'list'],
+                    PathSpec: 'system/*',
+                  },
+                ],
               },
             },
           ],
