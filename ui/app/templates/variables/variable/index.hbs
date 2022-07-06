@@ -66,6 +66,11 @@
     {{/if}}
   </div>
 </h1>
+
+{{#if (or this.model.pathLinkedEntities.job this.model.pathLinkedEntities.group this.model.pathLinkedEntities.task)}}
+  <SecureVariableForm::RelatedEntities @job={{this.model.pathLinkedEntities.job}} @group={{this.model.pathLinkedEntities.group}} @task={{this.model.pathLinkedEntities.task}} />
+{{/if}}
+
 {{#if (eq this.view "json")}}
   <div class="boxed-section">
     <div class="boxed-section-head">

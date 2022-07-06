@@ -106,6 +106,16 @@ table.path-tree {
   }
 }
 
+.related-entities {
+  --blue: #1563ff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  a {
+    color: $blue;
+  }
+}
+
 @keyframes slide-in {
   0% {
     top: 10px;

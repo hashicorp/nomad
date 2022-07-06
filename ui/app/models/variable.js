@@ -25,7 +25,6 @@ import { trimPath } from '../helpers/trim-path';
  * @class
  * @extends Model
  */
-@classic
 export default class VariableModel extends Model {
   /**
    * Can be any arbitrary string, but behaves best when used as a slash-delimited file path.
@@ -79,5 +78,34 @@ export default class VariableModel extends Model {
       acc[key] = value;
       return acc;
     }, {});
+  }
+
+  // Gets the path of the variable, and if it starts with jobs/, delimits on / and returns each part separately in an array
+
+  /**
+   * @typedef pathLinkedEntities
+   * @type {Object}
+   * @property {string} job
+   * @property {string} [group]
+   * @property {string} [task]
+   */
+
+  /**
+   * @type {pathLinkedEntities}
+   */
+  get pathLinkedEntities() {
+    const entityTypes = ['job', 'group', 'task'];
+    const emptyEntities = { job: '', group: '', task: '' };
+    if (this.path.startsWith('jobs/')) {
+      return this.path
+        .split('/')
+        .slice(1, 4)
+        .reduce((acc, pathPart, index) => {
+          acc[entityTypes[index]] = pathPart;
+          return acc;
+        }, emptyEntities);
+    } else {
+      return emptyEntities;
+    }
   }
 }

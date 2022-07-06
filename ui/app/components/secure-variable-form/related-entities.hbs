@@ -1,0 +1,13 @@
+<p class="related-entities notification">
+<FlightIcon @name="info-fill" @color="var(--blue)" />
+<span>
+    This secure variable is accessible by 
+    {{#if @task}}
+    task <strong>{{@task}}</strong> in group <LinkTo @route="jobs.job.task-group" @models={{array @job @group}}>{{@group}}</LinkTo>
+    {{else if @group}}
+    group <LinkTo @route="jobs.job.task-group" @models={{array @job @group}}>{{@group}}</LinkTo>
+    {{else if @job}}
+    job <LinkTo @route="jobs.job" @model={{@job}}>{{@job}}</LinkTo><
+    {{/if}}
+</span>
+</p>
