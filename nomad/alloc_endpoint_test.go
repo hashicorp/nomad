@@ -1284,8 +1284,9 @@ func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
 		{
 			Label:     "all namespaces with insufficient token",
 			Namespace: "*",
-			Allocs:    []*structs.Allocation{},
 			Token:     ns1tokenInsufficient.SecretID,
+			Error:     true,
+			Message:   structs.ErrPermissionDenied.Error(),
 		},
 		{
 			Label:     "ns1 with ns1 token",
