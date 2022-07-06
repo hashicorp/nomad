@@ -1,0 +1,82 @@
+---
+layout: docs
+page_title: 'Commands: operator scheduler set-config'
+description: |
+  Modify the scheduler configuration.
+---
+
+# Command: operator scheduler set-config
+
+The scheduler operator set-config command is used to modify the scheduler
+configuration.
+
+## Usage
+
+```plaintext
+nomad operator scheduler set-config [options]
+```
+
+If ACLs are enabled, this command requires a token with the `operator:write`
+capability.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Set Config Options
+
+- `-check-index` - If set, the scheduler config is only updated if the passed
+  modify index matches the current server side version. If a non-zero value is
+  passed, it ensures that the scheduler config is being updated from a known
+  state.
+
+- `-scheduler-algorithm` - Specifies whether scheduler binpacks or spreads
+  allocations on available nodes. Must be one of `["binpack"|"spread"]`.
+
+- `-memory-oversubscription` - When true, tasks may exceed their reserved memory
+  limit, if the client has excess memory capacity. Tasks must specify [`memory_max`]
+  to take advantage of memory oversubscription. Must be one of `[true|false]`.
+
+- `-reject-job-registration` - When true, the server will return permission denied
+  errors for job registration, job dispatch, and job scale APIs, unless the ACL
+  token for the request is a management token. If ACLs are disabled, no user
+  will be able to register jobs. This allows operators to shed load from automated
+  processes during incident response. Must be one of `[true|false]`.
+
+- `-pause-eval-broker` - When set to true, the eval broker which usually runs on
+  the leader will be disabled. This will prevent the scheduler workers from
+  receiving new work. Must be one of `[true|false]`.
+
+- `-preempt-batch-scheduler` - Specifies whether preemption for batch jobs
+  is enabled. Note that if this is set to true, then batch jobs can preempt any
+  other jobs. Must be one of `[true|false]`.
+
+- `-preempt-service-scheduler` - Specifies whether preemption for service jobs
+  is enabled. Note that if this is set to true, then service jobs can preempt any
+  other jobs. Must be one of `[true|false]`.
+
+- `-preempt-sysbatch-scheduler` - Specifies whether preemption for system batch
+  jobs is enabled. Note that if this is set to true, then system batch jobs can
+  preempt any other jobs. Must be one of `[true|false]`.
+
+- `-preempt-system-scheduler` - Specifies whether preemption for system jobs
+  is enabled. Note that if this is set to true, then system jobs can preempt any
+  other jobs. Must be one of `[true|false]`.
+
+## Examples
+
+Modify the scheduler algorithm to spread:
+
+```shell-session
+$ nomad operator scheduler set-config -scheduler-algorithm=spread
+Scheduler configuration updated!
+```
+
+Modify the scheduler algorithm to spread using the check index flag:
+
+```shell-session
+$ nomad operator scheduler set-config -scheduler-algorithm=spread -check-index=5
+Scheduler configuration updated!
+```
+
+[`memory_max`]: /docs/job-specification/resources#memory_max

@@ -402,39 +402,42 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		c.Build = "0.9.0+unittest"
 	})
 	defer cleanupS1()
-	codec := rpcClient(t, s1)
+	rpcCodec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	require := require.New(t)
-
-	// Disable preemption
+	// Disable preemption and pause the eval broker.
 	arg := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: false,
 			},
+			PauseEvalBroker: true,
 		},
 	}
 	arg.Region = s1.config.Region
 
 	var setResponse structs.SchedulerSetConfigurationResponse
-	err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
-	require.Nil(err)
-	require.NotZero(setResponse.Index)
+	err := msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.Nil(t, err)
+	require.NotZero(t, setResponse.Index)
 
-	// Read and verify that preemption is disabled
+	// Read and verify that preemption is disabled and the eval and blocked
+	// evals systems are disabled.
 	readConfig := structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
 			Region: s1.config.Region,
 		},
 	}
 	var reply structs.SchedulerConfigurationResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &readConfig, &reply); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerGetConfiguration", &readConfig, &reply)
+	require.NoError(t, err)
 
-	require.NotZero(reply.Index)
-	require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	require.NotZero(t, reply.Index)
+	require.False(t, reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+
+	require.False(t, s1.evalBroker.Enabled())
+	require.False(t, s1.blockedEvals.Enabled())
 }
 
 func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
