@@ -1,0 +1,24 @@
+<Trigger @do={{this.fetchNamespaces}} @onSuccess={{this.formatAndSetNamespaces}} as |trigger|>
+  {{did-insert trigger.fns.do}}
+  {{! No-op on Error}}
+  {{! No Loading Behavior }}
+  {{#if trigger.data.isSuccess}}
+    {{#if trigger.data.result}}
+      {{#if @data.namespaceOptions}}
+        <label>
+          <span>
+            Namespace
+          </span>
+          <SingleSelectDropdown
+            data-test-variable-namespace-filter
+            @label="Namespace"
+            @disabled={{@data.disabled}}
+            @options={{@data.namespaceOptions}}
+            @selection={{@data.selection}}
+            @onSelect={{@fns.onSelect}}
+          />
+        </label>
+      {{/if}}
+    {{/if}}
+  {{/if}}
+</Trigger>
