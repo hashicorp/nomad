@@ -35,29 +35,16 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-	var allow func(string) bool
 
 	// Check namespace read-job permissions
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case aclObj == nil:
-		allow = func(string) bool {
-			return true
-		}
-	case namespace == structs.AllNamespacesSentinel:
-		allow = func(ns string) bool {
-			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
-		}
-	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
-		return structs.ErrPermissionDenied
-	default:
-		allow = func(string) bool {
-			return true
-		}
 	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
 	// Setup the blocking query
 	sort := state.SortOption(args.Reverse)
