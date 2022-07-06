@@ -102,7 +102,8 @@ path "auth/token/revoke-accessor" {
 }
 
 # Allow checking the capabilities of our own token. This is used to validate the
-# token upon startup.
+# token upon startup. Note this requires update permissions because the Vault API
+# is a POST
 path "sys/capabilities-self" {
   capabilities = ["update"]
 }
