@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCapabilitySet(t *testing.T) {
@@ -234,42 +235,89 @@ func TestAllowNamespace(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		Policy string
-		Allow  bool
+		name      string
+		policy    string
+		allow     bool
+		namespace string
 	}{
 		{
-			Policy: `namespace "foo" {}`,
-			Allow:  false,
+			name:      "foo namespace - no capabilities",
+			policy:    `namespace "foo" {}`,
+			allow:     false,
+			namespace: "foo",
 		},
 		{
-			Policy: `namespace "foo" { policy = "deny" }`,
-			Allow:  false,
+			name:      "foo namespace - deny policy",
+			policy:    `namespace "foo" { policy = "deny" }`,
+			allow:     false,
+			namespace: "foo",
 		},
 		{
-			Policy: `namespace "foo" { capabilities = ["deny"] }`,
-			Allow:  false,
+			name:      "foo namespace - deny capability",
+			policy:    `namespace "foo" { capabilities = ["deny"] }`,
+			allow:     false,
+			namespace: "foo",
 		},
 		{
-			Policy: `namespace "foo" { capabilities = ["list-jobs"] }`,
-			Allow:  true,
+			name:      "foo namespace - with capability",
+			policy:    `namespace "foo" { capabilities = ["list-jobs"] }`,
+			allow:     true,
+			namespace: "foo",
 		},
 		{
-			Policy: `namespace "foo" { policy = "read" }`,
-			Allow:  true,
+			name:      "foo namespace - with policy",
+			policy:    `namespace "foo" { policy = "read" }`,
+			allow:     true,
+			namespace: "foo",
+		},
+		{
+			name:      "wildcard namespace - no capabilities",
+			policy:    `namespace "foo" {}`,
+			allow:     false,
+			namespace: "*",
+		},
+		{
+			name:      "wildcard namespace - deny policy",
+			policy:    `namespace "foo" { policy = "deny" }`,
+			allow:     false,
+			namespace: "*",
+		},
+		{
+			name:      "wildcard namespace - deny capability",
+			policy:    `namespace "foo" { capabilities = ["deny"] }`,
+			allow:     false,
+			namespace: "*",
+		},
+		{
+			name:      "wildcard namespace - with capability",
+			policy:    `namespace "foo" { capabilities = ["list-jobs"] }`,
+			allow:     true,
+			namespace: "*",
+		},
+		{
+			name:      "wildcard namespace - with policy",
+			policy:    `namespace "foo" { policy = "read" }`,
+			allow:     true,
+			namespace: "*",
+		},
+		{
+			name:      "wildcard namespace - no namespace rule",
+			policy:    `agent { policy = "read" }`,
+			allow:     false,
+			namespace: "*",
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
-			policy, err := Parse(tc.Policy)
-			assert.Nil(err)
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy)
+			require.NoError(t, err)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			require.NoError(t, err)
 
-			assert.Equal(tc.Allow, acl.AllowNamespace("foo"))
+			got := acl.AllowNamespace(tc.namespace)
+			require.Equal(t, tc.allow, got)
 		})
 	}
 }
@@ -278,51 +326,71 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		Policy string
-		Allow  bool
+		name      string
+		policy    string
+		allow     bool
+		namespace string
 	}{
-		{ // Wildcard matches
-			Policy: `namespace "prod-api-*" { policy = "write" }`,
-			Allow:  true,
+		{
+			name:      "wildcard matches",
+			policy:    `namespace "prod-api-*" { policy = "write" }`,
+			allow:     true,
+			namespace: "prod-api-services",
 		},
-		{ // Non globbed namespaces are not wildcards
-			Policy: `namespace "prod-api" { policy = "write" }`,
-			Allow:  false,
+		{
+			name:      "non globbed namespaces are not wildcards",
+			policy:    `namespace "prod-api" { policy = "write" }`,
+			allow:     false,
+			namespace: "prod-api-services",
 		},
-		{ // Concrete matches take precedence
-			Policy: `namespace "prod-api-services" { policy = "deny" }
+		{
+			name: "concrete matches take precedence",
+			policy: `namespace "prod-api-services" { policy = "deny" }
 			         namespace "prod-api-*" { policy = "write" }`,
-			Allow: false,
+			allow:     false,
+			namespace: "prod-api-services",
 		},
 		{
-			Policy: `namespace "prod-api-*" { policy = "deny" }
+			name: "glob match",
+			policy: `namespace "prod-api-*" { policy = "deny" }
 			         namespace "prod-api-services" { policy = "write" }`,
-			Allow: true,
-		},
-		{ // The closest character match wins
-			Policy: `namespace "*-api-services" { policy = "deny" }
-			         namespace "prod-api-*" { policy = "write" }`, // 4 vs 8 chars
-			Allow: false,
+			allow:     true,
+			namespace: "prod-api-services",
 		},
 		{
-			Policy: `namespace "prod-api-*" { policy = "write" }
+			name: "closest character match wins - suffix",
+			policy: `namespace "*-api-services" { policy = "deny" }
+			         namespace "prod-api-*" { policy = "write" }`, // 4 vs 8 chars
+			allow:     false,
+			namespace: "prod-api-services",
+		},
+		{
+			name: "closest character match wins - prefix",
+			policy: `namespace "prod-api-*" { policy = "write" }
                namespace "*-api-services" { policy = "deny" }`, // 4 vs 8 chars
-			Allow: false,
+			allow:     false,
+			namespace: "prod-api-services",
+		},
+		{
+			name: "wildcard namespace with glob match",
+			policy: `namespace "prod-api-*" { policy = "deny" }
+			         namespace "prod-api-services" { policy = "write" }`,
+			allow:     true,
+			namespace: "*",
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
-			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.Namespaces)
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy)
+			require.NoError(t, err)
+			require.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			require.NoError(t, err)
 
-			assert.Equal(tc.Allow, acl.AllowNamespace("prod-api-services"))
+			got := acl.AllowNamespace(tc.namespace)
+			require.Equal(t, tc.allow, got)
 		})
 	}
 }

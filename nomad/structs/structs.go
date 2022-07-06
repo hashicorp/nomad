@@ -157,6 +157,9 @@ const (
 
 	// AllNamespacesSentinel is the value used as a namespace RPC value
 	// to indicate that endpoints must search in all namespaces
+	//
+	// Also defined in acl/acl.go to avoid circular dependencies. If modified
+	// it should be updated there as well.
 	AllNamespacesSentinel = "*"
 
 	// maxNamespaceDescriptionLength limits a namespace description length
