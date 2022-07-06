@@ -186,6 +186,9 @@ func (m *monitor) monitor(evalID string) int {
 	// Add the initial pending state
 	m.update(newEvalState())
 
+	m.ui.Info(fmt.Sprintf("%s: Monitoring evaluation %q",
+		formatTime(time.Now()), limit(evalID, m.length)))
+
 	for {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
@@ -193,9 +196,6 @@ func (m *monitor) monitor(evalID string) int {
 			m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
 			return 1
 		}
-
-		m.ui.Info(fmt.Sprintf("%s: Monitoring evaluation %q",
-			formatTime(time.Now()), limit(eval.ID, m.length)))
 
 		// Create the new eval state.
 		state := newEvalState()

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
@@ -52,4 +53,47 @@ func TestOperator_RaftRemovePeerByID(t *testing.T) {
 		"id \"nope\" was not found in the Raft configuration") {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+func TestOperator_SchedulerGetConfiguration(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	schedulerConfig, _, err := c.Operator().SchedulerGetConfiguration(nil)
+	require.Nil(t, err)
+	require.NotEmpty(t, schedulerConfig)
+}
+
+func TestOperator_SchedulerSetConfiguration(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	newSchedulerConfig := SchedulerConfiguration{
+		SchedulerAlgorithm: SchedulerAlgorithmSpread,
+		PreemptionConfig: PreemptionConfig{
+			SystemSchedulerEnabled:   true,
+			SysBatchSchedulerEnabled: true,
+			BatchSchedulerEnabled:    true,
+			ServiceSchedulerEnabled:  true,
+		},
+		MemoryOversubscriptionEnabled: true,
+		RejectJobRegistration:         true,
+		PauseEvalBroker:               true,
+	}
+
+	schedulerConfigUpdateResp, _, err := c.Operator().SchedulerSetConfiguration(&newSchedulerConfig, nil)
+	require.Nil(t, err)
+	require.True(t, schedulerConfigUpdateResp.Updated)
+
+	// We can't exactly predict the query meta responses, so we test fields
+	// individually.
+	schedulerConfig, _, err := c.Operator().SchedulerGetConfiguration(nil)
+	require.Nil(t, err)
+	require.Equal(t, schedulerConfig.SchedulerConfig.SchedulerAlgorithm, SchedulerAlgorithmSpread)
+	require.True(t, schedulerConfig.SchedulerConfig.PauseEvalBroker)
+	require.True(t, schedulerConfig.SchedulerConfig.RejectJobRegistration)
+	require.True(t, schedulerConfig.SchedulerConfig.MemoryOversubscriptionEnabled)
+	require.Equal(t, newSchedulerConfig.PreemptionConfig, schedulerConfig.SchedulerConfig.PreemptionConfig)
 }
