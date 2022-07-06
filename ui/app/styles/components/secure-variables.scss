@@ -111,8 +111,24 @@ table.path-tree {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  &.notification {
+    align-items: center;
+  }
   a {
     color: $blue;
+  }
+}
+
+.related-entities-hint {
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  border: 1px solid $grey-lighter;
+  gap: 1rem;
+  code {
+    background-color: lighten($grey-lighter, 8%);
+    border: 1px solid $grey-lighter;
+    padding: 0 0.25rem;
+    border-radius: 4px;
   }
 }
 

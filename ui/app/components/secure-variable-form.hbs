@@ -16,6 +16,11 @@
         {{autofocus}}
         data-test-path-input
       />
+      <div class="related-entities related-entities-hint">
+        <FlightIcon @name="info-fill" @color="var(--blue)" />
+        <p>You can prefix your path with <code>jobs/</code> to automatically expose the secure variable to a secified job, task group, or task.<br />
+        Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      </div>
     </label>
     {{#if this.duplicatePathWarning}}
       <p class="duplicate-path-error help is-danger">
