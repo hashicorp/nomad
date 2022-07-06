@@ -146,9 +146,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "*"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [{ Capabilities: ['write'], PathSpec: '*' }],
                   },
                 },
               ],
@@ -174,18 +172,14 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/bar"': {
-                      Capabilities: ['list'],
-                    },
+                    Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
                   },
                 },
                 {
                   Name: 'pablo',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/bar"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [{ Capabilities: ['write'], PathSpec: 'foo/bar' }],
                   },
                 },
               ],
@@ -210,7 +204,7 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.notOk(this.ability.canWrite);
+      assert.notOk(this.ability.canDestroy);
     });
 
     test('it permits destroying variables when token type is management', function (assert) {
@@ -221,10 +215,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.ok(this.ability.canWrite);
+      assert.ok(this.ability.canDestroy);
     });
 
-    test('it permits creating variables when acl is disabled', function (assert) {
+    test('it permits destroying variables when acl is disabled', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: false,
         selfToken: { type: 'client' },
@@ -232,7 +226,7 @@ module('Unit | Ability | variable', function (hooks) {
 
       this.owner.register('service:token', mockToken);
 
-      assert.ok(this.ability.canWrite);
+      assert.ok(this.ability.canDestroy);
     });
 
     test('it permits destroying variables when token has SecureVariables with write capabilities in its rules', function (assert) {
@@ -247,9 +241,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "*"': {
-                      Capabilities: ['destroy'],
-                    },
+                    Paths: [{ Capabilities: ['destroy'], PathSpec: '*' }],
                   },
                 },
               ],
@@ -275,18 +267,14 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/bar"': {
-                      Capabilities: ['list'],
-                    },
+                    Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
                   },
                 },
                 {
                   Name: 'pablo',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/bar"': {
-                      Capabilities: ['destroy'],
-                    },
+                    Paths: [{ Capabilities: ['destroy'], PathSpec: 'foo/bar' }],
                   },
                 },
               ],
@@ -316,9 +304,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
                   },
                 },
               ],
@@ -339,7 +325,7 @@ module('Unit | Ability | variable', function (hooks) {
       );
     });
 
-    test('returns capabilities for the nearest ancestor if no exact match', function (assert) {
+    test('returns capabilities for the nearest fuzzy match if no exact match', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -351,12 +337,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/*"': {
-                      Capabilities: ['write'],
-                    },
-                    'Path "foo/bar/*"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [
+                      { Capabilities: ['write'], PathSpec: 'foo/*' },
+                      { Capabilities: ['write'], PathSpec: 'foo/bar/*' },
+                    ],
                   },
                 },
               ],
@@ -373,7 +357,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.equal(
         nearestMatchingPath,
         'foo/bar/*',
-        'It should return the nearest ancestor matching path.'
+        'It should return the nearest fuzzy matching path.'
       );
     });
 
@@ -389,9 +373,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "foo/*"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [{ Capabilities: ['write'], PathSpec: 'foo/*' }],
                   },
                 },
               ],
@@ -408,7 +390,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.equal(
         nearestMatchingPath,
         'foo/*',
-        'It should handle wildcard glob prefixes.'
+        'It should handle wildcard glob.'
       );
     });
 
@@ -424,12 +406,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "*/bar"': {
-                      Capabilities: ['write'],
-                    },
-                    'Path "*/bar/baz"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [
+                      { Capabilities: ['write'], PathSpec: '*/bar' },
+                      { Capabilities: ['write'], PathSpec: '*/bar/baz' },
+                    ],
                   },
                 },
               ],
@@ -462,12 +442,10 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "*/bar"': {
-                      Capabilities: ['write'],
-                    },
-                    'Path "foo/*"': {
-                      Capabilities: ['write'],
-                    },
+                    Paths: [
+                      { Capabilities: ['write'], PathSpec: '*/bar' },
+                      { Capabilities: ['write'], PathSpec: 'foo/*' },
+                    ],
                   },
                 },
               ],

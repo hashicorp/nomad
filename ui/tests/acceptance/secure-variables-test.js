@@ -309,7 +309,7 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-delete-button]')
         .exists('The delete button is enabled in the view.');
-      await click('[data-test-delete-button]');
+      await click('[data-test-idle-button]');
 
       assert
         .dom('[data-test-confirmation-message]')
@@ -319,7 +319,7 @@ module('Acceptance | secure variables', function (hooks) {
 
       assert.equal(
         currentRouteName(),
-        'variables',
+        'variables.index',
         'Navigates user back to variables list page after destroying a variable.'
       );
 
