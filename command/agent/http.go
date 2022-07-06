@@ -216,7 +216,7 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 			// Still return the connection limiter
 			return connlimit.NewLimiter(connlimit.Config{
 				MaxConnsPerClientIP: connLimit,
-			}).HTTPConnStateFunc()
+			}).HTTPConnStateFuncWithDefault429Handler(0)
 		}
 		return nil
 	}
@@ -226,7 +226,7 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 		// handshake timeout.
 		connLimiter := connlimit.NewLimiter(connlimit.Config{
 			MaxConnsPerClientIP: connLimit,
-		}).HTTPConnStateFunc()
+		}).HTTPConnStateFuncWithDefault429Handler(0)
 
 		return func(conn net.Conn, state http.ConnState) {
 			switch state {
