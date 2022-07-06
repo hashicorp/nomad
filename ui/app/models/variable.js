@@ -25,6 +25,7 @@ import { trimPath } from '../helpers/trim-path';
  * @class
  * @extends Model
  */
+@classic
 export default class VariableModel extends Model {
   /**
    * Can be any arbitrary string, but behaves best when used as a slash-delimited file path.
