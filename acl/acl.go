@@ -9,6 +9,9 @@ import (
 	glob "github.com/ryanuber/go-glob"
 )
 
+// Redefine this value from structs to avoid circular dependency.
+const AllNamespacesSentinel = "*"
+
 // ManagementACL is a singleton used for management tokens
 var ManagementACL *ACL
 
@@ -215,10 +218,29 @@ func (a *ACL) AllowNsOp(ns string, op string) bool {
 	return a.AllowNamespaceOperation(ns, op)
 }
 
-// AllowNamespaceOperation checks if a given operation is allowed for a namespace
+// AllowNsOpFunc is a helper that returns a function that can be used to check
+// namespace permissions.
+func (a *ACL) AllowNsOpFunc(ops ...string) func(string) bool {
+	return func(ns string) bool {
+		return NamespaceValidator(ops...)(a, ns)
+	}
+}
+
+// AllowNamespaceOperation checks if a given operation is allowed for a namespace.
 func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
+	// Hot path if ACL is not enabled.
+	if a == nil {
+		return true
+	}
+
 	// Hot path management tokens
 	if a.management {
+		return true
+	}
+
+	// If using the all namespaces wildcard, allow if any namespace allows the
+	// operation.
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsOp(op) {
 		return true
 	}
 
@@ -234,8 +256,19 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 
 // AllowNamespace checks if any operations are allowed for a namespace
 func (a *ACL) AllowNamespace(ns string) bool {
+	// Hot path if ACL is not enabled.
+	if a == nil {
+		return true
+	}
+
 	// Hot path management tokens
 	if a.management {
+		return true
+	}
+
+	// If using the all namespaces wildcard, allow if any namespace allows any
+	// operation.
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsAnyOp() {
 		return true
 	}
 
@@ -305,6 +338,42 @@ func (a *ACL) matchingNamespaceCapabilitySet(ns string) (capabilitySet, bool) {
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
 	return a.findClosestMatchingGlob(a.wildcardNamespaces, ns)
+}
+
+// anyNamespaceAllowsOp returns true if any namespace in ACL object allows the
+// given operation.
+func (a *ACL) anyNamespaceAllowsOp(op string) bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return c.Check(op)
+	})
+}
+
+// anyNamespaceAllowsAnyOp returns true if any namespace in ACL object allows
+// at least one operation.
+func (a *ACL) anyNamespaceAllowsAnyOp() bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return len(c) > 0 && !c.Check(PolicyDeny)
+	})
+}
+
+// anyNamespaceAllows returns true if the callback cb returns true for any
+// namespace operation of the ACL object.
+func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
+	allow := false
+
+	checkFn := func(_ []byte, iv interface{}) bool {
+		v := iv.(capabilitySet)
+		allow = cb(v)
+		return allow
+	}
+
+	a.namespaces.Root().Walk(checkFn)
+	if allow {
+		return true
+	}
+
+	a.wildcardNamespaces.Root().Walk(checkFn)
+	return allow
 }
 
 // matchingHostVolumeCapabilitySet looks for a capabilitySet that matches the host volume name,
