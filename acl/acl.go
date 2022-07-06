@@ -363,7 +363,8 @@ func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 
 	checkFn := func(_ []byte, iv interface{}) bool {
 		v := iv.(capabilitySet)
-		return cb(v)
+		allow = cb(v)
+		return allow
 	}
 
 	a.namespaces.Root().Walk(checkFn)
