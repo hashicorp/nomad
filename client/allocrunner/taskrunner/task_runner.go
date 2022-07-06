@@ -883,7 +883,7 @@ func (tr *TaskRunner) runDriver() error {
 	}
 	tr.stateLock.Unlock()
 
-	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), net))
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), tr.clientConfig.MaxKillTimeout, net))
 
 	// Emit an event that we started
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
@@ -1182,7 +1182,7 @@ func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *drivers
 	}
 
 	// Update driver handle on task runner
-	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), net))
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), tr.clientConfig.MaxKillTimeout, net))
 	return true
 }
 
