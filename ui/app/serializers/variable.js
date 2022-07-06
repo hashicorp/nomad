@@ -4,6 +4,7 @@ import ApplicationSerializer from './application';
 @classic
 export default class VariableSerializer extends ApplicationSerializer {
   primaryKey = 'Path';
+  separateNanos = ['CreateTime', 'ModifyTime'];
 
   // Transform API's Items object into an array of a KeyValue objects
   normalizeFindRecordResponse(store, typeClass, hash, id, ...args) {
@@ -35,6 +36,8 @@ export default class VariableSerializer extends ApplicationSerializer {
       return acc;
     }, {});
     delete json.KeyValues;
+    delete json.ModifyTime;
+    delete json.CreateTime;
     return json;
   }
 }
