@@ -171,7 +171,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Check if we should trigger evaluations
 	if shouldCreateNodeEval(originalNode, args.Node) {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.Node.ID, index)
+		evalIDs, evalIndex, err := n.createNodeEvals(args.Node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
@@ -350,15 +350,16 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 		return err
 	}
 
-	ws := memdb.NewWatchSet()
+	nodes := make([]*structs.Node, 0, len(args.NodeIDs))
 	for _, nodeID := range args.NodeIDs {
-		node, err := snap.NodeByID(ws, nodeID)
+		node, err := snap.NodeByID(nil, nodeID)
 		if err != nil {
 			return err
 		}
 		if node == nil {
 			return fmt.Errorf("node not found")
 		}
+		nodes = append(nodes, node)
 	}
 
 	// Commit this update via Raft
@@ -368,19 +369,21 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 		return err
 	}
 
-	for _, nodeID := range args.NodeIDs {
+	for _, node := range nodes {
+		nodeID := node.ID
+
 		// Clear the heartbeat timer if any
 		n.srv.clearHeartbeatTimer(nodeID)
 
 		// Create the evaluations for this node
-		evalIDs, evalIndex, err := n.createNodeEvals(nodeID, index)
+		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
 		}
 
 		// Determine if there are any Vault accessors on the node
-		if accessors, err := snap.VaultAccessorsByNode(ws, nodeID); err != nil {
+		if accessors, err := snap.VaultAccessorsByNode(nil, nodeID); err != nil {
 			n.logger.Error("looking up vault accessors for node failed", "node_id", nodeID, "error", err)
 			return err
 		} else if l := len(accessors); l > 0 {
@@ -392,7 +395,7 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 		}
 
 		// Determine if there are any SI token accessors on the node
-		if accessors, err := snap.SITokenAccessorsByNode(ws, nodeID); err != nil {
+		if accessors, err := snap.SITokenAccessorsByNode(nil, nodeID); err != nil {
 			n.logger.Error("looking up si accessors for node failed", "node_id", nodeID, "error", err)
 			return err
 		} else if l := len(accessors); l > 0 {
@@ -490,7 +493,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// Check if we should trigger evaluations
 	if structs.ShouldDrainNode(args.Status) ||
 		nodeStatusTransitionRequiresEval(args.Status, node.Status) {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
@@ -658,7 +661,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.MarkEligible && args.DrainStrategy == nil {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
@@ -754,7 +757,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.Eligibility == structs.NodeSchedulingEligible {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
@@ -802,7 +805,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	}
 
 	// Create the evaluation
-	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, node.ModifyIndex)
+	evalIDs, evalIndex, err := n.createNodeEvals(node, node.ModifyIndex)
 	if err != nil {
 		n.logger.Error("eval creation failed", "error", err)
 		return err
@@ -1444,7 +1447,9 @@ func (n *Node) List(args *structs.NodeListRequest,
 
 // createNodeEvals is used to create evaluations for each alloc on a node.
 // Each Eval is scoped to a job, so we need to potentially trigger many evals.
-func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint64, error) {
+func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, uint64, error) {
+	nodeID := node.ID
+
 	// Snapshot the state
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -1452,20 +1457,30 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	}
 
 	// Find all the allocations for this node
-	ws := memdb.NewWatchSet()
-	allocs, err := snap.AllocsByNode(ws, nodeID)
+	allocs, err := snap.AllocsByNode(nil, nodeID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
 	}
 
-	sysJobsIter, err := snap.JobsByScheduler(ws, "system")
+	sysJobsIter, err := snap.JobsByScheduler(nil, "system")
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
 	}
 
 	var sysJobs []*structs.Job
-	for job := sysJobsIter.Next(); job != nil; job = sysJobsIter.Next() {
-		sysJobs = append(sysJobs, job.(*structs.Job))
+	for jobI := sysJobsIter.Next(); jobI != nil; jobI = sysJobsIter.Next() {
+		job := jobI.(*structs.Job)
+		// Avoid creating evals for jobs that don't run in this
+		// datacenter. We could perform an entire feasibility check
+		// here, but datacenter is a good optimization to start with as
+		// datacenter cardinality tends to be low so the check
+		// shouldn't add much work.
+		for _, dc := range job.Datacenters {
+			if dc == node.Datacenter {
+				sysJobs = append(sysJobs, job)
+				break
+			}
+		}
 	}
 
 	// Fast-path if nothing to do
