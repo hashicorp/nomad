@@ -97,7 +97,7 @@ export default class VariableModel extends Model {
   get pathLinkedEntities() {
     const entityTypes = ['job', 'group', 'task'];
     const emptyEntities = { job: '', group: '', task: '' };
-    if (this.path.startsWith('jobs/')) {
+    if (this.path.startsWith('jobs/') && this.path.split('/').length <= 4) {
       return this.path
         .split('/')
         .slice(1, 4)
