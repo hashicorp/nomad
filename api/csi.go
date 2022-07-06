@@ -82,7 +82,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, nil, w)
 	return err
 }
 
@@ -104,7 +104,7 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, nil, w)
 	return err
 }
 
@@ -117,7 +117,7 @@ func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) er
 		w = &WriteOptions{}
 	}
 	w.SetHeadersFromCSISecrets(req.Secrets)
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, nil, w)
 	return err
 }
 
@@ -125,7 +125,7 @@ func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) er
 // node. This is used in the case that the node is temporarily lost and the
 // allocations are unable to drop their claims automatically.
 func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, nil, w)
 	return err
 }
 
@@ -152,7 +152,7 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 		w = &WriteOptions{}
 	}
 	w.SetHeadersFromCSISecrets(snap.Secrets)
-	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
+	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, nil, w)
 	return err
 }
 

@@ -4233,7 +4233,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = state.DeleteEval(1002, []string{eval1.ID, eval2.ID}, []string{alloc1.ID, alloc2.ID})
+	err = state.DeleteEval(1002, []string{eval1.ID, eval2.ID}, []string{alloc1.ID, alloc2.ID}, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4304,7 +4304,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	// Call the eval delete function with zero length eval and alloc ID arrays.
 	// This should result in the table indexes both staying the same, rather
 	// than updating without cause.
-	require.NoError(t, state.DeleteEval(1010, []string{}, []string{}))
+	require.NoError(t, state.DeleteEval(1010, []string{}, []string{}, false))
 
 	allocsIndex, err := state.Index("allocs")
 	require.NoError(t, err)
@@ -4354,7 +4354,7 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.DeleteEval(1002, []string{eval1.ID}, []string{alloc1.ID})
+	err = state.DeleteEval(1002, []string{eval1.ID}, []string{alloc1.ID}, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4384,6 +4384,45 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_DeleteEval_UserInitiated(t *testing.T) {
+	ci.Parallel(t)
+
+	testState := testStateStore(t)
+
+	// Upsert a scheduler config object, so we have something to check and
+	// modify.
+	schedulerConfig := structs.SchedulerConfiguration{PauseEvalBroker: false}
+	require.NoError(t, testState.SchedulerSetConfig(10, &schedulerConfig))
+
+	// Generate some mock evals and upsert these into state.
+	mockEval1 := mock.Eval()
+	mockEval2 := mock.Eval()
+	require.NoError(t, testState.UpsertEvals(
+		structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval1, mockEval2}))
+
+	mockEvalIDs := []string{mockEval1.ID, mockEval2.ID}
+
+	// Try and delete the evals without pausing the eval broker.
+	err := testState.DeleteEval(30, mockEvalIDs, []string{}, true)
+	require.ErrorContains(t, err, "eval broker is enabled")
+
+	// Pause the eval broker on the scheduler config, and try deleting the
+	// evals again.
+	schedulerConfig.PauseEvalBroker = true
+	require.NoError(t, testState.SchedulerSetConfig(30, &schedulerConfig))
+
+	require.NoError(t, testState.DeleteEval(40, mockEvalIDs, []string{}, true))
+
+	ws := memdb.NewWatchSet()
+	mockEval1Lookup, err := testState.EvalByID(ws, mockEval1.ID)
+	require.NoError(t, err)
+	require.Nil(t, mockEval1Lookup)
+
+	mockEval2Lookup, err := testState.EvalByID(ws, mockEval1.ID)
+	require.NoError(t, err)
+	require.Nil(t, mockEval2Lookup)
 }
 
 func TestStateStore_EvalsByJob(t *testing.T) {

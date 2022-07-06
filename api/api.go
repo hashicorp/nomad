@@ -982,14 +982,15 @@ func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*
 	return wm, nil
 }
 
-// delete is used to do a DELETE request against an endpoint
-// and serialize/deserialized using the standard Nomad conventions.
-func (c *Client) delete(endpoint string, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+// delete is used to do a DELETE request against an endpoint and
+// serialize/deserialized using the standard Nomad conventions.
+func (c *Client) delete(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
 	r, err := c.newRequest("DELETE", endpoint)
 	if err != nil {
 		return nil, err
 	}
 	r.setWriteOptions(q)
+	r.obj = in
 	rtt, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
 		return nil, err
