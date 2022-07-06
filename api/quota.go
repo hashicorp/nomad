@@ -90,7 +90,7 @@ func (q *Quotas) Register(spec *QuotaSpec, qo *WriteOptions) (*WriteMeta, error)
 
 // Delete is used to delete a quota spec
 func (q *Quotas) Delete(quota string, qo *WriteOptions) (*WriteMeta, error) {
-	wm, err := q.client.delete(fmt.Sprintf("/v1/quota/%s", quota), nil, qo)
+	wm, err := q.client.delete(fmt.Sprintf("/v1/quota/%s", quota), nil, nil, qo)
 	if err != nil {
 		return nil, err
 	}

@@ -2265,7 +2265,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 
 	// Delete an allocation
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.DeleteEval(200, nil, []string{alloc2.ID}))
+		assert.Nil(state.DeleteEval(200, nil, []string{alloc2.ID}, false))
 	})
 
 	req.QueryOptions.MinQueryIndex = 150

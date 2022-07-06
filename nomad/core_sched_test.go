@@ -1852,7 +1852,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
+	structs.MaxUUIDsPerWriteRequest = 2
 
 	evals := []string{"a", "b", "c"}
 	allocs := []string{"1", "2", "3"}
@@ -1895,7 +1895,7 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
+	structs.MaxUUIDsPerWriteRequest = 2
 
 	deployments := []string{"a", "b", "c"}
 	requests := core.(*CoreScheduler).partitionDeploymentReap(deployments)
@@ -1915,7 +1915,6 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionJobReap(t *testing.T) {
-	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1929,7 +1928,11 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	core := NewCoreScheduler(s1, snap)
 
 	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
+	originalMaxUUIDsPerWriteRequest := structs.MaxUUIDsPerWriteRequest
+	structs.MaxUUIDsPerWriteRequest = 2
+	defer func() {
+		structs.MaxUUIDsPerWriteRequest = originalMaxUUIDsPerWriteRequest
+	}()
 
 	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
 	requests := core.(*CoreScheduler).partitionJobReap(jobs, "")
@@ -2385,7 +2388,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	require.NoError(t, err)
 	index, _ = store.LatestIndex()
 	index++
-	err = store.DeleteEval(index, []string{eval.ID}, []string{alloc1.ID})
+	err = store.DeleteEval(index, []string{eval.ID}, []string{alloc1.ID}, false)
 	require.NoError(t, err)
 
 	// Create a core scheduler and attempt the volume claim GC

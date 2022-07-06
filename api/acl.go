@@ -42,7 +42,7 @@ func (a *ACLPolicies) Delete(policyName string, q *WriteOptions) (*WriteMeta, er
 	if policyName == "" {
 		return nil, fmt.Errorf("missing policy name")
 	}
-	wm, err := a.client.delete("/v1/acl/policy/"+policyName, nil, q)
+	wm, err := a.client.delete("/v1/acl/policy/"+policyName, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (a *ACLTokens) Delete(accessorID string, q *WriteOptions) (*WriteMeta, erro
 	if accessorID == "" {
 		return nil, fmt.Errorf("missing accessor ID")
 	}
-	wm, err := a.client.delete("/v1/acl/token/"+accessorID, nil, q)
+	wm, err := a.client.delete("/v1/acl/token/"+accessorID, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}

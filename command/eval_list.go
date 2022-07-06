@@ -167,20 +167,7 @@ func (c *EvalListCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	out := make([]string, len(evals)+1)
-	out[0] = "ID|Priority|Triggered By|Job ID|Status|Placement Failures"
-	for i, eval := range evals {
-		failures, _ := evalFailureStatus(eval)
-		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
-			limit(eval.ID, length),
-			eval.Priority,
-			eval.TriggeredBy,
-			eval.JobID,
-			eval.Status,
-			failures,
-		)
-	}
-	c.Ui.Output(formatList(out))
+	outputEvalList(c.Ui, evals, length)
 
 	if qm.NextToken != "" {
 		c.Ui.Output(fmt.Sprintf(`

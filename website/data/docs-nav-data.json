@@ -373,6 +373,10 @@
             "path": "commands/eval"
           },
           {
+            "title": "delete",
+            "path": "commands/eval/delete"
+          },
+          {
             "title": "list",
             "path": "commands/eval/list"
           },

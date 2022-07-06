@@ -34,5 +34,5 @@ func (raw *Raw) Write(endpoint string, in, out interface{}, q *WriteOptions) (*W
 // Delete is used to do a DELETE request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
 func (raw *Raw) Delete(endpoint string, out interface{}, q *WriteOptions) (*WriteMeta, error) {
-	return raw.c.delete(endpoint, out, q)
+	return raw.c.delete(endpoint, nil, out, q)
 }

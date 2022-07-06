@@ -204,6 +204,55 @@ $ curl \
 }
 ```
 
+## Delete Evaluations
+
+This endpoint deletes evaluations. In order to utilise this endpoint the
+eval broker should be paused via the
+[update_scheduler_configuration][operator scheduler update configuration] API
+endpoint.
+
+This API endpoint should be used cautiously and only in outage situations where
+there is a large backlog of evaluations not being processed. During most normal
+and outage scenarios, Nomad's reconciliation and state management will handle
+evaluations as needed.
+
+| Method    | Path              | Produces           |
+| --------- | ----------------- | ------------------ |
+| `DELETE`  | `/v1/evaluations` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `management` |
+
+### Parameters
+
+- `EvalIDs` `(array<string>: <required>)`- An array of evaluation UUIDs to
+  delete. This must be a full length UUID and not a prefix.
+
+### Sample Payload
+
+```javascript
+{
+  "EvalIDs": [
+    "167ec27d-2e36-979a-280a-a6b920d382db",
+    "6c193955-ac66-42e2-f4c7-f1fc707f1f5e"
+  ]
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request DELETE \
+    --data @payload.json \
+    https://localhost:4646/v1/evaluations
+```
+
 ## List Allocations for Evaluation
 
 This endpoint lists the allocations created or modified for the given
@@ -332,3 +381,5 @@ $ curl \
   }
 ]
 ```
+
+[update_scheduler_configuration]: api-docs/operator/scheduler#update-scheduler-configuration

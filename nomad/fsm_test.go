@@ -1160,7 +1160,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	req2 := structs.EvalDeleteRequest{
+	req2 := structs.EvalReapRequest{
 		Evals: []string{eval.ID},
 	}
 	buf, err = structs.Encode(structs.EvalDeleteRequestType, req2)
