@@ -1,16 +1,16 @@
 {{page-title "Secure Variables"}}
 <section class="section">
   <div class="toolbar">
-    <div class="toolbar-item">
-      {{#if this.variables.length}}
-        <SearchBox
-          @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
-          @placeholder="Search variables..."
-        />
-      {{/if}}
-    </div>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        {{#if this.namespaceOptions}}
+          <SingleSelectDropdown
+            data-test-variable-namespace-filter
+            @label="Namespace"
+            @options={{this.namespaceOptions}}
+            @selection={{this.namespaceSelection}}
+            @onSelect={{this.setNamespace}}
+          />
+        {{/if}}
       <div class="button-bar">
       {{#if (can "write variable" path="*")}}
         <LinkTo
@@ -35,13 +35,13 @@
       </div>
     </div>
   </div>
-  {{#if @model.variables.length}}
+  {{#if this.hasVariables}}
     <VariablePaths
-      @branch={{this.model.pathTree.paths.root}}
+      @branch={{this.root}}
     />
   {{else}}
     <div class="empty-message">
-      <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+      <h3 data-test-empty-variables-list-headline class="empty-message-headline">
         No Secure Variables
       </h3>
       <p class="empty-message-body">

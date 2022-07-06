@@ -8,6 +8,10 @@ import {
   visit,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -514,6 +518,56 @@ module('Acceptance | secure variables', function (hooks) {
 
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
+    });
+  });
+
+  module('namespace filtering', function () {
+    test('allows a user to filter variables by namespace', async function (assert) {
+      assert.expect(3);
+
+      // Arrange
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+
+      assert
+        .dom('[data-test-variable-namespace-filter]')
+        .exists('Shows a dropdown of namespaces');
+
+      // Assert Side Side Effect
+      server.get('/vars', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: 'default',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      // Act
+      await clickTrigger('[data-test-variable-namespace-filter]');
+      await selectChoose('[data-test-variable-namespace-filter]', 'default');
+
+      assert
+        .dom('[data-test-empty-variables-list-headline]')
+        .exists('Renders an empty list.');
+    });
+
+    test('does not show namespace filtering if the user only has access to one namespace', async function (assert) {
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      server.db.namespaces.remove();
+      await Variables.visit();
+
+      assert
+        .dom('[data-test-variable-namespace-filter]')
+        .doesNotExist('Does not show a dropdown of namespaces');
     });
   });
 });

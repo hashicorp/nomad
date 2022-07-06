@@ -21,6 +21,12 @@ export default class VariableAdapter extends ApplicationAdapter {
     let baseUrl = this.buildURL(modelName);
     return pluralize(baseUrl);
   }
+
+  urlForQuery(_query, modelName) {
+    let baseUrl = this.buildURL(modelName);
+    return pluralize(baseUrl);
+  }
+
   urlForFindRecord(id, modelName, snapshot) {
     let baseUrl = this.buildURL(modelName, id, snapshot);
     return baseUrl;

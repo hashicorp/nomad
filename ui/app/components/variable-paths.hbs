@@ -16,7 +16,7 @@
         <td colspan="3">
           <span>
             <FlightIcon @name="folder" />
-            <LinkTo @route="variables.path" @model={{folder.data.absolutePath}}>
+            <LinkTo @route="variables.path" @model={{folder.data.absolutePath}} @query={{hash namespace="*"}}>
               {{trim-path folder.name}}
             </LinkTo>
           </span>
@@ -31,6 +31,7 @@
           <LinkTo
             @route="variables.variable"
             @model={{file.absoluteFilePath}}
+            @query={{hash namespace="*"}}
           >
             {{file.name}}
           </LinkTo>
