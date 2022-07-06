@@ -240,7 +240,7 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 
 	// If using the all namespaces wildcard, allow if any namespace allows the
 	// operation.
-	if ns == AllNamespacesSentinel && a.anyNamespaceAllows(op) {
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsOp(op) {
 		return true
 	}
 
@@ -268,7 +268,7 @@ func (a *ACL) AllowNamespace(ns string) bool {
 
 	// If using the all namespaces wildcard, allow if any namespace allows any
 	// operation.
-	if ns == AllNamespacesSentinel && a.anyNamespaceAllows("") {
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsAnyOp() {
 		return true
 	}
 
@@ -340,22 +340,33 @@ func (a *ACL) matchingNamespaceCapabilitySet(ns string) (capabilitySet, bool) {
 	return a.findClosestMatchingGlob(a.wildcardNamespaces, ns)
 }
 
-// anyNamespaceAllows returns true if any namespace in the ACL object allows
-// the given operation.
-// If op is an empty string it returns true if any namespace allows any
-// operation.
-func (a *ACL) anyNamespaceAllows(op string) bool {
+// anyNamespaceAllowsOp returns true if any namespace in ACL object allows the
+// given operation.
+func (a *ACL) anyNamespaceAllowsOp(op string) bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return c.Check(op)
+	})
+}
+
+// anyNamespaceAllowsAnyOp returns true if any namespace in ACL object allows
+// at least one operation.
+func (a *ACL) anyNamespaceAllowsAnyOp() bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return len(c) > 0 && !c.Check(PolicyDeny)
+	})
+}
+
+// anyNamespaceAllows returns true if the callback cb returns true for any
+// namespace operation of the ACL object.
+func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 	allow := false
 
 	checkFn := func(_ []byte, iv interface{}) bool {
 		v := iv.(capabilitySet)
-
-		allowAnyOp := op == "" && len(v) > 0 && !v.Check(PolicyDeny)
-		if allowAnyOp || v.Check(op) {
-			allow = true
+		allow = cb(v)
+		if allow {
 			return true
 		}
-
 		return false
 	}
 
