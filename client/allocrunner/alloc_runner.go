@@ -606,7 +606,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		}
 
 		taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-		taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+		taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 		err := tr.Kill(context.TODO(), taskEvent)
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
@@ -629,7 +629,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
 			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
@@ -653,7 +653,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
 			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping sidecar task", "error", err, "task_name", name)
