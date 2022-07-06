@@ -6,11 +6,10 @@
     <div class="toolbar">
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
-        {{!-- TODO: make sure qpNamespace persists to here --}}
-        {{#if (can "create variable" namespace=this.qpNamespace)}}
+        {{#if (can "write variable" path=this.model.absolutePath)}}
           <LinkTo
             @route="variables.new"
-            @query={{hash namespace=this.qpNamespace path=(concat this.model.absolutePath "/")}}
+            @query={{hash path=(concat this.model.absolutePath "/")}}
             class="button is-primary"
           >
             Create Secure Variable

@@ -14,6 +14,7 @@
         disabled={{not @model.isNew}}
         {{on "input" this.validatePath}}
         {{autofocus}}
+        data-test-path-input
       />
     </label>
     {{#if this.duplicatePathWarning}}
@@ -57,6 +58,7 @@
             Key
           </span>
           <Input
+            data-test-var-key
             @type="text"
             @value={{entry.key}}
             class="input"
@@ -96,6 +98,7 @@
       disabled={{this.shouldDisableSave}}
       class="button is-primary"
       type="submit"
+      data-test-submit-var
     >
       Save
       {{pluralize "Variable" @this.keyValues.length}}
