@@ -1297,29 +1297,16 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-	var allow func(string) bool
 
 	// Check for list-job permissions
 	aclObj, err := j.srv.ResolveToken(args.AuthToken)
-
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case aclObj == nil:
-		allow = func(string) bool {
-			return true
-		}
-	case namespace == structs.AllNamespacesSentinel:
-		allow = func(ns string) bool {
-			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
-		}
-	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs):
-		return structs.ErrPermissionDenied
-	default:
-		allow = func(string) bool {
-			return true
-		}
 	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -1330,7 +1317,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			var err error
 			var iter memdb.ResultIterator
 
-			// check if user has permission to all namespaces
+			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
