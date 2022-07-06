@@ -695,6 +695,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
 
 	// Setup networking configuration
+	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse client RPC address %q: %v", agentConfig.normalizedAddrs.RPC, err)
+	}
+	conf.RPCAddr.IP = rpcAddr.IP
+	conf.RPCAddr.Port = rpcAddr.Port
 	conf.CNIPath = agentConfig.Client.CNIPath
 	conf.CNIConfigDir = agentConfig.Client.CNIConfigDir
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName

@@ -772,9 +772,8 @@ func (c *Client) NodeID() string {
 }
 
 // NodeIP returns the IP address the node is listening
-func (c *Client) NodeIP() string {
-	addr, _, _ := net.SplitHostPort(c.config.Node.HTTPAddr)
-	return addr
+func (c *Client) NodeRPCIP() string {
+	return c.config.RPCAddr.IP.String()
 }
 
 // secretNodeID returns the secret node ID for the given client
@@ -2890,7 +2889,7 @@ func (c *Client) emitStats() {
 	// is ready
 	c.baseLabels = []metrics.Label{
 		{Name: "node_id", Value: c.NodeID()},
-		{Name: "node_ip", Value: c.NodeIP()},
+		{Name: "node_rpc_ip", Value: c.NodeRPCIP()},
 		{Name: "datacenter", Value: c.Datacenter()},
 		{Name: "node_class", Value: emittedNodeClass},
 	}
