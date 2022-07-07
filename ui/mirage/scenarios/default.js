@@ -52,7 +52,7 @@ function smallCluster(server) {
   server.createList('csi-plugin', 2);
   server.createList('variable', 3);
 
-  const variableLinkedJob = pickOne(server.db.jobs);
+  const variableLinkedJob = server.db.jobs[0];
   const variableLinkedGroup = server.db.taskGroups.findBy({
     jobId: variableLinkedJob.id,
   });

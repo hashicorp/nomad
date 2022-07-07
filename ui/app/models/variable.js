@@ -53,7 +53,7 @@ export default class VariableModel extends Model {
   /** @type {Date} */
   @attr('date') modifyTime;
   /** @type {string} */
-  @attr('string') namespace;
+  @attr('string', { defaultValue: 'default' }) namespace;
 
   @computed('path')
   get parentFolderPath() {

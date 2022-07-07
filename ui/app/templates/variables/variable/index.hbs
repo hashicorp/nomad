@@ -68,10 +68,12 @@
 </h1>
 
 {{#if this.shouldShowLinkedEntities}}
+{{log "whos ur model" this.model}}
   <SecureVariableForm::RelatedEntities
     @job={{this.model.pathLinkedEntities.job}}
     @group={{this.model.pathLinkedEntities.group}}
     @task={{this.model.pathLinkedEntities.task}}
+    @namespace={{this.model.namespace}}
   />
 {{/if}}
 
