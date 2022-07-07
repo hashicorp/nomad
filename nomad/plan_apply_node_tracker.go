@@ -58,7 +58,7 @@ func DefaultCachedBadNodeTrackerConfig() CachedBadNodeTrackerConfig {
 
 		// Limit marking 5 nodes per 30min as ineligible with an initial
 		// burst of 10 nodes.
-		RateLimit: 5 / (30 * 60),
+		RateLimit: 5.0 / (30 * 60),
 		BurstSize: 10,
 
 		// Consider a node as bad if it is added more than 100 times in a 5min
@@ -71,8 +71,8 @@ func DefaultCachedBadNodeTrackerConfig() CachedBadNodeTrackerConfig {
 // NewCachedBadNodeTracker returns a new CachedBadNodeTracker.
 func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerConfig) (*CachedBadNodeTracker, error) {
 	log := logger.Named("bad_node_tracker").
-		With("threshold", config.Threshold).
-		With("window", config.Window)
+		With("window", config.Window).
+		With("threshold", config.Threshold)
 
 	cache, err := lru.New2Q(config.CacheSize)
 	if err != nil {
@@ -91,18 +91,32 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 // IsBad returns true if the node has more rejections than the threshold within
 // the time window.
 func (c *CachedBadNodeTracker) IsBad(nodeID string) bool {
-	// Limit the number of nodes we report as bad to avoid mass assigning nodes
-	// as ineligible, but still call Get to keep the cache entry fresh.
+	logger := c.logger.With("node_id", nodeID)
+	logger.Debug("checking if node is bad")
+
 	value, ok := c.cache.Get(nodeID)
-	if !ok || !c.limiter.Allow() {
+	if !ok {
+		logger.Debug("node not in cache")
+		return false
+	}
+
+	// Limit the number of nodes we report as bad to avoid mass assigning nodes
+	// as ineligible, but do it after Get to keep the cache entry fresh.
+	if !c.limiter.Allow() {
+		logger.Info("returning false due to rate limiting")
 		return false
 	}
 
 	stats := value.(*badNodeStats)
 	score := stats.score()
 
-	c.logger.Debug("checking if node is bad", "node_id", nodeID, "score", score)
-	return score > c.threshold
+	if score >= c.threshold {
+		logger.Debug("node is bad", "score", score)
+		return true
+	}
+
+	logger.Debug("node is not bad", "score", score)
+	return false
 }
 
 // Add records a new rejection for node. If it's the first time a node is added
