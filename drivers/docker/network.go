@@ -92,10 +92,28 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
-	return client.RemoveContainer(docker.RemoveContainerOptions{
+	if err := client.RemoveContainer(docker.RemoveContainerOptions{
 		Force: true,
 		ID:    spec.Labels[dockerNetSpecLabelKey],
-	})
+	}); err != nil {
+		return err
+	}
+
+	if d.config.GC.Image {
+
+		// The Docker image ID is needed in order to correctly update the image
+		// reference count. Any error finding this, however, should not result
+		// in an error shutting down the allocrunner.
+		dockerImage, err := client.InspectImage(d.config.InfraImage)
+		if err != nil {
+			d.logger.Warn("InspectImage failed for infra_image container destroy",
+				"image", d.config.InfraImage, "error", err)
+			return nil
+		}
+		d.coordinator.RemoveImage(dockerImage.ID, allocID)
+	}
+
+	return nil
 }
 
 // createSandboxContainerConfig creates a docker container configuration which
@@ -124,8 +142,8 @@ func (d *Driver) pullInfraImage(allocID string) error {
 	if tag != "latest" {
 		dockerImage, err := client.InspectImage(d.config.InfraImage)
 		if err != nil {
-			d.logger.Debug("InspectImage failed for infra_image container pull", "image", d.config.InfraImage, "error", err)
-			return err
+			d.logger.Debug("InspectImage failed for infra_image container pull",
+				"image", d.config.InfraImage, "error", err)
 		} else if dockerImage != nil {
 			// Image exists, so no pull is attempted; just increment its reference count
 			d.coordinator.IncrementImageReference(dockerImage.ID, d.config.InfraImage, allocID)
