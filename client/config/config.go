@@ -358,6 +358,12 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	VaultRetry *RetryConfig `hcl:"vault_retry,optional"`
+
+	// This controls how a task runner will behave it Consul Template returns an
+	// error. The default is `kill` and will emit a kill event to the task runner.
+	// Alternately, `warn` can be specified and the task runner will log a warning
+	// and continue to run with the currently rendered template.
+	OnRenderError string `hcl:"on_render_error"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -413,7 +419,8 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.MaxStaleHCL == "" &&
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
-		c.VaultRetry.IsEmpty()
+		c.VaultRetry.IsEmpty() &&
+		c.OnRenderError == ""
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle

@@ -494,6 +494,54 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 	}
 }
 
+func TestTask_Template_OnRenderError_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
+	taskWithOnRenderError := func(mode *string) *Task {
+		return &Task{
+			Templates: []*Template{
+				{
+					OnRenderError: mode,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name          string
+		canonicalized *string
+		task          *Task
+	}{
+		{
+			name:          "not set",
+			task:          taskWithOnRenderError(nil),
+			canonicalized: stringToPtr(TemplateRenderErrorModeKill),
+		},
+		{
+			name:          "kill",
+			task:          taskWithOnRenderError(stringToPtr(TemplateRenderErrorModeKill)),
+			canonicalized: stringToPtr(TemplateRenderErrorModeKill),
+		},
+		{
+			name:          "warn",
+			task:          taskWithOnRenderError(stringToPtr(TemplateRenderErrorModeWarn)),
+			canonicalized: stringToPtr(TemplateRenderErrorModeWarn),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tg := &TaskGroup{
+				Name: stringToPtr("foo"),
+			}
+			j := &Job{
+				ID: stringToPtr("test"),
+			}
+			tc.task.Canonicalize(tg, j)
+			require.Equal(t, tc.canonicalized, tc.task.Templates[0].OnRenderError)
+		})
+	}
+}
+
 func TestTask_Canonicalize_Vault(t *testing.T) {
 	testCases := []struct {
 		name     string

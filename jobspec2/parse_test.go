@@ -1033,7 +1033,7 @@ func TestParseServiceCheck(t *testing.T) {
 
 func TestWaitConfig(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
 	require.NoError(t, err)
 
@@ -1050,4 +1050,23 @@ func TestWaitConfig(t *testing.T) {
 	require.NotNil(t, tmpl.Wait)
 	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
+}
+
+func TestOnRenderError(t *testing.T) {
+	ci.Parallel(t)
+
+	hclBytes, err := os.ReadFile("test-fixtures/template-on-render-error.hcl")
+	require.NoError(t, err)
+
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/template-on-render-error.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+
+	require.NoError(t, err)
+
+	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
+	require.NotNil(t, tmpl.OnRenderError)
+	require.Equal(t, api.TemplateRenderErrorModeKill, *tmpl.OnRenderError)
 }

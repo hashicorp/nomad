@@ -7573,12 +7573,24 @@ const (
 	// TemplateChangeModeRestart marks that the task should be restarted if the
 	// template is re-rendered
 	TemplateChangeModeRestart = "restart"
+
+	// TemplateRenderErrorModeKill indicates that Nomad should kill tasks
+	// when Consul Template returns an error.
+	TemplateRenderErrorModeKill string = "kill"
+
+	// TemplateRenderErrorModeWarn indicates that Nomad should not kill tasks
+	// when Consul Template returns an error, but should log a warning.
+	TemplateRenderErrorModeWarn string = "warn"
 )
 
 var (
 	// TemplateChangeModeInvalidError is the error for when an invalid change
 	// mode is given
 	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, restart")
+
+	// TemplateRenderErrorModeInvalidError is the error for when an invalid
+	// template render error mode is given.
+	TemplateRenderErrorModeInvalidError = errors.New("invalid render error mode - must be one of the following: kill, warn")
 )
 
 // Template represents a template configuration to be rendered for a given task
@@ -7633,14 +7645,18 @@ type Template struct {
 
 	// WaitConfig is used to override the global WaitConfig on a per-template basis
 	Wait *WaitConfig
+
+	// OnRenderError is used to override the global OnRenderError on a per-template basis.
+	OnRenderError string
 }
 
 // DefaultTemplate returns a default template.
 func DefaultTemplate() *Template {
 	return &Template{
-		ChangeMode: TemplateChangeModeRestart,
-		Splay:      5 * time.Second,
-		Perms:      "0644",
+		ChangeMode:    TemplateChangeModeRestart,
+		Splay:         5 * time.Second,
+		Perms:         "0644",
+		OnRenderError: TemplateRenderErrorModeKill,
 	}
 }
 
@@ -7713,6 +7729,13 @@ func (t *Template) Validate() error {
 
 	if err = t.Wait.Validate(); err != nil {
 		_ = multierror.Append(&mErr, err)
+	}
+
+	// Verify a proper render error mode
+	switch t.OnRenderError {
+	case TemplateRenderErrorModeKill, TemplateRenderErrorModeWarn:
+	default:
+		_ = multierror.Append(&mErr, TemplateRenderErrorModeInvalidError)
 	}
 
 	return mErr.ErrorOrNil()

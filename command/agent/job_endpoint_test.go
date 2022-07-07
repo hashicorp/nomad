@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -2740,6 +2741,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
+								OnRenderError: pointer.Of[string](api.TemplateRenderErrorModeKill),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -3145,6 +3147,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
+								OnRenderError: structs.TemplateRenderErrorModeKill,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

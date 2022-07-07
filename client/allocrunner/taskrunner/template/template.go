@@ -16,11 +16,13 @@ import (
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
+	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -47,6 +49,8 @@ var (
 type TaskTemplateManager struct {
 	// config holds the template managers configuration
 	config *TaskTemplateManagerConfig
+
+	logger hclog.Logger
 
 	// lookup allows looking up the set of Nomad templates by their consul-template ID
 	lookup map[string][]*structs.Template
@@ -136,8 +140,10 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 		return nil, err
 	}
 
+	logger := config.ClientConfig.Logger.NamedIntercept("template_runner")
 	tm := &TaskTemplateManager{
 		config:     config,
+		logger:     logger,
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -275,7 +281,12 @@ WAIT:
 			}
 
 			dirty := false
-			for _, event := range events {
+			for id, event := range events {
+				// This is duplicated in here and in the RenderEventCh case because we can't know which will arrive first.
+				if event.Error != nil {
+					tm.onRenderError(true, id, event.Error)
+					return
+				}
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
@@ -296,7 +307,12 @@ WAIT:
 		case <-tm.runner.RenderEventCh():
 			events := tm.runner.RenderEvents()
 			joinedSet := make(map[string]struct{})
-			for _, event := range events {
+			for id, event := range events {
+				// This is duplicated in here and in the TemplateRenderedCh case because we can't know which will arrive first.
+				if event.Error != nil {
+					tm.onRenderError(true, id, event.Error)
+					return
+				}
 				missing := event.MissingDeps
 				if missing == nil {
 					continue
@@ -374,12 +390,41 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 			if !ok {
 				continue
 			}
-
-			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
-				SetDisplayMessage(fmt.Sprintf("Template re-render failed: %v", err)))
+			errMsg := fmt.Sprintf("Template re-render failed: %v", err)
+			tm.logger.Error(errMsg)
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
 			tm.onTemplateRendered(handledRenders, allRenderedTime)
 		}
+	}
+}
+
+func (tm *TaskTemplateManager) shouldKillOnError(templateID string) bool {
+	tmpls := tm.lookup[templateID]
+	for _, tmpl := range tmpls {
+		if tmpl.OnRenderError == structs.TemplateRenderErrorModeKill {
+			return true
+		}
+	}
+
+	return tm.config.ClientConfig.TemplateConfig.OnRenderError == structs.TemplateRenderErrorModeKill
+}
+
+func (tm *TaskTemplateManager) onRenderError(firstRender bool, templateID string, err error) {
+	if err == nil {
+		tm.logger.Error("render error handler raised but event has no error")
+	}
+
+	TODO: This feels wrongish.  First render might not want to fail?
+
+	if firstRender || tm.shouldKillOnError(templateID) {
+		tm.config.Lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 	}
 }
 
@@ -396,6 +441,9 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		// First time through
 		if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
 			handledRenders[id] = allRenderedTime
+			if event.Error != nil {
+				tm.onRenderError(true, id, event.Error)
+			}
 			continue
 		}
 
@@ -610,6 +658,15 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
+		}
+
+		switch tmpl.OnRenderError {
+		case structs.TemplateRenderErrorModeKill:
+			ct.ErrFatal = pointer.Of[bool](true)
+		case structs.TemplateRenderErrorModeWarn:
+			ct.ErrFatal = pointer.Of[bool](false)
+		default:
+			ct.ErrFatal = pointer.Of[bool](true)
 		}
 
 		// Set the permissions

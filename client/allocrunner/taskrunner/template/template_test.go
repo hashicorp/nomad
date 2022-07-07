@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"io"
 	"io/ioutil"
 	"os"
@@ -1948,6 +1949,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
 	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
 	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
+	clientConfig.TemplateConfig.OnRenderError = structs.TemplateRenderErrorModeKill
 
 	alloc := mock.Alloc()
 	allocWithOverride := mock.Alloc()
@@ -2074,6 +2076,58 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					Min:     helper.TimeToPtr(3 * time.Second),
 					Max:     helper.TimeToPtr(11 * time.Second),
 				},
+				ErrFatal: pointer.Of[bool](true),
+			},
+		},
+		{
+			"on-error-override",
+			&config.ClientTemplateConfig{
+				MaxStale:           helper.TimeToPtr(5 * time.Second),
+				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+				Wait:               waitConfig.Copy(),
+				WaitBounds: &config.WaitConfig{
+					Min: helper.TimeToPtr(3 * time.Second),
+					Max: helper.TimeToPtr(11 * time.Second),
+				},
+				ConsulRetry:   retryConfig.Copy(),
+				VaultRetry:    retryConfig.Copy(),
+				OnRenderError: structs.TemplateRenderErrorModeWarn,
+			},
+			&TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				VaultToken:   "token",
+				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
+				Templates: []*structs.Template{
+					{
+						Wait: &structs.WaitConfig{
+							Min: helper.TimeToPtr(2 * time.Second),
+							Max: helper.TimeToPtr(12 * time.Second),
+						},
+						OnRenderError: structs.TemplateRenderErrorModeWarn,
+					},
+				},
+			},
+			&config.Config{
+				TemplateConfig: &config.ClientTemplateConfig{
+					MaxStale:           helper.TimeToPtr(5 * time.Second),
+					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+					Wait:               waitConfig.Copy(),
+					WaitBounds: &config.WaitConfig{
+						Min: helper.TimeToPtr(3 * time.Second),
+						Max: helper.TimeToPtr(11 * time.Second),
+					},
+					ConsulRetry:   retryConfig.Copy(),
+					VaultRetry:    retryConfig.Copy(),
+					OnRenderError: structs.TemplateRenderErrorModeWarn,
+				},
+			},
+			&templateconfig.TemplateConfig{
+				Wait: &templateconfig.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(3 * time.Second),
+					Max:     helper.TimeToPtr(11 * time.Second),
+				},
+				ErrFatal: pointer.Of[bool](false),
 			},
 		},
 	}
@@ -2107,11 +2161,12 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
 
-			// Test that wait_bounds are enforced
+			// Test that wait_bounds and on_render_error are enforced
 			for _, tmpl := range *runnerConfig.Templates {
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Max, *tmpl.Wait.Max)
+				require.Equal(t, *_case.ExpectedTemplateConfig.ErrFatal, *tmpl.ErrFatal)
 			}
 		})
 	}
@@ -2149,6 +2204,36 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		require.True(t, *k.Wait.Enabled)
 		require.Equal(t, 5*time.Second, *k.Wait.Min)
 		require.Equal(t, 10*time.Second, *k.Wait.Max)
+	}
+}
+
+// TestTaskTemplateManager_Template_OnRenderError_Set asserts that the template level
+// error mode configuration is accurately mapped from the template to the TaskTemplateManager's
+// template config.
+func TestTaskTemplateManager_Template_OnRenderError_Set(t *testing.T) {
+	ci.Parallel(t)
+
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+
+	alloc := mock.Alloc()
+
+	ttmConfig := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		Templates: []*structs.Template{
+			{
+				OnRenderError: structs.TemplateRenderErrorModeWarn,
+			},
+		},
+	}
+
+	templateMapping, err := parseTemplateConfigs(ttmConfig)
+	require.NoError(t, err)
+
+	for _, k := range templateMapping {
+		require.Equal(t, structs.TemplateRenderErrorModeWarn, k.OnRenderError)
 	}
 }
 
