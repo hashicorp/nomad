@@ -334,7 +334,7 @@ func (e *EvalDeleteCommand) batchDelete(evals []*api.Evaluation) (int, bool, err
 		// avoided when deleting large quantities of evals.
 		if listEvals {
 			e.Ui.Output("")
-			outputEvalList(e.Ui, evals, shortId)
+			e.Ui.Output(formatEvalList(evals, false))
 			e.Ui.Output("")
 		}
 	}
