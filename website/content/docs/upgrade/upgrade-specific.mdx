@@ -32,6 +32,15 @@ to version 3, and in Nomad 1.4.0 Nomad requires the use of raft protocol version
 3. If [`raft_protocol`] version is explicitly set, it must now be set to `3`.
 For more information see the [Upgrading to Raft Protocol 3] guide.
 
+## Nomad 1.3.2, 1.2.9, 1.1.15
+
+#### Client `max_kill_timeout` now enforced
+
+Nomad versions since v0.9 have incorrectly ignored the Client [`max_kill_timeout`][max_kill_timeout]
+configuration option. This bug has been fixed in Nomad versions v.1.3.2,
+v1.2.9, and v1.1.15. Job submitters should be aware that a Task's [`kill_timeout`][kill_timeout]
+will be reduced to the Client's `max_kill_timeout` if the value exceeds the maximum.
+
 ## Nomad 1.3.1, 1.2.8, 1.1.14
 
 #### Default `artifact` limits
@@ -1447,3 +1456,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [`Local`]: https://www.consul.io/docs/security/acl/acl-tokens#token-attributes
 [anon_token]: https://www.consul.io/docs/security/acl/acl-tokens#special-purpose-tokens
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
+[kill_timeout]: /docs/job-specification/task#kill_timeout
+[max_kill_timeout]: /docs/configuration/client#max_kill_timeout
