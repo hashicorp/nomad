@@ -232,6 +232,9 @@ type Config struct {
 	// additional delay is selected from this range randomly.
 	EvalFailedFollowupDelayRange time.Duration
 
+	// NodePlanRejectionEnabled controls if node rejection tracker is enabled.
+	NodePlanRejectionEnabled bool
+
 	// NodePlanRejectionThreshold is the number of times a node must have a
 	// plan rejection before it is set as ineligible.
 	NodePlanRejectionThreshold int
@@ -403,6 +406,7 @@ func DefaultConfig() *Config {
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,
 		FailoverHeartbeatTTL:             300 * time.Second,
+		NodePlanRejectionEnabled:         false,
 		NodePlanRejectionThreshold:       15,
 		NodePlanRejectionWindow:          10 * time.Minute,
 		ConsulConfig:                     config.DefaultConsulConfig(),

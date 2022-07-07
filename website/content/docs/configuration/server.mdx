@@ -249,10 +249,12 @@ getting stuck due to always being scheduled to a client that may have an
 unexpected issue. Refer to [Monitoring Nomad][monitoring_nomad_progress] for
 more details.
 
-- `node_threshold` `(int: 15)` - The number of plan rejections for a node
+- `enabled` `(bool: false)` - Specifies if plan rejections should be tracked.
+
+- `node_threshold` `(int: 100)` - The number of plan rejections for a node
   within the `node_window` to trigger a client to be set as ineligible.
 
-- `node_window` `(int: "10m")` - The time window for when plan rejections for a
+- `node_window` `(int: "5m")` - The time window for when plan rejections for a
   node should be considered.
 
 If you observe too many false positives (clients being marked as ineligible

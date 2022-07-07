@@ -14,16 +14,17 @@ import (
 func TestBadNodeTracker(t *testing.T) {
 	ci.Parallel(t)
 
-	cacheSize := 3
-	tracker, err := NewBadNodeTracker(
-		hclog.NewNullLogger(), cacheSize, time.Second, 10)
+	config := DefaultCachedBadNodeTrackerConfig()
+	config.CacheSize = 3
+
+	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		tracker.Add(fmt.Sprintf("node-%d", i+1))
 	}
 
-	require.Equal(t, cacheSize, tracker.cache.Len())
+	require.Equal(t, config.CacheSize, tracker.cache.Len())
 
 	// Only track the most recent values.
 	expected := []string{"node-8", "node-9", "node-10"}
@@ -33,8 +34,12 @@ func TestBadNodeTracker(t *testing.T) {
 func TestBadNodeTracker_IsBad(t *testing.T) {
 	ci.Parallel(t)
 
-	window := time.Duration(testutil.TestMultiplier()) * time.Second
-	tracker, err := NewBadNodeTracker(hclog.NewNullLogger(), 3, window, 4)
+	config := DefaultCachedBadNodeTrackerConfig()
+	config.CacheSize = 3
+	config.Window = time.Duration(testutil.TestMultiplier()) * time.Second
+	config.Threshold = 4
+
+	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
 	require.NoError(t, err)
 
 	// Populate cache.
@@ -80,7 +85,7 @@ func TestBadNodeTracker_IsBad(t *testing.T) {
 	}
 
 	t.Run("cache expires", func(t *testing.T) {
-		time.Sleep(window)
+		time.Sleep(config.Window)
 		require.False(t, tracker.IsBad("node-1"))
 		require.False(t, tracker.IsBad("node-2"))
 		require.False(t, tracker.IsBad("node-3"))
@@ -96,6 +101,33 @@ func TestBadNodeTracker_IsBad(t *testing.T) {
 		expected := []string{"node-1", "node-2", "node-4"}
 		require.ElementsMatch(t, expected, tracker.cache.Keys())
 	})
+}
+
+func TestBadNodeTracker_RateLimit(t *testing.T) {
+	config := DefaultCachedBadNodeTrackerConfig()
+	config.Threshold = 3
+	config.RateLimit = float64(testutil.TestMultiplier())
+	config.BurstSize = 3
+
+	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
+	require.NoError(t, err)
+
+	tracker.Add("node-1")
+	tracker.Add("node-1")
+	tracker.Add("node-1")
+	tracker.Add("node-1")
+	tracker.Add("node-1")
+
+	// Burst allows for max 3 operations.
+	require.True(t, tracker.IsBad("node-1"))
+	require.True(t, tracker.IsBad("node-1"))
+	require.True(t, tracker.IsBad("node-1"))
+	require.False(t, tracker.IsBad("node-1"))
+
+	// Wait for a new token.
+	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
+	require.True(t, tracker.IsBad("node-1"))
+	require.False(t, tracker.IsBad("node-1"))
 }
 
 func TestBadNodeStats_score(t *testing.T) {

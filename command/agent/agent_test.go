@@ -386,10 +386,12 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 		{
 			name: "valid config",
 			trackerConfig: &PlanRejectionTracker{
+				Enabled:       true,
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
 			expectedConfig: &PlanRejectionTracker{
+				Enabled:       true,
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
@@ -420,6 +422,10 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 				require.Contains(t, err.Error(), tc.expectedErr)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t,
+					tc.expectedConfig.Enabled,
+					serverConfig.NodePlanRejectionEnabled,
+				)
 				require.Equal(t,
 					tc.expectedConfig.NodeThreshold,
 					serverConfig.NodePlanRejectionThreshold,

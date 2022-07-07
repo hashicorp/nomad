@@ -30,7 +30,7 @@ type planner struct {
 	// Plan rejections are somewhat expected given Nomad's optimistic
 	// scheduling, but repeated rejections for the same node may indicate an
 	// undetected issue, so we need to track rejection history.
-	badNodeTracker *BadNodeTracker
+	badNodeTracker BadNodeTracker
 }
 
 // newPlanner returns a new planner to be used for managing allocation plans.
@@ -44,12 +44,19 @@ func newPlanner(s *Server) (*planner, error) {
 	}
 
 	// Create the bad node tracker.
-	size := 50
-	badNodeTracker, err := NewBadNodeTracker(log, size,
-		s.config.NodePlanRejectionWindow,
-		s.config.NodePlanRejectionThreshold)
-	if err != nil {
-		return nil, err
+	var badNodeTracker BadNodeTracker
+	if s.config.NodePlanRejectionEnabled {
+		config := DefaultCachedBadNodeTrackerConfig()
+
+		config.Window = s.config.NodePlanRejectionWindow
+		config.Threshold = s.config.NodePlanRejectionThreshold
+
+		badNodeTracker, err = NewCachedBadNodeTracker(log, config)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		badNodeTracker = &NoopBadNodeTracker{}
 	}
 
 	return &planner{

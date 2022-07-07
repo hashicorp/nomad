@@ -149,6 +149,7 @@ func TestConfig_Merge(t *testing.T) {
 			EnableEventBroker:      helper.BoolToPtr(false),
 			EventBufferSize:        helper.IntToPtr(0),
 			PlanRejectionTracker: &PlanRejectionTracker{
+				Enabled:       true,
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
@@ -348,6 +349,7 @@ func TestConfig_Merge(t *testing.T) {
 			EnableEventBroker:      helper.BoolToPtr(true),
 			EventBufferSize:        helper.IntToPtr(100),
 			PlanRejectionTracker: &PlanRejectionTracker{
+				Enabled:       true,
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},

@@ -555,6 +555,9 @@ type RaftBoltConfig struct {
 // PlanRejectionTracker is used in servers to configure the plan rejection
 // tracker.
 type PlanRejectionTracker struct {
+	// Enabled controls if the plan rejection tracker is active or not.
+	Enabled bool `hcl:"enabled"`
+
 	// NodeThreshold is the number of times a node can have plan rejections
 	// before it is marked as ineligible.
 	NodeThreshold int `hcl:"node_threshold"`
@@ -577,6 +580,10 @@ func (p *PlanRejectionTracker) Merge(b *PlanRejectionTracker) *PlanRejectionTrac
 
 	if b == nil {
 		return &result
+	}
+
+	if b.Enabled {
+		result.Enabled = true
 	}
 
 	if b.NodeThreshold != 0 {
@@ -1030,8 +1037,8 @@ func DefaultConfig() *Config {
 			RaftProtocol:      3,
 			StartJoin:         []string{},
 			PlanRejectionTracker: &PlanRejectionTracker{
-				NodeThreshold: 15,
-				NodeWindow:    10 * time.Minute,
+				NodeThreshold: 100,
+				NodeWindow:    5 * time.Minute,
 			},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
