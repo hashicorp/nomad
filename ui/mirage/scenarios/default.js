@@ -51,6 +51,14 @@ function smallCluster(server) {
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
   server.createList('variable', 3);
+
+  const variableLinkedJob = pickOne(server.db.jobs);
+  const variableLinkedGroup = server.db.taskGroups.findBy({
+    jobId: variableLinkedJob.id,
+  });
+  const variableLinkedTask = server.db.tasks.findBy({
+    taskGroupId: variableLinkedGroup.id,
+  });
   [
     'a/b/c/foo0',
     'a/b/c/bar1',
@@ -67,6 +75,9 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
+    `jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
+    `jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
+    `jobs/${variableLinkedJob.id}`,
   ].forEach((path) => server.create('variable', { id: path }));
 
   // #region evaluations
