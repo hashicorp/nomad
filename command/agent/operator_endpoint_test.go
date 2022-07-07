@@ -272,32 +272,32 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		require := require.New(t)
 		body := bytes.NewBuffer(nil)
 		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
-		require.Nil(err)
-		require.Equal(200, resp.Code)
+		require.Nil(t, err)
+		require.Equal(t, 200, resp.Code)
 		out, ok := obj.(structs.SchedulerConfigurationResponse)
-		require.True(ok)
+		require.True(t, ok)
 
 		// Only system jobs can preempt other jobs by default.
-		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
-		require.False(out.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
-		require.False(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
-		require.False(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
-		require.False(out.SchedulerConfig.MemoryOversubscriptionEnabled)
+		require.True(t, out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(t, out.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(t, out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(t, out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.False(t, out.SchedulerConfig.MemoryOversubscriptionEnabled)
+		require.False(t, out.SchedulerConfig.PauseEvalBroker)
 	})
 }
 
 func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		require := require.New(t)
 		body := bytes.NewBuffer([]byte(`
 {
   "MemoryOversubscriptionEnabled": true,
+  "PauseEvalBroker": true,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "ServiceSchedulerEnabled": true
@@ -306,11 +306,11 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
-		require.Nil(err)
-		require.Equal(200, resp.Code)
+		require.Nil(t, err)
+		require.Equal(t, 200, resp.Code)
 		schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
-		require.True(ok)
-		require.NotZero(schedSetResp.Index)
+		require.True(t, ok)
+		require.NotZero(t, schedSetResp.Index)
 
 		args := structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{
@@ -320,12 +320,13 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 
 		var reply structs.SchedulerConfigurationResponse
 		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
-		require.Nil(err)
-		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
-		require.False(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
-		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
-		require.True(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
-		require.True(reply.SchedulerConfig.MemoryOversubscriptionEnabled)
+		require.Nil(t, err)
+		require.True(t, reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(t, reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(t, reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.True(t, reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.True(t, reply.SchedulerConfig.MemoryOversubscriptionEnabled)
+		require.True(t, reply.SchedulerConfig.PauseEvalBroker)
 	})
 }
 

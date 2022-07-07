@@ -146,6 +146,9 @@ const (
 
 	// AllNamespacesSentinel is the value used as a namespace RPC value
 	// to indicate that endpoints must search in all namespaces
+	//
+	// Also defined in acl/acl.go to avoid circular dependencies. If modified
+	// it should be updated there as well.
 	AllNamespacesSentinel = "*"
 
 	// maxNamespaceDescriptionLength limits a namespace description length
@@ -822,10 +825,20 @@ type EvalUpdateRequest struct {
 	WriteRequest
 }
 
-// EvalDeleteRequest is used for deleting an evaluation.
-type EvalDeleteRequest struct {
+// EvalReapRequest is used for reaping evaluations and allocation. This struct
+// is used by the Eval.Reap RPC endpoint as a request argument, and also when
+// performing eval reap or deletes via Raft. This is because Eval.Reap and
+// Eval.Delete use the same Raft message when performing deletes so we do not
+// need more Raft message types.
+type EvalReapRequest struct {
 	Evals  []string
 	Allocs []string
+
+	// UserInitiated tracks whether this reap request is the result of an
+	// operator request. If this is true, the FSM needs to ensure the eval
+	// broker is paused as the request can include non-terminal allocations.
+	UserInitiated bool
+
 	WriteRequest
 }
 

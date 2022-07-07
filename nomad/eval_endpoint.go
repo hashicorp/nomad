@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -129,6 +130,23 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	// Ensure there is a default timeout
 	if args.Timeout <= 0 {
 		args.Timeout = DefaultDequeueTimeout
+	}
+
+	// If the eval broker is paused, attempt to block and wait for a state
+	// change before returning. This avoids a tight loop and mimics the
+	// behaviour where there are no evals to process.
+	//
+	// The call can return because either the timeout is reached or the broker
+	// SetEnabled function was called to modify its state. It is possible this
+	// is because of leadership transition, therefore the RPC should exit to
+	// allow all safety checks and RPC forwarding to occur again.
+	//
+	// The log line is trace, because the default worker timeout is 500ms which
+	// produces a large amount of logging.
+	if !e.srv.evalBroker.Enabled() {
+		message := e.srv.evalBroker.enabledNotifier.WaitForChange(args.Timeout)
+		e.logger.Trace("eval broker wait for un-pause", "message", message)
+		return nil
 	}
 
 	// Attempt the dequeue
@@ -374,7 +392,7 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 }
 
 // Reap is used to cleanup dead evaluations and allocations
-func (e *Eval) Reap(args *structs.EvalDeleteRequest,
+func (e *Eval) Reap(args *structs.EvalReapRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
@@ -397,6 +415,150 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	// Update the index
 	reply.Index = index
 	return nil
+}
+
+// Delete is used by operators to delete evaluations during severe outages. It
+// differs from Reap while duplicating some behavior to ensure we have the
+// correct controls for user initiated deletions.
+func (e *Eval) Delete(
+	args *structs.EvalDeleteRequest,
+	reply *structs.EvalDeleteResponse) error {
+
+	if done, err := e.srv.forward(structs.EvalDeleteRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "delete"}, time.Now())
+
+	// This RPC endpoint is very destructive and alters Nomad's core state,
+	// meaning only those with management tokens can call it.
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// The eval broker must be disabled otherwise Nomad's state will likely get
+	// wild in a very un-fun way.
+	if e.srv.evalBroker.Enabled() {
+		return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+	}
+
+	// Grab the state snapshot, so we can look up relevant eval information.
+	serverStateSnapshot, err := e.srv.State().Snapshot()
+	if err != nil {
+		return fmt.Errorf("failed to lookup state snapshot: %v", err)
+	}
+	ws := memdb.NewWatchSet()
+
+	// Iterate the evaluations and ensure they are safe to delete. It is
+	// possible passed evals are not safe to delete and would make Nomads state
+	// a little wonky. The nature of the RPC return error, means a single
+	// unsafe eval ID fails the whole call.
+	for _, evalID := range args.EvalIDs {
+
+		evalInfo, err := serverStateSnapshot.EvalByID(ws, evalID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup eval: %v", err)
+		}
+		if evalInfo == nil {
+			return errors.New("eval not found")
+		}
+
+		jobInfo, err := serverStateSnapshot.JobByID(ws, evalInfo.Namespace, evalInfo.JobID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup eval job: %v", err)
+		}
+
+		allocs, err := serverStateSnapshot.AllocsByEval(ws, evalInfo.ID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup eval allocs: %v", err)
+		}
+
+		if !evalDeleteSafe(allocs, jobInfo) {
+			return fmt.Errorf("eval %s is not safe to delete", evalID)
+		}
+	}
+
+	// Generate the Raft request object using the reap request object. This
+	// avoids adding new Raft messages types and follows the existing reap
+	// flow.
+	raftReq := structs.EvalReapRequest{
+		Evals:         args.EvalIDs,
+		UserInitiated: true,
+		WriteRequest:  args.WriteRequest,
+	}
+
+	// Update via Raft.
+	_, index, err := e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+	if err != nil {
+		return err
+	}
+
+	// Update the index and return.
+	reply.Index = index
+	return nil
+}
+
+// evalDeleteSafe ensures an evaluation is safe to delete based on its related
+// allocation and job information. This follows similar, but different rules to
+// the eval reap checking, to ensure evaluations for running allocs or allocs
+// which need the evaluation detail are not deleted.
+func evalDeleteSafe(allocs []*structs.Allocation, job *structs.Job) bool {
+
+	// If the job is deleted, stopped, or dead, all allocs are terminal and
+	// the eval can be deleted.
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// Iterate the allocations associated to the eval, if any, and check
+	// whether we can delete the eval.
+	for _, alloc := range allocs {
+
+		// If the allocation is still classed as running on the client, or
+		// might be, we can't delete.
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusRunning, structs.AllocClientStatusUnknown:
+			return false
+		}
+
+		// If the alloc hasn't failed then we don't need to consider it for
+		// rescheduling. Rescheduling needs to copy over information from the
+		// previous alloc so that it can enforce the reschedule policy.
+		if alloc.ClientStatus != structs.AllocClientStatusFailed {
+			continue
+		}
+
+		var reschedulePolicy *structs.ReschedulePolicy
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+
+		if tg != nil {
+			reschedulePolicy = tg.ReschedulePolicy
+		}
+
+		// No reschedule policy or rescheduling is disabled
+		if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+			continue
+		}
+
+		// The restart tracking information has not been carried forward.
+		if alloc.NextAllocation == "" {
+			return false
+		}
+
+		// This task has unlimited rescheduling and the alloc has not been
+		// replaced, so we can't delete the eval yet.
+		if reschedulePolicy.Unlimited {
+			return false
+		}
+
+		// No restarts have been attempted yet.
+		if alloc.RescheduleTracker == nil || len(alloc.RescheduleTracker.Events) == 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 // List is used to get a list of the evaluations in the system

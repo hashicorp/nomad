@@ -39,7 +39,7 @@ func (a *SentinelPolicies) Delete(policyName string, q *WriteOptions) (*WriteMet
 	if policyName == "" {
 		return nil, fmt.Errorf("missing policy name")
 	}
-	wm, err := a.client.delete("/v1/sentinel/policy/"+policyName, nil, q)
+	wm, err := a.client.delete("/v1/sentinel/policy/"+policyName, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}

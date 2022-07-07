@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed an issue where editing or running a job with a namespace via the UI would throw a 404 on redirect.
+```

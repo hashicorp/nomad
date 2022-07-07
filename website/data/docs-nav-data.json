@@ -373,6 +373,10 @@
             "path": "commands/eval"
           },
           {
+            "title": "delete",
+            "path": "commands/eval/delete"
+          },
+          {
             "title": "list",
             "path": "commands/eval/list"
           },
@@ -584,6 +588,14 @@
           {
             "title": "raft state",
             "path": "commands/operator/raft-state"
+          },
+          {
+            "title": "scheduler get-config",
+            "path": "commands/operator/scheduler-get-config"
+          },
+          {
+            "title": "scheduler set-config",
+            "path": "commands/operator/scheduler-set-config"
           },
           {
             "title": "snapshot agent",

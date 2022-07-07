@@ -265,6 +265,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval delete": func() (cli.Command, error) {
+			return &EvalDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval list": func() (cli.Command, error) {
 			return &EvalListCommand{
 				Meta: meta,
@@ -571,7 +576,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
+		"operator scheduler": func() (cli.Command, error) {
+			return &OperatorSchedulerCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator scheduler get-config": func() (cli.Command, error) {
+			return &OperatorSchedulerGetConfig{
+				Meta: meta,
+			}, nil
+		},
+		"operator scheduler set-config": func() (cli.Command, error) {
+			return &OperatorSchedulerSetConfig{
+				Meta: meta,
+			}, nil
+		},
 		"operator snapshot": func() (cli.Command, error) {
 			return &OperatorSnapshotCommand{
 				Meta: meta,

@@ -288,7 +288,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 // eventually GC'ed from the system. Most callers should not specify purge.
 func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobDeregisterResponse
-	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", url.PathEscape(jobID), purge), &resp, q)
+	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", url.PathEscape(jobID), purge), nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -334,7 +334,7 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 			opts.Purge, opts.Global, opts.EvalPriority, opts.NoShutdownDelay)
 	}
 
-	wm, err := j.client.delete(endpoint, &resp, q)
+	wm, err := j.client.delete(endpoint, nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
