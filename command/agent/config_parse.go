@@ -57,7 +57,7 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	err = hcl.Decode(c, buf.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode HCL file %s: %v", path, err)
+		return nil, fmt.Errorf("failed to decode HCL file %s: %w", path, err)
 	}
 
 	// convert strings to time.Durations
