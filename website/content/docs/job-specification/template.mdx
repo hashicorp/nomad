@@ -324,15 +324,19 @@ To enable simple load balancing, the `nomadService` function requires 3 argument
 - The hashing key (should be unique, but consistent per requester)
 - The service name
 
-By using `NOMAD_ALLOC_ID` as the hashing key, the selected instances will remain mostly
-stable for the allocation, even as instances of the service are added or removed.
+By using `NOMAD_ALLOC_ID` as the hashing key, the selected instances will remain
+mostly stable for the allocation. Each time the template is run, `nomadService`
+will return the same set of instances for each allocation - unless N instances of
+the service are added or removed, in which case there is a 1/N chance of a selected
+instance being replaced. This helps maintain a more consistent output when rendering
+configuration files, triggering fewer restarts and signaling of Nomad tasks.
 
 ```hcl
 template {
   data        = <<EOH
+# Configuration for 1 redis instances, as assigned via rendezvous hashing.
 {{$allocID := env "NOMAD_ALLOC_ID" -}}
-# Configuration for 3 redis instances, as assigned via rendezvous hashing.
-{{range nomadService 3 $allocID "redis"}}
+{{range nomadService 1 $allocID "redis"}}
   server {{ .Address }}:{{ .Port }};{{- end }}
 {{- end}}
 EOH
