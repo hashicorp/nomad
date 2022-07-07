@@ -246,8 +246,8 @@ server {
 
 The leader plan rejection tracker can be adjusted to prevent evaluations from
 getting stuck due to always being scheduled to a client that may have an
-unexpected and undetected issues. Refer to [Monitoring
-Nomad][monitoring_nomad_progress] for more details.
+unexpected issue. Refer to [Monitoring Nomad][monitoring_nomad_progress] for
+more details.
 
 - `node_threshold` `(int: 15)` - The number of plan rejections for a node
   within the `node_window` to trigger a client to be set as ineligible.
