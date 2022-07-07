@@ -28,16 +28,7 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 		return nil, false, fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
-	repo, _ := parseDockerImage(d.config.InfraImage)
-	authOptions, err := firstValidAuth(repo, []authBackend{
-		authFromDockerConfig(d.config.Auth.Config),
-		authFromHelper(d.config.Auth.Helper),
-	})
-	if err != nil {
-		d.logger.Debug("auth failed for infra container image pull", "image", d.config.InfraImage, "error", err)
-	}
-	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
-	if err != nil {
+	if err := d.pullInfraImage(allocID); err != nil {
 		return nil, false, err
 	}
 
@@ -101,10 +92,28 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
-	return client.RemoveContainer(docker.RemoveContainerOptions{
+	if err := client.RemoveContainer(docker.RemoveContainerOptions{
 		Force: true,
 		ID:    spec.Labels[dockerNetSpecLabelKey],
-	})
+	}); err != nil {
+		return err
+	}
+
+	if d.config.GC.Image {
+
+		// The Docker image ID is needed in order to correctly update the image
+		// reference count. Any error finding this, however, should not result
+		// in an error shutting down the allocrunner.
+		dockerImage, err := client.InspectImage(d.config.InfraImage)
+		if err != nil {
+			d.logger.Warn("InspectImage failed for infra_image container destroy",
+				"image", d.config.InfraImage, "error", err)
+			return nil
+		}
+		d.coordinator.RemoveImage(dockerImage.ID, allocID)
+	}
+
+	return nil
 }
 
 // createSandboxContainerConfig creates a docker container configuration which
@@ -123,4 +132,47 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 			NetworkMode: "none",
 		},
 	}, nil
+}
+
+// pullInfraImage conditionally pulls the `infra_image` from the Docker registry
+// only if its name uses the "latest" tag or the image doesn't already exist locally.
+func (d *Driver) pullInfraImage(allocID string) error {
+	repo, tag := parseDockerImage(d.config.InfraImage)
+
+	// There's a (narrow) time-of-check-time-of-use race here. If we call
+	// InspectImage and then a concurrent task shutdown happens before we call
+	// IncrementImageReference, we could end up removing the image, and it
+	// would no longer exist by the time we get to PullImage below.
+	d.coordinator.imageLock.Lock()
+
+	if tag != "latest" {
+		dockerImage, err := client.InspectImage(d.config.InfraImage)
+		if err != nil {
+			d.logger.Debug("InspectImage failed for infra_image container pull",
+				"image", d.config.InfraImage, "error", err)
+		} else if dockerImage != nil {
+			// Image exists, so no pull is attempted; just increment its reference
+			// count and unlock the image lock.
+			d.coordinator.incrementImageReferenceImpl(dockerImage.ID, d.config.InfraImage, allocID)
+			d.coordinator.imageLock.Unlock()
+			return nil
+		}
+	}
+
+	// At this point we have performed all the image work needed, so unlock. It
+	// is possible in environments with slow networks that the image pull may
+	// take a while, so while defer unlock would be best, this allows us to
+	// remove the lock sooner.
+	d.coordinator.imageLock.Unlock()
+
+	authOptions, err := firstValidAuth(repo, []authBackend{
+		authFromDockerConfig(d.config.Auth.Config),
+		authFromHelper(d.config.Auth.Helper),
+	})
+	if err != nil {
+		d.logger.Debug("auth failed for infra_image container pull", "image", d.config.InfraImage, "error", err)
+	}
+
+	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
+	return err
 }
