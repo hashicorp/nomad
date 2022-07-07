@@ -139,17 +139,31 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 func (d *Driver) pullInfraImage(allocID string) error {
 	repo, tag := parseDockerImage(d.config.InfraImage)
 
+	// There's a (narrow) time-of-check-time-of-use race here. If we call
+	// InspectImage and then a concurrent task shutdown happens before we call
+	// IncrementImageReference, we could end up removing the image, and it
+	// would no longer exist by the time we get to PullImage below.
+	d.coordinator.imageLock.Lock()
+
 	if tag != "latest" {
 		dockerImage, err := client.InspectImage(d.config.InfraImage)
 		if err != nil {
 			d.logger.Debug("InspectImage failed for infra_image container pull",
 				"image", d.config.InfraImage, "error", err)
 		} else if dockerImage != nil {
-			// Image exists, so no pull is attempted; just increment its reference count
-			d.coordinator.IncrementImageReference(dockerImage.ID, d.config.InfraImage, allocID)
+			// Image exists, so no pull is attempted; just increment its reference
+			// count and unlock the image lock.
+			d.coordinator.incrementImageReferenceImpl(dockerImage.ID, d.config.InfraImage, allocID)
+			d.coordinator.imageLock.Unlock()
 			return nil
 		}
 	}
+
+	// At this point we have performed all the image work needed, so unlock. It
+	// is possible in environments with slow networks that the image pull may
+	// take a while, so while defer unlock would be best, this allows us to
+	// remove the lock sooner.
+	d.coordinator.imageLock.Unlock()
 
 	authOptions, err := firstValidAuth(repo, []authBackend{
 		authFromDockerConfig(d.config.Auth.Config),
