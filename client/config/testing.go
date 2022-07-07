@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
@@ -64,5 +65,9 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	// Loosen GC threshold
 	conf.GCDiskUsageThreshold = 98.0
 	conf.GCInodeUsageThreshold = 98.0
+
+	// Same as default; necessary for task Event messages
+	conf.MaxKillTimeout = 30 * time.Second
+
 	return conf, cleanup
 }
