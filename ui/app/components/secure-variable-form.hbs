@@ -102,6 +102,7 @@
 
   {{#if this.shouldShowLinkedEntities}}
     <SecureVariableForm::RelatedEntities
+      @new={{true}}
       @job={{@model.pathLinkedEntities.job}}
       @group={{@model.pathLinkedEntities.group}}
       @task={{@model.pathLinkedEntities.task}}
