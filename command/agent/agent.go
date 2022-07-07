@@ -438,6 +438,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Set plan rejection tracker configuration.
 	if planRejectConf := agentConfig.Server.PlanRejectionTracker; planRejectConf != nil {
+		conf.NodePlanRejectionEnabled = planRejectConf.Enabled
 		conf.NodePlanRejectionThreshold = planRejectConf.NodeThreshold
 
 		if planRejectConf.NodeWindow == 0 {

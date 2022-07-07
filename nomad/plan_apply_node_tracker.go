@@ -8,9 +8,27 @@ import (
 	"github.com/hashicorp/go-hclog"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/time/rate"
 )
 
-// BadNodeTracker keeps a record of nodes marked as bad by the plan applier.
+type BadNodeTracker interface {
+	IsBad(string) bool
+	Add(string)
+	EmitStats(time.Duration, <-chan struct{})
+}
+
+// NoopBadNodeTracker is a no-op implementation of bad node tracker that is
+// used when tracking is disabled.
+type NoopBadNodeTracker struct{}
+
+func (n *NoopBadNodeTracker) Add(string)                               {}
+func (n *NoopBadNodeTracker) EmitStats(time.Duration, <-chan struct{}) {}
+func (n *NoopBadNodeTracker) IsBad(string) bool {
+	return false
+}
+
+// CachedBadNodeTracker keeps a record of nodes marked as bad by the plan
+// applier in a LRU cache.
 //
 // It takes a time window and a threshold value. Plan rejections for a node
 // will be registered with its timestamp. If the number of rejections within
@@ -18,63 +36,93 @@ import (
 //
 // The tracker uses a fixed size cache that evicts old entries based on access
 // frequency and recency.
-type BadNodeTracker struct {
+type CachedBadNodeTracker struct {
 	logger    hclog.Logger
 	cache     *lru.TwoQueueCache
+	limiter   *rate.Limiter
 	window    time.Duration
 	threshold int
 }
 
-// NewBadNodeTracker returns a new BadNodeTracker.
-func NewBadNodeTracker(logger hclog.Logger, size int, window time.Duration, threshold int) (*BadNodeTracker, error) {
-	cache, err := lru.New2Q(size)
+type CachedBadNodeTrackerConfig struct {
+	CacheSize int
+	RateLimit float64
+	BurstSize int
+	Window    time.Duration
+	Threshold int
+}
+
+func DefaultCachedBadNodeTrackerConfig() CachedBadNodeTrackerConfig {
+	return CachedBadNodeTrackerConfig{
+		CacheSize: 50,
+
+		// Limit marking 5 nodes per 30min as ineligible with an initial
+		// burst of 10 nodes.
+		RateLimit: 5 / (30 * 60),
+		BurstSize: 10,
+
+		// Consider a node as bad if it is added more than 100 times in a 5min
+		// window period.
+		Window:    5 * time.Minute,
+		Threshold: 100,
+	}
+}
+
+// NewCachedBadNodeTracker returns a new CachedBadNodeTracker.
+func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerConfig) (*CachedBadNodeTracker, error) {
+	log := logger.Named("bad_node_tracker").
+		With("threshold", config.Threshold).
+		With("window", config.Window)
+
+	cache, err := lru.New2Q(config.CacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new bad node tracker: %v", err)
 	}
 
-	return &BadNodeTracker{
-		logger: logger.Named("bad_node_tracker").
-			With("threshold", threshold).
-			With("window", window),
+	return &CachedBadNodeTracker{
+		logger:    log,
 		cache:     cache,
-		window:    window,
-		threshold: threshold,
+		limiter:   rate.NewLimiter(rate.Limit(config.RateLimit), config.BurstSize),
+		window:    config.Window,
+		threshold: config.Threshold,
 	}, nil
 }
 
 // IsBad returns true if the node has more rejections than the threshold within
 // the time window.
-func (t *BadNodeTracker) IsBad(nodeID string) bool {
-	value, ok := t.cache.Get(nodeID)
-	if !ok {
+func (c *CachedBadNodeTracker) IsBad(nodeID string) bool {
+	// Limit the number of nodes we report as bad to avoid mass assigning nodes
+	// as ineligible, but still call Get to keep the cache entry fresh.
+	value, ok := c.cache.Get(nodeID)
+	if !ok || !c.limiter.Allow() {
 		return false
 	}
 
 	stats := value.(*badNodeStats)
 	score := stats.score()
 
-	t.logger.Debug("checking if node is bad", "node_id", nodeID, "score", score)
-	return score > t.threshold
+	c.logger.Debug("checking if node is bad", "node_id", nodeID, "score", score)
+	return score > c.threshold
 }
 
 // Add records a new rejection for node. If it's the first time a node is added
 // it will be included in the internal cache. If the cache is full the least
 // recently updated or accessed node is evicted.
-func (t *BadNodeTracker) Add(nodeID string) {
-	value, ok := t.cache.Get(nodeID)
+func (c *CachedBadNodeTracker) Add(nodeID string) {
+	value, ok := c.cache.Get(nodeID)
 	if !ok {
-		value = newBadNodeStats(t.window)
-		t.cache.Add(nodeID, value)
+		value = newBadNodeStats(c.window)
+		c.cache.Add(nodeID, value)
 	}
 
 	stats := value.(*badNodeStats)
 	score := stats.record()
-	t.logger.Debug("adding node plan rejection", "node_id", nodeID, "score", score)
+	c.logger.Debug("adding node plan rejection", "node_id", nodeID, "score", score)
 }
 
 // EmitStats generates metrics for the bad nodes being currently tracked. Must
 // be called in a goroutine.
-func (t *BadNodeTracker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+func (c *CachedBadNodeTracker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	timer, stop := helper.NewSafeTimer(period)
 	defer stop()
 
@@ -83,16 +131,16 @@ func (t *BadNodeTracker) EmitStats(period time.Duration, stopCh <-chan struct{})
 
 		select {
 		case <-timer.C:
-			t.emitStats()
+			c.emitStats()
 		case <-stopCh:
 			return
 		}
 	}
 }
 
-func (t *BadNodeTracker) emitStats() {
-	for _, k := range t.cache.Keys() {
-		value, _ := t.cache.Get(k)
+func (c *CachedBadNodeTracker) emitStats() {
+	for _, k := range c.cache.Keys() {
+		value, _ := c.cache.Get(k)
 		stats := value.(*badNodeStats)
 		score := stats.score()
 
@@ -103,7 +151,7 @@ func (t *BadNodeTracker) emitStats() {
 	}
 }
 
-// badNodeStats represents a node being tracked by BadNodeTracker.
+// badNodeStats represents a node being tracked by a BadNodeTracker.
 type badNodeStats struct {
 	history []time.Time
 	window  time.Duration

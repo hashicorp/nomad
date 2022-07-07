@@ -134,6 +134,7 @@ server {
   event_buffer_size             = 200
 
   plan_rejection_tracker {
+    enabled        = true
     node_threshold = 100
     node_window    = "41m"
   }
