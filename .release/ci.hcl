@@ -14,7 +14,6 @@ project "nomad" {
       "release/1.1.x",
       "release/1.2.x",
       "release/1.3.x",
-      "support-fossa-scanning",
     ]
   }
 }

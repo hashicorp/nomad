@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "main"
-      - "support-fossa-scanning"
   workflow_dispatch:
     inputs:
       build-ref:
