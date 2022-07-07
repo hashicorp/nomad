@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: display namespace and node ID in the `eval list` command and when `eval status` matches multiple evals
+```
+
+```release-note:improvement
+cli: always display job ID and namespace in the `eval status` command
+```

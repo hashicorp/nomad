@@ -54,10 +54,10 @@ Delete all evaluations with status `pending` for the `example` job:
 $ nomad eval delete -filter='Stauts == "pending" and JobID == "example"'
 Do you want to list evals (3) before deletion? [y/N] y
 
-ID        Priority  Triggered By  Job ID   Status   Placement Failures
-cef92121  50        job-register  example  pending  false
-1c905ca0  50        job-register  example  pending  false
-b9e77692  50        job-register  example  pending  false
+ID        Priority  Triggered By  Job ID   Namespace   Node ID   Status   Placement Failures
+cef92121  50        job-register  example  default     <none>    pending  false
+1c905ca0  50        job-register  example  default     <none>    pending  false
+b9e77692  50        job-register  example  default     <none>    pending  false
 
 Are you sure you want to delete 3 evals? [y/N] y
 
