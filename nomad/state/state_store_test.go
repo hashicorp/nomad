@@ -4636,11 +4636,15 @@ func TestStateStore_EvalsByIDPrefix_Namespaces(t *testing.T) {
 	require.NoError(t, err)
 	iter2, err := state.EvalsByIDPrefix(ws, ns2.Name, sharedPrefix, SortDefault)
 	require.NoError(t, err)
+	iter3, err := state.EvalsByIDPrefix(ws, structs.AllNamespacesSentinel, sharedPrefix, SortDefault)
+	require.NoError(t, err)
 
 	evalsNs1 := gatherEvals(iter1)
 	evalsNs2 := gatherEvals(iter2)
+	evalsNs3 := gatherEvals(iter3)
 	require.Len(t, evalsNs1, 1)
 	require.Len(t, evalsNs2, 1)
+	require.Len(t, evalsNs3, 2)
 
 	iter1, err = state.EvalsByIDPrefix(ws, ns1.Name, eval1.ID[:8], SortDefault)
 	require.NoError(t, err)
