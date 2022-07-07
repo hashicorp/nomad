@@ -111,7 +111,7 @@ func TestBucket_Iterate(t *testing.T) {
 		must.NotNil(t, b)
 
 		must.NoError(t, b.Put([]byte("ceo"), employee{Name: "dave", ID: 15}))
-		must.NoError(t, b.Put([]byte("founder"), employee{Name: "mitchel", ID: 1}))
+		must.NoError(t, b.Put([]byte("founder"), employee{Name: "mitchell", ID: 1}))
 		must.NoError(t, b.Put([]byte("cto"), employee{Name: "armon", ID: 2}))
 		return nil
 	}))
@@ -126,7 +126,7 @@ func TestBucket_Iterate(t *testing.T) {
 		})
 		must.NoError(t, err)
 		must.Eq(t, []employee{
-			{"dave", 15}, {"armon", 2}, {"mitchel", 1},
+			{"dave", 15}, {"armon", 2}, {"mitchell", 1},
 		}, result)
 	})
 
@@ -135,7 +135,7 @@ func TestBucket_Iterate(t *testing.T) {
 			b := tx.Bucket(bucket)
 			// will fail to encode employee into an int
 			return Iterate(b, nil, func(key []byte, i int) {
-				must.True(t, false) // must not get here
+				must.Unreachable(t)
 			})
 		})
 		must.Error(t, err)
@@ -158,7 +158,7 @@ func TestBucket_DeletePrefix(t *testing.T) {
 		must.NoError(t, b.Put([]byte("intern_a"), employee{Name: "alice", ID: 7384}))
 		must.NoError(t, b.Put([]byte("exec_c"), employee{Name: "armon", ID: 2}))
 		must.NoError(t, b.Put([]byte("intern_b"), employee{Name: "bob", ID: 7312}))
-		must.NoError(t, b.Put([]byte("exec_b"), employee{Name: "mitchel", ID: 1}))
+		must.NoError(t, b.Put([]byte("exec_b"), employee{Name: "mitchell", ID: 1}))
 		return nil
 	}))
 
@@ -178,7 +178,7 @@ func TestBucket_DeletePrefix(t *testing.T) {
 	})
 	must.NoError(t, err)
 	must.Eq(t, []employee{
-		{"dave", 15}, {"mitchel", 1}, {"armon", 2},
+		{"dave", 15}, {"mitchell", 1}, {"armon", 2},
 	}, result)
 }
 
