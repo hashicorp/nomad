@@ -72,7 +72,7 @@ func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrest
 		return nil
 	}
 
-	h.tr.setDriverHandle(NewDriverHandle(h.tr.driver, th.Config.ID, h.tr.Task(), taskInfo.NetworkOverride))
+	h.tr.setDriverHandle(NewDriverHandle(h.tr.driver, th.Config.ID, h.tr.Task(), h.tr.clientConfig.MaxKillTimeout, taskInfo.NetworkOverride))
 
 	h.tr.stateLock.Lock()
 	h.tr.localState.TaskHandle = th
