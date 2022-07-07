@@ -378,8 +378,8 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 			name:          "default",
 			trackerConfig: nil,
 			expectedConfig: &PlanRejectionTracker{
-				NodeThreshold: 15,
-				NodeWindow:    10 * time.Minute,
+				NodeThreshold: 100,
+				NodeWindow:    5 * time.Minute,
 			},
 			expectedErr: "",
 		},

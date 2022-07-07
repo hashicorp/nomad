@@ -106,7 +106,7 @@ func TestBadNodeTracker_IsBad(t *testing.T) {
 func TestBadNodeTracker_RateLimit(t *testing.T) {
 	config := DefaultCachedBadNodeTrackerConfig()
 	config.Threshold = 3
-	config.RateLimit = float64(testutil.TestMultiplier())
+	config.RateLimit = float64(1) // Get a new token every second.
 	config.BurstSize = 3
 
 	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
@@ -125,7 +125,7 @@ func TestBadNodeTracker_RateLimit(t *testing.T) {
 	require.False(t, tracker.IsBad("node-1"))
 
 	// Wait for a new token.
-	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
+	time.Sleep(time.Second)
 	require.True(t, tracker.IsBad("node-1"))
 	require.False(t, tracker.IsBad("node-1"))
 }
