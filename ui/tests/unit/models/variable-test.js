@@ -48,4 +48,68 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(Object.entries(model.items)[1][0], 'myVar');
     assert.equal(Object.entries(model.items)[1][1], 'myValue');
   });
+
+  test('it computes linked entities', function (assert) {
+    let store = this.owner.lookup('service:store');
+
+    let model = store.createRecord('variable');
+    model.setProperties({
+      path: 'jobs/my-job-name/my-group-name/my-task-name',
+    });
+    assert.ok(model.pathLinkedEntities, 'generates a linked entities object');
+    assert.equal(
+      model.pathLinkedEntities.job,
+      'my-job-name',
+      'identifies the job name'
+    );
+    assert.equal(
+      model.pathLinkedEntities.group,
+      'my-group-name',
+      'identifies the group name'
+    );
+    assert.equal(
+      model.pathLinkedEntities.task,
+      'my-task-name',
+      'identifies the task name'
+    );
+
+    model.setProperties({
+      path: 'jobs/my-job-name/my-group-name/my-task-name/too-long/oh-no',
+    });
+    assert.equal(
+      model.pathLinkedEntities.job,
+      '',
+      'entities object lacks a job name if path goes beyond task'
+    );
+    assert.equal(
+      model.pathLinkedEntities.group,
+      '',
+      'entities object lacks a group name if path goes beyond task'
+    );
+    assert.equal(
+      model.pathLinkedEntities.task,
+      '',
+      'entities object lacks a task name if path goes beyond task'
+    );
+
+    model.setProperties({
+      path: 'projects/some/job',
+    });
+    assert.ok(model.pathLinkedEntities, 'generates a linked entities object');
+    assert.equal(
+      model.pathLinkedEntities.job,
+      '',
+      'entities object lacks a job name if not prefixed with jobs/'
+    );
+    assert.equal(
+      model.pathLinkedEntities.group,
+      '',
+      'entities object lacks a group name if not prefixed with jobs/'
+    );
+    assert.equal(
+      model.pathLinkedEntities.task,
+      '',
+      'entities object lacks a task name if not prefixed with jobs/'
+    );
+  });
 });
