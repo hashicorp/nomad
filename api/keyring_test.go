@@ -39,7 +39,7 @@ func TestKeyring_CRUD(t *testing.T) {
 		Key: encodedKey,
 		Meta: &RootKeyMeta{
 			KeyID:     id,
-			Active:    true,
+			State:     RootKeyStateActive,
 			Algorithm: EncryptionAlgorithmAES256GCM,
 		}}, nil)
 	require.NoError(t, err)
@@ -57,9 +57,11 @@ func TestKeyring_CRUD(t *testing.T) {
 	require.Len(t, keys, 2)
 	for _, key := range keys {
 		if key.KeyID == id {
-			require.True(t, key.Active, "new key should be active")
+			require.Equal(t, RootKeyState(RootKeyStateActive),
+				key.State, "new key should be active")
 		} else {
-			require.False(t, key.Active, "initial key should be inactive")
+			require.Equal(t, RootKeyState(RootKeyStateInactive),
+				key.State, "initial key should be inactive")
 		}
 	}
 }

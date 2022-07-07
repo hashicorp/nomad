@@ -104,9 +104,9 @@ func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Re
 		RootKey: &structs.RootKey{
 			Key: decodedKey,
 			Meta: &structs.RootKeyMeta{
-				Active:    key.Meta.Active,
 				KeyID:     key.Meta.KeyID,
 				Algorithm: structs.EncryptionAlgorithm(key.Meta.Algorithm),
+				State:     structs.RootKeyState(key.Meta.State),
 			},
 		},
 	}

@@ -348,7 +348,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	}
 
 	meta := &structs.RootKeyMeta{
-		Active:     storedKey.Meta.Active,
+		State:      storedKey.Meta.State,
 		KeyID:      storedKey.Meta.KeyID,
 		Algorithm:  storedKey.Meta.Algorithm,
 		CreateTime: storedKey.Meta.CreateTime,

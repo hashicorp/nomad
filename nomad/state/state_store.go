@@ -6629,7 +6629,7 @@ func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 }
 
 // UpsertRootKeyMeta saves root key meta or updates it in-place.
-func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta) error {
+func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta, rekey bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -6645,13 +6645,17 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 		existing := raw.(*structs.RootKeyMeta)
 		rootKeyMeta.CreateIndex = existing.CreateIndex
 		rootKeyMeta.CreateTime = existing.CreateTime
-		isRotation = !existing.Active && rootKeyMeta.Active
+		isRotation = !existing.Active() && rootKeyMeta.Active()
 	} else {
 		rootKeyMeta.CreateIndex = index
 		rootKeyMeta.CreateTime = time.Now()
-		isRotation = rootKeyMeta.Active
+		isRotation = rootKeyMeta.Active()
 	}
 	rootKeyMeta.ModifyIndex = index
+
+	if rekey && !isRotation {
+		return fmt.Errorf("cannot rekey without setting the new key active")
+	}
 
 	// if the upsert is for a newly-active key, we need to set all the
 	// other keys as inactive in the same transaction.
@@ -6666,13 +6670,32 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 				break
 			}
 			key := raw.(*structs.RootKeyMeta)
-			if key.Active {
-				key.Active = false
+			modified := false
+
+			switch key.State {
+			case structs.RootKeyStateInactive:
+				if rekey {
+					key.SetRekeying()
+					modified = true
+				}
+			case structs.RootKeyStateActive:
+				if rekey {
+					key.SetRekeying()
+				} else {
+					key.SetInactive()
+				}
+				modified = true
+			case structs.RootKeyStateRekeying, structs.RootKeyStateDeprecated:
+				// nothing to do
+			}
+
+			if modified {
 				key.ModifyIndex = index
 				if err := txn.Insert(TableRootKeyMeta, key); err != nil {
 					return err
 				}
 			}
+
 		}
 	}
 
@@ -6758,7 +6781,7 @@ func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMe
 			break
 		}
 		key := raw.(*structs.RootKeyMeta)
-		if key.Active {
+		if key.Active() {
 			return key, nil
 		}
 	}

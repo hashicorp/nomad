@@ -10791,6 +10791,11 @@ const (
 	// garbage collection of unused encryption keys.
 	CoreJobRootKeyRotateOrGC = "root-key-rotate-gc"
 
+	// CoreJobSecureVariablesRekey is used to fully rotate the
+	// encryption keys for secure variables by decrypting all secure
+	// variables and re-encrypting them with the active key
+	CoreJobSecureVariablesRekey = "secure-variables-rekey"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
