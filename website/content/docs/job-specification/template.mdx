@@ -312,6 +312,37 @@ EOF
   }
 ```
 
+### Simple Load Balancing with Nomad Services
+
+~> Simple load balancing with Nomad Services is new in Nomad 1.3.2.
+
+The `nomadService` function now supports simple load balancing by selecting
+instances of a service via [rendezvous hashing][rhash].
+To enable simple load balancing, the `nomadService` function requires 3 arguments.
+
+- The number of services to select
+- The hashing key (should be unique, but consistent per requester)
+- The service name
+
+By using `NOMAD_ALLOC_ID` as the hashing key, the selected instances will remain
+mostly stable for the allocation. Each time the template is run, `nomadService`
+will return the same set of instances for each allocation - unless N instances of
+the service are added or removed, in which case there is a 1/N chance of a selected
+instance being replaced. This helps maintain a more consistent output when rendering
+configuration files, triggering fewer restarts and signaling of Nomad tasks.
+
+```hcl
+template {
+  data        = <<EOH
+# Configuration for 1 redis instances, as assigned via rendezvous hashing.
+{{$allocID := env "NOMAD_ALLOC_ID" -}}
+{{range nomadService 1 $allocID "redis"}}
+  server {{ .Address }}:{{ .Port }};{{- end }}
+{{- end}}
+EOH
+}
+```
+
 ## Consul Integration
 
 ### Consul KV
@@ -530,3 +561,4 @@ options](/docs/configuration/client#options):
 [task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
 [filesystem internals]: /docs/internals/filesystem#templates-artifacts-and-dispatch-payloads
 [`client.template.wait_bounds`]: /docs/configuration/client#wait_bounds
+[rhash]: https://en.wikipedia.org/wiki/Rendezvous_hashing
