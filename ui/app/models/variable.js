@@ -32,7 +32,7 @@ export default class VariableModel extends Model {
    *
    * @type {string}
    */
-  @attr('string') path;
+  @attr('string', { defaultValue: '' }) path;
 
   /**
    * @type {MutableArray<KeyValue>}
