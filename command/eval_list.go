@@ -161,13 +161,7 @@ func (c *EvalListCommand) Run(args []string) int {
 		return 0
 	}
 
-	// Truncate the id unless full length is requested
-	length := shortId
-	if verbose {
-		length = fullId
-	}
-
-	outputEvalList(c.Ui, evals, length)
+	c.Ui.Output(formatEvalList(evals, verbose))
 
 	if qm.NextToken != "" {
 		c.Ui.Output(fmt.Sprintf(`
@@ -203,4 +197,30 @@ func argsWithoutPageToken(osArgs []string) string {
 		i++
 	}
 	return strings.Join(args, " ")
+}
+
+func formatEvalList(evals []*api.Evaluation, verbose bool) string {
+	// Truncate IDs unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
+	out := make([]string, len(evals)+1)
+	out[0] = "ID|Priority|Triggered By|Job ID|Namespace|Node ID|Status|Placement Failures"
+	for i, eval := range evals {
+		failures, _ := evalFailureStatus(eval)
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s|%s|%s",
+			limit(eval.ID, length),
+			eval.Priority,
+			eval.TriggeredBy,
+			eval.JobID,
+			eval.Namespace,
+			limit(eval.NodeID, length),
+			eval.Status,
+			failures,
+		)
+	}
+
+	return formatList(out)
 }
