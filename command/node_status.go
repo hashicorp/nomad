@@ -141,7 +141,7 @@ func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *NodeStatusCommand) Name() string { return "node-status" }
+func (c *NodeStatusCommand) Name() string { return "node status" }
 
 func (c *NodeStatusCommand) Run(args []string) int {
 
