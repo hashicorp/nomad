@@ -3,11 +3,19 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import { serialize } from 'nomad-ui/utils/qp-serialize';
+import { get, set } from '@ember/object';
 
 export default class RunController extends Controller {
   @service router;
   @service system;
   @service store;
+
+  queryParams = [
+    {
+      qpNamespace: 'namespace',
+    },
+  ];
+
   onSubmit(id, namespace) {
     this.router.transitionTo('jobs.job', `${id}@${namespace || 'default'}`);
   }
@@ -29,7 +37,7 @@ export default class RunController extends Controller {
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', '*');
+        set(this, 'qpNamespace', '*');
       });
     }
 
@@ -38,8 +46,10 @@ export default class RunController extends Controller {
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
-    this.set(
-      'model.namespace',
+    const model = get(this, 'model');
+    set(
+      model,
+      'namespace',
       this.store.peekAll('namespace').find((ns) => ns.id === this.qpNamespace)
     );
   }
