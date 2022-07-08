@@ -7,7 +7,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 import percySnapshot from '@percy/ember';
-
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
   volume.allocations.add(alloc);
