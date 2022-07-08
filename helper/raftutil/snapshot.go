@@ -8,10 +8,11 @@ import (
 	"github.com/hashicorp/raft"
 
 	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 )
 
-func RestoreFromArchive(archive io.Reader) (*state.StateStore, *raft.SnapshotMeta, error) {
+func RestoreFromArchive(archive io.Reader, filter *nomad.FSMFilter) (*state.StateStore, *raft.SnapshotMeta, error) {
 	logger := hclog.L()
 
 	fsm, err := dummyFSM(logger)
@@ -19,7 +20,7 @@ func RestoreFromArchive(archive io.Reader) (*state.StateStore, *raft.SnapshotMet
 		return nil, nil, fmt.Errorf("failed to create FSM: %w", err)
 	}
 
-	// r is closed by Restore, w is closed by CopySnapshot
+	// r is closed by RestoreFiltered, w is closed by CopySnapshot
 	r, w := io.Pipe()
 
 	errCh := make(chan error)
@@ -35,7 +36,7 @@ func RestoreFromArchive(archive io.Reader) (*state.StateStore, *raft.SnapshotMet
 		}
 	}()
 
-	err = fsm.Restore(r)
+	err = fsm.RestoreWithFilter(r, filter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to restore from snapshot: %w", err)
 	}
