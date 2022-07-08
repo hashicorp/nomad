@@ -1,6 +1,5 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';

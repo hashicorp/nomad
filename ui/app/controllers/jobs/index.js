@@ -1,9 +1,8 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { action, computed } from '@ember/object';
+import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
