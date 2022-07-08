@@ -48,7 +48,7 @@ export default class Job extends AbstractAbility {
   @computed('token.selfTokenPolicies.[]')
   get policiesSupportRunning() {
     return this.policyNamespacesIncludePermissions(
-      this.get('token.selfTokenPolicies'),
+      this.token.selfTokenPolicies,
       ['submit-job']
     );
   }
