@@ -44,7 +44,7 @@ const (
 	// the same node may indicate an underlying issue not detected by Nomad.
 	// The plan applier keeps track of plan rejection history and will mark
 	// nodes as ineligible if they cross a given threshold.
-	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections"
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
 
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
