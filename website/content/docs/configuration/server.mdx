@@ -254,8 +254,8 @@ more details.
 - `node_threshold` `(int: 100)` - The number of plan rejections for a node
   within the `node_window` to trigger a client to be set as ineligible.
 
-- `node_window` `(int: "5m")` - The time window for when plan rejections for a
-  node should be considered.
+- `node_window` `(string: "5m")` - The time window for when plan rejections for
+  a node should be considered.
 
 If you observe too many false positives (clients being marked as ineligible
 even if they don't present any problem) you may want to increase
