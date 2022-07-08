@@ -7,11 +7,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func TestBadNodeTracker(t *testing.T) {
+func TesCachedtBadNodeTracker(t *testing.T) {
 	ci.Parallel(t)
 
 	config := DefaultCachedBadNodeTrackerConfig()
@@ -31,12 +30,11 @@ func TestBadNodeTracker(t *testing.T) {
 	require.ElementsMatch(t, expected, tracker.cache.Keys())
 }
 
-func TestBadNodeTracker_IsBad(t *testing.T) {
+func TestCachedBadNodeTracker_isBad(t *testing.T) {
 	ci.Parallel(t)
 
 	config := DefaultCachedBadNodeTrackerConfig()
 	config.CacheSize = 3
-	config.Window = time.Duration(testutil.TestMultiplier()) * time.Second
 	config.Threshold = 4
 
 	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
@@ -70,40 +68,39 @@ func TestBadNodeTracker_IsBad(t *testing.T) {
 			nodeID: "node-3",
 			bad:    true,
 		},
-		{
-			name:   "node not tracked is not bad",
-			nodeID: "node-1000",
-			bad:    false,
-		},
 	}
 
+	now := time.Now()
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tracker.IsBad(tc.nodeID)
+			// Read value from cached.
+			v, ok := tracker.cache.Get(tc.nodeID)
+			require.True(t, ok)
+
+			// Check if it's bad.
+			stats := v.(*badNodeStats)
+			got := tracker.isBad(now, stats)
 			require.Equal(t, tc.bad, got)
 		})
 	}
 
-	t.Run("cache expires", func(t *testing.T) {
-		time.Sleep(config.Window)
-		require.False(t, tracker.IsBad("node-1"))
-		require.False(t, tracker.IsBad("node-2"))
-		require.False(t, tracker.IsBad("node-3"))
-	})
+	future := time.Now().Add(2 * config.Window)
+	nodes := []string{"node-1", "node-2", "node-3"}
+	for _, n := range nodes {
+		t.Run(fmt.Sprintf("%s cache expires", n), func(t *testing.T) {
+			v, ok := tracker.cache.Get(n)
+			require.True(t, ok)
 
-	t.Run("IsBad updates cache", func(t *testing.T) {
-		// Don't access node-3 so it should be evicted when a new value is
-		// added and the tracker size overflows.
-		tracker.IsBad("node-1")
-		tracker.IsBad("node-2")
-		tracker.Add("node-4")
-
-		expected := []string{"node-1", "node-2", "node-4"}
-		require.ElementsMatch(t, expected, tracker.cache.Keys())
-	})
+			stats := v.(*badNodeStats)
+			bad := tracker.isBad(future, stats)
+			require.False(t, bad)
+		})
+	}
 }
 
-func TestBadNodeTracker_RateLimit(t *testing.T) {
+func TesCachedtBadNodeTracker_rateLimit(t *testing.T) {
+	ci.Parallel(t)
+
 	config := DefaultCachedBadNodeTrackerConfig()
 	config.Threshold = 3
 	config.RateLimit = float64(1) // Get a new token every second.
@@ -118,38 +115,50 @@ func TestBadNodeTracker_RateLimit(t *testing.T) {
 	tracker.Add("node-1")
 	tracker.Add("node-1")
 
+	v, ok := tracker.cache.Get("node-1")
+	require.True(t, ok)
+
+	stats := v.(*badNodeStats)
+
 	// Burst allows for max 3 operations.
-	require.True(t, tracker.IsBad("node-1"))
-	require.True(t, tracker.IsBad("node-1"))
-	require.True(t, tracker.IsBad("node-1"))
-	require.False(t, tracker.IsBad("node-1"))
+	now := time.Now()
+	require.True(t, tracker.isBad(now, stats))
+	require.True(t, tracker.isBad(now, stats))
+	require.True(t, tracker.isBad(now, stats))
+	require.False(t, tracker.isBad(now, stats))
 
 	// Wait for a new token.
 	time.Sleep(time.Second)
-	require.True(t, tracker.IsBad("node-1"))
-	require.False(t, tracker.IsBad("node-1"))
+	now = time.Now()
+	require.True(t, tracker.isBad(now, stats))
+	require.False(t, tracker.isBad(now, stats))
 }
 
 func TestBadNodeStats_score(t *testing.T) {
 	ci.Parallel(t)
 
-	window := time.Duration(testutil.TestMultiplier()) * time.Second
-	stats := newBadNodeStats(window)
+	window := time.Minute
+	stats := newBadNodeStats("node-1", window)
 
-	require.Equal(t, 0, stats.score())
+	now := time.Now()
+	require.Equal(t, 0, stats.score(now))
 
-	stats.record()
-	stats.record()
-	stats.record()
-	require.Equal(t, 3, stats.score())
+	stats.record(now)
+	stats.record(now)
+	stats.record(now)
+	require.Equal(t, 3, stats.score(now))
+	require.Len(t, stats.history, 3)
 
-	time.Sleep(window / 2)
-	stats.record()
-	require.Equal(t, 4, stats.score())
+	halfWindow := now.Add(window / 2)
+	stats.record(halfWindow)
+	require.Equal(t, 4, stats.score(halfWindow))
+	require.Len(t, stats.history, 4)
 
-	time.Sleep(window / 2)
-	require.Equal(t, 1, stats.score())
+	fullWindow := now.Add(window).Add(time.Second)
+	require.Equal(t, 1, stats.score(fullWindow))
+	require.Len(t, stats.history, 1)
 
-	time.Sleep(window / 2)
-	require.Equal(t, 0, stats.score())
+	afterWindow := now.Add(2 * window)
+	require.Equal(t, 0, stats.score(afterWindow))
+	require.Len(t, stats.history, 0)
 }
