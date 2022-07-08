@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -189,20 +190,10 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 			},
 		},
 	}
-	collide, reason := idx.SetNode(n)
-	if collide || reason != "" {
-		t.Fatalf("bad")
-	}
-
-	if len(idx.AvailNetworks) != 1 {
-		t.Fatalf("Bad")
-	}
-	if idx.AvailBandwidth["eth0"] != 1000 {
-		t.Fatalf("Bad")
-	}
-	if !idx.UsedPorts["192.168.0.100"].Check(22) {
-		t.Fatalf("Bad")
-	}
+	must.NoError(t, idx.SetNode(n))
+	must.Len(t, 1, idx.TaskNetworks)
+	must.Eq(t, idx.AvailBandwidth["eth0"], 1000)
+	must.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 func TestNetworkIndex_AddAllocs(t *testing.T) {
@@ -327,7 +318,7 @@ func TestNetworkIndex_yieldIP(t *testing.T) {
 	}
 }
 
-func TestNetworkIndex_AssignNetwork(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 	ci.Parallel(t)
 	idx := NewNetworkIndex()
 	n := &Node{
@@ -379,7 +370,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask := &NetworkResource{
 		ReservedPorts: []Port{{"main", 8000, 0, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.101", offer.IP)
@@ -391,7 +382,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, -1, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.100", offer.IP)
@@ -410,7 +401,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 		ReservedPorts: []Port{{"main", 2345, 0, ""}},
 		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.100", offer.IP)
@@ -423,7 +414,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.Error(t, err)
 	require.Equal(t, "bandwidth exceeded", err.Error())
 	require.Nil(t, offer)
@@ -431,7 +422,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
-func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a node that only has one free port
@@ -459,7 +450,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	ask := &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -503,23 +494,11 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 			},
 		},
 	}
-	collide, reason := idx.SetNode(n)
-	if collide || reason != "" {
-		t.Fatalf("bad")
-	}
-
-	if len(idx.AvailNetworks) != 1 {
-		t.Fatalf("Bad")
-	}
-	if idx.AvailBandwidth["eth0"] != 1000 {
-		t.Fatalf("Bad")
-	}
-	if idx.UsedBandwidth["eth0"] != 1 {
-		t.Fatalf("Bad")
-	}
-	if !idx.UsedPorts["192.168.0.100"].Check(22) {
-		t.Fatalf("Bad")
-	}
+	must.NoError(t, idx.SetNode(n))
+	must.Len(t, 1, idx.TaskNetworks)
+	must.Eq(t, idx.AvailBandwidth["eth0"], 1000)
+	must.Eq(t, idx.UsedBandwidth["eth0"], 1)
+	must.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 // COMPAT(0.11): Remove in 0.11
@@ -618,7 +597,7 @@ func TestNetworkIndex_yieldIP_Old(t *testing.T) {
 }
 
 // COMPAT(0.11): Remove in 0.11
-func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 	ci.Parallel(t)
 
 	idx := NewNetworkIndex()
@@ -681,7 +660,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask := &NetworkResource{
 		ReservedPorts: []Port{{"main", 8000, 0, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -700,7 +679,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask = &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -724,7 +703,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 		ReservedPorts: []Port{{"main", 2345, 0, ""}},
 		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -744,7 +723,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err.Error() != "bandwidth exceeded" {
 		t.Fatalf("err: %v", err)
 	}
@@ -756,7 +735,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 // COMPAT(0.11): Remove in 0.11
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
-func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention_Old(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a node that only has one free port
@@ -791,7 +770,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 	ask := &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -811,7 +790,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 
 func TestIntContains(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")
