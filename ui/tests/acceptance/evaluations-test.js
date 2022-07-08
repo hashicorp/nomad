@@ -677,7 +677,14 @@ module('Acceptance | evaluations list', function (hooks) {
   module('evaluation detail', function () {
     test('clicking an evaluation opens the detail view', async function (assert) {
       server.get('/evaluations', getStandardRes);
-      server.get('/evaluation/:id', function (_, { params }) {
+      server.get('/evaluation/:id', function (_, { queryParams, params }) {
+        const expectedNamespaces = ['default', 'ted-lasso'];
+        assert.notEqual(
+          expectedNamespaces.indexOf(queryParams.namespace),
+          -1,
+          'Eval details request has namespace query param'
+        );
+
         return { ...generateAcceptanceTestEvalMock(params.id), ID: params.id };
       });
 
