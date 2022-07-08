@@ -181,7 +181,7 @@ func (idx *NetworkIndex) Overcommitted() bool {
 // fingerprinting.
 //
 // SetNode must be idempotent as preemption causes SetNode to be called
-// multiple times on the same NetworkIndex, only clearing UsedPorts being
+// multiple times on the same NetworkIndex, only clearing UsedPorts between
 // calls.
 //
 // An error is returned if the Node cannot produce a consistent NetworkIndex
@@ -207,22 +207,6 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 		taskNetworks = node.Resources.Networks
 	}
 
-	// nodeNetworks are used for group.network asks.
-	var nodeNetworks []*NodeNetworkResource
-	if node.NodeResources != nil && len(node.NodeResources.NodeNetworks) != 0 {
-		nodeNetworks = node.NodeResources.NodeNetworks
-	}
-
-	// Filter task networks down to those with a device. For example
-	// taskNetworks may contain a "bridge" interface which has no device
-	// set and cannot be used to fulfill asks.
-	for _, n := range taskNetworks {
-		if n.Device != "" {
-			idx.TaskNetworks = append(idx.TaskNetworks, n)
-			idx.AvailBandwidth[n.Device] = n.MBits
-		}
-	}
-
 	// Reserved ports get merged downward. For example given an agent
 	// config:
 	//
@@ -231,8 +215,8 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 	// client.host_network["eth1"] = {reserved_ports = "1-1000"}
 	//
 	// Addresses on taskNetworks reserve port 22
-	// Addresses on eth0 reserve 22,80,443 (note that 22 is included!)
-	// Addresses on eth1 reserve 1-1000    (22 already included in this range)
+	// Addresses on eth0 reserve 22,80,443 (note 22 is also reserved!)
+	// Addresses on eth1 reserve 1-1000
 	globalResPorts := []uint{}
 
 	// COMPAT(0.11): Remove in 0.11
@@ -252,6 +236,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 		}
 	} else if node.Reserved != nil {
 		for _, n := range node.Reserved.Networks {
+			used := idx.getUsedPortsFor(n.IP)
 			for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
 				for _, p := range ports {
 					if p.Value > MaxValidPort || p.Value < 0 {
@@ -260,14 +245,41 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 						// by validation upstream.
 						return fmt.Errorf("invalid port %d for reserved_ports", p.Value)
 					}
+
 					globalResPorts = append(globalResPorts, uint(p.Value))
+					used.Set(uint(p.Value))
 				}
+			}
+
+			// Reserve mbits
+			if n.Device != "" {
+				idx.UsedBandwidth[n.Device] += n.MBits
 			}
 		}
 	}
 
-	// TODO: upgrade path?
-	// is it possible to get duplicates here?
+	// Filter task networks down to those with a device. For example
+	// taskNetworks may contain a "bridge" interface which has no device
+	// set and cannot be used to fulfill asks.
+	for _, n := range taskNetworks {
+		if n.Device != "" {
+			idx.TaskNetworks = append(idx.TaskNetworks, n)
+			idx.AvailBandwidth[n.Device] = n.MBits
+		}
+
+		// Reserve ports
+		used := idx.getUsedPortsFor(n.IP)
+		for _, p := range globalResPorts {
+			used.Set(p)
+		}
+	}
+
+	// nodeNetworks are used for group.network asks.
+	var nodeNetworks []*NodeNetworkResource
+	if node.NodeResources != nil && len(node.NodeResources.NodeNetworks) != 0 {
+		nodeNetworks = node.NodeResources.NodeNetworks
+	}
+
 	for _, n := range nodeNetworks {
 		for _, a := range n.Addresses {
 			// Index host networks by their unique alias for asks
@@ -474,7 +486,7 @@ func incIP(ip net.IP) {
 // AssignPorts based on an ask from the scheduler processing a group.network
 // stanza. Supports multi-interfaces through node configured host_networks.
 //
-// AssignNetwork supports the deprecated task.network stanza.
+// AssignTaskNetwork supports the deprecated task.resources.network stanza.
 func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, error) {
 	var offer AllocatedPorts
 
