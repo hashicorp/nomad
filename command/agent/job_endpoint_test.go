@@ -2741,7 +2741,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
-								OnRenderError: pointer.Of[string](api.TemplateRenderErrorModeKill),
+								OnError: pointer.Of[string](api.TemplateErrorModeKill),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -3147,7 +3147,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
-								OnRenderError: structs.TemplateRenderErrorModeKill,
+								OnError: structs.TemplateErrorModeKill,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

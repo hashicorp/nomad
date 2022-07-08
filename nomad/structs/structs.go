@@ -7574,13 +7574,13 @@ const (
 	// template is re-rendered
 	TemplateChangeModeRestart = "restart"
 
-	// TemplateRenderErrorModeKill indicates that Nomad should kill tasks
+	// TemplateErrorModeKill indicates that Nomad should kill tasks
 	// when Consul Template returns an error.
-	TemplateRenderErrorModeKill string = "kill"
+	TemplateErrorModeKill string = "kill"
 
-	// TemplateRenderErrorModeWarn indicates that Nomad should not kill tasks
-	// when Consul Template returns an error, but should log a warning.
-	TemplateRenderErrorModeWarn string = "warn"
+	// TemplateErrorModeIgnore indicates that Nomad should not kill tasks
+	// when Consul Template returns an error.
+	TemplateErrorModeIgnore string = "ignore"
 )
 
 var (
@@ -7588,9 +7588,9 @@ var (
 	// mode is given
 	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, restart")
 
-	// TemplateRenderErrorModeInvalidError is the error for when an invalid
+	// TemplateErrorModeInvalidError is the error for when an invalid
 	// template render error mode is given.
-	TemplateRenderErrorModeInvalidError = errors.New("invalid render error mode - must be one of the following: kill, warn")
+	TemplateErrorModeInvalidError = errors.New("invalid render error mode - must be one of the following: kill, warn")
 )
 
 // Template represents a template configuration to be rendered for a given task
@@ -7646,17 +7646,17 @@ type Template struct {
 	// WaitConfig is used to override the global WaitConfig on a per-template basis
 	Wait *WaitConfig
 
-	// OnRenderError is used to override the global OnRenderError on a per-template basis.
-	OnRenderError string
+	// OnError is used to override the global OnError on a per-template basis.
+	OnError string
 }
 
 // DefaultTemplate returns a default template.
 func DefaultTemplate() *Template {
 	return &Template{
-		ChangeMode:    TemplateChangeModeRestart,
-		Splay:         5 * time.Second,
-		Perms:         "0644",
-		OnRenderError: TemplateRenderErrorModeKill,
+		ChangeMode: TemplateChangeModeRestart,
+		Splay:      5 * time.Second,
+		Perms:      "0644",
+		OnError:    TemplateErrorModeKill,
 	}
 }
 
@@ -7732,10 +7732,10 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify a proper render error mode
-	switch t.OnRenderError {
-	case TemplateRenderErrorModeKill, TemplateRenderErrorModeWarn:
+	switch t.OnError {
+	case TemplateErrorModeKill, TemplateErrorModeIgnore:
 	default:
-		_ = multierror.Append(&mErr, TemplateRenderErrorModeInvalidError)
+		_ = multierror.Append(&mErr, TemplateErrorModeInvalidError)
 	}
 
 	return mErr.ErrorOrNil()

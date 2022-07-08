@@ -1307,6 +1307,10 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 		tr.state.LastRestart = time.Unix(0, event.Time)
 	}
 
+	if strings.Contains(event.DisplayMessage, "Template failed") {
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "template", "failed"}, 1, tr.baseLabels)
+	}
+
 	// Append event to slice
 	appendTaskEvent(tr.state, event, tr.maxEvents)
 

@@ -7,7 +7,7 @@ job "lost_template_vault_secrets" {
   }
 
   group "group" {
-    count = 2
+    count                 = 2
     max_client_disconnect = "1h"
 
     task "task" {

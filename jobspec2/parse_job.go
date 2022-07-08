@@ -110,6 +110,9 @@ func normalizeTemplates(templates []*api.Template) {
 		if t.Splay == nil {
 			t.Splay = durationToPtr(5 * time.Second)
 		}
+		if t.OnError == nil {
+			t.OnError = stringToPtr(api.TemplateErrorModeKill)
+		}
 	}
 }
 

@@ -1949,7 +1949,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
 	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
 	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
-	clientConfig.TemplateConfig.OnRenderError = structs.TemplateRenderErrorModeKill
+	clientConfig.TemplateConfig.OnError = structs.TemplateErrorModeKill
 
 	alloc := mock.Alloc()
 	allocWithOverride := mock.Alloc()
@@ -2089,9 +2089,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					Min: helper.TimeToPtr(3 * time.Second),
 					Max: helper.TimeToPtr(11 * time.Second),
 				},
-				ConsulRetry:   retryConfig.Copy(),
-				VaultRetry:    retryConfig.Copy(),
-				OnRenderError: structs.TemplateRenderErrorModeWarn,
+				ConsulRetry: retryConfig.Copy(),
+				VaultRetry:  retryConfig.Copy(),
+				OnError:     structs.TemplateErrorModeIgnore,
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
@@ -2103,7 +2103,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 							Min: helper.TimeToPtr(2 * time.Second),
 							Max: helper.TimeToPtr(12 * time.Second),
 						},
-						OnRenderError: structs.TemplateRenderErrorModeWarn,
+						OnError: structs.TemplateErrorModeIgnore,
 					},
 				},
 			},
@@ -2116,9 +2116,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 						Min: helper.TimeToPtr(3 * time.Second),
 						Max: helper.TimeToPtr(11 * time.Second),
 					},
-					ConsulRetry:   retryConfig.Copy(),
-					VaultRetry:    retryConfig.Copy(),
-					OnRenderError: structs.TemplateRenderErrorModeWarn,
+					ConsulRetry: retryConfig.Copy(),
+					VaultRetry:  retryConfig.Copy(),
+					OnError:     structs.TemplateErrorModeIgnore,
 				},
 			},
 			&templateconfig.TemplateConfig{
@@ -2161,7 +2161,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
 
-			// Test that wait_bounds and on_render_error are enforced
+			// Test that wait_bounds and on_error are enforced
 			for _, tmpl := range *runnerConfig.Templates {
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
@@ -2224,7 +2224,7 @@ func TestTaskTemplateManager_Template_OnRenderError_Set(t *testing.T) {
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 		Templates: []*structs.Template{
 			{
-				OnRenderError: structs.TemplateRenderErrorModeWarn,
+				OnError: structs.TemplateErrorModeIgnore,
 			},
 		},
 	}
@@ -2233,7 +2233,7 @@ func TestTaskTemplateManager_Template_OnRenderError_Set(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, k := range templateMapping {
-		require.Equal(t, structs.TemplateRenderErrorModeWarn, k.OnRenderError)
+		require.Equal(t, structs.TemplateErrorModeIgnore, k.OnError)
 	}
 }
 

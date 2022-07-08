@@ -792,29 +792,29 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 type Template struct {
-	SourcePath    *string        `mapstructure:"source" hcl:"source,optional"`
-	DestPath      *string        `mapstructure:"destination" hcl:"destination,optional"`
-	EmbeddedTmpl  *string        `mapstructure:"data" hcl:"data,optional"`
-	ChangeMode    *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeSignal  *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
-	Splay         *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
-	Perms         *string        `mapstructure:"perms" hcl:"perms,optional"`
-	LeftDelim     *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
-	RightDelim    *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
-	Envvars       *bool          `mapstructure:"env" hcl:"env,optional"`
-	VaultGrace    *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
-	Wait          *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
-	OnRenderError *string        `mapstructure:"on_render_error" hcl:"on_render_error,optional"`
+	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
+	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
+	EmbeddedTmpl *string        `mapstructure:"data" hcl:"data,optional"`
+	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
+	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
+	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
+	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
+	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
+	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
+	Wait         *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
+	OnError      *string        `mapstructure:"on_error" hcl:"on_error,optional"`
 }
 
 const (
-	// TemplateRenderErrorModeKill indicates that Nomad should kill tasks
+	// TemplateErrorModeKill indicates that Nomad should kill tasks
 	// when Consul Template returns an error.
-	TemplateRenderErrorModeKill string = "kill"
+	TemplateErrorModeKill string = "kill"
 
-	// TemplateRenderErrorModeWarn indicates that Nomad should not kill tasks
+	// TemplateErrorModeIgnore indicates that Nomad should not kill tasks
 	// when Consul Template returns an error, but should log a warning.
-	TemplateRenderErrorModeWarn string = "warn"
+	TemplateErrorModeIgnore string = "ignore"
 )
 
 func (tmpl *Template) Canonicalize() {
@@ -861,8 +861,8 @@ func (tmpl *Template) Canonicalize() {
 		tmpl.VaultGrace = timeToPtr(0)
 	}
 
-	if tmpl.OnRenderError == nil {
-		tmpl.OnRenderError = stringToPtr(TemplateRenderErrorModeKill)
+	if tmpl.OnError == nil {
+		tmpl.OnError = stringToPtr(TemplateErrorModeKill)
 	}
 }
 

@@ -275,18 +275,22 @@ WAIT:
 			// A template has been rendered, figure out what to do
 			events := tm.runner.RenderEvents()
 
+			// Fail fast as soon as an error is detected.
+			for id, event := range events {
+				// This is duplicated in here and in the RenderEventCh case because we can't know which will arrive first.
+				if event.Error != nil {
+					tm.onTemplateError(true, id, event.Error)
+					return
+				}
+			}
+
 			// Not all templates have been rendered yet
 			if len(events) < len(tm.lookup) {
 				continue
 			}
 
 			dirty := false
-			for id, event := range events {
-				// This is duplicated in here and in the RenderEventCh case because we can't know which will arrive first.
-				if event.Error != nil {
-					tm.onRenderError(true, id, event.Error)
-					return
-				}
+			for _, event := range events {
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
@@ -310,7 +314,7 @@ WAIT:
 			for id, event := range events {
 				// This is duplicated in here and in the TemplateRenderedCh case because we can't know which will arrive first.
 				if event.Error != nil {
-					tm.onRenderError(true, id, event.Error)
+					tm.onTemplateError(true, id, event.Error)
 					return
 				}
 				missing := event.MissingDeps
@@ -402,32 +406,6 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 	}
 }
 
-func (tm *TaskTemplateManager) shouldKillOnError(templateID string) bool {
-	tmpls := tm.lookup[templateID]
-	for _, tmpl := range tmpls {
-		if tmpl.OnRenderError == structs.TemplateRenderErrorModeKill {
-			return true
-		}
-	}
-
-	return tm.config.ClientConfig.TemplateConfig.OnRenderError == structs.TemplateRenderErrorModeKill
-}
-
-func (tm *TaskTemplateManager) onRenderError(firstRender bool, templateID string, err error) {
-	if err == nil {
-		tm.logger.Error("render error handler raised but event has no error")
-	}
-
-	TODO: This feels wrongish.  First render might not want to fail?
-
-	if firstRender || tm.shouldKillOnError(templateID) {
-		tm.config.Lifecycle.Kill(context.Background(),
-			structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
-	}
-}
-
 func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
 
 	var handling []string
@@ -442,7 +420,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
 			handledRenders[id] = allRenderedTime
 			if event.Error != nil {
-				tm.onRenderError(true, id, event.Error)
+				tm.onTemplateError(true, id, event.Error)
 			}
 			continue
 		}
@@ -537,6 +515,40 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 	}
 
+}
+
+func (tm *TaskTemplateManager) shouldKillOnError(templateID string) bool {
+	// Check template config first. If even one is set to kill, return true.
+	tmpls := tm.lookup[templateID]
+	for _, tmpl := range tmpls {
+		if tmpl.OnError == structs.TemplateErrorModeKill {
+			return true
+		}
+	}
+
+	return tm.config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeKill
+}
+
+// onTemplateError enforces error handling rules relative based on any on_error setting.
+// If any template is configured to fail on error, then the whole task must be killed.
+// Callers can override this configuration using the forceKill parameter which is useful
+// in scenarios such as the first render.
+func (tm *TaskTemplateManager) onTemplateError(forceKill bool, templateID string, err error) {
+	if err == nil {
+		tm.logger.Error("render error handler raised but event has no error")
+	}
+
+	displayMessage := fmt.Sprintf("Template failed: %v", err)
+
+	if forceKill || tm.shouldKillOnError(templateID) {
+		tm.config.Lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(displayMessage))
+	} else {
+		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
+			SetDisplayMessage(displayMessage))
+	}
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
@@ -660,10 +672,10 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 		}
 
-		switch tmpl.OnRenderError {
-		case structs.TemplateRenderErrorModeKill:
+		switch tmpl.OnError {
+		case structs.TemplateErrorModeKill:
 			ct.ErrFatal = pointer.Of[bool](true)
-		case structs.TemplateRenderErrorModeWarn:
+		case structs.TemplateErrorModeIgnore:
 			ct.ErrFatal = pointer.Of[bool](false)
 		default:
 			ct.ErrFatal = pointer.Of[bool](true)

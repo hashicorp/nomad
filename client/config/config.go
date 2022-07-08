@@ -363,7 +363,7 @@ type ClientTemplateConfig struct {
 	// error. The default is `kill` and will emit a kill event to the task runner.
 	// Alternately, `warn` can be specified and the task runner will log a warning
 	// and continue to run with the currently rendered template.
-	OnRenderError string `hcl:"on_render_error"`
+	OnError string `hcl:"on_error"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -420,7 +420,7 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
 		c.VaultRetry.IsEmpty() &&
-		c.OnRenderError == ""
+		c.OnError == ""
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
