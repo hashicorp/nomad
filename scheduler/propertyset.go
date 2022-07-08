@@ -346,10 +346,6 @@ func getProperty(n *structs.Node, property string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	nodeValue, ok := val.(string)
-	if !ok {
-		return "", false
-	}
 
-	return nodeValue, true
+	return val, true
 }
