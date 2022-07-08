@@ -6,7 +6,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
-import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 
 const assignWriteAlloc = (volume, alloc) => {
