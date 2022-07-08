@@ -257,9 +257,9 @@ export default class SecureVariableFormComponent extends Component {
 
   get shouldShowLinkedEntities() {
     return (
-      this.args.model.pathLinkedEntities.job ||
-      this.args.model.pathLinkedEntities.group ||
-      this.args.model.pathLinkedEntities.task
+      this.args.model.pathLinkedEntities?.job ||
+      this.args.model.pathLinkedEntities?.group ||
+      this.args.model.pathLinkedEntities?.task
     );
   }
 }
