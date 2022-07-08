@@ -193,19 +193,6 @@ module('Acceptance | volumes list', function (hooks) {
     assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
   });
 
-  test('the active namespace is carried over to the jobs pages', async function (assert) {
-    server.createList('namespace', 2);
-
-    const namespace = server.db.namespaces[1];
-    await VolumesList.visit();
-    await VolumesList.facets.namespace.toggle();
-    await VolumesList.facets.namespace.options.objectAt(2).select();
-
-    await Layout.gutter.visitJobs();
-
-    assert.equal(currentURL(), `/jobs?namespace=${namespace.id}`);
-  });
-
   test('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function (assert) {
     server.pretender.get('/v1/volumes', () => [403, {}, null]);
 

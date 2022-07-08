@@ -423,19 +423,6 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  test('the active namespace is carried over to the storage pages', async function (assert) {
-    server.createList('namespace', 2);
-
-    const namespace = server.db.namespaces[1];
-    await JobsList.visit();
-    await JobsList.facets.namespace.toggle();
-    await JobsList.facets.namespace.options.objectAt(2).select();
-
-    await Layout.gutter.visitStorage();
-
-    assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.id}`);
-  });
-
   test('when the user has a client token that has a namespace with a policy to run a job', async function (assert) {
     const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
