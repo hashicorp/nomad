@@ -243,6 +243,7 @@ export default class Job extends Model {
   parse() {
     const definition = this._newDefinition;
     let promise;
+    const namespace = this.get('namespace.id');
 
     try {
       // If the definition is already JSON then it doesn't need to be parsed.
@@ -258,9 +259,10 @@ export default class Job extends Model {
     } catch (err) {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
+
       promise = this.store
         .adapterFor('job')
-        .parse(this._newDefinition)
+        .parse(this._newDefinition, namespace)
         .then((response) => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
