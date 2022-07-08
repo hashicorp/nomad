@@ -87,7 +87,7 @@ export default class OptimizeController extends Controller {
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.qpNamespace = this.system.cachedNamespace || '*';
+        this.qpNamespace = '*';
       });
     }
 
@@ -245,11 +245,6 @@ export default class OptimizeController extends Controller {
     this.transitionToRoute('optimize.summary', summary.slug, {
       queryParams: { jobNamespace: summary.jobNamespace },
     });
-  }
-
-  @action
-  cacheNamespace(namespace) {
-    this.system.cachedNamespace = namespace;
   }
 
   @action

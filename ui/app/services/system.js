@@ -132,12 +132,6 @@ export default class SystemService extends Service {
     );
   }
 
-  // The cachedNamespace is set on pages that have a namespaces filter.
-  // It is set so other pages that have a namespaces filter can default to
-  // what the previous namespaces filter page used rather than defaulting
-  // to 'default' or '*'.
-  @tracked cachedNamespace = null;
-
   @task(function* () {
     const emptyLicense = { License: { Features: [] } };
 
