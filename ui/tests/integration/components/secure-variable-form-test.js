@@ -14,6 +14,12 @@ module('Integration | Component | secure-variable-form', function (hooks) {
 
   test('passes an accessibility audit', async function (assert) {
     assert.expect(1);
+    this.set(
+      'mockedModel',
+      server.create('variable', {
+        keyValues: [{ key: '', value: '' }],
+      })
+    );
     await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
     await componentA11yAudit(this.element, assert);
   });

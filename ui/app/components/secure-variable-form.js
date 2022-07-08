@@ -191,7 +191,7 @@ export default class SecureVariableFormComponent extends Component {
       );
 
       // Give the user a foothold if they're transitioning an empty K/V form into JSON
-      if (!Object.keys(this.JSONItems).length) {
+      if (!Object.keys(JSON.parse(this.JSONItems)).length) {
         set(this, 'JSONItems', stringifyObject([{ '': '' }]));
       }
     } else if (view === 'table') {
@@ -209,6 +209,11 @@ export default class SecureVariableFormComponent extends Component {
           })
         )
       );
+
+      // If the JSON object is empty at switch time, add an empty KV in to give the user a foothold
+      if (!Object.keys(JSON.parse(this.JSONItems)).length) {
+        this.appendRow();
+      }
     }
 
     // Reset any error state, since the errorring json will not persist
@@ -249,4 +254,12 @@ export default class SecureVariableFormComponent extends Component {
     }
   }
   //#endregion JSON Editing
+
+  get shouldShowLinkedEntities() {
+    return (
+      this.args.model.pathLinkedEntities?.job ||
+      this.args.model.pathLinkedEntities?.group ||
+      this.args.model.pathLinkedEntities?.task
+    );
+  }
 }

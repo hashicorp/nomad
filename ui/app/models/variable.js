@@ -32,7 +32,7 @@ export default class VariableModel extends Model {
    *
    * @type {string}
    */
-  @attr('string') path;
+  @attr('string', { defaultValue: '' }) path;
 
   /**
    * @type {MutableArray<KeyValue>}
@@ -53,7 +53,7 @@ export default class VariableModel extends Model {
   /** @type {Date} */
   @attr('date') modifyTime;
   /** @type {string} */
-  @attr('string') namespace;
+  @attr('string', { defaultValue: 'default' }) namespace;
 
   @computed('path')
   get parentFolderPath() {
@@ -63,7 +63,7 @@ export default class VariableModel extends Model {
   }
 
   /**
-   * Removes starting and trailing slashes, and sets the ID property
+   * Removes starting and trailing slashes, pathLinkedEntitiesand sets the ID property
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
@@ -79,5 +79,34 @@ export default class VariableModel extends Model {
       acc[key] = value;
       return acc;
     }, {});
+  }
+
+  // Gets the path of the variable, and if it starts with jobs/, delimits on / and returns each part separately in an array
+
+  /**
+   * @typedef pathLinkedEntities
+   * @type {Object}
+   * @property {string} job
+   * @property {string} [group]
+   * @property {string} [task]
+   */
+
+  /**
+   * @type {pathLinkedEntities}
+   */
+  get pathLinkedEntities() {
+    const entityTypes = ['job', 'group', 'task'];
+    const emptyEntities = { job: '', group: '', task: '' };
+    if (this.path.startsWith('jobs/') && this.path.split('/').length <= 4) {
+      return this.path
+        .split('/')
+        .slice(1, 4)
+        .reduce((acc, pathPart, index) => {
+          acc[entityTypes[index]] = pathPart;
+          return acc;
+        }, emptyEntities);
+    } else {
+      return emptyEntities;
+    }
   }
 }

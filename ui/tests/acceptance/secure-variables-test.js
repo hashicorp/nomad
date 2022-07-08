@@ -11,6 +11,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
+import cleanWhitespace from '../utils/clean-whitespace';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -123,6 +124,108 @@ module('Acceptance | secure variables', function (hooks) {
     )[0];
 
     assert.notOk(fooLink, 'foo0 file is no longer present');
+  });
+
+  test('variables prefixed with jobs/ correctly link to entities', async function (assert) {
+    assert.expect(16);
+    defaultScenario(server);
+    const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+    window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+    // Non-job variable
+    await Variables.visit();
+    assert.equal(currentURL(), '/variables');
+    assert.ok(Layout.gutter.variables.isVisible);
+
+    let nonJobLink = [...findAll('[data-test-file-row]')].filter((a) =>
+      a.textContent.includes('just some arbitrary file')
+    )[0];
+
+    assert.ok(nonJobLink, 'non-job file is present');
+
+    await click(nonJobLink);
+    assert.equal(
+      currentURL(),
+      '/variables/var/just some arbitrary file',
+      'correctly traverses to a non-job file'
+    );
+    let relatedEntitiesBox = find('.related-entities');
+    assert
+      .dom(relatedEntitiesBox)
+      .doesNotExist('Related Entities box is not present');
+
+    // Job variable
+    await Variables.visit();
+    let jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
+      a.textContent.includes('jobs')
+    )[0];
+
+    await click(jobsDirectoryLink);
+
+    assert.equal(
+      currentURL(),
+      '/variables/path/jobs',
+      'correctly traverses to the jobs directory'
+    );
+    let jobFileLink = find('[data-test-file-row]');
+
+    assert.ok(jobFileLink, 'A job file is present');
+
+    await click(jobFileLink);
+    assert.ok(
+      currentURL().startsWith('/variables/var/jobs/'),
+      'correctly traverses to a job file'
+    );
+    relatedEntitiesBox = find('.related-entities');
+    assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
+    assert.ok(
+      cleanWhitespace(relatedEntitiesBox.textContent).includes(
+        'This secure variable is accessible by job'
+      ),
+      'Related Entities box is job-oriented'
+    );
+
+    // Group Variable
+    await Variables.visit();
+    jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
+      a.textContent.includes('jobs')
+    )[0];
+    await click(jobsDirectoryLink);
+    let groupDirectoryLink = [...findAll('[data-test-folder-row]')][0];
+    await click(groupDirectoryLink);
+    let groupFileLink = find('[data-test-file-row]');
+    assert.ok(groupFileLink, 'A group file is present');
+    await click(groupFileLink);
+    relatedEntitiesBox = find('.related-entities');
+    assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
+    assert.ok(
+      cleanWhitespace(relatedEntitiesBox.textContent).includes(
+        'This secure variable is accessible by group'
+      ),
+      'Related Entities box is group-oriented'
+    );
+
+    // Task Variable
+    await Variables.visit();
+    jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
+      a.textContent.includes('jobs')
+    )[0];
+    await click(jobsDirectoryLink);
+    groupDirectoryLink = [...findAll('[data-test-folder-row]')][0];
+    await click(groupDirectoryLink);
+    let taskDirectoryLink = [...findAll('[data-test-folder-row]')][0];
+    await click(taskDirectoryLink);
+    let taskFileLink = find('[data-test-file-row]');
+    assert.ok(taskFileLink, 'A task file is present');
+    await click(taskFileLink);
+    relatedEntitiesBox = find('.related-entities');
+    assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
+    assert.ok(
+      cleanWhitespace(relatedEntitiesBox.textContent).includes(
+        'This secure variable is accessible by task'
+      ),
+      'Related Entities box is task-oriented'
+    );
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
