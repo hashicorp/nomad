@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: `operator snapshot state` supports `-filter` expressions and stream decompresses snapshots to avoid writing large temporary files
+```
