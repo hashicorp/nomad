@@ -1,0 +1,3 @@
+```release-note:bug
+state: Fix listing evaluations from all namespaces
+```
