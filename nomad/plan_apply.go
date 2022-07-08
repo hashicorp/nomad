@@ -171,8 +171,7 @@ func (p *planner) planApply() {
 
 		// Check if any of the rejected nodes should be made ineligible.
 		for _, nodeID := range result.RejectedNodes {
-			p.badNodeTracker.Add(nodeID)
-			if p.badNodeTracker.IsBad(nodeID) {
+			if p.badNodeTracker.Add(nodeID) {
 				result.IneligibleNodes = append(result.IneligibleNodes, nodeID)
 			}
 		}

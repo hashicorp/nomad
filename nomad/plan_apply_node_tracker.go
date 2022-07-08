@@ -12,8 +12,7 @@ import (
 )
 
 type BadNodeTracker interface {
-	IsBad(string) bool
-	Add(string)
+	Add(string) bool
 	EmitStats(time.Duration, <-chan struct{})
 }
 
@@ -21,9 +20,8 @@ type BadNodeTracker interface {
 // used when tracking is disabled.
 type NoopBadNodeTracker struct{}
 
-func (n *NoopBadNodeTracker) Add(string)                               {}
 func (n *NoopBadNodeTracker) EmitStats(time.Duration, <-chan struct{}) {}
-func (n *NoopBadNodeTracker) IsBad(string) bool {
+func (n *NoopBadNodeTracker) Add(string) bool {
 	return false
 }
 
@@ -88,50 +86,24 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 	}, nil
 }
 
-// IsBad returns true if the node has more rejections than the threshold within
-// the time window.
-func (c *CachedBadNodeTracker) IsBad(nodeID string) bool {
-	logger := c.logger.With("node_id", nodeID)
-	logger.Debug("checking if node is bad")
-
+// Add records a new rejection for a node and returns true if the number of
+// rejections reaches the threshold.
+//
+// If it's the first time the node is added it will be included in the internal
+// cache. If the cache is full the least recently updated or accessed node is
+// evicted.
+func (c *CachedBadNodeTracker) Add(nodeID string) bool {
 	value, ok := c.cache.Get(nodeID)
 	if !ok {
-		logger.Debug("node not in cache")
-		return false
-	}
-
-	// Limit the number of nodes we report as bad to avoid mass assigning nodes
-	// as ineligible, but do it after Get to keep the cache entry fresh.
-	if !c.limiter.Allow() {
-		logger.Info("returning false due to rate limiting")
-		return false
-	}
-
-	stats := value.(*badNodeStats)
-	score := stats.score()
-
-	if score >= c.threshold {
-		logger.Debug("node is bad", "score", score)
-		return true
-	}
-
-	logger.Debug("node is not bad", "score", score)
-	return false
-}
-
-// Add records a new rejection for node. If it's the first time a node is added
-// it will be included in the internal cache. If the cache is full the least
-// recently updated or accessed node is evicted.
-func (c *CachedBadNodeTracker) Add(nodeID string) {
-	value, ok := c.cache.Get(nodeID)
-	if !ok {
-		value = newBadNodeStats(c.window)
+		value = newBadNodeStats(nodeID, c.window)
 		c.cache.Add(nodeID, value)
 	}
-
 	stats := value.(*badNodeStats)
-	score := stats.record()
-	c.logger.Debug("adding node plan rejection", "node_id", nodeID, "score", score)
+
+	now := time.Now()
+	stats.record(now)
+
+	return c.isBad(now, stats)
 }
 
 // EmitStats generates metrics for the bad nodes being currently tracked. Must
@@ -152,11 +124,33 @@ func (c *CachedBadNodeTracker) EmitStats(period time.Duration, stopCh <-chan str
 	}
 }
 
+// isBad returns true if the node has more rejections than the threshold within
+// the time window.
+func (c *CachedBadNodeTracker) isBad(t time.Time, stats *badNodeStats) bool {
+	score := stats.score(t)
+	logger := c.logger.With("node_id", stats.id, "score", score)
+
+	logger.Trace("checking if node is bad")
+	if score >= c.threshold {
+		// Limit the number of nodes we report as bad to avoid mass assigning
+		// nodes as ineligible, but do it after Get to keep the cache entry
+		// fresh.
+		if !c.limiter.Allow() {
+			logger.Trace("node is bad, but returning false due to rate limiting")
+			return false
+		}
+		return true
+	}
+
+	return false
+}
+
 func (c *CachedBadNodeTracker) emitStats() {
+	now := time.Now()
 	for _, k := range c.cache.Keys() {
 		value, _ := c.cache.Get(k)
 		stats := value.(*badNodeStats)
-		score := stats.score()
+		score := stats.score(now)
 
 		labels := []metrics.Label{
 			{Name: "node_id", Value: k.(string)},
@@ -167,37 +161,52 @@ func (c *CachedBadNodeTracker) emitStats() {
 
 // badNodeStats represents a node being tracked by a BadNodeTracker.
 type badNodeStats struct {
+	id      string
 	history []time.Time
 	window  time.Duration
 }
 
 // newBadNodeStats returns an empty badNodeStats.
-func newBadNodeStats(window time.Duration) *badNodeStats {
+func newBadNodeStats(id string, window time.Duration) *badNodeStats {
 	return &badNodeStats{
+		id:     id,
 		window: window,
 	}
 }
 
 // score returns the number of rejections within the past time window.
-func (s *badNodeStats) score() int {
-	count := 0
-	windowStart := time.Now().Add(-s.window)
+func (s *badNodeStats) score(t time.Time) int {
+	active, expired := s.countActive(t)
 
-	for i := len(s.history) - 1; i >= 0; i-- {
-		ts := s.history[i]
-		if ts.Before(windowStart) {
-			// Since we start from the end of the history list, anything past
-			// this point will have happened before the time window.
-			break
-		}
-		count += 1
+	// Remove expired records.
+	if expired > 0 {
+		s.history = s.history[expired:]
 	}
-	return count
+
+	return active
 }
 
 // record adds a new entry to the stats history and returns the new score.
-func (s *badNodeStats) record() int {
-	now := time.Now()
-	s.history = append(s.history, now)
-	return s.score()
+func (s *badNodeStats) record(t time.Time) {
+	s.history = append(s.history, t)
+}
+
+// countActive returns the number of records that happened after the time
+// window started (active) and before (expired).
+func (s *badNodeStats) countActive(t time.Time) (int, int) {
+	windowStart := t.Add(-s.window)
+
+	// Assume all values are expired and move back from history until we find
+	// a record that actually happened before the window started.
+	expired := len(s.history)
+	for ; expired > 0; expired-- {
+		i := expired - 1
+		ts := s.history[i]
+		if ts.Before(windowStart) {
+			break
+		}
+	}
+
+	active := len(s.history) - expired
+	return active, expired
 }
