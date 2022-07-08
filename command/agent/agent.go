@@ -617,6 +617,20 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.HostVolumes = hvMap
 
+	// Ensure only one of reserved.reserved_ports or
+	// host_network.reserved_ports is set.
+	/*
+		if globalRes := agentConfig.Client.Reserved.ReservedPorts; globalRes != "" {
+			for _, hostnet := range agentConfig.Client.HostNetworks {
+				if hostRes := hostnet.ReservedPorts; hostRes != "" {
+					// Global and network-specific reserved ports
+					// aren't allowed.
+					return nil, fmt.Errorf("Cannot specify reserved.reserved_ports (%q) and host_network[%q].reserved port.", globalRes, hostRes)
+				}
+			}
+		}
+	*/
+
 	// Setup the node
 	conf.Node = new(structs.Node)
 	conf.Node.Datacenter = agentConfig.Datacenter
