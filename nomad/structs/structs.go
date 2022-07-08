@@ -8222,9 +8222,13 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 }
 
 func (e *TaskEvent) SetKillTimeout(timeout, maxTimeout time.Duration) *TaskEvent {
-	actual := helper.Min(timeout, maxTimeout)
-	e.KillTimeout = actual
-	e.Details["kill_timeout"] = actual.String()
+	lower := timeout
+	if maxTimeout < lower {
+		lower = maxTimeout
+	}
+
+	e.KillTimeout = lower
+	e.Details["kill_timeout"] = lower.String()
 	return e
 }
 
