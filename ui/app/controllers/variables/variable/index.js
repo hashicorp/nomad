@@ -67,9 +67,9 @@ export default class VariablesVariableIndexController extends Controller {
 
   get shouldShowLinkedEntities() {
     return (
-      this.model.pathLinkedEntities.job ||
-      this.model.pathLinkedEntities.group ||
-      this.model.pathLinkedEntities.task
+      this.model.pathLinkedEntities?.job ||
+      this.model.pathLinkedEntities?.group ||
+      this.model.pathLinkedEntities?.task
     );
   }
 }

@@ -63,7 +63,7 @@ export default class VariableModel extends Model {
   }
 
   /**
-   * Removes starting and trailing slashes, and sets the ID property
+   * Removes starting and trailing slashes, pathLinkedEntitiesand sets the ID property
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
