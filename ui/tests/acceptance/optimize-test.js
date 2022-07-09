@@ -213,7 +213,7 @@ module('Acceptance | optimize', function (hooks) {
     let toggledAnything = true;
 
     // Toggle off all memory
-    if (Optimize.card.togglesTable.toggleAllMemory.isPresent) {
+    if (Optimize.card.togglesTable.toggleAllMemory) {
       await Optimize.card.togglesTable.toggleAllMemory.toggle();
       assert.notOk(Optimize.card.togglesTable.tasks[0].memory.isActive);
       assert.notOk(Optimize.card.togglesTable.tasks[1].memory.isActive);
