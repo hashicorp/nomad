@@ -1,21 +1,5 @@
 <Breadcrumb @crumb={{hash label="Run" args=(array "jobs.run")}} />
 {{page-title "Run a job"}}
 <section class="section">
-  <div class="toolbar">
-    <div class="toolbar-item is-right-aligned is-mobile-full-width">
-      <div class="button-bar">
-        {{#if this.system.shouldShowNamespaces}}
-          <SingleSelectDropdown
-            data-test-namespace-facet
-            @label="Namespace"
-            @options={{this.optionsNamespaces}}
-            @selection={{this.qpNamespace}}
-            @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
-          />
-        {{/if}}
-        </div>
-      </div>
-    </div>
-
   <JobEditor @job={{this.model}} @context="new" @onSubmit={{action this.onSubmit}} />
 </section>
