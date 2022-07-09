@@ -243,7 +243,6 @@ export default class Job extends Model {
   parse() {
     const definition = this._newDefinition;
     let promise;
-    const namespace = this.get('namespace.id');
 
     try {
       // If the definition is already JSON then it doesn't need to be parsed.
@@ -262,7 +261,7 @@ export default class Job extends Model {
 
       promise = this.store
         .adapterFor('job')
-        .parse(this._newDefinition, namespace)
+        .parse(this._newDefinition)
         .then((response) => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
