@@ -9,7 +9,7 @@ export default class Job extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportRunning',
+    'specificNamespaceSupportsRunning',
     'policiesSupportScaling'
   )
   canScale;
@@ -51,6 +51,11 @@ export default class Job extends AbstractAbility {
       this.token.selfTokenPolicies,
       ['submit-job']
     );
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsRunning() {
+    return this.namespaceIncludesCapability('submit-job');
   }
 
   @computed('rulesForNamespace.@each.capabilities')
