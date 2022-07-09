@@ -215,7 +215,6 @@ module('Acceptance | optimize', function (hooks) {
     // Toggle off all memory
     if (Optimize.card.togglesTable.toggleAllMemory.isPresent) {
       await Optimize.card.togglesTable.toggleAllMemory.toggle();
-
       assert.notOk(Optimize.card.togglesTable.tasks[0].memory.isActive);
       assert.notOk(Optimize.card.togglesTable.tasks[1].memory.isActive);
     } else if (!Optimize.card.togglesTable.tasks[0].cpu.isDisabled) {
