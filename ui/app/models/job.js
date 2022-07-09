@@ -258,7 +258,6 @@ export default class Job extends Model {
     } catch (err) {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
-
       promise = this.store
         .adapterFor('job')
         .parse(this._newDefinition)
