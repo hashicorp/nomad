@@ -33,8 +33,8 @@ export default class Job extends AbstractAbility {
       .toArray()
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
-      .map(({ Capabilities }) => {
-        return Capabilities;
+      .map((namespace = {}) => {
+        return namespace.Capabilities;
       })
       .flat()
       .compact();
