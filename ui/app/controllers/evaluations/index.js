@@ -35,7 +35,7 @@ export default class EvaluationsController extends Controller {
     'currentEval',
     'pageSize',
     'status',
-    'qpNamespace',
+    { qpNamespace: 'namespace' },
     'type',
     'searchTerm',
   ];

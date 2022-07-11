@@ -10905,6 +10905,14 @@ func (e *Evaluation) GetID() string {
 	return e.ID
 }
 
+// GetNamespace implements the NamespaceGetter interface, required for pagination.
+func (e *Evaluation) GetNamespace() string {
+	if e == nil {
+		return ""
+	}
+	return e.Namespace
+}
+
 // GetCreateIndex implements the CreateIndexGetter interface, required for
 // pagination.
 func (e *Evaluation) GetCreateIndex() uint64 {

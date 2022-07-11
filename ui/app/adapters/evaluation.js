@@ -10,10 +10,12 @@ export default class EvaluationAdapter extends ApplicationAdapter {
   }
 
   urlForFindRecord(_id, _modelName, snapshot) {
-    const url = super.urlForFindRecord(...arguments);
+    const namespace = snapshot.attr('namespace') || 'default';
+    const baseURL = super.urlForFindRecord(...arguments);
+    const url = `${baseURL}?namespace=${namespace}`;
 
     if (snapshot.adapterOptions?.related) {
-      return `${url}?related=true`;
+      return `${url}&related=true`;
     }
     return url;
   }
