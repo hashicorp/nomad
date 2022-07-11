@@ -504,12 +504,17 @@
             "path": "commands/operator"
           },
           {
-            "title": "autopilot get-config",
-            "path": "commands/operator/autopilot-get-config"
-          },
-          {
-            "title": "autopilot set-config",
-            "path": "commands/operator/autopilot-set-config"
+            "title": "autopilot",
+            "routes": [
+              {
+                "title": "get-config",
+                "path": "commands/operator/autopilot/get-config"
+              },
+              {
+                "title": "set-config",
+                "path": "commands/operator/autopilot/set-config"
+              }
+            ]
           },
           {
             "title": "debug",
@@ -528,28 +533,38 @@
             "path": "commands/operator/metrics"
           },
           {
-            "title": "raft list-peers",
-            "path": "commands/operator/raft-list-peers"
+            "title": "raft",
+            "routes": [
+              {
+                "title": "list-peers",
+                "path": "commands/operator/raft/list-peers"
+              },
+              {
+                "title": "remove-peer",
+                "path": "commands/operator/raft/remove-peer"
+              }
+            ]
           },
           {
-            "title": "raft remove-peer",
-            "path": "commands/operator/raft-remove-peer"
-          },
-          {
-            "title": "snapshot agent",
-            "path": "commands/operator/snapshot-agent"
-          },
-          {
-            "title": "snapshot inspect",
-            "path": "commands/operator/snapshot-inspect"
-          },
-          {
-            "title": "snapshot restore",
-            "path": "commands/operator/snapshot-restore"
-          },
-          {
-            "title": "snapshot save",
-            "path": "commands/operator/snapshot-save"
+            "title": "snapshot",
+            "routes": [
+              {
+                "title": "agent",
+                "path": "commands/operator/snapshot/agent"
+              },
+              {
+                "title": "inspect",
+                "path": "commands/operator/snapshot/inspect"
+              },
+              {
+                "title": "restore",
+                "path": "commands/operator/snapshot/restore"
+              },
+              {
+                "title": "save",
+                "path": "commands/operator/snapshot/save"
+              }
+            ]
           }
         ]
       },
@@ -1760,7 +1775,7 @@
       {
         "title": "Overview",
         "path": "enterprise"
-      }, 
+      },
       {
         "title": "License",
         "routes": [
