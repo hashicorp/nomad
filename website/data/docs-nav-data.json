@@ -525,12 +525,17 @@
             "path": "commands/operator"
           },
           {
-            "title": "autopilot get-config",
-            "path": "commands/operator/autopilot-get-config"
-          },
-          {
-            "title": "autopilot set-config",
-            "path": "commands/operator/autopilot-set-config"
+            "title": "autopilot",
+            "routes": [
+              {
+                "title": "get-config",
+                "path": "commands/operator/autopilot/get-config"
+              },
+              {
+                "title": "set-config",
+                "path": "commands/operator/autopilot/set-config"
+              }
+            ]
           },
           {
             "title": "debug",
@@ -549,44 +554,54 @@
             "path": "commands/operator/metrics"
           },
           {
-            "title": "raft info",
-            "path": "commands/operator/raft-info"
+            "title": "raft",
+            "routes": [
+              {
+                "title": "info",
+                "path": "commands/operator/raft/info"
+              },
+              {
+                "title": "list-peers",
+                "path": "commands/operator/raft/list-peers"
+              },
+              {
+                "title": "logs",
+                "path": "commands/operator/raft/logs"
+              },
+              {
+                "title": "remove-peer",
+                "path": "commands/operator/raft/remove-peer"
+              },
+              {
+                "title": "state",
+                "path": "commands/operator/raft/state"
+              }
+            ]
           },
           {
-            "title": "raft list-peers",
-            "path": "commands/operator/raft-list-peers"
-          },
-          {
-            "title": "raft logs",
-            "path": "commands/operator/raft-logs"
-          },
-          {
-            "title": "raft remove-peer",
-            "path": "commands/operator/raft-remove-peer"
-          },
-          {
-            "title": "raft state",
-            "path": "commands/operator/raft-state"
-          },
-          {
-            "title": "snapshot agent",
-            "path": "commands/operator/snapshot-agent"
-          },
-          {
-            "title": "snapshot inspect",
-            "path": "commands/operator/snapshot-inspect"
-          },
-          {
-            "title": "snapshot restore",
-            "path": "commands/operator/snapshot-restore"
-          },
-          {
-            "title": "snapshot save",
-            "path": "commands/operator/snapshot-save"
-          },
-          {
-            "title": "snapshot state",
-            "path": "commands/operator/snapshot-state"
+            "title": "snapshot",
+            "routes": [
+              {
+                "title": "agent",
+                "path": "commands/operator/snapshot/agent"
+              },
+              {
+                "title": "inspect",
+                "path": "commands/operator/snapshot/inspect"
+              },
+              {
+                "title": "restore",
+                "path": "commands/operator/snapshot/restore"
+              },
+              {
+                "title": "save",
+                "path": "commands/operator/snapshot/save"
+              },
+              {
+                "title": "state",
+                "path": "commands/operator/snapshot/state"
+              }
+            ]
           }
         ]
       },
