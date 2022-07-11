@@ -92,7 +92,12 @@
     </div>
   </div>
 {{else}}
-  <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
+aaa{{this.sortProperty}}xxx
+  <ListTable data-test-eval-table @source={{this.sortedKeyValues}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
+    <t.head>
+      <t.sort-by @prop="key">Key</t.sort-by>
+      <t.sort-by @prop="value" @class="is-2">Value</t.sort-by>
+    </t.head>
     <t.body as |row|>
       <tr data-test-var={{row.model.key}}>
         <td>

@@ -9,6 +9,15 @@ export default class VariablesVariableIndexController extends Controller {
   queryParams = ['view'];
 
   @service router;
+  queryParams = ['sortProperty', 'sortDescending'];
+
+  @tracked sortProperty = 'key';
+  @tracked sortDescending = true;
+
+  get sortedKeyValues() {
+    const sorted = this.model.keyValues.sortBy(this.sortProperty);
+    return this.sortDescending ? sorted : sorted.reverse();
+  }
 
   @tracked
   error = null;
