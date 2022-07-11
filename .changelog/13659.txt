@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Allow running jobs from a namespace-limited token
+```
