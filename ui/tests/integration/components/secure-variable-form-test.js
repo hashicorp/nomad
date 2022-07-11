@@ -137,6 +137,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         'password',
         'Rows that are not clicked remain obscured'
       );
+      await percySnapshot(assert);
     });
   });
 
@@ -336,6 +337,8 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       await render(
         hbs`<SecureVariableForm @model={{this.mockedModel}} @view={{this.view}} />`
       );
+
+      await percySnapshot(assert);
 
       const keyValuesAsJSON = keyValues.reduce((acc, { key, value }) => {
         acc[key] = value;

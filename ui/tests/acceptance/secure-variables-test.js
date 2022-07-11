@@ -48,6 +48,7 @@ module('Acceptance | secure variables', function (hooks) {
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
     assert.ok(Layout.gutter.variables.isVisible);
+    await percySnapshot(assert);
   });
 
   test('it correctly traverses to and deletes a variable', async function (assert) {
@@ -87,6 +88,8 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.ok(fooLink, 'foo0 file is present');
 
+    await percySnapshot(assert);
+
     await click(fooLink);
     assert.equal(
       currentURL(),
@@ -95,6 +98,8 @@ module('Acceptance | secure variables', function (hooks) {
     );
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
+
+    await percySnapshot(assert);
 
     await click(deleteButton);
     assert
@@ -185,6 +190,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is job-oriented'
     );
 
+    await percySnapshot(assert);
+
     // Group Variable
     await Variables.visit();
     jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
@@ -204,6 +211,8 @@ module('Acceptance | secure variables', function (hooks) {
       ),
       'Related Entities box is group-oriented'
     );
+
+    await percySnapshot(assert);
 
     // Task Variable
     await Variables.visit();
@@ -226,6 +235,8 @@ module('Acceptance | secure variables', function (hooks) {
       ),
       'Related Entities box is task-oriented'
     );
+
+    await percySnapshot(assert);
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
@@ -241,6 +252,9 @@ module('Acceptance | secure variables', function (hooks) {
 
     await typeIn('.key-value label:nth-child(1) input', 'myKey');
     await typeIn('.key-value label:nth-child(2) input', 'superSecret');
+
+    await percySnapshot(assert);
+
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
@@ -345,6 +359,8 @@ module('Acceptance | secure variables', function (hooks) {
         'variables.variable.edit',
         'Clicking the button navigates you to editing view.'
       );
+
+      await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
 
