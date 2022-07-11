@@ -159,6 +159,7 @@
       "server_serf_check_name": "nomad-server-serf-health-check",
       "server_service_name": "nomad",
       "ssl": true,
+      "timeout": "5s",
       "token": "token1",
       "verify_ssl": true
     }
