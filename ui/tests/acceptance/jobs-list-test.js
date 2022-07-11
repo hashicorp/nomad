@@ -6,7 +6,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
-import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 
 let managementToken, clientToken;
@@ -421,19 +420,6 @@ module('Acceptance | jobs list', function (hooks) {
       1,
       'Only one job shown due to query param'
     );
-  });
-
-  test('the active namespace is carried over to the storage pages', async function (assert) {
-    server.createList('namespace', 2);
-
-    const namespace = server.db.namespaces[1];
-    await JobsList.visit();
-    await JobsList.facets.namespace.toggle();
-    await JobsList.facets.namespace.options.objectAt(2).select();
-
-    await Layout.gutter.visitStorage();
-
-    assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.id}`);
   });
 
   test('when the user has a client token that has a namespace with a policy to run a job', async function (assert) {
