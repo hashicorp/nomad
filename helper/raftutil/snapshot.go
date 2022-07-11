@@ -30,8 +30,7 @@ func RestoreFromArchive(archive io.Reader, filter *nomad.FSMFilter) (*state.Stat
 		meta, err := snapshot.CopySnapshot(archive, w)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to read snapshot: %w", err)
-		}
-		if meta != nil {
+		} else {
 			metaCh <- meta
 		}
 	}()
