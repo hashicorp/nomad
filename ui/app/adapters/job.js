@@ -30,7 +30,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   parse(spec) {
-    const url = addToPath(this.urlForFindAll('job'), '/parse');
+    const url = addToPath(this.urlForFindAll('job'), '/parse?namespace=*');
     return this.ajax(url, 'POST', {
       data: {
         JobHCL: spec,
