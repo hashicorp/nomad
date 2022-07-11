@@ -3,8 +3,11 @@ package mock
 import (
 	"fmt"
 	"math/rand"
+	"sort"
+	"strings"
 	"time"
 
+	fake "github.com/brianvoe/gofakeit/v6"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -2295,4 +2298,143 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 			Port:        29000,
 		},
 	}
+}
+
+type MockSecureVariables map[string]*structs.SecureVariableDecrypted
+
+func SecureVariable() *structs.SecureVariableDecrypted {
+	return &structs.SecureVariableDecrypted{
+		SecureVariableMetadata: mockSecureVariableMetadata(),
+		Items: structs.SecureVariableItems{
+			"key1": "value1",
+			"key2": "value2",
+		},
+	}
+}
+
+// SecureVariables returns a random number of secure variables between min
+// and max inclusive.
+func SecureVariables(minU, maxU uint8) MockSecureVariables {
+	// the unsignedness of the args is to prevent goofy parameters, they're
+	// easier to work with as ints in this code.
+	min := int(minU)
+	max := int(maxU)
+	vc := min
+	// handle cases with irrational arguments. Max < Min = min
+	if max > min {
+		vc = rand.Intn(max-min) + min
+	}
+	svs := make([]*structs.SecureVariableDecrypted, vc)
+	paths := make(map[string]*structs.SecureVariableDecrypted, vc)
+	for i := 0; i < vc; i++ {
+		nv := SecureVariable()
+		// There is an extremely rare chance of path collision because the mock
+		// secure variables generate their paths randomly. This check will add
+		// an extra component on conflict to (ideally) disambiguate them.
+		if _, found := paths[nv.Path]; found {
+			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
+		}
+		paths[nv.Path] = nv
+		svs[i] = nv
+	}
+	return paths
+}
+
+func (svs MockSecureVariables) ListPaths() []string {
+	out := make([]string, 0, len(svs))
+	for _, sv := range svs {
+		out = append(out, sv.Path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
+	out := make([]*structs.SecureVariableDecrypted, 0, len(svs))
+	for _, p := range svs.ListPaths() {
+		pc := svs[p].Copy()
+		out = append(out, &pc)
+	}
+	return out
+}
+
+type MockSecureVariablesEncrypted map[string]*structs.SecureVariableEncrypted
+
+func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
+	return &structs.SecureVariableEncrypted{
+		SecureVariableMetadata: mockSecureVariableMetadata(),
+		SecureVariableData: structs.SecureVariableData{
+			KeyID: "foo",
+			Data:  []byte("foo"),
+		},
+	}
+}
+
+// SecureVariables returns a random number of secure variables between min
+// and max inclusive.
+func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
+	// the unsignedness of the args is to prevent goofy parameters, they're
+	// easier to work with as ints in this code.
+	min := int(minU)
+	max := int(maxU)
+	vc := min
+	// handle cases with irrational arguments. Max < Min = min
+	if max > min {
+		vc = rand.Intn(max-min) + min
+	}
+	svs := make([]*structs.SecureVariableEncrypted, vc)
+	paths := make(map[string]*structs.SecureVariableEncrypted, vc)
+	for i := 0; i < vc; i++ {
+		nv := SecureVariableEncrypted()
+		// There is an extremely rare chance of path collision because the mock
+		// secure variables generate their paths randomly. This check will add
+		// an extra component on conflict to (ideally) disambiguate them.
+		if _, found := paths[nv.Path]; found {
+			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
+		}
+		paths[nv.Path] = nv
+		svs[i] = nv
+	}
+	return paths
+}
+
+func (svs MockSecureVariablesEncrypted) ListPaths() []string {
+	out := make([]string, 0, len(svs))
+	for _, sv := range svs {
+		out = append(out, sv.Path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypted {
+	out := make([]*structs.SecureVariableEncrypted, 0, len(svs))
+	for _, p := range svs.ListPaths() {
+		pc := svs[p].Copy()
+		out = append(out, &pc)
+	}
+	return out
+}
+
+func mockSecureVariableMetadata() structs.SecureVariableMetadata {
+	envs := []string{"dev", "test", "prod"}
+	envIdx := rand.Intn(3)
+	env := envs[envIdx]
+	domain := fake.DomainName()
+
+	out := structs.SecureVariableMetadata{
+		Namespace:   "default",
+		Path:        strings.ReplaceAll(env+"."+domain, ".", "/"),
+		CreateIndex: uint64(rand.Intn(100) + 100),
+		CreateTime:  fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now()).UnixNano(),
+	}
+	out.ModifyIndex = out.CreateIndex
+	out.ModifyTime = out.CreateTime
+
+	// Flip a coin to see if we should return a "modified" object
+	if fake.Bool() {
+		out.ModifyTime = fake.DateRange(time.Unix(0, out.CreateTime), time.Now()).UnixNano()
+		out.ModifyIndex = out.CreateIndex + uint64(rand.Intn(100))
+	}
+	return out
 }

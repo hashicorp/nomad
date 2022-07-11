@@ -48,17 +48,15 @@
     </div>
     {{#if this.hasPayload}}
       <div class="boxed-section-body is-full-bleed">
-        <IvyCodemirror
+        <div
           data-test-payload-editor
-          aria-label="Payload definition"
-          @valueUpdated={{action (mut this.payload)}}
-          @options={{hash
-            mode="javascript"
+          {{code-mirror
             theme="hashi"
-            screenReaderLabel="Payload definition editor"
-            tabSize=2
-            lineNumbers=true
-          }} />
+            onUpdate=(action (mut this.payload))
+            mode="javascript"
+            screenReaderLabel="Payload definition"
+          }}
+        />
       </div>
     {{else}}
       <div class="boxed-section-body">

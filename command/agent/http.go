@@ -57,13 +57,16 @@ var (
 	// tag isn't enabled
 	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
 
-	// allowCORS sets permissive CORS headers for a handler
-	allowCORS = cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"HEAD", "GET"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-	})
+	// allowCORSWithMethods sets permissive CORS headers for a handler, used by
+	// wrapCORS and wrapCORSWithMethods
+	allowCORSWithMethods = func(methods ...string) *cors.Cors {
+		return cors.New(cors.Options{
+			AllowedOrigins:   []string{"*"},
+			AllowedMethods:   methods,
+			AllowedHeaders:   []string{"*"},
+			AllowCredentials: true,
+		})
+	}
 )
 
 type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
@@ -394,9 +397,9 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search/fuzzy", s.wrap(s.FuzzySearchRequest))
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
-
 	s.mux.HandleFunc("/v1/operator/license", s.wrap(s.LicenseRequest))
 	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/keyring/", s.wrap(s.KeyringRequest))
 	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
 	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 	s.mux.HandleFunc("/v1/operator/snapshot", s.wrap(s.SnapshotRequest))
@@ -407,9 +410,13 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
 	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
+
 	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+
+	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.SecureVariablesListRequest)))
+	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.SecureVariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
 	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
 
@@ -901,7 +908,14 @@ func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
 	}
 }
 
-// wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler
+// wrapCORS wraps a HandlerFunc in allowCORS with read ("HEAD", "GET") methods
+// and returns a http.Handler
 func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
-	return allowCORS.Handler(http.HandlerFunc(f))
+	return wrapCORSWithAllowedMethods(f, "HEAD", "GET")
+}
+
+// wrapCORSWithAllowedMethods wraps a HandlerFunc in an allowCORS with the given
+// method list and returns a http.Handler
+func wrapCORSWithAllowedMethods(f func(http.ResponseWriter, *http.Request), methods ...string) http.Handler {
+	return allowCORSWithMethods(methods...).Handler(http.HandlerFunc(f))
 }

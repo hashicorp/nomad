@@ -1,0 +1,107 @@
+{{#if this.error}}
+  <div data-test-inline-error class="notification is-danger">
+    <div class="columns">
+      <div class="column">
+        <h3 data-test-inline-error-title class="title is-4">
+          {{this.error.title}}
+        </h3>
+        <p data-test-inline-error-body>
+          {{this.error.description}}
+        </p>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button
+          data-test-inline-error-close
+          class="button is-danger"
+          onclick={{action this.onDismissError}}
+          type="button"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  </div>
+{{/if}}
+
+<h1 class="variable-title title with-flex">
+  <div>
+    <FlightIcon @name="file-text" />
+    {{this.model.path}}
+    <Toggle
+      data-test-memory-toggle
+      @isActive={{eq this.view "json"}}
+      @onToggle={{action this.toggleView}}
+      title="JSON"
+    >JSON</Toggle>
+  </div>
+  <div>
+    {{#unless this.isDeleting}}
+      {{#if (can "write variable" path=this.model.absolutePath)}}
+      <div class="two-step-button">
+        <LinkTo
+          data-test-edit-button
+          class="button is-info is-inverted is-small"
+          @model={{this.model}}
+          @route="variables.variable.edit"
+          @query={{hash view=this.view}}
+        >
+          Edit
+        </LinkTo>
+      </div>
+      {{/if}}
+    {{/unless}}
+    {{#if (can "destroy variable" path=this.model.absolutePath)}}
+      <TwoStepButton
+        data-test-delete-button
+        @alignRight={{true}}
+        @idleText="Delete"
+        @cancelText="Cancel"
+        @confirmText="Yes, delete"
+        @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+        @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+        @onConfirm={{perform this.deleteVariableFile}}
+        @onPrompt={{this.onDeletePrompt}}
+        @onCancel={{this.onDeleteCancel}}
+      />
+    {{/if}}
+  </div>
+</h1>
+
+{{#if this.shouldShowLinkedEntities}}
+  <SecureVariableForm::RelatedEntities
+    @job={{this.model.pathLinkedEntities.job}}
+    @group={{this.model.pathLinkedEntities.group}}
+    @task={{this.model.pathLinkedEntities.task}}
+    @namespace={{this.model.namespace}}
+  />
+{{/if}}
+
+{{#if (eq this.view "json")}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Key/Value Data
+      <CopyButton
+        class="pull-right"
+        @compact={{true}}
+        @border={{true}}
+        @clipboardText={{stringify-object this.model.items}}
+          />
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <JsonViewer @json={{this.model.items}} />
+    </div>
+  </div>
+{{else}}
+  <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
+    <t.body as |row|>
+      <tr data-test-var={{row.model.key}}>
+        <td>
+          {{row.model.key}}
+        </td>
+        <td>
+          {{row.model.value}}
+        </td>
+      </tr>
+    </t.body>
+  </ListTable>
+{{/if}}

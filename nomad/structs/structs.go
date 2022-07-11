@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"golang.org/x/crypto/blake2b"
 
@@ -108,6 +109,10 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
+	SecureVariableUpsertRequestType              MessageType = 50
+	SecureVariableDeleteRequestType              MessageType = 51
+	RootKeyMetaUpsertRequestType                 MessageType = 52
+	RootKeyMetaDeleteRequestType                 MessageType = 53
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -9589,6 +9594,11 @@ type Allocation struct {
 	// to stop running because it got preempted
 	PreemptedByAllocation string
 
+	// SignedIdentities is a map of task names to signed
+	// identity/capability claim tokens for those tasks. If needed, it
+	// is populated in the plan applier
+	SignedIdentities map[string]string `json:"-"`
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -10283,6 +10293,42 @@ func (a *Allocation) Reconnected() (bool, bool) {
 	return true, a.Expired(lastReconnect)
 }
 
+func (a *Allocation) ToIdentityClaims() *IdentityClaims {
+	now := jwt.NewNumericDate(time.Now().UTC())
+	return &IdentityClaims{
+		Namespace:    a.Namespace,
+		JobID:        a.JobID,
+		AllocationID: a.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			// TODO: in Nomad 1.5.0 we'll have a refresh loop to
+			// prevent allocation identities from expiring before the
+			// allocation is terminal. Once that's implemented, add an
+			// ExpiresAt here ExpiresAt: &jwt.NumericDate{},
+			NotBefore: now,
+			IssuedAt:  now,
+		},
+	}
+}
+
+func (a *Allocation) ToTaskIdentityClaims(taskName string) *IdentityClaims {
+	claims := a.ToIdentityClaims()
+	if claims != nil {
+		claims.TaskName = taskName
+	}
+	return claims
+}
+
+// IdentityClaims are the input to a JWT identifying a workload. It
+// should never be serialized to msgpack unsigned.
+type IdentityClaims struct {
+	Namespace    string `json:"nomad_namespace"`
+	JobID        string `json:"nomad_job_id"`
+	AllocationID string `json:"nomad_allocation_id"`
+	TaskName     string `json:"nomad_task"`
+
+	jwt.RegisteredClaims
+}
+
 // AllocationDiff is another named type for Allocation (to use the same fields),
 // which is used to represent the delta for an Allocation. If you need a method
 // defined on the al
@@ -10740,6 +10786,15 @@ const (
 	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
 	// tokens. We periodically scan for expired tokens and delete them.
 	CoreJobOneTimeTokenGC = "one-time-token-gc"
+
+	// CoreJobRootKeyRotateGC is used for periodic key rotation and
+	// garbage collection of unused encryption keys.
+	CoreJobRootKeyRotateOrGC = "root-key-rotate-gc"
+
+	// CoreJobSecureVariablesRekey is used to fully rotate the
+	// encryption keys for secure variables by decrypting all secure
+	// variables and re-encrypting them with the active key
+	CoreJobSecureVariablesRekey = "secure-variables-rekey"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"

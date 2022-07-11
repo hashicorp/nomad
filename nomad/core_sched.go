@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -51,6 +52,10 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiPluginGC(eval)
 	case structs.CoreJobOneTimeTokenGC:
 		return c.expiredOneTimeTokenGC(eval)
+	case structs.CoreJobRootKeyRotateOrGC:
+		return c.rootKeyRotateOrGC(eval)
+	case structs.CoreJobSecureVariablesRekey:
+		return c.secureVariablesRekey(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -76,6 +81,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 		return err
 	}
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
+		return err
+	}
+	if err := c.rootKeyRotateOrGC(eval); err != nil {
 		return err
 	}
 	// Node GC must occur after the others to ensure the allocations are
@@ -773,6 +781,225 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
 }
 
+// rootKeyRotateOrGC is used to rotate or garbage collect root keys
+func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
+
+	// a rotation will be sent to the leader so our view of state
+	// is no longer valid. we ack this core job and will pick up
+	// the GC work on the next interval
+	wasRotated, err := c.rootKeyRotation(eval)
+	if err != nil {
+		return err
+	}
+	if wasRotated {
+		return nil
+	}
+
+	// we can't GC any key older than the oldest live allocation
+	// because it might have signed that allocation's workload
+	// identity; this is conservative so that we don't have to iterate
+	// over all the allocations and find out which keys signed their
+	// identity, which will be expensive on large clusters
+	allocOldThreshold, err := c.getOldestAllocationIndex()
+	if err != nil {
+		return err
+	}
+
+	oldThreshold := c.getThreshold(eval, "root key",
+		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.Active() {
+			continue // never GC the active key
+		}
+		if keyMeta.CreateIndex > oldThreshold {
+			continue // don't GC recent keys
+		}
+		if keyMeta.CreateIndex > allocOldThreshold {
+			continue // don't GC keys possibly used to sign live allocations
+		}
+		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			continue // key is still in use
+		}
+
+		req := &structs.KeyringDeleteRootKeyRequest{
+			KeyID: keyMeta.KeyID,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+		if err := c.srv.RPC("Keyring.Delete",
+			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
+			c.logger.Error("root key delete failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rootKeyRotation checks if the active key is old enough that we need
+// to kick off a rotation. Returns true if the key was rotated.
+func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) {
+
+	rotationThreshold := c.getThreshold(eval, "root key",
+		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
+
+	ws := memdb.NewWatchSet()
+	activeKey, err := c.snap.GetActiveRootKeyMeta(ws)
+	if err != nil {
+		return false, err
+	}
+	if activeKey == nil {
+		return false, nil // no active key
+	}
+	if activeKey.CreateIndex >= rotationThreshold {
+		return false, nil // key is too new
+	}
+
+	req := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.config.Region,
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	if err := c.srv.RPC("Keyring.Rotate",
+		req, &structs.KeyringRotateRootKeyResponse{}); err != nil {
+		c.logger.Error("root key rotation failed", "error", err)
+		return false, err
+	}
+
+	return true, nil
+}
+
+// secureVariablesReKey is optionally run after rotating the active
+// root key. It iterates over all the variables for the keys in the
+// re-keying state, decrypts them, and re-encrypts them in batches
+// with the currently active key. This job does not GC the keys, which
+// is handled in the normal periodic GC job.
+func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if !keyMeta.Rekeying() {
+			continue
+		}
+		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		err = c.batchRotateVariables(varIter, eval)
+		if err != nil {
+			return err
+		}
+
+		// we've now rotated all this key's variables, so set its state
+		keyMeta = keyMeta.Copy()
+		keyMeta.SetDeprecated()
+
+		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		req := &structs.KeyringUpdateRootKeyRequest{
+			RootKey: &structs.RootKey{
+				Meta: keyMeta,
+				Key:  key,
+			},
+			Rekey: false,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL},
+		}
+		if err := c.srv.RPC("Keyring.Update",
+			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
+			c.logger.Error("root key update failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rootKeyFullRotatePerKey runs over an iterator of secure variables
+// and decrypts them, and then sends them back as batches to be
+// re-encrypted with the currently active key.
+func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+
+	upsertFn := func(variables []*structs.SecureVariableDecrypted) error {
+		if len(variables) == 0 {
+			return nil
+		}
+		args := &structs.SecureVariablesUpsertRequest{
+			Data: variables,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+		reply := &structs.SecureVariablesUpsertResponse{}
+		return c.srv.RPC("SecureVariables.Upsert", args, reply)
+	}
+
+	variables := []*structs.SecureVariableDecrypted{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ev := raw.(*structs.SecureVariableEncrypted)
+		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
+		if err != nil {
+			return err
+		}
+		dv := &structs.SecureVariableDecrypted{
+			SecureVariableMetadata: ev.SecureVariableMetadata,
+		}
+		dv.Items = make(map[string]string)
+		err = json.Unmarshal(cleartext, &dv.Items)
+		if err != nil {
+			return err
+		}
+		variables = append(variables, dv)
+		if len(variables) == 20 {
+			err := upsertFn(variables)
+			if err != nil {
+				return err
+			}
+			variables = []*structs.SecureVariableDecrypted{}
+		}
+	}
+
+	// ensure we submit any partial batch
+	return upsertFn(variables)
+}
+
 // getThreshold returns the index threshold for determining whether an
 // object is old enough to GC
 func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, configName string, configThreshold time.Duration) uint64 {
@@ -795,4 +1022,25 @@ func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, confi
 			configName, configThreshold)
 	}
 	return oldThreshold
+}
+
+// getOldestAllocationIndex returns the CreateIndex of the oldest
+// non-terminal allocation in the state store
+func (c *CoreScheduler) getOldestAllocationIndex() (uint64, error) {
+	ws := memdb.NewWatchSet()
+	allocs, err := c.snap.Allocs(ws, state.SortDefault)
+	if err != nil {
+		return 0, err
+	}
+	for {
+		raw := allocs.Next()
+		if raw == nil {
+			break
+		}
+		alloc := raw.(*structs.Allocation)
+		if !alloc.TerminalStatus() {
+			return alloc.CreateIndex, nil
+		}
+	}
+	return 0, nil
 }

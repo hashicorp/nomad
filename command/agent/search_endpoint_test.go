@@ -622,3 +622,272 @@ func TestHTTP_FuzzySearch_AllContext(t *testing.T) {
 		require.Equal(t, "8000", header(respW, "X-Nomad-Index"))
 	})
 }
+
+func TestHTTP_PrefixSearch_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
+
+	testPath := "alpha/beta/charlie"
+	testPathPrefix := "alpha/beta"
+
+	httpTest(t, nil, func(s *TestAgent) {
+		sv := mock.SecureVariableEncrypted()
+
+		state := s.Agent.server.State()
+		sv.Path = testPath
+		err := state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv})
+		require.NoError(t, err)
+
+		data := structs.SearchRequest{Prefix: testPathPrefix, Context: structs.SecureVariables}
+		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.SearchRequest(respW, req)
+		require.NoError(t, err)
+
+		res := resp.(structs.SearchResponse)
+		matchedVars := res.Matches[structs.SecureVariables]
+		require.Len(t, matchedVars, 1)
+		require.Equal(t, testPath, matchedVars[0])
+		require.Equal(t, "8000", header(respW, "X-Nomad-Index"))
+	})
+}
+
+func TestHTTP_FuzzySearch_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
+
+	testPath := "alpha/beta/charlie"
+	testPathText := "beta"
+
+	httpTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		sv := mock.SecureVariableEncrypted()
+		sv.Path = testPath
+		err := state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv})
+		require.NoError(t, err)
+
+		data := structs.FuzzySearchRequest{Text: testPathText, Context: structs.SecureVariables}
+		req, err := http.NewRequest("POST", "/v1/search/", encodeReq(data))
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.FuzzySearchRequest(respW, req)
+		require.NoError(t, err)
+
+		res := resp.(structs.FuzzySearchResponse)
+		matchedVars := res.Matches[structs.SecureVariables]
+		require.Len(t, matchedVars, 1)
+		require.Equal(t, testPath, matchedVars[0].ID)
+		require.Equal(t, []string{
+			"default", testPath,
+		}, matchedVars[0].Scope)
+		require.Equal(t, "8000", header(respW, "X-Nomad-Index"))
+	})
+}
+
+func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	testPath := "alpha/beta/charlie"
+	testPathPrefix := "alpha/beta"
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		ns := mock.Namespace()
+		sv1 := mock.SecureVariableEncrypted()
+		sv1.Path = testPath
+		sv2 := sv1.Copy()
+		sv2.Namespace = ns.Name
+
+		_ = state.UpsertNamespaces(7000, []*structs.Namespace{mock.Namespace()})
+		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1})
+		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2})
+
+		rootToken := s.RootToken
+		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default", mock.NamespacePolicy("default", "read", nil))
+		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name, mock.NamespacePolicy(ns.Name, "read", nil))
+		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none", mock.NamespacePolicy("default", "deny", nil))
+
+		testCases := []struct {
+			desc               string
+			token              *structs.ACLToken
+			namespace          string
+			expectedCount      int
+			expectedNamespaces []string
+			expectedErr        string
+		}{
+			{
+				desc:               "management token",
+				token:              rootToken,
+				namespace:          "*",
+				expectedCount:      2,
+				expectedNamespaces: []string{"default", ns.Name},
+			},
+			{
+				desc:               "default ns token",
+				token:              defNSToken,
+				namespace:          "default",
+				expectedCount:      1,
+				expectedNamespaces: []string{"default"},
+			},
+			{
+				desc:               "ns specific token",
+				token:              ns1NSToken,
+				namespace:          ns.Name,
+				expectedCount:      1,
+				expectedNamespaces: []string{ns.Name},
+			},
+			{
+				desc:          "denied token",
+				token:         denyToken,
+				namespace:     "default",
+				expectedCount: 0,
+				expectedErr:   structs.ErrPermissionDenied.Error(),
+			},
+		}
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				tC := tC
+				data := structs.SearchRequest{
+					Prefix:  testPathPrefix,
+					Context: structs.SecureVariables,
+					QueryOptions: structs.QueryOptions{
+						AuthToken: tC.token.SecretID,
+						Namespace: tC.namespace,
+					},
+				}
+
+				req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+				require.NoError(t, err)
+
+				respW := httptest.NewRecorder()
+
+				resp, err := s.Server.SearchRequest(respW, req)
+				if tC.expectedErr != "" {
+					require.Error(t, err)
+					require.Equal(t, tC.expectedErr, err.Error())
+					return
+				}
+				require.NoError(t, err)
+				res := resp.(structs.SearchResponse)
+				matchedVars := res.Matches[structs.SecureVariables]
+				require.Len(t, matchedVars, tC.expectedCount)
+				for _, mv := range matchedVars {
+					require.Equal(t, testPath, mv)
+				}
+				require.Equal(t, "8001", header(respW, "X-Nomad-Index"))
+			})
+		}
+	})
+}
+
+func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	testPath := "alpha/beta/charlie"
+	testPathText := "beta"
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		ns := mock.Namespace()
+		sv1 := mock.SecureVariableEncrypted()
+		sv1.Path = testPath
+		sv2 := sv1.Copy()
+		sv2.Namespace = ns.Name
+
+		_ = state.UpsertNamespaces(7000, []*structs.Namespace{mock.Namespace()})
+		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1})
+		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2})
+
+		rootToken := s.RootToken
+		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default", mock.NamespacePolicy("default", "read", nil))
+		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name, mock.NamespacePolicy(ns.Name, "read", nil))
+		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none", mock.NamespacePolicy("default", "deny", nil))
+
+		type testCase struct {
+			desc               string
+			token              *structs.ACLToken
+			namespace          string
+			expectedCount      int
+			expectedNamespaces []string
+			expectedErr        string
+		}
+		testCases := []testCase{
+			{
+				desc:               "management token",
+				token:              rootToken,
+				expectedCount:      2,
+				expectedNamespaces: []string{"default", ns.Name},
+			},
+			{
+				desc:               "default ns token",
+				token:              defNSToken,
+				expectedCount:      1,
+				expectedNamespaces: []string{"default"},
+			},
+			{
+				desc:               "ns specific token",
+				token:              ns1NSToken,
+				expectedCount:      1,
+				expectedNamespaces: []string{ns.Name},
+			},
+			{
+				desc:          "denied token",
+				token:         denyToken,
+				expectedCount: 0,
+				// You would think that this should error out, but when it is
+				// the wildcard namespace, objects that fail the access check
+				// are filtered out rather than throwing a permissions error.
+			},
+			{
+				desc:          "denied token",
+				token:         denyToken,
+				namespace:     "default",
+				expectedCount: 0,
+				expectedErr:   structs.ErrPermissionDenied.Error(),
+			},
+		}
+		tcNS := func(tC testCase) string {
+			if tC.namespace == "" {
+				return "*"
+			}
+			return tC.namespace
+		}
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				data := structs.FuzzySearchRequest{
+					Text:    testPathText,
+					Context: structs.SecureVariables,
+					QueryOptions: structs.QueryOptions{
+						AuthToken: tC.token.SecretID,
+						Namespace: tcNS(tC),
+					},
+				}
+				req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+				require.NoError(t, err)
+
+				setToken(req, tC.token)
+				respW := httptest.NewRecorder()
+
+				resp, err := s.Server.FuzzySearchRequest(respW, req)
+				if tC.expectedErr != "" {
+					require.Error(t, err)
+					require.Equal(t, tC.expectedErr, err.Error())
+					return
+				}
+
+				res := resp.(structs.FuzzySearchResponse)
+				matchedVars := res.Matches[structs.SecureVariables]
+				require.Len(t, matchedVars, tC.expectedCount)
+				for _, mv := range matchedVars {
+					require.Equal(t, testPath, mv.ID)
+					require.Len(t, mv.Scope, 2)
+					require.Contains(t, tC.expectedNamespaces, mv.Scope[0])
+					require.Equal(t, "8001", header(respW, "X-Nomad-Index"))
+				}
+			})
+		}
+	})
+}

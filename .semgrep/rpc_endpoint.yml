@@ -36,6 +36,15 @@ rules:
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
+      # Pattern used by endpoints that support both normal ACLs and
+      # workload identity
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := $T.handleMixedAuthEndpoint(...)
+          ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
           if done, err := $A.$B.forward($METHOD, ...); done {

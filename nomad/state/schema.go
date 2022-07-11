@@ -12,8 +12,11 @@ import (
 const (
 	tableIndex = "index"
 
-	TableNamespaces           = "namespaces"
-	TableServiceRegistrations = "service_registrations"
+	TableNamespaces            = "namespaces"
+	TableServiceRegistrations  = "service_registrations"
+	TableSecureVariables       = "secure_variables"
+	TableSecureVariablesQuotas = "secure_variables_quota"
+	TableRootKeyMeta           = "secure_variables_root_key_meta"
 )
 
 const (
@@ -22,6 +25,8 @@ const (
 	indexNodeID      = "node_id"
 	indexAllocID     = "alloc_id"
 	indexServiceName = "service_name"
+	indexKeyID       = "key_id"
+	indexPath        = "path"
 )
 
 var (
@@ -70,6 +75,9 @@ func init() {
 		scalingEventTableSchema,
 		namespaceTableSchema,
 		serviceRegistrationsTableSchema,
+		secureVariablesTableSchema,
+		secureVariablesQuotasTableSchema,
+		secureVariablesRootKeyMetaSchema,
 	}...)
 }
 
@@ -1197,6 +1205,134 @@ func serviceRegistrationsTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "AllocID",
+				},
+			},
+		},
+	}
+}
+
+// secureVariablesTableSchema returns the MemDB schema for Nomad
+// secure variables.
+func secureVariablesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableSecureVariables,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Path",
+						},
+					},
+				},
+			},
+			indexKeyID: {
+				Name:         indexKeyID,
+				AllowMissing: false,
+				Indexer:      &secureVariableKeyIDFieldIndexer{},
+			},
+			indexPath: {
+				Name:         indexPath,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Path",
+				},
+			},
+		},
+	}
+}
+
+type secureVariableKeyIDFieldIndexer struct{}
+
+// FromArgs implements go-memdb/Indexer and is used to build an exact
+// index lookup based on arguments
+func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+// PrefixFromArgs implements go-memdb/PrefixIndexer and returns a
+// prefix that should be used for scanning based on the arguments
+func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
+}
+
+// FromObject implements go-memdb/SingleIndexer and is used to extract
+// an index value from an object or to indicate that the index value
+// is missing.
+func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	variable, ok := obj.(*structs.SecureVariableEncrypted)
+	if !ok {
+		return false, nil, fmt.Errorf("object %#v is not a SecureVariable", obj)
+	}
+
+	keyID := variable.KeyID
+	if keyID == "" {
+		return false, nil, nil
+	}
+
+	// Add the null character as a terminator
+	keyID += "\x00"
+	return true, []byte(keyID), nil
+}
+
+// secureVariablesQuotasTableSchema returns the MemDB schema for Nomad
+// secure variables quotas tracking
+func secureVariablesQuotasTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableSecureVariablesQuotas,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "Namespace",
+					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+// secureVariablesRootKeyMetaSchema returns the MemDB schema for Nomad
+// secure variables root keys
+func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableRootKeyMeta,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "KeyID",
+					Lowercase: true,
 				},
 			},
 		},

@@ -105,6 +105,9 @@ type TaskTemplateManagerConfig struct {
 
 	// NomadNamespace is the Nomad namespace for the task
 	NomadNamespace string
+
+	// NomadToken is the Nomad token or identity claim for the task
+	NomadToken string
 }
 
 // Validate validates the configuration.
@@ -813,9 +816,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up Nomad
 	conf.Nomad.Namespace = &config.NomadNamespace
 	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
-
-	// Use the Node's SecretID to authenticate Nomad template function calls.
-	conf.Nomad.Token = &cc.Node.SecretID
+	conf.Nomad.Token = &config.NomadToken
 
 	conf.Finalize()
 	return conf, nil

@@ -20,7 +20,13 @@ var (
 
 // contextToIndex returns the index name to lookup in the state store.
 func contextToIndex(ctx structs.Context) string {
-	return string(ctx)
+	switch ctx {
+	// Handle cases where context name and state store table name do not match
+	case structs.SecureVariables:
+		return state.TableSecureVariables
+	default:
+		return string(ctx)
+	}
 }
 
 // getEnterpriseMatch is a no-op in oss since there are no enterprise objects.
@@ -50,7 +56,9 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 	if aclObj == nil {
 		return true
 	}
-
+	if aclObj.IsManagement() {
+		return true
+	}
 	nodeRead := aclObj.AllowNodeRead()
 	allowNS := aclObj.AllowNamespace(namespace)
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
@@ -59,8 +67,10 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 		acl.NamespaceCapabilityListJobs,
 		acl.NamespaceCapabilityReadJob)
 	volRead := allowVolume(aclObj, namespace)
+	// FIXME: Replace with real variables capability
+	allowVariables := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 
-	if !nodeRead && !jobRead && !volRead && !allowNS {
+	if !nodeRead && !jobRead && !volRead && !allowNS && !allowVariables {
 		return false
 	}
 
@@ -80,6 +90,10 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 			return false
 		}
 	}
+	if !allowVariables && context == structs.SecureVariables {
+		return false
+	}
+
 	if !volRead && context == structs.Volumes {
 		return false
 	}
@@ -98,7 +112,9 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 	if aclObj == nil {
 		return desired
 	}
-
+	if aclObj.IsManagement() {
+		return desired
+	}
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 		acl.NamespaceCapabilityCSIReadVolume,
@@ -121,6 +137,10 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 			}
 		case structs.Namespaces:
 			if aclObj.AllowNamespace(namespace) {
+				available = append(available, c)
+			}
+		case structs.SecureVariables:
+			if jobRead {
 				available = append(available, c)
 			}
 		case structs.Nodes:

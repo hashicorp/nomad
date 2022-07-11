@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -528,27 +529,46 @@ func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions,
 			}
 		}
 	default:
+		// Attempt to verify the token as a JWT with a workload
+		// identity claim if it's not a secret ID.
+		// COMPAT(1.4.0): we can remove this conditional in 1.5.0
+		if !helper.IsUUID(args.AuthToken) {
+			claims, err := s.srv.VerifyClaim(args.AuthToken)
+			if err != nil {
+				return err
+			}
+			if claims == nil {
+				return structs.ErrPermissionDenied
+			}
+			return nil
+		}
+
+		// COMPAT(1.4.0): Nomad 1.3.0 shipped with authentication by
+		// node secret but that's been replaced with workload identity
+		// in 1.4.0. Leave this here for backwards compatibility
+		// between clients and servers during cluster upgrades, but
+		// remove for 1.5.0
+
 		// In the event we got any error other than ErrTokenNotFound, consider this
 		// terminal.
 		if err != structs.ErrTokenNotFound {
 			return err
 		}
 
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
+		// Attempt to lookup AuthToken as a Node.SecretID and
+		// return any error wrapped along with the original.
 		node, stateErr := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
 		if stateErr != nil {
 			var mErr multierror.Error
 			mErr.Errors = append(mErr.Errors, err, stateErr)
 			return mErr.ErrorOrNil()
 		}
-
 		// At this point, we do not have a valid ACL token, nor are we being
 		// called, or able to confirm via the state store, by a node.
 		if node == nil {
 			return structs.ErrTokenNotFound
 		}
-	}
 
+	}
 	return nil
 }

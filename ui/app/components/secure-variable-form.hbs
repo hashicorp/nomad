@@ -1,0 +1,124 @@
+{{did-update this.onViewChange @view}}
+{{did-insert this.establishKeyValues}}
+<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
+  <div>
+    <label>
+      <span>
+        Path
+      </span>
+      {{#if @model.isNew}}
+      <div class="related-entities related-entities-hint">
+        <p>Prefix your path with <code>jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
+        Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      </div>
+      {{/if}}
+      <Input
+        @type="text"
+        @value={{@model.path}}
+        placeholder="jobs/my-job/my-group/my-task"
+        class="input path-input {{if this.duplicatePathWarning "error"}}"
+        disabled={{not @model.isNew}}
+        {{on "input" this.validatePath}}
+        {{autofocus}}
+        data-test-path-input
+      />
+    </label>
+    {{#if this.duplicatePathWarning}}
+      <p class="duplicate-path-error help is-danger">
+        There is already a Secure Variable located at
+        {{@model.path}}
+        .
+        <br />
+        Please choose a different path, or
+        <LinkTo
+          @route="variables.variable.edit"
+          @model={{this.duplicatePathWarning.path}}
+        >
+          edit the existing Secure Variable
+        </LinkTo>
+        .
+      </p>
+    {{/if}}
+  </div>
+  {{#if (eq this.view "json")}}
+    <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
+      <div
+        data-test-json-editor
+        {{code-mirror
+          content=this.JSONItems
+          onUpdate=this.updateCode
+          extraKeys=(hash Cmd-Enter=(action "save"))
+        }}
+      />
+      {{#if this.JSONError}}
+        <p class="help is-danger">
+          {{this.JSONError}}
+        </p>
+      {{/if}}
+    </div>
+  {{else}}
+    {{#each this.keyValues as |entry iter|}}
+      <div class="key-value">
+        <label>
+          <span>
+            Key
+          </span>
+          <Input
+            data-test-var-key
+            @type="text"
+            @value={{entry.key}}
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (fn this.validateKey entry)}}
+          />
+        </label>
+        <SecureVariableForm::InputGroup @entry={{entry}} />
+        {{#if (eq entry this.keyValues.lastObject)}}
+          <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            disabled={{not (and entry.key entry.value)}}
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
+        {{else}}
+          <button
+            class="delete-row button is-danger is-inverted"
+            type="button"
+            {{on "click" (action this.deleteRow entry)}}
+          >
+            Delete
+          </button>
+        {{/if}}
+        {{#each-in entry.warnings as |k v|}}
+          <span class="key-value-error help is-danger">
+            {{v}}
+          </span>
+        {{/each-in}}
+      </div>
+    {{/each}}
+  {{/if}}
+
+  {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
+    <SecureVariableForm::RelatedEntities
+      @new={{true}}
+      @job={{@model.pathLinkedEntities.job}}
+      @group={{@model.pathLinkedEntities.group}}
+      @task={{@model.pathLinkedEntities.task}}
+      @namespace={{@model.namespace}}
+    />
+  {{/if}}
+
+  <footer>
+    <button
+      disabled={{this.shouldDisableSave}}
+      class="button is-primary"
+      type="submit"
+      data-test-submit-var
+    >
+      Save
+      {{pluralize "Variable" @this.keyValues.length}}
+    </button>
+  </footer>
+</form>
