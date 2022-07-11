@@ -522,7 +522,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().parse('job "name-goes-here" {');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/jobs/parse?region=${region}`);
+    assert.equal(request.url, `/v1/jobs/parse?namespace=*&region=${region}`);
     assert.equal(request.method, 'POST');
     assert.deepEqual(JSON.parse(request.requestBody), {
       JobHCL: 'job "name-goes-here" {',

@@ -1,5 +1,5 @@
 import AbstractAbility from './abstract';
-import { computed } from '@ember/object';
+import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
 
 export default class Job extends AbstractAbility {
@@ -9,7 +9,7 @@ export default class Job extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportRunning',
+    'specificNamespaceSupportsRunning',
     'policiesSupportScaling'
   )
   canScale;
@@ -27,8 +27,34 @@ export default class Job extends AbstractAbility {
   )
   canDispatch;
 
-  @computed('rulesForNamespace.@each.capabilities')
+  policyNamespacesIncludePermissions(policies = [], permissions = []) {
+    // For each policy record, extract all policies of all namespaces
+    const allNamespacePolicies = policies
+      .toArray()
+      .map((policy) => get(policy, 'rulesJSON.Namespaces'))
+      .flat()
+      .map((namespace = {}) => {
+        return namespace.Capabilities;
+      })
+      .flat()
+      .compact();
+
+    // Check for requested permissions
+    return allNamespacePolicies.some((policy) => {
+      return permissions.includes(policy);
+    });
+  }
+
+  @computed('token.selfTokenPolicies.[]')
   get policiesSupportRunning() {
+    return this.policyNamespacesIncludePermissions(
+      this.token.selfTokenPolicies,
+      ['submit-job']
+    );
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsRunning() {
     return this.namespaceIncludesCapability('submit-job');
   }
 
