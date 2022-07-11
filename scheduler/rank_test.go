@@ -492,12 +492,13 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
-func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
+func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 	_, ctx := testContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
 
-	// Collide on host with duplicate IPs.
+	// Host networks can have overlapping addresses in which case their
+	// reserved ports are merged.
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -577,9 +578,9 @@ func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 	out := collectRanked(scoreNorm)
 
-	// We expect a placement failure due to  port collision.
-	require.Len(t, out, 0)
-	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
+	// Placement should succeed since reserved ports are merged instead of
+	// treating them as a collision
+	require.Len(t, out, 1)
 }
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
