@@ -1,11 +1,11 @@
 // @ts-check
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
 import { computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { trimPath } from '../helpers/trim-path';
+import { attr, belongsTo } from '@ember-data/model';
 
 /**
  * @typedef KeyValue
@@ -54,6 +54,8 @@ export default class VariableModel extends Model {
   @attr('date') modifyTime;
   /** @type {string} */
   @attr('string', { defaultValue: 'default' }) namespace;
+
+  @belongsTo('job') job;
 
   @computed('path')
   get parentFolderPath() {

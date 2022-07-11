@@ -138,6 +138,7 @@ export default class Job extends Model {
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;
+  @hasMany('variables') variables;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
 

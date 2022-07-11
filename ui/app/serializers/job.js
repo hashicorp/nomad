@@ -97,6 +97,13 @@ export default class JobSerializer extends ApplicationSerializer {
           related: buildURL(`${jobURL}/evaluations`, { namespace }),
         },
       },
+      variables: {
+        links: {
+          related: buildURL(
+            `/${apiNamespace}/vars?filter=SecureVariableMetadata.Path%3D%3D"jobs/${hash.PlainId}"`
+          ),
+        },
+      },
       scaleState: {
         links: {
           related: buildURL(`${jobURL}/scale`, { namespace }),
