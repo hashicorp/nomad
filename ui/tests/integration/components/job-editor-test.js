@@ -154,7 +154,7 @@ module('Integration | Component | job-editor', function(hooks) {
     await renderNewJob(this, job);
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
-    assert.ok(requests.includes('/v1/jobs/parse'), 'HCL job spec is parsed first');
+    assert.ok(requests.includes('/v1/jobs/parse?namespace=*'), 'HCL job spec is parsed first');
     assert.ok(requests.includes(`/v1/job/${newJobName}/plan`), 'HCL job spec is planned');
     assert.ok(
       requests.indexOf('/v1/jobs/parse') < requests.indexOf(`/v1/job/${newJobName}/plan`),
