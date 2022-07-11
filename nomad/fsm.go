@@ -1490,8 +1490,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				/* Handle upgrade paths:
 				 * - Empty maps and slices should be treated as nil to avoid
 				 *   un-intended destructive updates in scheduler since we use
-				 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
-				 *   the incoming job.
+				 *   reflect.DeepEqual. Job submission sanitizes the incoming job.
 				 * - Migrate from old style upgrade stanza that used only a stagger.
 				 */
 				job.Canonicalize()
