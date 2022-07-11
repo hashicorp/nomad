@@ -45,13 +45,13 @@ export default class JobEditor extends Component {
     return this.planOutput ? 'plan' : 'editor';
   }
 
-  @(task(function*() {
+  @(task(function* () {
     this.reset();
 
     try {
       yield this.job.parse();
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not parse input';
+      const error = messageFromAdapterError(err, 'parse jobs') || 'Could not parse input';
       this.set('parseError', error);
       this.scrollToError();
       return;
@@ -61,14 +61,14 @@ export default class JobEditor extends Component {
       const plan = yield this.job.plan();
       this.set('planOutput', plan);
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not plan job';
+      const error = messageFromAdapterError(err, 'plan jobs') || 'Could not plan job';
       this.set('planError', error);
       this.scrollToError();
     }
   }).drop())
   plan;
 
-  @task(function*() {
+  @task(function* () {
     try {
       if (this.context === 'new') {
         yield this.job.run();
