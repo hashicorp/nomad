@@ -227,6 +227,7 @@ consul {
   client_auto_join       = true
   auto_advertise         = true
   checks_use_advertise   = true
+  timeout                = "5s"
 }
 
 vault {
