@@ -350,14 +350,26 @@ func (s *SecureVariables) listAllSecureVariables(
 				},
 			)
 
+			// Wrap the SecureVariables iterator with a FilterIterator to
+			// eliminate invalid values before sending them to the paginator.
+			fltrIter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+
+				// Values are filtered when the func returns true.
+				sv := raw.(*structs.SecureVariableEncrypted)
+				if allowedNSes != nil && !allowedNSes[sv.Namespace] {
+					return true
+				}
+				if !strings.HasPrefix(sv.Path, args.Prefix) {
+					return true
+				}
+				return false
+			})
+
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the stubs array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(fltrIter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.SecureVariableEncrypted)
-					if allowedNSes != nil && !allowedNSes[sv.Namespace] {
-						return nil
-					}
 					svStub := sv.SecureVariableMetadata
 					svs = append(svs, &svStub)
 					return nil
