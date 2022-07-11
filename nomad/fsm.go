@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -54,6 +55,7 @@ const (
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
+
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
@@ -1404,7 +1406,20 @@ func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	return ns, nil
 }
 
+// Restore implements the raft.FSM interface, which doesn't support a
+// filtering parameter
 func (n *nomadFSM) Restore(old io.ReadCloser) error {
+	return n.restoreImpl(old, nil)
+}
+
+// RestoreWithFilter includes a set of bexpr filter evaluators, so
+// that we can create a FSM that excludes a portion of a snapshot
+// (typically for debugging and testing)
+func (n *nomadFSM) RestoreWithFilter(old io.ReadCloser, filter *FSMFilter) error {
+	return n.restoreImpl(old, filter)
+}
+
+func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 	defer old.Close()
 
 	// Create a new state store
@@ -1459,12 +1474,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(node); err != nil {
 				return err
 			}
-
-			// Handle upgrade paths
-			node.Canonicalize()
-
-			if err := restore.NodeRestore(node); err != nil {
-				return err
+			if filter.Include(node) {
+				node.Canonicalize() // Handle upgrade paths
+				if err := restore.NodeRestore(node); err != nil {
+					return err
+				}
 			}
 
 		case JobSnapshot:
@@ -1472,18 +1486,17 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(job); err != nil {
 				return err
 			}
-
-			/* Handle upgrade paths:
-			 * - Empty maps and slices should be treated as nil to avoid
-			 *   un-intended destructive updates in scheduler since we use
-			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
-			 *   the incoming job.
-			 * - Migrate from old style upgrade stanza that used only a stagger.
-			 */
-			job.Canonicalize()
-
-			if err := restore.JobRestore(job); err != nil {
-				return err
+			if filter.Include(job) {
+				/* Handle upgrade paths:
+				 * - Empty maps and slices should be treated as nil to avoid
+				 *   un-intended destructive updates in scheduler since we use
+				 *   reflect.DeepEqual. Job submission sanitizes the incoming job.
+				 * - Migrate from old style upgrade stanza that used only a stagger.
+				 */
+				job.Canonicalize()
+				if err := restore.JobRestore(job); err != nil {
+					return err
+				}
 			}
 
 		case EvalSnapshot:
@@ -1491,9 +1504,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(eval); err != nil {
 				return err
 			}
-
-			if err := restore.EvalRestore(eval); err != nil {
-				return err
+			if filter.Include(eval) {
+				if err := restore.EvalRestore(eval); err != nil {
+					return err
+				}
 			}
 
 		case AllocSnapshot:
@@ -1501,12 +1515,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(alloc); err != nil {
 				return err
 			}
-
-			// Handle upgrade path
-			alloc.Canonicalize()
-
-			if err := restore.AllocRestore(alloc); err != nil {
-				return err
+			if filter.Include(alloc) {
+				alloc.Canonicalize() // Handle upgrade path
+				if err := restore.AllocRestore(alloc); err != nil {
+					return err
+				}
 			}
 
 		case IndexSnapshot:
@@ -1523,9 +1536,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(launch); err != nil {
 				return err
 			}
-
-			if err := restore.PeriodicLaunchRestore(launch); err != nil {
-				return err
+			if filter.Include(launch) {
+				if err := restore.PeriodicLaunchRestore(launch); err != nil {
+					return err
+				}
 			}
 
 		case JobSummarySnapshot:
@@ -1533,9 +1547,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(summary); err != nil {
 				return err
 			}
-
-			if err := restore.JobSummaryRestore(summary); err != nil {
-				return err
+			if filter.Include(summary) {
+				if err := restore.JobSummaryRestore(summary); err != nil {
+					return err
+				}
 			}
 
 		case VaultAccessorSnapshot:
@@ -1543,8 +1558,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(accessor); err != nil {
 				return err
 			}
-			if err := restore.VaultAccessorRestore(accessor); err != nil {
-				return err
+			if filter.Include(accessor) {
+				if err := restore.VaultAccessorRestore(accessor); err != nil {
+					return err
+				}
 			}
 
 		case ServiceIdentityTokenAccessorSnapshot:
@@ -1552,8 +1569,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(accessor); err != nil {
 				return err
 			}
-			if err := restore.SITokenAccessorRestore(accessor); err != nil {
-				return err
+			if filter.Include(accessor) {
+				if err := restore.SITokenAccessorRestore(accessor); err != nil {
+					return err
+				}
 			}
 
 		case JobVersionSnapshot:
@@ -1561,9 +1580,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(version); err != nil {
 				return err
 			}
-
-			if err := restore.JobVersionRestore(version); err != nil {
-				return err
+			if filter.Include(version) {
+				if err := restore.JobVersionRestore(version); err != nil {
+					return err
+				}
 			}
 
 		case DeploymentSnapshot:
@@ -1571,9 +1591,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(deployment); err != nil {
 				return err
 			}
-
-			if err := restore.DeploymentRestore(deployment); err != nil {
-				return err
+			if filter.Include(deployment) {
+				if err := restore.DeploymentRestore(deployment); err != nil {
+					return err
+				}
 			}
 
 		case ACLPolicySnapshot:
@@ -1581,8 +1602,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(policy); err != nil {
 				return err
 			}
-			if err := restore.ACLPolicyRestore(policy); err != nil {
-				return err
+			if filter.Include(policy) {
+				if err := restore.ACLPolicyRestore(policy); err != nil {
+					return err
+				}
 			}
 
 		case ACLTokenSnapshot:
@@ -1590,8 +1613,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(token); err != nil {
 				return err
 			}
-			if err := restore.ACLTokenRestore(token); err != nil {
-				return err
+			if filter.Include(token) {
+				if err := restore.ACLTokenRestore(token); err != nil {
+					return err
+				}
 			}
 
 		case SchedulerConfigSnapshot:
@@ -1618,9 +1643,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(jobScalingEvents); err != nil {
 				return err
 			}
-
-			if err := restore.ScalingEventsRestore(jobScalingEvents); err != nil {
-				return err
+			if filter.Include(jobScalingEvents) {
+				if err := restore.ScalingEventsRestore(jobScalingEvents); err != nil {
+					return err
+				}
 			}
 
 		case ScalingPolicySnapshot:
@@ -1628,13 +1654,13 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(scalingPolicy); err != nil {
 				return err
 			}
-
-			// Handle upgrade path:
-			//   - Set policy type if empty
-			scalingPolicy.Canonicalize()
-
-			if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
-				return err
+			if filter.Include(scalingPolicy) {
+				// Handle upgrade path:
+				//   - Set policy type if empty
+				scalingPolicy.Canonicalize()
+				if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
+					return err
+				}
 			}
 
 		case CSIPluginSnapshot:
@@ -1642,19 +1668,21 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(plugin); err != nil {
 				return err
 			}
-
-			if err := restore.CSIPluginRestore(plugin); err != nil {
-				return err
+			if filter.Include(plugin) {
+				if err := restore.CSIPluginRestore(plugin); err != nil {
+					return err
+				}
 			}
 
 		case CSIVolumeSnapshot:
-			plugin := new(structs.CSIVolume)
-			if err := dec.Decode(plugin); err != nil {
+			volume := new(structs.CSIVolume)
+			if err := dec.Decode(volume); err != nil {
 				return err
 			}
-
-			if err := restore.CSIVolumeRestore(plugin); err != nil {
-				return err
+			if filter.Include(volume) {
+				if err := restore.CSIVolumeRestore(volume); err != nil {
+					return err
+				}
 			}
 
 		case NamespaceSnapshot:
@@ -1671,18 +1699,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			return nil
 
 		case ServiceRegistrationSnapshot:
-
-			// Create a new ServiceRegistration object, so we can decode the
-			// message into it.
 			serviceRegistration := new(structs.ServiceRegistration)
-
 			if err := dec.Decode(serviceRegistration); err != nil {
 				return err
 			}
-
-			// Perform the restoration.
-			if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
-				return err
+			if filter.Include(serviceRegistration) {
+				// Perform the restoration.
+				if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
+					return err
+				}
 			}
 
 		default:
@@ -1942,6 +1967,32 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 	}
 
 	return nil
+}
+
+type FSMFilter struct {
+	evaluator *bexpr.Evaluator
+}
+
+func NewFSMFilter(expr string) (*FSMFilter, error) {
+	if expr == "" {
+		return nil, nil
+	}
+	evaluator, err := bexpr.CreateEvaluator(expr)
+	if err != nil {
+		return nil, err
+	}
+	return &FSMFilter{evaluator: evaluator}, nil
+}
+
+func (f *FSMFilter) Include(item interface{}) bool {
+	if f == nil {
+		return true
+	}
+	ok, err := f.evaluator.Evaluate(item)
+	if !ok || err != nil {
+		return false
+	}
+	return true
 }
 
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {

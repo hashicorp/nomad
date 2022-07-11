@@ -3,16 +3,16 @@ package raftutil
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"os"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/snapshot"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
+
+	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/state"
 )
 
-func RestoreFromArchive(archive io.Reader) (*state.StateStore, *raft.SnapshotMeta, error) {
+func RestoreFromArchive(archive io.Reader, filter *nomad.FSMFilter) (*state.StateStore, *raft.SnapshotMeta, error) {
 	logger := hclog.L()
 
 	fsm, err := dummyFSM(logger)
@@ -20,27 +20,30 @@ func RestoreFromArchive(archive io.Reader) (*state.StateStore, *raft.SnapshotMet
 		return nil, nil, fmt.Errorf("failed to create FSM: %w", err)
 	}
 
-	snap, err := ioutil.TempFile("", "snap-")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create a temp file: %w", err)
-	}
-	defer os.Remove(snap.Name())
-	defer snap.Close()
+	// r is closed by RestoreFiltered, w is closed by CopySnapshot
+	r, w := io.Pipe()
 
-	meta, err := snapshot.CopySnapshot(archive, snap)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read snapshot: %w", err)
-	}
+	errCh := make(chan error)
+	metaCh := make(chan *raft.SnapshotMeta)
 
-	_, err = snap.Seek(0, 0)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to seek: %w", err)
-	}
+	go func() {
+		meta, err := snapshot.CopySnapshot(archive, w)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to read snapshot: %w", err)
+		} else {
+			metaCh <- meta
+		}
+	}()
 
-	err = fsm.Restore(snap)
+	err = fsm.RestoreWithFilter(r, filter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to restore from snapshot: %w", err)
 	}
 
-	return fsm.State(), meta, nil
+	select {
+	case err := <-errCh:
+		return nil, nil, err
+	case meta := <-metaCh:
+		return fsm.State(), meta, nil
+	}
 }
