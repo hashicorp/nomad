@@ -213,6 +213,7 @@ var basicConfig = &Config{
 		AutoAdvertise:        &trueValue,
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
+		TimeoutHCL:           "5s",
 	},
 	Vault: &config.VaultConfig{
 		Addr:                 "127.0.0.1:9500",
@@ -420,7 +421,10 @@ func TestConfig_ParseMerge(t *testing.T) {
 	actual, err := ParseConfigFile(path)
 	require.NoError(t, err)
 
-	require.Equal(t, basicConfig.Client, actual.Client)
+	// The Vault connection retry interval is an internal only configuration
+	// option, and therefore needs to be added here to ensure the test passes.
+	actual.Vault.ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	require.Equal(t, basicConfig, actual)
 
 	oldDefault := &Config{
 		Consul:    config.DefaultConsulConfig(),
@@ -431,8 +435,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 		Audit:     &config.AuditConfig{},
 	}
 	merged := oldDefault.Merge(actual)
-	require.Equal(t, basicConfig.Client, merged.Client)
-
+	require.Equal(t, basicConfig, merged)
 }
 
 func TestConfig_Parse(t *testing.T) {
