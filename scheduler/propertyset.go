@@ -342,10 +342,5 @@ func getProperty(n *structs.Node, property string) (string, bool) {
 		return "", false
 	}
 
-	val, ok := resolveTarget(property, n)
-	if !ok {
-		return "", false
-	}
-
-	return val, true
+	return resolveTarget(property, n)
 }
