@@ -76,6 +76,12 @@ module('Acceptance | optimize', function (hooks) {
       .flat()
       .find((r) => r.resource === 'CPU');
 
+    const currentTaskGroupHasMemoryRecommendation =
+      currentTaskGroup.tasks.models
+        .mapBy('recommendations.models')
+        .flat()
+        .find((r) => r.resource === 'MemoryMB');
+
     // If no CPU recommendation, will not be able to accept recommendation with all memory recommendations turned off
 
     if (!currentTaskGroupHasCPURecommendation) {
@@ -83,6 +89,13 @@ module('Acceptance | optimize', function (hooks) {
       this.server.create('recommendation', {
         task: currentTaskGroupTask,
         resource: 'CPU',
+      });
+    }
+    if (!currentTaskGroupHasMemoryRecommendation) {
+      const currentTaskGroupTask = currentTaskGroup.tasks.models[0];
+      this.server.create('recommendation', {
+        task: currentTaskGroupTask,
+        resource: 'MemoryMB',
       });
     }
 
