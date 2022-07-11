@@ -151,6 +151,9 @@ func (sv SecureVariableDecrypted) Validate() error {
 	if len(sv.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
+	if sv.Namespace == AllNamespacesSentinel {
+		return errors.New("can not target wildcard (\"*\")namespace")
+	}
 	return nil
 }
 
