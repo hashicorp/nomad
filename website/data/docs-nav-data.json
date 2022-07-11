@@ -563,6 +563,31 @@
             "path": "commands/operator/debug"
           },
           {
+            "title": "gossip",
+            "routes": [
+              {
+                "title": "keyring generate",
+                "path": "commands/operator/gossip/keyring-generate"
+              },
+              {
+                "title": "keyring install",
+                "path": "commands/operator/gossip/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/gossip/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/gossip/keyring-remove"
+              },
+              {
+                "title": "keyring use",
+                "path": "commands/operator/gossip/keyring-use"
+              }
+            ]
+          },
+          {
             "title": "keygen",
             "path": "commands/operator/keygen"
           },
@@ -609,6 +634,27 @@
               {
                 "title": "set-config",
                 "path": "commands/operator/scheduler/set-config"
+              }
+            ]
+          },
+          {
+            "title": "secure-variables",
+            "routes": [
+              {
+                "title": "keyring install",
+                "path": "commands/operator/secure-variables/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/secure-variables/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/secure-variables/keyring-remove"
+              },
+              {
+                "title": "keyring rotate",
+                "path": "commands/operator/secure-variables/keyring-rotate"
               }
             ]
           },

@@ -23,22 +23,17 @@ func (c *OperatorSecureVariablesKeyringInstallCommand) Help() string {
 	helpText := `
 Usage: nomad operator secure-variables keyring install [options] <filepath>
 
-  Install a new encryption key used for storage secure variables. The key file
-  must be a JSON file previously written by Nomad to the keystore. The key
-  file will be read from stdin by specifying "-", otherwise a path to the file
-  is expected.
+  Install a new encryption key used for storing secure variables and workload
+  identity signing. The key file must be a JSON file previously written by Nomad
+  to the keystore. The key file will be read from stdin by specifying "-",
+  otherwise a path to the file is expected.
 
   If ACLs are enabled, this command requires a management token.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
-Keyring Options:
-
-  -verbose
-    Show full information.
-`
 	return strings.TrimSpace(helpText)
 }
 
@@ -61,11 +56,8 @@ func (c *OperatorSecureVariablesKeyringInstallCommand) Name() string {
 }
 
 func (c *OperatorSecureVariablesKeyringInstallCommand) Run(args []string) int {
-	var verbose bool
-
 	flags := c.Meta.FlagSet("secure-variables keyring install", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

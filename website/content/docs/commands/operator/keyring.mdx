@@ -5,6 +5,10 @@ page_title: 'Commands: operator keyring'
 
 # Command: operator keyring
 
+~> **Warning:** This command is deprecated and will be removed in
+   Nomad 1.5.0. Use the `nomad operator gossip keyring` subcommands
+   instead.
+
 The `operator keyring` command is used to examine and modify the encryption keys
 used in Nomad server. It is capable of distributing new encryption keys to the
 cluster, retiring old encryption keys, and changing the keys used by the cluster
