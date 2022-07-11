@@ -132,6 +132,18 @@ table.path-tree {
   }
 }
 
+table.variable-items {
+  // table-layout: fixed;
+  td.value-cell {
+    width: 80%;
+    & > div {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 0.5rem;
+    }
+  }
+}
+
 @keyframes slide-in {
   0% {
     top: 10px;
