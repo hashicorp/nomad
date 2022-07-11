@@ -6,6 +6,7 @@ import { click, typeIn, find, findAll, render } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | secure-variable-form', function (hooks) {
   setupRenderingTest(hooks);
@@ -320,6 +321,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     });
 
     test('Persists Key/Values table data to JSON', async function (assert) {
+      assert.expect(2);
       const keyValues = [
         { key: 'foo', value: '123' },
         { key: 'bar', value: '456' },

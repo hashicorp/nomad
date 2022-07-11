@@ -12,6 +12,7 @@ import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
+import percySnapshot from '@percy/ember';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -240,6 +241,7 @@ module('Acceptance | secure variables', function (hooks) {
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
+    assert.expect(5);
     defaultScenario(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visitNew();
@@ -336,6 +338,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
+      assert.expect(7);
       // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);
