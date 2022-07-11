@@ -185,8 +185,7 @@ func (idx *NetworkIndex) Overcommitted() bool {
 // calls.
 //
 // An error is returned if the Node cannot produce a consistent NetworkIndex
-// such as if reserved_ports are unparseable. Any such Node is effectively
-// unschedulable for workloads which require networks.
+// such as if reserved_ports are unparseable.
 //
 // Any errors returned by SetNode indicate a bug! The bug may lie in client
 // code not properly validating its configuration or it may lie in improper
@@ -265,12 +264,12 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 		if n.Device != "" {
 			idx.TaskNetworks = append(idx.TaskNetworks, n)
 			idx.AvailBandwidth[n.Device] = n.MBits
-		}
 
-		// Reserve ports
-		used := idx.getUsedPortsFor(n.IP)
-		for _, p := range globalResPorts {
-			used.Set(p)
+			// Reserve ports
+			used := idx.getUsedPortsFor(n.IP)
+			for _, p := range globalResPorts {
+				used.Set(p)
+			}
 		}
 	}
 
