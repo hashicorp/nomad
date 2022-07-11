@@ -802,3 +802,116 @@ func TestIntContains(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+func TestNetworkIndex_SetNode_HostNets(t *testing.T) {
+	ci.Parallel(t)
+
+	idx := NewNetworkIndex()
+	n := &Node{
+		NodeResources: &NodeResources{
+			Networks: []*NetworkResource{
+				// As of Nomad v1.3 bridge networks get
+				// registered with only their mode set.
+				{
+					Mode: "bridge",
+				},
+
+				// Localhost (agent interface)
+				{
+					CIDR:   "127.0.0.1/32",
+					Device: "lo",
+					IP:     "127.0.0.1",
+					MBits:  1000,
+					Mode:   "host",
+				},
+				{
+					CIDR:   "::1/128",
+					Device: "lo",
+					IP:     "::1",
+					MBits:  1000,
+					Mode:   "host",
+				},
+
+				// Node.NodeResources.Networks does *not*
+				// contain host_networks.
+			},
+			NodeNetworks: []*NodeNetworkResource{
+				// As of Nomad v1.3 bridge networks get
+				// registered with only their mode set.
+				{
+					Mode: "bridge",
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address: "127.0.0.1",
+							Alias:   "default",
+							Family:  "ipv4",
+						},
+						{
+							Address: "::1",
+							Alias:   "default",
+							Family:  "ipv6",
+						},
+					},
+					Device: "lo",
+					Mode:   "host",
+					Speed:  1000,
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address:       "192.168.0.1",
+							Alias:         "eth0",
+							Family:        "ipv4",
+							ReservedPorts: "22",
+						},
+					},
+					Device:     "enxaaaaaaaaaaaa",
+					MacAddress: "aa:aa:aa:aa:aa:aa",
+					Mode:       "host",
+					Speed:      1000,
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address:       "192.168.1.1",
+							Alias:         "eth1",
+							Family:        "ipv4",
+							ReservedPorts: "80",
+						},
+					},
+					Device:     "enxbbbbbbbbbbbb",
+					MacAddress: "bb:bb:bb:bb:bb:bb",
+					Mode:       "host",
+					Speed:      1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
+	}
+
+	must.NoError(t, idx.SetNode(n))
+
+	// TaskNetworks should only contain the bridge and agent network
+	must.Len(t, 2, idx.TaskNetworks)
+
+	// Ports should be used across all 4 IPs
+	must.Eq(t, 4, len(idx.UsedPorts))
+
+	// 22 should be reserved on all IPs
+	must.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
+	must.True(t, idx.UsedPorts["::1"].Check(22))
+	must.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
+	must.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
+
+	// 80 should only be reserved on eth1's address
+	must.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
+	must.False(t, idx.UsedPorts["::1"].Check(80))
+	must.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
+	must.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
+}
