@@ -3,7 +3,10 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      # Start the week with fresh deps
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
     labels:
       - "theme/dependencies"
   - package-ecosystem: gomod
