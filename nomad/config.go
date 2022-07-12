@@ -196,6 +196,14 @@ type Config struct {
 	// one-time tokens.
 	OneTimeTokenGCInterval time.Duration
 
+	// ACLTokenExpirationGCInterval is how often we dispatch a job to GC
+	// expired ACL tokens.
+	ACLTokenExpirationGCInterval time.Duration
+
+	// ACLTokenExpirationGCThreshold controls how "old" an expired ACL token
+	// must be to be collected by GC.
+	ACLTokenExpirationGCThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -277,6 +285,14 @@ type Config struct {
 	// ReplicationToken is the ACL Token Secret ID used to fetch from
 	// the Authoritative Region.
 	ReplicationToken string
+
+	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
+	// ACL token expiration.
+	ACLTokenMinExpirationTTL time.Duration
+
+	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
+	// for ACL token expiration.
+	ACLTokenMaxExpirationTTL time.Duration
 
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration
@@ -385,6 +401,8 @@ func DefaultConfig() *Config {
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
 		CSIVolumeClaimGCThreshold:        5 * time.Minute,
 		OneTimeTokenGCInterval:           10 * time.Minute,
+		ACLTokenExpirationGCInterval:     5 * time.Minute,
+		ACLTokenExpirationGCThreshold:    1 * time.Hour,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -405,6 +423,8 @@ func DefaultConfig() *Config {
 		LicenseConfig:                    &LicenseConfig{},
 		EnableEventBroker:                true,
 		EventBufferSize:                  100,
+		ACLTokenMinExpirationTTL:         1 * time.Minute,
+		ACLTokenMaxExpirationTTL:         24 * time.Hour,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
