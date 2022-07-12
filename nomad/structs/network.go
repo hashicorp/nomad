@@ -40,10 +40,25 @@ var (
 // Fields are exported so they may be JSON serialized for debugging.
 // Fields are *not* intended to be used directly.
 type NetworkIndex struct {
-	TaskNetworks  []*NetworkResource              // List of available networks
-	GroupNetworks []*NodeNetworkResource          // List of available node networks
-	HostNetworks  map[string][]NodeNetworkAddress // Map of host network aliases to list of addresses
-	UsedPorts     map[string]Bitmap               // Ports by IP
+	// TaskNetworks are the node networks available for
+	// task.resources.network asks.
+	TaskNetworks []*NetworkResource
+
+	// GroupNetworks are the node networks available for group.network
+	// asks.
+	GroupNetworks []*NodeNetworkResource
+
+	// HostNetworks indexes addresses by host network alias
+	HostNetworks map[string][]NodeNetworkAddress
+
+	// UsedPorts tracks which ports are used on a per-IP address basis. For
+	// example if a node has `network_interface=lo` and port 22 reserved,
+	// then on a dual stack loopback interface UsedPorts would contain:
+	// {
+	//  "127.0.0.1": Bitmap{22},
+	//  "::1":       Bitmap{22},
+	// }
+	UsedPorts map[string]Bitmap
 
 	// Deprecated bandwidth fields
 	AvailBandwidth map[string]int // Bandwidth by device
