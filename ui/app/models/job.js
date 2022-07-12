@@ -328,4 +328,9 @@ export default class Job extends Model {
   // spec first. In order to preserve both the original HCL and the parsed response
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
+
+  @computed('variables')
+  get pathLinkedVariable() {
+    return this.variables?.objectAt(0);
+  }
 }

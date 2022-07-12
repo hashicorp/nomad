@@ -1,8 +1,4 @@
 {{! template-lint-disable no-inline-styles }}
-{{log "job vars" @job.variables.length @job.variables}}
-{{#each @job.variables as |var|}}
-  - {{var.path}}
-{{/each}}
 <div class="boxed-section is-small">
   <div class="boxed-section-body inline-definitions">
     <span class="label" style="width: 6.125rem;">Job Details</span>
@@ -20,8 +16,7 @@
     </span>
     {{#if @job.variables}}
     <span class="pair" data-test-job-stat="variables">
-      <span class="term">Variables</span>
-      {{@job.variables}}
+      <LinkTo @route="variables.variable" @model={{@job.pathLinkedVariable.id}}>Secure Variable</LinkTo>
     </span>
     {{/if}}
     {{yield to="before-namespace"}}
