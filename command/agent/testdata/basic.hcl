@@ -133,6 +133,12 @@ server {
   enable_event_broker           = false
   event_buffer_size             = 200
 
+  plan_rejection_tracker {
+    enabled        = true
+    node_threshold = 100
+    node_window    = "41m"
+  }
+
   server_join {
     retry_join     = ["1.1.1.1", "2.2.2.2"]
     retry_max      = 3

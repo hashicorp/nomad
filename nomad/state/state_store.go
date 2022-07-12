@@ -35,6 +35,17 @@ const (
 )
 
 const (
+	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
+	// is set to ineligible due to multiple plan failures.
+	// This is a preventive measure to signal scheduler workers to not consider
+	// the node for future placements.
+	// Plan rejections for a node are expected due to the optimistic and
+	// concurrent nature of the scheduling process, but repeated failures for
+	// the same node may indicate an underlying issue not detected by Nomad.
+	// The plan applier keeps track of plan rejection history and will mark
+	// nodes as ineligible if they cross a given threshold.
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
+
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
 	NodeRegisterEventRegistered = "Node registered"
@@ -359,6 +370,21 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+
+	// Mark nodes as ineligible.
+	for _, nodeID := range results.IneligibleNodes {
+		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+
+		nodeEvent := structs.NewNodeEvent().
+			SetSubsystem(structs.NodeEventSubsystemScheduler).
+			SetMessage(NodeEligibilityEventPlanRejectThreshold)
+
+		err := s.updateNodeEligibilityImpl(index, nodeID,
+			structs.NodeSchedulingIneligible, results.UpdatedAt, nodeEvent, txn)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
@@ -1137,10 +1163,15 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
 func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
-
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+	if err := s.updateNodeEligibilityImpl(index, nodeID, eligibility, updatedAt, event, txn); err != nil {
+		return err
+	}
+	return txn.Commit()
+}
 
+func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent, txn *txn) error {
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -1177,7 +1208,7 @@ func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index ui
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return txn.Commit()
+	return nil
 }
 
 // UpsertNodeEvents adds the node events to the nodes, rotating events as

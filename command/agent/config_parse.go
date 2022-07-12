@@ -43,9 +43,12 @@ func ParseConfigFile(path string) (*Config, error) {
 				VaultRetry:  &client.RetryConfig{},
 			},
 		},
+		Server: &ServerConfig{
+			PlanRejectionTracker: &PlanRejectionTracker{},
+			ServerJoin:           &ServerJoin{},
+		},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
-		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
 		Consul:    &config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
@@ -54,7 +57,7 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	err = hcl.Decode(c, buf.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode HCL file %s: %w", path, err)
 	}
 
 	// convert strings to time.Durations
@@ -66,6 +69,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.heartbeat_grace", &c.Server.HeartbeatGrace, &c.Server.HeartbeatGraceHCL, nil},
 		{"server.min_heartbeat_ttl", &c.Server.MinHeartbeatTTL, &c.Server.MinHeartbeatTTLHCL, nil},
 		{"server.failover_heartbeat_ttl", &c.Server.FailoverHeartbeatTTL, &c.Server.FailoverHeartbeatTTLHCL, nil},
+		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
 		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
