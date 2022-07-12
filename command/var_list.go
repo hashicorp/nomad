@@ -24,10 +24,11 @@ func (c *VarListCommand) Help() string {
 	helpText := `
 Usage: nomad var list [options] <prefix>
 
-  List is used to list available secure variables.
+  List is used to list available secure variables. Supplying an optional prefix,
+  filters the list to variables having a path starting with the prefix.
 
   If ACLs are enabled, this command will return only secure variables stored at
-  namespaced paths where the token has the `read` capability.
+  namespaced paths where the token has the ` + "`read`" + ` capability.
 
 General Options:
 
@@ -141,7 +142,7 @@ func (c *VarListCommand) Run(args []string) int {
 		items = vars
 
 		if quiet {
-			items = itemsToQuietJSONReadySlice(vars, c.Meta.namespace)
+			items = dataToQuietJSONReadySlice(vars, c.Meta.namespace)
 			obj = items
 		}
 
@@ -177,7 +178,7 @@ func (c *VarListCommand) Run(args []string) int {
 	case quiet:
 		c.Ui.Output(
 			formatList(
-				itemsToQuietStringSlice(vars, c.Meta.namespace)))
+				dataToQuietStringSlice(vars, c.Meta.namespace)))
 
 	case len(tmpl) > 0:
 		out, err := Format(json, tmpl, vars)
@@ -227,7 +228,7 @@ func formatVarStubs(vars []*api.SecureVariableMetadata) string {
 	return formatList(rows)
 }
 
-func itemsToQuietStringSlice(vars []*api.SecureVariableMetadata, ns string) []string {
+func dataToQuietStringSlice(vars []*api.SecureVariableMetadata, ns string) []string {
 	// If ns is the wildcard namespace, we have to provide namespace
 	// as part of the quiet output, otherwise it can be a simple list
 	// of paths.
@@ -248,7 +249,7 @@ func itemsToQuietStringSlice(vars []*api.SecureVariableMetadata, ns string) []st
 	return pList
 }
 
-func itemsToQuietJSONReadySlice(vars []*api.SecureVariableMetadata, ns string) interface{} {
+func dataToQuietJSONReadySlice(vars []*api.SecureVariableMetadata, ns string) interface{} {
 	// If ns is the wildcard namespace, we have to provide namespace
 	// as part of the quiet output, otherwise it can be a simple list
 	// of paths.
