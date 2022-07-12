@@ -190,7 +190,7 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 		},
 	}
 	require.NoError(t, idx.SetNode(n))
-	require.Len(t, 1, idx.TaskNetworks)
+	require.Len(t, idx.TaskNetworks, 1)
 	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
 	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
@@ -494,7 +494,7 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 		},
 	}
 	require.NoError(t, idx.SetNode(n))
-	require.Len(t, 1, idx.TaskNetworks)
+	require.Len(t, idx.TaskNetworks, 1)
 	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
 	require.Equal(t, 1, idx.UsedBandwidth["eth0"])
 	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
@@ -897,7 +897,7 @@ func TestNetworkIndex_SetNode_HostNets(t *testing.T) {
 	require.NoError(t, idx.SetNode(n))
 
 	// TaskNetworks should only contain the bridge and agent network
-	require.Len(t, 2, idx.TaskNetworks)
+	require.Len(t, idx.TaskNetworks, 2)
 
 	// Ports should be used across all 4 IPs
 	require.Equal(t, 4, len(idx.UsedPorts))
