@@ -1247,4 +1247,9 @@ module.exports = [
     destination: '/:splat',
     permanent: true,
   },
+  {
+    source: '/docs/concepts/:path*',
+    destination: '/docs/concepts/:path*',
+    permanent: true,
+  }
 ]

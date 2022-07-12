@@ -17,7 +17,7 @@ workloads including Docker, non-containerized, microservice, and batch
 applications.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
-Consul](https://www.consul.io/docs/internals/security), which provides
+Consul](https://www.consul.io/docs/concepts/security), which provides
 various essential features. Both of these systems provide security mechanisms
 which should be utilized to help provide [confidentiality, integrity and
 authentication](https://en.wikipedia.org/wiki/Information_security).
@@ -324,4 +324,4 @@ There are two main components to consider to for external threats in a Nomad clu
 | -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/tutorials/nomad/web-ui-access) and [API](/api-docs) access to agents. |
 | **4647** / TCP       | Servers | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
-| **4648** / TCP + UDP | Servers | [gossip](/docs/internals/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
+| **4648** / TCP + UDP | Servers | [gossip](/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
