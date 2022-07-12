@@ -3,7 +3,7 @@ module github.com/hashicorp/nomad/api
 go 1.17
 
 require (
-	github.com/docker/go-units v0.3.3
+	github.com/docker/go-units v0.4.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-cleanhttp v0.5.2
