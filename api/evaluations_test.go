@@ -75,7 +75,7 @@ func TestEvaluations_List(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if len(result) != 1 {
-		t.Fatalf("expected no evals after last one but got %v", result[0])
+		t.Fatalf("expected no evals after last one but got %v", result)
 	}
 }
 
