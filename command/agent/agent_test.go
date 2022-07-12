@@ -422,10 +422,12 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 				require.Contains(t, err.Error(), tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t,
-					tc.expectedConfig.Enabled,
-					serverConfig.NodePlanRejectionEnabled,
-				)
+				if tc.expectedConfig.Enabled != nil {
+					require.Equal(t,
+						*tc.expectedConfig.Enabled,
+						serverConfig.NodePlanRejectionEnabled,
+					)
+				}
 				require.Equal(t,
 					tc.expectedConfig.NodeThreshold,
 					serverConfig.NodePlanRejectionThreshold,
