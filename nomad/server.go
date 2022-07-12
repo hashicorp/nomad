@@ -458,6 +458,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	// Emit metrics for the plan queue
 	go s.planQueue.EmitStats(time.Second, s.shutdownCh)
 
+	// Emit metrics for the planner's bad node tracker.
+	go s.planner.badNodeTracker.EmitStats(time.Second, s.shutdownCh)
+
 	// Emit metrics for the blocked eval tracker.
 	go s.blockedEvals.EmitStats(time.Second, s.shutdownCh)
 

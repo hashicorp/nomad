@@ -126,6 +126,12 @@ var basicConfig = &Config{
 		EncryptKey:                "abc",
 		EnableEventBroker:         helper.BoolToPtr(false),
 		EventBufferSize:           helper.IntToPtr(200),
+		PlanRejectionTracker: &PlanRejectionTracker{
+			Enabled:       helper.BoolToPtr(true),
+			NodeThreshold: 100,
+			NodeWindow:    41 * time.Minute,
+			NodeWindowHCL: "41m",
+		},
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
@@ -543,6 +549,9 @@ func (c *Config) addDefaults() {
 	if c.Server.ServerJoin == nil {
 		c.Server.ServerJoin = &ServerJoin{}
 	}
+	if c.Server.PlanRejectionTracker == nil {
+		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
+	}
 }
 
 // Tests for a panic parsing json with an object of exactly
@@ -620,6 +629,11 @@ var sample0 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
@@ -710,6 +724,11 @@ var sample1 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,

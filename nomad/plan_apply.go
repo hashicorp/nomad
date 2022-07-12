@@ -25,20 +25,45 @@ type planner struct {
 	// planQueue is used to manage the submitted allocation
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
+
+	// badNodeTracker keeps a score for nodes that have plan rejections.
+	// Plan rejections are somewhat expected given Nomad's optimistic
+	// scheduling, but repeated rejections for the same node may indicate an
+	// undetected issue, so we need to track rejection history.
+	badNodeTracker BadNodeTracker
 }
 
 // newPlanner returns a new planner to be used for managing allocation plans.
 func newPlanner(s *Server) (*planner, error) {
+	log := s.logger.Named("planner")
+
 	// Create a plan queue
 	planQueue, err := NewPlanQueue()
 	if err != nil {
 		return nil, err
 	}
 
+	// Create the bad node tracker.
+	var badNodeTracker BadNodeTracker
+	if s.config.NodePlanRejectionEnabled {
+		config := DefaultCachedBadNodeTrackerConfig()
+
+		config.Window = s.config.NodePlanRejectionWindow
+		config.Threshold = s.config.NodePlanRejectionThreshold
+
+		badNodeTracker, err = NewCachedBadNodeTracker(log, config)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		badNodeTracker = &NoopBadNodeTracker{}
+	}
+
 	return &planner{
-		Server:    s,
-		log:       s.logger.Named("planner"),
-		planQueue: planQueue,
+		Server:         s,
+		log:            log,
+		planQueue:      planQueue,
+		badNodeTracker: badNodeTracker,
 	}, nil
 }
 
@@ -144,6 +169,13 @@ func (p *planner) planApply() {
 			continue
 		}
 
+		// Check if any of the rejected nodes should be made ineligible.
+		for _, nodeID := range result.RejectedNodes {
+			if p.badNodeTracker.Add(nodeID) {
+				result.IneligibleNodes = append(result.IneligibleNodes, nodeID)
+			}
+		}
+
 		// Fast-path the response if there is nothing to do
 		if result.IsNoOp() {
 			pending.respond(result, nil)
@@ -207,6 +239,8 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+	now := time.Now().UTC().UnixNano()
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -214,11 +248,12 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		},
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
+		IneligibleNodes:   result.IneligibleNodes,
 		EvalID:            plan.EvalID,
+		UpdatedAt:         now,
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
-	now := time.Now().UTC().UnixNano()
 
 	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
@@ -469,6 +504,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 	// errors since we are processing in parallel.
 	var mErr multierror.Error
 	partialCommit := false
+	rejectedNodes := make(map[string]struct{}, 0)
 
 	// handleResult is used to process the result of evaluateNodePlan
 	handleResult := func(nodeID string, fit bool, reason string, err error) (cancel bool) {
@@ -492,8 +528,11 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
 					"namespace", plan.Job.Namespace)
 			}
-			// Set that this is a partial commit
+			// Set that this is a partial commit and store the node that was
+			// rejected so the plan applier can detect repeated plan rejections
+			// for the same node.
 			partialCommit = true
+			rejectedNodes[nodeID] = struct{}{}
 
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
@@ -597,6 +636,10 @@ OUTER:
 		// deployment correct for any canary that may have been desired to be
 		// placed but wasn't actually placed
 		correctDeploymentCanaries(result)
+	}
+
+	for n := range rejectedNodes {
+		result.RejectedNodes = append(result.RejectedNodes, n)
 	}
 	return result, mErr.ErrorOrNil()
 }

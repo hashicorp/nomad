@@ -149,9 +149,33 @@ While it is possible for these log lines to occur infrequently due to normal
 cluster conditions, they should not appear repeatedly and prevent the job from
 eventually running (look up the evaluation ID logged to find the job).
 
-If this log *does* appear repeatedly with the same `node_id` referenced, try
+#### Plan rejection tracker
+
+Nomad provides a mechanism to track the history of plan rejections per client
+and mark them as ineligible if the number goes above a given threshold within a
+time window. This functionality can be enabled using the
+[`plan_rejection_tracker`] server configuration.
+
+When a node is marked as ineligible due to excessive plan rejections, the
+following node event is registered:
+
+```
+Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information
+```
+
+Along with the log line:
+
+```
+[WARN]  nomad.state_store: marking node as ineligible due to multiple plan rejections: node_id=67af2541-5e96-6f54-9095-11089d627626
+```
+
+If a client is marked as ineligible due to repeated plan rejections, try
 [draining] the node and shutting it down. Misconfigurations not caught by
 validation can cause nodes to enter this state: [#11830][gh-11830].
+
+If the `plan for node rejected` log *does* appear repeatedly with the same
+`node_id` referenced but the client is not being set as ineligible you can try
+adjusting the [`plan_rejection_tracker`] configuration of servers.
 
 ### Performance
 
@@ -278,6 +302,7 @@ latency and packet loss for the [Serf] address.
 [metric-types]: /docs/telemetry/metrics#metric-types
 [metrics-api-endpoint]: /api-docs/metrics
 [prometheus-telem]: /docs/configuration/telemetry#prometheus
+[`plan_rejection_tracker`]: /docs/configuration/server#plan_rejection_tracker
 [serf]: /docs/configuration#serf-1
 [statsd-exporter]: https://github.com/prometheus/statsd_exporter
 [statsd-telem]: /docs/configuration/telemetry#statsd

@@ -156,6 +156,10 @@ server {
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
 
+- `plan_rejection_tracker` <code>([PlanRejectionTracker](#plan_rejection_tracker-parameters))</code> -
+  Configuration for the plan rejection tracker that the Nomad leader uses to
+  track the history of plan rejections.
+
 - `raft_boltdb` - This is a nested object that allows configuring options for
   Raft's BoltDB based log store.
     - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
@@ -237,6 +241,30 @@ server {
   format](/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join stanza][server-join].
+
+### `plan_rejection_tracker` Parameters
+
+The leader plan rejection tracker can be adjusted to prevent evaluations from
+getting stuck due to always being scheduled to a client that may have an
+unexpected issue. Refer to [Monitoring Nomad][monitoring_nomad_progress] for
+more details.
+
+- `enabled` `(bool: false)` - Specifies if plan rejections should be tracked.
+
+- `node_threshold` `(int: 100)` - The number of plan rejections for a node
+  within the `node_window` to trigger a client to be set as ineligible.
+
+- `node_window` `(string: "5m")` - The time window for when plan rejections for
+  a node should be considered.
+
+If you observe too many false positives (clients being marked as ineligible
+even if they don't present any problem) you may want to increase
+`node_threshold`.
+
+Or if you are noticing jobs not being scheduled due to plan rejections for the
+same `node_id` and the client is not being set as ineligible you can try
+increasing the `node_window` so more historical rejections are taken into
+account.
 
 ## `server` Examples
 
@@ -330,5 +358,6 @@ server {
 [update-scheduler-config]: /api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
 [bootstrapping a cluster]: /docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
+[monitoring_nomad_progress]: /docs/operations/monitoring-nomad#progress
 [`nomad operator keygen`]: /docs/commands/operator/keygen
 [search]: /docs/configuration/search

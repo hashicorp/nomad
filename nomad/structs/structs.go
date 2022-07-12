@@ -926,6 +926,14 @@ type ApplyPlanResultsRequest struct {
 	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
 	// have been preempted to place allocs in this plan
 	PreemptionEvals []*Evaluation
+
+	// IneligibleNodes are nodes the plan applier has repeatedly rejected
+	// placements for and should therefore be considered ineligible by workers
+	// to avoid retrying them repeatedly.
+	IneligibleNodes []string
+
+	// UpdatedAt represents server time of receiving request.
+	UpdatedAt int64
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1645,6 +1653,7 @@ const (
 	NodeEventSubsystemDriver    = "Driver"
 	NodeEventSubsystemHeartbeat = "Heartbeat"
 	NodeEventSubsystemCluster   = "Cluster"
+	NodeEventSubsystemScheduler = "Scheduler"
 	NodeEventSubsystemStorage   = "Storage"
 )
 
@@ -11426,6 +11435,16 @@ type PlanResult struct {
 	// as stopped.
 	NodePreemptions map[string][]*Allocation
 
+	// RejectedNodes are nodes the scheduler worker has rejected placements for
+	// and should be considered for ineligibility by the plan applier to avoid
+	// retrying them repeatedly.
+	RejectedNodes []string
+
+	// IneligibleNodes are nodes the plan applier has repeatedly rejected
+	// placements for and should therefore be considered ineligible by workers
+	// to avoid retrying them repeatedly.
+	IneligibleNodes []string
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,
@@ -11439,8 +11458,9 @@ type PlanResult struct {
 
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 &&
-		len(p.DeploymentUpdates) == 0 && p.Deployment == nil
+	return len(p.IneligibleNodes) == 0 && len(p.NodeUpdate) == 0 &&
+		len(p.NodeAllocation) == 0 && len(p.DeploymentUpdates) == 0 &&
+		p.Deployment == nil
 }
 
 // FullCommit is used to check if all the allocations in a plan
