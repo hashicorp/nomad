@@ -234,6 +234,8 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+	now := time.Now().UTC().UnixNano()
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -243,10 +245,10 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		DeploymentUpdates: result.DeploymentUpdates,
 		IneligibleNodes:   result.IneligibleNodes,
 		EvalID:            plan.EvalID,
+		UpdatedAt:         now,
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
-	now := time.Now().UTC().UnixNano()
 
 	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.

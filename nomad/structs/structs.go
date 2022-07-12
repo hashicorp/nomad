@@ -918,6 +918,9 @@ type ApplyPlanResultsRequest struct {
 	// placements for and should therefore be considered ineligible by workers
 	// to avoid retrying them repeatedly.
 	IneligibleNodes []string
+
+	// UpdatedAt represents server time of receiving request.
+	UpdatedAt int64
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either

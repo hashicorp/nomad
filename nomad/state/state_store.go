@@ -371,7 +371,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	defer txn.Abort()
 
 	// Mark nodes as ineligible.
-	now := time.Now().Unix()
 	for _, nodeID := range results.IneligibleNodes {
 		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
 
@@ -380,7 +379,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 			SetMessage(NodeEligibilityEventPlanRejectThreshold)
 
 		err := s.updateNodeEligibilityImpl(index, nodeID,
-			structs.NodeSchedulingIneligible, now, nodeEvent, txn)
+			structs.NodeSchedulingIneligible, results.UpdatedAt, nodeEvent, txn)
 		if err != nil {
 			return err
 		}
