@@ -75,38 +75,38 @@
     "divider": true
   },
   {
-    "title": "Internals",
+    "title": "Concepts",
     "routes": [
       {
         "title": "Overview",
-        "path": "internals"
+        "path": "concepts"
       },
       {
         "title": "Architecture",
-        "path": "internals/architecture"
+        "path": "concepts/architecture"
       },
       {
         "title": "Plugins",
         "routes": [
           {
             "title": "Overview",
-            "path": "internals/plugins"
+            "path": "concepts/plugins"
           },
           {
             "title": "Base",
-            "path": "internals/plugins/base"
+            "path": "concepts/plugins/base"
           },
           {
             "title": "Task Drivers",
-            "path": "internals/plugins/task-drivers"
+            "path": "concepts/plugins/task-drivers"
           },
           {
             "title": "Devices",
-            "path": "internals/plugins/devices"
+            "path": "concepts/plugins/devices"
           },
           {
             "title": "Storage",
-            "path": "internals/plugins/csi"
+            "path": "concepts/plugins/csi"
           }
         ]
       },
@@ -115,33 +115,33 @@
         "routes": [
           {
             "title": "Overview",
-            "path": "internals/scheduling"
+            "path": "concepts/scheduling"
           },
           {
-            "title": "Internals",
-            "path": "internals/scheduling/scheduling"
+            "title": "Concepts",
+            "path": "concepts/scheduling/scheduling"
           },
           {
             "title": "Preemption",
-            "path": "internals/scheduling/preemption"
+            "path": "concepts/scheduling/preemption"
           }
         ]
       },
       {
         "title": "Consensus Protocol",
-        "path": "internals/consensus"
+        "path": "concepts/consensus"
       },
       {
         "title": "Filesystem",
-        "path": "internals/filesystem"
+        "path": "concepts/filesystem"
       },
       {
         "title": "Gossip Protocol",
-        "path": "internals/gossip"
+        "path": "concepts/gossip"
       },
       {
         "title": "Security Model",
-        "path": "internals/security"
+        "path": "concepts/security"
       }
     ]
   },
