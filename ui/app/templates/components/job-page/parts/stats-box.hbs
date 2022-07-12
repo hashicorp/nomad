@@ -14,7 +14,7 @@
       <span class="term">Version</span>
       {{@job.version}}
     </span>
-    {{#if @job.pathLinkedVariable}}
+    {{#if (and (can "list variables") @job.pathLinkedVariable)}}
       <span class="pair" data-test-job-stat="variables">
         <LinkTo @route="variables.variable" @model={{@job.pathLinkedVariable.id}}>Variables</LinkTo>
       </span>
