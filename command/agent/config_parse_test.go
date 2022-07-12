@@ -127,7 +127,7 @@ var basicConfig = &Config{
 		EnableEventBroker:         helper.BoolToPtr(false),
 		EventBufferSize:           helper.IntToPtr(200),
 		PlanRejectionTracker: &PlanRejectionTracker{
-			Enabled:       true,
+			Enabled:       helper.BoolToPtr(true),
 			NodeThreshold: 100,
 			NodeWindow:    41 * time.Minute,
 			NodeWindowHCL: "41m",

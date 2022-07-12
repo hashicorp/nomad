@@ -386,12 +386,12 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 		{
 			name: "valid config",
 			trackerConfig: &PlanRejectionTracker{
-				Enabled:       true,
+				Enabled:       helper.BoolToPtr(true),
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
 			expectedConfig: &PlanRejectionTracker{
-				Enabled:       true,
+				Enabled:       helper.BoolToPtr(true),
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
