@@ -5,7 +5,7 @@ import classic from 'ember-classic-decorator';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { trimPath } from '../helpers/trim-path';
-import { attr, belongsTo } from '@ember-data/model';
+import { attr } from '@ember-data/model';
 
 /**
  * @typedef KeyValue
@@ -55,8 +55,6 @@ export default class VariableModel extends Model {
   /** @type {string} */
   @attr('string', { defaultValue: 'default' }) namespace;
 
-  @belongsTo('job') job;
-
   @computed('path')
   get parentFolderPath() {
     const split = this.path.split('/');
@@ -99,7 +97,7 @@ export default class VariableModel extends Model {
   get pathLinkedEntities() {
     const entityTypes = ['job', 'group', 'task'];
     const emptyEntities = { job: '', group: '', task: '' };
-    if (this.path.startsWith('jobs/') && this.path.split('/').length <= 4) {
+    if (this.path?.startsWith('jobs/') && this.path?.split('/').length <= 4) {
       return this.path
         .split('/')
         .slice(1, 4)

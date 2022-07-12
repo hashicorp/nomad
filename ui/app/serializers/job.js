@@ -71,6 +71,10 @@ export default class JobSerializer extends ApplicationSerializer {
       .buildURL(modelName, hash.ID, hash, 'findRecord')
       .split('?');
 
+    const variableLookup = hash.ParentID
+      ? JSON.parse(hash.ParentID)[0]
+      : hash.PlainId;
+
     return assign(super.extractRelationships(...arguments), {
       allocations: {
         links: {
@@ -99,9 +103,9 @@ export default class JobSerializer extends ApplicationSerializer {
       },
       variables: {
         links: {
-          related: buildURL(
-            `/${apiNamespace}/vars?filter=SecureVariableMetadata.Path%3D%3D"jobs/${hash.PlainId}"`
-          ),
+          related: buildURL(`/${apiNamespace}/vars`, {
+            prefix: `jobs/${variableLookup}`,
+          }),
         },
       },
       scaleState: {

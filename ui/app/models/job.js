@@ -329,8 +329,15 @@ export default class Job extends Model {
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
 
-  @computed('variables')
+  @computed('variables', 'parent', 'plainId')
   get pathLinkedVariable() {
-    return this.variables?.objectAt(0);
+    if (this.parent.get('id')) {
+      return this.variables?.findBy(
+        'path',
+        `jobs/${JSON.parse(this.parent.get('id'))[0]}`
+      );
+    } else {
+      return this.variables?.findBy('path', `jobs/${this.plainId}`);
+    }
   }
 }
