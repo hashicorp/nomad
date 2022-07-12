@@ -400,23 +400,12 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	for _, hn := range config.Client.HostNetworks {
-		if hn.ReservedPorts == "" {
-			continue
-		}
-
 		// Ensure port range is valid
 		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
 			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
 				hn.Name, hn.ReservedPorts, err))
 			return false
 		}
-
-		// Ensure ports aren't reserved multiple places. Ideally the global configuration would be the default.gT
-		/*
-			if config.Client.Reserved.ReservedPorts != "" {
-					return nil, fmt.Errorf("Cannot specify reserved.reserved_ports (%q) and host_network[%q].reserved port.", globalRes, hostRes)
-			}
-		*/
 	}
 
 	if err := config.Client.Artifact.Validate(); err != nil {
