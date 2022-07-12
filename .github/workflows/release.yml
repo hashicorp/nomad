@@ -90,11 +90,12 @@ jobs:
         run: |
           make deps
 
-      - name: Update notification channel
+      - name: Update notification channel and releases branch
         id: notification-channel
         if: ${{ github.event.inputs.notification-channel != '' }}
         run: |
           sed -i.bak -e 's|\(notification_channel * = *"\)[^"]*|\1${{ github.event.inputs.notification-channel }}|g' .release/ci.hcl
+          sed -i.bak -e '/release_branches/a "release/${{ github.event.inputs.version }}",' .release/ci.hcl
           rm -rf .release/ci.hcl.bak
           git diff --color=always .release/ci.hcl
 
@@ -148,7 +149,7 @@ jobs:
           inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
           ref: ${{ needs.prepare-release.outputs.build-ref }}
 
-      - name: Revert notification channel
+      - name: Revert notification channel and release branches
         if: ${{ github.event.inputs.notification-channel != '' }}
         run: |
           git reset ${{ github.sha }} -- .release/ci.hcl
