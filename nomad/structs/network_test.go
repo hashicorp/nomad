@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -190,10 +189,10 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 			},
 		},
 	}
-	must.NoError(t, idx.SetNode(n))
-	must.Len(t, 1, idx.TaskNetworks)
-	must.Eq(t, idx.AvailBandwidth["eth0"], 1000)
-	must.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
+	require.NoError(t, idx.SetNode(n))
+	require.Len(t, 1, idx.TaskNetworks)
+	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
+	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 func TestNetworkIndex_AddAllocs(t *testing.T) {
@@ -494,11 +493,11 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 			},
 		},
 	}
-	must.NoError(t, idx.SetNode(n))
-	must.Len(t, 1, idx.TaskNetworks)
-	must.Eq(t, idx.AvailBandwidth["eth0"], 1000)
-	must.Eq(t, idx.UsedBandwidth["eth0"], 1)
-	must.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
+	require.NoError(t, idx.SetNode(n))
+	require.Len(t, 1, idx.TaskNetworks)
+	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
+	require.Equal(t, 1, idx.UsedBandwidth["eth0"])
+	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 // COMPAT(0.11): Remove in 0.11
@@ -895,23 +894,23 @@ func TestNetworkIndex_SetNode_HostNets(t *testing.T) {
 		},
 	}
 
-	must.NoError(t, idx.SetNode(n))
+	require.NoError(t, idx.SetNode(n))
 
 	// TaskNetworks should only contain the bridge and agent network
-	must.Len(t, 2, idx.TaskNetworks)
+	require.Len(t, 2, idx.TaskNetworks)
 
 	// Ports should be used across all 4 IPs
-	must.Eq(t, 4, len(idx.UsedPorts))
+	require.Equal(t, 4, len(idx.UsedPorts))
 
 	// 22 should be reserved on all IPs
-	must.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
-	must.True(t, idx.UsedPorts["::1"].Check(22))
-	must.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
-	must.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
+	require.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
+	require.True(t, idx.UsedPorts["::1"].Check(22))
+	require.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
+	require.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
 
 	// 80 should only be reserved on eth1's address
-	must.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
-	must.False(t, idx.UsedPorts["::1"].Check(80))
-	must.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
-	must.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
+	require.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
+	require.False(t, idx.UsedPorts["::1"].Check(80))
+	require.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
+	require.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
 }
