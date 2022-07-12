@@ -40,8 +40,9 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	alloc2.Namespace = ns
 
 	store := srv.fsm.State()
+	require.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns}}))
 	require.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2}))
 
 	claims1 := alloc1.ToTaskIdentityClaims("web")
 	idToken, err := srv.encrypter.SignClaims(claims1)
