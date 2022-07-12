@@ -26,9 +26,8 @@ Usage: nomad var list [options] <prefix>
 
   List is used to list available secure variables.
 
-  If ACLs are enabled, this command requires a token with the 'namespace:read'
-  capability. Any secure variables for namespaces that the token does not have
-  access to will be filtered from the results.
+  If ACLs are enabled, this command will return only secure variables stored at
+  namespaced paths where the token has the `read` capability.
 
 General Options:
 
@@ -74,7 +73,7 @@ func (c *VarListCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *VarListCommand) Synopsis() string {
-	return "List secure variable specifications"
+	return "List secure variable metadata"
 }
 
 func (c *VarListCommand) Name() string { return "var list" }

@@ -405,28 +405,6 @@ func (ps testSVNamespacePaths) NSPaths() testSVNamespacePaths {
 	return ps
 }
 
-// func (ps testSVNamespacePaths) HavingPrefix(prefix string) *testSVNamespacePaths {
-// 	return ps.having("prefix", prefix)
-// }
-
-// func (ps testSVNamespacePaths) HavingNamespace(ns string) *testSVNamespacePaths {
-// 	return ps.having("namespace", ns)
-// }
-
-// func (ps testSVNamespacePaths) having(field, val string) *testSVNamespacePaths {
-
-// 	out := make(testSVNamespacePaths, 0, len(ps))
-// 	for _, p := range ps {
-// 		if field == "namespace" && p.Namespace == val {
-// 			out = append(out, p)
-// 		}
-// 		if field == "prefix" && strings.HasPrefix(p.Path, val) {
-// 			out = append(out, p)
-// 		}
-// 	}
-// 	return &out
-// }
-
 type SVMSlice []api.SecureVariableMetadata
 
 func (s SVMSlice) Len() int { return len(s) }
