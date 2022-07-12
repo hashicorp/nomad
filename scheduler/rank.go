@@ -211,13 +211,13 @@ OUTER:
 		// the node. If it does collide though, it means we found a bug! So
 		// collect as much information as possible.
 		netIdx := structs.NewNetworkIndex()
-		if collide, reason := netIdx.SetNode(option.Node); collide {
+		if err := netIdx.SetNode(option.Node); err != nil {
 			iter.ctx.SendEvent(&PortCollisionEvent{
-				Reason:   reason,
+				Reason:   err.Error(),
 				NetIndex: netIdx.Copy(),
 				Node:     option.Node,
 			})
-			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: invalid node")
 			continue
 		}
 		if collide, reason := netIdx.AddAllocs(proposed); collide {
@@ -274,7 +274,7 @@ OUTER:
 			for i, port := range ask.DynamicPorts {
 				if port.HostNetwork != "" {
 					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
-						ask.DynamicPorts[i].HostNetwork = hostNetworkValue.(string)
+						ask.DynamicPorts[i].HostNetwork = hostNetworkValue
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
 						netIdx.Release()
@@ -285,7 +285,7 @@ OUTER:
 			for i, port := range ask.ReservedPorts {
 				if port.HostNetwork != "" {
 					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
-						ask.ReservedPorts[i].HostNetwork = hostNetworkValue.(string)
+						ask.ReservedPorts[i].HostNetwork = hostNetworkValue
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
 						netIdx.Release()
@@ -363,7 +363,7 @@ OUTER:
 			// Check if we need a network resource
 			if len(task.Resources.Networks) > 0 {
 				ask := task.Resources.Networks[0].Copy()
-				offer, err := netIdx.AssignNetwork(ask)
+				offer, err := netIdx.AssignTaskNetwork(ask)
 				if offer == nil {
 					// If eviction is not enabled, mark this node as exhausted and continue
 					if !iter.evict {
@@ -393,7 +393,7 @@ OUTER:
 					netIdx.SetNode(option.Node)
 					netIdx.AddAllocs(proposed)
 
-					offer, err = netIdx.AssignNetwork(ask)
+					offer, err = netIdx.AssignTaskNetwork(ask)
 					if offer == nil {
 						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
 						netIdx.Release()
