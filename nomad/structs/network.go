@@ -233,9 +233,6 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 	// Addresses on eth1 reserve 1-1000
 	globalResPorts := []uint{}
 
-	// COMPAT(0.11): Remove in 0.11
-	// Handle reserving ports, handling both new and old client Node
-	// layouts
 	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
 		resPorts, err := ParsePortRanges(node.ReservedResources.Networks.ReservedHostPorts)
 		if err != nil {
@@ -249,6 +246,8 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 			globalResPorts[i] = uint(p)
 		}
 	} else if node.Reserved != nil {
+		// COMPAT(0.11): Remove after 0.11. Nodes stopped reporting
+		// reserved ports under Node.Reserved.Resources in #4750 / v0.9
 		for _, n := range node.Reserved.Networks {
 			used := idx.getUsedPortsFor(n.IP)
 			for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
