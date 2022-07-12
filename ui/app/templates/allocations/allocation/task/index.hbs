@@ -99,7 +99,7 @@
       </span>
 
       {{#if (and (can "list variables") this.model.task.pathLinkedVariable)}}
-        <span class="pair" data-test-task-group-stat="variables">
+        <span class="pair" data-test-task-stat="variables">
           <LinkTo @route="variables.variable" @model={{this.model.task.pathLinkedVariable.id}}>Variables</LinkTo>
         </span>
       {{/if}}
