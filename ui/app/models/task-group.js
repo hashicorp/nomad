@@ -18,7 +18,7 @@ export default class TaskGroup extends Fragment {
   @attr('string') name;
   @attr('number') count;
 
-  @computed('job.variables', 'job.parent', 'job.plainId')
+  @computed('job.{variables,parent,plainId}', 'name')
   get pathLinkedVariable() {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
