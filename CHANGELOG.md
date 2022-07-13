@@ -1,3 +1,56 @@
+## 1.3.2 (July 13, 2022)
+
+IMPROVEMENTS:
+
+* agent: Added delete support to the eval HTTP API [[GH-13492](https://github.com/hashicorp/nomad/issues/13492)]
+* agent: emit a warning message if the agent starts with `bootstrap_expect` set to an even number. [[GH-12961](https://github.com/hashicorp/nomad/issues/12961)]
+* agent: logs are no longer buffered at startup when logging in JSON format [[GH-13076](https://github.com/hashicorp/nomad/issues/13076)]
+* api: enable setting `?choose` parameter when querying services [[GH-12862](https://github.com/hashicorp/nomad/issues/12862)]
+* api: refactor ACL check when using the all namespaces wildcard in the job and alloc list endpoints [[GH-13608](https://github.com/hashicorp/nomad/issues/13608)]
+* api: support Authorization Bearer header in lieu of X-Nomad-Token header [[GH-12534](https://github.com/hashicorp/nomad/issues/12534)]
+* bootstrap: Added option to allow for an operator generated bootstrap token to be passed to the `acl bootstrap` command [[GH-12520](https://github.com/hashicorp/nomad/issues/12520)]
+* cli: Added `delete` command to the eval CLI [[GH-13492](https://github.com/hashicorp/nomad/issues/13492)]
+* cli: Added `scheduler get-config` and `scheduler set-config` commands to the operator CLI [[GH-13045](https://github.com/hashicorp/nomad/issues/13045)]
+* cli: always display job ID and namespace in the `eval status` command [[GH-13581](https://github.com/hashicorp/nomad/issues/13581)]
+* cli: display namespace and node ID in the `eval list` command and when `eval status` matches multiple evals [[GH-13581](https://github.com/hashicorp/nomad/issues/13581)]
+* cli: update default redis and use nomad service discovery [[GH-13044](https://github.com/hashicorp/nomad/issues/13044)]
+* client: added more fault tolerant defaults for template configuration [[GH-13041](https://github.com/hashicorp/nomad/issues/13041)]
+* core: Added the ability to pause and un-pause the eval broker and blocked eval broker [[GH-13045](https://github.com/hashicorp/nomad/issues/13045)]
+* core: On node updates skip creating evaluations for jobs not in the node's datacenter. [[GH-12955](https://github.com/hashicorp/nomad/issues/12955)]
+* core: automatically mark clients with recurring plan rejections as ineligible [[GH-13421](https://github.com/hashicorp/nomad/issues/13421)]
+* driver/docker: Eliminate excess Docker registry pulls for the `infra_image` when it already exists locally. [[GH-13265](https://github.com/hashicorp/nomad/issues/13265)]
+* fingerprint: add support for detecting kernel architecture of clients. (attribute: `kernel.arch`) [[GH-13182](https://github.com/hashicorp/nomad/issues/13182)]
+* hcl: added support for using the `filebase64` function in jobspecs [[GH-11791](https://github.com/hashicorp/nomad/issues/11791)]
+* metrics: emit `nomad.nomad.plan.rejection_tracker.node_score` metric for the number of times a node had a plan rejection within the past time window [[GH-13421](https://github.com/hashicorp/nomad/issues/13421)]
+* qemu: add support for guest agent socket [[GH-12800](https://github.com/hashicorp/nomad/issues/12800)]
+* ui: Namespace filter query paramters are now isolated by route [[GH-13679](https://github.com/hashicorp/nomad/issues/13679)]
+
+BUG FIXES:
+
+* api: Fix listing evaluations with the wildcard namespace and an ACL token [[GH-13530](https://github.com/hashicorp/nomad/issues/13530)]
+* api: Fixed a bug where Consul token was not respected for job revert API [[GH-13065](https://github.com/hashicorp/nomad/issues/13065)]
+* cli: Fixed a bug in the names of the `node drain` and `node status` sub-commands [[GH-13656](https://github.com/hashicorp/nomad/issues/13656)]
+* cli: Fixed a bug where job validate did not respect vault token or namespace [[GH-13070](https://github.com/hashicorp/nomad/issues/13070)]
+* client: Fixed a bug where max_kill_timeout client config was ignored [[GH-13626](https://github.com/hashicorp/nomad/issues/13626)]
+* client: Fixed a bug where network.dns block was not interpolated [[GH-12817](https://github.com/hashicorp/nomad/issues/12817)]
+* cni: Fixed a bug where loopback address was not set for all drivers [[GH-13428](https://github.com/hashicorp/nomad/issues/13428)]
+* connect: Added missing ability of setting Connect upstream destination namespace [[GH-13125](https://github.com/hashicorp/nomad/issues/13125)]
+* core: Fixed a bug where an evicted batch job would not be rescheduled [[GH-13205](https://github.com/hashicorp/nomad/issues/13205)]
+* core: Fixed a bug where blocked eval resources were incorrectly computed [[GH-13104](https://github.com/hashicorp/nomad/issues/13104)]
+* core: Fixed a bug where reserved ports on multiple node networks would be treated as a collision. `client.reserved.reserved_ports` is now merged into each `host_network`'s reserved ports instead of being treated as a collision. [[GH-13651](https://github.com/hashicorp/nomad/issues/13651)]
+* core: Fixed a bug where the plan applier could deadlock if leader's state lagged behind plan's creation index for more than 5 seconds. [[GH-13407](https://github.com/hashicorp/nomad/issues/13407)]
+* csi: Fixed a regression where a timeout was introduced that prevented some plugins from running by marking them as unhealthy after 30s by introducing a configurable `health_timeout` field [[GH-13340](https://github.com/hashicorp/nomad/issues/13340)]
+* csi: Fixed a scheduler bug where failed feasibility checks would return early and prevent processing additional nodes [[GH-13274](https://github.com/hashicorp/nomad/issues/13274)]
+* docker: Fixed a bug where cgroups-v1 parent was being set [[GH-13058](https://github.com/hashicorp/nomad/issues/13058)]
+* lifecycle: fixed a bug where sidecar tasks were not being stopped last [[GH-13055](https://github.com/hashicorp/nomad/issues/13055)]
+* state: Fix listing evaluations from all namespaces [[GH-13551](https://github.com/hashicorp/nomad/issues/13551)]
+* ui: Allow running jobs from a namespace-limited token [[GH-13659](https://github.com/hashicorp/nomad/issues/13659)]
+* ui: Fix a bug that prevented viewing the details of an evaluation in a non-default namespace [[GH-13530](https://github.com/hashicorp/nomad/issues/13530)]
+* ui: Fixed a bug that prevented the UI task exec functionality to work from behind a reverse proxy. [[GH-12925](https://github.com/hashicorp/nomad/issues/12925)]
+* ui: Fixed an issue where editing or running a job with a namespace via the UI would throw a 404 on redirect. [[GH-13588](https://github.com/hashicorp/nomad/issues/13588)]
+* ui: fixed a bug where links to jobs with "@" in their name would mis-identify namespace and 404 [[GH-13012](https://github.com/hashicorp/nomad/issues/13012)]
+* volumes: Fixed a bug where additions, updates, or removals of host volumes or CSI volumes were not treated as destructive updates [[GH-13008](https://github.com/hashicorp/nomad/issues/13008)]
+
 ## 1.3.1 (May 19, 2022)
 
 SECURITY:
