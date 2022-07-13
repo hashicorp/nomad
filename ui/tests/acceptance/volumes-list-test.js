@@ -6,9 +6,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
-import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
-
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
   volume.allocations.add(alloc);
@@ -191,19 +189,6 @@ module('Acceptance | volumes list', function (hooks) {
 
     assert.equal(VolumesList.volumes.length, 1);
     assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
-  });
-
-  test('the active namespace is carried over to the jobs pages', async function (assert) {
-    server.createList('namespace', 2);
-
-    const namespace = server.db.namespaces[1];
-    await VolumesList.visit();
-    await VolumesList.facets.namespace.toggle();
-    await VolumesList.facets.namespace.options.objectAt(2).select();
-
-    await Layout.gutter.visitJobs();
-
-    assert.equal(currentURL(), `/jobs?namespace=${namespace.id}`);
   });
 
   test('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function (assert) {

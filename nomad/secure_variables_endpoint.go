@@ -28,7 +28,11 @@ type SecureVariables struct {
 	encrypter *Encrypter
 }
 
-// Upsert creates or updates secure variables held within Nomad.
+// Upsert creates or updates secure variables held within Nomad. Due to ACL
+// checking, every element in Data will be checked for namespace and targeted
+// to the namespace in the SecureVariable. Therefore, the caller must ensure
+// that the provided struct's Namespace is the desired destination. Unset
+// Namespace values will default to `args.RequestNamespace`
 func (sv *SecureVariables) Upsert(
 	args *structs.SecureVariablesUpsertRequest,
 	reply *structs.SecureVariablesUpsertResponse) error {
@@ -37,18 +41,6 @@ func (sv *SecureVariables) Upsert(
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "upsert"}, time.Now())
-
-	// Perform the ACL token resolution.
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil {
-		for _, variable := range args.Data {
-			if !aclObj.AllowSecureVariableOperation(args.RequestNamespace(),
-				variable.Path, acl.PolicyWrite) {
-				return structs.ErrPermissionDenied
-			}
-		}
-	}
 
 	// Use a multierror, so we can capture all validation errors and pass this
 	// back so they can be addressed by the caller in a single pass.
@@ -61,6 +53,27 @@ func (sv *SecureVariables) Upsert(
 	// Iterate the secure variables and validate them. Any error results in the
 	// call failing.
 	for i, v := range args.Data {
+
+		// Check if the Namespace is explicitly set on the secure variable. If
+		// not, use the RequestNamespace
+		targetNS := v.Namespace
+		if targetNS == "" {
+			targetNS = args.RequestNamespace()
+			v.Namespace = targetNS
+		}
+
+		// Perform the ACL token resolution.
+		if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+			return err
+		} else if aclObj != nil {
+			for _, variable := range args.Data {
+				if !aclObj.AllowSecureVariableOperation(targetNS,
+					variable.Path, acl.PolicyWrite) {
+					return structs.ErrPermissionDenied
+				}
+			}
+		}
+
 		v.Canonicalize()
 		if err := v.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -93,6 +106,7 @@ func (sv *SecureVariables) Upsert(
 		return &mErr
 	}
 
+	// TODO: This should be done on each Data in uArgs.
 	if err := sv.enforceQuota(uArgs); err != nil {
 		return err
 	}
@@ -350,14 +364,26 @@ func (s *SecureVariables) listAllSecureVariables(
 				},
 			)
 
+			// Wrap the SecureVariables iterator with a FilterIterator to
+			// eliminate invalid values before sending them to the paginator.
+			fltrIter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+
+				// Values are filtered when the func returns true.
+				sv := raw.(*structs.SecureVariableEncrypted)
+				if allowedNSes != nil && !allowedNSes[sv.Namespace] {
+					return true
+				}
+				if !strings.HasPrefix(sv.Path, args.Prefix) {
+					return true
+				}
+				return false
+			})
+
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the stubs array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(fltrIter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.SecureVariableEncrypted)
-					if allowedNSes != nil && !allowedNSes[sv.Namespace] {
-						return nil
-					}
 					svStub := sv.SecureVariableMetadata
 					svs = append(svs, &svStub)
 					return nil

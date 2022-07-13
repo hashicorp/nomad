@@ -600,7 +600,9 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 
 	// we won't return an error on ws close, but at least make it available in
 	// the logs so we can trace spurious disconnects
-	s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
+	if codedErr != nil {
+		s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
+	}
 
 	if isClosedError(codedErr) {
 		codedErr = nil

@@ -20,6 +20,10 @@
     "bootstrap_expect": 3,
     "enabled": true,
     "encrypt": "sHck3WL6cxuhuY7Mso9BHA==",
+    "plan_rejection_tracker": {
+      "node_threshold": 100,
+      "node_window": "31m"
+    },
     "retry_join": [
       "10.0.0.101",
       "10.0.0.102",

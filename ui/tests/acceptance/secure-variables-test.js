@@ -5,6 +5,7 @@ import {
   find,
   findAll,
   typeIn,
+  visit,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { setupApplicationTest } from 'ember-qunit';
@@ -133,9 +134,21 @@ module('Acceptance | secure variables', function (hooks) {
   });
 
   test('variables prefixed with jobs/ correctly link to entities', async function (assert) {
-    assert.expect(16);
+    assert.expect(23);
     defaultScenario(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+
+    const variableLinkedJob = server.db.jobs[0];
+    const variableLinkedGroup = server.db.taskGroups.findBy({
+      jobId: variableLinkedJob.id,
+    });
+    const variableLinkedTask = server.db.tasks.findBy({
+      taskGroupId: variableLinkedGroup.id,
+    });
+    const variableLinkedTaskAlloc = server.db.allocations.filterBy(
+      'taskGroup',
+      variableLinkedGroup.name
+    )[1];
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
     // Non-job variable
@@ -193,6 +206,19 @@ module('Acceptance | secure variables', function (hooks) {
 
     await percySnapshot(assert);
 
+    let relatedJobLink = find('.related-entities a');
+    await click(relatedJobLink);
+    assert
+      .dom('[data-test-job-stat="variables"]')
+      .exists('Link from Job to Variable exists');
+    let jobVariableLink = find('[data-test-job-stat="variables"] a');
+    await click(jobVariableLink);
+    assert.ok(
+      currentURL().startsWith(`/variables/var/jobs/${variableLinkedJob.id}`),
+      'correctly traverses from job to variable'
+    );
+
+
     // Group Variable
     await Variables.visit();
     jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
@@ -214,6 +240,20 @@ module('Acceptance | secure variables', function (hooks) {
     );
 
     await percySnapshot(assert);
+    
+    let relatedGroupLink = find('.related-entities a');
+    await click(relatedGroupLink);
+    assert
+      .dom('[data-test-task-group-stat="variables"]')
+      .exists('Link from Group to Variable exists');
+    let groupVariableLink = find('[data-test-task-group-stat="variables"] a');
+    await click(groupVariableLink);
+    assert.ok(
+      currentURL().startsWith(
+        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
+      ),
+      'correctly traverses from group to variable'
+    );
 
     // Task Variable
     await Variables.visit();
@@ -238,6 +278,30 @@ module('Acceptance | secure variables', function (hooks) {
     );
 
     await percySnapshot(assert);
+    
+    let relatedTaskLink = find('.related-entities a');
+    await click(relatedTaskLink);
+    // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
+    await visit(
+      `/allocations/${variableLinkedTaskAlloc.id}/${variableLinkedTask.name}`
+    );
+    assert
+      .dom('[data-test-task-stat="variables"]')
+      .exists('Link from Task to Variable exists');
+    let taskVariableLink = find('[data-test-task-stat="variables"] a');
+    await click(taskVariableLink);
+    assert.ok(
+      currentURL().startsWith(
+        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
+      ),
+      'correctly traverses from task to variable'
+    );
+
+    // A non-variable-having job
+    await visit(`/jobs/${server.db.jobs[1].id}`);
+    assert
+      .dom('[data-test-task-stat="variables"]')
+      .doesNotExist('Link from Variable-less Job to Variable does not exist');
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {

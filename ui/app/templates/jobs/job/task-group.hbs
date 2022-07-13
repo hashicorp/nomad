@@ -87,6 +87,11 @@
           {{if this.model.scaling.policy "Yes" "No"}}
         </span>
       {{/if}}
+      {{#if (and (can "list variables") this.model.pathLinkedVariable)}}
+        <span class="pair" data-test-task-group-stat="variables">
+          <LinkTo @route="variables.variable" @model={{this.model.pathLinkedVariable.id}}>Variables</LinkTo>
+        </span>
+      {{/if}}
     </div>
   </div>
   <div class="boxed-section">

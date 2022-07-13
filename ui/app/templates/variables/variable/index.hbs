@@ -92,14 +92,39 @@
     </div>
   </div>
 {{else}}
-  <ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
+  <ListTable class="variable-items" @source={{this.sortedKeyValues}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
+    <t.head>
+      <t.sort-by @prop="key">Key</t.sort-by>
+      <t.sort-by @prop="value">Value</t.sort-by>
+    </t.head>
     <t.body as |row|>
       <tr data-test-var={{row.model.key}}>
         <td>
           {{row.model.key}}
         </td>
-        <td>
-          {{row.model.value}}
+        <td colspan="3" class="value-cell">
+          <div>
+            <CopyButton
+              @compact={{true}}
+              @clipboardText={{row.model.value}}
+            />
+            <button
+              class="show-hide-values button is-borderless is-compact"
+              type="button"
+              {{on "click" (action this.toggleRowVisibility row.model)}}
+            >
+              <FlightIcon
+                @name={{if row.model.isVisible "eye" "eye-off"}}
+                @title={{if row.model.isVisible "Hide Value" "Show Value"}}
+              />
+            </button>
+
+            {{#if row.model.isVisible}}
+              {{row.model.value}}
+            {{else}}
+              ********
+            {{/if}}
+          </div>
         </td>
       </tr>
     </t.body>

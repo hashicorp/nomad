@@ -931,6 +931,14 @@ type ApplyPlanResultsRequest struct {
 	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
 	// have been preempted to place allocs in this plan
 	PreemptionEvals []*Evaluation
+
+	// IneligibleNodes are nodes the plan applier has repeatedly rejected
+	// placements for and should therefore be considered ineligible by workers
+	// to avoid retrying them repeatedly.
+	IneligibleNodes []string
+
+	// UpdatedAt represents server time of receiving request.
+	UpdatedAt int64
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1650,6 +1658,7 @@ const (
 	NodeEventSubsystemDriver    = "Driver"
 	NodeEventSubsystemHeartbeat = "Heartbeat"
 	NodeEventSubsystemCluster   = "Cluster"
+	NodeEventSubsystemScheduler = "Scheduler"
 	NodeEventSubsystemStorage   = "Storage"
 )
 
@@ -2910,13 +2919,23 @@ func (r *RequestedDevice) Validate() error {
 
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
-	Cpu          NodeCpuResources
-	Memory       NodeMemoryResources
-	Disk         NodeDiskResources
-	Networks     Networks
-	NodeNetworks []*NodeNetworkResource
-	Devices      []*NodeDeviceResource
+	Cpu     NodeCpuResources
+	Memory  NodeMemoryResources
+	Disk    NodeDiskResources
+	Devices []*NodeDeviceResource
 
+	// NodeNetworks was added in Nomad 0.12 to support multiple interfaces.
+	// It is the superset of host_networks, fingerprinted networks, and the
+	// node's default interface.
+	NodeNetworks []*NodeNetworkResource
+
+	// Networks is the node's bridge network and default interface. It is
+	// only used when scheduling jobs with a deprecated
+	// task.resources.network stanza.
+	Networks Networks
+
+	// MinDynamicPort and MaxDynamicPort represent the inclusive port range
+	// to select dynamic ports from across all networks.
 	MinDynamicPort int
 	MaxDynamicPort int
 }
@@ -2993,23 +3012,23 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	}
 
 	if len(o.NodeNetworks) != 0 {
-		lookupNetwork := func(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
-			for i, nw := range nets {
-				if nw.Device == name {
-					return i, nw
-				}
-			}
-			return 0, nil
-		}
-
 		for _, nw := range o.NodeNetworks {
-			if i, nnw := lookupNetwork(n.NodeNetworks, nw.Device); nnw != nil {
+			if i, nnw := lookupNetworkByDevice(n.NodeNetworks, nw.Device); nnw != nil {
 				n.NodeNetworks[i] = nw
 			} else {
 				n.NodeNetworks = append(n.NodeNetworks, nw)
 			}
 		}
 	}
+}
+
+func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
+	for i, nw := range nets {
+		if nw.Device == name {
+			return i, nw
+		}
+	}
+	return 0, nil
 }
 
 func (n *NodeResources) Equals(o *NodeResources) bool {
@@ -10956,6 +10975,14 @@ func (e *Evaluation) GetID() string {
 	return e.ID
 }
 
+// GetNamespace implements the NamespaceGetter interface, required for pagination.
+func (e *Evaluation) GetNamespace() string {
+	if e == nil {
+		return ""
+	}
+	return e.Namespace
+}
+
 // GetCreateIndex implements the CreateIndexGetter interface, required for
 // pagination.
 func (e *Evaluation) GetCreateIndex() uint64 {
@@ -11459,6 +11486,16 @@ type PlanResult struct {
 	// as stopped.
 	NodePreemptions map[string][]*Allocation
 
+	// RejectedNodes are nodes the scheduler worker has rejected placements for
+	// and should be considered for ineligibility by the plan applier to avoid
+	// retrying them repeatedly.
+	RejectedNodes []string
+
+	// IneligibleNodes are nodes the plan applier has repeatedly rejected
+	// placements for and should therefore be considered ineligible by workers
+	// to avoid retrying them repeatedly.
+	IneligibleNodes []string
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,
@@ -11472,8 +11509,9 @@ type PlanResult struct {
 
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 &&
-		len(p.DeploymentUpdates) == 0 && p.Deployment == nil
+	return len(p.IneligibleNodes) == 0 && len(p.NodeUpdate) == 0 &&
+		len(p.NodeAllocation) == 0 && len(p.DeploymentUpdates) == 0 &&
+		p.Deployment == nil
 }
 
 // FullCommit is used to check if all the allocations in a plan

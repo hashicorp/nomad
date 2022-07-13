@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
-import { action } from '@ember/object';
+import { set, action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageForError from '../../../utils/message-from-adapter-error';
 import { inject as service } from '@ember/service';
@@ -9,6 +9,15 @@ export default class VariablesVariableIndexController extends Controller {
   queryParams = ['view'];
 
   @service router;
+  queryParams = ['sortProperty', 'sortDescending'];
+
+  @tracked sortProperty = 'key';
+  @tracked sortDescending = true;
+
+  get sortedKeyValues() {
+    const sorted = this.model.keyValues.sortBy(this.sortProperty);
+    return this.sortDescending ? sorted : sorted.reverse();
+  }
 
   @tracked
   error = null;
@@ -62,7 +71,6 @@ export default class VariablesVariableIndexController extends Controller {
       this.view = 'table';
     }
   }
-
   //#endregion Code View
 
   get shouldShowLinkedEntities() {
@@ -71,5 +79,9 @@ export default class VariablesVariableIndexController extends Controller {
       this.model.pathLinkedEntities?.group ||
       this.model.pathLinkedEntities?.task
     );
+  }
+
+  toggleRowVisibility(kv) {
+    set(kv, 'isVisible', !kv.isVisible);
   }
 }
