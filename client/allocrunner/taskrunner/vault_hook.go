@@ -250,7 +250,7 @@ OUTER:
 							SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err)))
 					return
 				}
-
+				h.logger.Debug("Vault: new Vault token acquired - sending signal")
 				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
 				if err := h.lifecycle.Signal(event, h.vaultStanza.ChangeSignal); err != nil {
 					h.logger.Error("failed to send signal", "error", err)
@@ -262,11 +262,12 @@ OUTER:
 				}
 			case structs.VaultChangeModeRestart:
 				const noFailure = false
+				h.logger.Debug("Vault: new Vault token acquired - restarting")
 				h.lifecycle.Restart(h.ctx,
 					structs.NewTaskEvent(structs.TaskRestartSignal).
 						SetDisplayMessage("Vault: new Vault token acquired"), false)
 			case structs.VaultChangeModeNoop:
-				fallthrough
+				h.logger.Debug("Vault: new Vault token acquired - noop")
 			default:
 				h.logger.Error("invalid Vault change mode", "mode", h.vaultStanza.ChangeMode)
 			}

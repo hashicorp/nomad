@@ -68,6 +68,10 @@ type TaskTemplateManager struct {
 	// shutdown marks whether the manager has been shutdown
 	shutdown     bool
 	shutdownLock sync.Mutex
+
+	// templateErrFatal indicates how the manager should configure the Consul Template Runner's default
+	// TemplateErrFatal, and the per Template ErrFatal field.
+	templateErrFatal bool
 }
 
 // TaskTemplateManagerConfig is used to configure an instance of the
@@ -142,13 +146,19 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 
 	logger := config.ClientConfig.Logger.NamedIntercept("template_runner")
 	tm := &TaskTemplateManager{
-		config:     config,
-		logger:     logger,
-		shutdownCh: make(chan struct{}),
+		config:           config,
+		logger:           logger,
+		shutdownCh:       make(chan struct{}),
+		templateErrFatal: config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeKill,
 	}
 
-	// Parse the signals that we need
+	// Parse the signals and error settings that we need
 	for _, tmpl := range config.Templates {
+		// If not set on the template, default to the client setting.
+		if tmpl.OnError == "" {
+			tmpl.OnError = config.ClientConfig.TemplateConfig.OnError
+		}
+
 		if tmpl.ChangeSignal == "" {
 			continue
 		}
@@ -220,10 +230,8 @@ func (tm *TaskTemplateManager) run() {
 	// Read environment variables from env templates before we unblock
 	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
 	if err != nil {
-		tm.config.Lifecycle.Kill(context.Background(),
-			structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+		err = fmt.Errorf("Template failed to read environment variables: %v", err)
+		tm.killOnError(err)
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -267,19 +275,16 @@ WAIT:
 				continue
 			}
 
-			tm.config.Lifecycle.Kill(context.Background(),
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
+			tm.killOnError(err)
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			events := tm.runner.RenderEvents()
 
 			// Fail fast as soon as an error is detected.
-			for id, event := range events {
+			for _, event := range events {
 				// This is duplicated in here and in the RenderEventCh case because we can't know which will arrive first.
 				if event.Error != nil {
-					tm.onTemplateError(true, id, event.Error)
+					tm.maybeKillOnError(true, event)
 					return
 				}
 			}
@@ -311,12 +316,15 @@ WAIT:
 		case <-tm.runner.RenderEventCh():
 			events := tm.runner.RenderEvents()
 			joinedSet := make(map[string]struct{})
-			for id, event := range events {
+			// Fail fast as soon as an error is detected.
+			for _, event := range events {
 				// This is duplicated in here and in the TemplateRenderedCh case because we can't know which will arrive first.
 				if event.Error != nil {
-					tm.onTemplateError(true, id, event.Error)
+					tm.maybeKillOnError(true, event)
 					return
 				}
+			}
+			for _, event := range events {
 				missing := event.MissingDeps
 				if missing == nil {
 					continue
@@ -373,7 +381,9 @@ WAIT:
 			}
 
 			missingStr := strings.Join(missingSlice, ", ")
-			tm.config.Events.EmitEvent(structs.NewTaskEvent(consulTemplateSourceName).SetDisplayMessage(fmt.Sprintf("Missing: %s", missingStr)))
+			displayMessage := fmt.Sprintf("Missing: %s", missingStr)
+			tm.logger.Debug(displayMessage)
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(consulTemplateSourceName).SetDisplayMessage(displayMessage))
 		}
 	}
 }
@@ -394,12 +404,10 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 			if !ok {
 				continue
 			}
-			errMsg := fmt.Sprintf("Template re-render failed: %v", err)
-			tm.logger.Error(errMsg)
-			tm.config.Lifecycle.Kill(context.Background(),
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
+			err = fmt.Errorf("Template re-render failed: %v", err)
+			// Errors will only be raised on this channel if the template is configured to fail on errors,
+			// so it is safe to kill without config checks.
+			tm.killOnError(err)
 		case <-tm.runner.TemplateRenderedCh():
 			tm.onTemplateRendered(handledRenders, allRenderedTime)
 		}
@@ -415,13 +423,9 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 
 	events := tm.runner.RenderEvents()
 	for id, event := range events {
-
 		// First time through
 		if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
 			handledRenders[id] = allRenderedTime
-			if event.Error != nil {
-				tm.onTemplateError(true, id, event.Error)
-			}
 			continue
 		}
 
@@ -430,23 +434,27 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			continue
 		}
 
+		// It's possible that this fires before the ErrCh, so we defensively check the error config
+		// so that we can fail fast.
+		if event.Error != nil {
+			if tm.maybeKillOnError(false, event) {
+				return
+			}
+		}
+
 		// Lookup the template and determine what to do
 		tmpls, ok := tm.lookup[id]
 		if !ok {
-			tm.config.Lifecycle.Kill(context.Background(),
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
+			err := fmt.Errorf("Template runner returned unknown template id %q", id)
+			tm.killOnError(err)
 			return
 		}
 
 		// Read environment variables from templates
 		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
 		if err != nil {
-			tm.config.Lifecycle.Kill(context.Background(),
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+			err = fmt.Errorf("Template failed to read environment variables: %v", err)
+			tm.killOnError(err)
 			return
 		}
 		tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -488,6 +496,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 
 		if restart {
+			tm.logger.Debug("Template with change_mode restart re-rendered")
 			tm.config.Lifecycle.Restart(context.Background(),
 				structs.NewTaskEvent(structs.TaskRestartSignal).
 					SetDisplayMessage("Template with change_mode restart re-rendered"), false)
@@ -496,6 +505,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			for signal := range signals {
 				s := tm.signals[signal]
 				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
+				tm.logger.Debug(event.DisplayMessage)
 				if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
 					_ = multierror.Append(&mErr, err)
 				}
@@ -507,48 +517,45 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 					flat = append(flat, tm.signals[signal])
 				}
 
-				tm.config.Lifecycle.Kill(context.Background(),
-					structs.NewTaskEvent(structs.TaskKilling).
-						SetFailsTask().
-						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
+				err = fmt.Errorf("Template failed to send signals %v: %v", flat, err)
+				tm.killOnError(err)
 			}
 		}
 	}
 
 }
 
-func (tm *TaskTemplateManager) shouldKillOnError(templateID string) bool {
-	// Check template config first. If even one is set to kill, return true.
-	tmpls := tm.lookup[templateID]
-	for _, tmpl := range tmpls {
-		if tmpl.OnError == structs.TemplateErrorModeKill {
-			return true
-		}
-	}
-
-	return tm.config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeKill
+func (tm *TaskTemplateManager) killOnError(err error) {
+	displayMessage := fmt.Sprintf("Template failed: %v", err)
+	tm.logger.Error(displayMessage)
+	tm.config.Lifecycle.Kill(context.Background(),
+		structs.NewTaskEvent(structs.TaskKilling).
+			SetFailsTask().
+			SetDisplayMessage(displayMessage))
 }
 
-// onTemplateError enforces error handling rules relative based on any on_error setting.
+// maybeKillOnError enforces error handling rules relative based on any on_error setting.
 // If any template is configured to fail on error, then the whole task must be killed.
 // Callers can override this configuration using the forceKill parameter which is useful
 // in scenarios such as the first render.
-func (tm *TaskTemplateManager) onTemplateError(forceKill bool, templateID string, err error) {
-	if err == nil {
-		tm.logger.Error("render error handler raised but event has no error")
+func (tm *TaskTemplateManager) maybeKillOnError(forceKill bool, event *manager.RenderEvent) bool {
+	if event.Error == nil {
+		tm.logger.Debug("render error handler raised but err is nil")
 	}
 
-	displayMessage := fmt.Sprintf("Template failed: %v", err)
+	shouldKill := forceKill || event.Template.ErrFatal()
+	tm.logger.Debug("maybeKillOnError", "force_kill", forceKill, "error", event.Error, "should_kill", shouldKill)
 
-	if forceKill || tm.shouldKillOnError(templateID) {
-		tm.config.Lifecycle.Kill(context.Background(),
-			structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(displayMessage))
+	if shouldKill {
+		tm.killOnError(event.Error)
 	} else {
+		displayMessage := fmt.Sprintf("Template failed: %s", event.Error)
+		tm.logger.Error(displayMessage)
 		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
 			SetDisplayMessage(displayMessage))
 	}
+
+	return shouldKill
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
@@ -705,6 +712,12 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 
 	cc := config.ClientConfig
 	conf := ctconf.DefaultConfig()
+
+	// Set the top level err config to the client level default config.
+	conf.TemplateErrFatal = pointer.Of[bool](true)
+	if config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeIgnore {
+		conf.TemplateErrFatal = pointer.Of[bool](false)
+	}
 
 	// Gather the consul-template templates
 	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(templateMapping)))

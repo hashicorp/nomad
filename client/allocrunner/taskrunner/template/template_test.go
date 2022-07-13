@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/hashicorp/consul-template/manager"
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"io"
 	"io/ioutil"
@@ -21,6 +23,7 @@ import (
 	"time"
 
 	templateconfig "github.com/hashicorp/consul-template/config"
+	ctemplate "github.com/hashicorp/consul-template/template"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -122,6 +125,100 @@ func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 
 func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 
+type MockTemplateRunner struct {
+	manager.Runner
+	ErrCh  chan error
+	DoneCh chan struct{}
+	Env    map[string]string
+
+	templateRenderedCh chan struct{}
+	// templates is the list of calculated templates.
+	templates []*ctemplate.Template
+
+	// renderEvents is a mapping of a template ID to the render event.
+	renderEvents     map[string]*manager.RenderEvent
+	renderEventsLock sync.RWMutex
+
+	// renderedCh is used to signal that a template has been rendered
+	renderedCh chan struct{}
+
+	// renderEventCh is used to signal that there is a new render event. A
+	// render event doesn't necessarily mean that a template has been rendered,
+	// only that templates attempted to render and may have updated their
+	// dependency sets.
+	renderEventCh chan struct{}
+}
+
+func (mr *MockTemplateRunner) eventForTemplate(tmpl *ctemplate.Template) *manager.RenderEvent {
+	return &manager.RenderEvent{
+		Template:        tmpl,
+		TemplateConfigs: []*templateconfig.TemplateConfig{tmpl.Config()},
+	}
+}
+
+func (mr *MockTemplateRunner) Start() {
+	// Set first run events
+	for _, tmpl := range mr.templates {
+		event := mr.eventForTemplate(tmpl)
+		event.DidRender = true
+		event.LastDidRender = time.Now().UTC()
+		mr.emitEvent(event)
+	}
+}
+
+func (mr *MockTemplateRunner) Stop() {
+	close(mr.DoneCh)
+}
+
+func (mr *MockTemplateRunner) TemplateRenderedCh() <-chan struct{} {
+	return mr.renderedCh
+}
+
+func (mr *MockTemplateRunner) RenderEventCh() <-chan struct{} {
+	return mr.renderEventCh
+}
+
+func (mr *MockTemplateRunner) RenderEvents() map[string]*manager.RenderEvent {
+	mr.renderEventsLock.RLock()
+	defer mr.renderEventsLock.RUnlock()
+
+	times := make(map[string]*manager.RenderEvent, len(mr.renderEvents))
+	for k, v := range mr.renderEvents {
+		times[k] = v
+	}
+	return times
+}
+
+func (mr *MockTemplateRunner) TriggerErr(tmpl *ctemplate.Template, err error) {
+	if tmpl.ErrFatal() {
+		mr.ErrCh <- err
+	}
+
+	// Create the event
+	event := mr.eventForTemplate(tmpl)
+	event.Error = err
+
+	mr.emitEvent(event)
+}
+
+func (mr *MockTemplateRunner) emitEvent(event *manager.RenderEvent) {
+	mr.renderEventsLock.Lock()
+	defer mr.renderEventsLock.Unlock()
+	lastEvent := mr.renderEvents[event.Template.ID()]
+	mr.renderEvents[event.Template.ID()] = event
+
+	if lastEvent != nil {
+		event.LastWouldRender = lastEvent.LastWouldRender
+		event.LastDidRender = lastEvent.LastDidRender
+	}
+
+	if event.WouldRender || event.DidRender {
+		mr.renderedCh <- struct{}{}
+	}
+
+	mr.renderEventCh <- struct{}{}
+}
+
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
@@ -152,6 +249,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		config: &config.Config{
 			Node:   mockNode,
 			Region: region,
+			Logger: log.NewInterceptLogger(log.DefaultOptions),
 			TemplateConfig: &config.ClientTemplateConfig{
 				FunctionDenylist: config.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
@@ -2080,7 +2178,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 		},
 		{
-			"on-error-override",
+			"client-on-error",
 			&config.ClientTemplateConfig{
 				MaxStale:           helper.TimeToPtr(5 * time.Second),
 				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
@@ -2128,6 +2226,58 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					Max:     helper.TimeToPtr(11 * time.Second),
 				},
 				ErrFatal: pointer.Of[bool](false),
+			},
+		},
+		{
+			"template-on-error-override",
+			&config.ClientTemplateConfig{
+				MaxStale:           helper.TimeToPtr(5 * time.Second),
+				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+				Wait:               waitConfig.Copy(),
+				WaitBounds: &config.WaitConfig{
+					Min: helper.TimeToPtr(3 * time.Second),
+					Max: helper.TimeToPtr(11 * time.Second),
+				},
+				ConsulRetry: retryConfig.Copy(),
+				VaultRetry:  retryConfig.Copy(),
+				OnError:     structs.TemplateErrorModeIgnore,
+			},
+			&TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				VaultToken:   "token",
+				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
+				Templates: []*structs.Template{
+					{
+						Wait: &structs.WaitConfig{
+							Min: helper.TimeToPtr(2 * time.Second),
+							Max: helper.TimeToPtr(12 * time.Second),
+						},
+						// OnError: By not setting OnError, it currently defaults to kill and overrides the client setting.
+						OnError: "",
+					},
+				},
+			},
+			&config.Config{
+				TemplateConfig: &config.ClientTemplateConfig{
+					MaxStale:           helper.TimeToPtr(5 * time.Second),
+					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+					Wait:               waitConfig.Copy(),
+					WaitBounds: &config.WaitConfig{
+						Min: helper.TimeToPtr(3 * time.Second),
+						Max: helper.TimeToPtr(11 * time.Second),
+					},
+					ConsulRetry: retryConfig.Copy(),
+					VaultRetry:  retryConfig.Copy(),
+					OnError:     structs.TemplateErrorModeKill,
+				},
+			},
+			&templateconfig.TemplateConfig{
+				Wait: &templateconfig.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(3 * time.Second),
+					Max:     helper.TimeToPtr(11 * time.Second),
+				},
+				ErrFatal: pointer.Of[bool](true),
 			},
 		},
 	}
@@ -2207,10 +2357,10 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	}
 }
 
-// TestTaskTemplateManager_Template_OnRenderError_Set asserts that the template level
+// TestTaskTemplateManager_Template_OnError_Set asserts that the template level
 // error mode configuration is accurately mapped from the template to the TaskTemplateManager's
 // template config.
-func TestTaskTemplateManager_Template_OnRenderError_Set(t *testing.T) {
+func TestTaskTemplateManager_Template_OnError_Set(t *testing.T) {
 	ci.Parallel(t)
 
 	c := config.DefaultConfig()
@@ -2332,4 +2482,210 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	r, err = ioutil.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "hello", string(r))
+}
+
+func TestTaskTemplateManager_ErrorMode_Handling(t *testing.T) {
+	ci.Parallel(t)
+
+	type caseResult struct {
+		template   *structs.Template
+		shouldKill bool
+	}
+
+	tmplGenerator := func(id, errMode string, shouldKill bool) caseResult {
+		// Make a template that will render based on a key in Vault
+		vaultPath := "secret/data/password"
+		file := "my.tmpl"
+		return caseResult{
+			&structs.Template{
+				EmbeddedTmpl: fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, "password"),
+				DestPath:     file,
+				ChangeMode:   structs.TemplateChangeModeNoop,
+				OnError:      errMode,
+			},
+			shouldKill,
+		}
+	}
+
+	gatherTemplates := func(results []caseResult) []*structs.Template {
+		var tmpls []*structs.Template
+		for _, result := range results {
+			tmpls = append(tmpls, result.template)
+		}
+
+		return tmpls
+	}
+
+	defaultErr := fmt.Errorf("template-error")
+
+	cases := []struct {
+		name            string
+		clientOnError   string
+		expectedResults []caseResult
+		expectedErr     error
+	}{
+		{
+			name:            "client-set-to-kill-template-not-set",
+			clientOnError:   structs.TemplateErrorModeKill,
+			expectedResults: []caseResult{tmplGenerator(uuid.Short(), "", true)},
+			expectedErr:     defaultErr,
+		},
+		{
+			name:            "client-set-to-noop-template-not-set",
+			clientOnError:   structs.TemplateErrorModeIgnore,
+			expectedResults: []caseResult{tmplGenerator(uuid.Short(), "", false)},
+			expectedErr:     defaultErr,
+		},
+		{
+			name:            "client-set-to-noop-template-set-to-kill",
+			clientOnError:   structs.TemplateErrorModeIgnore,
+			expectedResults: []caseResult{tmplGenerator(uuid.Short(), structs.TemplateErrorModeKill, true)},
+			expectedErr:     defaultErr,
+		},
+		{
+			name:            "client-set-to-kill-template-set-to-noop",
+			clientOnError:   structs.TemplateErrorModeKill,
+			expectedResults: []caseResult{tmplGenerator(uuid.Short(), structs.TemplateErrorModeIgnore, false)},
+			expectedErr:     defaultErr,
+		},
+		{
+			name:          "client-set-to-noop-multi-template-one-set-to-kill",
+			clientOnError: structs.TemplateErrorModeIgnore,
+			expectedResults: []caseResult{
+				tmplGenerator(uuid.Short(), structs.TemplateErrorModeIgnore, false),
+				tmplGenerator(uuid.Short(), structs.TemplateErrorModeKill, true),
+			},
+			expectedErr: defaultErr,
+		},
+		{
+			name:          "client-set-to-kill-multi-template-all-set-to-noop",
+			clientOnError: structs.TemplateErrorModeKill,
+			expectedResults: []caseResult{
+				tmplGenerator(uuid.Short(), structs.TemplateChangeModeNoop, false),
+				tmplGenerator(uuid.Short(), structs.TemplateChangeModeNoop, false),
+			},
+			expectedErr: defaultErr,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			harness := newTestHarness(t, gatherTemplates(tc.expectedResults), false, true)
+			harness.config.TemplateConfig.OnError = tc.clientOnError
+			harness.manager.runner = &MockTemplateRunner{
+				templates: gatherTemplates(tc.expectedResults),
+			}
+			harness.start(t)
+			defer harness.stop()
+
+			if tc.clientOnError == structs.TemplateErrorModeKill {
+				require.True(t, harness.manager.templateErrFatal)
+			} else {
+				require.False(t, harness.manager.templateErrFatal)
+			}
+
+			for _, result := range tc.expectedResults {
+				for _, ctTmpls := range harness.manager.runner.TemplateConfigMapping() {
+					for _, ctTmpl := range ctTmpls {
+						// All config should be set
+						require.NotNil(t, ctTmpl.ErrFatal)
+						if *ctTmpl.Destination != result.template.DestPath {
+							continue
+						}
+						if result.template.OnError == structs.TemplateErrorModeKill {
+							require.True(t, *ctTmpl.ErrFatal)
+						} else {
+							require.False(t, *ctTmpl.ErrFatal)
+						}
+					}
+				}
+			}
+
+			// Ensure no unblock
+			select {
+			case <-harness.mockHooks.UnblockCh:
+				require.Fail(t, "Task unblock should not have been called")
+			case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+			}
+
+			// Write the secret to Vault
+			logical := harness.vault.Client.Logical()
+			_, err := logical.Write("secret/data/password", map[string]interface{}{"data": map[string]interface{}{"password": tc.name}})
+			require.NoError(t, err)
+
+			// Wait for unblock
+			select {
+			case <-harness.mockHooks.UnblockCh:
+			case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+				require.Fail(t, "Task unblock should have been called")
+			}
+
+			// Check the file is there
+			path := filepath.Join(harness.taskDir, "my.tmpl")
+			raw, err := ioutil.ReadFile(path)
+			require.NoError(t, err, fmt.Sprintf("Failed to read rendered template from %q: %v", path, err))
+			require.Equal(t, string(raw), tc.name, "Unexpected template data; got %q, want %q", tc.name, string(raw))
+
+			// Force an error from the runner.
+			harness.vault.Stop()
+			// Set to nil so deferred cleanup doesn't error
+			harness.vault = nil
+
+			// Wait for restart
+			//	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+			//OUTER:
+			//	for {
+			//		select {
+			//		case <-harness.mockHooks.RestartCh:
+			//			break OUTER
+			//		case <-harness.mockHooks.SignalCh:
+			//			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+			//		case <-timeout:
+			//			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+			//		}
+			//	}
+
+			for _, result := range tc.expectedResults {
+				if result.shouldKill {
+					require.False(t, harness.mockHooks.IsRunning(), "expected task to be killed")
+					//select {
+					//case err = <-harness.manager.runner.ErrCh:
+					//	require.Error(t, err)
+					//case <-time.After(20 * time.Second):
+					//	require.Fail(t, "should have received error on err channel")
+					//}
+				} else {
+					require.True(t, harness.mockHooks.IsRunning(), "expected task to be running")
+					//select {
+					//case err = <-harness.manager.runner.ErrCh:
+					//	require.Fail(t, fmt.Sprintf("expected no error and got %s", err))
+					//case <-harness.manager.runner.TemplateRenderedCh():
+					//	events := harness.manager.runner.RenderEvents()
+					//	foundErr := false
+					//	for _, event := range events {
+					//		if event.Error != nil {
+					//			foundErr = true
+					//		}
+					//	}
+					//	require.True(t, foundErr, "expected to find error in event")
+					//case <-harness.manager.runner.RenderEventCh():
+					//	events := harness.manager.runner.RenderEvents()
+					//	foundErr := false
+					//	for _, event := range events {
+					//		if event.Error != nil {
+					//			foundErr = true
+					//		}
+					//	}
+					//	require.True(t, foundErr, "expected to find error in event")
+					//case <-time.After(20 * time.Second):
+					//	require.Fail(t, "should have received error on one of the events channels")
+					//}
+				}
+			}
+
+			// TODO (derek): Find a way to test that events were emitted
+
+		})
+	}
 }

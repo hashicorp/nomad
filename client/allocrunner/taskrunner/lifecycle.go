@@ -9,7 +9,7 @@ import (
 // Restart a task. Returns immediately if no task is running. Blocks until
 // existing task exits or passed-in context is canceled.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	tr.logger.Trace("Restart requested", "failure", failure)
+	tr.logger.Trace("Restart requested", "failure", failure, "reason", event.DisplayMessage)
 
 	// Grab the handle
 	handle := tr.getDriverHandle()

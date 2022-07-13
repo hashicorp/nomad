@@ -4,6 +4,7 @@ client {
   template {
     max_stale        = "300s"
     block_query_wait = "90s"
+    on_error         = "ignore"
 
     wait {
       min = "2s"
