@@ -70,7 +70,7 @@
           </LinkTo>
         </li>
         {{#if (can "list variables")}}
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "v") }}>
           <LinkTo
             @route="variables"
             @activeClass="is-active"
