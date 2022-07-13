@@ -1,3 +1,21 @@
+## 1.1.15 (July 13, 2022)
+
+BUG FIXES:
+
+* api: Fixed a bug where Consul token was not respected for job revert API [[GH-13065](https://github.com/hashicorp/nomad/issues/13065)]
+* cli: Fixed a bug in the names of the `node drain` and `node status` sub-commands [[GH-13656](https://github.com/hashicorp/nomad/issues/13656)]
+* client: Fixed a bug where max_kill_timeout client config was ignored [[GH-13626](https://github.com/hashicorp/nomad/issues/13626)]
+* cni: Fixed a bug where loopback address was not set for all drivers [[GH-13428](https://github.com/hashicorp/nomad/issues/13428)]
+* core: Fixed a bug where an evicted batch job would not be rescheduled [[GH-13205](https://github.com/hashicorp/nomad/issues/13205)]
+* core: Fixed a bug where reserved ports on multiple node networks would be treated as a collision. `client.reserved.reserved_ports` is now merged into each `host_network`'s reserved ports instead of being treated as a collision. [[GH-13651](https://github.com/hashicorp/nomad/issues/13651)]
+* core: Fixed a bug where the plan applier could deadlock if leader's state lagged behind plan's creation index for more than 5 seconds. [[GH-13407](https://github.com/hashicorp/nomad/issues/13407)]
+* csi: Fixed a regression where a timeout was introduced that prevented some plugins from running by marking them as unhealthy after 30s by introducing a configurable `health_timeout` field [[GH-13340](https://github.com/hashicorp/nomad/issues/13340)]
+* csi: Fixed a scheduler bug where failed feasibility checks would return early and prevent processing additional nodes [[GH-13274](https://github.com/hashicorp/nomad/issues/13274)]
+* lifecycle: fixed a bug where sidecar tasks were not being stopped last [[GH-13055](https://github.com/hashicorp/nomad/issues/13055)]
+* ui: Allow running jobs from a namespace-limited token [[GH-13659](https://github.com/hashicorp/nomad/issues/13659)]
+* ui: Fixed a bug that prevented the UI task exec functionality to work from behind a reverse proxy. [[GH-12925](https://github.com/hashicorp/nomad/issues/12925)]
+* volumes: Fixed a bug where additions, updates, or removals of host volumes or CSI volumes were not treated as destructive updates [[GH-13008](https://github.com/hashicorp/nomad/issues/13008)]
+
 ## 1.1.14 (May 19, 2022)
 
 SECURITY:
