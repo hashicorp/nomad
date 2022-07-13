@@ -761,62 +761,104 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
+
+	// Create dev namespace
+	devNS := mock.Namespace()
+	devNS.Name = "dev"
+	err := s1.fsm.State().UpsertNamespaces(999, []*structs.Namespace{devNS})
+	require.NoError(t, err)
 
 	// Create the register request
 	eval1 := mock.Eval()
 	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	eval2 := mock.Eval()
 	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
+	eval3 := mock.Eval()
+	eval3.ID = "aaaacccc-3350-4b4b-d185-0e1992ed43e9"
+	eval3.Namespace = devNS.Name
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2}))
+	err = state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2, eval3})
+	require.NoError(t, err)
 
 	// Create ACL tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	devToken := mock.CreatePolicyAndToken(t, state, 1005, "test-dev",
+		mock.NamespacePolicy("dev", "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get := &structs.EvalListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: structs.DefaultNamespace,
+	testCases := []struct {
+		name          string
+		namespace     string
+		token         string
+		expectedEvals []string
+		expectedError string
+	}{
+		{
+			name:          "no token",
+			token:         "",
+			namespace:     structs.DefaultNamespace,
+			expectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "invalid token",
+			token:         invalidToken.SecretID,
+			namespace:     structs.DefaultNamespace,
+			expectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "valid token",
+			token:         validToken.SecretID,
+			namespace:     structs.DefaultNamespace,
+			expectedEvals: []string{eval1.ID, eval2.ID},
+		},
+		{
+			name:          "root token default namespace",
+			token:         root.SecretID,
+			namespace:     structs.DefaultNamespace,
+			expectedEvals: []string{eval1.ID, eval2.ID},
+		},
+		{
+			name:          "root token all namespaces",
+			token:         root.SecretID,
+			namespace:     structs.AllNamespacesSentinel,
+			expectedEvals: []string{eval1.ID, eval2.ID, eval3.ID},
+		},
+		{
+			name:          "dev token all namespaces",
+			token:         devToken.SecretID,
+			namespace:     structs.AllNamespacesSentinel,
+			expectedEvals: []string{eval3.ID},
 		},
 	}
 
-	// Try without a token and expect permission denied
-	{
-		var resp structs.EvalListResponse
-		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		assert.NotNil(err)
-		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			get := &structs.EvalListRequest{
+				QueryOptions: structs.QueryOptions{
+					AuthToken: tc.token,
+					Region:    "global",
+					Namespace: tc.namespace,
+				},
+			}
 
-	// Try with an invalid token and expect permission denied
-	{
-		get.AuthToken = invalidToken.SecretID
-		var resp structs.EvalListResponse
-		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		assert.NotNil(err)
-		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
-	}
+			var resp structs.EvalListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
 
-	// List evals with a valid token
-	{
-		get.AuthToken = validToken.SecretID
-		var resp structs.EvalListResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
-		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
-		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
-	}
+			if tc.expectedError != "" {
+				require.Contains(t, err.Error(), tc.expectedError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
 
-	// List evals with a root token
-	{
-		get.AuthToken = root.SecretID
-		var resp structs.EvalListResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
-		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
-		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
+				got := make([]string, len(resp.Evaluations))
+				for i, eval := range resp.Evaluations {
+					got[i] = eval.ID
+				}
+				require.ElementsMatch(t, got, tc.expectedEvals)
+			}
+		})
 	}
 }
 
