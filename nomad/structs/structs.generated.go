@@ -866,9 +866,9 @@ func (x *TaskCSIPluginConfig) CodecEncodeSelf(e *codec1978.Encoder) {
 			_, _ = yysep2, yy2arr2
 			const yyr2 bool = false // struct tag has 'toArray'
 			if yyr2 || yy2arr2 {
-				r.WriteArrayStart(3)
+				r.WriteArrayStart(4)
 			} else {
-				r.WriteMapStart(3)
+				r.WriteMapStart(4)
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
@@ -935,6 +935,29 @@ func (x *TaskCSIPluginConfig) CodecEncodeSelf(e *codec1978.Encoder) {
 					} else {
 						r.EncodeStringEnc(codecSelferCcUTF8100, string(x.MountDir))
 					}
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else if yyxt13 := z.Extension(z.I2Rtid(x.HealthTimeout)); yyxt13 != nil {
+					z.EncExtension(x.HealthTimeout, yyxt13)
+				} else {
+					r.EncodeInt(int64(x.HealthTimeout))
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"HealthTimeout\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `HealthTimeout`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else if yyxt14 := z.Extension(z.I2Rtid(x.HealthTimeout)); yyxt14 != nil {
+					z.EncExtension(x.HealthTimeout, yyxt14)
+				} else {
+					r.EncodeInt(int64(x.HealthTimeout))
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -1012,6 +1035,17 @@ func (x *TaskCSIPluginConfig) codecDecodeSelfFromMap(l int, d *codec1978.Decoder
 			} else {
 				x.MountDir = (string)(r.DecodeString())
 			}
+		case "HealthTimeout":
+			if r.TryDecodeAsNil() {
+				x.HealthTimeout = 0
+			} else {
+				if false {
+				} else if yyxt8 := z.Extension(z.I2Rtid(x.HealthTimeout)); yyxt8 != nil {
+					z.DecExtension(x.HealthTimeout, yyxt8)
+				} else {
+					x.HealthTimeout = (time.Duration)(r.DecodeInt64())
+				}
+			}
 		default:
 			z.DecStructFieldNotFound(-1, yys3)
 		} // end switch yys3
@@ -1023,16 +1057,16 @@ func (x *TaskCSIPluginConfig) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	var h codecSelfer100
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj7 int
-	var yyb7 bool
-	var yyhl7 bool = l >= 0
-	yyj7++
-	if yyhl7 {
-		yyb7 = yyj7 > l
+	var yyj9 int
+	var yyb9 bool
+	var yyhl9 bool = l >= 0
+	yyj9++
+	if yyhl9 {
+		yyb9 = yyj9 > l
 	} else {
-		yyb7 = r.CheckBreak()
+		yyb9 = r.CheckBreak()
 	}
-	if yyb7 {
+	if yyb9 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -1042,13 +1076,13 @@ func (x *TaskCSIPluginConfig) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	} else {
 		x.ID = (string)(r.DecodeString())
 	}
-	yyj7++
-	if yyhl7 {
-		yyb7 = yyj7 > l
+	yyj9++
+	if yyhl9 {
+		yyb9 = yyj9 > l
 	} else {
-		yyb7 = r.CheckBreak()
+		yyb9 = r.CheckBreak()
 	}
-	if yyb7 {
+	if yyb9 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -1058,13 +1092,13 @@ func (x *TaskCSIPluginConfig) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	} else {
 		x.Type.CodecDecodeSelf(d)
 	}
-	yyj7++
-	if yyhl7 {
-		yyb7 = yyj7 > l
+	yyj9++
+	if yyhl9 {
+		yyb9 = yyj9 > l
 	} else {
-		yyb7 = r.CheckBreak()
+		yyb9 = r.CheckBreak()
 	}
-	if yyb7 {
+	if yyb9 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -1074,18 +1108,39 @@ func (x *TaskCSIPluginConfig) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	} else {
 		x.MountDir = (string)(r.DecodeString())
 	}
-	for {
-		yyj7++
-		if yyhl7 {
-			yyb7 = yyj7 > l
+	yyj9++
+	if yyhl9 {
+		yyb9 = yyj9 > l
+	} else {
+		yyb9 = r.CheckBreak()
+	}
+	if yyb9 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.HealthTimeout = 0
+	} else {
+		if false {
+		} else if yyxt14 := z.Extension(z.I2Rtid(x.HealthTimeout)); yyxt14 != nil {
+			z.DecExtension(x.HealthTimeout, yyxt14)
 		} else {
-			yyb7 = r.CheckBreak()
+			x.HealthTimeout = (time.Duration)(r.DecodeInt64())
 		}
-		if yyb7 {
+	}
+	for {
+		yyj9++
+		if yyhl9 {
+			yyb9 = yyj9 > l
+		} else {
+			yyb9 = r.CheckBreak()
+		}
+		if yyb9 {
 			break
 		}
 		r.ReadArrayElem()
-		z.DecStructFieldNotFound(yyj7-1, "")
+		z.DecStructFieldNotFound(yyj9-1, "")
 	}
 	r.ReadArrayEnd()
 }
@@ -25244,115 +25299,88 @@ func (x *NetworkIndex) CodecEncodeSelf(e *codec1978.Encoder) {
 			_, _ = yysep2, yy2arr2
 			const yyr2 bool = false // struct tag has 'toArray'
 			if yyr2 || yy2arr2 {
-				r.WriteArrayStart(6)
+				r.WriteArrayStart(8)
 			} else {
-				r.WriteMapStart(6)
+				r.WriteMapStart(8)
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
-				if x.AvailNetworks == nil {
+				if x.TaskNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encSlicePtrtoNetworkResource(([]*NetworkResource)(x.AvailNetworks), e)
+						h.encSlicePtrtoNetworkResource(([]*NetworkResource)(x.TaskNetworks), e)
 					}
 				}
 			} else {
 				r.WriteMapElemKey()
 				if z.IsJSONHandle() {
-					z.WriteStr("\"AvailNetworks\"")
+					z.WriteStr("\"TaskNetworks\"")
 				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `AvailNetworks`)
+					r.EncodeStringEnc(codecSelferCcUTF8100, `TaskNetworks`)
 				}
 				r.WriteMapElemValue()
-				if x.AvailNetworks == nil {
+				if x.TaskNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encSlicePtrtoNetworkResource(([]*NetworkResource)(x.AvailNetworks), e)
+						h.encSlicePtrtoNetworkResource(([]*NetworkResource)(x.TaskNetworks), e)
 					}
 				}
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
-				if x.NodeNetworks == nil {
+				if x.GroupNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encSlicePtrtoNodeNetworkResource(([]*NodeNetworkResource)(x.NodeNetworks), e)
+						h.encSlicePtrtoNodeNetworkResource(([]*NodeNetworkResource)(x.GroupNetworks), e)
 					}
 				}
 			} else {
 				r.WriteMapElemKey()
 				if z.IsJSONHandle() {
-					z.WriteStr("\"NodeNetworks\"")
+					z.WriteStr("\"GroupNetworks\"")
 				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `NodeNetworks`)
+					r.EncodeStringEnc(codecSelferCcUTF8100, `GroupNetworks`)
 				}
 				r.WriteMapElemValue()
-				if x.NodeNetworks == nil {
+				if x.GroupNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encSlicePtrtoNodeNetworkResource(([]*NodeNetworkResource)(x.NodeNetworks), e)
+						h.encSlicePtrtoNodeNetworkResource(([]*NodeNetworkResource)(x.GroupNetworks), e)
 					}
 				}
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
-				if x.AvailAddresses == nil {
+				if x.HostNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encMapstringSliceNodeNetworkAddress((map[string][]NodeNetworkAddress)(x.AvailAddresses), e)
+						h.encMapstringSliceNodeNetworkAddress((map[string][]NodeNetworkAddress)(x.HostNetworks), e)
 					}
 				}
 			} else {
 				r.WriteMapElemKey()
 				if z.IsJSONHandle() {
-					z.WriteStr("\"AvailAddresses\"")
+					z.WriteStr("\"HostNetworks\"")
 				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `AvailAddresses`)
+					r.EncodeStringEnc(codecSelferCcUTF8100, `HostNetworks`)
 				}
 				r.WriteMapElemValue()
-				if x.AvailAddresses == nil {
+				if x.HostNetworks == nil {
 					r.EncodeNil()
 				} else {
 					if false {
 					} else {
-						h.encMapstringSliceNodeNetworkAddress((map[string][]NodeNetworkAddress)(x.AvailAddresses), e)
-					}
-				}
-			}
-			if yyr2 || yy2arr2 {
-				r.WriteArrayElem()
-				if x.AvailBandwidth == nil {
-					r.EncodeNil()
-				} else {
-					if false {
-					} else {
-						z.F.EncMapStringIntV(x.AvailBandwidth, e)
-					}
-				}
-			} else {
-				r.WriteMapElemKey()
-				if z.IsJSONHandle() {
-					z.WriteStr("\"AvailBandwidth\"")
-				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `AvailBandwidth`)
-				}
-				r.WriteMapElemValue()
-				if x.AvailBandwidth == nil {
-					r.EncodeNil()
-				} else {
-					if false {
-					} else {
-						z.F.EncMapStringIntV(x.AvailBandwidth, e)
+						h.encMapstringSliceNodeNetworkAddress((map[string][]NodeNetworkAddress)(x.HostNetworks), e)
 					}
 				}
 			}
@@ -25385,6 +25413,33 @@ func (x *NetworkIndex) CodecEncodeSelf(e *codec1978.Encoder) {
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
+				if x.AvailBandwidth == nil {
+					r.EncodeNil()
+				} else {
+					if false {
+					} else {
+						z.F.EncMapStringIntV(x.AvailBandwidth, e)
+					}
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"AvailBandwidth\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `AvailBandwidth`)
+				}
+				r.WriteMapElemValue()
+				if x.AvailBandwidth == nil {
+					r.EncodeNil()
+				} else {
+					if false {
+					} else {
+						z.F.EncMapStringIntV(x.AvailBandwidth, e)
+					}
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
 				if x.UsedBandwidth == nil {
 					r.EncodeNil()
 				} else {
@@ -25408,6 +25463,44 @@ func (x *NetworkIndex) CodecEncodeSelf(e *codec1978.Encoder) {
 					} else {
 						z.F.EncMapStringIntV(x.UsedBandwidth, e)
 					}
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MinDynamicPort))
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"MinDynamicPort\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `MinDynamicPort`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MinDynamicPort))
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MaxDynamicPort))
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"MaxDynamicPort\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `MaxDynamicPort`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MaxDynamicPort))
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -25467,40 +25560,31 @@ func (x *NetworkIndex) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 		yys3 := z.StringView(r.DecodeStringAsBytes())
 		r.ReadMapElemValue()
 		switch yys3 {
-		case "AvailNetworks":
+		case "TaskNetworks":
 			if r.TryDecodeAsNil() {
-				x.AvailNetworks = nil
+				x.TaskNetworks = nil
 			} else {
 				if false {
 				} else {
-					h.decSlicePtrtoNetworkResource((*[]*NetworkResource)(&x.AvailNetworks), d)
+					h.decSlicePtrtoNetworkResource((*[]*NetworkResource)(&x.TaskNetworks), d)
 				}
 			}
-		case "NodeNetworks":
+		case "GroupNetworks":
 			if r.TryDecodeAsNil() {
-				x.NodeNetworks = nil
+				x.GroupNetworks = nil
 			} else {
 				if false {
 				} else {
-					h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.NodeNetworks), d)
+					h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.GroupNetworks), d)
 				}
 			}
-		case "AvailAddresses":
+		case "HostNetworks":
 			if r.TryDecodeAsNil() {
-				x.AvailAddresses = nil
+				x.HostNetworks = nil
 			} else {
 				if false {
 				} else {
-					h.decMapstringSliceNodeNetworkAddress((*map[string][]NodeNetworkAddress)(&x.AvailAddresses), d)
-				}
-			}
-		case "AvailBandwidth":
-			if r.TryDecodeAsNil() {
-				x.AvailBandwidth = nil
-			} else {
-				if false {
-				} else {
-					z.F.DecMapStringIntX(&x.AvailBandwidth, d)
+					h.decMapstringSliceNodeNetworkAddress((*map[string][]NodeNetworkAddress)(&x.HostNetworks), d)
 				}
 			}
 		case "UsedPorts":
@@ -25512,6 +25596,15 @@ func (x *NetworkIndex) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 					h.decMapstringBitmap((*map[string]Bitmap)(&x.UsedPorts), d)
 				}
 			}
+		case "AvailBandwidth":
+			if r.TryDecodeAsNil() {
+				x.AvailBandwidth = nil
+			} else {
+				if false {
+				} else {
+					z.F.DecMapStringIntX(&x.AvailBandwidth, d)
+				}
+			}
 		case "UsedBandwidth":
 			if r.TryDecodeAsNil() {
 				x.UsedBandwidth = nil
@@ -25520,6 +25613,18 @@ func (x *NetworkIndex) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 				} else {
 					z.F.DecMapStringIntX(&x.UsedBandwidth, d)
 				}
+			}
+		case "MinDynamicPort":
+			if r.TryDecodeAsNil() {
+				x.MinDynamicPort = 0
+			} else {
+				x.MinDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+			}
+		case "MaxDynamicPort":
+			if r.TryDecodeAsNil() {
+				x.MaxDynamicPort = 0
+			} else {
+				x.MaxDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
 			}
 		default:
 			z.DecStructFieldNotFound(-1, yys3)
@@ -25532,92 +25637,73 @@ func (x *NetworkIndex) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	var h codecSelfer100
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj16 int
-	var yyb16 bool
-	var yyhl16 bool = l >= 0
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
+	var yyj18 int
+	var yyb18 bool
+	var yyhl18 bool = l >= 0
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
 	} else {
-		yyb16 = r.CheckBreak()
+		yyb18 = r.CheckBreak()
 	}
-	if yyb16 {
+	if yyb18 {
 		r.ReadArrayEnd()
 		return
 	}
 	r.ReadArrayElem()
 	if r.TryDecodeAsNil() {
-		x.AvailNetworks = nil
+		x.TaskNetworks = nil
 	} else {
 		if false {
 		} else {
-			h.decSlicePtrtoNetworkResource((*[]*NetworkResource)(&x.AvailNetworks), d)
+			h.decSlicePtrtoNetworkResource((*[]*NetworkResource)(&x.TaskNetworks), d)
 		}
 	}
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
 	} else {
-		yyb16 = r.CheckBreak()
+		yyb18 = r.CheckBreak()
 	}
-	if yyb16 {
+	if yyb18 {
 		r.ReadArrayEnd()
 		return
 	}
 	r.ReadArrayElem()
 	if r.TryDecodeAsNil() {
-		x.NodeNetworks = nil
+		x.GroupNetworks = nil
 	} else {
 		if false {
 		} else {
-			h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.NodeNetworks), d)
+			h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.GroupNetworks), d)
 		}
 	}
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
 	} else {
-		yyb16 = r.CheckBreak()
+		yyb18 = r.CheckBreak()
 	}
-	if yyb16 {
+	if yyb18 {
 		r.ReadArrayEnd()
 		return
 	}
 	r.ReadArrayElem()
 	if r.TryDecodeAsNil() {
-		x.AvailAddresses = nil
+		x.HostNetworks = nil
 	} else {
 		if false {
 		} else {
-			h.decMapstringSliceNodeNetworkAddress((*map[string][]NodeNetworkAddress)(&x.AvailAddresses), d)
+			h.decMapstringSliceNodeNetworkAddress((*map[string][]NodeNetworkAddress)(&x.HostNetworks), d)
 		}
 	}
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
 	} else {
-		yyb16 = r.CheckBreak()
+		yyb18 = r.CheckBreak()
 	}
-	if yyb16 {
-		r.ReadArrayEnd()
-		return
-	}
-	r.ReadArrayElem()
-	if r.TryDecodeAsNil() {
-		x.AvailBandwidth = nil
-	} else {
-		if false {
-		} else {
-			z.F.DecMapStringIntX(&x.AvailBandwidth, d)
-		}
-	}
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
-	} else {
-		yyb16 = r.CheckBreak()
-	}
-	if yyb16 {
+	if yyb18 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -25630,13 +25716,32 @@ func (x *NetworkIndex) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 			h.decMapstringBitmap((*map[string]Bitmap)(&x.UsedPorts), d)
 		}
 	}
-	yyj16++
-	if yyhl16 {
-		yyb16 = yyj16 > l
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
 	} else {
-		yyb16 = r.CheckBreak()
+		yyb18 = r.CheckBreak()
 	}
-	if yyb16 {
+	if yyb18 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.AvailBandwidth = nil
+	} else {
+		if false {
+		} else {
+			z.F.DecMapStringIntX(&x.AvailBandwidth, d)
+		}
+	}
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
+	} else {
+		yyb18 = r.CheckBreak()
+	}
+	if yyb18 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -25649,18 +25754,50 @@ func (x *NetworkIndex) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 			z.F.DecMapStringIntX(&x.UsedBandwidth, d)
 		}
 	}
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
+	} else {
+		yyb18 = r.CheckBreak()
+	}
+	if yyb18 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.MinDynamicPort = 0
+	} else {
+		x.MinDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+	}
+	yyj18++
+	if yyhl18 {
+		yyb18 = yyj18 > l
+	} else {
+		yyb18 = r.CheckBreak()
+	}
+	if yyb18 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.MaxDynamicPort = 0
+	} else {
+		x.MaxDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+	}
 	for {
-		yyj16++
-		if yyhl16 {
-			yyb16 = yyj16 > l
+		yyj18++
+		if yyhl18 {
+			yyb18 = yyj18 > l
 		} else {
-			yyb16 = r.CheckBreak()
+			yyb18 = r.CheckBreak()
 		}
-		if yyb16 {
+		if yyb18 {
 			break
 		}
 		r.ReadArrayElem()
-		z.DecStructFieldNotFound(yyj16-1, "")
+		z.DecStructFieldNotFound(yyj18-1, "")
 	}
 	r.ReadArrayEnd()
 }
@@ -105740,9 +105877,9 @@ func (x *NodeResources) CodecEncodeSelf(e *codec1978.Encoder) {
 			_, _ = yysep2, yy2arr2
 			const yyr2 bool = false // struct tag has 'toArray'
 			if yyr2 || yy2arr2 {
-				r.WriteArrayStart(6)
+				r.WriteArrayStart(8)
 			} else {
-				r.WriteMapStart(6)
+				r.WriteMapStart(8)
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
@@ -105791,23 +105928,29 @@ func (x *NodeResources) CodecEncodeSelf(e *codec1978.Encoder) {
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
-				if x.Networks == nil {
+				if x.Devices == nil {
 					r.EncodeNil()
 				} else {
-					x.Networks.CodecEncodeSelf(e)
+					if false {
+					} else {
+						h.encSlicePtrtoNodeDeviceResource(([]*NodeDeviceResource)(x.Devices), e)
+					}
 				}
 			} else {
 				r.WriteMapElemKey()
 				if z.IsJSONHandle() {
-					z.WriteStr("\"Networks\"")
+					z.WriteStr("\"Devices\"")
 				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `Networks`)
+					r.EncodeStringEnc(codecSelferCcUTF8100, `Devices`)
 				}
 				r.WriteMapElemValue()
-				if x.Networks == nil {
+				if x.Devices == nil {
 					r.EncodeNil()
 				} else {
-					x.Networks.CodecEncodeSelf(e)
+					if false {
+					} else {
+						h.encSlicePtrtoNodeDeviceResource(([]*NodeDeviceResource)(x.Devices), e)
+					}
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -105839,29 +105982,61 @@ func (x *NodeResources) CodecEncodeSelf(e *codec1978.Encoder) {
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
-				if x.Devices == nil {
+				if x.Networks == nil {
 					r.EncodeNil()
 				} else {
-					if false {
-					} else {
-						h.encSlicePtrtoNodeDeviceResource(([]*NodeDeviceResource)(x.Devices), e)
-					}
+					x.Networks.CodecEncodeSelf(e)
 				}
 			} else {
 				r.WriteMapElemKey()
 				if z.IsJSONHandle() {
-					z.WriteStr("\"Devices\"")
+					z.WriteStr("\"Networks\"")
 				} else {
-					r.EncodeStringEnc(codecSelferCcUTF8100, `Devices`)
+					r.EncodeStringEnc(codecSelferCcUTF8100, `Networks`)
 				}
 				r.WriteMapElemValue()
-				if x.Devices == nil {
+				if x.Networks == nil {
 					r.EncodeNil()
 				} else {
-					if false {
-					} else {
-						h.encSlicePtrtoNodeDeviceResource(([]*NodeDeviceResource)(x.Devices), e)
-					}
+					x.Networks.CodecEncodeSelf(e)
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MinDynamicPort))
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"MinDynamicPort\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `MinDynamicPort`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MinDynamicPort))
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MaxDynamicPort))
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"MaxDynamicPort\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `MaxDynamicPort`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else {
+					r.EncodeInt(int64(x.MaxDynamicPort))
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -105939,11 +106114,14 @@ func (x *NodeResources) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 			} else {
 				x.Disk.CodecDecodeSelf(d)
 			}
-		case "Networks":
+		case "Devices":
 			if r.TryDecodeAsNil() {
-				x.Networks = nil
+				x.Devices = nil
 			} else {
-				x.Networks.CodecDecodeSelf(d)
+				if false {
+				} else {
+					h.decSlicePtrtoNodeDeviceResource((*[]*NodeDeviceResource)(&x.Devices), d)
+				}
 			}
 		case "NodeNetworks":
 			if r.TryDecodeAsNil() {
@@ -105954,14 +106132,23 @@ func (x *NodeResources) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 					h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.NodeNetworks), d)
 				}
 			}
-		case "Devices":
+		case "Networks":
 			if r.TryDecodeAsNil() {
-				x.Devices = nil
+				x.Networks = nil
 			} else {
-				if false {
-				} else {
-					h.decSlicePtrtoNodeDeviceResource((*[]*NodeDeviceResource)(&x.Devices), d)
-				}
+				x.Networks.CodecDecodeSelf(d)
+			}
+		case "MinDynamicPort":
+			if r.TryDecodeAsNil() {
+				x.MinDynamicPort = 0
+			} else {
+				x.MinDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+			}
+		case "MaxDynamicPort":
+			if r.TryDecodeAsNil() {
+				x.MaxDynamicPort = 0
+			} else {
+				x.MaxDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
 			}
 		default:
 			z.DecStructFieldNotFound(-1, yys3)
@@ -105974,16 +106161,16 @@ func (x *NodeResources) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	var h codecSelfer100
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj12 int
-	var yyb12 bool
-	var yyhl12 bool = l >= 0
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	var yyj14 int
+	var yyb14 bool
+	var yyhl14 bool = l >= 0
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb14 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb14 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105993,13 +106180,13 @@ func (x *NodeResources) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	} else {
 		x.Cpu.CodecDecodeSelf(d)
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb14 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb14 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -106009,13 +106196,13 @@ func (x *NodeResources) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	} else {
 		x.Memory.CodecDecodeSelf(d)
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb14 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb14 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -106025,48 +106212,13 @@ func (x *NodeResources) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	} else {
 		x.Disk.CodecDecodeSelf(d)
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb14 = r.CheckBreak()
 	}
-	if yyb12 {
-		r.ReadArrayEnd()
-		return
-	}
-	r.ReadArrayElem()
-	if r.TryDecodeAsNil() {
-		x.Networks = nil
-	} else {
-		x.Networks.CodecDecodeSelf(d)
-	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
-	} else {
-		yyb12 = r.CheckBreak()
-	}
-	if yyb12 {
-		r.ReadArrayEnd()
-		return
-	}
-	r.ReadArrayElem()
-	if r.TryDecodeAsNil() {
-		x.NodeNetworks = nil
-	} else {
-		if false {
-		} else {
-			h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.NodeNetworks), d)
-		}
-	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
-	} else {
-		yyb12 = r.CheckBreak()
-	}
-	if yyb12 {
+	if yyb14 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -106079,18 +106231,85 @@ func (x *NodeResources) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 			h.decSlicePtrtoNodeDeviceResource((*[]*NodeDeviceResource)(&x.Devices), d)
 		}
 	}
-	for {
-		yyj12++
-		if yyhl12 {
-			yyb12 = yyj12 > l
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
+	} else {
+		yyb14 = r.CheckBreak()
+	}
+	if yyb14 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.NodeNetworks = nil
+	} else {
+		if false {
 		} else {
-			yyb12 = r.CheckBreak()
+			h.decSlicePtrtoNodeNetworkResource((*[]*NodeNetworkResource)(&x.NodeNetworks), d)
 		}
-		if yyb12 {
+	}
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
+	} else {
+		yyb14 = r.CheckBreak()
+	}
+	if yyb14 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.Networks = nil
+	} else {
+		x.Networks.CodecDecodeSelf(d)
+	}
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
+	} else {
+		yyb14 = r.CheckBreak()
+	}
+	if yyb14 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.MinDynamicPort = 0
+	} else {
+		x.MinDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+	}
+	yyj14++
+	if yyhl14 {
+		yyb14 = yyj14 > l
+	} else {
+		yyb14 = r.CheckBreak()
+	}
+	if yyb14 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.MaxDynamicPort = 0
+	} else {
+		x.MaxDynamicPort = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
+	}
+	for {
+		yyj14++
+		if yyhl14 {
+			yyb14 = yyj14 > l
+		} else {
+			yyb14 = r.CheckBreak()
+		}
+		if yyb14 {
 			break
 		}
 		r.ReadArrayElem()
-		z.DecStructFieldNotFound(yyj12-1, "")
+		z.DecStructFieldNotFound(yyj14-1, "")
 	}
 	r.ReadArrayEnd()
 }
