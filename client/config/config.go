@@ -361,9 +361,9 @@ type ClientTemplateConfig struct {
 
 	// This controls how a task runner will behave it Consul Template returns an
 	// error. The default is `kill` and will emit a kill event to the task runner.
-	// Alternately, `warn` can be specified and the task runner will log a warning
+	// Alternately, if `ignore` is specified the task runner will log the error
 	// and continue to run with the currently rendered template.
-	OnError string `hcl:"on_error"`
+	ErrorMode string `hcl:"error_mode"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -420,7 +420,7 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
 		c.VaultRetry.IsEmpty() &&
-		c.OnError == ""
+		c.ErrorMode == ""
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle

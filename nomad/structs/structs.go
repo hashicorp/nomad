@@ -7578,9 +7578,9 @@ const (
 	// when Consul Template returns an error.
 	TemplateErrorModeKill string = "kill"
 
-	// TemplateErrorModeIgnore indicates that Nomad should not kill tasks
+	// TemplateErrorModeNoop indicates that Nomad should not kill tasks
 	// when Consul Template returns an error.
-	TemplateErrorModeIgnore string = "ignore"
+	TemplateErrorModeNoop string = "noop"
 )
 
 var (
@@ -7646,8 +7646,8 @@ type Template struct {
 	// WaitConfig is used to override the global WaitConfig on a per-template basis
 	Wait *WaitConfig
 
-	// OnError is used to override the global OnError on a per-template basis.
-	OnError string
+	// ErrorMode is used to override the global ErrorMode on a per-template basis.
+	ErrorMode string
 }
 
 // DefaultTemplate returns a default template.
@@ -7656,7 +7656,7 @@ func DefaultTemplate() *Template {
 		ChangeMode: TemplateChangeModeRestart,
 		Splay:      5 * time.Second,
 		Perms:      "0644",
-		OnError:    TemplateErrorModeKill,
+		ErrorMode:  TemplateErrorModeKill,
 	}
 }
 
@@ -7732,8 +7732,8 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify a proper render error mode
-	switch t.OnError {
-	case TemplateErrorModeKill, TemplateErrorModeIgnore:
+	switch t.ErrorMode {
+	case TemplateErrorModeKill, TemplateErrorModeNoop:
 	default:
 		_ = multierror.Append(&mErr, TemplateErrorModeInvalidError)
 	}

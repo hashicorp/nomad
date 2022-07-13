@@ -7048,7 +7048,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(5 * time.Second),
 						},
-						OnError: TemplateErrorModeKill,
+						ErrorMode: TemplateErrorModeKill,
 					},
 					{
 						SourcePath:   "foo2",
@@ -7076,7 +7076,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(10 * time.Second),
 						},
-						OnError: TemplateErrorModeIgnore,
+						ErrorMode: TemplateErrorModeNoop,
 					},
 					{
 						SourcePath:   "foo3",
@@ -7090,7 +7090,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(10 * time.Second),
 						},
-						OnError: TemplateErrorModeKill,
+						ErrorMode: TemplateErrorModeKill,
 					},
 				},
 			},
@@ -7109,9 +7109,9 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeEdited,
-								Name: "OnError",
+								Name: "ErrorMode",
 								Old:  TemplateErrorModeKill,
-								New:  TemplateErrorModeIgnore,
+								New:  TemplateErrorModeNoop,
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -7165,7 +7165,7 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "OnError",
+								Name: "ErrorMode",
 								Old:  "",
 								New:  TemplateErrorModeKill,
 							},

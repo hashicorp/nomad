@@ -149,14 +149,14 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 		config:           config,
 		logger:           logger,
 		shutdownCh:       make(chan struct{}),
-		templateErrFatal: config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeKill,
+		templateErrFatal: config.ClientConfig.TemplateConfig.ErrorMode == structs.TemplateErrorModeKill,
 	}
 
 	// Parse the signals and error settings that we need
 	for _, tmpl := range config.Templates {
 		// If not set on the template, default to the client setting.
-		if tmpl.OnError == "" {
-			tmpl.OnError = config.ClientConfig.TemplateConfig.OnError
+		if tmpl.ErrorMode == "" {
+			tmpl.ErrorMode = config.ClientConfig.TemplateConfig.ErrorMode
 		}
 
 		if tmpl.ChangeSignal == "" {
@@ -534,7 +534,7 @@ func (tm *TaskTemplateManager) killOnError(err error) {
 			SetDisplayMessage(displayMessage))
 }
 
-// maybeKillOnError enforces error handling rules relative based on any on_error setting.
+// maybeKillOnError enforces error handling rules relative based on any error_mode setting.
 // If any template is configured to fail on error, then the whole task must be killed.
 // Callers can override this configuration using the forceKill parameter which is useful
 // in scenarios such as the first render.
@@ -544,7 +544,6 @@ func (tm *TaskTemplateManager) maybeKillOnError(forceKill bool, event *manager.R
 	}
 
 	shouldKill := forceKill || event.Template.ErrFatal()
-	tm.logger.Debug("maybeKillOnError", "force_kill", forceKill, "error", event.Error, "should_kill", shouldKill)
 
 	if shouldKill {
 		tm.killOnError(event.Error)
@@ -679,10 +678,10 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 		}
 
-		switch tmpl.OnError {
+		switch tmpl.ErrorMode {
 		case structs.TemplateErrorModeKill:
 			ct.ErrFatal = pointer.Of[bool](true)
-		case structs.TemplateErrorModeIgnore:
+		case structs.TemplateErrorModeNoop:
 			ct.ErrFatal = pointer.Of[bool](false)
 		default:
 			ct.ErrFatal = pointer.Of[bool](true)
@@ -715,7 +714,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 
 	// Set the top level err config to the client level default config.
 	conf.TemplateErrFatal = pointer.Of[bool](true)
-	if config.ClientConfig.TemplateConfig.OnError == structs.TemplateErrorModeIgnore {
+	if config.ClientConfig.TemplateConfig.ErrorMode == structs.TemplateErrorModeNoop {
 		conf.TemplateErrFatal = pointer.Of[bool](false)
 	}
 

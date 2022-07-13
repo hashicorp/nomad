@@ -500,7 +500,7 @@ func TestTask_Template_OnRenderError_Canonicalize(t *testing.T) {
 		return &Task{
 			Templates: []*Template{
 				{
-					OnError: mode,
+					ErrorMode: mode,
 				},
 			},
 		}
@@ -522,9 +522,9 @@ func TestTask_Template_OnRenderError_Canonicalize(t *testing.T) {
 			canonicalized: stringToPtr(TemplateErrorModeKill),
 		},
 		{
-			name:          "warn",
-			task:          taskWithOnRenderError(stringToPtr(TemplateErrorModeIgnore)),
-			canonicalized: stringToPtr(TemplateErrorModeIgnore),
+			name:          "noop",
+			task:          taskWithOnRenderError(stringToPtr(TemplateErrorModeNoop)),
+			canonicalized: stringToPtr(TemplateErrorModeNoop),
 		},
 	}
 
@@ -537,7 +537,7 @@ func TestTask_Template_OnRenderError_Canonicalize(t *testing.T) {
 				ID: stringToPtr("test"),
 			}
 			tc.task.Canonicalize(tg, j)
-			require.Equal(t, tc.canonicalized, tc.task.Templates[0].OnError)
+			require.Equal(t, tc.canonicalized, tc.task.Templates[0].ErrorMode)
 		})
 	}
 }

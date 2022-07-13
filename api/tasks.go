@@ -804,7 +804,7 @@ type Template struct {
 	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
 	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
 	Wait         *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
-	OnError      *string        `mapstructure:"on_error" hcl:"on_error,optional"`
+	ErrorMode    *string        `mapstructure:"error_mode" hcl:"error_mode,optional"`
 }
 
 const (
@@ -812,9 +812,9 @@ const (
 	// when Consul Template returns an error.
 	TemplateErrorModeKill string = "kill"
 
-	// TemplateErrorModeIgnore indicates that Nomad should not kill tasks
+	// TemplateErrorModeNoop indicates that Nomad should not kill tasks
 	// when Consul Template returns an error, but should log a warning.
-	TemplateErrorModeIgnore string = "ignore"
+	TemplateErrorModeNoop string = "noop"
 )
 
 func (tmpl *Template) Canonicalize() {
@@ -861,8 +861,8 @@ func (tmpl *Template) Canonicalize() {
 		tmpl.VaultGrace = timeToPtr(0)
 	}
 
-	if tmpl.OnError == nil {
-		tmpl.OnError = stringToPtr(TemplateErrorModeKill)
+	if tmpl.ErrorMode == nil {
+		tmpl.ErrorMode = stringToPtr(TemplateErrorModeKill)
 	}
 }
 

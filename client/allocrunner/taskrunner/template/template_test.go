@@ -2189,7 +2189,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				},
 				ConsulRetry: retryConfig.Copy(),
 				VaultRetry:  retryConfig.Copy(),
-				OnError:     structs.TemplateErrorModeIgnore,
+				ErrorMode:   structs.TemplateErrorModeNoop,
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
@@ -2201,7 +2201,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 							Min: helper.TimeToPtr(2 * time.Second),
 							Max: helper.TimeToPtr(12 * time.Second),
 						},
-						OnError: structs.TemplateErrorModeIgnore,
+						ErrorMode: structs.TemplateErrorModeNoop,
 					},
 				},
 			},
@@ -2216,7 +2216,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					},
 					ConsulRetry: retryConfig.Copy(),
 					VaultRetry:  retryConfig.Copy(),
-					OnError:     structs.TemplateErrorModeIgnore,
+					ErrorMode:   structs.TemplateErrorModeNoop,
 				},
 			},
 			&templateconfig.TemplateConfig{
@@ -2240,7 +2240,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				},
 				ConsulRetry: retryConfig.Copy(),
 				VaultRetry:  retryConfig.Copy(),
-				OnError:     structs.TemplateErrorModeIgnore,
+				ErrorMode:   structs.TemplateErrorModeNoop,
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
@@ -2252,8 +2252,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 							Min: helper.TimeToPtr(2 * time.Second),
 							Max: helper.TimeToPtr(12 * time.Second),
 						},
-						// OnError: By not setting OnError, it currently defaults to kill and overrides the client setting.
-						OnError: "",
+						// ErrorMode: By not setting ErrorMode, it currently defaults to kill and overrides the client setting.
+						ErrorMode: "",
 					},
 				},
 			},
@@ -2268,7 +2268,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					},
 					ConsulRetry: retryConfig.Copy(),
 					VaultRetry:  retryConfig.Copy(),
-					OnError:     structs.TemplateErrorModeKill,
+					ErrorMode:   structs.TemplateErrorModeKill,
 				},
 			},
 			&templateconfig.TemplateConfig{
@@ -2311,7 +2311,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
 
-			// Test that wait_bounds and on_error are enforced
+			// Test that wait_bounds and error_mode are enforced
 			for _, tmpl := range *runnerConfig.Templates {
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
 				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
@@ -2357,10 +2357,10 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	}
 }
 
-// TestTaskTemplateManager_Template_OnError_Set asserts that the template level
+// TestTaskTemplateManager_Template_ErrorMode_Set asserts that the template level
 // error mode configuration is accurately mapped from the template to the TaskTemplateManager's
 // template config.
-func TestTaskTemplateManager_Template_OnError_Set(t *testing.T) {
+func TestTaskTemplateManager_Template_ErrorMode_Set(t *testing.T) {
 	ci.Parallel(t)
 
 	c := config.DefaultConfig()
@@ -2374,7 +2374,7 @@ func TestTaskTemplateManager_Template_OnError_Set(t *testing.T) {
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 		Templates: []*structs.Template{
 			{
-				OnError: structs.TemplateErrorModeIgnore,
+				ErrorMode: structs.TemplateErrorModeNoop,
 			},
 		},
 	}
@@ -2383,7 +2383,7 @@ func TestTaskTemplateManager_Template_OnError_Set(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, k := range templateMapping {
-		require.Equal(t, structs.TemplateErrorModeIgnore, k.OnError)
+		require.Equal(t, structs.TemplateErrorModeNoop, k.ErrorMode)
 	}
 }
 
@@ -2501,7 +2501,7 @@ func TestTaskTemplateManager_ErrorMode_Handling(t *testing.T) {
 				EmbeddedTmpl: fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, "password"),
 				DestPath:     file,
 				ChangeMode:   structs.TemplateChangeModeNoop,
-				OnError:      errMode,
+				ErrorMode:    errMode,
 			},
 			shouldKill,
 		}
@@ -2520,46 +2520,46 @@ func TestTaskTemplateManager_ErrorMode_Handling(t *testing.T) {
 
 	cases := []struct {
 		name            string
-		clientOnError   string
+		clientErrorMode string
 		expectedResults []caseResult
 		expectedErr     error
 	}{
 		{
 			name:            "client-set-to-kill-template-not-set",
-			clientOnError:   structs.TemplateErrorModeKill,
+			clientErrorMode: structs.TemplateErrorModeKill,
 			expectedResults: []caseResult{tmplGenerator(uuid.Short(), "", true)},
 			expectedErr:     defaultErr,
 		},
 		{
 			name:            "client-set-to-noop-template-not-set",
-			clientOnError:   structs.TemplateErrorModeIgnore,
+			clientErrorMode: structs.TemplateErrorModeNoop,
 			expectedResults: []caseResult{tmplGenerator(uuid.Short(), "", false)},
 			expectedErr:     defaultErr,
 		},
 		{
 			name:            "client-set-to-noop-template-set-to-kill",
-			clientOnError:   structs.TemplateErrorModeIgnore,
+			clientErrorMode: structs.TemplateErrorModeNoop,
 			expectedResults: []caseResult{tmplGenerator(uuid.Short(), structs.TemplateErrorModeKill, true)},
 			expectedErr:     defaultErr,
 		},
 		{
 			name:            "client-set-to-kill-template-set-to-noop",
-			clientOnError:   structs.TemplateErrorModeKill,
-			expectedResults: []caseResult{tmplGenerator(uuid.Short(), structs.TemplateErrorModeIgnore, false)},
+			clientErrorMode: structs.TemplateErrorModeKill,
+			expectedResults: []caseResult{tmplGenerator(uuid.Short(), structs.TemplateErrorModeNoop, false)},
 			expectedErr:     defaultErr,
 		},
 		{
-			name:          "client-set-to-noop-multi-template-one-set-to-kill",
-			clientOnError: structs.TemplateErrorModeIgnore,
+			name:            "client-set-to-noop-multi-template-one-set-to-kill",
+			clientErrorMode: structs.TemplateErrorModeNoop,
 			expectedResults: []caseResult{
-				tmplGenerator(uuid.Short(), structs.TemplateErrorModeIgnore, false),
+				tmplGenerator(uuid.Short(), structs.TemplateErrorModeNoop, false),
 				tmplGenerator(uuid.Short(), structs.TemplateErrorModeKill, true),
 			},
 			expectedErr: defaultErr,
 		},
 		{
-			name:          "client-set-to-kill-multi-template-all-set-to-noop",
-			clientOnError: structs.TemplateErrorModeKill,
+			name:            "client-set-to-kill-multi-template-all-set-to-noop",
+			clientErrorMode: structs.TemplateErrorModeKill,
 			expectedResults: []caseResult{
 				tmplGenerator(uuid.Short(), structs.TemplateChangeModeNoop, false),
 				tmplGenerator(uuid.Short(), structs.TemplateChangeModeNoop, false),
@@ -2572,14 +2572,14 @@ func TestTaskTemplateManager_ErrorMode_Handling(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			harness := newTestHarness(t, gatherTemplates(tc.expectedResults), false, true)
-			harness.config.TemplateConfig.OnError = tc.clientOnError
+			harness.config.TemplateConfig.ErrorMode = tc.clientErrorMode
 			harness.manager.runner = &MockTemplateRunner{
 				templates: gatherTemplates(tc.expectedResults),
 			}
 			harness.start(t)
 			defer harness.stop()
 
-			if tc.clientOnError == structs.TemplateErrorModeKill {
+			if tc.clientErrorMode == structs.TemplateErrorModeKill {
 				require.True(t, harness.manager.templateErrFatal)
 			} else {
 				require.False(t, harness.manager.templateErrFatal)
@@ -2593,7 +2593,7 @@ func TestTaskTemplateManager_ErrorMode_Handling(t *testing.T) {
 						if *ctTmpl.Destination != result.template.DestPath {
 							continue
 						}
-						if result.template.OnError == structs.TemplateErrorModeKill {
+						if result.template.ErrorMode == structs.TemplateErrorModeKill {
 							require.True(t, *ctTmpl.ErrFatal)
 						} else {
 							require.False(t, *ctTmpl.ErrFatal)

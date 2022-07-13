@@ -1223,7 +1223,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					Envvars:      *template.Envvars,
 					VaultGrace:   *template.VaultGrace,
 					Wait:         ApiWaitConfigToStructsWaitConfig(template.Wait),
-					OnError:      *template.OnError,
+					ErrorMode:    *template.ErrorMode,
 				})
 		}
 	}

@@ -1441,8 +1441,8 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
 	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
 	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
-	// OnError
-	require.Equal(t, structs.TemplateErrorModeIgnore, templateConfig.OnError)
+	// ErrorMode
+	require.Equal(t, structs.TemplateErrorModeNoop, templateConfig.OnError)
 }
 
 func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {

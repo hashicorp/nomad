@@ -1052,14 +1052,14 @@ func TestWaitConfig(t *testing.T) {
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
 }
 
-func TestOnRenderError(t *testing.T) {
+func TestErrorMode(t *testing.T) {
 	ci.Parallel(t)
 
-	hclBytes, err := os.ReadFile("test-fixtures/template-on-error.hcl")
+	hclBytes, err := os.ReadFile("test-fixtures/template-error-mode.hcl")
 	require.NoError(t, err)
 
 	job, err := ParseWithConfig(&ParseConfig{
-		Path:    "test-fixtures/template-on-error.hcl",
+		Path:    "test-fixtures/template-error-mode.hcl",
 		Body:    hclBytes,
 		AllowFS: false,
 	})
@@ -1067,6 +1067,6 @@ func TestOnRenderError(t *testing.T) {
 	require.NoError(t, err)
 
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl.OnError)
-	require.Equal(t, api.TemplateErrorModeKill, *tmpl.OnError)
+	require.NotNil(t, tmpl.ErrorMode)
+	require.Equal(t, api.TemplateErrorModeKill, *tmpl.ErrorMode)
 }
