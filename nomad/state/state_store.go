@@ -6679,7 +6679,6 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 		isRotation = !existing.Active() && rootKeyMeta.Active()
 	} else {
 		rootKeyMeta.CreateIndex = index
-		rootKeyMeta.CreateTime = time.Now()
 		isRotation = rootKeyMeta.Active()
 	}
 	rootKeyMeta.ModifyIndex = index
