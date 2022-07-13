@@ -5518,11 +5518,11 @@ func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // ExpireOneTimeTokens deletes tokens that have expired
-func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64) error {
+func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64, timestamp time.Time) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	iter, err := s.oneTimeTokensExpiredTxn(txn, nil)
+	iter, err := s.oneTimeTokensExpiredTxn(txn, nil, timestamp)
 	if err != nil {
 		return err
 	}
@@ -5553,14 +5553,14 @@ func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
-func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet, timestamp time.Time) (memdb.ResultIterator, error) {
 	iter, err := txn.Get("one_time_token", "id")
 	if err != nil {
 		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
-	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(timestamp))
 	return iter, nil
 }
 

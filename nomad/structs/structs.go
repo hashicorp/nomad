@@ -11354,6 +11354,7 @@ type OneTimeTokenDeleteRequest struct {
 
 // OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
 type OneTimeTokenExpireRequest struct {
+	Timestamp time.Time
 	WriteRequest
 }
 
