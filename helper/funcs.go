@@ -126,6 +126,8 @@ func StringToPtr(str string) *string {
 }
 
 // TimeToPtr returns the pointer to a time.Duration.
+//
+// Deprecated; use pointer.Of instead.
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
 }

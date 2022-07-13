@@ -468,7 +468,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 	// Validate non-zero set of tokens
 	if len(args.Tokens) == 0 {
-		return structs.NewErrRPCCoded(400, "must specify as least one token")
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one token")
 	}
 
 	// Force the request to the authoritative region if we are creating global tokens
@@ -486,14 +486,15 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// the entire request as a single batch.
 	if hasGlobal {
 		if !allGlobal {
-			return structs.NewErrRPCCoded(400, "cannot upsert mixed global and non-global tokens")
+			return structs.NewErrRPCCoded(http.StatusBadRequest,
+				"cannot upsert mixed global and non-global tokens")
 		}
 
 		// Force the request to the authoritative region if it has global
 		args.Region = a.srv.config.AuthoritativeRegion
 	}
 
-	if done, err := a.srv.forward("ACL.UpsertTokens", args, args, reply); done {
+	if done, err := a.srv.forward(structs.ACLUpsertTokensRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
@@ -505,38 +506,41 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		return structs.ErrPermissionDenied
 	}
 
-	// Snapshot the state
-	state, err := a.srv.State().Snapshot()
+	// Snapshot the state so we can perform lookups against the accessor ID if
+	// needed. Do it here, so we only need to do this once no matter how many
+	// tokens we are upserting.
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 
 	// Validate each token
 	for idx, token := range args.Tokens {
-		if err := token.Validate(); err != nil {
-			return structs.NewErrRPCCodedf(400, "token %d invalid: %v", idx, err)
-		}
 
-		// Generate an accessor and secret ID if new
-		if token.AccessorID == "" {
-			token.AccessorID = uuid.Generate()
-			token.SecretID = uuid.Generate()
-			token.CreateTime = time.Now().UTC()
+		// Store any existing token found, so we can perform the correct update
+		// validation.
+		var existingToken *structs.ACLToken
 
-		} else {
-			// Verify the token exists
-			out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
+		// If the token is being updated, perform a lookup so can can validate
+		// the new changes against the old.
+		if token.AccessorID != "" {
+			out, err := stateSnapshot.ACLTokenByAccessorID(nil, token.AccessorID)
 			if err != nil {
-				return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "token lookup failed: %v", err)
 			}
 			if out == nil {
-				return structs.NewErrRPCCodedf(404, "cannot find token %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find token %s", token.AccessorID)
 			}
+			existingToken = out
+		}
 
-			// Cannot toggle the "Global" mode
-			if token.Global != out.Global {
-				return structs.NewErrRPCCodedf(400, "cannot toggle global mode of %s", token.AccessorID)
-			}
+		// Canonicalize sets information needed by the validation function, so
+		// this order must be maintained.
+		token.Canonicalize()
+
+		if err := token.Validate(a.srv.config.ACLTokenMinExpirationTTL,
+			a.srv.config.ACLTokenMaxExpirationTTL, existingToken); err != nil {
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "token %d invalid: %v", idx, err)
 		}
 
 		// Compute the token hash
@@ -549,14 +553,14 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		return err
 	}
 
-	// Populate the response. We do a lookup against the state to
-	// pickup the proper create / modify times.
-	state, err = a.srv.State().Snapshot()
+	// Populate the response. We do a lookup against the state to pick up the
+	// proper create / modify times.
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 	for _, token := range args.Tokens {
-		out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
+		out, err := stateSnapshot.ACLTokenByAccessorID(nil, token.AccessorID)
 		if err != nil {
 			return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 		}

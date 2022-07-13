@@ -11721,14 +11721,26 @@ type ACLPolicyUpsertRequest struct {
 
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
-	AccessorID  string   // Public Accessor ID (UUID)
-	SecretID    string   // Secret ID, private (UUID)
-	Name        string   // Human friendly name
-	Type        string   // Client or Management
-	Policies    []string // Policies this token ties to
-	Global      bool     // Global or Region local
-	Hash        []byte
-	CreateTime  time.Time // Time of creation
+	AccessorID string   // Public Accessor ID (UUID)
+	SecretID   string   // Secret ID, private (UUID)
+	Name       string   // Human friendly name
+	Type       string   // Client or Management
+	Policies   []string // Policies this token ties to
+	Global     bool     // Global or Region local
+	Hash       []byte
+	CreateTime time.Time // Time of creation
+
+	// ExpirationTime represents the point after which a token should be
+	// considered revoked and is eligible for destruction. This time should
+	// always use UTC to account for multi-region global tokens. It is a
+	// pointer, so we can store nil, rather than the zero value of time.Time.
+	ExpirationTime *time.Time
+
+	// ExpirationTTL is a convenience field for helping set ExpirationTime to a
+	// value of CreateTime+ExpirationTTL. This can only be set during token
+	// creation. This is a string version of a time.Duration like "2m".
+	ExpirationTTL time.Duration
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }
@@ -11775,18 +11787,21 @@ var (
 )
 
 type ACLTokenListStub struct {
-	AccessorID  string
-	Name        string
-	Type        string
-	Policies    []string
-	Global      bool
-	Hash        []byte
-	CreateTime  time.Time
-	CreateIndex uint64
-	ModifyIndex uint64
+	AccessorID     string
+	Name           string
+	Type           string
+	Policies       []string
+	Global         bool
+	Hash           []byte
+	CreateTime     time.Time
+	ExpirationTime *time.Time
+	CreateIndex    uint64
+	ModifyIndex    uint64
 }
 
-// SetHash is used to compute and set the hash of the ACL token
+// SetHash is used to compute and set the hash of the ACL token. It only hashes
+// fields which can be updated, and as such, does not hash fields such as
+// ExpirationTime.
 func (a *ACLToken) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
 	hash, err := blake2b.New256(nil)
@@ -11816,37 +11831,17 @@ func (a *ACLToken) SetHash() []byte {
 
 func (a *ACLToken) Stub() *ACLTokenListStub {
 	return &ACLTokenListStub{
-		AccessorID:  a.AccessorID,
-		Name:        a.Name,
-		Type:        a.Type,
-		Policies:    a.Policies,
-		Global:      a.Global,
-		Hash:        a.Hash,
-		CreateTime:  a.CreateTime,
-		CreateIndex: a.CreateIndex,
-		ModifyIndex: a.ModifyIndex,
+		AccessorID:     a.AccessorID,
+		Name:           a.Name,
+		Type:           a.Type,
+		Policies:       a.Policies,
+		Global:         a.Global,
+		Hash:           a.Hash,
+		CreateTime:     a.CreateTime,
+		ExpirationTime: a.ExpirationTime,
+		CreateIndex:    a.CreateIndex,
+		ModifyIndex:    a.ModifyIndex,
 	}
-}
-
-// Validate is used to check a token for reasonableness
-func (a *ACLToken) Validate() error {
-	var mErr multierror.Error
-	if len(a.Name) > maxTokenNameLength {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("token name too long"))
-	}
-	switch a.Type {
-	case ACLClientToken:
-		if len(a.Policies) == 0 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("client token missing policies"))
-		}
-	case ACLManagementToken:
-		if len(a.Policies) != 0 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("management token cannot be associated with policies"))
-		}
-	default:
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
-	}
-	return mErr.ErrorOrNil()
 }
 
 // PolicySubset checks if a given set of policies is a subset of the token

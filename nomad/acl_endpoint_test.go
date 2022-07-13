@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1453,85 +1454,175 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, root, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	// Each sub-test uses the same server to avoid creating a new one for each
+	// test. This means some care has to be taken with resource naming, but
+	// does avoid lots of calls to systems such as freeport.
+	testServer, rootACLToken, testServerCleanup := TestACLServer(t, nil)
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
 
-	// Create the register request
-	p1 := mock.ACLToken()
-	p1.AccessorID = "" // Blank to create
+	testCases := []struct {
+		name   string
+		testFn func(testServer *Server, aclToken *structs.ACLToken)
+	}{
+		{
+			name: "valid client token",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
 
-	// Lookup the tokens
-	req := &structs.ACLTokenUpsertRequest{
-		Tokens: []*structs.ACLToken{p1},
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			AuthToken: root.SecretID,
+				// Create the register request with a mocked token. We must set
+				// an empty accessorID, otherwise Nomad treats this as an
+				// update request.
+				p1 := mock.ACLToken()
+				p1.AccessorID = ""
+
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{p1},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+				var resp structs.ACLTokenUpsertResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				must.Greater(t, resp.Index, 0)
+
+				// Get the token out from the response.
+				created := resp.Tokens[0]
+				require.NotEqual(t, "", created.AccessorID)
+				require.NotEqual(t, "", created.SecretID)
+				require.NotEqual(t, time.Time{}, created.CreateTime)
+				require.Equal(t, p1.Type, created.Type)
+				require.Equal(t, p1.Policies, created.Policies)
+				require.Equal(t, p1.Name, created.Name)
+
+				// Check we created the token.
+				out, err := testServer.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+				require.Nil(t, err)
+				require.Equal(t, created, out)
+
+				// Update the token type and policy list so we can try updating
+				// it.
+				req.Tokens[0] = created
+				created.Type = "management"
+				created.Policies = nil
+
+				// Track the first upsert index, so we can test the next
+				// response against this and perform the update.
+				originalIndex := resp.Index
+
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				require.Greater(t, resp.Index, originalIndex)
+
+				// Read the token from state and perform an equality check to
+				// ensure everything matches as we expect.
+				out, err = testServer.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+				require.Nil(t, err)
+				require.Equal(t, created, out)
+			},
+		},
+		{
+			name: "valid management token with expiration",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+
+				// Create our RPC request object which includes a management
+				// token with a TTL.
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name:          "my-management-token-" + uuid.Generate(),
+							Type:          structs.ACLManagementToken,
+							ExpirationTTL: 10 * time.Minute,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the expiration time is as
+				// expected.
+				var resp structs.ACLTokenUpsertResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				require.Equal(t, 10*time.Minute, resp.Tokens[0].ExpirationTime.Sub(resp.Tokens[0].CreateTime))
+			},
+		},
+		{
+			name: "valid client token with expiration",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+
+				// Create an ACL policy so this can be associated to our client
+				// token.
+				policyReq := &structs.ACLPolicyUpsertRequest{
+					Policies: []*structs.ACLPolicy{mock.ACLPolicy()},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				var policyResp structs.GenericResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertPoliciesRPCMethod, policyReq, &policyResp))
+
+				// Create our RPC request object which includes a client token
+				// with a TTL that is associated to policies above.
+				tokenReq := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name:          "my-client-token-" + uuid.Generate(),
+							Type:          structs.ACLClientToken,
+							Policies:      []string{policyReq.Policies[0].Name},
+							ExpirationTTL: 10 * time.Minute,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the expiration time is as
+				// expected.
+				var tokenResp structs.ACLTokenUpsertResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, tokenReq, &tokenResp))
+				require.Equal(t, 10*time.Minute, tokenResp.Tokens[0].ExpirationTime.Sub(tokenResp.Tokens[0].CreateTime))
+			},
+		},
+		{
+			name: "invalid token type",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+
+				// Create our RPC request object which includes a token with an
+				// unknown type. This allows us to ensure the RPC handler calls
+				// the validation func.
+				tokenReq := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name: "my-blah-token-" + uuid.Generate(),
+							Type: "blah",
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the expiration time is as
+				// expected.
+				var tokenResp structs.ACLTokenUpsertResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, tokenReq, &tokenResp)
+				require.ErrorContains(t, err, "token type must be client or management")
+				require.Empty(t, tokenResp.Tokens)
+			},
 		},
 	}
-	var resp structs.ACLTokenUpsertResponse
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.NotEqual(t, uint64(0), resp.Index)
 
-	// Get the token out from the response
-	created := resp.Tokens[0]
-	assert.NotEqual(t, "", created.AccessorID)
-	assert.NotEqual(t, "", created.SecretID)
-	assert.NotEqual(t, time.Time{}, created.CreateTime)
-	assert.Equal(t, p1.Type, created.Type)
-	assert.Equal(t, p1.Policies, created.Policies)
-	assert.Equal(t, p1.Name, created.Name)
-
-	// Check we created the token
-	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
-	assert.Nil(t, err)
-	assert.Equal(t, created, out)
-
-	// Update the token type
-	req.Tokens[0] = created
-	created.Type = "management"
-	created.Policies = nil
-
-	// Upsert again
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.NotEqual(t, uint64(0), resp.Index)
-
-	// Check we modified the token
-	out, err = s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
-	assert.Nil(t, err)
-	assert.Equal(t, created, out)
-}
-
-func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, root, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	p1 := mock.ACLToken()
-	p1.Type = "blah blah"
-
-	// Lookup the tokens
-	req := &structs.ACLTokenUpsertRequest{
-		Tokens: []*structs.ACLToken{p1},
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			AuthToken: root.SecretID,
-		},
-	}
-	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", req, &resp)
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "client or management") {
-		t.Fatalf("bad: %s", err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn(testServer, rootACLToken)
+		})
 	}
 }
 
