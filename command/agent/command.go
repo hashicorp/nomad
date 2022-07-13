@@ -387,6 +387,7 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	for _, hn := range config.Client.HostNetworks {
+		// Ensure port range is valid
 		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
 			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
 				hn.Name, hn.ReservedPorts, err))

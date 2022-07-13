@@ -2805,12 +2805,25 @@ func (r *RequestedDevice) Validate() error {
 
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
-	Cpu          NodeCpuResources
-	Memory       NodeMemoryResources
-	Disk         NodeDiskResources
-	Networks     Networks
+	Cpu     NodeCpuResources
+	Memory  NodeMemoryResources
+	Disk    NodeDiskResources
+	Devices []*NodeDeviceResource
+
+	// NodeNetworks was added in Nomad 0.12 to support multiple interfaces.
+	// It is the superset of host_networks, fingerprinted networks, and the
+	// node's default interface.
 	NodeNetworks []*NodeNetworkResource
-	Devices      []*NodeDeviceResource
+
+	// Networks is the node's bridge network and default interface. It is
+	// only used when scheduling jobs with a deprecated
+	// task.resources.network stanza.
+	Networks Networks
+
+	// MinDynamicPort and MaxDynamicPort represent the inclusive port range
+	// to select dynamic ports from across all networks.
+	MinDynamicPort int
+	MaxDynamicPort int
 }
 
 func (n *NodeResources) Copy() *NodeResources {
@@ -2885,23 +2898,23 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	}
 
 	if len(o.NodeNetworks) != 0 {
-		lookupNetwork := func(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
-			for i, nw := range nets {
-				if nw.Device == name {
-					return i, nw
-				}
-			}
-			return 0, nil
-		}
-
 		for _, nw := range o.NodeNetworks {
-			if i, nnw := lookupNetwork(n.NodeNetworks, nw.Device); nnw != nil {
+			if i, nnw := lookupNetworkByDevice(n.NodeNetworks, nw.Device); nnw != nil {
 				n.NodeNetworks[i] = nw
 			} else {
 				n.NodeNetworks = append(n.NodeNetworks, nw)
 			}
 		}
 	}
+}
+
+func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
+	for i, nw := range nets {
+		if nw.Device == name {
+			return i, nw
+		}
+	}
+	return 0, nil
 }
 
 func (n *NodeResources) Equals(o *NodeResources) bool {

@@ -155,8 +155,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		netIdx = NewNetworkIndex()
 		defer netIdx.Release()
 
-		if collision, reason := netIdx.SetNode(node); collision {
-			return false, fmt.Sprintf("reserved node port collision: %v", reason), used, nil
+		if err := netIdx.SetNode(node); err != nil {
+			// To maintain backward compatibility with when SetNode
+			// returned collision+reason like AddAllocs, return
+			// this as a reason instead of an error.
+			return false, fmt.Sprintf("reserved node port collision: %v", err), used, nil
 		}
 		if collision, reason := netIdx.AddAllocs(allocs); collision {
 			return false, fmt.Sprintf("reserved alloc port collision: %v", reason), used, nil
@@ -483,6 +486,10 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				port, err := strconv.ParseUint(val, 10, 0)
 				if err != nil {
 					return nil, err
+				}
+
+				if port > maxValidPort {
+					return nil, fmt.Errorf("port must be < %d but found %d", maxValidPort, port)
 				}
 				ports[port] = struct{}{}
 			}
