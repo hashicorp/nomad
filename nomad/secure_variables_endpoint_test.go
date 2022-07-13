@@ -39,17 +39,27 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	alloc2.Job.Namespace = ns
 	alloc2.Namespace = ns
 
+	alloc3 := mock.Alloc()
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	alloc3.Job.Namespace = ns
+	alloc3.Namespace = ns
+	alloc3.Job.ParentID = jobID
+
 	store := srv.fsm.State()
 	require.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns}}))
 	require.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2}))
+		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3}))
 
-	claims1 := alloc1.ToTaskIdentityClaims("web")
+	claims1 := alloc1.ToTaskIdentityClaims(nil, "web")
 	idToken, err := srv.encrypter.SignClaims(claims1)
 	require.NoError(t, err)
 
-	claims2 := alloc2.ToTaskIdentityClaims("web")
+	claims2 := alloc2.ToTaskIdentityClaims(nil, "web")
 	noPermissionsToken, err := srv.encrypter.SignClaims(claims2)
+	require.NoError(t, err)
+
+	claims3 := alloc3.ToTaskIdentityClaims(alloc3.Job, "web")
+	idDispatchToken, err := srv.encrypter.SignClaims(claims3)
 	require.NoError(t, err)
 
 	// corrupt the signature of the token
@@ -121,6 +131,13 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 		{
 			name:        "valid claim for path with job secret",
 			token:       idToken,
+			cap:         "n/a",
+			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
+			expectedErr: nil,
+		},
+		{
+			name:        "valid claim for path with dispatch job secret",
+			token:       idDispatchToken,
 			cap:         "n/a",
 			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
 			expectedErr: nil,
@@ -199,6 +216,13 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			token:       invalidIDToken,
 			cap:         "n/a",
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "invalid claim for dispatched ID",
+			token:       idDispatchToken,
+			cap:         "n/a",
+			path:        fmt.Sprintf("nomad/jobs/%s", alloc3.JobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{

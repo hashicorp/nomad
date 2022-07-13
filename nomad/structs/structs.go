@@ -10312,9 +10312,9 @@ func (a *Allocation) Reconnected() (bool, bool) {
 	return true, a.Expired(lastReconnect)
 }
 
-func (a *Allocation) ToIdentityClaims() *IdentityClaims {
+func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
 	now := jwt.NewNumericDate(time.Now().UTC())
-	return &IdentityClaims{
+	claims := &IdentityClaims{
 		Namespace:    a.Namespace,
 		JobID:        a.JobID,
 		AllocationID: a.ID,
@@ -10327,10 +10327,14 @@ func (a *Allocation) ToIdentityClaims() *IdentityClaims {
 			IssuedAt:  now,
 		},
 	}
+	if job != nil && job.ParentID != "" {
+		claims.JobID = job.ParentID
+	}
+	return claims
 }
 
-func (a *Allocation) ToTaskIdentityClaims(taskName string) *IdentityClaims {
-	claims := a.ToIdentityClaims()
+func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string) *IdentityClaims {
+	claims := a.ToIdentityClaims(job)
 	if claims != nil {
 		claims.TaskName = taskName
 	}

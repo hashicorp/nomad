@@ -298,7 +298,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	alloc := mock.Alloc()
-	claim := alloc.ToTaskIdentityClaims("web")
+	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
 	out, err := e.SignClaims(claim)
