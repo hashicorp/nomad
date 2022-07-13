@@ -138,6 +138,7 @@ export default class Job extends Model {
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;
+  @hasMany('variables') variables;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
 
@@ -327,4 +328,16 @@ export default class Job extends Model {
   // spec first. In order to preserve both the original HCL and the parsed response
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
+
+  @computed('variables', 'parent', 'plainId')
+  get pathLinkedVariable() {
+    if (this.parent.get('id')) {
+      return this.variables?.findBy(
+        'path',
+        `jobs/${JSON.parse(this.parent.get('id'))[0]}`
+      );
+    } else {
+      return this.variables?.findBy('path', `jobs/${this.plainId}`);
+    }
+  }
 }

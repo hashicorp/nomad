@@ -18,6 +18,21 @@ export default class TaskGroup extends Fragment {
   @attr('string') name;
   @attr('number') count;
 
+  @computed('job.{variables,parent,plainId}', 'name')
+  get pathLinkedVariable() {
+    if (this.job.parent.get('id')) {
+      return this.job.variables?.findBy(
+        'path',
+        `jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
+      );
+    } else {
+      return this.job.variables?.findBy(
+        'path',
+        `jobs/${this.job.plainId}/${this.name}`
+      );
+    }
+  }
+
   @fragmentArray('task') tasks;
 
   @fragmentArray('service') services;
