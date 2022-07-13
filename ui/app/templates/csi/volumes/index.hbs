@@ -65,7 +65,7 @@
             # Allocs
           </th>
         </t.head>
-        <t.body @key="model.name" as |row iter|>
+        <t.body @key="model.name" as |row|>
           <tr
             class="is-interactive"
             data-test-volume-row
@@ -73,7 +73,7 @@
           >
             <td data-test-volume-name
               {{keyboard-shortcut 
-                pattern=(array (concat "Shift+" iter))
+                enumerated=true
                 action=(action "gotoVolume" row.model)
               }}
             >

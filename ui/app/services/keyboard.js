@@ -1,13 +1,18 @@
+// @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { timeout, restartableTask } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { compare } from '@ember/utils';
 import { A } from '@ember/array';
+// eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
 import { action } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
+import { assert } from '@ember/debug';
+// eslint-disable-next-line no-unused-vars
+import MutableArray from '@ember/array/mutable';
 
 const DEBOUNCE_MS = 750;
 
@@ -37,7 +42,10 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
-  keyCommands = [
+  /**
+   * @type {MutableArray<Object>}
+   */
+  keyCommands = A([
     {
       label: 'Go to Jobs',
       pattern: ['g', 'j'],
@@ -144,24 +152,43 @@ export default class KeyboardService extends Service {
         console.log('Extra Lives +30');
       },
     },
-  ];
+  ]);
+
+  /**
+   * For Dynamic/iterative keyboard shortcuts, we want to do a couple things to make them more human-friendly:
+   * 1. Make them 1-based, instead of 0-based
+   * 2. Prefix numbers 1-9 with "0" to make it so "Shift+10" doesn't trigger "Shift+1" then "0", etc.
+   * ^--- stops being a good solution with 100+ row lists/tables, but a better UX than waiting for shift key-up otherwise
+   *
+   * @param {number} iter
+   * @returns {string[]}
+   */
+  cleanPattern(iter) {
+    iter = iter + 1; // first item should be Shift+1, not Shift+0
+    assert('Dynamic keyboard shortcuts only work up to 99 digits', iter < 100);
+    return [`Shift+${('0' + iter).slice(-2)}`]; // Shift+01, not Shift+1
+  }
+
+  recomputeEnumeratedCommands() {
+    this.keyCommands.filterBy('enumerated').forEach((command, iter) => {
+      command.pattern = this.cleanPattern(iter);
+    });
+  }
 
   addCommands(commands) {
-    // Filter out those commands that don't have a label (they're only being added for at-a-glance hinting/highlights)
-    this.keyCommands.pushObjects(commands);
-  }
-
-  removeCommands(commands) {
-    this.keyCommands.removeObjects(commands);
-  }
-
-  @action
-  generateIteratorShortcut(element, [action, iter]) {
-    this.keyCommands.pushObject({
-      label: `Hit up item ${iter}`,
-      pattern: [`Shift+${iter}`],
-      action,
+    schedule('afterRender', () => {
+      commands.forEach((command) => {
+        this.keyCommands.pushObject(command);
+        if (command.enumerated) {
+          // Recompute enumerated numbers to handle things like sort
+          this.recomputeEnumeratedCommands();
+        }
+      });
     });
+  }
+
+  removeCommands(commands = A([])) {
+    this.keyCommands.removeObjects(commands);
   }
 
   //#region Nav Traversal
