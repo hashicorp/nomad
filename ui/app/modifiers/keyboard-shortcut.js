@@ -25,9 +25,9 @@ export default class KeyboardShortcutModifier extends Modifier {
         element,
         menuLevel,
         enumerated,
-        url: this.router.currentURL,
       },
     ];
+
     this.keyboard.addCommands(commands);
     registerDestructor(this, () => {
       this.keyboard.removeCommands(commands);

@@ -169,33 +169,26 @@ export default class KeyboardService extends Service {
     return [`Shift+${('0' + iter).slice(-2)}`]; // Shift+01, not Shift+1
   }
 
-  addCommands(commands) {
-    commands.forEach((command) => {
-      if (command.enumerated) {
-        // Ember's registerDestructor on destroyables fires AFTER a page load, meaning our enumerated array will be full of both old and new commands.
-        // Filter not only by enumerated, but also make sure we're only counting by those commands with our new command's URL.
-        // Without this second filterBy, moving from tabled-page to tabled-page will start your new commands at a number greater than 01.
-        command.pattern = this.cleanPattern(
-          this.keyCommands
-            .filterBy('enumerated')
-            .filter((c) => c.url === command.url).length
-        );
-      }
+  recomputeEnumeratedCommands() {
+    this.keyCommands.filterBy('enumerated').forEach((command, iter) => {
+      command.pattern = this.cleanPattern(iter);
     });
-    this.keyCommands.pushObjects(commands);
+  }
+
+  addCommands(commands) {
+    schedule('afterRender', () => {
+      commands.forEach((command) => {
+        this.keyCommands.pushObject(command);
+        if (command.enumerated) {
+          // Recompute enumerated numbers to handle things like sort
+          this.recomputeEnumeratedCommands();
+        }
+      });
+    });
   }
 
   removeCommands(commands = A([])) {
     this.keyCommands.removeObjects(commands);
-  }
-
-  @action
-  generateIteratorShortcut(element, [action, iter]) {
-    this.keyCommands.pushObject({
-      label: `Hit up item ${iter}`,
-      pattern: [`Shift+${iter}`],
-      action,
-    });
   }
 
   //#region Nav Traversal

@@ -25,7 +25,6 @@ export default class ApplicationController extends Controller {
   // eslint-disable-next-line ember/classic-decorator-hooks
   constructor() {
     super(...arguments);
-    console.log('do i listen for keypress');
     this.keyboard.listenForKeypress();
   }
 
