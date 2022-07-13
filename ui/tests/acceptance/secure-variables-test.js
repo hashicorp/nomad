@@ -343,6 +343,14 @@ module('Acceptance | secure variables', function (hooks) {
       assert.equal(currentRouteName(), 'variables.new');
 
       await typeIn('[data-test-path-input]', 'foo/bar');
+      await clickTrigger('[data-test-variable-namespace-filter]');
+
+      assert.dom('.dropdown-options').exists('Namespace can be edited.');
+
+      await selectChoose(
+        '[data-test-variable-namespace-filter]',
+        'namespace-1'
+      );
       await typeIn('[data-test-var-key]', 'kiki');
       await typeIn('[data-test-var-value]', 'do you love me');
       await click('[data-test-submit-var]');
@@ -414,6 +422,10 @@ module('Acceptance | secure variables', function (hooks) {
       );
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
+      await clickTrigger('[data-test-variable-namespace-filter]');
+      assert
+        .dom('.dropdown-options')
+        .doesNotExist('Namespace cannot be edited.');
 
       document.querySelector('[data-test-var-key]').value = ''; // clear current input
       await typeIn('[data-test-var-key]', 'kiki');

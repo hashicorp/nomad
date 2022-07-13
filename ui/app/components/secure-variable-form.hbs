@@ -1,7 +1,7 @@
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
-  <div>
+  <div class="path-namespace">
     <label>
       <span>
         Path
@@ -39,9 +39,23 @@
         .
       </p>
     {{/if}}
+    <SecureVariableForm::NamespaceFilter 
+      @data={{hash 
+        disabled=(not @model.isNew)
+        selection=this.variableNamespace
+        namespaceOptions=this.namespaceOptions
+      }}
+      @fns={{hash
+        onSelect=this.setNamespace
+        setNamespaceOptions=this.setNamespaceOptions
+      }}
+    />
   </div>
   {{#if (eq this.view "json")}}
-    <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
+    <div
+      class="editor-wrapper boxed-section-body is-full-bleed
+        {{if this.JSONError 'error'}}"
+    >
       <div
         data-test-json-editor
         {{code-mirror
@@ -49,7 +63,7 @@
           onUpdate=this.updateCode
           extraKeys=(hash Cmd-Enter=(action "save"))
         }}
-      />
+      ></div>
       {{#if this.JSONError}}
         <p class="help is-danger">
           {{this.JSONError}}

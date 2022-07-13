@@ -31,6 +31,18 @@ export default class SecureVariableFormComponent extends Component {
    * @type {DuplicatePathWarning}
    */
   @tracked duplicatePathWarning = null;
+  @tracked variableNamespace = 'default';
+  @tracked namespaceOptions = null;
+
+  @action
+  setNamespace(namespace) {
+    this.variableNamespace = namespace;
+  }
+
+  @action
+  setNamespaceOptions(options) {
+    this.namespaceOptions = options;
+  }
 
   get shouldDisableSave() {
     return !!this.JSONError || !this.args.model?.path;
@@ -135,6 +147,15 @@ export default class SecureVariableFormComponent extends Component {
         throw new Error('Please provide at least one key/value pair.');
       } else {
         this.keyValues = nonEmptyItems;
+      }
+
+      if (this.args.model?.isNew) {
+        if (this.namespaceOptions) {
+          this.args.model.set('namespace', this.variableNamespace);
+        } else {
+          const [namespace] = this.store.peekAll('namespace');
+          this.args.model.set('namespace', namespace);
+        }
       }
 
       this.args.model.set('keyValues', this.keyValues);

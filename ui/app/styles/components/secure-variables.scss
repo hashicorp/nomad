@@ -41,6 +41,12 @@
     animation: slide-in 0.3s ease-out;
   }
 
+  .path-namespace {
+    display: grid;
+    grid-template-columns: 6fr 1fr;
+    gap: 0 1rem;
+  }
+
   .key-value {
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
