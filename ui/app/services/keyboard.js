@@ -185,7 +185,7 @@ export default class KeyboardService extends Service {
     this.keyCommands.pushObjects(commands);
   }
 
-  removeCommands(commands) {
+  removeCommands(commands = A([])) {
     this.keyCommands.removeObjects(commands);
   }
 
