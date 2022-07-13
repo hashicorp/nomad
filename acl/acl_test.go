@@ -600,6 +600,19 @@ func TestSecureVariablesMatching(t *testing.T) {
 			require.Equal(t, tc.allow, acl.AllowSecureVariableOperation(tc.ns, tc.path, tc.op))
 		})
 	}
+
+	t.Run("search over namespace", func(t *testing.T) {
+		policy, err := Parse(`namespace "ns" {
+					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`)
+		require.NoError(t, err)
+		require.NotNil(t, policy.Namespaces[0].SecureVariables)
+
+		acl, err := NewACL(false, []*Policy{policy})
+		require.NoError(t, err)
+		require.True(t, acl.AllowSecureVariableSearch("ns"))
+		require.False(t, acl.AllowSecureVariableSearch("no-access"))
+	})
+
 }
 
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {

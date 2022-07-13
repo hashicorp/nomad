@@ -552,10 +552,10 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	if err != nil {
 		return err
 	}
-
 	namespace := args.RequestNamespace()
 
-	// Require either node:read or namespace:read-job
+	// Require read permissions for the context, ex. node:read or
+	// namespace:read-job
 	if !sufficientSearchPerms(aclObj, namespace, args.Context) {
 		return structs.ErrPermissionDenied
 	}
@@ -643,8 +643,7 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 			acl.NamespaceCapabilityListJobs,
 			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
 	case structs.SecureVariables:
-		// FIXME: Replace with real variables capability
-		return aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
+		return aclObj.AllowSecureVariableSearch(namespace)
 	}
 
 	return true
