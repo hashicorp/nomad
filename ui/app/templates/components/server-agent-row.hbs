@@ -1,6 +1,6 @@
 <td data-test-server-name
   {{keyboard-shortcut 
-    pattern=(array (concat "Shift+" @iter))
+    enumerated=true
     action=(action this.goToAgent)
   }}
 ><LinkTo @route="servers.server" @model={{this.agent.id}} class="is-primary">{{this.agent.name}}</LinkTo></td>

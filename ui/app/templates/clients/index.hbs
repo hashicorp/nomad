@@ -81,13 +81,13 @@
             <th># Volumes</th>
             <th># Allocs</th>
           </t.head>
-          <t.body as |row iter|>
+          <t.body as |row|>
             <ClientNodeRow
               data-test-client-node-row
               @node={{row.model}}
               @onClick={{action "gotoNode" row.model}}
               {{keyboard-shortcut 
-                pattern=(array (concat "Shift+" iter))
+                enumerated=true
                 action=(action "gotoNode" row.model)
               }}
             />

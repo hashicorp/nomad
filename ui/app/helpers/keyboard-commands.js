@@ -10,12 +10,10 @@ export default class keyboardCommands extends Helper {
   @service keyboard;
 
   constructor() {
-    console.log('kc const', ...arguments);
     super(...arguments);
   }
 
   compute([commands]) {
-    console.log('computing', commands);
     if (commands) {
       this.commands = commands;
       this.keyboard.addCommands(commands);
