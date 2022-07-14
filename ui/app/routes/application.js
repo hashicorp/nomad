@@ -20,6 +20,7 @@ export default class ApplicationRoute extends Route {
     },
   };
 
+  // Stricly no-op but will test
   resetController(controller, isExiting) {
     if (isExiting) {
       controller.set('error', null);
