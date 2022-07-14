@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"reflect"
 	"strconv"
@@ -123,6 +124,9 @@ type Config struct {
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string
+
+	// RPCAddr is the RPC address used by the client.
+	RPCAddr *net.TCPAddr
 
 	// RPCHandler can be provided to avoid network traffic if the
 	// server is running locally.
@@ -736,6 +740,7 @@ func DefaultConfig() *Config {
 				Attempts: helper.IntToPtr(0), // unlimited
 			},
 		},
+		RPCAddr:            &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647},
 		RPCHoldTimeout:     5 * time.Second,
 		CNIPath:            "/opt/cni/bin",
 		CNIConfigDir:       "/opt/cni/config",
