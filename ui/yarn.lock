@@ -10162,15 +10162,6 @@ ember-load-initializers@^2.1.2:
     ember-cli-babel "^7.13.0"
     ember-cli-typescript "^2.0.2"
 
-ember-math-helpers@^2.18.1:
-  version "2.18.1"
-  resolved "https://registry.yarnpkg.com/ember-math-helpers/-/ember-math-helpers-2.18.1.tgz#7e64a0ac4ab604e2c7b88c77c7751be2e5e24aa8"
-  integrity sha512-CWLnGHqxDW++l7dvZXDs7gq9CL6XL6tXIQC8nurxyeFbrm0BQ9kWxd3sLVyhGoRUMjrPTHisbD75xj191U/yRw==
-  dependencies:
-    broccoli-funnel "^3.0.8"
-    ember-cli-babel "^7.26.11"
-    ember-cli-htmlbars "^6.0.1"
-
 ember-maybe-import-regenerator@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/ember-maybe-import-regenerator/-/ember-maybe-import-regenerator-1.0.0.tgz#c05453dfd3b65dbec2b569612b01ae70b672dd7e"
