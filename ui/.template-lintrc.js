@@ -13,6 +13,6 @@ module.exports = {
     'no-implicit-this': { allow: ['keyboard-commands'] },
   },
   ignore: [
-    'app/components/breadcrumbs/*' // using {{(modifier)}} syntax
-  ]
+    'app/components/breadcrumbs/*', // using {{(modifier)}} syntax
+  ],
 };
