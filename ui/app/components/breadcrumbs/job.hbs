@@ -26,7 +26,15 @@
         </LinkTo>
       </li>
     {{/if}}
-    <li>
+    <li
+      {{(modifier
+        this.keyboardShortcut
+        label="Go up a level"
+        pattern=(array "u")
+        menuLevel=true
+        action=(action this.traverseUpALevel (array "jobs.job" this.job.idWithNamespace))
+      )}}
+    >
       <LinkTo
         @route="jobs.job.index"
         @model={{this.job}}
