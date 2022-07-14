@@ -214,7 +214,6 @@ export default class KeyboardService extends Service {
     const { type } = args;
     const links = Array.from(element.querySelectorAll('a:not(.loading)'))
       .map((link) => {
-        console.log('do i recognize a link?', link);
         if (link.getAttribute('href')) {
           return {
             route: this.router.recognize(link.getAttribute('href'))?.name,
@@ -240,7 +239,6 @@ export default class KeyboardService extends Service {
    */
   @action
   unregisterSubnav(element) {
-    console.log('unregistering subnav', element, this.subnavLinks);
     this.subnavLinks = this.subnavLinks.reject(
       (link) => link.parent === guidFor(element)
     );
