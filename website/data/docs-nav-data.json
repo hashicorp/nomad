@@ -142,6 +142,14 @@
       {
         "title": "Security Model",
         "path": "concepts/security"
+      },
+      {
+        "title": "Workload Identity",
+        "path": "concepts/workload-identity"
+      },
+      {
+        "title": "Secure Variables",
+        "path": "concepts/secure-variables"
       }
     ]
   },
@@ -1926,6 +1934,10 @@
       {
         "title": "Access Control",
         "href": "https://learn.hashicorp.com/collections/nomad/access-control"
+      },
+      {
+        "title": "Key Management",
+        "path": "operations/key-management"
       }
     ]
   },
