@@ -1,13 +1,13 @@
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
-  <div class="path-namespace">
+  <div class={{if this.namespaceOptions "path-namespace"}}>
     <label>
       <span>
         Path
       </span>
       {{#if @model.isNew}}
-      <div class="related-entities related-entities-hint">
+      <div class="related-entities-hint">
         <p>Prefix your path with <code>jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
         Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>

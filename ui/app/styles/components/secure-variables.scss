@@ -27,6 +27,8 @@
   }
 
   .path-input {
+    height: 2.25em;
+
     &:disabled {
       background-color: #f5f5f5;
     }
@@ -45,6 +47,7 @@
     display: grid;
     grid-template-columns: 6fr 1fr;
     gap: 0 1rem;
+    align-items: end;
   }
 
   .key-value {
