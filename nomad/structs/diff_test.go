@@ -7044,6 +7044,8 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						Uid:          1001,
+						Gid:          21,
 						Wait: &WaitConfig{
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(5 * time.Second),
@@ -7057,6 +7059,8 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP2",
 						Splay:        2,
 						Perms:        "0666",
+						Uid:          1000,
+						Gid:          20,
 						Envvars:      true,
 					},
 				},
@@ -7071,6 +7075,8 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						Uid:          1001,
+						Gid:          21,
 						Wait: &WaitConfig{
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(10 * time.Second),
@@ -7084,6 +7090,8 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
 						Perms:        "0776",
+						Uid:          1002,
+						Gid:          22,
 						Wait: &WaitConfig{
 							Min: helper.TimeToPtr(5 * time.Second),
 							Max: helper.TimeToPtr(10 * time.Second),
@@ -7159,6 +7167,18 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Perms",
 								Old:  "",
 								New:  "0776",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Uid",
+								Old:  "",
+								New:  "1002",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Gid",
+								Old:  "",
+								New:  "22",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7238,6 +7258,18 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Perms",
 								Old:  "0666",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Uid",
+								Old:  "1000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Gid",
+								Old:  "20",
 								New:  "",
 							},
 							{
