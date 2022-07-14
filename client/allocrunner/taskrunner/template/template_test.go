@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -512,6 +513,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Perms:        "777",
+		Uid:          503,
+		Gid:          20,
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
@@ -534,6 +537,17 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 
 	if m := fi.Mode(); m != os.ModePerm {
 		t.Fatalf("Got mode %v; want %v", m, os.ModePerm)
+	}
+
+	sys := fi.Sys()
+	uid := int(sys.(*syscall.Stat_t).Uid)
+	gid := int(sys.(*syscall.Stat_t).Gid)
+
+	if uid != template.Uid {
+		t.Fatalf("Got uid #{uid}; want #{template.Uid}")
+	}
+	if gid != template.Gid {
+		t.Fatalf("Got gid #{uid}; want #{template.Gid}")
 	}
 }
 
