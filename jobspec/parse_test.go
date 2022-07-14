@@ -24,6 +24,17 @@ const (
 	templateChangeModeRestart = "restart"
 )
 
+// Helper functions below are only used by this test suite
+func int8ToPtr(i int8) *int8 {
+	return &i
+}
+func uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+func int64ToPtr(i int64) *int64 {
+	return &i
+}
+
 func TestParse(t *testing.T) {
 	ci.Parallel(t)
 
