@@ -19,8 +19,9 @@ const EMPTY_KV = {
 };
 
 export default class SecureVariableFormComponent extends Component {
-  @service router;
   @service flashMessages;
+  @service router;
+  @service store;
 
   /**
    * @typedef {Object} DuplicatePathWarning
