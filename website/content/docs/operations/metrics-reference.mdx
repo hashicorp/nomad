@@ -133,7 +133,7 @@ configuration block.
 Please see the [agent configuration](/docs/configuration/telemetry)
 page for more details.
 
-As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized) and
+Additional labels are emitted for [parameterized](/docs/job-specification/parameterized) and
 [periodic](/docs/job-specification/parameterized) jobs. Nomad
 emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
 and `periodic_id` are emitted, containing the ID of the specific invocation of the
