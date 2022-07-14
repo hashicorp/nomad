@@ -318,6 +318,8 @@ job "binstore-storagelocker" {
         source          = "bar"
         destination     = "bar"
         perms           = "777"
+        uid             = 1001
+        gid             = 20
         left_delimiter  = "--"
         right_delimiter = "__"
       }
