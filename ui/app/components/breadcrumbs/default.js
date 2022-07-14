@@ -13,6 +13,6 @@ export default class BreadcrumbsTemplate extends Component {
   }
 
   get keyboardShortcut() {
-    return this.args.isOneCrumbUp ? KeyboardShortcutModifier : null;
+    return this.args.isOneCrumbUp() ? KeyboardShortcutModifier : null;
   }
 }
