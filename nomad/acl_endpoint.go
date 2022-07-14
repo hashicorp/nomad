@@ -1013,6 +1013,8 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 		}
 	}
 
+	args.Timestamp = time.Now() // use the leader's timestamp
+
 	// Expire token via raft; because this is the only write in the RPC the
 	// caller can safely retry with the same token if the raft write fails
 	_, index, err := a.srv.raftApply(structs.OneTimeTokenExpireRequestType, args)
