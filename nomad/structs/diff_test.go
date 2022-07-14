@@ -7164,21 +7164,15 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "Perms",
-								Old:  "",
-								New:  "0776",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "Uid",
-								Old:  "",
-								New:  "1002",
-							},
-							{
-								Type: DiffTypeAdded,
 								Name: "Gid",
 								Old:  "",
 								New:  "22",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Perms",
+								Old:  "",
+								New:  "0776",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7191,6 +7185,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Splay",
 								Old:  "",
 								New:  "3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Uid",
+								Old:  "",
+								New:  "1002",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7256,20 +7256,14 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
-								Name: "Perms",
-								Old:  "0666",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "Uid",
-								Old:  "1000",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
 								Name: "Gid",
 								Old:  "20",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Perms",
+								Old:  "0666",
 								New:  "",
 							},
 							{
@@ -7282,6 +7276,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Splay",
 								Old:  "2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Uid",
+								Old:  "1000",
 								New:  "",
 							},
 							{
