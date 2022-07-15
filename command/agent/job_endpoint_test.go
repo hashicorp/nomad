@@ -14,7 +14,6 @@ import (
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -3135,8 +3134,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeSignal: "SIGNAL",
 								Splay:        1 * time.Minute,
 								Perms:        "666",
-								Uid:          pointer.Of(1000),
-								Gid:          pointer.Of(1000),
+								Uid:          1000,
+								Gid:          1000,
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,

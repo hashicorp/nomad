@@ -624,9 +624,9 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			ct.Perms = &m
 		}
 		// Set ownership
-		if tmpl.Uid != nil && tmpl.Gid != nil {
-			ct.Uid = tmpl.Uid
-			ct.Gid = tmpl.Gid
+		if tmpl.Uid >= 0 && tmpl.Gid >= 0 {
+			ct.Uid = &tmpl.Uid
+			ct.Gid = &tmpl.Gid
 		}
 
 		ct.Finalize()
