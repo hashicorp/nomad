@@ -54,8 +54,25 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
+  defaultCommandBindings = {
+    'Go to Jobs': ['g', 'j'],
+    'Go to Storage': ['g', 'r'],
+    'Go to Variables': ['g', 'v'],
+    'Go to Servers': ['g', 's'],
+    'Go to Clients': ['g', 'c'],
+    'Go to Topology': ['g', 't'],
+    'Go to Evaluations': ['g', 'e'],
+    'Go to ACL Tokens': ['g', 'a'],
+    'Next Subnav': ['Shift+ArrowRight'],
+    'Previous Subnav': ['Shift+ArrowLeft'],
+    'Previous Main Section': ['Shift+ArrowUp'],
+    'Next Main Section': ['Shift+ArrowDown'],
+    'Show Keyboard Shortcuts': ['Shift+?'],
+  };
+
   @localStorageProperty('keyboardNavEnabled', true) enabled;
 
+  // TODO: replace the defaults herein with defaultCommandBindings refs
   @localStorageProperty('keyboard.command.Go to Jobs', ['g', 'j']) 'Go to Jobs';
   @localStorageProperty('keyboard.command.Go to Storage', ['g', 'r'])
   'Go to Storage';
