@@ -299,26 +299,26 @@ export default class KeyboardService extends Service {
       event.target.classList
     );
     return;
-    const inputElements = ['input', 'textarea'];
-    const targetElementName = event.target.nodeName.toLowerCase();
-    // Don't fire keypress events from within an input field
-    if (!inputElements.includes(targetElementName)) {
-      // Treat Shift like a special modifier key.
-      // If it's depressed, display shortcuts
-      const { key } = event;
-      const shifted = event.getModifierState('Shift');
-      if (type === 'press') {
-        if (key !== 'Shift') {
-          this.addKeyToBuffer.perform(key, shifted);
-        } else {
-          this.displayHints = true;
-        }
-      } else if (type === 'release') {
-        if (key === 'Shift') {
-          this.displayHints = false;
-        }
-      }
-    }
+    // const inputElements = ['input', 'textarea'];
+    // const targetElementName = event.target.nodeName.toLowerCase();
+    // // Don't fire keypress events from within an input field
+    // if (!inputElements.includes(targetElementName)) {
+    //   // Treat Shift like a special modifier key.
+    //   // If it's depressed, display shortcuts
+    //   const { key } = event;
+    //   const shifted = event.getModifierState('Shift');
+    //   if (type === 'press') {
+    //     if (key !== 'Shift') {
+    //       this.addKeyToBuffer.perform(key, shifted);
+    //     } else {
+    //       this.displayHints = true;
+    //     }
+    //   } else if (type === 'release') {
+    //     if (key === 'Shift') {
+    //       this.displayHints = false;
+    //     }
+    //   }
+    // }
   }
 
   /**
