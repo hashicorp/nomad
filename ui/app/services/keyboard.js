@@ -8,7 +8,7 @@ import { A } from '@ember/array';
 // eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
@@ -45,13 +45,16 @@ export default class KeyboardService extends Service {
 
   @localStorageProperty('keyboardNavEnabled', true) enabled;
 
+  @localStorageProperty('keyboard.command.Go To Jobs', ['g', 'j']) jobsPattern;
+
   /**
-   * @type {MutableArray<Object>}
+   * @type {MutableArray<KeyCommand>}
    */
+  @tracked
   keyCommands = A([
     {
       label: 'Go to Jobs',
-      pattern: ['g', 'j'],
+      pattern: this.jobsPattern,
       action: () => this.router.transitionTo('jobs'),
     },
     {
@@ -327,27 +330,35 @@ export default class KeyboardService extends Service {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    if (this.matchedCommands.length) {
-      this.matchedCommands.forEach((command) => {
-        if (
-          this.enabled ||
-          command.label === 'Show Keyboard Shortcuts' ||
-          command.label === 'Hide Keyboard Shortcuts'
-        ) {
-          command.action();
+    let recorder = this.keyCommands.find((c) => c.recording);
+    if (recorder) {
+      set(recorder, 'pattern', [...this.buffer]);
+      set(recorder, 'custom', true);
+    } else {
+      if (this.matchedCommands.length) {
+        this.matchedCommands.forEach((command) => {
+          if (
+            this.enabled ||
+            command.label === 'Show Keyboard Shortcuts' ||
+            command.label === 'Hide Keyboard Shortcuts'
+          ) {
+            command.action();
 
-          // TODO: Temporary dev log
-          if (this.config.isDev) {
-            this.matchedCommands.forEach((command) =>
-              console.log('command run', command, command.action.toString())
-            );
+            // TODO: Temporary dev log
+            if (this.config.isDev) {
+              this.matchedCommands.forEach((command) =>
+                console.log('command run', command, command.action.toString())
+              );
+            }
           }
-        }
-      });
-
-      this.clearBuffer();
+        });
+        this.clearBuffer();
+      }
     }
     yield timeout(DEBOUNCE_MS);
+    if (recorder) {
+      set(recorder, 'recording', false);
+    }
     this.clearBuffer();
   }
 
@@ -395,4 +406,25 @@ export default class KeyboardService extends Service {
       this.recordKeypress.bind(this, 'release')
     );
   }
+
+  // #region Key Re-binding
+
+  /**
+   * @typedef {Object} KeyCommand
+   * @property {string} label
+   * @property {string[]} pattern
+   * @property {function} action
+   * @property {?boolean} requireModifier
+   * @property {?boolean} enumerated
+   */
+
+  /**
+   *
+   * @param {KeyCommand} command
+   */
+  rebind = (command) => {
+    this.jobsPattern = ['x', 'x', Math.random()];
+    set(command, 'pattern', this.jobsPattern);
+  };
+  // #endregion Key Re-binding
 }

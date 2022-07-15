@@ -29,7 +29,7 @@
       list-style-type: none;
       padding: 0.5rem 0;
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto 1fr 1fr;
       &:not(:last-of-type) {
         border-bottom: 1px solid #ccc;
       }
@@ -39,6 +39,9 @@
           background-color: #eee;
           margin: 0 0.25rem;
           padding: 0 0.25rem;
+        }
+        input {
+          width: 100px;
         }
       }
     }

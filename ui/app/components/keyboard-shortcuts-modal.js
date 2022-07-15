@@ -19,8 +19,9 @@ export default class KeyboardShortcutsModalComponent extends Component {
    * commands: filter keyCommands to those that have an action and a label,
    * to distinguish between those that are just visual hints of existing commands
    */
-  @computed('keyboard.keyCommands.length')
+  @computed('keyboard.keyCommands.[]')
   get commands() {
+    console.log('recalc', this.keyboard.keyCommands[0].pattern);
     return this.keyboard.keyCommands.filter((c) => c.label && c.action);
   }
 

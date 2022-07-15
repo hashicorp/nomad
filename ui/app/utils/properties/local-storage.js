@@ -12,6 +12,7 @@ export default function localStorageProperty(localStorageKey, defaultValue) {
       return persistedValue ? JSON.parse(persistedValue) : defaultValue;
     },
     set(key, value) {
+      console.log('gonna set', key, value, localStorageKey);
       window.localStorage.setItem(localStorageKey, JSON.stringify(value));
       return value;
     },
