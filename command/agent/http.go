@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/time/rate"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -153,7 +154,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		httpServer := http.Server{
 			Addr:      srv.Addr,
 			Handler:   handlers.CompressHandler(srv.mux),
-			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
 
@@ -210,13 +211,12 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 //
 // If limit > 0, a per-address connection limit will be enabled regardless of
 // TLS. If connLimit == 0 there is no connection limit.
-func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) func(conn net.Conn, state http.ConnState) {
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+	connLimiter := connLimiter(connLimit, logger)
 	if !isTLS || handshakeTimeout == 0 {
 		if connLimit > 0 {
 			// Still return the connection limiter
-			return connlimit.NewLimiter(connlimit.Config{
-				MaxConnsPerClientIP: connLimit,
-			}).HTTPConnStateFuncWithDefault429Handler(10 * time.Millisecond)
+			return connLimiter
 		}
 		return nil
 	}
@@ -224,9 +224,6 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 	if connLimit > 0 {
 		// Return conn state callback with connection limiting and a
 		// handshake timeout.
-		connLimiter := connlimit.NewLimiter(connlimit.Config{
-			MaxConnsPerClientIP: connLimit,
-		}).HTTPConnStateFuncWithDefault429Handler(10 * time.Millisecond)
 
 		return func(conn net.Conn, state http.ConnState) {
 			switch state {
@@ -263,6 +260,34 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 			conn.SetDeadline(time.Time{})
 		}
 	}
+}
+
+// connLimiter returns a connection-limiter function with a rate-limited 429-response error handler.
+// The rate-limit prevents the TLS handshake necessary to write the HTTP response
+// from consuming too many server resources.
+func connLimiter(connLimit int, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+	// Global rate-limit of 10 responses per second with a 100-response burst.
+	limiter := rate.NewLimiter(10, 100)
+
+	tooManyConnsMsg := "Your IP is issuing too many concurrent connections, please rate limit your calls\n"
+	tooManyRequestsResponse := []byte(fmt.Sprintf("HTTP/1.1 429 Too Many Requests\r\n"+
+		"Content-Type: text/plain\r\n"+
+		"Content-Length: %d\r\n"+
+		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg))
+	return connlimit.NewLimiter(connlimit.Config{
+		MaxConnsPerClientIP: connLimit,
+	}).HTTPConnStateFuncWithErrorHandler(func(err error, conn net.Conn) {
+		if err == connlimit.ErrPerClientIPLimitReached {
+			if n := limiter.Reserve(); n.Delay() == 0 {
+				logger.Warn("Too many concurrent connections", "address", conn.RemoteAddr().String(), "limit", connLimit)
+				conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+				conn.Write(tooManyRequestsResponse)
+			} else {
+				n.Cancel()
+			}
+		}
+		conn.Close()
+	})
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
