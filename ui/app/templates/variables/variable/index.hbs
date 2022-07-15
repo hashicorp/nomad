@@ -44,6 +44,7 @@
       {{#if (can "write variable" path=this.model.absolutePath)}}
       <div class="two-step-button">
         <LinkTo
+        {{autofocus}}
           data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
