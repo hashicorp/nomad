@@ -8,12 +8,23 @@ import { A } from '@ember/array';
 // eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { action, set } from '@ember/object';
+import { action, set, get } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+
+/**
+ * @typedef {Object} KeyCommand
+ * @property {string} label
+ * @property {string[]} pattern
+ * @property {any} action
+ * @property {boolean} [requireModifier]
+ * @property {boolean} [enumerated]
+ * @property {boolean} [recording]
+ * @property {boolean} [custom]
+ */
 
 const DEBOUNCE_MS = 750;
 
@@ -45,8 +56,35 @@ export default class KeyboardService extends Service {
 
   @localStorageProperty('keyboardNavEnabled', true) enabled;
 
-  @localStorageProperty('keyboard.command.Go To Jobs', ['g', 'j']) jobsPattern;
-
+  @localStorageProperty('keyboard.command.Go to Jobs', ['g', 'j']) 'Go to Jobs';
+  @localStorageProperty('keyboard.command.Go to Storage', ['g', 'r'])
+  'Go to Storage';
+  @localStorageProperty('keyboard.command.Go to Variables', ['g', 'v'])
+  'Go to Variables';
+  @localStorageProperty('keyboard.command.Go to Servers', ['g', 's'])
+  'Go to Servers';
+  @localStorageProperty('keyboard.command.Go to Clients', ['g', 'c'])
+  'Go to Clients';
+  @localStorageProperty('keyboard.command.Go to Topology', ['g', 't'])
+  'Go to Topology';
+  @localStorageProperty('keyboard.command.Go to Evaluations', ['g', 'e'])
+  'Go to Evaluations';
+  @localStorageProperty('keyboard.command.Go to ACL Tokens', ['g', 'a'])
+  'Go to ACL Tokens';
+  @localStorageProperty('keyboard.command.Next Subnav', ['Shift+ArrowRight'])
+  'Next Subnav';
+  @localStorageProperty('keyboard.command.Previous Subnav', ['Shift+ArrowLeft'])
+  'Previous Subnav';
+  @localStorageProperty('keyboard.command.Previous Main Section', [
+    'Shift+ArrowUp',
+  ])
+  'Previous Main Section';
+  @localStorageProperty('keyboard.command.Next Main Section', [
+    'Shift+ArrowDown',
+  ])
+  'Next Main Section';
+  @localStorageProperty('keyboard.command.Show Keyboard Shortcuts', ['Shift+?'])
+  'Show Keyboard Shortcuts';
   /**
    * @type {MutableArray<KeyCommand>}
    */
@@ -54,61 +92,47 @@ export default class KeyboardService extends Service {
   keyCommands = A([
     {
       label: 'Go to Jobs',
-      pattern: this.jobsPattern,
+      pattern: this['Go to Jobs'],
       action: () => this.router.transitionTo('jobs'),
     },
     {
       label: 'Go to Storage',
-      pattern: ['g', 'r'],
+      pattern: this['Go to Storage'],
       action: () => this.router.transitionTo('csi.volumes'),
     },
     {
       label: 'Go to Variables',
-      pattern: ['g', 'v'],
+      pattern: this['Go to Variables'],
       action: () => this.router.transitionTo('variables'),
     },
     {
       label: 'Go to Servers',
-      pattern: ['g', 's'],
+      pattern: this['Go to Servers'],
       action: () => this.router.transitionTo('servers'),
     },
     {
       label: 'Go to Clients',
-      pattern: ['g', 'c'],
+      pattern: this['Go to Clients'],
       action: () => this.router.transitionTo('clients'),
     },
     {
       label: 'Go to Topology',
-      pattern: ['g', 't'],
+      pattern: this['Go to Topology'],
       action: () => this.router.transitionTo('topology'),
     },
     {
       label: 'Go to Evaluations',
-      pattern: ['g', 'e'],
+      pattern: this['Go to Evaluations'],
       action: () => this.router.transitionTo('evaluations'),
     },
     {
       label: 'Go to ACL Tokens',
-      pattern: ['g', 'a'],
+      pattern: this['Go to ACL Tokens'],
       action: () => this.router.transitionTo('settings.tokens'),
     },
-    // {
-    //   label: 'Previous Subnav',
-    //   pattern: ['k'],
-    //   action: () => {
-    //     this.traverseLinkList(this.subnavLinks, -1);
-    //   },
-    // },
-    // {
-    //   label: 'Next Subnav',
-    //   pattern: ['j'],
-    //   action: () => {
-    //     this.traverseLinkList(this.subnavLinks, 1);
-    //   },
-    // },
     {
       label: 'Next Subnav',
-      pattern: ['Shift+ArrowRight'],
+      pattern: this['Next Subnav'],
       action: () => {
         this.traverseLinkList(this.subnavLinks, 1);
       },
@@ -116,7 +140,7 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Previous Subnav',
-      pattern: ['Shift+ArrowLeft'],
+      pattern: this['Previous Subnav'],
       action: () => {
         this.traverseLinkList(this.subnavLinks, -1);
       },
@@ -124,7 +148,7 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Previous Main Section',
-      pattern: ['Shift+ArrowUp'],
+      pattern: this['Previous Main Section'],
       action: () => {
         this.traverseLinkList(this.navLinks, -1);
       },
@@ -132,7 +156,7 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Next Main Section',
-      pattern: ['Shift+ArrowDown'],
+      pattern: this['Next Main Section'],
       action: () => {
         this.traverseLinkList(this.navLinks, 1);
       },
@@ -140,7 +164,7 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Show Keyboard Shortcuts',
-      pattern: ['Shift+?'],
+      pattern: this['Show Keyboard Shortcuts'],
       action: () => {
         this.shortcutsVisible = true;
       },
@@ -358,6 +382,7 @@ export default class KeyboardService extends Service {
     yield timeout(DEBOUNCE_MS);
     if (recorder) {
       set(recorder, 'recording', false);
+      set(this, recorder.label, this.buffer);
     }
     this.clearBuffer();
   }
@@ -406,25 +431,4 @@ export default class KeyboardService extends Service {
       this.recordKeypress.bind(this, 'release')
     );
   }
-
-  // #region Key Re-binding
-
-  /**
-   * @typedef {Object} KeyCommand
-   * @property {string} label
-   * @property {string[]} pattern
-   * @property {function} action
-   * @property {?boolean} requireModifier
-   * @property {?boolean} enumerated
-   */
-
-  /**
-   *
-   * @param {KeyCommand} command
-   */
-  rebind = (command) => {
-    this.jobsPattern = ['x', 'x', Math.random()];
-    set(command, 'pattern', this.jobsPattern);
-  };
-  // #endregion Key Re-binding
 }

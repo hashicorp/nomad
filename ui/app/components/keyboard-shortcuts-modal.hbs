@@ -18,10 +18,10 @@
       {{#each this.commands as |command|}}
         <li>
           <strong>{{command.label}}</strong>
-          {{#if command.recording}}
-          <span>Recording...</span>
-          {{/if}}
             <span class="keys" {{on "click" (action (mut command.recording) true)}}>
+              {{#if command.recording}}
+                <span class="recording">Recording...</span>
+              {{/if}}
               {{#each command.pattern as |key|}}
                 <span>{{clean-keycommand key}}</span>
               {{/each}}
