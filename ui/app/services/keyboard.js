@@ -13,6 +13,7 @@ import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 const DEBOUNCE_MS = 750;
 
@@ -42,7 +43,7 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
-  @tracked enabled = true;
+  @localStorageProperty('keyboardNavEnabled', true) enabled;
 
   /**
    * @type {MutableArray<Object>}
