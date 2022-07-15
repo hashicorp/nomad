@@ -291,13 +291,17 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
-    console.log(
-      'you typed',
-      event.key,
-      'in',
-      event.target.nodeName.toLowerCase(),
-      event.target.classList
-    );
+    const inputElements = ['input', 'textarea'];
+    const targetElementName = event.target.nodeName.toLowerCase();
+    if (!inputElements.includes(targetElementName)) {
+      console.log(
+        'you typed',
+        event.key,
+        'in',
+        targetElementName,
+        event.target.classList?.toString()
+      );
+    }
     return;
     // const inputElements = ['input', 'textarea'];
     // const targetElementName = event.target.nodeName.toLowerCase();
