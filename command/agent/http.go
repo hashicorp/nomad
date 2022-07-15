@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/armon/go-metrics"
 	"golang.org/x/time/rate"
 	"net"
 	"net/http"
@@ -278,6 +279,7 @@ func connLimiter(connLimit int, logger log.Logger) func(conn net.Conn, state htt
 		MaxConnsPerClientIP: connLimit,
 	}).HTTPConnStateFuncWithErrorHandler(func(err error, conn net.Conn) {
 		if err == connlimit.ErrPerClientIPLimitReached {
+			metrics.IncrCounter([]string{"nomad", "agent", "http", "exceeded"}, 1)
 			if n := limiter.Reserve(); n.Delay() == 0 {
 				logger.Warn("Too many concurrent connections", "address", conn.RemoteAddr().String(), "limit", connLimit)
 				conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
