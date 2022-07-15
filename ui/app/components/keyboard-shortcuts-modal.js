@@ -1,6 +1,7 @@
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { action } from '@ember/object';
 import Tether from 'tether';
 
 export default class KeyboardShortcutsModalComponent extends Component {
@@ -48,5 +49,9 @@ export default class KeyboardShortcutsModalComponent extends Component {
   }
   untetherFromElement(self, _, { hint }) {
     hint.binder.destroy();
+  }
+
+  @action toggleListener() {
+    this.keyboard.enabled = !this.keyboard.enabled;
   }
 }

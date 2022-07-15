@@ -42,6 +42,8 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
+  @tracked enabled = true;
+
   /**
    * @type {MutableArray<Object>}
    */
@@ -325,14 +327,23 @@ export default class KeyboardService extends Service {
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommands.length) {
-      this.matchedCommands.forEach((command) => command.action());
+      this.matchedCommands.forEach((command) => {
+        if (
+          this.enabled ||
+          command.label === 'Show Keyboard Shortcuts' ||
+          command.label === 'Hide Keyboard Shortcuts'
+        ) {
+          command.action();
 
-      // TODO: Temporary dev log
-      if (this.config.isDev) {
-        this.matchedCommands.forEach((command) =>
-          console.log('command run', command, command.action.toString())
-        );
-      }
+          // TODO: Temporary dev log
+          if (this.config.isDev) {
+            this.matchedCommands.forEach((command) =>
+              console.log('command run', command, command.action.toString())
+            );
+          }
+        }
+      });
+
       this.clearBuffer();
     }
     yield timeout(DEBOUNCE_MS);

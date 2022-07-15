@@ -1,7 +1,12 @@
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <ul class="keyboard-shortcuts">
+  <ul class="keyboard-shortcuts"
+      {{on-click-outside
+        (toggle "keyboard.shortcutsVisible" this)
+      }}
+    >
     <button
+      {{autofocus}}
       class="button is-borderless dismiss"
       type="button"
       {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
@@ -18,10 +23,19 @@
         </span>
       </li>
     {{/each}}
+    <footer>
+      <strong>Keyboard shortcuts enabled</strong>
+      <Toggle
+        data-test-cpu-toggle
+        @isActive={{this.keyboard.enabled}}
+        @onToggle={{this.toggleListener}}
+        title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
+      />
+    </footer>
   </ul>
 {{/if}}
 
-{{#if this.keyboard.displayHints}}
+{{#if (and this.keyboard.enabled this.keyboard.displayHints)}}
   {{#each this.hints as |hint|}}
     <span
       {{did-insert this.tetherToElement element=hint.element hint=hint}}
