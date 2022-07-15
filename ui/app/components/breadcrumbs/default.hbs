@@ -1,9 +1,16 @@
 {{! template-lint-disable no-unknown-arguments-for-builtin-components }}
-<li data-test-breadcrumb-default>
+<li data-test-breadcrumb-default
+  {{(modifier
+    this.keyboardShortcut
+    label="Go up a level"
+    pattern=(array "u")
+    menuLevel=true
+    action=(action this.traverseUpALevel @crumb.args)
+  )}}
+>
   <LinkTo
     @params={{@crumb.args}}
-    data-test-breadcrumb={{@crumb.args.firstObject}}
-  >
+    data-test-breadcrumb={{@crumb.args.firstObject}}>
     {{#if @crumb.title}}
       <dl>
         <dt>
