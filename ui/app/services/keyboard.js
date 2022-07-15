@@ -291,6 +291,14 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
+    console.log(
+      'you typed',
+      event.key,
+      'in',
+      event.target.nodeName.toLowerCase(),
+      event.target.classList
+    );
+    return;
     const inputElements = ['input', 'textarea'];
     const targetElementName = event.target.nodeName.toLowerCase();
     // Don't fire keypress events from within an input field
