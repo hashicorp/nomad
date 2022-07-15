@@ -32,7 +32,7 @@ export default class SecureVariableFormComponent extends Component {
    * @type {DuplicatePathWarning}
    */
   @tracked duplicatePathWarning = null;
-  @tracked variableNamespace = 'default';
+  @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
 
   @action
@@ -43,6 +43,11 @@ export default class SecureVariableFormComponent extends Component {
   @action
   setNamespaceOptions(options) {
     this.namespaceOptions = options;
+
+    // Set first namespace option
+    if (options.length) {
+      this.variableNamespace = options[0].key;
+    }
   }
 
   get shouldDisableSave() {
@@ -154,7 +159,7 @@ export default class SecureVariableFormComponent extends Component {
         if (this.namespaceOptions) {
           this.args.model.set('namespace', this.variableNamespace);
         } else {
-          const [namespace] = this.store.peekAll('namespace');
+          const [namespace] = this.store.peekAll('namespace').toArray();
           this.args.model.set('namespace', namespace);
         }
       }
