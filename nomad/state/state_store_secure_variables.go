@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -129,12 +131,6 @@ func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index ui
 
 // upsertSecureVariableImpl is used to upsert a secure variable
 func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *structs.SecureVariableEncrypted, updated *bool) error {
-	// TODO: Ensure the EncryptedData hash is non-nil. This should be done outside the state store
-	// for performance reasons, but we check here for defense in depth.
-	// if len(sv.Hash) == 0 {
-	// 	sv.SetHash()
-	// }
-
 	// Check if the secure variable already exists
 	existing, err := txn.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
@@ -145,6 +141,8 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 	if err != nil {
 		return fmt.Errorf("secure variable quota lookup failed: %v", err)
 	}
+
+	var quotaChange int
 
 	// Setup the indexes correctly
 	nowNano := time.Now().UnixNano()
@@ -158,12 +156,13 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		sv.CreateTime = exist.CreateTime
 		sv.ModifyIndex = index
 		sv.ModifyTime = nowNano
-
+		quotaChange = len(sv.Data) - len(exist.Data)
 	} else {
 		sv.CreateIndex = index
 		sv.CreateTime = nowNano
 		sv.ModifyIndex = index
 		sv.ModifyTime = nowNano
+		quotaChange = len(sv.Data)
 	}
 
 	// Insert the secure variable
@@ -171,21 +170,27 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		return fmt.Errorf("secure variable insert failed: %v", err)
 	}
 
-	// Track quota usage
-	var quotaUsed *structs.SecureVariablesQuota
-	if existingQuota != nil {
-		quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
-		quotaUsed = quotaUsed.Copy()
-	} else {
-		quotaUsed = &structs.SecureVariablesQuota{
-			Namespace:   sv.Namespace,
-			CreateIndex: index,
+	if quotaChange != 0 {
+		// Track quota usage
+		var quotaUsed *structs.SecureVariablesQuota
+		if existingQuota != nil {
+			quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
+			quotaUsed = quotaUsed.Copy()
+		} else {
+			quotaUsed = &structs.SecureVariablesQuota{
+				Namespace:   sv.Namespace,
+				CreateIndex: index,
+			}
 		}
-	}
-	quotaUsed.Size += uint64(len(sv.Data))
-	quotaUsed.ModifyIndex = index
-	if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
-		return fmt.Errorf("secure variable quota insert failed: %v", err)
+		quotaUsed.ModifyIndex = index
+		if quotaChange > 0 {
+			quotaUsed.Size += uint64(quotaChange)
+		} else {
+			quotaUsed.Size -= uint64(helper.MinInt(int(quotaUsed.Size), -quotaChange))
+		}
+		if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
+			return fmt.Errorf("secure variable quota insert failed: %v", err)
+		}
 	}
 
 	*updated = true
