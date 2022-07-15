@@ -54,6 +54,9 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 		if token == nil {
 			return nil, structs.ErrTokenNotFound
 		}
+		if token.IsExpired(time.Now().UTC()) {
+			return nil, structs.ErrTokenExpired
+		}
 	}
 
 	// Check if this is a management token
@@ -113,6 +116,9 @@ func (s *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 		}
 		if token == nil {
 			return nil, structs.ErrTokenNotFound
+		}
+		if token.IsExpired(time.Now().UTC()) {
+			return nil, structs.ErrTokenExpired
 		}
 	}
 
