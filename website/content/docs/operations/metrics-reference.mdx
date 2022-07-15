@@ -131,7 +131,7 @@ configuration block.
 Please see the [agent configuration](/docs/configuration/telemetry)
 page for more details.
 
-As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized) and
+Additional labels are emitted for [parameterized](/docs/job-specification/parameterized) and
 [periodic](/docs/job-specification/parameterized) jobs. Nomad
 emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
 and `periodic_id` are emitted, containing the ID of the specific invocation of the
@@ -153,9 +153,9 @@ Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 | `nomad.client.allocated.cpu`            | Total amount of CPU shares the scheduler has allocated to tasks                     | Mhz        | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated.memory`         | Total amount of memory the scheduler has allocated to tasks                         | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated_disk`           | Total amount of disk space the scheduler has allocated to tasks                     | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.blocked`      | Number of allocations blocked                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.migrating`    | Number of allocations migrating                                                     | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.pending`      | Number of allocations pending                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.blocked`      | Number of allocations waiting for previous versions to exit                         | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.migrating`    | Number of allocations migrating data from previous versions (see [`sticky`][sticky])| Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.pending`      | Number of allocations pending (received by the client but not yet running)          | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.running`      | Number of allocations running                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.start`        | Number of allocations starting                                                      | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.terminal`     | Number of allocations terminal                                                      | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
@@ -451,4 +451,5 @@ those listed in [Key Metrics](#key-metrics) above.
 
 
 [tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
+[sticky]: /docs/job-specification/ephemeral_disk#sticky
 [s_port_plan_failure]: /s/port-plan-failure
