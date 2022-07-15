@@ -1,6 +1,7 @@
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
   <ul class="keyboard-shortcuts"
+      {{focus-trap}}
       {{on-click-outside
         (toggle "keyboard.shortcutsVisible" this)
       }}
