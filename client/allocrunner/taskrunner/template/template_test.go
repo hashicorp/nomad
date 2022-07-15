@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -514,8 +513,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Perms:        "777",
-		Uid:          pointer.Of(503),
-		Gid:          pointer.Of(20),
+		Uid:          503,
+		Gid:          20,
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
@@ -544,10 +543,10 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 	uid := int(sys.(*syscall.Stat_t).Uid)
 	gid := int(sys.(*syscall.Stat_t).Gid)
 
-	if uid != *template.Uid {
+	if uid != template.Uid {
 		t.Fatalf("Got uid #{uid}; want #{template.Uid}")
 	}
-	if gid != *template.Gid {
+	if gid != template.Gid {
 		t.Fatalf("Got gid #{uid}; want #{template.Gid}")
 	}
 }
