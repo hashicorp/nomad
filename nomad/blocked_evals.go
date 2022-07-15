@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,7 +31,7 @@ const (
 // failed allocation becomes available.
 type BlockedEvals struct {
 	// logger is the logger to use by the blocked eval tracker.
-	logger log.Logger
+	logger hclog.Logger
 
 	evalBroker *EvalBroker
 	enabled    bool
@@ -96,7 +96,7 @@ type wrappedEval struct {
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
 // unblocked evals into the passed broker.
-func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
+func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
 	return &BlockedEvals{
 		logger:           logger.Named("blocked_evals"),
 		evalBroker:       evalBroker,
@@ -727,7 +727,7 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "memory"}, float32(v.MemoryMB), labels)
 			}
 
-			for k, v := range stats.BlockedResources.ByNode {
+			for k, v := range stats.BlockedResources.ByClassInDC {
 				labels := []metrics.Label{
 					{Name: "datacenter", Value: k.dc},
 					{Name: "node_class", Value: k.class},
