@@ -128,8 +128,8 @@ func TestBlockedResourceStats_New(t *testing.T) {
 	a := NewBlockedResourcesStats()
 	require.NotNil(t, a.ByJob)
 	require.Empty(t, a.ByJob)
-	require.NotNil(t, a.ByNode)
-	require.Empty(t, a.ByNode)
+	require.NotNil(t, a.ByClassInDC)
+	require.Empty(t, a.ByClassInDC)
 }
 
 var (
@@ -143,14 +143,19 @@ var (
 		Namespace: "two",
 	}
 
-	node1 = node{
+	node1 = classInDC{
 		dc:    "dc1",
 		class: "alpha",
 	}
 
-	node2 = node{
+	node2 = classInDC{
 		dc:    "dc1",
 		class: "beta",
+	}
+
+	node3 = classInDC{
+		dc:    "dc1",
+		class: "", // not set
 	}
 )
 
@@ -166,7 +171,7 @@ func TestBlockedResourceStats_Copy(t *testing.T) {
 			MemoryMB:  256,
 		},
 	}
-	a.ByNode = map[node]BlockedResourcesSummary{
+	a.ByClassInDC = map[classInDC]BlockedResourcesSummary{
 		node1: {
 			Timestamp: now1,
 			CPU:       300,
@@ -180,7 +185,7 @@ func TestBlockedResourceStats_Copy(t *testing.T) {
 		CPU:       888,
 		MemoryMB:  888,
 	}
-	c.ByNode[node1] = BlockedResourcesSummary{
+	c.ByClassInDC[node1] = BlockedResourcesSummary{
 		Timestamp: now2,
 		CPU:       999,
 		MemoryMB:  999,
@@ -188,7 +193,7 @@ func TestBlockedResourceStats_Copy(t *testing.T) {
 
 	// underlying data should have been deep copied
 	require.Equal(t, 100, a.ByJob[id1].CPU)
-	require.Equal(t, 300, a.ByNode[node1].CPU)
+	require.Equal(t, 300, a.ByClassInDC[node1].CPU)
 }
 
 func TestBlockedResourcesStats_Add(t *testing.T) {
@@ -196,7 +201,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 	a.ByJob = map[structs.NamespacedID]BlockedResourcesSummary{
 		id1: {Timestamp: now(1), CPU: 111, MemoryMB: 222},
 	}
-	a.ByNode = map[node]BlockedResourcesSummary{
+	a.ByClassInDC = map[classInDC]BlockedResourcesSummary{
 		node1: {Timestamp: now(2), CPU: 333, MemoryMB: 444},
 	}
 
@@ -205,7 +210,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 		id1: {Timestamp: now(3), CPU: 200, MemoryMB: 300},
 		id2: {Timestamp: now(4), CPU: 400, MemoryMB: 500},
 	}
-	b.ByNode = map[node]BlockedResourcesSummary{
+	b.ByClassInDC = map[classInDC]BlockedResourcesSummary{
 		node1: {Timestamp: now(5), CPU: 600, MemoryMB: 700},
 		node2: {Timestamp: now(6), CPU: 800, MemoryMB: 900},
 	}
@@ -218,10 +223,10 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 			id2: {Timestamp: now(4), CPU: 400, MemoryMB: 500},
 		}, result.ByJob)
 
-		require.Equal(t, map[node]BlockedResourcesSummary{
+		require.Equal(t, map[classInDC]BlockedResourcesSummary{
 			node1: {Timestamp: now(5), CPU: 933, MemoryMB: 1144},
 			node2: {Timestamp: now(6), CPU: 800, MemoryMB: 900},
-		}, result.ByNode)
+		}, result.ByClassInDC)
 	})
 
 	// make sure we handle zeros in both directions
@@ -233,11 +238,22 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 			id2: {Timestamp: now(4), CPU: 400, MemoryMB: 500},
 		}, result.ByJob)
 
-		require.Equal(t, map[node]BlockedResourcesSummary{
+		require.Equal(t, map[classInDC]BlockedResourcesSummary{
 			node1: {Timestamp: now(2), CPU: 933, MemoryMB: 1144},
 			node2: {Timestamp: now(6), CPU: 800, MemoryMB: 900},
-		}, result.ByNode)
+		}, result.ByClassInDC)
 	})
+}
+
+func TestBlockedResourcesStats_Add_NoClass(t *testing.T) {
+	a := NewBlockedResourcesStats()
+	a.ByClassInDC = map[classInDC]BlockedResourcesSummary{
+		node3: {Timestamp: now(1), CPU: 111, MemoryMB: 1111},
+	}
+	result := a.Add(a)
+	require.Equal(t, map[classInDC]BlockedResourcesSummary{
+		node3: {Timestamp: now(1), CPU: 222, MemoryMB: 2222},
+	}, result.ByClassInDC)
 }
 
 func TestBlockedResourcesStats_Subtract(t *testing.T) {
@@ -246,7 +262,7 @@ func TestBlockedResourcesStats_Subtract(t *testing.T) {
 		id1: {Timestamp: now(1), CPU: 100, MemoryMB: 100},
 		id2: {Timestamp: now(2), CPU: 200, MemoryMB: 200},
 	}
-	a.ByNode = map[node]BlockedResourcesSummary{
+	a.ByClassInDC = map[classInDC]BlockedResourcesSummary{
 		node1: {Timestamp: now(3), CPU: 300, MemoryMB: 300},
 		node2: {Timestamp: now(4), CPU: 400, MemoryMB: 400},
 	}
@@ -256,7 +272,7 @@ func TestBlockedResourcesStats_Subtract(t *testing.T) {
 		id1: {Timestamp: now(5), CPU: 10, MemoryMB: 11},
 		id2: {Timestamp: now(6), CPU: 12, MemoryMB: 13},
 	}
-	b.ByNode = map[node]BlockedResourcesSummary{
+	b.ByClassInDC = map[classInDC]BlockedResourcesSummary{
 		node1: {Timestamp: now(7), CPU: 14, MemoryMB: 15},
 		node2: {Timestamp: now(8), CPU: 16, MemoryMB: 17},
 	}
@@ -274,14 +290,14 @@ func TestBlockedResourcesStats_Subtract(t *testing.T) {
 	require.Equal(t, 187, result.ByJob[id2].MemoryMB)
 
 	// node1
-	require.Equal(t, now(7), result.ByNode[node1].Timestamp)
-	require.Equal(t, 286, result.ByNode[node1].CPU)
-	require.Equal(t, 285, result.ByNode[node1].MemoryMB)
+	require.Equal(t, now(7), result.ByClassInDC[node1].Timestamp)
+	require.Equal(t, 286, result.ByClassInDC[node1].CPU)
+	require.Equal(t, 285, result.ByClassInDC[node1].MemoryMB)
 
 	// node2
-	require.Equal(t, now(8), result.ByNode[node2].Timestamp)
-	require.Equal(t, 384, result.ByNode[node2].CPU)
-	require.Equal(t, 383, result.ByNode[node2].MemoryMB)
+	require.Equal(t, now(8), result.ByClassInDC[node2].Timestamp)
+	require.Equal(t, 384, result.ByClassInDC[node2].CPU)
+	require.Equal(t, 383, result.ByClassInDC[node2].MemoryMB)
 }
 
 // testBlockedEvalsRandomBlockedEval wraps an eval that is randomly generated.
@@ -363,9 +379,9 @@ func clearTimestampFromBlockedResourceStats(b *BlockedResourcesStats) {
 		v.Timestamp = time.Time{}
 		b.ByJob[k] = v
 	}
-	for k, v := range b.ByNode {
+	for k, v := range b.ByClassInDC {
 		v.Timestamp = time.Time{}
-		b.ByNode[k] = v
+		b.ByClassInDC[k] = v
 	}
 }
 
