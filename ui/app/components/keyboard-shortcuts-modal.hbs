@@ -1,6 +1,6 @@
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <ul class="keyboard-shortcuts"
+  <div class="keyboard-shortcuts"
       {{focus-trap}}
       {{on-click-outside
         (toggle "keyboard.shortcutsVisible" this)
@@ -14,16 +14,18 @@
     >
       {{x-icon "cancel"}}
     </button>
-    {{#each this.commands as |command|}}
-      <li>
-        <strong>{{command.label}}</strong>
-        <span class="keys">
-          {{#each command.pattern as |key|}}
-            <span>{{clean-keycommand key}}</span>
-          {{/each}}
-        </span>
-      </li>
-    {{/each}}
+    <ul>
+      {{#each this.commands as |command|}}
+        <li>
+          <strong>{{command.label}}</strong>
+          <span class="keys">
+            {{#each command.pattern as |key|}}
+              <span>{{clean-keycommand key}}</span>
+            {{/each}}
+          </span>
+        </li>
+      {{/each}}
+    </ul>
     <footer>
       <strong>Keyboard shortcuts enabled</strong>
       <Toggle
@@ -33,7 +35,7 @@
         title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
       />
     </footer>
-  </ul>
+  </div>
 {{/if}}
 
 {{#if (and this.keyboard.enabled this.keyboard.displayHints)}}
