@@ -154,8 +154,8 @@ grained namespace capabilities:
 <!-- markdownlint-enable -->
 
 If you provide both a `policy` and `capabilities` list, the capabilities are
-merged. For example, the policy below adds the submit-job capability to the read
-policy disposition, which provides the list-job and read-job capabilities:
+merged. For example, the policy below adds the `submit-job` capability to the `read`
+policy disposition, which provides the `list-job` and `read-job` capabilities:
 
 ```hcl
 # Allow reading jobs and submitting jobs, without allowing access
@@ -166,7 +166,7 @@ namespace "default" {
 }
 ```
 
-This same policy could also be expressed as:
+A similar policy could also be expressed as:
 
 ```hcl
 # Allow reading jobs and submitting jobs, without allowing access
@@ -338,7 +338,7 @@ The `policy` field for the plugin rule can have one of the following values:
 [api_evaluations]: /api-docs/evaluations
 [api_recommendations]: /api-docs/recommendations
 [api_scaling_policies]: /api-docs/scaling-policies
-[api_services]: /api-docs/servies
+[api_services]: /api-docs/services
 [api_volumes]: /api-docs/volumes
 [api_events]: /api-docs/events
 [api_search]: /api-docs/search
