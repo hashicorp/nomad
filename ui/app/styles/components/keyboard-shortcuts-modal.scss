@@ -15,8 +15,9 @@
   grid-template-rows: auto 1fr auto;
 
   header {
+    margin-bottom: 2rem;
     h2 {
-      font-size: $size-4;
+      font-size: $size-3;
       font-weight: $weight-semibold;
     }
 
