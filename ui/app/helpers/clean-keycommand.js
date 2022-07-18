@@ -13,11 +13,10 @@ const KEY_ALIAS_MAP = {
   // Shift: '⇧',
 };
 
-export default helper(function cleanKeycommand([part] /*, named*/) {
-  console.log('cleaning', part);
-  Object.keys(KEY_ALIAS_MAP).forEach((key) => {
-    part = part.replace(key, KEY_ALIAS_MAP[key]);
+export default helper(function cleanKeycommand([key] /*, named*/) {
+  let cleaned = key;
+  Object.keys(KEY_ALIAS_MAP).forEach((k) => {
+    cleaned = cleaned.replace(k, KEY_ALIAS_MAP[k]);
   });
-
-  return [part];
+  return cleaned;
 });
