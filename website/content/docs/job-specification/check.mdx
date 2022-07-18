@@ -1,0 +1,363 @@
+---
+layout: docs
+page_title: check Block - Job Specification
+description: |-
+  The "check" block declares service check definition for a Consul service.
+---
+
+# `check` Stanza
+
+<Placement
+  groups={[
+    ['job', 'group', 'service', 'check'],
+    ['job', 'group', 'task', 'service', 'check'],
+  ]}
+/>
+
+The `check` block instructs Nomad to register a check associated with a [service][service]
+from the Consul service provider.
+
+```hcl
+job "job" {
+  group "group" {
+    task "task " {
+      service {
+        check {
+          type     = "tcp"
+          port     = 6379
+          interval = "10s"
+          timeout  = "2s"
+        }
+        # ...
+      }
+      # ...
+    }
+    # ...
+  }
+}
+```
+
+### `check` Parameters
+
+- `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
+  Unlike services, checks do not have an `auto` address mode as there's no way
+  for Nomad to know which is the best address to use for checks. Consul needs
+  access to the address for any HTTP or TCP checks. See
+  [below for details.](#using-driver-address-mode) Unlike `port`, this setting
+  is _not_ inherited from the `service`.
+  If the service `address` is set and the check `address_mode` is not set, the
+  service `address` value will be used for the check address.
+
+- `args` `(array<string>: [])` - Specifies additional arguments to the
+  `command`. This only applies to script-based health checks.
+
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+
+- `command` `(string: <varies>)` - Specifies the command to run for performing
+  the health check. The script must exit: 0 for passing, 1 for warning, or any
+  other value for a failing health check. This is required for script-based
+  health checks.
+
+  ~> **Caveat:** The command must be the path to the command on disk, and no
+  shell exists by default. That means operators like `||` or `&&` are not
+  available. Additionally, all arguments must be supplied via the `args`
+  parameter. To achieve the behavior of shell operators, specify the command
+  as a shell, like `/bin/bash` and then use `args` to run the check.
+
+- `grpc_service` `(string: <optional>)` - What service, if any, to specify in
+  the gRPC health check. gRPC health checks require Consul 1.0.5 or later.
+
+- `grpc_use_tls` `(bool: false)` - Use TLS to perform a gRPC health check. May
+  be used with `tls_skip_verify` to use TLS but skip certificate verification.
+
+- `initial_status` `(string: <enum>)` - Specifies the starting status of the
+  service. Valid options are `passing`, `warning`, and `critical`. Omitting
+  this field (or submitting an empty string) will result in the Consul default
+  behavior, which is `critical`.
+
+- `success_before_passing` `(int:0)` - The number of consecutive successful checks
+  required before Consul will transition the service status to [`passing`][consul_passfail].
+
+- `failures_before_critical` `(int:0)` - The number of consecutive failing checks
+  required before Consul will transition the service status to [`critical`][consul_passfail].
+
+- `interval` `(string: <required>)` - Specifies the frequency of the health checks
+  that Consul will perform. This is specified using a label suffix like "30s"
+  or "1h". This must be greater than or equal to "1s".
+
+- `method` `(string: "GET")` - Specifies the HTTP method to use for HTTP
+  checks.
+
+- `body` `(string: "")` - Specifies the HTTP body to use for HTTP checks.
+
+- `name` `(string: "service: <name> check")` - Specifies the name of the health
+  check. If the name is not specified Nomad generates one based on the service name.
+  If you have more than one check you must specify the name.
+
+- `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
+  Consul will query to query the health of a service. Nomad will automatically
+  add the IP of the service and the port, so this is just the relative URL to
+  the health check endpoint. This is required for http-based health checks.
+
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
+  should be automatically generated for this check. Only compatible with
+  Connect-enabled task-group services using the default Connect proxy. If set, check
+  [`type`][type] must be `http` or `grpc`, and check `name` must be set.
+
+- `port` `(string: <varies>)` - Specifies the label of the port on which the
+  check will be performed. Note this is the _label_ of the port and not the port
+  number unless `address_mode = driver`. The port label must match one defined
+  in the [`network`][network] stanza. If a port value was declared on the
+  `service`, this will inherit from that value if not supplied. If supplied,
+  this value takes precedence over the `service.port` value. This is useful for
+  services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
+  require a port while `script` checks do not. Checks will use the host IP and
+  ports by default. In Nomad 0.7.1 or later numeric ports may be used if
+  `address_mode="driver"` is set on the check.
+
+- `protocol` `(string: "http")` - Specifies the protocol for the http-based
+  health checks. Valid options are `http` and `https`.
+
+- `task` `(string: <required>)` - Specifies the task associated with this
+  check. Scripts are executed within the task's environment, and
+  `check_restart` stanzas will apply to the specified task. For `checks` on group
+  level `services` only. Inherits the [`service.task`][service_task] value if not
+  set. May only be set for script or gRPC checks.
+
+- `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
+  health check query to succeed. This is specified using a label suffix like
+  "30s" or "1h". This must be greater than or equal to "1s"
+
+  ~> **Caveat:** Script checks use the task driver to execute in the task's
+  environment. For task drivers with namespace isolation such as `docker` or
+  `exec`, setting up the context for the script check may take an unexpectedly
+  long amount of time (a full second or two), especially on busy hosts. The
+  timeout configuration must allow for both this setup and the execution of
+  the script. Operators should use long timeouts (5 or more seconds) for script
+  checks, and monitor telemetry for
+  `client.allocrunner.taskrunner.tasklet_timeout`.
+
+- `type` `(string: <required>)` - This indicates the check types supported by
+  Nomad. Valid options are `grpc`, `http`, `script`, and `tcp`. gRPC health
+  checks require Consul 1.0.5 or later.
+
+- `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
+  checks. Requires Consul >= 0.7.2.
+
+- `on_update` `(string: "require_healthy")` - Specifies how checks should be
+  evaluated when determining deployment health (including a job's initial
+  deployment). This allows job submitters to define certain checks as readiness
+  checks, progressing a deployment even if the Service's checks are not yet
+  healthy. Checks inherit the Service's value by default. The check status is
+  not altered in Consul and is only used to determine the check's health during
+  an update.
+
+  - `require_healthy` - In order for Nomad to consider the check healthy during
+    an update it must report as healthy.
+
+  - `ignore_warnings` - If a Service Check reports as warning, Nomad will treat
+    the check as healthy. The Check will still be in a warning state in Consul.
+
+  - `ignore` - Any status will be treated as healthy.
+
+  ~> **Caveat:** `on_update` is only compatible with certain
+  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  be omitted entirely.
+
+#### `header` Stanza
+
+HTTP checks may include a `header` stanza to set HTTP headers. The `header`
+stanza parameters have lists of strings as values. Multiple values will cause
+the header to be set multiple times, once for each value.
+
+```hcl
+service {
+  # ...
+  check {
+    type     = "http"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
+  }
+}
+```
+
+### HTTP Health Check
+
+This example shows a service with an HTTP health check. This will query the
+service on the IP and port registered with Nomad at `/_healthz` every 5 seconds,
+giving the service a maximum of 2 seconds to return a response, and include an
+Authorization header. Any non-2xx code is considered a failure.
+
+```hcl
+service {
+  check {
+    type     = "http"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
+  }
+}
+```
+
+### Multiple Health Checks
+
+This example shows a service with multiple health checks defined. All health
+checks must be passing in order for the service to register as healthy.
+
+```hcl
+service {
+  check {
+    name     = "HTTP Check"
+    type     = "http"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+  }
+
+  check {
+    name     = "HTTPS Check"
+    type     = "http"
+    protocol = "https"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+    method   = "POST"
+  }
+
+  check {
+    name      = "Postgres Check"
+    type      = "script"
+    command   = "/usr/local/bin/pg-tools"
+    args      = ["verify", "database", "prod", "up"]
+    interval  = "5s"
+    timeout   = "2s"
+    on_update = "ignore_warnings"
+  }
+}
+```
+
+### gRPC Health Check
+
+gRPC health checks use the same host and port behavior as `http` and `tcp`
+checks, but gRPC checks also have an optional gRPC service to health check. Not
+all gRPC applications require a service to health check. gRPC health checks
+require Consul 1.0.5 or later.
+
+```hcl
+service {
+  check {
+    type            = "grpc"
+    port            = "rpc"
+    interval        = "5s"
+    timeout         = "2s"
+    grpc_service    = "example.Service"
+    grpc_use_tls    = true
+    tls_skip_verify = true
+  }
+}
+```
+
+In this example Consul would health check the `example.Service` service on the
+`rpc` port defined in the task's [network resources][network] stanza. See
+[Using Driver Address Mode](#using-driver-address-mode) for details on address
+selection.
+
+### Script Checks with Shells
+
+Note that script checks run inside the task. If your task is a Docker container,
+the script will run inside the Docker container. If your task is running in a
+chroot, it will run in the chroot. Please keep this in mind when authoring check
+scripts.
+
+This example shows a service with a script check that is evaluated and interpolated in a shell; it
+tests whether a file is present at `${HEALTH_CHECK_FILE}` environment variable:
+
+```hcl
+service {
+  check {
+    type    = "script"
+    command = "/bin/bash"
+    args    = ["-c", "test -f ${HEALTH_CHECK_FILE}"]
+  }
+}
+```
+
+Using `/bin/bash` (or another shell) is required here to interpolate the `${HEALTH_CHECK_FILE}` value.
+
+The following examples of `command` fields **will not work**:
+
+```hcl
+# invalid because command is not a path
+check {
+  type    = "script"
+  command = "test -f /tmp/file.txt"
+}
+
+# invalid because path will not be interpolated
+check {
+  type    = "script"
+  command = "/bin/test"
+  args    = ["-f", "${HEALTH_CHECK_FILE}"]
+}
+```
+
+### Healthiness vs. Readiness Checks
+
+Multiple checks for a service can be composed to create healthiness and readiness
+checks by configuring [`on_update`][on_update] for the check.
+
+```hcl
+service {
+  # This is a healthiness check that will be used to verify the service
+  # is responsive to tcp connections and behaving as expected.
+  check {
+    name     = "connection_tcp"
+    type     = "tcp"
+    port     = 6379
+    interval = "10s"
+    timeout  = "2s"
+  }
+
+  # This is a readiness check that is used to verify that, for example, the
+  # application has elected a leader by making a request to its /leader endpoint.
+  # Failures of this check are ignored during deployments.
+  check {
+    name      = "leader_elected"
+    type      = "http"
+    path      = "/leader"
+    interval  = "10s"
+    timeout   = "2s"
+    on_update = "ignore_warnings"
+  }
+}
+```
+
+---
+
+<sup>
+  <small>1</small>
+</sup>
+<small>
+  {' '}
+  Script checks are not supported for the QEMU driver since the Nomad client
+  does not have access to the file system of a task for that driver.
+</small>
+
+[check_restart_stanza]: /docs/job-specification/check_restart
+[consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
+[network]: /docs/job-specification/network 'Nomad network Job Specification'
+[service]: /docs/job-specification/service
+[service_task]: /docs/job-specification/service#task-1
+[on_update]: /docs/job-specification/service#on_update
