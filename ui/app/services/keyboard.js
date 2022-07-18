@@ -331,6 +331,16 @@ export default class KeyboardService extends Service {
     set(cmd, 'recording', true);
   };
 
+  endRebind = (cmd) => {
+    set(cmd, 'pattern', [...this.buffer]);
+    set(cmd, 'custom', true);
+    set(cmd, 'recording', false);
+    window.localStorage.setItem(
+      `keyboard.command.${cmd.label}`,
+      JSON.stringify([...this.buffer])
+    );
+  };
+
   resetCommandToDefault = (cmd) => {
     window.localStorage.removeItem(`keyboard.command.${cmd.label}`);
     set(cmd, 'pattern', this.defaultPatterns[cmd.label]);
@@ -353,6 +363,11 @@ export default class KeyboardService extends Service {
       if (key === 'Escape' || key === '/') {
         // Escape cancels recording; slash is reserved for global search
         set(recorder, 'recording', false);
+        recorder = null;
+      } else if (key === 'Enter') {
+        // Enter finishes recording and removes itself from the buffer
+        this.buffer = this.buffer.slice(0, -1);
+        this.endRebind(recorder);
         recorder = null;
       }
     } else {
@@ -378,13 +393,7 @@ export default class KeyboardService extends Service {
     }
     yield timeout(DEBOUNCE_MS);
     if (recorder) {
-      set(recorder, 'pattern', [...this.buffer]);
-      set(recorder, 'custom', true);
-      set(recorder, 'recording', false);
-      window.localStorage.setItem(
-        `keyboard.command.${recorder.label}`,
-        JSON.stringify([...this.buffer])
-      );
+      this.endRebind(recorder);
     }
     this.clearBuffer();
   }
