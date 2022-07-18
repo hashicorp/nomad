@@ -8,7 +8,7 @@ import { A } from '@ember/array';
 // eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { action, set, get } from '@ember/object';
+import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
