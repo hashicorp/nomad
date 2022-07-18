@@ -1,0 +1,350 @@
+---
+layout: docs
+page_title: ACL Policy Specification
+description: Learn about Nomad's ACL policy specification.
+---
+
+# ACL Policy Specification
+
+The [Secure Nomad with Access Control] guide includes step-by-step instructions
+for bootstrapping Nomad's Access Control List (ACL) system, authoring policies,
+and granting policies. This document is a detailed reference of the expected
+policy structure and available options.
+
+ACL policies are written using [HashiCorp Configuration Language
+(HCL)][hcl]. The HCL interpreter can also parse JSON to facilitate
+machine-generated configuration. A detailed syntax specification for HCL can be
+found at [HCL Native Syntax Specification][hcl_syntax_spec].
+
+All content of an ACL policy is case-sensitive.
+
+An ACL policy contains one or more **rules**. Each rule block contains a
+combination of `policy` and `capabilities` fields. The specific values permitted
+are described for each rule definition below. An example structure of an ACL
+policy is as follows:
+
+```hcl
+# this is a namespace rule for the "foo" namespace
+namespace "foo" {
+  policy = "write"                # this is a policy field
+  capabilities = ["alloc-exec"]  # this is a capabilities list
+}
+
+# this is a namespace rule, with a wildcard label
+namespace "*" {
+  policy = "read"
+}
+
+node {
+  policy = "read"
+}
+
+agent {
+  policy = "read"
+}
+
+operator {
+  policy = "read"
+}
+
+quota {
+  policy = "read"
+}
+
+# this is a host_volume rule, with a wildcard label
+host_volume "*" {
+  policy = "read"
+}
+
+plugin {
+  policy = "write"
+}
+```
+
+## Namespace Rules
+
+Namespace rules are defined with a `namespace` block. An ACL policy can include
+zero, one, or more namespace rules.
+
+Namespace rules control access to APIs in Nomad that are namespaced:
+[Jobs][api_jobs], [Allocations][api_allocations],
+[Deployments][api_deployments], [Evaluations][api_evaluations],
+[Recommendations][api_recommendations], [Scaling
+Policies][api_scaling_policies], [Services][api_services], and [CSI
+Volumes][api_volumes]. Namespace rules also filter items related to the above
+APIs from the [Event Stream][api_events] and [Search][api_search] APIs.
+
+Each namespace rule is labeled with the namespace name it applies to. If no
+namespace label is specified, the rule will apply to the "default"
+namespace. You may use wildcard globs (`"*"`) in the namespace label, to apply a
+rule to multiple namespaces.
+
+Only one namespace rule can apply. When an action is checked against the ACL
+Policy, the namespace rule is selected by first checking for an _exact match_,
+before falling back to a glob-based lookup. When looking up the namespace by
+glob, the matching rule with the greatest number of matched characters will be
+chosen.
+
+For example the following policy will evaluate to deny for `production-web`,
+because it is 9 characters different from the `"*-web"` rule, but 13 characters
+different from the `"*"` rule.
+
+```hcl
+namespace "*-web" {
+  policy = "deny"
+}
+
+namespace "*" {
+  policy = "write"
+}
+```
+
+Each namespace rule can include a coarse-grained `policy` field, a fine-grained
+`capabilities` field, or both.
+
+The `policy` field for namespace rules can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+In addition to the coarse-grained `policy`, you can provide a fine-grained list
+of `capabilities`. This includes:
+
+- `deny` - When multiple policies are associated with a token, deny will take
+  precedence and prevent any capabilities.
+- `list-jobs` - Allows listing the jobs and seeing coarse grain status.
+- `parse-job` - Allows parsing a job from HCL to JSON.
+- `read-job` - Allows inspecting a job and seeing fine grain status.
+- `submit-job` - Allows jobs to be submitted or modified.
+- `dispatch-job` - Allows jobs to be dispatched
+- `read-logs` - Allows the logs associated with a job to be viewed.
+- `read-fs` - Allows the filesystem of allocations associated to be viewed.
+- `alloc-exec` - Allows an operator to connect and run commands in running
+  allocations.
+- `alloc-node-exec` - Allows an operator to connect and run commands in
+  allocations running without filesystem isolation, for example, raw_exec jobs.
+- `alloc-lifecycle` - Allows an operator to stop individual allocations
+  manually.
+- `csi-register-plugin` - Allows jobs to be submitted that register themselves
+  as CSI plugins.
+- `csi-write-volume` - Allows CSI volumes to be registered or deregistered.
+- `csi-read-volume` - Allows inspecting a CSI volume and seeing fine grain
+  status.
+- `csi-list-volume` - Allows listing CSI volumes and seeing coarse grain status.
+- `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume.
+- `list-scaling-policies` - Allows listing scaling policies.
+- `read-scaling-policy` - Allows inspecting a scaling policy.
+- `read-job-scaling` - Allows inspecting the current scaling of a job.
+- `scale-job`: Allows scaling a job up or down.
+- `sentinel-override` - Allows soft mandatory policies to be overridden.
+
+The coarse-grained policy permissions are shorthand for the following fine-
+grained namespace capabilities:
+
+<!-- markdownlint-disable -->
+
+| Policy  | Capabilities                                                                                                                                                                                                                                                    |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deny`  | deny                                                                                                                                                                                                                                                            |
+| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                      |
+| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
+| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+
+<!-- markdownlint-enable -->
+
+If you provide both a `policy` and `capabilities` list, the capabilities are
+merged. For example, the policy below adds the `submit-job` capability to the `read`
+policy disposition, which provides the `list-job` and `read-job` capabilities:
+
+```hcl
+# Allow reading jobs and submitting jobs, without allowing access
+# to view log output or inspect the filesystem
+namespace "default" {
+  policy       = "read"
+  capabilities = ["submit-job"]
+}
+```
+
+A similar policy could also be expressed as:
+
+```hcl
+# Allow reading jobs and submitting jobs, without allowing access
+# to view log output or inspect the filesystem
+namespace "default" {
+  capabilities = ["submit-job","list-jobs","read-job"]
+}
+```
+
+## Node rules
+
+The `node` rule controls access to the [Node API][api_node] such as listing
+nodes or triggering a node drain. The node rule is optional, but you can specify
+only one node rule per ACL Policy.
+
+```hcl
+node {
+  policy = "read"
+}
+```
+
+The `policy` field for the node rule can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+## Agent rules
+
+The `agent` rule controls access to the [Agent API][api_agent] such as join and
+leave. The agent rule is optional, but you can specify only one agent rule per
+ACL Policy.
+
+```hcl
+agent {
+  policy = "read"
+}
+```
+
+The `policy` field for the agent rule can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+## Operator rules
+
+The `operator` rule controls access to the [Operator API][api_operator] such
+raft or scheduler configuration. The operator rule is optional, but you can
+specify only one operator rule per ACL Policy.
+
+```hcl
+operator {
+  policy = "read"
+}
+```
+
+The `policy` field for the operator rule can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+In the example above, the token could be used to query the operator endpoints
+for diagnostic purposes but not make any changes.
+
+## Quota rules
+
+The `quota` rule controls access to the [Quota API][api_quota] such as quota
+creation and deletion. The quota rule is optional, but you can specify only one
+quota rule per ACL Policy.
+
+```hcl
+quota {
+  policy = "read"
+}
+```
+
+The `policy` field for the quota rule can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+## Host Volume rules
+
+The `host_volume` rule controls access to mounting and accessing [host
+volumes][host_volumes]. An ACL Policy can include zero, one, or more host volume
+rules.
+
+```hcl
+host_volume "*" {
+  policy = "write"
+}
+
+host_volume "prod-*" {
+  policy = "deny"
+}
+
+host_volume "prod-ca-certificates" {
+  policy = "read"
+}
+```
+
+Host volume rules are labeled with the volume names that they apply to. As with
+namespaces, you may use wildcards to reuse the same configuration across a set
+of volumes.
+
+The `policy` field for host volume rules can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+In addition to the coarse grained policy, host volume rules can include a list
+of fine-grained `capabilities`. These include:
+
+- `deny` - Do not allow a user to mount a volume in any way.
+- `mount-readonly` - Only allow the user to mount the volume as `readonly`
+- `mount-readwrite` - Allow the user to mount the volume as `readonly` or
+  `readwrite` if the `host_volume` configuration allows it.
+
+The coarse-grained policy permissions are shorthand for the fine grained
+capabilities:
+
+<!-- markdownlint-disable -->
+
+| Policy  | Capabilities                        |
+|---------|-------------------------------------|
+| `deny`  | deny                                |
+| `read`  | mount-readonly                      |
+| `write` | mount-readonly<br />mount-readwrite |
+
+<!-- markdownlint-enable -->
+
+When both the policy short hand and a capabilities list are provided, the
+capabilities are merged.
+
+~> **Note:** Host Volume policies are applied when attempting to _use_ a volume.
+Regardless of this configuration, users with access to the Node API will be able
+to list available volumes using the `nomad node status` command or API call. .
+
+## Plugin rules
+
+The `plugin` rule controls access to [CSI plugins][api_plugins], such as listing
+plugins or getting plugin status. The plugin rule is optional, but you can
+specify only one plugin rule per ACL policy.
+
+```hcl
+plugin {
+  policy = "read"
+}
+```
+
+The `policy` field for the plugin rule can have one of the following values:
+- `read`: allow the resource to be read but not modified
+- `list`: allow the resource to be listed, but not inspected in detail
+- `write`: allow the resource to be read and modified
+- `deny`: do not allow the resource to be read or modified. Deny takes
+  precedence when multiple policies are associated with a token.
+
+
+[Secure Nomad with Access Control]: https://learn.hashicorp.com/collections/nomad/access-control
+[hcl]: https://github.com/hashicorp/hcl
+[hcl_syntax_spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md
+[api_jobs]: /api-docs/jobs
+[api_allocations]: /api-docs/allocations
+[api_deployments]: /api-docs/deployments
+[api_evaluations]: /api-docs/evaluations
+[api_recommendations]: /api-docs/recommendations
+[api_scaling_policies]: /api-docs/scaling-policies
+[api_services]: /api-docs/services
+[api_volumes]: /api-docs/volumes
+[api_events]: /api-docs/events
+[api_search]: /api-docs/search
+[api_agent]: /api-docs/agent/
+[api_node]: /api-docs/nodes/
+[api_operator]: /api-docs/operator/
+[api_quota]: /api-docs/quotas/
+[host_volumes]: /docs/configuration/client#host_volume-stanza
+[api_plugins]: /api-docs/plugins/
