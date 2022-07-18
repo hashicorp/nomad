@@ -1229,7 +1229,7 @@ func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []by
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.ExpireOneTimeTokens(msgType, index); err != nil {
+	if err := n.state.ExpireOneTimeTokens(msgType, index, req.Timestamp); err != nil {
 		n.logger.Error("ExpireOneTimeTokens failed", "error", err)
 		return err
 	}
