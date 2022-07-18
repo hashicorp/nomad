@@ -13,7 +13,7 @@
         <strong>{{command.label}}</strong>
         <span class="keys">
           {{#each command.pattern as |key|}}
-            <span>{{key}}</span>
+            <span>{{clean-keycommand key}}</span>
           {{/each}}
         </span>
       </li>
