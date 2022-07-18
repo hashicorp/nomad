@@ -291,7 +291,7 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
-    const inputElements = ['input', 'textarea'];
+    const inputElements = ['input', 'textarea', 'code'];
     const targetElementName = event.target.nodeName.toLowerCase();
     if (!inputElements.includes(targetElementName)) {
       console.log(
