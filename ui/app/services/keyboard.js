@@ -367,14 +367,18 @@ export default class KeyboardService extends Service {
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
     // Replace key with its unshifted equivalent if it's a number key
+    console.log('key', key);
     if (shifted && key in DIGIT_MAP) {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     let recorder = this.keyCommands.find((c) => c.recording);
     if (recorder) {
-      set(recorder, 'pattern', [...this.buffer]);
-      set(recorder, 'custom', true);
+      if (key === 'Escape' || key === '/') {
+        // Escape cancels recording; slash is reserved for global search
+        set(recorder, 'recording', false);
+        recorder = null;
+      }
     } else {
       if (this.matchedCommands.length) {
         this.matchedCommands.forEach((command) => {
@@ -398,8 +402,9 @@ export default class KeyboardService extends Service {
     }
     yield timeout(DEBOUNCE_MS);
     if (recorder) {
+      set(recorder, 'pattern', [...this.buffer]);
+      set(recorder, 'custom', true);
       set(recorder, 'recording', false);
-      set(this, recorder.label, this.buffer);
     }
     this.clearBuffer();
   }

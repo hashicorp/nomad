@@ -14,11 +14,17 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
 
-  button.dismiss {
-    width: 100%;
-    justify-content: right;
-    font-size: 0.7rem;
-    margin-bottom: 1rem;
+  header {
+    h2 {
+      font-size: $size-4;
+      font-weight: $weight-semibold;
+    }
+
+    button.dismiss {
+      float: right;
+      font-size: 0.7rem;
+      margin-bottom: 1rem;
+    }
   }
 
   & > ul {

@@ -6,32 +6,37 @@
         (toggle "keyboard.shortcutsVisible" this)
       }}
     >
-    <button
-      {{autofocus}}
-      class="button is-borderless dismiss"
-      type="button"
-      {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
-    >
-      {{x-icon "cancel"}}
-    </button>
+    <header>
+      <button
+        {{autofocus}}
+        class="button is-borderless dismiss"
+        type="button"
+        {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
+      >
+        {{x-icon "cancel"}}
+      </button>
+      <h2>Keyboard Shortcuts</h2>
+      <p>Click a pattern to re-bind it to a shortcut of your choosing.</p>
+    </header>
     <ul>
       {{#each this.commands as |command|}}
         <li>
           <strong>{{command.label}}</strong>
             <span class="keys" {{on "click" (action (mut command.recording) true)}}>
               {{#if command.recording}}
-                <span class="recording">Recording...</span>
+                <span class="recording">Recording; ESC to cancel.</span>
+              {{else}}
+                {{#each command.pattern as |key|}}
+                  <span>{{clean-keycommand key}}</span>
+                {{/each}}
               {{/if}}
-              {{#each command.pattern as |key|}}
-                <span>{{clean-keycommand key}}</span>
-              {{/each}}
             </span>
           {{!-- {{/if}} --}}
         </li>
       {{/each}}
     </ul>
     <footer>
-      <strong>Keyboard shortcuts enabled</strong>
+      <strong>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</strong>
       <Toggle
         data-test-cpu-toggle
         @isActive={{this.keyboard.enabled}}
