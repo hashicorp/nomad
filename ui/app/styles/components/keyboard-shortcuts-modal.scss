@@ -40,13 +40,16 @@
       &:not(:last-of-type) {
         border-bottom: 1px solid #ccc;
       }
+      strong {
+        padding: 0.25rem 0;
+      }
       .keys {
         text-align: right;
         & > span.recording {
-          color: red;
+          color: $red;
+          font-size: 0.75rem;
         }
         button {
-          padding: 0.25rem;
           border: none;
           background: #eee;
           cursor: pointer;
@@ -62,7 +65,8 @@
             cursor: not-allowed;
           }
           span {
-            margin: 0 0.25rem;
+            margin: 0.25rem;
+            display: inline-block;
           }
 
           &.reset-to-default {

@@ -41,6 +41,19 @@ const DIGIT_MAP = {
   ')': 0,
 };
 
+const DISALLOWED_KEYS = [
+  'Shift',
+  'Backspace',
+  'Delete',
+  'Meta',
+  'Alt',
+  'Control',
+  'Tab',
+  'CapsLock',
+  'Clear',
+  'ScrollLock',
+];
+
 export default class KeyboardService extends Service {
   /**
    * @type {EmberRouter}
@@ -193,12 +206,10 @@ export default class KeyboardService extends Service {
   addCommands(commands) {
     schedule('afterRender', () => {
       commands.forEach((command) => {
-        if (!this.keyCommands.find((c) => c.label === command.label)) {
-          this.keyCommands.pushObject(command);
-          if (command.enumerated) {
-            // Recompute enumerated numbers to handle things like sort
-            this.recomputeEnumeratedCommands();
-          }
+        this.keyCommands.pushObject(command);
+        if (command.enumerated) {
+          // Recompute enumerated numbers to handle things like sort
+          this.recomputeEnumeratedCommands();
         }
       });
     });
@@ -312,10 +323,12 @@ export default class KeyboardService extends Service {
       const { key } = event;
       const shifted = event.getModifierState('Shift');
       if (type === 'press') {
-        if (key !== 'Shift') {
-          this.addKeyToBuffer.perform(key, shifted);
-        } else {
+        if (key === 'Shift') {
           this.displayHints = true;
+        } else {
+          if (!DISALLOWED_KEYS.includes(key)) {
+            this.addKeyToBuffer.perform(key, shifted);
+          }
         }
       } else if (type === 'release') {
         if (key === 'Shift') {
@@ -328,12 +341,14 @@ export default class KeyboardService extends Service {
   rebindCommand = (cmd) => {
     this.clearBuffer();
     set(cmd, 'recording', true);
+    set(cmd, 'previousPattern', cmd.pattern);
+    set(cmd, 'pattern', null);
   };
 
   endRebind = (cmd) => {
-    set(cmd, 'pattern', [...this.buffer]);
     set(cmd, 'custom', true);
     set(cmd, 'recording', false);
+    set(cmd, 'previousPattern', null);
     window.localStorage.setItem(
       `keyboard.command.${cmd.label}`,
       JSON.stringify([...this.buffer])
@@ -362,12 +377,15 @@ export default class KeyboardService extends Service {
       if (key === 'Escape' || key === '/') {
         // Escape cancels recording; slash is reserved for global search
         set(recorder, 'recording', false);
+        set(recorder, 'pattern', recorder.previousPattern);
         recorder = null;
       } else if (key === 'Enter') {
         // Enter finishes recording and removes itself from the buffer
         this.buffer = this.buffer.slice(0, -1);
         this.endRebind(recorder);
         recorder = null;
+      } else {
+        set(recorder, 'pattern', [...this.buffer]);
       }
     } else {
       if (this.matchedCommands.length) {

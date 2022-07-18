@@ -21,7 +21,12 @@ export default class KeyboardShortcutsModalComponent extends Component {
    */
   @computed('keyboard.keyCommands.[]')
   get commands() {
-    return this.keyboard.keyCommands.filter((c) => c.label && c.action);
+    return this.keyboard.keyCommands.reduce((memo, c) => {
+      if (c.label && c.action && !memo.find((m) => m.label === c.label)) {
+        memo.push(c);
+      }
+      return memo;
+    }, []);
   }
 
   /**

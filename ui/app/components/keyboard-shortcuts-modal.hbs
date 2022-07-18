@@ -28,12 +28,13 @@
                 {{#if command.custom}}
                   <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
                 {{/if}}
-                <button disabled={{not command.rebindable}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
-                  {{#each command.pattern as |key|}}
-                    <span>{{clean-keycommand key}}</span>
-                  {{/each}}
-                </button>
               {{/if}}
+
+              <button disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+                {{#each command.pattern as |key|}}
+                  <span>{{clean-keycommand key}}</span>
+                {{/each}}
+              </button>
             </span>
         </li>
       {{/each}}
