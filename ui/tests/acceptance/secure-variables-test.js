@@ -13,6 +13,7 @@ import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
+import percySnapshot from '@percy/ember';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -49,6 +50,7 @@ module('Acceptance | secure variables', function (hooks) {
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
     assert.ok(Layout.gutter.variables.isVisible);
+    await percySnapshot(assert);
   });
 
   test('it correctly traverses to and deletes a variable', async function (assert) {
@@ -88,6 +90,8 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.ok(fooLink, 'foo0 file is present');
 
+    await percySnapshot(assert);
+
     await click(fooLink);
     assert.equal(
       currentURL(),
@@ -96,6 +100,8 @@ module('Acceptance | secure variables', function (hooks) {
     );
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
+
+    await percySnapshot(assert);
 
     await click(deleteButton);
     assert
@@ -198,6 +204,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is job-oriented'
     );
 
+    await percySnapshot(assert);
+
     let relatedJobLink = find('.related-entities a');
     await click(relatedJobLink);
     assert
@@ -209,6 +217,7 @@ module('Acceptance | secure variables', function (hooks) {
       currentURL().startsWith(`/variables/var/jobs/${variableLinkedJob.id}`),
       'correctly traverses from job to variable'
     );
+
 
     // Group Variable
     await Variables.visit();
@@ -230,6 +239,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is group-oriented'
     );
 
+    await percySnapshot(assert);
+    
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
     assert
@@ -266,6 +277,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is task-oriented'
     );
 
+    await percySnapshot(assert);
+    
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
@@ -292,6 +305,7 @@ module('Acceptance | secure variables', function (hooks) {
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
+    assert.expect(5);
     defaultScenario(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visitNew();
@@ -304,6 +318,9 @@ module('Acceptance | secure variables', function (hooks) {
 
     await typeIn('.key-value label:nth-child(1) input', 'myKey');
     await typeIn('.key-value label:nth-child(2) input', 'superSecret');
+
+    await percySnapshot(assert);
+
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
@@ -385,6 +402,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
+      assert.expect(7);
       // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);
@@ -408,6 +426,8 @@ module('Acceptance | secure variables', function (hooks) {
         'variables.variable.edit',
         'Clicking the button navigates you to editing view.'
       );
+
+      await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
 
