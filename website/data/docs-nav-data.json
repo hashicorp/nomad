@@ -1209,6 +1209,10 @@
         "path": "job-specification/affinity"
       },
       {
+        "title": "check",
+        "path": "job-specification/check"
+      },
+      {
         "title": "check_restart",
         "path": "job-specification/check_restart"
       },
