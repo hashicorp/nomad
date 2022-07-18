@@ -114,19 +114,19 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 
 func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 	testCases := []struct {
-		inputCfg         *ServiceRegistrationHandlerCfg
-		inputOldWorkload *serviceregistration.WorkloadServices
-		inputNewWorkload *serviceregistration.WorkloadServices
-		expectedRPCs     map[string]int
-		expectedError    error
-		name             string
+		cfg          *ServiceRegistrationHandlerCfg
+		oldWorkload  *serviceregistration.WorkloadServices
+		newWorkload  *serviceregistration.WorkloadServices
+		expectedRPCs map[string]int
+		name         string
 	}{
 		{
-			inputCfg: &ServiceRegistrationHandlerCfg{
+			name: "service names modified",
+			cfg: &ServiceRegistrationHandlerCfg{
 				Enabled: true,
 			},
-			inputOldWorkload: mockWorkload(),
-			inputNewWorkload: &serviceregistration.WorkloadServices{
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
 				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
 				Task:      "redis",
 				Group:     "cache",
@@ -162,15 +162,14 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				structs.ServiceRegistrationUpsertRPCMethod:     1,
 				structs.ServiceRegistrationDeleteByIDRPCMethod: 2,
 			},
-			expectedError: nil,
-			name:          "delete and upsert",
 		},
 		{
-			inputCfg: &ServiceRegistrationHandlerCfg{
+			name: "service tags modified",
+			cfg: &ServiceRegistrationHandlerCfg{
 				Enabled: true,
 			},
-			inputOldWorkload: mockWorkload(),
-			inputNewWorkload: &serviceregistration.WorkloadServices{
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
 				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
 				Task:      "redis",
 				Group:     "cache",
@@ -205,10 +204,53 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				},
 			},
 			expectedRPCs: map[string]int{
+				structs.ServiceRegistrationUpsertRPCMethod:     1,
+				structs.ServiceRegistrationDeleteByIDRPCMethod: 2,
+			},
+		},
+		{
+			name: "service meta modified",
+			cfg: &ServiceRegistrationHandlerCfg{
+				Enabled: true,
+			},
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
+				Services: []*structs.Service{
+					{
+						Name:        "redis-db",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "db",
+						Meta:        map[string]string{"a": "1"},
+					},
+					{
+						Name:        "redis-http",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "http",
+						Meta:        map[string]string{"b": "2"},
+					},
+				},
+				Ports: []structs.AllocatedPortMapping{
+					{
+						Label:  "db",
+						HostIP: "10.10.13.2",
+						Value:  23098,
+					},
+					{
+						Label:  "http",
+						HostIP: "10.10.13.2",
+						Value:  24098,
+					},
+				},
+			},
+			expectedRPCs: map[string]int{
 				structs.ServiceRegistrationUpsertRPCMethod: 1,
 			},
-			expectedError: nil,
-			name:          "upsert only",
 		},
 	}
 
@@ -219,16 +261,15 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			// Add the mock RPC functionality.
-			mockRPC := mockRPC{callCounts: map[string]int{}}
-			tc.inputCfg.RPCFn = mockRPC.RPC
+			rpc := mockRPC{callCounts: map[string]int{}}
+			tc.cfg.RPCFn = rpc.RPC
 
 			// Create the handler and run the tests.
-			h := NewServiceRegistrationHandler(log, tc.inputCfg)
+			h := NewServiceRegistrationHandler(log, tc.cfg)
 
-			require.Equal(t, tc.expectedError, h.UpdateWorkload(tc.inputOldWorkload, tc.inputNewWorkload))
-
+			require.NoError(t, h.UpdateWorkload(tc.oldWorkload, tc.newWorkload))
 			require.Eventually(t, func() bool {
-				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
+				return assert.Equal(t, tc.expectedRPCs, rpc.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
 		})
 	}
@@ -237,15 +278,16 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 
 func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 	testCases := []struct {
-		inputOldWorkload  *serviceregistration.WorkloadServices
-		inputNewWorkload  *serviceregistration.WorkloadServices
+		name              string
+		oldWorkload       *serviceregistration.WorkloadServices
+		newWorkload       *serviceregistration.WorkloadServices
 		expectedOldOutput *serviceregistration.WorkloadServices
 		expectedNewOutput *serviceregistration.WorkloadServices
-		name              string
 	}{
 		{
-			inputOldWorkload: mockWorkload(),
-			inputNewWorkload: &serviceregistration.WorkloadServices{
+			name:        "service names changed",
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
 				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
 				Task:      "redis",
 				Group:     "cache",
@@ -310,11 +352,11 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 					},
 				},
 			},
-			name: "service names changed",
 		},
 		{
-			inputOldWorkload: mockWorkload(),
-			inputNewWorkload: &serviceregistration.WorkloadServices{
+			name:        "tags updated",
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
 				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
 				Task:      "redis",
 				Group:     "cache",
@@ -355,7 +397,18 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 				JobID:     "example",
 				Canary:    false,
 				Namespace: "default",
-				Services:  []*structs.Service{},
+				Services: []*structs.Service{
+					{
+						Name:        "redis-db",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "db",
+					},
+					{
+						Name:        "redis-http",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "http",
+					},
+				},
 				Ports: []structs.AllocatedPortMapping{
 					{
 						Label:  "db",
@@ -403,11 +456,11 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 					},
 				},
 			},
-			name: "tags updated",
 		},
 		{
-			inputOldWorkload: mockWorkload(),
-			inputNewWorkload: &serviceregistration.WorkloadServices{
+			name:        "canary tags updated",
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
 				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
 				Task:      "redis",
 				Group:     "cache",
@@ -472,7 +525,101 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 					},
 				},
 			},
-			name: "canary tags updated",
+		},
+		{
+			name:        "meta updated",
+			oldWorkload: mockWorkload(),
+			newWorkload: &serviceregistration.WorkloadServices{
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
+				Services: []*structs.Service{
+					{
+						Name:        "redis-db",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "db",
+						Meta:        map[string]string{"a": "1"},
+					},
+					{
+						Name:        "redis-http",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "http",
+						Meta:        map[string]string{"b": "2"},
+					},
+				},
+				Ports: []structs.AllocatedPortMapping{
+					{
+						Label:  "db",
+						HostIP: "10.10.13.2",
+						Value:  23098,
+					},
+					{
+						Label:  "http",
+						HostIP: "10.10.13.2",
+						Value:  24098,
+					},
+				},
+			},
+			expectedOldOutput: &serviceregistration.WorkloadServices{
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
+				Services:  []*structs.Service{
+					// nothing
+				},
+				Ports: []structs.AllocatedPortMapping{
+					{
+						Label:  "db",
+						HostIP: "10.10.13.2",
+						Value:  23098,
+					},
+					{
+						Label:  "http",
+						HostIP: "10.10.13.2",
+						Value:  24098,
+					},
+				},
+			},
+			expectedNewOutput: &serviceregistration.WorkloadServices{
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
+				Services: []*structs.Service{
+					{
+						Name:        "redis-db",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "db",
+						Meta:        map[string]string{"a": "1"},
+					},
+					{
+						Name:        "redis-http",
+						AddressMode: structs.AddressModeHost,
+						PortLabel:   "http",
+						Meta:        map[string]string{"b": "2"},
+					},
+				},
+				Ports: []structs.AllocatedPortMapping{
+					{
+						Label:  "db",
+						HostIP: "10.10.13.2",
+						Value:  23098,
+					},
+					{
+						Label:  "http",
+						HostIP: "10.10.13.2",
+						Value:  24098,
+					},
+				},
+			},
 		},
 	}
 
@@ -480,7 +627,8 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOld, actualNew := s.dedupUpdatedWorkload(tc.inputOldWorkload, tc.inputNewWorkload)
+			actualOld, actualNew := s.deDupUpdatedWorkload(tc.oldWorkload, tc.newWorkload)
+			_ = actualOld
 			require.ElementsMatch(t, tc.expectedOldOutput.Services, actualOld.Services)
 			require.ElementsMatch(t, tc.expectedNewOutput.Services, actualNew.Services)
 		})

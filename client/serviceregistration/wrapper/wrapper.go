@@ -43,7 +43,6 @@ func NewHandlerWrapper(
 // workload unless the provider is unknown, in which case an error will be
 // returned.
 func (h *HandlerWrapper) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
-
 	// Don't rely on callers to check there are no services to register.
 	if len(workload.Services) == 0 {
 		return nil

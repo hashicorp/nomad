@@ -161,10 +161,10 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 
 func (s *ServiceRegistrationHandler) UpdateWorkload(old, new *serviceregistration.WorkloadServices) error {
 
-	// Overwrite the workload with the deduplicated versions.
-	old, new = s.dedupUpdatedWorkload(old, new)
+	// Overwrite the workload with the de-duplicated versions.
+	old, new = s.deDupUpdatedWorkload(old, new)
 
-	// Use the register error as an update protection and only ever deregister
+	// Use the register error as an update protection and only ever de-register
 	// when this has completed successfully. In the event of an error, we can
 	// return this to the caller stack without modifying state in a weird half
 	// manner.
@@ -181,13 +181,13 @@ func (s *ServiceRegistrationHandler) UpdateWorkload(old, new *serviceregistratio
 	return nil
 }
 
-// dedupUpdatedWorkload works through the request old and new workload to
-// return a deduplicated set of services.
+// deDupUpdatedWorkload works through the request old and new workload to
+// return a de-duplicated set of services.
 //
 // This is within its own function to make testing easier.
-func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
-	oldWork, newWork *serviceregistration.WorkloadServices) (
-	*serviceregistration.WorkloadServices, *serviceregistration.WorkloadServices) {
+func (s *ServiceRegistrationHandler) deDupUpdatedWorkload(
+	oldWork, newWork *serviceregistration.WorkloadServices,
+) (*serviceregistration.WorkloadServices, *serviceregistration.WorkloadServices) {
 
 	// Create copies of the old and new workload services. These specifically
 	// ignore the services array so this can be populated as the function
@@ -201,19 +201,20 @@ func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
 	// Generate and populate a mapping of the new service registration IDs.
 	newIDs := make(map[string]*structs.Service, len(newWork.Services))
 
-	for _, s := range newWork.Services {
-		newIDs[serviceregistration.MakeAllocServiceID(newWork.AllocID, newWork.Name(), s)] = s
+	for _, service := range newWork.Services {
+		id := serviceregistration.MakeAllocServiceID(newWork.AllocID, newWork.Name(), service)
+		newIDs[id] = service
 	}
 
-	// Iterate through the old services in order to identify whether they can
+	// Iterate through the old services to identify whether they can
 	// be modified solely via upsert, or whether they need to be deleted.
 	for _, oldService := range oldWork.Services {
 
 		// Generate the service ID of the old service. If this is not found
 		// within the new mapping then we need to remove it.
 		oldID := serviceregistration.MakeAllocServiceID(oldWork.AllocID, oldWork.Name(), oldService)
-		newSvc, ok := newIDs[oldID]
-		if !ok {
+		newSvc, exists := newIDs[oldID]
+		if !exists {
 			oldCopy.Services = append(oldCopy.Services, oldService)
 			continue
 		}

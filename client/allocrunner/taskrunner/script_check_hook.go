@@ -90,7 +90,7 @@ func (h *scriptCheckHook) Prestart(ctx context.Context, req *interfaces.TaskPres
 	return nil
 }
 
-// PostStart implements interfaces.TaskPoststartHook. It creates new
+// Poststart implements interfaces.TaskPoststartHook. It creates new
 // script checks with the current task context (driver and env), and
 // starts up the scripts.
 func (h *scriptCheckHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
@@ -107,7 +107,7 @@ func (h *scriptCheckHook) Poststart(ctx context.Context, req *interfaces.TaskPos
 	return h.upsertChecks()
 }
 
-// Updated implements interfaces.TaskUpdateHook. It creates new
+// Update implements interfaces.TaskUpdateHook. It creates new
 // script checks with the current task context (driver and env and possibly
 // new structs.Task), and starts up the scripts.
 func (h *scriptCheckHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
@@ -182,8 +182,8 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := serviceregistration.MakeAllocServiceID(
-				h.alloc.ID, h.task.Name, service)
+			label := h.task.Name
+			serviceID := serviceregistration.MakeAllocServiceID(h.alloc.ID, label, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,
 				allocID:         h.alloc.ID,
@@ -221,13 +221,13 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if !h.associated(h.task.Name, service.TaskName, check.TaskName) {
 				continue
 			}
-			groupTaskName := "group-" + tg.Name
+			label := "group-" + tg.Name
 			serviceID := serviceregistration.MakeAllocServiceID(
-				h.alloc.ID, groupTaskName, service)
+				h.alloc.ID, label, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,
 				allocID:         h.alloc.ID,
-				taskName:        groupTaskName,
+				taskName:        label,
 				check:           check,
 				serviceID:       serviceID,
 				ttlUpdater:      h.consul,

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	memdb "github.com/hashicorp/go-memdb"
-
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

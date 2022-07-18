@@ -1,0 +1,3 @@
+```release-note:bug
+servicedisco: Fixed a bug where service registrations of same name would be lost
+```

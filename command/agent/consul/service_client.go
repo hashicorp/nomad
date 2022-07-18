@@ -1172,9 +1172,9 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 	// Loop over existing Services to see if they have been removed
 	for _, existingSvc := range old.Services {
 		existingID := serviceregistration.MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
-		newSvc, ok := newIDs[existingID]
+		newSvc, exists := newIDs[existingID]
 
-		if !ok {
+		if !exists {
 			// Existing service entry removed
 			ops.deregServices = append(ops.deregServices, existingID)
 			for _, check := range existingSvc.Checks {
