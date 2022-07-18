@@ -40,21 +40,6 @@ const DIGIT_MAP = {
   '(': 9,
   ')': 0,
 };
-const DEFAULT_PATTERNS = {
-  'Go to Jobs': ['g', 'j'],
-  'Go to Storage': ['g', 'r'],
-  'Go to Variables': ['g', 'v'],
-  'Go to Servers': ['g', 's'],
-  'Go to Clients': ['g', 'c'],
-  'Go to Topology': ['g', 't'],
-  'Go to Evaluations': ['g', 'e'],
-  'Go to ACL Tokens': ['g', 'a'],
-  'Next Subnav': ['Shift+ArrowRight'],
-  'Previous Subnav': ['Shift+ArrowLeft'],
-  'Previous Main Section': ['Shift+ArrowUp'],
-  'Next Main Section': ['Shift+ArrowDown'],
-  'Show Keyboard Shortcuts': ['Shift+?'],
-};
 
 export default class KeyboardService extends Service {
   /**
@@ -95,34 +80,42 @@ export default class KeyboardService extends Service {
       {
         label: 'Go to Jobs',
         action: () => this.router.transitionTo('jobs'),
+        rebindable: true,
       },
       {
         label: 'Go to Storage',
         action: () => this.router.transitionTo('csi.volumes'),
+        rebindable: true,
       },
       {
         label: 'Go to Variables',
         action: () => this.router.transitionTo('variables'),
+        rebindable: true,
       },
       {
         label: 'Go to Servers',
         action: () => this.router.transitionTo('servers'),
+        rebindable: true,
       },
       {
         label: 'Go to Clients',
         action: () => this.router.transitionTo('clients'),
+        rebindable: true,
       },
       {
         label: 'Go to Topology',
         action: () => this.router.transitionTo('topology'),
+        rebindable: true,
       },
       {
         label: 'Go to Evaluations',
         action: () => this.router.transitionTo('evaluations'),
+        rebindable: true,
       },
       {
         label: 'Go to ACL Tokens',
         action: () => this.router.transitionTo('settings.tokens'),
+        rebindable: true,
       },
       {
         label: 'Next Subnav',
@@ -130,6 +123,7 @@ export default class KeyboardService extends Service {
           this.traverseLinkList(this.subnavLinks, 1);
         },
         requireModifier: true,
+        rebindable: true,
       },
       {
         label: 'Previous Subnav',
@@ -137,6 +131,7 @@ export default class KeyboardService extends Service {
           this.traverseLinkList(this.subnavLinks, -1);
         },
         requireModifier: true,
+        rebindable: true,
       },
       {
         label: 'Previous Main Section',
@@ -144,6 +139,7 @@ export default class KeyboardService extends Service {
           this.traverseLinkList(this.navLinks, -1);
         },
         requireModifier: true,
+        rebindable: true,
       },
       {
         label: 'Next Main Section',
@@ -151,6 +147,7 @@ export default class KeyboardService extends Service {
           this.traverseLinkList(this.navLinks, 1);
         },
         requireModifier: true,
+        rebindable: true,
       },
       {
         label: 'Show Keyboard Shortcuts',
@@ -196,10 +193,12 @@ export default class KeyboardService extends Service {
   addCommands(commands) {
     schedule('afterRender', () => {
       commands.forEach((command) => {
-        this.keyCommands.pushObject(command);
-        if (command.enumerated) {
-          // Recompute enumerated numbers to handle things like sort
-          this.recomputeEnumeratedCommands();
+        if (!this.keyCommands.find((c) => c.label === command.label)) {
+          this.keyCommands.pushObject(command);
+          if (command.enumerated) {
+            // Recompute enumerated numbers to handle things like sort
+            this.recomputeEnumeratedCommands();
+          }
         }
       });
     });

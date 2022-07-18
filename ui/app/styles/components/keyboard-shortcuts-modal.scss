@@ -47,6 +47,19 @@
         button {
           padding: 0.25rem;
           border: none;
+          background: #eee;
+          cursor: pointer;
+
+          &:hover {
+            background: #ddd;
+          }
+
+          &[disabled],
+          &[disabled]:hover {
+            background: #eee;
+            color: black;
+            cursor: not-allowed;
+          }
           span {
             margin: 0 0.25rem;
           }

@@ -28,7 +28,7 @@
                 {{#if command.custom}}
                   <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
                 {{/if}}
-                <button type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+                <button disabled={{not command.rebindable}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
                   {{#each command.pattern as |key|}}
                     <span>{{clean-keycommand key}}</span>
                   {{/each}}
