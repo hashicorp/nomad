@@ -22,16 +22,16 @@
       {{#each this.commands as |command|}}
         <li>
           <strong>{{command.label}}</strong>
-            <span class="keys" {{on "click" (action (mut command.recording) true)}}>
+            <span class="keys">
               {{#if command.recording}}
                 <span class="recording">Recording; ESC to cancel.</span>
-              {{else}}
-                {{#each command.pattern as |key|}}
-                  <span>{{clean-keycommand key}}</span>
-                {{/each}}
               {{/if}}
+                <button disabled={{command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+                  {{#each command.pattern as |key|}}
+                    <span>{{clean-keycommand key}}</span>
+                  {{/each}}
+                </button>
             </span>
-          {{!-- {{/if}} --}}
         </li>
       {{/each}}
     </ul>

@@ -27,6 +27,21 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  */
 
 const DEBOUNCE_MS = 750;
+const DEFAULT_PATTERNS = {
+  'Go to Jobs': ['g', 'j'],
+  'Go to Storage': ['g', 'r'],
+  'Go to Variables': ['g', 'v'],
+  'Go to Servers': ['g', 's'],
+  'Go to Clients': ['g', 'c'],
+  'Go to Topology': ['g', 't'],
+  'Go to Evaluations': ['g', 'e'],
+  'Go to ACL Tokens': ['g', 'a'],
+  'Next Subnav': ['Shift+ArrowRight'],
+  'Previous Subnav': ['Shift+ArrowLeft'],
+  'Previous Main Section': ['Shift+ArrowUp'],
+  'Next Main Section': ['Shift+ArrowDown'],
+  'Show Keyboard Shortcuts': ['Shift+?'],
+};
 
 // Shit modifies event.key to a symbol; get the digit equivalent to perform commands
 const DIGIT_MAP = {
@@ -50,57 +65,77 @@ export default class KeyboardService extends Service {
 
   @service config;
 
-  @tracked shortcutsVisible = false;
+  @tracked shortcutsVisible = true; // TODO: temp
   @tracked buffer = A([]);
   @tracked displayHints = false;
-
-  defaultCommandBindings = {
-    'Go to Jobs': ['g', 'j'],
-    'Go to Storage': ['g', 'r'],
-    'Go to Variables': ['g', 'v'],
-    'Go to Servers': ['g', 's'],
-    'Go to Clients': ['g', 'c'],
-    'Go to Topology': ['g', 't'],
-    'Go to Evaluations': ['g', 'e'],
-    'Go to ACL Tokens': ['g', 'a'],
-    'Next Subnav': ['Shift+ArrowRight'],
-    'Previous Subnav': ['Shift+ArrowLeft'],
-    'Previous Main Section': ['Shift+ArrowUp'],
-    'Next Main Section': ['Shift+ArrowDown'],
-    'Show Keyboard Shortcuts': ['Shift+?'],
-  };
 
   @localStorageProperty('keyboardNavEnabled', true) enabled;
 
   // TODO: replace the defaults herein with defaultCommandBindings refs
-  @localStorageProperty('keyboard.command.Go to Jobs', ['g', 'j']) 'Go to Jobs';
-  @localStorageProperty('keyboard.command.Go to Storage', ['g', 'r'])
+  @localStorageProperty(
+    'keyboard.command.Go to Jobs',
+    DEFAULT_PATTERNS['Go to Jobs']
+  )
+  'Go to Jobs';
+  @localStorageProperty(
+    'keyboard.command.Go to Storage',
+    DEFAULT_PATTERNS['Go to Storage']
+  )
   'Go to Storage';
-  @localStorageProperty('keyboard.command.Go to Variables', ['g', 'v'])
+  @localStorageProperty(
+    'keyboard.command.Go to Variables',
+    DEFAULT_PATTERNS['Go to Variables']
+  )
   'Go to Variables';
-  @localStorageProperty('keyboard.command.Go to Servers', ['g', 's'])
+  @localStorageProperty(
+    'keyboard.command.Go to Servers',
+    DEFAULT_PATTERNS['Go to Servers']
+  )
   'Go to Servers';
-  @localStorageProperty('keyboard.command.Go to Clients', ['g', 'c'])
+  @localStorageProperty(
+    'keyboard.command.Go to Clients',
+    DEFAULT_PATTERNS['Go to Clients']
+  )
   'Go to Clients';
-  @localStorageProperty('keyboard.command.Go to Topology', ['g', 't'])
+  @localStorageProperty(
+    'keyboard.command.Go to Topology',
+    DEFAULT_PATTERNS['Go to Topology']
+  )
   'Go to Topology';
-  @localStorageProperty('keyboard.command.Go to Evaluations', ['g', 'e'])
+  @localStorageProperty(
+    'keyboard.command.Go to Evaluations',
+    DEFAULT_PATTERNS['Go to Evaluations']
+  )
   'Go to Evaluations';
-  @localStorageProperty('keyboard.command.Go to ACL Tokens', ['g', 'a'])
+  @localStorageProperty(
+    'keyboard.command.Go to ACL Tokens',
+    DEFAULT_PATTERNS['Go to ACL Tokens']
+  )
   'Go to ACL Tokens';
-  @localStorageProperty('keyboard.command.Next Subnav', ['Shift+ArrowRight'])
+  @localStorageProperty(
+    'keyboard.command.Next Subnav',
+    DEFAULT_PATTERNS['Next Subnav']
+  )
   'Next Subnav';
-  @localStorageProperty('keyboard.command.Previous Subnav', ['Shift+ArrowLeft'])
+  @localStorageProperty(
+    'keyboard.command.Previous Subnav',
+    DEFAULT_PATTERNS['Previous Subnav']
+  )
   'Previous Subnav';
-  @localStorageProperty('keyboard.command.Previous Main Section', [
-    'Shift+ArrowUp',
-  ])
+  @localStorageProperty(
+    'keyboard.command.Previous Main Section',
+    DEFAULT_PATTERNS['Previous Main Section']
+  )
   'Previous Main Section';
-  @localStorageProperty('keyboard.command.Next Main Section', [
-    'Shift+ArrowDown',
-  ])
+  @localStorageProperty(
+    'keyboard.command.Next Main Section',
+    DEFAULT_PATTERNS['Next Main Section']
+  )
   'Next Main Section';
-  @localStorageProperty('keyboard.command.Show Keyboard Shortcuts', ['Shift+?'])
+  @localStorageProperty(
+    'keyboard.command.Show Keyboard Shortcuts',
+    DEFAULT_PATTERNS['Show Keyboard Shortcuts']
+  )
   'Show Keyboard Shortcuts';
   /**
    * @type {MutableArray<KeyCommand>}
@@ -184,24 +219,6 @@ export default class KeyboardService extends Service {
       pattern: this['Show Keyboard Shortcuts'],
       action: () => {
         this.shortcutsVisible = true;
-      },
-    },
-    {
-      label: 'Konami',
-      pattern: [
-        'ArrowUp',
-        'ArrowUp',
-        'ArrowDown',
-        'ArrowDown',
-        'ArrowLeft',
-        'ArrowRight',
-        'ArrowLeft',
-        'ArrowRight',
-        'b',
-        'a',
-      ],
-      action: () => {
-        console.log('Extra Lives +30');
       },
     },
   ]);
@@ -360,14 +377,18 @@ export default class KeyboardService extends Service {
     }
   }
 
+  rebindCommand = (cmd) => {
+    this.clearBuffer();
+    set(cmd, 'recording', true);
+  };
+
   /**
    *
-   * @param {KeyboardEvent} key
+   * @param {string} key
    * @param {boolean} shifted
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
     // Replace key with its unshifted equivalent if it's a number key
-    console.log('key', key);
     if (shifted && key in DIGIT_MAP) {
       key = DIGIT_MAP[key];
     }
@@ -405,6 +426,7 @@ export default class KeyboardService extends Service {
       set(recorder, 'pattern', [...this.buffer]);
       set(recorder, 'custom', true);
       set(recorder, 'recording', false);
+      set(this, recorder.label, [...this.buffer]);
     }
     this.clearBuffer();
   }
