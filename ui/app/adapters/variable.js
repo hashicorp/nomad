@@ -28,7 +28,9 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   urlForFindRecord(id, modelName, snapshot) {
+    const namespace = snapshot.attr('namespace') || 'default';
+
     let baseUrl = this.buildURL(modelName, id, snapshot);
-    return baseUrl;
+    return `${baseUrl}?namespace=${namespace}`;
   }
 }
