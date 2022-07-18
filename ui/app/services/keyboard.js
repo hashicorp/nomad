@@ -27,6 +27,19 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  */
 
 const DEBOUNCE_MS = 750;
+// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
+const DIGIT_MAP = {
+  '!': 1,
+  '@': 2,
+  '#': 3,
+  $: 4,
+  '%': 5,
+  '^': 6,
+  '&': 7,
+  '*': 8,
+  '(': 9,
+  ')': 0,
+};
 const DEFAULT_PATTERNS = {
   'Go to Jobs': ['g', 'j'],
   'Go to Storage': ['g', 'r'],
@@ -43,20 +56,6 @@ const DEFAULT_PATTERNS = {
   'Show Keyboard Shortcuts': ['Shift+?'],
 };
 
-// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
-const DIGIT_MAP = {
-  '!': 1,
-  '@': 2,
-  '#': 3,
-  $: 4,
-  '%': 5,
-  '^': 6,
-  '&': 7,
-  '*': 8,
-  '(': 9,
-  ')': 0,
-};
-
 export default class KeyboardService extends Service {
   /**
    * @type {EmberRouter}
@@ -65,163 +64,113 @@ export default class KeyboardService extends Service {
 
   @service config;
 
-  @tracked shortcutsVisible = true; // TODO: temp
+  @tracked shortcutsVisible = false;
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
   @localStorageProperty('keyboardNavEnabled', true) enabled;
 
-  // TODO: replace the defaults herein with defaultCommandBindings refs
-  @localStorageProperty(
-    'keyboard.command.Go to Jobs',
-    DEFAULT_PATTERNS['Go to Jobs']
-  )
-  'Go to Jobs';
-  @localStorageProperty(
-    'keyboard.command.Go to Storage',
-    DEFAULT_PATTERNS['Go to Storage']
-  )
-  'Go to Storage';
-  @localStorageProperty(
-    'keyboard.command.Go to Variables',
-    DEFAULT_PATTERNS['Go to Variables']
-  )
-  'Go to Variables';
-  @localStorageProperty(
-    'keyboard.command.Go to Servers',
-    DEFAULT_PATTERNS['Go to Servers']
-  )
-  'Go to Servers';
-  @localStorageProperty(
-    'keyboard.command.Go to Clients',
-    DEFAULT_PATTERNS['Go to Clients']
-  )
-  'Go to Clients';
-  @localStorageProperty(
-    'keyboard.command.Go to Topology',
-    DEFAULT_PATTERNS['Go to Topology']
-  )
-  'Go to Topology';
-  @localStorageProperty(
-    'keyboard.command.Go to Evaluations',
-    DEFAULT_PATTERNS['Go to Evaluations']
-  )
-  'Go to Evaluations';
-  @localStorageProperty(
-    'keyboard.command.Go to ACL Tokens',
-    DEFAULT_PATTERNS['Go to ACL Tokens']
-  )
-  'Go to ACL Tokens';
-  @localStorageProperty(
-    'keyboard.command.Next Subnav',
-    DEFAULT_PATTERNS['Next Subnav']
-  )
-  'Next Subnav';
-  @localStorageProperty(
-    'keyboard.command.Previous Subnav',
-    DEFAULT_PATTERNS['Previous Subnav']
-  )
-  'Previous Subnav';
-  @localStorageProperty(
-    'keyboard.command.Previous Main Section',
-    DEFAULT_PATTERNS['Previous Main Section']
-  )
-  'Previous Main Section';
-  @localStorageProperty(
-    'keyboard.command.Next Main Section',
-    DEFAULT_PATTERNS['Next Main Section']
-  )
-  'Next Main Section';
-  @localStorageProperty(
-    'keyboard.command.Show Keyboard Shortcuts',
-    DEFAULT_PATTERNS['Show Keyboard Shortcuts']
-  )
-  'Show Keyboard Shortcuts';
+  defaultPatterns = {
+    'Go to Jobs': ['g', 'j'],
+    'Go to Storage': ['g', 'r'],
+    'Go to Variables': ['g', 'v'],
+    'Go to Servers': ['g', 's'],
+    'Go to Clients': ['g', 'c'],
+    'Go to Topology': ['g', 't'],
+    'Go to Evaluations': ['g', 'e'],
+    'Go to ACL Tokens': ['g', 'a'],
+    'Next Subnav': ['Shift+ArrowRight'],
+    'Previous Subnav': ['Shift+ArrowLeft'],
+    'Previous Main Section': ['Shift+ArrowUp'],
+    'Next Main Section': ['Shift+ArrowDown'],
+    'Show Keyboard Shortcuts': ['Shift+?'],
+  };
+
   /**
    * @type {MutableArray<KeyCommand>}
    */
   @tracked
-  keyCommands = A([
-    {
-      label: 'Go to Jobs',
-      pattern: this['Go to Jobs'],
-      action: () => this.router.transitionTo('jobs'),
-    },
-    {
-      label: 'Go to Storage',
-      pattern: this['Go to Storage'],
-      action: () => this.router.transitionTo('csi.volumes'),
-    },
-    {
-      label: 'Go to Variables',
-      pattern: this['Go to Variables'],
-      action: () => this.router.transitionTo('variables'),
-    },
-    {
-      label: 'Go to Servers',
-      pattern: this['Go to Servers'],
-      action: () => this.router.transitionTo('servers'),
-    },
-    {
-      label: 'Go to Clients',
-      pattern: this['Go to Clients'],
-      action: () => this.router.transitionTo('clients'),
-    },
-    {
-      label: 'Go to Topology',
-      pattern: this['Go to Topology'],
-      action: () => this.router.transitionTo('topology'),
-    },
-    {
-      label: 'Go to Evaluations',
-      pattern: this['Go to Evaluations'],
-      action: () => this.router.transitionTo('evaluations'),
-    },
-    {
-      label: 'Go to ACL Tokens',
-      pattern: this['Go to ACL Tokens'],
-      action: () => this.router.transitionTo('settings.tokens'),
-    },
-    {
-      label: 'Next Subnav',
-      pattern: this['Next Subnav'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, 1);
+  keyCommands = A(
+    [
+      {
+        label: 'Go to Jobs',
+        action: () => this.router.transitionTo('jobs'),
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Previous Subnav',
-      pattern: this['Previous Subnav'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, -1);
+      {
+        label: 'Go to Storage',
+        action: () => this.router.transitionTo('csi.volumes'),
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Previous Main Section',
-      pattern: this['Previous Main Section'],
-      action: () => {
-        this.traverseLinkList(this.navLinks, -1);
+      {
+        label: 'Go to Variables',
+        action: () => this.router.transitionTo('variables'),
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Next Main Section',
-      pattern: this['Next Main Section'],
-      action: () => {
-        this.traverseLinkList(this.navLinks, 1);
+      {
+        label: 'Go to Servers',
+        action: () => this.router.transitionTo('servers'),
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Show Keyboard Shortcuts',
-      pattern: this['Show Keyboard Shortcuts'],
-      action: () => {
-        this.shortcutsVisible = true;
+      {
+        label: 'Go to Clients',
+        action: () => this.router.transitionTo('clients'),
       },
-    },
-  ]);
+      {
+        label: 'Go to Topology',
+        action: () => this.router.transitionTo('topology'),
+      },
+      {
+        label: 'Go to Evaluations',
+        action: () => this.router.transitionTo('evaluations'),
+      },
+      {
+        label: 'Go to ACL Tokens',
+        action: () => this.router.transitionTo('settings.tokens'),
+      },
+      {
+        label: 'Next Subnav',
+        action: () => {
+          this.traverseLinkList(this.subnavLinks, 1);
+        },
+        requireModifier: true,
+      },
+      {
+        label: 'Previous Subnav',
+        action: () => {
+          this.traverseLinkList(this.subnavLinks, -1);
+        },
+        requireModifier: true,
+      },
+      {
+        label: 'Previous Main Section',
+        action: () => {
+          this.traverseLinkList(this.navLinks, -1);
+        },
+        requireModifier: true,
+      },
+      {
+        label: 'Next Main Section',
+        action: () => {
+          this.traverseLinkList(this.navLinks, 1);
+        },
+        requireModifier: true,
+      },
+      {
+        label: 'Show Keyboard Shortcuts',
+        action: () => {
+          this.shortcutsVisible = true;
+        },
+      },
+    ].map((command) => {
+      const persistedValue = window.localStorage.getItem(
+        `keyboard.command.${command.label}`
+      );
+      if (persistedValue) {
+        set(command, 'pattern', JSON.parse(persistedValue));
+        set(command, 'custom', true);
+      } else {
+        set(command, 'pattern', this.defaultPatterns[command.label]);
+      }
+      return command;
+    })
+  );
 
   /**
    * For Dynamic/iterative keyboard shortcuts, we want to do a couple things to make them more human-friendly:
@@ -382,6 +331,12 @@ export default class KeyboardService extends Service {
     set(cmd, 'recording', true);
   };
 
+  resetCommandToDefault = (cmd) => {
+    window.localStorage.removeItem(`keyboard.command.${cmd.label}`);
+    set(cmd, 'pattern', this.defaultPatterns[cmd.label]);
+    set(cmd, 'custom', false);
+  };
+
   /**
    *
    * @param {string} key
@@ -426,7 +381,10 @@ export default class KeyboardService extends Service {
       set(recorder, 'pattern', [...this.buffer]);
       set(recorder, 'custom', true);
       set(recorder, 'recording', false);
-      set(this, recorder.label, [...this.buffer]);
+      window.localStorage.setItem(
+        `keyboard.command.${recorder.label}`,
+        JSON.stringify([...this.buffer])
+      );
     }
     this.clearBuffer();
   }

@@ -1,11 +1,10 @@
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
   <div class="keyboard-shortcuts"
-      {{focus-trap}}
       {{on-click-outside
         (toggle "keyboard.shortcutsVisible" this)
       }}
-    >
+  >
     <header>
       <button
         {{autofocus}}
@@ -16,21 +15,25 @@
         {{x-icon "cancel"}}
       </button>
       <h2>Keyboard Shortcuts</h2>
-      <p>Click a pattern to re-bind it to a shortcut of your choosing.</p>
+      <p>Click a key pattern to re-bind it to a shortcut of your choosing.</p>
     </header>
-    <ul>
+    <ul class="commands-list">
       {{#each this.commands as |command|}}
         <li>
           <strong>{{command.label}}</strong>
             <span class="keys">
               {{#if command.recording}}
                 <span class="recording">Recording; ESC to cancel.</span>
-              {{/if}}
-                <button disabled={{command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+              {{else}}
+                {{#if command.custom}}
+                  <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
+                {{/if}}
+                <button type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
                   {{#each command.pattern as |key|}}
                     <span>{{clean-keycommand key}}</span>
                   {{/each}}
                 </button>
+              {{/if}}
             </span>
         </li>
       {{/each}}
