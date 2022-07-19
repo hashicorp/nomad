@@ -291,17 +291,17 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
-    const inputElements = ['input', 'textarea', 'code'];
+    const inputElements = ['input', 'textarea', 'code', 'div'];
     const targetElementName = event.target.nodeName.toLowerCase();
-    if (!inputElements.includes(targetElementName)) {
-      console.log(
-        'you typed',
-        event.key,
-        'in',
-        targetElementName,
-        event.target.classList?.toString()
-      );
-    }
+    // if (!inputElements.includes(targetElementName)) {
+    console.log(
+      'you typed',
+      event.key,
+      'in',
+      targetElementName,
+      event.target.classList?.toString()
+    );
+    // }
     // return;
     // // Don't fire keypress events from within an input field
     if (!inputElements.includes(targetElementName)) {
@@ -311,9 +311,7 @@ export default class KeyboardService extends Service {
       const shifted = event.getModifierState('Shift');
       if (type === 'press') {
         if (key !== 'Shift') {
-          if (key !== '/') {
-            this.addKeyToBuffer.perform(key, shifted);
-          }
+          this.addKeyToBuffer.perform(key, shifted);
         } else {
           this.displayHints = true;
         }
