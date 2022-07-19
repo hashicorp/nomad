@@ -515,7 +515,7 @@ func (sv *SecureVariables) authValidatePrefix(claims *structs.IdentityClaims, ns
 	}
 
 	parts := strings.Split(pathOrPrefix, "/")
-	expect := []string{"jobs", alloc.Job.ID, alloc.TaskGroup, claims.TaskName}
+	expect := []string{"nomad", "jobs", alloc.Job.ID, alloc.TaskGroup, claims.TaskName}
 	if len(parts) > len(expect) {
 		return structs.ErrPermissionDenied
 	}
