@@ -8,14 +8,25 @@ import { A } from '@ember/array';
 // eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+
+/**
+ * @typedef {Object} KeyCommand
+ * @property {string} label
+ * @property {string[]} pattern
+ * @property {any} action
+ * @property {boolean} [requireModifier]
+ * @property {boolean} [enumerated]
+ * @property {boolean} [recording]
+ * @property {boolean} [custom]
+ */
 
 const DEBOUNCE_MS = 750;
-
 // Shit modifies event.key to a symbol; get the digit equivalent to perform commands
 const DIGIT_MAP = {
   '!': 1,
@@ -30,6 +41,19 @@ const DIGIT_MAP = {
   ')': 0,
 };
 
+const DISALLOWED_KEYS = [
+  'Shift',
+  'Backspace',
+  'Delete',
+  'Meta',
+  'Alt',
+  'Control',
+  'Tab',
+  'CapsLock',
+  'Clear',
+  'ScrollLock',
+];
+
 export default class KeyboardService extends Service {
   /**
    * @type {EmberRouter}
@@ -42,122 +66,121 @@ export default class KeyboardService extends Service {
   @tracked buffer = A([]);
   @tracked displayHints = false;
 
+  @localStorageProperty('keyboardNavEnabled', true) enabled;
+
+  defaultPatterns = {
+    'Go to Jobs': ['g', 'j'],
+    'Go to Storage': ['g', 'r'],
+    'Go to Variables': ['g', 'v'],
+    'Go to Servers': ['g', 's'],
+    'Go to Clients': ['g', 'c'],
+    'Go to Topology': ['g', 't'],
+    'Go to Evaluations': ['g', 'e'],
+    'Go to ACL Tokens': ['g', 'a'],
+    'Next Subnav': ['Shift+ArrowRight'],
+    'Previous Subnav': ['Shift+ArrowLeft'],
+    'Previous Main Section': ['Shift+ArrowUp'],
+    'Next Main Section': ['Shift+ArrowDown'],
+    'Show Keyboard Shortcuts': ['Shift+?'],
+  };
+
   /**
-   * @type {MutableArray<Object>}
+   * @type {MutableArray<KeyCommand>}
    */
-  keyCommands = A([
-    {
-      label: 'Go to Jobs',
-      pattern: ['g', 'j'],
-      action: () => this.router.transitionTo('jobs'),
-    },
-    {
-      label: 'Go to Storage',
-      pattern: ['g', 'r'],
-      action: () => this.router.transitionTo('csi.volumes'),
-    },
-    {
-      label: 'Go to Variables',
-      pattern: ['g', 'v'],
-      action: () => this.router.transitionTo('variables'),
-    },
-    {
-      label: 'Go to Servers',
-      pattern: ['g', 's'],
-      action: () => this.router.transitionTo('servers'),
-    },
-    {
-      label: 'Go to Clients',
-      pattern: ['g', 'c'],
-      action: () => this.router.transitionTo('clients'),
-    },
-    {
-      label: 'Go to Topology',
-      pattern: ['g', 't'],
-      action: () => this.router.transitionTo('topology'),
-    },
-    {
-      label: 'Go to Evaluations',
-      pattern: ['g', 'e'],
-      action: () => this.router.transitionTo('evaluations'),
-    },
-    {
-      label: 'Go to ACL Tokens',
-      pattern: ['g', 'a'],
-      action: () => this.router.transitionTo('settings.tokens'),
-    },
-    // {
-    //   label: 'Previous Subnav',
-    //   pattern: ['k'],
-    //   action: () => {
-    //     this.traverseLinkList(this.subnavLinks, -1);
-    //   },
-    // },
-    // {
-    //   label: 'Next Subnav',
-    //   pattern: ['j'],
-    //   action: () => {
-    //     this.traverseLinkList(this.subnavLinks, 1);
-    //   },
-    // },
-    {
-      label: 'Next Subnav',
-      pattern: ['Shift+ArrowRight'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, 1);
+  @tracked
+  keyCommands = A(
+    [
+      {
+        label: 'Go to Jobs',
+        action: () => this.router.transitionTo('jobs'),
+        rebindable: true,
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Previous Subnav',
-      pattern: ['Shift+ArrowLeft'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, -1);
+      {
+        label: 'Go to Storage',
+        action: () => this.router.transitionTo('csi.volumes'),
+        rebindable: true,
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Previous Main Section',
-      pattern: ['Shift+ArrowUp'],
-      action: () => {
-        this.traverseLinkList(this.navLinks, -1);
+      {
+        label: 'Go to Variables',
+        action: () => this.router.transitionTo('variables'),
+        rebindable: true,
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Next Main Section',
-      pattern: ['Shift+ArrowDown'],
-      action: () => {
-        this.traverseLinkList(this.navLinks, 1);
+      {
+        label: 'Go to Servers',
+        action: () => this.router.transitionTo('servers'),
+        rebindable: true,
       },
-      requireModifier: true,
-    },
-    {
-      label: 'Show Keyboard Shortcuts',
-      pattern: ['Shift+?'],
-      action: () => {
-        this.shortcutsVisible = true;
+      {
+        label: 'Go to Clients',
+        action: () => this.router.transitionTo('clients'),
+        rebindable: true,
       },
-    },
-    {
-      label: 'Konami',
-      pattern: [
-        'ArrowUp',
-        'ArrowUp',
-        'ArrowDown',
-        'ArrowDown',
-        'ArrowLeft',
-        'ArrowRight',
-        'ArrowLeft',
-        'ArrowRight',
-        'b',
-        'a',
-      ],
-      action: () => {
-        console.log('Extra Lives +30');
+      {
+        label: 'Go to Topology',
+        action: () => this.router.transitionTo('topology'),
+        rebindable: true,
       },
-    },
-  ]);
+      {
+        label: 'Go to Evaluations',
+        action: () => this.router.transitionTo('evaluations'),
+        rebindable: true,
+      },
+      {
+        label: 'Go to ACL Tokens',
+        action: () => this.router.transitionTo('settings.tokens'),
+        rebindable: true,
+      },
+      {
+        label: 'Next Subnav',
+        action: () => {
+          this.traverseLinkList(this.subnavLinks, 1);
+        },
+        requireModifier: true,
+        rebindable: true,
+      },
+      {
+        label: 'Previous Subnav',
+        action: () => {
+          this.traverseLinkList(this.subnavLinks, -1);
+        },
+        requireModifier: true,
+        rebindable: true,
+      },
+      {
+        label: 'Previous Main Section',
+        action: () => {
+          this.traverseLinkList(this.navLinks, -1);
+        },
+        requireModifier: true,
+        rebindable: true,
+      },
+      {
+        label: 'Next Main Section',
+        action: () => {
+          this.traverseLinkList(this.navLinks, 1);
+        },
+        requireModifier: true,
+        rebindable: true,
+      },
+      {
+        label: 'Show Keyboard Shortcuts',
+        action: () => {
+          this.shortcutsVisible = true;
+        },
+      },
+    ].map((command) => {
+      const persistedValue = window.localStorage.getItem(
+        `keyboard.command.${command.label}`
+      );
+      if (persistedValue) {
+        set(command, 'pattern', JSON.parse(persistedValue));
+        set(command, 'custom', true);
+      } else {
+        set(command, 'pattern', this.defaultPatterns[command.label]);
+      }
+      return command;
+    })
+  );
 
   /**
    * For Dynamic/iterative keyboard shortcuts, we want to do a couple things to make them more human-friendly:
@@ -300,10 +323,12 @@ export default class KeyboardService extends Service {
       const { key } = event;
       const shifted = event.getModifierState('Shift');
       if (type === 'press') {
-        if (key !== 'Shift') {
-          this.addKeyToBuffer.perform(key, shifted);
-        } else {
+        if (key === 'Shift') {
           this.displayHints = true;
+        } else {
+          if (!DISALLOWED_KEYS.includes(key)) {
+            this.addKeyToBuffer.perform(key, shifted);
+          }
         }
       } else if (type === 'release') {
         if (key === 'Shift') {
@@ -313,9 +338,32 @@ export default class KeyboardService extends Service {
     }
   }
 
+  rebindCommand = (cmd) => {
+    this.clearBuffer();
+    set(cmd, 'recording', true);
+    set(cmd, 'previousPattern', cmd.pattern);
+    set(cmd, 'pattern', null);
+  };
+
+  endRebind = (cmd) => {
+    set(cmd, 'custom', true);
+    set(cmd, 'recording', false);
+    set(cmd, 'previousPattern', null);
+    window.localStorage.setItem(
+      `keyboard.command.${cmd.label}`,
+      JSON.stringify([...this.buffer])
+    );
+  };
+
+  resetCommandToDefault = (cmd) => {
+    window.localStorage.removeItem(`keyboard.command.${cmd.label}`);
+    set(cmd, 'pattern', this.defaultPatterns[cmd.label]);
+    set(cmd, 'custom', false);
+  };
+
   /**
    *
-   * @param {KeyboardEvent} key
+   * @param {string} key
    * @param {boolean} shifted
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
@@ -324,18 +372,46 @@ export default class KeyboardService extends Service {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    if (this.matchedCommands.length) {
-      this.matchedCommands.forEach((command) => command.action());
-
-      // TODO: Temporary dev log
-      if (this.config.isDev) {
-        this.matchedCommands.forEach((command) =>
-          console.log('command run', command, command.action.toString())
-        );
+    let recorder = this.keyCommands.find((c) => c.recording);
+    if (recorder) {
+      if (key === 'Escape' || key === '/') {
+        // Escape cancels recording; slash is reserved for global search
+        set(recorder, 'recording', false);
+        set(recorder, 'pattern', recorder.previousPattern);
+        recorder = null;
+      } else if (key === 'Enter') {
+        // Enter finishes recording and removes itself from the buffer
+        this.buffer = this.buffer.slice(0, -1);
+        this.endRebind(recorder);
+        recorder = null;
+      } else {
+        set(recorder, 'pattern', [...this.buffer]);
       }
-      this.clearBuffer();
+    } else {
+      if (this.matchedCommands.length) {
+        this.matchedCommands.forEach((command) => {
+          if (
+            this.enabled ||
+            command.label === 'Show Keyboard Shortcuts' ||
+            command.label === 'Hide Keyboard Shortcuts'
+          ) {
+            command.action();
+
+            // TODO: Temporary dev log
+            if (this.config.isDev) {
+              this.matchedCommands.forEach((command) =>
+                console.log('command run', command, command.action.toString())
+              );
+            }
+          }
+        });
+        this.clearBuffer();
+      }
     }
     yield timeout(DEBOUNCE_MS);
+    if (recorder) {
+      this.endRebind(recorder);
+    }
     this.clearBuffer();
   }
 
