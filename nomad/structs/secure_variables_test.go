@@ -31,3 +31,35 @@ func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
 	sv2.Items["new"] = "new"
 	require.False(t, sv.Equals(sv2), "sv and sv2 should not be equal")
 }
+
+func TestStructs_SecureVariableDecrypted_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	sv := SecureVariableDecrypted{
+		SecureVariableMetadata: SecureVariableMetadata{Namespace: "a"},
+		Items:                  SecureVariableItems{"foo": "bar"},
+	}
+
+	testCases := []struct {
+		path string
+		ok   bool
+	}{
+		{path: ""},
+		{path: "nomad"},
+		{path: "nomad/other"},
+		{path: "a/b/c", ok: true},
+		{path: "nomad/jobs", ok: true},
+		{path: "nomadjobs", ok: true},
+		{path: "nomad/jobs/whatever", ok: true},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		sv.Path = tc.path
+		err := sv.Validate()
+		if tc.ok {
+			require.NoError(t, err, "should not get error for: %s", tc.path)
+		} else {
+			require.Error(t, err, "should get error for: %s", tc.path)
+		}
+	}
+}

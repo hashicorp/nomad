@@ -66,7 +66,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	policy.Name = fmt.Sprintf("_:%s/%s/%s", ns, jobID, alloc1.TaskGroup)
 	policy.Rules = `namespace "nondefault-namespace" {
 		secure_variables {
-		    path "jobs/*" { capabilities = ["read"] }
+		    path "nomad/jobs/*" { capabilities = ["read"] }
 		    path "other/path" { capabilities = ["read"] }
 		}}`
 	policy.SetHash()
@@ -81,7 +81,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
 		err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, "n/a",
-			fmt.Sprintf("jobs/%s/web/web", jobID))
+			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 	})
 
@@ -93,7 +93,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
 		err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, "n/a",
-			fmt.Sprintf("jobs/%s/web/web", jobID))
+			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 	})
 
@@ -108,28 +108,28 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			name:        "valid claim for path with task secret",
 			token:       idToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/web/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with group secret",
 			token:       idToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with job secret",
 			token:       idToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with namespace secret",
 			token:       idToken,
 			cap:         "n/a",
-			path:        "jobs",
+			path:        "nomad/jobs",
 			expectedErr: nil,
 		},
 		{
@@ -157,62 +157,62 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			name:        "valid claim with no permissions denied by path",
 			token:       noPermissionsToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/w", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/w", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "valid claim with no permissions allowed by namespace",
 			token:       noPermissionsToken,
 			cap:         "n/a",
-			path:        "jobs",
+			path:        "nomad/jobs",
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim with no permissions denied by capability",
 			token:       noPermissionsToken,
 			cap:         acl.PolicyRead,
-			path:        fmt.Sprintf("jobs/%s/w", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/w", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "extra trailing slash is denied",
 			token:       idToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/web/", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "invalid prefix is denied",
 			token:       idToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/w", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/w", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "missing auth token is denied",
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/web/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "invalid signature is denied",
 			token:       invalidIDToken,
 			cap:         "n/a",
-			path:        fmt.Sprintf("jobs/%s/web/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "acl token read policy is allowed to list",
 			token:       aclToken.SecretID,
 			cap:         acl.PolicyList,
-			path:        fmt.Sprintf("jobs/%s/web/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "acl token read policy is not allowed to write",
 			token:       aclToken.SecretID,
 			cap:         acl.PolicyWrite,
-			path:        fmt.Sprintf("jobs/%s/web/web", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 	}

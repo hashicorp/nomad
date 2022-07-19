@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	// note: this is aliased so that it's more noticeable if someone
@@ -148,6 +149,18 @@ func (sv SecureVariableData) Copy() SecureVariableData {
 }
 
 func (sv SecureVariableDecrypted) Validate() error {
+
+	if len(sv.Path) == 0 {
+		return fmt.Errorf("variable requires path")
+	}
+	parts := strings.Split(sv.Path, "/")
+	switch {
+	case len(parts) == 1 && parts[0] == "nomad":
+		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
+	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs":
+		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
+	}
+
 	if len(sv.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
