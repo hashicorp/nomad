@@ -296,7 +296,7 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 type RootKeyMeta struct {
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
-	CreateTime  time.Time
+	CreateTime  int64
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState
@@ -314,11 +314,12 @@ const (
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values
 func NewRootKeyMeta() *RootKeyMeta {
+	now := time.Now().UTC().UnixNano()
 	return &RootKeyMeta{
 		KeyID:      uuid.Generate(),
 		Algorithm:  EncryptionAlgorithmAES256GCM,
 		State:      RootKeyStateInactive,
-		CreateTime: time.Now(),
+		CreateTime: now,
 	}
 }
 
@@ -329,7 +330,7 @@ func NewRootKeyMeta() *RootKeyMeta {
 type RootKeyMetaStub struct {
 	KeyID      string
 	Algorithm  EncryptionAlgorithm
-	CreateTime time.Time
+	CreateTime int64
 	State      RootKeyState
 }
 

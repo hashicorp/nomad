@@ -80,7 +80,7 @@ func renderSecureVariablesKeysResponse(keys []*api.RootKeyMeta, verbose bool) st
 	i := 1
 	for _, k := range keys {
 		out[i] = fmt.Sprintf("%s|%v|%s",
-			k.KeyID[:length], k.State, formatTime(k.CreateTime))
+			k.KeyID[:length], k.State, formatUnixNanoTime(k.CreateTime))
 		i = i + 1
 	}
 	return formatList(out)
