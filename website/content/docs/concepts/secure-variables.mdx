@@ -76,14 +76,14 @@ The available capabilities for Secure Variables are as follows:
 
 In Nomad 1.4.0 tasks can access Secure Variables only with the [`template`]
 block. The [workload identity] for each task grants it automatic access to
-Secure Variables found at Nomad-owned paths with the prefix `jobs/`, followed by
-the namespace, job ID, task group name, and task name.
+Secure Variables found at Nomad-owned paths with the prefix `nomad/jobs/`,
+followed by the job ID, task group name, and task name.
 
 ```
-jobs/$job_id/$task_group/$task_name
-jobs/$job_id/$task_group
-jobs/$job_id
-jobs
+nomad/jobs/$job_id/$task_group/$task_name
+nomad/jobs/$job_id/$task_group
+nomad/jobs/$job_id
+nomad/jobs
 ```
 
 For example, the task created by the example job spec created with `nomad job
@@ -91,10 +91,10 @@ init -short` will automatically have access to Secure Variables at the following
 paths, within its own `default` namespace:
 
 ```
-jobs/example/cache/redis
-jobs/example/cache
-jobs/example
-jobs
+nomad/jobs/example/cache/redis
+nomad/jobs/example/cache
+nomad/jobs/example
+nomad/jobs
 ```
 
 You can provide access to additional secrets by creating policies associated
