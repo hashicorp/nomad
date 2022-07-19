@@ -311,7 +311,9 @@ export default class KeyboardService extends Service {
       const shifted = event.getModifierState('Shift');
       if (type === 'press') {
         if (key !== 'Shift') {
-          this.addKeyToBuffer.perform(key, shifted);
+          if (key !== '/') {
+            this.addKeyToBuffer.perform(key, shifted);
+          }
         } else {
           this.displayHints = true;
         }
