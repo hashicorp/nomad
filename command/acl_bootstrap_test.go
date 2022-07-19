@@ -36,6 +36,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	assert.Contains(out, "Secret ID")
+	require.Contains(t, out, "Expiry Time  = never")
 }
 
 // If a bootstrap token has already been created, attempts to create more should
@@ -116,6 +117,7 @@ func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	assert.Contains(t, out, mockToken.SecretID)
+	require.Contains(t, out, "Expiry Time  = never")
 }
 
 // Attempting to bootstrap the server with an invalid operator provided token in a file should

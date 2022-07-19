@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
@@ -36,6 +37,11 @@ Create Options:
   -policy=""
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
+
+  -ttl
+    Specifies the time-to-live of the created ACL token. This takes the form of
+    a time duration such as "5m" and "1h". By default, tokens will be created
+    without a TTL and therefore never expire.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -47,6 +53,7 @@ func (c *ACLTokenCreateCommand) AutocompleteFlags() complete.Flags {
 			"type":   complete.PredictAnything,
 			"global": complete.PredictNothing,
 			"policy": complete.PredictAnything,
+			"ttl":    complete.PredictAnything,
 		})
 }
 
@@ -61,7 +68,7 @@ func (c *ACLTokenCreateCommand) Synopsis() string {
 func (c *ACLTokenCreateCommand) Name() string { return "acl token create" }
 
 func (c *ACLTokenCreateCommand) Run(args []string) int {
-	var name, tokenType string
+	var name, tokenType, ttl string
 	var global bool
 	var policies []string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -69,6 +76,7 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&tokenType, "type", "client", "")
 	flags.BoolVar(&global, "global", false, "")
+	flags.StringVar(&ttl, "ttl", "", "")
 	flags.Var((funcVar)(func(s string) error {
 		policies = append(policies, s)
 		return nil
@@ -91,6 +99,17 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		Type:     tokenType,
 		Policies: policies,
 		Global:   global,
+	}
+
+	// If the user set a TTL flag value, convert this to a time duration and
+	// add it to our token request object.
+	if ttl != "" {
+		ttlDuration, err := time.ParseDuration(ttl)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse TTL as time duration: %s", err))
+			return 1
+		}
+		tk.ExpirationTTL = ttlDuration
 	}
 
 	// Get the HTTP client

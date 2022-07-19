@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
@@ -163,8 +164,16 @@ func formatKVACLToken(token *api.ACLToken) string {
 	// Add the generic output
 	output = append(output,
 		fmt.Sprintf("Create Time|%v", token.CreateTime),
+		fmt.Sprintf("Expiry Time |%s", expiryTimeString(token.ExpirationTime)),
 		fmt.Sprintf("Create Index|%d", token.CreateIndex),
 		fmt.Sprintf("Modify Index|%d", token.ModifyIndex),
 	)
 	return formatKV(output)
+}
+
+func expiryTimeString(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return "never"
+	}
+	return t.String()
 }
