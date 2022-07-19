@@ -255,6 +255,10 @@ type Config struct {
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
 
+	// BridgeNetworkHairpin sets wether the bridge allows hairpining, that is allow clients
+	// to connect to their own IP. This defaults to false if not set
+	BridgeNetworkHairpin bool
+
 	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
 	// for allocations in bridge networking mode. Subnet must be in CIDR
 	// notation

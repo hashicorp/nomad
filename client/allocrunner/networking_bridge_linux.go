@@ -35,15 +35,17 @@ type bridgeNetworkConfigurator struct {
 	cni         *cniNetworkConfigurator
 	allocSubnet string
 	bridgeName  string
+	hairpin     bool
 
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath string, ignorePortMappingHostIP bool, hairpin bool) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
 		logger:      log,
+		hairpin:     hairpin,
 	}
 
 	if b.bridgeName == "" {
@@ -54,7 +56,7 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet))
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet, b.hairpin))
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +136,8 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func buildNomadBridgeNetConfig(bridgeName, subnet string) []byte {
-	return []byte(fmt.Sprintf(nomadCNIConfigTemplate, bridgeName, subnet, cniAdminChainName))
+func buildNomadBridgeNetConfig(bridgeName, subnet string, hairpin bool) []byte {
+	return []byte(fmt.Sprintf(nomadCNIConfigTemplate, bridgeName, hairpin, subnet, cniAdminChainName))
 }
 
 const nomadCNIConfigTemplate = `{
@@ -151,6 +153,7 @@ const nomadCNIConfigTemplate = `{
 			"ipMasq": true,
 			"isGateway": true,
 			"forceAddress": true,
+            "hairpinMode": %t,
 			"ipam": {
 				"type": "host-local",
 				"ranges": [

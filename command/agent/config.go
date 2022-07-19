@@ -300,6 +300,9 @@ type ClientConfig struct {
 	// bridge network mode
 	BridgeNetworkName string `hcl:"bridge_network_name"`
 
+	// BridgeNetworkHairpin sets wether to allow hairpinning on the bridge
+	BridgeNetworkHairpin bool `hcl:"bridge_network_hairpin"`
+
 	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
@@ -988,6 +991,7 @@ func DevConfig(mode *devModeConfig) *Config {
 		DisableSandbox:   false,
 	}
 	conf.Client.BindWildcardDefaultHostNetwork = true
+	conf.Client.BridgeNetworkHairpin = false
 	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
@@ -1038,6 +1042,7 @@ func DefaultConfig() *Config {
 				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
+			BridgeNetworkHairpin:           false,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          helper.BoolToPtr(true),
@@ -1840,6 +1845,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.BridgeNetworkName != "" {
 		result.BridgeNetworkName = b.BridgeNetworkName
+	}
+	if b.BridgeNetworkHairpin {
+		result.BridgeNetworkHairpin = true
 	}
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet

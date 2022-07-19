@@ -142,6 +142,9 @@ client {
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
 
+- `bridge_network_hairpin` `(bool: false)` - Specifies wether the bridge should
+  allow hairpinning.
+
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
   [`artifact`](/docs/job-specification/artifact) stanzas.
