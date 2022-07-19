@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -14,6 +15,16 @@ import (
 func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
+
+	// This function provides an easy way to get all tokens out of the
+	// iterator.
+	fromIteratorFunc := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+			tokens = append(tokens, raw.(*structs.ACLToken))
+		}
+		return tokens
+	}
 
 	// This time is the threshold for all expiry calls to be based on. All
 	// tokens with expiry can use this as their base and use Add().
@@ -31,13 +42,15 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 		neverExpireLocalToken, neverExpireGlobalToken})
 	require.NoError(t, err)
 
-	ids, err := testState.ACLTokensByExpired(true, expiryTimeThreshold, 10)
+	iter, err := testState.ACLTokensByExpired(true)
 	require.NoError(t, err)
-	require.Len(t, ids, 0)
+	tokens := fromIteratorFunc(iter)
+	require.Len(t, tokens, 0)
 
-	ids, err = testState.ACLTokensByExpired(false, expiryTimeThreshold, 10)
+	iter, err = testState.ACLTokensByExpired(false)
 	require.NoError(t, err)
-	require.Len(t, ids, 0)
+	tokens = fromIteratorFunc(iter)
+	require.Len(t, tokens, 0)
 
 	// Generate, upsert, and test an expired local token. This token expired
 	// long ago and therefore before all others coming in the tests. It should
@@ -48,10 +61,11 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{expiredLocalToken})
 	require.NoError(t, err)
 
-	ids, err = testState.ACLTokensByExpired(false, expiryTimeThreshold, 10)
+	iter, err = testState.ACLTokensByExpired(false)
 	require.NoError(t, err)
-	require.Len(t, ids, 1)
-	require.Equal(t, expiredLocalToken.AccessorID, ids[0])
+	tokens = fromIteratorFunc(iter)
+	require.Len(t, tokens, 1)
+	require.Equal(t, expiredLocalToken.AccessorID, tokens[0].AccessorID)
 
 	// Generate, upsert, and test an expired global token. This token expired
 	// long ago and therefore before all others coming in the tests. It should
@@ -63,54 +77,50 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 30, []*structs.ACLToken{expiredGlobalToken})
 	require.NoError(t, err)
 
-	ids, err = testState.ACLTokensByExpired(true, expiryTimeThreshold, 10)
+	iter, err = testState.ACLTokensByExpired(true)
 	require.NoError(t, err)
-	require.Len(t, ids, 1)
-	require.Equal(t, expiredGlobalToken.AccessorID, ids[0])
+	tokens = fromIteratorFunc(iter)
+	require.Len(t, tokens, 1)
+	require.Equal(t, expiredGlobalToken.AccessorID, tokens[0].AccessorID)
 
 	// This test function allows us to run the same test for local and global
 	// tokens.
-	testFn := func(oldID string, global bool) {
+	testFn := func(oldToken *structs.ACLToken, global bool) {
 
-		// Track all the expected expired accessor IDs including the long
+		// Track all the expected expired ACL tokens, including the long
 		// expired token.
-		var expiredLocalAccessorIDs []string
-		expiredLocalAccessorIDs = append(expiredLocalAccessorIDs, oldID)
+		var expiredTokens []*structs.ACLToken
+		expiredTokens = append(expiredTokens, oldToken)
 
-		// Generate and upsert a number of mixed expired, non-expired local tokens.
-		mixedLocalTokens := make([]*structs.ACLToken, 20)
+		// Generate and upsert a number of mixed expired, non-expired tokens.
+		mixedTokens := make([]*structs.ACLToken, 20)
 		for i := 0; i < 20; i++ {
 			mockedToken := mock.ACLToken()
 			mockedToken.Global = global
 			if i%2 == 0 {
-				expiredLocalAccessorIDs = append(expiredLocalAccessorIDs, mockedToken.AccessorID)
+				expiredTokens = append(expiredTokens, mockedToken)
 				mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
 			} else {
 				mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(24 * time.Hour))
 			}
-			mixedLocalTokens[i] = mockedToken
+			mixedTokens[i] = mockedToken
 		}
 
-		err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 40, mixedLocalTokens)
+		err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 40, mixedTokens)
 		require.NoError(t, err)
 
-		// Use a max value higher than the number we have to check the full listing
-		// works as expected. Ensure our oldest expired token is first in the list.
-		ids, err = testState.ACLTokensByExpired(global, expiryTimeThreshold, 100)
+		// Check the full listing works as expected as the first 11 elements
+		// should all be our expired tokens. Ensure our oldest expired token is
+		// first in the list.
+		iter, err = testState.ACLTokensByExpired(global)
 		require.NoError(t, err)
-		require.ElementsMatch(t, ids, expiredLocalAccessorIDs)
-		require.Equal(t, ids[0], oldID)
-
-		// Use a lower max value than the number of known expired tokens to ensure
-		// this is working.
-		ids, err = testState.ACLTokensByExpired(global, expiryTimeThreshold, 3)
-		require.NoError(t, err)
-		require.Len(t, ids, 3)
-		require.Equal(t, ids[0], oldID)
+		tokens = fromIteratorFunc(iter)
+		require.ElementsMatch(t, expiredTokens, tokens[:11])
+		require.Equal(t, tokens[0], oldToken)
 	}
 
-	testFn(expiredLocalToken.AccessorID, false)
-	testFn(expiredGlobalToken.AccessorID, true)
+	testFn(expiredLocalToken, false)
+	testFn(expiredGlobalToken, true)
 }
 
 func Test_expiresIndexName(t *testing.T) {

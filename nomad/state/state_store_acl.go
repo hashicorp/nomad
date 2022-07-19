@@ -2,9 +2,8 @@ package state
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/go-memdb"
 )
 
 // ACLTokensByExpired returns an array accessor IDs of expired ACL tokens.
@@ -14,39 +13,14 @@ import (
 // the global boolean argument. The number of returned IDs can be limited by
 // the max integer, which is useful to limit the number of tokens we attempt to
 // delete in a single transaction.
-func (s *StateStore) ACLTokensByExpired(global bool, now time.Time, max int) ([]string, error) {
+func (s *StateStore) ACLTokensByExpired(global bool) (memdb.ResultIterator, error) {
 	tnx := s.db.ReadTxn()
 
 	iter, err := tnx.Get("acl_token", expiresIndexName(global))
 	if err != nil {
 		return nil, fmt.Errorf("failed acl token listing: %v", err)
 	}
-
-	var (
-		accessorIDs []string
-		num         int
-	)
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		token := raw.(*structs.ACLToken)
-
-		// The indexes mean if we come across an unexpired token, we can exit
-		// as we have found all currently expired tokens.
-		if !token.IsExpired(now) {
-			return accessorIDs, nil
-		}
-
-		accessorIDs = append(accessorIDs, token.AccessorID)
-
-		// Increment the counter. If this is at or above our limit, we return
-		// what we have so far.
-		num++
-		if num >= max {
-			return accessorIDs, nil
-		}
-	}
-
-	return accessorIDs, nil
+	return iter, nil
 }
 
 // expiresIndexName is a helper function to identify the correct ACL token
