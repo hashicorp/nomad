@@ -349,6 +349,9 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	evalID := resp.EvalID
 
+	// #13844: canonicalize the job in case it was a partial API definition
+	job.Canonicalize()
+
 	// Check if we should enter monitor mode
 	if detach || periodic || paramjob || multiregion {
 		c.Ui.Output("Job registration successful")
