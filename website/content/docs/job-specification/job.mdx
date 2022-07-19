@@ -105,6 +105,8 @@ job "docs" {
 - `priority` `(int: 50)` - Specifies the job priority which is used to
   prioritize scheduling and access to resources. Must be between 1 and 100
   inclusively, with a larger value corresponding to a higher priority.
+  Priority only has an effect when job preemption is enabled.
+  It does not have an effect on which of multiple pending jobs is run first.
 
 - `region` `(string: "global")` - The region in which to execute the job.
 
