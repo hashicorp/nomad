@@ -24,6 +24,22 @@ const (
 	// Args: ACLTokenUpsertRequest
 	// Reply: ACLTokenUpsertResponse
 	ACLUpsertTokensRPCMethod = "ACL.UpsertTokens"
+
+	// ACLDeleteTokensRPCMethod is the RPC method for batch deleting ACL
+	// tokens.
+	//
+	// Args: ACLTokenDeleteRequest
+	// Reply: GenericResponse
+	ACLDeleteTokensRPCMethod = "ACL.DeleteTokens"
+)
+
+const (
+	// ACLMaxExpiredBatchSize is the maximum number of expired ACL tokens that
+	// will be garbage collected in a single trigger. This number helps limit
+	// the replication pressure due to expired token deletion. If there are a
+	// large number of expired tokens pending garbage collection, this value is
+	// a potential limiting factor.
+	ACLMaxExpiredBatchSize = 4096
 )
 
 // Canonicalize performs basic canonicalization on the ACL token object. It is

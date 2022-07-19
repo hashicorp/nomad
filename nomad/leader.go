@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -341,7 +342,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	// Scheduler periodic jobs
+	// Schedule periodic jobs which include expired local ACL token garbage
+	// collection.
 	go s.schedulePeriodic(stopCh)
 
 	// Reap any failed evaluations
@@ -373,12 +375,22 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	// Start replication of ACLs and Policies if they are enabled,
-	// and we are not the authoritative region.
-	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
-		go s.replicateACLPolicies(stopCh)
-		go s.replicateACLTokens(stopCh)
-		go s.replicateNamespaces(stopCh)
+	// If ACLs are enabled, the leader needs to start a number of long-lived
+	// routines. Exactly which routines, depends on whether this leader is
+	// running within the authoritative region or not.
+	if s.config.ACLEnabled {
+
+		// The authoritative region is responsible for garbage collecting
+		// expired global tokens. Otherwise, non-authoritative regions need to
+		// replicate policies, tokens, and namespaces.
+		switch s.config.AuthoritativeRegion {
+		case s.config.Region:
+			go s.schedulePeriodicAuthoritative(stopCh)
+		default:
+			go s.replicateACLPolicies(stopCh)
+			go s.replicateACLTokens(stopCh)
+			go s.replicateNamespaces(stopCh)
+		}
 	}
 
 	// Setup any enterprise systems required.
@@ -762,43 +774,35 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	oneTimeTokenGC := time.NewTicker(s.config.OneTimeTokenGCInterval)
 	defer oneTimeTokenGC.Stop()
 
-	// getLatest grabs the latest index from the state store. It returns true if
-	// the index was retrieved successfully.
-	getLatest := func() (uint64, bool) {
-		snapshotIndex, err := s.fsm.State().LatestIndex()
-		if err != nil {
-			s.logger.Error("failed to determine state store's index", "error", err)
-			return 0, false
-		}
-
-		return snapshotIndex, true
-	}
+	// Set up the expired ACL local token garbage collection timer.
+	localTokenExpiredGC, localTokenExpiredGCStop := helper.NewSafeTimer(s.config.ACLTokenExpirationGCInterval)
+	defer localTokenExpiredGCStop()
 
 	for {
 
 		select {
 		case <-evalGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobEvalGC, index))
 			}
 		case <-nodeGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobNodeGC, index))
 			}
 		case <-jobGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC, index))
 			}
 		case <-deploymentGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobDeploymentGC, index))
 			}
 		case <-csiPluginGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIPluginGC, index))
 			}
 		case <-csiVolumeClaimGC.C:
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
 		case <-oneTimeTokenGC.C:
@@ -806,13 +810,53 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 				continue
 			}
 
-			if index, ok := getLatest(); ok {
+			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobOneTimeTokenGC, index))
 			}
+		case <-localTokenExpiredGC.C:
+			if index, ok := s.getLatestIndex(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobLocalTokenExpiredGC, index))
+			}
+			localTokenExpiredGC.Reset(s.config.ACLTokenExpirationGCInterval)
 		case <-stopCh:
 			return
 		}
 	}
+}
+
+// schedulePeriodicAuthoritative is a long-lived routine intended for use on
+// the leader within the authoritative region only. It periodically queues work
+// onto the _core scheduler for ACL based activities such as removing expired
+// global ACL tokens.
+func (s *Server) schedulePeriodicAuthoritative(stopCh chan struct{}) {
+
+	// Set up the expired ACL global token garbage collection timer.
+	globalTokenExpiredGC, globalTokenExpiredGCStop := helper.NewSafeTimer(s.config.ACLTokenExpirationGCInterval)
+	defer globalTokenExpiredGCStop()
+
+	for {
+		select {
+		case <-globalTokenExpiredGC.C:
+			if index, ok := s.getLatestIndex(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobGlobalTokenExpiredGC, index))
+			}
+			globalTokenExpiredGC.Reset(s.config.ACLTokenExpirationGCInterval)
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+// getLatestIndex is a helper function which returns the latest index from the
+// state store. The boolean return indicates whether the call has been
+// successful or not.
+func (s *Server) getLatestIndex() (uint64, bool) {
+	snapshotIndex, err := s.fsm.State().LatestIndex()
+	if err != nil {
+		s.logger.Error("failed to determine state store's index", "error", err)
+		return 0, false
+	}
+	return snapshotIndex, true
 }
 
 // coreJobEval returns an evaluation for a core job

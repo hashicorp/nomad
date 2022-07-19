@@ -10741,6 +10741,16 @@ const (
 	// tokens. We periodically scan for expired tokens and delete them.
 	CoreJobOneTimeTokenGC = "one-time-token-gc"
 
+	// CoreJobLocalTokenExpiredGC is used for the garbage collection of
+	// expired local ACL tokens. We periodically scan for expired tokens and
+	// delete them.
+	CoreJobLocalTokenExpiredGC = "local-token-expired-gc"
+
+	// CoreJobGlobalTokenExpiredGC is used for the garbage collection of
+	// expired global ACL tokens. We periodically scan for expired tokens and
+	// delete them.
+	CoreJobGlobalTokenExpiredGC = "global-token-expired-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
