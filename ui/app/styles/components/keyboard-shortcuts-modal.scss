@@ -10,29 +10,84 @@
   animation-name: slideIn;
   animation-duration: 0.2s;
   animation-fill-mode: both;
+  max-height: 60vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
 
-  button.dismiss {
-    width: 100%;
-    justify-content: right;
-    font-size: 0.7rem;
-    margin-bottom: 1rem;
+  header {
+    margin-bottom: 2rem;
+    h2 {
+      font-size: $size-3;
+      font-weight: $weight-semibold;
+    }
+
+    button.dismiss {
+      float: right;
+      font-size: 0.7rem;
+      margin-bottom: 1rem;
+    }
   }
 
-  li {
-    list-style-type: none;
-    padding: 0.5rem 0;
+  ul.commands-list {
+    overflow: auto;
+    margin: 0 -2rem;
+    padding: 0 2rem;
+    li {
+      list-style-type: none;
+      padding: 0.5rem 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      &:not(:last-of-type) {
+        border-bottom: 1px solid #ccc;
+      }
+      strong {
+        padding: 0.25rem 0;
+      }
+      .keys {
+        text-align: right;
+        & > span.recording {
+          color: $red;
+          font-size: 0.75rem;
+        }
+        button {
+          border: none;
+          background: #eee;
+          cursor: pointer;
+
+          &:hover {
+            background: #ddd;
+          }
+
+          &[disabled],
+          &[disabled]:hover {
+            background: #eee;
+            color: black;
+            cursor: not-allowed;
+          }
+          span {
+            margin: 0.25rem;
+            display: inline-block;
+          }
+
+          &.reset-to-default {
+            background: white;
+            color: $red;
+            font-size: 0.75rem;
+          }
+        }
+      }
+    }
+  }
+
+  footer {
+    background: #eee;
+    padding: 1rem 2rem;
+    margin: 1rem -2rem -2rem;
     display: grid;
     grid-template-columns: auto 1fr;
-    &:not(:last-child) {
-      border-bottom: 1px solid #ccc;
-    }
-    .keys {
+
+    .toggle {
       text-align: right;
-      span {
-        background-color: #eee;
-        margin: 0 0.25rem;
-        padding: 0 0.25rem;
-      }
     }
   }
 }

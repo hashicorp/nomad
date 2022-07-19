@@ -1,6 +1,7 @@
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { action } from '@ember/object';
 import Tether from 'tether';
 
 export default class KeyboardShortcutsModalComponent extends Component {
@@ -18,9 +19,14 @@ export default class KeyboardShortcutsModalComponent extends Component {
    * commands: filter keyCommands to those that have an action and a label,
    * to distinguish between those that are just visual hints of existing commands
    */
-  @computed('keyboard.keyCommands.length')
+  @computed('keyboard.keyCommands.[]')
   get commands() {
-    return this.keyboard.keyCommands.filter((c) => c.label && c.action);
+    return this.keyboard.keyCommands.reduce((memo, c) => {
+      if (c.label && c.action && !memo.find((m) => m.label === c.label)) {
+        memo.push(c);
+      }
+      return memo;
+    }, []);
   }
 
   /**
@@ -48,5 +54,9 @@ export default class KeyboardShortcutsModalComponent extends Component {
   }
   untetherFromElement(self, _, { hint }) {
     hint.binder.destroy();
+  }
+
+  @action toggleListener() {
+    this.keyboard.enabled = !this.keyboard.enabled;
   }
 }
