@@ -2,9 +2,11 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACLPolicies_ListUpsert(t *testing.T) {
@@ -118,15 +120,10 @@ func TestACLTokens_List(t *testing.T) {
 
 	// Expect out bootstrap token
 	result, qm, err := at.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(result); n != 1 {
-		t.Fatalf("expected 1 token, got: %d", n)
-	}
+	require.NoError(t, err)
+	require.NotEqual(t, 0, qm.LastIndex)
+	require.Len(t, result, 1)
+	require.Nil(t, result[0].ExpirationTime)
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {
@@ -156,31 +153,81 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 
 	// Verify the change took hold
 	assert.Equal(t, out.Name, out2.Name)
+
+	// Try updating the token to include a TTL which is not allowed.
+	out2.ExpirationTTL = 10 * time.Minute
+	out3, _, err := at.Update(out2, nil)
+	require.Error(t, err)
+	require.Nil(t, out3)
 }
 
 func TestACLTokens_Info(t *testing.T) {
 	testutil.Parallel(t)
-	c, s, _ := makeACLClient(t, nil, nil)
-	defer s.Stop()
-	at := c.ACLTokens()
 
-	token := &ACLToken{
-		Name:     "foo",
-		Type:     "client",
-		Policies: []string{"foo1"},
+	testClient, testServer, _ := makeACLClient(t, nil, nil)
+	defer testServer.Stop()
+
+	testCases := []struct {
+		name   string
+		testFn func(client *Client)
+	}{
+		{
+			name: "token without expiry",
+			testFn: func(client *Client) {
+
+				token := &ACLToken{
+					Name:     "foo",
+					Type:     "client",
+					Policies: []string{"foo1"},
+				}
+
+				// Create the token
+				out, wm, err := client.ACLTokens().Create(token, nil)
+				require.Nil(t, err)
+				assertWriteMeta(t, wm)
+				require.NotNil(t, out)
+
+				// Query the token
+				out2, qm, err := client.ACLTokens().Info(out.AccessorID, nil)
+				require.Nil(t, err)
+				assertQueryMeta(t, qm)
+				require.Equal(t, out, out2)
+			},
+		},
+		{
+			name: "token with expiry",
+			testFn: func(client *Client) {
+
+				token := &ACLToken{
+					Name:          "token-with-expiry",
+					Type:          "client",
+					Policies:      []string{"foo1"},
+					ExpirationTTL: 10 * time.Minute,
+				}
+
+				// Create the token
+				out, wm, err := client.ACLTokens().Create(token, nil)
+				require.Nil(t, err)
+				assertWriteMeta(t, wm)
+				require.NotNil(t, out)
+
+				// Query the token and ensure it matches what was returned
+				// during the creation as well as ensuring the expiration time
+				// is set.
+				out2, qm, err := client.ACLTokens().Info(out.AccessorID, nil)
+				require.Nil(t, err)
+				assertQueryMeta(t, qm)
+				require.Equal(t, out, out2)
+				require.NotNil(t, out2.ExpirationTime)
+			},
+		},
 	}
 
-	// Create the token
-	out, wm, err := at.Create(token, nil)
-	assert.Nil(t, err)
-	assertWriteMeta(t, wm)
-	assert.NotNil(t, out)
-
-	// Query the token
-	out2, qm, err := at.Info(out.AccessorID, nil)
-	assert.Nil(t, err)
-	assertQueryMeta(t, qm)
-	assert.Equal(t, out, out2)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn(testClient)
+		})
+	}
 }
 
 func TestACLTokens_Self(t *testing.T) {

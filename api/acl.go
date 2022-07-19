@@ -221,24 +221,40 @@ type ACLPolicy struct {
 
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
-	AccessorID  string
-	SecretID    string
-	Name        string
-	Type        string
-	Policies    []string
-	Global      bool
-	CreateTime  time.Time
+	AccessorID string
+	SecretID   string
+	Name       string
+	Type       string
+	Policies   []string
+	Global     bool
+	CreateTime time.Time
+
+	// ExpirationTime represents the point after which a token should be
+	// considered revoked and is eligible for destruction. The zero value
+	ExpirationTime *time.Time `json:",omitempty"`
+
+	// ExpirationTTL is a convenience field for helping set ExpirationTime to a
+	// value of CreateTime+ExpirationTTL. This can only be set during token
+	// creation. This is a string version of a time.Duration like "2m".
+	ExpirationTTL time.Duration `json:",omitempty"`
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
 type ACLTokenListStub struct {
-	AccessorID  string
-	Name        string
-	Type        string
-	Policies    []string
-	Global      bool
-	CreateTime  time.Time
+	AccessorID string
+	Name       string
+	Type       string
+	Policies   []string
+	Global     bool
+	CreateTime time.Time
+
+	// ExpirationTime represents the point after which a token should be
+	// considered revoked and is eligible for destruction. A nil value
+	// indicates no expiration has been set on the token.
+	ExpirationTime *time.Time `json:"expiration_time,omitempty"`
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }
