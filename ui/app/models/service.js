@@ -1,11 +1,10 @@
 import { attr } from '@ember-data/model';
-import Fragment from 'ember-data-model-fragments/fragment';
-import { fragment } from 'ember-data-model-fragments/attributes';
+// import { fragment } from 'ember-data-model-fragments/attributes';
+import Model from '@ember-data/model';
+import { alias } from '@ember/object/computed';
 
-export default class Service extends Fragment {
-  @attr('string') name;
-  @attr('string') portLabel;
+export default class Service extends Model {
+  @attr('string') ServiceName;
+  @alias('ServiceName') name;
   @attr() tags;
-  @attr('string') onUpdate;
-  @fragment('consul-connect') connect;
 }

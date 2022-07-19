@@ -95,4 +95,5 @@ Router.map(function () {
       path: '/path/*absolutePath',
     });
   });
+  this.route('services', function () {});
 });

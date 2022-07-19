@@ -1,0 +1,26 @@
+{{page-title "Services"}}
+<section class="section">
+	<ListTable
+		@source={{this.model.services}}
+		as |t|
+	>
+		<t.head>
+			<th>
+				Name
+			</th>
+			<th>
+				Tags
+			</th>
+		</t.head>
+		<t.body as |row|>
+			<tr>
+				<td>{{row.model.name}}</td>
+				<td>
+					{{#each row.model.tags as |tag|}}
+						<span class="tag">{{tag}}</span>
+					{{/each}}
+				</td>
+			</tr>
+		</t.body>
+	</ListTable>
+</section>

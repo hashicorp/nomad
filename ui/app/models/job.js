@@ -144,6 +144,8 @@ export default class Job extends Model {
 
   @hasMany('recommendation-summary') recommendationSummaries;
 
+  @hasMany('services') services;
+
   @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups

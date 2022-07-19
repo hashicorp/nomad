@@ -135,7 +135,7 @@ export default Factory.extend({
       Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)
         .forEach(() => {
-          server.create('service', {
+          server.create('service-fragment', {
             taskGroup: group,
           });
         });
