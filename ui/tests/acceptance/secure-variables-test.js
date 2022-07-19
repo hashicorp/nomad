@@ -218,7 +218,6 @@ module('Acceptance | secure variables', function (hooks) {
       'correctly traverses from job to variable'
     );
 
-
     // Group Variable
     await Variables.visit();
     jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
@@ -240,7 +239,7 @@ module('Acceptance | secure variables', function (hooks) {
     );
 
     await percySnapshot(assert);
-    
+
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
     assert
@@ -278,7 +277,7 @@ module('Acceptance | secure variables', function (hooks) {
     );
 
     await percySnapshot(assert);
-    
+
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
