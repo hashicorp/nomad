@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/armon/go-metrics"
-	"golang.org/x/time/rate"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -16,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armon/go-metrics"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
@@ -24,6 +23,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/noxssrw"
