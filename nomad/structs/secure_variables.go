@@ -44,6 +44,11 @@ const (
 	// Args: SecureVariablesByNameRequest
 	// Reply: SecureVariablesByNameResponse
 	SecureVariablesReadRPCMethod = "SecureVariables.Read"
+
+	// maxVariableSize is the maximum size of the unencrypted contents of
+	// a variable. This size is deliberately set low and is not
+	// configurable, to discourage DoS'ing the cluster
+	maxVariableSize = 16384
 )
 
 // SecureVariableMetadata is the metadata envelope for a Secure Variable, it
@@ -82,6 +87,15 @@ type SecureVariableDecrypted struct {
 // SecureVariableItems are the actual secrets stored in a secure variable. They
 // are always encrypted and decrypted as a single unit.
 type SecureVariableItems map[string]string
+
+func (svi SecureVariableItems) Size() uint64 {
+	var out uint64
+	for k, v := range svi {
+		out += uint64(len(k))
+		out += uint64(len(v))
+	}
+	return out
+}
 
 // Equals checks both the metadata and items in a SecureVariableDecrypted
 // struct
@@ -163,6 +177,9 @@ func (sv SecureVariableDecrypted) Validate() error {
 
 	if len(sv.Items) == 0 {
 		return errors.New("empty variables are invalid")
+	}
+	if sv.Items.Size() > maxVariableSize {
+		return errors.New("variables are limited to 16KiB in total size")
 	}
 	if sv.Namespace == AllNamespacesSentinel {
 		return errors.New("can not target wildcard (\"*\")namespace")
