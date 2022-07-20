@@ -23,7 +23,7 @@ identity claims:
 
 ## Implicit Access to ACL Policies
 
-Nomad implicitly attaches a set of ACL policies to every workload
+Nomad automatically attaches a set of implicit ACL policies to every workload
 identity. The names of these policies start with the Nomad-owned
 prefix `_:`, followed by the namespace, job ID, task group name, and
 task name.
@@ -45,7 +45,7 @@ _:/default/example
 _:/default
 ```
 
-If these policies don't exist, the workload identity doesn't have any
+If these policies do not exist, the workload identity does not have any
 additional capabilities. But you can create a policy with one of these
 names and the task will automatically have access to them. For
 example, to give the task above access to set of shared secrets, you
@@ -68,9 +68,7 @@ access to all paths in the "shared" namespace.
 ## Using Workload Identity
 
 In Nomad 1.4.0 the workload identity is used only for `template`
-access to [Secure Variables] and not exposed outside of Nomad. Future
-versions of Nomad will make the workload identity available for
-verification outside of Nomad.
+access to [Secure Variables] and not exposed outside of Nomad.
 
 [allocation]: /docs/concepts/architecture#allocation
 [plan applier]: /docs/concepts/scheduling/scheduling

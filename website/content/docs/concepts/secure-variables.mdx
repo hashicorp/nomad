@@ -6,31 +6,30 @@ description: Learn about Nomad's secure variables feature
 
 # Secure Variables
 
-Most Nomad workloads need configuration or secrets. Nomad provides a `template`
-block to run consul-template alongside tasks, but leaves the source of those
-configuration values up to the operator. Typically you'll use [HashiCorp Vault]
-as the source for secrets.
+Most Nomad workloads need access to config values or secrets. Nomad provides a `template`
+block to run render such configuration on behalf of tasks, but has left the role of storing that
+configuration to external services such as [HashiCorp Consul] and [HashiCorp Vault].
 
-Nomad's Secure Variables feature provides the option to store secrets at
-file-like paths directly in Nomad's state store. The contents of secrets are
-encrypted and replicated between servers with raft. Access to secrets is
+Nomad's Secure Variables feature provides the option to securely store configuration at
+file-like paths directly in Nomad's state store. The contents of these secrets are
+encrypted and replicated between servers via raft. Access to secrets is
 controlled by ACL policies, and tasks have implicit ACL policies that allow them
 to access their own secrets. You can create, read, update, or delete secrets via
 the command line or in the Nomad web UI.
 
 Note that the Secure Variables feature is intended for small pieces of
 configuration data needed by workloads. Because writing to the Nomad state store
-uses resources needed by Nomad, it's not well-suited for large or fast-changing
-data like batch job results. These should be stored in a separate
+uses resources needed by Nomad, it is not well-suited for large or fast-changing
+data. For example, do not store batch job results as Secure Variables - these should be stored in an external
 database. Secure Variables are also not intended to be a full replacement for
 HashiCorp Vault. If you need powerful options like dynamic secrets or transit
-encryption, you'll need to use Vault.
+encryption, continue using Vault.
 
 ## ACL for Secure Variables
 
 Every Secure Variable belongs to a specific Nomad namespace. ACL policies can
 restrict access to Secure Variables within a namespace on a per-path basis,
-using a list of `path` blocks, under the `namespace.secure_variables` block. See
+using a list of `path` blocks, located under `namespace.secure_variables`. See
 the [ACL policy specification] docs for details about the syntax and structure
 of an ACL policy.
 
