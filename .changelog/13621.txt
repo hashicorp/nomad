@@ -1,0 +1,3 @@
+```release-note:improvement
+api: HTTP server now returns a 429 error code when hitting the connection limit
+```
