@@ -202,6 +202,17 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
+- `root_key_gc_interval` `(string: "10m")` - Specifies the interval between
+  [encryption key][] metadata garbage collections.
+
+- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time that an
+  [encryption key][] must exist before it can be eligible for garbage
+  collection.
+
+- `root_key_rotation_threshold` `(string: "720h")` - Specifies the minimum time
+  that an [encryption key][] must exist before it is automatically rotated on
+  the next garbage collection interval.
+
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad server will connect to other Nomad servers. The `retry_join`
   fields may directly specify the server address or use go-discover syntax for
@@ -362,3 +373,4 @@ server {
 [monitoring_nomad_progress]: /docs/operations/monitoring-nomad#progress
 [`nomad operator keygen`]: /docs/commands/operator/keygen
 [search]: /docs/configuration/search
+[encryption key]: /docs/operations/key-management
