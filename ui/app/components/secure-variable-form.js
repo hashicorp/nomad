@@ -34,8 +34,8 @@ export default class SecureVariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.args.model?.path.startsWith('nomad/') &&
-      !this.args.model?.path.startsWith('nomad/jobs/');
+      this.args.model?.path?.startsWith('nomad/') &&
+      !this.args.model?.path?.startsWith('nomad/jobs/');
     return !!this.JSONError || !this.args.model?.path || disallowedPath;
   }
 
