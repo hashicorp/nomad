@@ -20,6 +20,7 @@ import (
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -987,6 +988,7 @@ func DevConfig(mode *devModeConfig) *Config {
 		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 		DisableSandbox:   false,
 	}
+	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
 	conf.Telemetry.PrometheusMetrics = true
