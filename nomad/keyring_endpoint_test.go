@@ -78,7 +78,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	updateReq.RootKey.Meta.CreateTime = time.Now()
+	updateReq.RootKey.Meta.CreateTime = time.Now().UTC().UnixNano()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), updateResp.Index)
