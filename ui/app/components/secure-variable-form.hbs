@@ -8,14 +8,14 @@
       </span>
       {{#if @model.isNew}}
       <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
-        Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
+        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
       {{/if}}
       <Input
         @type="text"
         @value={{@model.path}}
-        placeholder="jobs/my-job/my-group/my-task"
+        placeholder="nomad/jobs/my-job/my-group/my-task"
         class="input path-input {{if this.duplicatePathWarning "error"}}"
         disabled={{not @model.isNew}}
         {{on "input" this.validatePath}}

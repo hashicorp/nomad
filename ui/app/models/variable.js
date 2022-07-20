@@ -97,10 +97,13 @@ export default class VariableModel extends Model {
   get pathLinkedEntities() {
     const entityTypes = ['job', 'group', 'task'];
     const emptyEntities = { job: '', group: '', task: '' };
-    if (this.path?.startsWith('jobs/') && this.path?.split('/').length <= 4) {
+    if (
+      this.path?.startsWith('nomad/jobs/') &&
+      this.path?.split('/').length <= 5
+    ) {
       return this.path
         .split('/')
-        .slice(1, 4)
+        .slice(2, 5)
         .reduce((acc, pathPart, index) => {
           acc[entityTypes[index]] = pathPart;
           return acc;

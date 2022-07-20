@@ -23,12 +23,12 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
         'path',
-        `jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
+        `nomad/jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
       );
     } else {
       return this.job.variables?.findBy(
         'path',
-        `jobs/${this.job.plainId}/${this.name}`
+        `nomad/jobs/${this.job.plainId}/${this.name}`
       );
     }
   }

@@ -133,7 +133,7 @@ module('Acceptance | secure variables', function (hooks) {
     assert.notOk(fooLink, 'foo0 file is no longer present');
   });
 
-  test('variables prefixed with jobs/ correctly link to entities', async function (assert) {
+  test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
     assert.expect(23);
     defaultScenario(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
@@ -183,7 +183,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/variables/path/jobs',
+      '/variables/path/nomad/jobs',
       'correctly traverses to the jobs directory'
     );
     let jobFileLink = find('[data-test-file-row]');
@@ -192,7 +192,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     await click(jobFileLink);
     assert.ok(
-      currentURL().startsWith('/variables/var/jobs/'),
+      currentURL().startsWith('/variables/var/nomad/jobs/'),
       'correctly traverses to a job file'
     );
     relatedEntitiesBox = find('.related-entities');
@@ -214,7 +214,9 @@ module('Acceptance | secure variables', function (hooks) {
     let jobVariableLink = find('[data-test-job-stat="variables"] a');
     await click(jobVariableLink);
     assert.ok(
-      currentURL().startsWith(`/variables/var/jobs/${variableLinkedJob.id}`),
+      currentURL().startsWith(
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}`
+      ),
       'correctly traverses from job to variable'
     );
 
@@ -249,7 +251,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(groupVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
       ),
       'correctly traverses from group to variable'
     );
@@ -291,7 +293,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(taskVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
       ),
       'correctly traverses from task to variable'
     );
@@ -392,6 +394,55 @@ module('Acceptance | secure variables', function (hooks) {
         .dom('[data-test-disabled-create-var]')
         .exists(
           'It should display an disabled button to create a secure variable on the main listings page'
+        );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('allows creating a variable that starts with nomad/jobs/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/jobs/foo/bar');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      await click('[data-test-submit-var]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.index',
+        'Navigates user back to variables list page after creating variable.'
+      );
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on creation.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('disallows creating a variable that starts with nomad/<something-other-than-jobs>/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/foo/');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      assert
+        .dom('[data-test-submit-var]')
+        .isDisabled(
+          'Cannot submit a variable that begins with nomad/<not-jobs>/'
         );
 
       // Reset Token
