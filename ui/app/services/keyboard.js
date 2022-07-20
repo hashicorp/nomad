@@ -291,17 +291,19 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
-    const inputElements = ['input', 'textarea', 'code', 'div'];
+    const inputElements = ['input', 'textarea', 'code'];
+    // const disallowedClassNames = ['page-layout'];
     const targetElementName = event.target.nodeName.toLowerCase();
-    // if (!inputElements.includes(targetElementName)) {
-    console.log(
-      'you typed',
-      event.key,
-      'in',
-      targetElementName,
-      event.target.classList?.toString()
-    );
-    // }
+    // const inputDisallowed = inputElements.includes(targetElementName) ||
+    if (!inputElements.includes(targetElementName)) {
+      console.log(
+        'you typed',
+        event.key,
+        'in',
+        targetElementName,
+        event.target.classList?.toString()
+      );
+    }
     // return;
     // // Don't fire keypress events from within an input field
     if (!inputElements.includes(targetElementName)) {
