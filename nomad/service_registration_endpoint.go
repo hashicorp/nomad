@@ -10,6 +10,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -152,6 +153,27 @@ func (s *ServiceRegistration) DeleteByID(
 	return nil
 }
 
+// serviceTagSet maps from a service name to a union of tags associated with that service.
+type serviceTagSet map[string]*set.Set[string]
+
+func (s serviceTagSet) add(service string, tags []string) {
+	if _, exists := s[service]; !exists {
+		s[service] = set.From[string](tags)
+	} else {
+		s[service].InsertAll(tags)
+	}
+}
+
+// namespaceServiceTagSet maps from a namespace to a serviceTagSet
+type namespaceServiceTagSet map[string]serviceTagSet
+
+func (s namespaceServiceTagSet) add(namespace, service string, tags []string) {
+	if _, exists := s[namespace]; !exists {
+		s[namespace] = make(serviceTagSet)
+	}
+	s[namespace].add(service, tags)
+}
+
 // List is used to list service registration held within state. It supports
 // single and wildcard namespace listings.
 func (s *ServiceRegistration) List(
@@ -186,43 +208,21 @@ func (s *ServiceRegistration) List(
 				return err
 			}
 
-			// Track the unique tags found per service registration name.
-			serviceTags := make(map[string]map[string]struct{})
+			// Accumulate the set of tags associated with a particular service name.
+			tagSet := make(serviceTagSet)
 
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-
 				serviceReg := raw.(*structs.ServiceRegistration)
-
-				// Identify and add any tags for the current service being
-				// iterated into the map. If the tag has already been seen for
-				// the same service, it will be overwritten ensuring no
-				// duplicates.
-				tags, ok := serviceTags[serviceReg.ServiceName]
-				if !ok {
-					serviceTags[serviceReg.ServiceName] = make(map[string]struct{})
-					tags = serviceTags[serviceReg.ServiceName]
-				}
-				for _, tag := range serviceReg.Tags {
-					tags[tag] = struct{}{}
-				}
+				tagSet.add(serviceReg.ServiceName, serviceReg.Tags)
 			}
 
+			// Set the output result with the accumulated set of tags for each service.
 			var serviceList []*structs.ServiceRegistrationStub
-
-			// Iterate the serviceTags map and populate our output result. This
-			// endpoint handles a single namespace, so we do not need to
-			// account for multiple.
-			for service, tags := range serviceTags {
-
-				serviceStub := structs.ServiceRegistrationStub{
+			for service, tags := range tagSet {
+				serviceList = append(serviceList, &structs.ServiceRegistrationStub{
 					ServiceName: service,
-					Tags:        make([]string, 0, len(tags)),
-				}
-				for tag := range tags {
-					serviceStub.Tags = append(serviceStub.Tags, tag)
-				}
-
-				serviceList = append(serviceList, &serviceStub)
+					Tags:        tags.List(),
+				})
 			}
 
 			// Correctly handle situations where a namespace was passed that
@@ -291,73 +291,43 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 				return err
 			}
 
-			// Track the unique tags found per namespace per service
-			// registration name.
-			namespacedServiceTags := make(map[string]map[string]map[string]struct{})
+			// Accumulate the union of tags per service in each namespace.
+			nsSvcTagSet := make(namespaceServiceTagSet)
 
 			// Iterate all service registrations.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-
-				// We need to assert the type here in order to check the
-				// namespace.
-				serviceReg := raw.(*structs.ServiceRegistration)
+				reg := raw.(*structs.ServiceRegistration)
 
 				// Check whether the service registration is within a namespace
 				// the caller is permitted to view. nil allowedNSes means the
 				// caller can view all namespaces.
-				if allowedNSes != nil && !allowedNSes[serviceReg.Namespace] {
+				if allowedNSes != nil && !allowedNSes[reg.Namespace] {
 					continue
 				}
 
-				// Identify and add any tags for the current namespaced service
-				// being iterated into the map. If the tag has already been
-				// seen for the same service, it will be overwritten ensuring
-				// no duplicates.
-				namespace, ok := namespacedServiceTags[serviceReg.Namespace]
-				if !ok {
-					namespacedServiceTags[serviceReg.Namespace] = make(map[string]map[string]struct{})
-					namespace = namespacedServiceTags[serviceReg.Namespace]
-				}
-				tags, ok := namespace[serviceReg.ServiceName]
-				if !ok {
-					namespace[serviceReg.ServiceName] = make(map[string]struct{})
-					tags = namespace[serviceReg.ServiceName]
-				}
-				for _, tag := range serviceReg.Tags {
-					tags[tag] = struct{}{}
-				}
+				// Accumulate the set of tags associated with a particular service name in a particular namespace
+				nsSvcTagSet.add(reg.Namespace, reg.ServiceName, reg.Tags)
 			}
 
-			// Set up our output object. Start with zero size but allocate the
-			// know length as we wil need to append whilst avoid slice growing.
-			servicesOutput := make([]*structs.ServiceRegistrationListStub, 0, len(namespacedServiceTags))
-
-			for ns, serviceTags := range namespacedServiceTags {
-
-				var serviceList []*structs.ServiceRegistrationStub
-
-				// Iterate the serviceTags map and populate our output result.
-				for service, tags := range serviceTags {
-
-					serviceStub := structs.ServiceRegistrationStub{
+			// Create the service stubs, one per namespace, containing each service
+			// in that namespace, and append that to the final tally of registrations.
+			var registrations []*structs.ServiceRegistrationListStub
+			for namespace, tagSet := range nsSvcTagSet {
+				var stubs []*structs.ServiceRegistrationStub
+				for service, tags := range tagSet {
+					stubs = append(stubs, &structs.ServiceRegistrationStub{
 						ServiceName: service,
-						Tags:        make([]string, 0, len(tags)),
-					}
-					for tag := range tags {
-						serviceStub.Tags = append(serviceStub.Tags, tag)
-					}
-
-					serviceList = append(serviceList, &serviceStub)
+						Tags:        tags.List(),
+					})
 				}
-
-				servicesOutput = append(servicesOutput, &structs.ServiceRegistrationListStub{
-					Namespace: ns,
-					Services:  serviceList,
+				registrations = append(registrations, &structs.ServiceRegistrationListStub{
+					Namespace: namespace,
+					Services:  stubs,
 				})
 			}
 
-			// Add the output to the reply object.
-			reply.Services = servicesOutput
+			// Set the output on the reply object.
+			reply.Services = registrations
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
