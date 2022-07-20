@@ -12,6 +12,13 @@
       </div>
       <div class="toolbar-item is-right-aligned">
         <SingleSelectDropdown
+          data-test-evaluation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespaces}}
+          @selection={{this.qpNamespace}}
+          @onSelect={{action this.setQueryParam "qpNamespace"}}
+        />
+        <SingleSelectDropdown
           data-test-evaluation-status-facet
           @label="Status"
           @options={{this.optionsEvaluationsStatus}}
@@ -31,13 +38,6 @@
           @options={{this.optionsType}}
           @selection={{this.type}}
           @onSelect={{action this.setQueryParam "type"}}
-        />
-        <SingleSelectDropdown
-          data-test-evaluation-namespace-facet
-          @label="Namespace"
-          @options={{this.optionsNamespaces}}
-          @selection={{this.qpNamespace}}
-          @onSelect={{action this.setQueryParam "qpNamespace"}}
         />
       </div>
     </div>
