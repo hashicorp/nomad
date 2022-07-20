@@ -399,6 +399,55 @@ module('Acceptance | secure variables', function (hooks) {
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });
+
+    test('allows creating a variable that starts with nomad/jobs/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/jobs/foo/bar');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      await click('[data-test-submit-var]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.index',
+        'Navigates user back to variables list page after creating variable.'
+      );
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on creation.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('disallows creating a variable that starts with nomad/<something-other-than-jobs>/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/foo/');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      assert
+        .dom('[data-test-submit-var]')
+        .isDisabled(
+          'Cannot submit a variable that begins with nomad/<not-jobs>/'
+        );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
   });
 
   module('edit flow', function () {
