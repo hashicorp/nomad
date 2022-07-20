@@ -153,10 +153,10 @@ func (s *ServiceRegistration) DeleteByID(
 	return nil
 }
 
-// ServiceTagSet maps from a service name to a union of tags associated with that service.
-type ServiceTagSet map[string]*set.Set[string]
+// serviceTagSet maps from a service name to a union of tags associated with that service.
+type serviceTagSet map[string]*set.Set[string]
 
-func (s ServiceTagSet) add(service string, tags []string) {
+func (s serviceTagSet) add(service string, tags []string) {
 	if _, exists := s[service]; !exists {
 		s[service] = set.From[string](tags)
 	} else {
@@ -164,12 +164,12 @@ func (s ServiceTagSet) add(service string, tags []string) {
 	}
 }
 
-// NamespaceServiceTagSet maps from a namespace to a ServiceTagSet
-type NamespaceServiceTagSet map[string]ServiceTagSet
+// namespaceServiceTagSet maps from a namespace to a serviceTagSet
+type namespaceServiceTagSet map[string]serviceTagSet
 
-func (s NamespaceServiceTagSet) add(namespace, service string, tags []string) {
+func (s namespaceServiceTagSet) add(namespace, service string, tags []string) {
 	if _, exists := s[namespace]; !exists {
-		s[namespace] = make(ServiceTagSet)
+		s[namespace] = make(serviceTagSet)
 	}
 	s[namespace].add(service, tags)
 }
@@ -209,7 +209,7 @@ func (s *ServiceRegistration) List(
 			}
 
 			// Accumulate the set of tags associated with a particular service name.
-			tagSet := make(ServiceTagSet)
+			tagSet := make(serviceTagSet)
 
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
 				serviceReg := raw.(*structs.ServiceRegistration)
@@ -292,22 +292,21 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 			}
 
 			// Accumulate the union of tags per service in each namespace.
-			nsSvcTagSet := make(NamespaceServiceTagSet)
+			nsSvcTagSet := make(namespaceServiceTagSet)
 
 			// Iterate all service registrations.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				serviceReg := raw.(*structs.ServiceRegistration)
+				reg := raw.(*structs.ServiceRegistration)
 
 				// Check whether the service registration is within a namespace
 				// the caller is permitted to view. nil allowedNSes means the
 				// caller can view all namespaces.
-				if allowedNSes != nil && !allowedNSes[serviceReg.Namespace] {
+				if allowedNSes != nil && !allowedNSes[reg.Namespace] {
 					continue
 				}
 
 				// Accumulate the set of tags associated with a particular service name in a particular namespace
-				namespace, service, tags := serviceReg.Namespace, serviceReg.ServiceName, serviceReg.Tags
-				nsSvcTagSet.add(namespace, service, tags)
+				nsSvcTagSet.add(reg.Namespace, reg.ServiceName, reg.Tags)
 			}
 
 			// Create the service stubs, one per namespace, containing each service
