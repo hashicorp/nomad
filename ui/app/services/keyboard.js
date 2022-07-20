@@ -292,10 +292,17 @@ export default class KeyboardService extends Service {
    */
   recordKeypress(type, event) {
     const inputElements = ['input', 'textarea', 'code'];
-    // const disallowedClassNames = ['page-layout'];
+    const disallowedClassNames = [
+      'page-layout',
+      'ember-basic-dropdown-trigger',
+    ];
     const targetElementName = event.target.nodeName.toLowerCase();
-    // const inputDisallowed = inputElements.includes(targetElementName) ||
-    if (!inputElements.includes(targetElementName)) {
+    const inputDisallowed =
+      inputElements.includes(targetElementName) ||
+      disallowedClassNames.any((className) =>
+        event.target.classList.contains(className)
+      );
+    if (!inputDisallowed) {
       console.log(
         'you typed',
         event.key,
@@ -306,7 +313,7 @@ export default class KeyboardService extends Service {
     }
     // return;
     // // Don't fire keypress events from within an input field
-    if (!inputElements.includes(targetElementName)) {
+    if (!inputDisallowed) {
       // Treat Shift like a special modifier key.
       // If it's depressed, display shortcuts
       const { key } = event;
