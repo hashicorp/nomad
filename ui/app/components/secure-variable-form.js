@@ -160,7 +160,7 @@ export default class SecureVariableFormComponent extends Component {
           this.args.model.set('namespace', this.variableNamespace);
         } else {
           const [namespace] = this.store.peekAll('namespace').toArray();
-          this.args.model.set('namespace', namespace);
+          this.args.model.set('namespace', namespace.id);
         }
       }
 
