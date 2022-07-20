@@ -133,7 +133,7 @@ module('Acceptance | secure variables', function (hooks) {
     assert.notOk(fooLink, 'foo0 file is no longer present');
   });
 
-  test('variables prefixed with jobs/ correctly link to entities', async function (assert) {
+  test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
     assert.expect(23);
     defaultScenario(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
@@ -183,7 +183,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/variables/path/jobs',
+      '/variables/path/nomad/jobs',
       'correctly traverses to the jobs directory'
     );
     let jobFileLink = find('[data-test-file-row]');
@@ -192,7 +192,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     await click(jobFileLink);
     assert.ok(
-      currentURL().startsWith('/variables/var/jobs/'),
+      currentURL().startsWith('/variables/var/nomad/jobs/'),
       'correctly traverses to a job file'
     );
     relatedEntitiesBox = find('.related-entities');
@@ -214,7 +214,9 @@ module('Acceptance | secure variables', function (hooks) {
     let jobVariableLink = find('[data-test-job-stat="variables"] a');
     await click(jobVariableLink);
     assert.ok(
-      currentURL().startsWith(`/variables/var/jobs/${variableLinkedJob.id}`),
+      currentURL().startsWith(
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}`
+      ),
       'correctly traverses from job to variable'
     );
 
@@ -249,7 +251,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(groupVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
       ),
       'correctly traverses from group to variable'
     );
@@ -291,7 +293,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(taskVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
       ),
       'correctly traverses from task to variable'
     );
