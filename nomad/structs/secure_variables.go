@@ -214,13 +214,14 @@ func (sv SecureVariableMetadata) GetCreateIndex() uint64 {
 	return sv.CreateIndex
 }
 
-// SecureVariablesQuota is used to track the total size of secure
-// variables entries per namespace. The total length of
-// SecureVariable.EncryptedData will be added to the SecureVariablesQuota
-// table in the same transaction as a write, update, or delete.
+// SecureVariablesQuota is used to track the total size of secure variables
+// entries per namespace. The total length of SecureVariable.EncryptedData in
+// bytes will be added to the SecureVariablesQuota table in the same transaction
+// as a write, update, or delete. This tracking effectively caps the maximum
+// size of secure variables in a given namespace to MaxInt64 bytes.
 type SecureVariablesQuota struct {
 	Namespace   string
-	Size        uint64
+	Size        int64
 	CreateIndex uint64
 	ModifyIndex uint64
 }

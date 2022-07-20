@@ -79,6 +79,16 @@ func (sv *SecureVariables) Upsert(
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
+
+		ns, err := sv.srv.State().NamespaceByName(nil, v.Namespace)
+		if err != nil {
+			return err
+		}
+		if ns == nil {
+			return fmt.Errorf("secure variable %q is in nonexistent namespace %q",
+				v.Path, v.Namespace)
+		}
+
 		if args.CheckIndex != nil {
 			var conflict *structs.SecureVariableDecrypted
 			if err := sv.validateCASUpdate(*args.CheckIndex, v, &conflict); err != nil {
@@ -104,11 +114,6 @@ func (sv *SecureVariables) Upsert(
 	}
 	if err := mErr.ErrorOrNil(); err != nil {
 		return &mErr
-	}
-
-	// TODO: This should be done on each Data in uArgs.
-	if err := sv.enforceQuota(uArgs); err != nil {
-		return err
 	}
 
 	// Update via Raft.

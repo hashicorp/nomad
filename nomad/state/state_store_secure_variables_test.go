@@ -34,9 +34,9 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 	t.Log(printSecureVariables(svs))
 	insertIndex := uint64(20)
 
-	var expectedQuotaSize uint64
+	var expectedQuotaSize int
 	for _, v := range svs {
-		expectedQuotaSize += uint64(len(v.Data))
+		expectedQuotaSize += len(v.Data)
 	}
 
 	// Ensure new secure variables are inserted as expected with their
@@ -78,7 +78,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, expectedQuotaSize, quotaUsed.Size)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
 	svs = svm.List()
@@ -102,7 +102,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, expectedQuotaSize, quotaUsed.Size)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
 	// Modify a single one of the previously inserted secure variables
@@ -158,7 +158,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, expectedQuotaSize+1, quotaUsed.Size)
+		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 	})
 
 	svs = svm.List()
@@ -219,7 +219,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, expectedQuotaSize+1, quotaUsed.Size)
+		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 
 	})
 }
@@ -250,6 +250,11 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 	// remaining is left as expected.
 	t.Run("2 upsert variable and delete", func(t *testing.T) {
 
+		ns := mock.Namespace()
+		ns.Name = svs[0].Namespace
+		require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+
+		initialIndex++
 		require.NoError(t, testState.UpsertSecureVariables(
 			structs.MsgTypeTestSetup, initialIndex, svs))
 
@@ -270,19 +275,19 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 		require.NoError(t, err)
 
 		var delete1Count int
-		var expectedQuotaSize uint64
+		var expectedQuotaSize int
 
 		// Iterate all the stored variables and assert we have the expected
 		// number.
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
 			delete1Count++
 			v := raw.(*structs.SecureVariableEncrypted)
-			expectedQuotaSize += uint64(len(v.Data))
+			expectedQuotaSize += len(v.Data)
 		}
 		require.Equal(t, 1, delete1Count, "unexpected number of variables in table")
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, expectedQuotaSize, quotaUsed.Size)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
 	t.Run("3 delete remaining variable", func(t *testing.T) {
@@ -310,7 +315,7 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 
 		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
-		require.Equal(t, uint64(0), quotaUsed.Size)
+		require.Equal(t, int64(0), quotaUsed.Size)
 	})
 }
 
@@ -318,10 +323,15 @@ func TestStateStore_GetSecureVariables(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
+	ns := mock.Namespace()
+	ns.Name = "~*magical*~"
+	initialIndex := uint64(10)
+	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+
 	// Generate some test secure variables and upsert them.
 	svs, _ := mockSecureVariables(2)
 	svs[0].Namespace = "~*magical*~"
-	initialIndex := uint64(10)
+	initialIndex++
 	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, initialIndex, svs))
 
 	// Look up secure variables using the namespace of the first mock variable.
@@ -386,7 +396,12 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 	svs[5].Namespace = "other"
 	svs[5].Path = "a/z/z"
 
+	ns := mock.Namespace()
+	ns.Name = "other"
 	initialIndex := uint64(10)
+	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+
+	initialIndex++
 	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, initialIndex, svs))
 
 	t.Run("ByNamespace", func(t *testing.T) {
