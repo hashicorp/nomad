@@ -339,21 +339,21 @@ export default class KeyboardService extends Service {
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
     // Replace key with its unshifted equivalent if it's a number key
-    if (shifted && key in DIGIT_MAP) {
-      key = DIGIT_MAP[key];
-    }
-    this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    if (this.matchedCommands.length) {
-      this.matchedCommands.forEach((command) => command.action());
+    // if (shifted && key in DIGIT_MAP) {
+    //   key = DIGIT_MAP[key];
+    // }
+    // this.buffer.pushObject(shifted ? `Shift+${key}` : key);
+    // if (this.matchedCommands.length) {
+    //   this.matchedCommands.forEach((command) => command.action());
 
-      // TODO: Temporary dev log
-      if (this.config.isDev) {
-        this.matchedCommands.forEach((command) =>
-          console.log('command run', command, command.action.toString())
-        );
-      }
-      this.clearBuffer();
-    }
+    //   // TODO: Temporary dev log
+    //   if (this.config.isDev) {
+    //     this.matchedCommands.forEach((command) =>
+    //       console.log('command run', command, command.action.toString())
+    //     );
+    //   }
+    //   this.clearBuffer();
+    // }
     yield timeout(DEBOUNCE_MS);
     this.clearBuffer();
   }

@@ -210,6 +210,8 @@ jobs:
         environment:
           # See https://git.io/vdao3 for details.
           JOBS: 2
+    # TODO: TEMP
+    parallelism: 6
     steps:
       - checkout
       - restore_cache:
