@@ -6628,6 +6628,19 @@ func (tg *TaskGroup) validateServices() error {
 	// Accumulate task names in this group
 	taskSet := set.New[string](len(tg.Tasks))
 
+	// each service in a group must be unique (i.e. used in MakeAllocServiceID)
+	type unique struct {
+		name string
+		task string
+		port string
+	}
+
+	// Accumulate service IDs in this group
+	idSet := set.New[unique](0)
+
+	// Accumulate IDs that are duplicates
+	idDuplicateSet := set.New[unique](0)
+
 	// Accumulate the providers used for this task group. Currently, Nomad only
 	// allows the use of a single service provider within a task group.
 	providerSet := set.New[string](1)
@@ -6642,11 +6655,19 @@ func (tg *TaskGroup) validateServices() error {
 		}
 
 		for _, service := range task.Services {
+
 			// Ensure no task-level checks specify a task
 			for _, check := range service.Checks {
 				if check.TaskName != "" {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
+			}
+
+			// Track that we have seen this service id
+			id := unique{service.Name, task.Name, service.PortLabel}
+			if !idSet.Insert(id) {
+				// accumulate duplicates for a single error later on
+				idDuplicateSet.Insert(id)
 			}
 
 			// Track that we have seen this service provider
@@ -6655,6 +6676,13 @@ func (tg *TaskGroup) validateServices() error {
 	}
 
 	for i, service := range tg.Services {
+
+		// Track that we have seen this service id
+		id := unique{service.Name, "group", service.PortLabel}
+		if !idSet.Insert(id) {
+			// accumulate duplicates for a single error later on
+			idDuplicateSet.Insert(id)
+		}
 
 		// Track that we have seen this service provider
 		providerSet.Insert(service.Provider)
@@ -6686,6 +6714,25 @@ func (tg *TaskGroup) validateServices() error {
 				}
 			}
 		}
+	}
+
+	// Produce an error of any services which are not unique enough in the group
+	// i.e. have same <task, name, port>
+	if idDuplicateSet.Size() > 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf(
+				"Services are not unique: %s",
+				idDuplicateSet.String(
+					func(u unique) string {
+						s := u.task + "->" + u.name
+						if u.port != "" {
+							s += ":" + u.port
+						}
+						return s
+					},
+				),
+			),
+		)
 	}
 
 	// The initial feature release of native service discovery only allows for
