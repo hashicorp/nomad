@@ -230,7 +230,9 @@ type ACLToken struct {
 	CreateTime time.Time
 
 	// ExpirationTime represents the point after which a token should be
-	// considered revoked and is eligible for destruction. The zero value
+	// considered revoked and is eligible for destruction. The zero value of
+	// time.Time does not respect json omitempty directives, so we must use a
+	// pointer.
 	ExpirationTime *time.Time `json:",omitempty"`
 
 	// ExpirationTTL is a convenience field for helping set ExpirationTime to a

@@ -173,7 +173,7 @@ func formatKVACLToken(token *api.ACLToken) string {
 
 func expiryTimeString(t *time.Time) string {
 	if t == nil || t.IsZero() {
-		return "never"
+		return "<never>"
 	}
 	return t.String()
 }
