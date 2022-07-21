@@ -1,17 +1,19 @@
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
+
+  {{#if @model.isNew}}
+    <div class="related-entities-hint">
+      <p>Prefix your path with <code>jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
+      Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+    </div>
+  {{/if}}
+
   <div class={{if this.namespaceOptions "path-namespace"}}>
     <label>
       <span>
         Path
       </span>
-      {{#if @model.isNew}}
-      <div class="related-entities-hint">
-        <p>Prefix your path with <code>jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
-        Format: <code>jobs/&lt;jobname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-      </div>
-      {{/if}}
       <Input
         @type="text"
         @value={{@model.path}}
@@ -22,23 +24,23 @@
         {{autofocus}}
         data-test-path-input
       />
+      {{#if this.duplicatePathWarning}}
+        <p class="duplicate-path-error help is-danger">
+          There is already a Secure Variable located at
+          {{@model.path}}
+          .
+          <br />
+          Please choose a different path, or
+          <LinkTo
+            @route="variables.variable.edit"
+            @model={{this.duplicatePathWarning.path}}
+          >
+            edit the existing Secure Variable
+          </LinkTo>
+          .
+        </p>
+      {{/if}}
     </label>
-    {{#if this.duplicatePathWarning}}
-      <p class="duplicate-path-error help is-danger">
-        There is already a Secure Variable located at
-        {{@model.path}}
-        .
-        <br />
-        Please choose a different path, or
-        <LinkTo
-          @route="variables.variable.edit"
-          @model={{this.duplicatePathWarning.path}}
-        >
-          edit the existing Secure Variable
-        </LinkTo>
-        .
-      </p>
-    {{/if}}
     <SecureVariableForm::NamespaceFilter 
       @data={{hash 
         disabled=(not @model.isNew)
