@@ -4,7 +4,7 @@
   {{! No Loading Behavior }}
   {{#if trigger.data.isSuccess}}
     {{#if trigger.data.result}}
-      {{#if @data.namespaceOptions}}
+      {{#if @data.shouldShowFilter}}
         <label>
           <span>
             Namespace
