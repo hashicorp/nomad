@@ -139,7 +139,28 @@ template {
   change_mode = "noop"
   perms = "600"
 }
+
+template {
+  data = <<-EOH
+  {{ with secret "pki_int/issue/nomad-task"
+     "common_name=example.service.consul" "ttl=72h"
+     "alt_names=localhost" "ip_sans=127.0.0.1"}}
+  {{ .Data.certificate }}
+  {{ .Data.private_key }}
+  {{ end }}
+  EOH
+  destination = "${NOMAD_SECRETS_DIR}/client.crt"
+  change_mode = "restart"
+  perms = "600"
+}
 ```
+
+The example above uses `change_mode = "noop"` in the `template` stanza for
+`examplepolicy.token`, which means that the payload is responsible for
+detecting and handling changes to that file. In contrast, the `template` stanza
+for `client.crt` is configured so that Nomad will restart the task whenever
+the certificate is reissued, as indicated by `change_mode = "restart"`
+(which is the default value for `change_mode`).
 
 
 ### Vault Namespace
