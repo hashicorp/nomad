@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"go.etcd.io/bbolt"
@@ -29,7 +31,9 @@ allocations/
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
-      |--> task_state  -> *structs.TaskState  # Sync'd to servers
+      |--> task_state  -> *structs.TaskState  # Syncs to servers
+   |--> checks/
+      |--> check-<id> -> *structs.CheckState # Syncs to servers
 
 devicemanager/
 |--> plugin_state -> *dmstate.PluginState
@@ -72,6 +76,9 @@ var (
 	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
 	// stored under
 	allocNetworkStatusKey = []byte("network_status")
+
+	// checkResultsBucket is the bucket name in which check query results are stored
+	checkResultsBucket = []byte("check_results")
 
 	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
@@ -176,6 +183,7 @@ func (s *BoltStateDB) Name() string {
 func (s *BoltStateDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
 	var allocs []*structs.Allocation
 	var errs map[string]error
+
 	err := s.db.View(func(tx *boltdd.Tx) error {
 		allocs, errs = s.getAllAllocations(tx)
 		return nil
@@ -195,7 +203,7 @@ type allocEntry struct {
 }
 
 func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, map[string]error) {
-	allocs := []*structs.Allocation{}
+	allocs := make([]*structs.Allocation, 0, 10)
 	errs := map[string]error{}
 
 	allocationsBkt := tx.Bucket(allocationsBucketName)
@@ -715,6 +723,71 @@ func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryS
 	}
 
 	return ps, nil
+}
+
+func keyForCheck(allocID string, checkID structs.CheckID) []byte {
+	return []byte(fmt.Sprintf("%s_%s", allocID, checkID))
+}
+
+// PutCheckResult puts qr into the state store.
+func (s *BoltStateDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		bkt, err := tx.CreateBucketIfNotExists(checkResultsBucket)
+		if err != nil {
+			return err
+		}
+		key := keyForCheck(allocID, qr.ID)
+		return bkt.Put(key, qr)
+	})
+}
+
+// GetCheckResults gets the check results associated with allocID from the state store.
+func (s *BoltStateDB) GetCheckResults() (checks.ClientResults, error) {
+	m := make(checks.ClientResults)
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		bkt := tx.Bucket(checkResultsBucket)
+		if bkt == nil {
+			return nil // nothing set yet
+		}
+
+		if err := boltdd.Iterate(bkt, nil, func(key []byte, qr structs.CheckQueryResult) {
+			parts := bytes.SplitN(key, []byte("_"), 2)
+			allocID, _ := parts[0], parts[1]
+			m.Insert(string(allocID), &qr)
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return m, err
+}
+
+func (s *BoltStateDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		bkt := tx.Bucket(checkResultsBucket)
+		if bkt == nil {
+			return nil // nothing set yet
+		}
+
+		for _, id := range checkIDs {
+			key := keyForCheck(allocID, id)
+			if err := bkt.Delete(key); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *BoltStateDB) PurgeCheckResults(allocID string) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		bkt := tx.Bucket(checkResultsBucket)
+		if bkt == nil {
+			return nil // nothing set yet
+		}
+		return bkt.DeletePrefix([]byte(allocID + "_"))
+	})
 }
 
 // init initializes metadata entries in a newly created state database.

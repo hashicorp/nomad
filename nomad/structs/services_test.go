@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +69,7 @@ func TestServiceCheck_validate_PassingTypes(t *testing.T) {
 				Interval:             1 * time.Second,
 				Timeout:              2 * time.Second,
 				SuccessBeforePassing: 3,
-			}).validate()
+			}).validateConsul()
 			require.NoError(t, err)
 		}
 	})
@@ -81,7 +82,7 @@ func TestServiceCheck_validate_PassingTypes(t *testing.T) {
 			Interval:             1 * time.Second,
 			Timeout:              2 * time.Second,
 			SuccessBeforePassing: 3,
-		}).validate()
+		}).validateConsul()
 		require.EqualError(t, err, `success_before_passing not supported for check of type "script"`)
 	})
 }
@@ -98,7 +99,7 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 				Interval:               1 * time.Second,
 				Timeout:                2 * time.Second,
 				FailuresBeforeCritical: 3,
-			}).validate()
+			}).validateConsul()
 			require.NoError(t, err)
 		}
 	})
@@ -112,7 +113,7 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 			Timeout:                2 * time.Second,
 			SuccessBeforePassing:   0,
 			FailuresBeforeCritical: 3,
-		}).validate()
+		}).validateConsul()
 		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
 	})
 }
@@ -129,7 +130,7 @@ func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
 			Timeout:                2 * time.Second,
 			SuccessBeforePassing:   0, // script checks should still pass validation
 			FailuresBeforeCritical: 0, // script checks should still pass validation
-		}).validate()
+		}).validateConsul()
 		require.NoError(t, err)
 	})
 }
@@ -150,7 +151,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Grace:          5 * time.Second,
 			},
 			OnUpdate: "ignore_warnings",
-		}).validate()
+		}).validateConsul()
 		require.EqualError(t, err, `on_update value "ignore_warnings" not supported with check_restart ignore_warnings value "false"`)
 	})
 
@@ -167,7 +168,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Grace:          5 * time.Second,
 			},
 			OnUpdate: "ignore",
-		}).validate()
+		}).validateConsul()
 		require.EqualError(t, err, `on_update value "ignore" is not compatible with check_restart`)
 	})
 
@@ -184,9 +185,127 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Grace:          5 * time.Second,
 			},
 			OnUpdate: "ignore_warnings",
-		}).validate()
+		}).validateConsul()
 		require.NoError(t, err)
 	})
+}
+
+func TestServiceCheck_validateNomad(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name string
+		sc   *ServiceCheck
+		exp  string
+	}{
+		{name: "grpc", sc: &ServiceCheck{Type: ServiceCheckGRPC}, exp: `invalid check type ("grpc"), must be one of tcp, http`},
+		{name: "script", sc: &ServiceCheck{Type: ServiceCheckScript}, exp: `invalid check type ("script"), must be one of tcp, http`},
+		{
+			name: "expose",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Expose:   true, // consul only
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+			},
+			exp: `expose may only be set for Consul service checks`,
+		}, {
+			name: "on_update ignore_warnings",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				OnUpdate: "ignore_warnings",
+			},
+			exp: `on_update may only be set to ignore_warnings for Consul service checks`,
+		},
+		{
+			name: "success_before_passing",
+			sc: &ServiceCheck{
+				Type:                 ServiceCheckTCP,
+				SuccessBeforePassing: 3, // consul only
+				Interval:             3 * time.Second,
+				Timeout:              1 * time.Second,
+			},
+			exp: `success_before_passing may only be set for Consul service checks`,
+		},
+		{
+			name: "failures_before_critical",
+			sc: &ServiceCheck{
+				Type:                   ServiceCheckTCP,
+				FailuresBeforeCritical: 3, // consul only
+				Interval:               3 * time.Second,
+				Timeout:                1 * time.Second,
+			},
+			exp: `failures_before_critical may only be set for Consul service checks`,
+		},
+		{
+			name: "check_restart",
+			sc: &ServiceCheck{
+				Type:         ServiceCheckTCP,
+				Interval:     3 * time.Second,
+				Timeout:      1 * time.Second,
+				CheckRestart: new(CheckRestart),
+			},
+			exp: `check_restart may only be set for Consul service checks`,
+		},
+		{
+			name: "address mode driver",
+			sc: &ServiceCheck{
+				Type:        ServiceCheckTCP,
+				Interval:    3 * time.Second,
+				Timeout:     1 * time.Second,
+				AddressMode: "driver",
+			},
+			exp: `address_mode = driver may only be set for Consul service checks`,
+		},
+		{
+			name: "http non GET",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Method:   "HEAD",
+			},
+			exp: `http checks may only use GET method in Nomad services`,
+		},
+		{
+			name: "http with headers",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Method:   "GET",
+				Header:   map[string][]string{"foo": {"bar"}},
+			},
+			exp: `http checks may not set headers in Nomad services`,
+		},
+		{
+			name: "http with body",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Method:   "GET",
+				Body:     "blah",
+			},
+			exp: `http checks may not set Body in Nomad services`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.sc.validateNomad()
+			if testCase.exp == "" {
+				must.NoError(t, err)
+			} else {
+				must.EqError(t, err, testCase.exp)
+			}
+		})
+	}
 }
 
 func TestService_Hash(t *testing.T) {
@@ -1553,17 +1672,41 @@ func TestService_Validate(t *testing.T) {
 		},
 		{
 			input: &Service{
+				Name:      "testservice",
+				Provider:  "nomad",
+				PortLabel: "port",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "servicecheck",
+						Type:     "http",
+						Path:     "/",
+						Interval: 1 * time.Second,
+						Timeout:  3 * time.Second,
+					},
+					{
+						Name:     "servicecheck",
+						Type:     "tcp",
+						Interval: 1 * time.Second,
+						Timeout:  3 * time.Second,
+					},
+				},
+			},
+			expErr: false,
+			name:   "provider nomad with checks",
+		},
+		{
+			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
 				Checks: []*ServiceCheck{
 					{
 						Name: "servicecheck",
+						Type: "script",
 					},
 				},
 			},
-			expErr:    true,
-			expErrStr: "Service with provider nomad cannot include Check blocks",
-			name:      "provider nomad with checks",
+			expErr: true,
+			name:   "provider nomad with invalid check type",
 		},
 		{
 			input: &Service{
@@ -1602,6 +1745,8 @@ func TestService_Validate(t *testing.T) {
 }
 
 func TestService_Validate_Address(t *testing.T) {
+	ci.Parallel(t)
+
 	try := func(mode, advertise string, exp error) {
 		s := &Service{Name: "s1", Provider: "consul", AddressMode: mode, Address: advertise}
 		result := s.Validate()
@@ -1702,7 +1847,7 @@ func TestService_validateNomadService(t *testing.T) {
 				Provider:  "nomad",
 			},
 			inputErr:             &multierror.Error{},
-			expectedOutputErrors: []error{},
+			expectedOutputErrors: nil,
 			name:                 "valid service",
 		},
 		{
@@ -1711,13 +1856,18 @@ func TestService_validateNomadService(t *testing.T) {
 				PortLabel: "http",
 				Namespace: "default",
 				Provider:  "nomad",
-				Checks: []*ServiceCheck{
-					{Name: "some-check"},
-				},
+				Checks: []*ServiceCheck{{
+					Name:     "webapp",
+					Type:     ServiceCheckHTTP,
+					Method:   "GET",
+					Path:     "/health",
+					Interval: 3 * time.Second,
+					Timeout:  1 * time.Second,
+				}},
 			},
 			inputErr:             &multierror.Error{},
-			expectedOutputErrors: []error{errors.New("Service with provider nomad cannot include Check blocks")},
-			name:                 "invalid service due to checks",
+			expectedOutputErrors: nil,
+			name:                 "valid service with checks",
 		},
 		{
 			inputService: &Service{
@@ -1739,26 +1889,22 @@ func TestService_validateNomadService(t *testing.T) {
 				PortLabel: "http",
 				Namespace: "default",
 				Provider:  "nomad",
-				Connect: &ConsulConnect{
-					Native: true,
-				},
 				Checks: []*ServiceCheck{
 					{Name: "some-check"},
 				},
 			},
 			inputErr: &multierror.Error{},
 			expectedOutputErrors: []error{
-				errors.New("Service with provider nomad cannot include Check blocks"),
-				errors.New("Service with provider nomad cannot include Connect blocks"),
+				errors.New(`invalid check type (""), must be one of tcp, http`),
 			},
-			name: "invalid service due to checks and connect",
+			name: "bad nomad check",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.inputService.validateNomadService(tc.inputErr)
-			require.ElementsMatch(t, tc.expectedOutputErrors, tc.inputErr.Errors)
+			must.Eq(t, tc.expectedOutputErrors, tc.inputErr.Errors)
 		})
 	}
 }

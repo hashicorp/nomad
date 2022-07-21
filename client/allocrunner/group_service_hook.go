@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,21 +19,17 @@ const (
 	groupServiceHookName = "group_services"
 )
 
-type networkStatusGetter interface {
-	NetworkStatus() *structs.AllocNetworkStatus
-}
-
 // groupServiceHook manages task group Consul service registration and
 // deregistration.
 type groupServiceHook struct {
-	allocID             string
-	jobID               string
-	group               string
-	restarter           agentconsul.WorkloadRestarter
-	prerun              bool
-	deregistered        bool
-	networkStatusGetter networkStatusGetter
-	shutdownDelayCtx    context.Context
+	allocID          string
+	jobID            string
+	group            string
+	restarter        agentconsul.WorkloadRestarter
+	prerun           bool
+	deregistered     bool
+	networkStatus    structs.NetworkStatus
+	shutdownDelayCtx context.Context
 
 	// namespace is the Nomad or Consul namespace in which service
 	// registrations will be made. This field may be updated.
@@ -58,12 +55,12 @@ type groupServiceHook struct {
 }
 
 type groupServiceHookConfig struct {
-	alloc               *structs.Allocation
-	restarter           agentconsul.WorkloadRestarter
-	taskEnvBuilder      *taskenv.Builder
-	networkStatusGetter networkStatusGetter
-	shutdownDelayCtx    context.Context
-	logger              log.Logger
+	alloc            *structs.Allocation
+	restarter        agentconsul.WorkloadRestarter
+	taskEnvBuilder   *taskenv.Builder
+	networkStatus    structs.NetworkStatus
+	shutdownDelayCtx context.Context
+	logger           log.Logger
 
 	// namespace is the Nomad or Consul namespace in which service
 	// registrations will be made.
@@ -83,18 +80,18 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	}
 
 	h := &groupServiceHook{
-		allocID:             cfg.alloc.ID,
-		jobID:               cfg.alloc.JobID,
-		group:               cfg.alloc.TaskGroup,
-		restarter:           cfg.restarter,
-		namespace:           cfg.namespace,
-		taskEnvBuilder:      cfg.taskEnvBuilder,
-		delay:               shutdownDelay,
-		networkStatusGetter: cfg.networkStatusGetter,
-		logger:              cfg.logger.Named(groupServiceHookName),
-		serviceRegWrapper:   cfg.serviceRegWrapper,
-		services:            tg.Services,
-		shutdownDelayCtx:    cfg.shutdownDelayCtx,
+		allocID:           cfg.alloc.ID,
+		jobID:             cfg.alloc.JobID,
+		group:             cfg.alloc.TaskGroup,
+		restarter:         cfg.restarter,
+		namespace:         cfg.namespace,
+		taskEnvBuilder:    cfg.taskEnvBuilder,
+		delay:             shutdownDelay,
+		networkStatus:     cfg.networkStatus,
+		logger:            cfg.logger.Named(groupServiceHookName),
+		serviceRegWrapper: cfg.serviceRegWrapper,
+		services:          tg.Services,
+		shutdownDelayCtx:  cfg.shutdownDelayCtx,
 	}
 
 	if cfg.alloc.AllocatedResources != nil {
@@ -210,10 +207,13 @@ func (h *groupServiceHook) preKillLocked() {
 
 	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
+	timer, cancel := helper.NewSafeTimer(h.delay)
+	defer cancel()
+
 	select {
 	// Wait for specified shutdown_delay unless ignored
 	// This will block an agent from shutting down.
-	case <-time.After(h.delay):
+	case <-timer.C:
 	case <-h.shutdownDelayCtx.Done():
 	}
 }
@@ -241,8 +241,8 @@ func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadSe
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
 	var netStatus *structs.AllocNetworkStatus
-	if h.networkStatusGetter != nil {
-		netStatus = h.networkStatusGetter.NetworkStatus()
+	if h.networkStatus != nil {
+		netStatus = h.networkStatus.NetworkStatus()
 	}
 
 	// Create task services struct with request's driver metadata

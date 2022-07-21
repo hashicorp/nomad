@@ -3,11 +3,13 @@ package state
 import (
 	"sync"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,6 +28,9 @@ type MemDB struct {
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
 	taskState      map[string]map[string]*structs.TaskState
+
+	// alloc_id -> check_id -> result
+	checks checks.ClientResults
 
 	// devicemanager -> plugin-state
 	devManagerPs *dmstate.PluginState
@@ -49,6 +54,7 @@ func NewMemDB(logger hclog.Logger) *MemDB {
 		networkStatus:  make(map[string]*structs.AllocNetworkStatus),
 		localTaskState: make(map[string]map[string]*state.LocalState),
 		taskState:      make(map[string]map[string]*structs.TaskState),
+		checks:         make(checks.ClientResults),
 		logger:         logger,
 	}
 }
@@ -73,7 +79,7 @@ func (m *MemDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, er
 	return allocs, map[string]error{}, nil
 }
 
-func (m *MemDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
+func (m *MemDB) PutAllocation(alloc *structs.Allocation, _ ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.allocs[alloc.ID] = alloc
@@ -99,7 +105,7 @@ func (m *MemDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 	return m.networkStatus[allocID], nil
 }
 
-func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error {
+func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, _ ...WriteOption) error {
 	m.mu.Lock()
 	m.networkStatus[allocID] = ns
 	defer m.mu.Unlock()
@@ -175,7 +181,7 @@ func (m *MemDB) DeleteTaskBucket(allocID, taskName string) error {
 	return nil
 }
 
-func (m *MemDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
+func (m *MemDB) DeleteAllocationBucket(allocID string, _ ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -224,6 +230,40 @@ func (m *MemDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.dynamicManagerPs = ps
+	return nil
+}
+
+func (m *MemDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.checks[allocID]; !exists {
+		m.checks[allocID] = make(checks.AllocationResults)
+	}
+
+	m.checks[allocID][qr.ID] = qr
+	return nil
+}
+
+func (m *MemDB) GetCheckResults() (checks.ClientResults, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return helper.CopyMap(m.checks), nil
+}
+
+func (m *MemDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, id := range checkIDs {
+		delete(m.checks[allocID], id)
+	}
+	return nil
+}
+
+func (m *MemDB) PurgeCheckResults(allocID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.checks, allocID)
 	return nil
 }
 

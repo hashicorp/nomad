@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
@@ -166,7 +167,7 @@ type AllocRunner interface {
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
-// are expected to register as a schedulable node to the servers, and to
+// are expected to register as a schedule-able node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
 	config *config.Config
@@ -236,6 +237,10 @@ type Client struct {
 	// nomadService is the Nomad handler implementation for managing service
 	// registrations.
 	nomadService serviceregistration.Handler
+
+	// checkStore is used to store group and task checks and their current pass/fail
+	// status.
+	checkStore checkstore.Shim
 
 	// serviceRegWrapper wraps the consulService and nomadService
 	// implementations so that the alloc and task runner service hooks can call
@@ -693,6 +698,10 @@ func (c *Client) init() error {
 			c.cpusetManager = new(cgutil.NoopCpusetManager)
 		}
 	}
+
+	// setup the check store
+	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
+
 	return nil
 }
 
@@ -1175,6 +1184,7 @@ func (c *Client) restoreState() error {
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
 			ServiceRegWrapper:   c.serviceRegWrapper,
+			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
 		}
@@ -2513,6 +2523,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
+		CheckStore:          c.checkStore,
 		RPCClient:           c,
 		Getter:              c.getter,
 	}

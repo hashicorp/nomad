@@ -10,14 +10,13 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// ClientAllocations is used to forward RPC requests to the targed Nomad client's
+// ClientAllocations is used to forward RPC requests to the targeted Nomad client's
 // Allocation endpoint.
 type ClientAllocations struct {
 	srv    *Server

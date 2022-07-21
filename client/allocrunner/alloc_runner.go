@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -41,6 +42,7 @@ type allocRunner struct {
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
+	// clientConfig is the client configuration block.
 	clientConfig *config.Config
 
 	// stateUpdater is used to emit updated alloc state
@@ -183,6 +185,9 @@ type allocRunner struct {
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
+	// checkStore contains check status information
+	checkStore checkstore.Shim
+
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
 }
@@ -229,6 +234,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
+		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 	}
 
