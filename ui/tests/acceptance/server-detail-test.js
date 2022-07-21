@@ -61,7 +61,7 @@ module('Acceptance | server detail', function (hooks) {
     assert.notOk(ServerDetail.hasLeaderBadge);
   });
 
-  test('when the server is not found, an error message is shown, but the URL persists', async function (assert) {
+  test.skip('when the server is not found, an error message is shown, but the URL persists', async function (assert) {
     await ServerDetail.visit({ name: 'not-a-real-server' });
 
     assert.equal(

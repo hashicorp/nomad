@@ -295,6 +295,7 @@ export default class KeyboardService extends Service {
     const disallowedClassNames = [
       'page-layout',
       'ember-basic-dropdown-trigger',
+      'dropdown-option',
     ];
     const targetElementName = event.target.nodeName.toLowerCase();
     const inputDisallowed =
