@@ -6,10 +6,18 @@ import percySnapshot from '@percy/ember';
 import Services from 'nomad-ui/tests/pages/services';
 import Layout from 'nomad-ui/tests/pages/layout';
 import defaultScenario from '../../mirage/scenarios/default';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Acceptance | services', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+
+  test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+    defaultScenario(server);
+    await Services.visit();
+    await a11yAudit(assert);
+  });
 
   module('traversal', function () {
     test('visiting /services by url', async function (assert) {
@@ -19,6 +27,7 @@ module('Acceptance | services', function (hooks) {
     });
 
     test('main menu correctly takes you to services', async function (assert) {
+      assert.expect(1);
       defaultScenario(server);
       await visit('/');
       await Layout.gutter.visitServices();
