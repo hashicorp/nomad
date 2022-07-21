@@ -302,17 +302,8 @@ export default class KeyboardService extends Service {
       disallowedClassNames.any((className) =>
         event.target.classList.contains(className)
       );
-    // if (!inputDisallowed) {
-    //   console.log(
-    //     'you typed',
-    //     event.key,
-    //     'in',
-    //     targetElementName,
-    //     event.target.classList?.toString()
-    //   );
-    // }
-    // return;
-    // // Don't fire keypress events from within an input field
+
+    // Don't fire keypress events from within an input field
     if (!inputDisallowed) {
       // Treat Shift like a special modifier key.
       // If it's depressed, display shortcuts
