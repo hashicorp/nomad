@@ -26,7 +26,7 @@ export default class ApplicationController extends Controller {
   // eslint-disable-next-line ember/classic-decorator-hooks
   constructor() {
     super(...arguments);
-    // this.keyboard.listenForKeypress();
+    this.keyboard.listenForKeypress();
   }
 
   queryParams = [

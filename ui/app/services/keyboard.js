@@ -16,19 +16,19 @@ import MutableArray from '@ember/array/mutable';
 
 const DEBOUNCE_MS = 750;
 
-// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
-// const DIGIT_MAP = {
-//   '!': 1,
-//   '@': 2,
-//   '#': 3,
-//   $: 4,
-//   '%': 5,
-//   '^': 6,
-//   '&': 7,
-//   '*': 8,
-//   '(': 9,
-//   ')': 0,
-// };
+// This modifies event.key to a symbol; get the digit equivalent to perform commands
+const DIGIT_MAP = {
+  '!': 1,
+  '@': 2,
+  '#': 3,
+  $: 4,
+  '%': 5,
+  '^': 6,
+  '&': 7,
+  '*': 8,
+  '(': 9,
+  ')': 0,
+};
 
 export default class KeyboardService extends Service {
   /**
@@ -293,7 +293,6 @@ export default class KeyboardService extends Service {
   recordKeypress(type, event) {
     const inputElements = ['input', 'textarea', 'code'];
     const disallowedClassNames = [
-      'page-layout',
       'ember-basic-dropdown-trigger',
       'dropdown-option',
     ];
@@ -303,15 +302,15 @@ export default class KeyboardService extends Service {
       disallowedClassNames.any((className) =>
         event.target.classList.contains(className)
       );
-    if (!inputDisallowed) {
-      console.log(
-        'you typed',
-        event.key,
-        'in',
-        targetElementName,
-        event.target.classList?.toString()
-      );
-    }
+    // if (!inputDisallowed) {
+    //   console.log(
+    //     'you typed',
+    //     event.key,
+    //     'in',
+    //     targetElementName,
+    //     event.target.classList?.toString()
+    //   );
+    // }
     // return;
     // // Don't fire keypress events from within an input field
     if (!inputDisallowed) {
@@ -335,26 +334,26 @@ export default class KeyboardService extends Service {
 
   /**
    *
-   * @param {KeyboardEvent} key
+   * @param {string} key
    * @param {boolean} shifted
    */
-  @restartableTask *addKeyToBuffer(/*key, shifted*/) {
+  @restartableTask *addKeyToBuffer(key, shifted) {
     // Replace key with its unshifted equivalent if it's a number key
-    // if (shifted && key in DIGIT_MAP) {
-    //   key = DIGIT_MAP[key];
-    // }
-    // this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    // if (this.matchedCommands.length) {
-    //   this.matchedCommands.forEach((command) => command.action());
+    if (shifted && key in DIGIT_MAP) {
+      key = DIGIT_MAP[key];
+    }
+    this.buffer.pushObject(shifted ? `Shift+${key}` : key);
+    if (this.matchedCommands.length) {
+      this.matchedCommands.forEach((command) => command.action());
 
-    //   // TODO: Temporary dev log
-    //   if (this.config.isDev) {
-    //     this.matchedCommands.forEach((command) =>
-    //       console.log('command run', command, command.action.toString())
-    //     );
-    //   }
-    //   this.clearBuffer();
-    // }
+      // TODO: Temporary dev log
+      if (this.config.isDev) {
+        this.matchedCommands.forEach((command) =>
+          console.log('command run', command, command.action.toString())
+        );
+      }
+      this.clearBuffer();
+    }
     yield timeout(DEBOUNCE_MS);
     this.clearBuffer();
   }
@@ -394,13 +393,13 @@ export default class KeyboardService extends Service {
   }
 
   listenForKeypress() {
-    document.addEventListener(
-      'keydown',
-      this.recordKeypress.bind(this, 'press')
-    );
-    document.addEventListener(
-      'keyup',
-      this.recordKeypress.bind(this, 'release')
-    );
+    // document.addEventListener(
+    //   'keydown',
+    //   this.recordKeypress.bind(this, 'press')
+    // );
+    // document.addEventListener(
+    //   'keyup',
+    //   this.recordKeypress.bind(this, 'release')
+    // );
   }
 }

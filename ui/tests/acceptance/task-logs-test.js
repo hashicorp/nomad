@@ -33,7 +33,7 @@ module('Acceptance | task logs', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test.skip('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
+  test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}/logs`,
