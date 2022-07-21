@@ -370,7 +370,27 @@ func (a *ACL) AllowSecureVariableOperation(ns, path, op string) bool {
 	}
 
 	return capabilities.Check(op)
+}
 
+// AllowSecureVariableSearch is a very loose check that the token has
+// *any* access to a secure variables path for the namespace, with an
+// expectation that the actual search result will be filtered by
+// specific paths
+func (a *ACL) AllowSecureVariableSearch(ns string) bool {
+	if a.management {
+		return true
+	}
+	iter := a.secureVariables.Root().Iterator()
+	iter.SeekPrefix([]byte(ns))
+	_, _, ok := iter.Next()
+	if ok {
+		return true
+	}
+
+	iter = a.wildcardSecureVariables.Root().Iterator()
+	iter.SeekPrefix([]byte(ns))
+	_, _, ok = iter.Next()
+	return ok
 }
 
 // matchingNamespaceCapabilitySet looks for a capabilitySet that matches the namespace,

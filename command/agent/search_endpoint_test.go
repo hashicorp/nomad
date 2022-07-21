@@ -701,14 +701,24 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 		sv2 := sv1.Copy()
 		sv2.Namespace = ns.Name
 
-		_ = state.UpsertNamespaces(7000, []*structs.Namespace{mock.Namespace()})
+		_ = state.UpsertNamespaces(7000, []*structs.Namespace{ns})
 		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1})
 		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2})
 
 		rootToken := s.RootToken
-		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default", mock.NamespacePolicy("default", "read", nil))
-		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name, mock.NamespacePolicy(ns.Name, "read", nil))
-		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none", mock.NamespacePolicy("default", "deny", nil))
+
+		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default",
+			mock.NamespacePolicyWithSecureVariables(
+				"default", "read", []string{},
+				map[string][]string{"*": []string{"read", "list"}}))
+
+		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name,
+			mock.NamespacePolicyWithSecureVariables(
+				ns.Name, "read", []string{},
+				map[string][]string{"*": []string{"read", "list"}}))
+
+		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none",
+			mock.NamespacePolicy("default", "deny", nil))
 
 		testCases := []struct {
 			desc               string
