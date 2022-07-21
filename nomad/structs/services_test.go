@@ -634,94 +634,6 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 }
 
-func TestConsulUpstream_upstreamEquals(t *testing.T) {
-	ci.Parallel(t)
-
-	up := func(name string, port int) ConsulUpstream {
-		return ConsulUpstream{
-			DestinationName: name,
-			LocalBindPort:   port,
-		}
-	}
-
-	t.Run("size mismatch", func(t *testing.T) {
-		a := []ConsulUpstream{up("foo", 8000)}
-		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		require.False(t, upstreamsEquals(a, b))
-	})
-
-	t.Run("different", func(t *testing.T) {
-		a := []ConsulUpstream{up("bar", 9000)}
-		b := []ConsulUpstream{up("foo", 8000)}
-		require.False(t, upstreamsEquals(a, b))
-	})
-
-	t.Run("different namespace", func(t *testing.T) {
-		a := []ConsulUpstream{up("foo", 8000)}
-		a[0].DestinationNamespace = "ns1"
-
-		b := []ConsulUpstream{up("foo", 8000)}
-		b[0].DestinationNamespace = "ns2"
-
-		require.False(t, upstreamsEquals(a, b))
-	})
-
-	t.Run("different mesh_gateway", func(t *testing.T) {
-		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "local"}}}
-		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "remote"}}}
-		require.False(t, upstreamsEquals(a, b))
-	})
-
-	t.Run("identical", func(t *testing.T) {
-		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		require.True(t, upstreamsEquals(a, b))
-	})
-
-	t.Run("unsorted", func(t *testing.T) {
-		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		b := []ConsulUpstream{up("bar", 9000), up("foo", 8000)}
-		require.True(t, upstreamsEquals(a, b))
-	})
-}
-
-func TestConsulExposePath_exposePathsEqual(t *testing.T) {
-	ci.Parallel(t)
-
-	expose := func(path, protocol, listen string, local int) ConsulExposePath {
-		return ConsulExposePath{
-			Path:          path,
-			Protocol:      protocol,
-			LocalPathPort: local,
-			ListenerPort:  listen,
-		}
-	}
-
-	t.Run("size mismatch", func(t *testing.T) {
-		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
-		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000), expose("/2", "http", "myPort", 8000)}
-		require.False(t, exposePathsEqual(a, b))
-	})
-
-	t.Run("different", func(t *testing.T) {
-		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
-		b := []ConsulExposePath{expose("/2", "http", "myPort", 8000)}
-		require.False(t, exposePathsEqual(a, b))
-	})
-
-	t.Run("identical", func(t *testing.T) {
-		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
-		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
-		require.True(t, exposePathsEqual(a, b))
-	})
-
-	t.Run("unsorted", func(t *testing.T) {
-		a := []ConsulExposePath{expose("/2", "http", "myPort", 8000), expose("/1", "http", "myPort", 8000)}
-		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000), expose("/2", "http", "myPort", 8000)}
-		require.True(t, exposePathsEqual(a, b))
-	})
-}
-
 func TestConsulExposeConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1054,64 +966,6 @@ func TestConsulGateway_Equals_terminating(t *testing.T) {
 	t.Run("mod terminating services sni", func(t *testing.T) {
 		try(t, func(g *cg) { g.Terminating.Services[0].SNI = "foo.consul" })
 	})
-}
-
-func TestConsulGateway_ingressServicesEqual(t *testing.T) {
-	ci.Parallel(t)
-
-	igs1 := []*ConsulIngressService{{
-		Name:  "service1",
-		Hosts: []string{"host1", "host2"},
-	}, {
-		Name:  "service2",
-		Hosts: []string{"host3"},
-	}}
-
-	require.False(t, ingressServicesEqual(igs1, nil))
-	require.True(t, ingressServicesEqual(igs1, igs1))
-
-	reversed := []*ConsulIngressService{
-		igs1[1], igs1[0], // services reversed
-	}
-
-	require.True(t, ingressServicesEqual(igs1, reversed))
-
-	hostOrder := []*ConsulIngressService{{
-		Name:  "service1",
-		Hosts: []string{"host2", "host1"}, // hosts reversed
-	}, {
-		Name:  "service2",
-		Hosts: []string{"host3"},
-	}}
-
-	require.True(t, ingressServicesEqual(igs1, hostOrder))
-}
-
-func TestConsulGateway_ingressListenersEqual(t *testing.T) {
-	ci.Parallel(t)
-
-	ils1 := []*ConsulIngressListener{{
-		Port:     2000,
-		Protocol: "http",
-		Services: []*ConsulIngressService{{
-			Name:  "service1",
-			Hosts: []string{"host1", "host2"},
-		}},
-	}, {
-		Port:     2001,
-		Protocol: "tcp",
-		Services: []*ConsulIngressService{{
-			Name: "service2",
-		}},
-	}}
-
-	require.False(t, ingressListenersEqual(ils1, nil))
-
-	reversed := []*ConsulIngressListener{
-		ils1[1], ils1[0],
-	}
-
-	require.True(t, ingressListenersEqual(ils1, reversed))
 }
 
 func TestConsulGateway_Validate(t *testing.T) {
@@ -1511,37 +1365,6 @@ func TestConsulLinkedService_Copy(t *testing.T) {
 		KeyFile:  "key.pem",
 		SNI:      "service1.consul",
 	}).Copy())
-}
-
-func TestConsulLinkedService_linkedServicesEqual(t *testing.T) {
-	ci.Parallel(t)
-
-	services := []*ConsulLinkedService{{
-		Name:   "service1",
-		CAFile: "ca.pem",
-	}, {
-		Name:   "service2",
-		CAFile: "ca.pem",
-	}}
-
-	require.False(t, linkedServicesEqual(services, nil))
-	require.True(t, linkedServicesEqual(services, services))
-
-	reversed := []*ConsulLinkedService{
-		services[1], services[0], // reversed
-	}
-
-	require.True(t, linkedServicesEqual(services, reversed))
-
-	different := []*ConsulLinkedService{
-		services[0], {
-			Name:   "service2",
-			CAFile: "ca.pem",
-			SNI:    "service2.consul",
-		},
-	}
-
-	require.False(t, linkedServicesEqual(services, different))
 }
 
 func TestConsulTerminatingConfigEntry_Validate(t *testing.T) {

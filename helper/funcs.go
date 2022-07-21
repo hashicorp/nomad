@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
 )
@@ -67,6 +68,39 @@ func HashUUID(input string) (output string, hashed bool) {
 		buf[10:16])
 
 	return output, true
+}
+
+// EqualsFunc represents a type implementing the Equals method.
+type EqualsFunc[A any] interface {
+	Equals(A) bool
+}
+
+// SameElementsEquals returns true if slices a and b contain the same elements,
+// using the Equals function defined on their type for comparison.
+//
+// Note: not as compute-efficient as SameElements.
+func SameElementsEquals[T EqualsFunc[T]](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item.Equals(other) {
+				continue OUTER
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// SameElements returns whether a and b contains the same elements, using the
+// built-in == operator.
+func SameElements[T comparable](a, b []T) bool {
+	setA := set.From[T](a)
+	setB := set.From[T](b)
+	return setA.Equal(setB)
 }
 
 // BoolToPtr returns the pointer to a boolean.
@@ -304,6 +338,8 @@ func SliceSetDisjoint(first, second []string) (bool, []string) {
 // Order is ignored. The slice may be copied but is never altered. The slice is
 // assumed to be a set. Multiple instances of an entry are treated the same as
 // a single instance.
+//
+// Deprecated; use helper.SameElements instead.
 func CompareSliceSetString(a, b []string) bool {
 	n := len(a)
 	if n != len(b) {

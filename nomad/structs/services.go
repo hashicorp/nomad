@@ -101,7 +101,7 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(sc.Args, o.Args) {
+	if !helper.SameElements(sc.Args, o.Args) {
 		return false
 	}
 
@@ -724,7 +724,7 @@ func (s *Service) validateCheckPort(c *ServiceCheck) error {
 func (s *Service) validateConsulService(mErr *multierror.Error) {
 	// check checks
 	for _, c := range s.Checks {
-		// validat ethe check port
+		// validate the check port
 		if err := s.validateCheckPort(c); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
@@ -902,20 +902,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !helper.SameElementsEquals(s.Checks, o.Checks) {
 		return false
 	}
 
@@ -1424,7 +1411,7 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !upstreamsEquals(p.Upstreams, o.Upstreams) {
+	if !helper.SameElements(p.Upstreams, o.Upstreams) {
 		return false
 	}
 
@@ -1509,23 +1496,6 @@ type ConsulUpstream struct {
 	MeshGateway *ConsulMeshGateway
 }
 
-func upstreamsEquals(a, b []ConsulUpstream) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, upA := range a {
-		for _, upB := range b {
-			if upA.Equals(&upB) {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
-}
-
 // Copy the stanza recursively. Returns nil if u is nil.
 func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	if u == nil {
@@ -1579,23 +1549,6 @@ type ConsulExposePath struct {
 	ListenerPort  string
 }
 
-func exposePathsEqual(pathsA, pathsB []ConsulExposePath) bool {
-	if len(pathsA) != len(pathsB) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, pathA := range pathsA {
-		for _, pathB := range pathsB {
-			if pathA == pathB {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
-}
-
 // Copy the stanza. Returns nil if e is nil.
 func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 	if e == nil {
@@ -1613,7 +1566,7 @@ func (e *ConsulExposeConfig) Equals(o *ConsulExposeConfig) bool {
 	if e == nil || o == nil {
 		return e == o
 	}
-	return exposePathsEqual(e.Paths, o.Paths)
+	return helper.SameElements(e.Paths, o.Paths)
 }
 
 // ConsulGateway is used to configure one of the Consul Connect Gateway types.
@@ -2028,7 +1981,7 @@ func (l *ConsulIngressListener) Equals(o *ConsulIngressListener) bool {
 		return false
 	}
 
-	return ingressServicesEqual(l.Services, o.Services)
+	return helper.SameElements(l.Services, o.Services)
 }
 
 func (l *ConsulIngressListener) Validate() error {
@@ -2056,23 +2009,6 @@ func (l *ConsulIngressListener) Validate() error {
 	}
 
 	return nil
-}
-
-func ingressServicesEqual(servicesA, servicesB []*ConsulIngressService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
 }
 
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
@@ -2112,7 +2048,7 @@ func (e *ConsulIngressConfigEntry) Equals(o *ConsulIngressConfigEntry) bool {
 		return false
 	}
 
-	return ingressListenersEqual(e.Listeners, o.Listeners)
+	return helper.SameElements(e.Listeners, o.Listeners)
 }
 
 func (e *ConsulIngressConfigEntry) Validate() error {
@@ -2131,23 +2067,6 @@ func (e *ConsulIngressConfigEntry) Validate() error {
 	}
 
 	return nil
-}
-
-func ingressListenersEqual(listenersA, listenersB []*ConsulIngressListener) bool {
-	if len(listenersA) != len(listenersB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, listenerA := range listenersA {
-		for _, listenerB := range listenersB {
-			if listenerA.Equals(listenerB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
 }
 
 type ConsulLinkedService struct {
@@ -2222,23 +2141,6 @@ func (s *ConsulLinkedService) Validate() error {
 	return nil
 }
 
-func linkedServicesEqual(servicesA, servicesB []*ConsulLinkedService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
-}
-
 type ConsulTerminatingConfigEntry struct {
 	Services []*ConsulLinkedService
 }
@@ -2265,8 +2167,7 @@ func (e *ConsulTerminatingConfigEntry) Equals(o *ConsulTerminatingConfigEntry) b
 	if e == nil || o == nil {
 		return e == o
 	}
-
-	return linkedServicesEqual(e.Services, o.Services)
+	return helper.SameElements(e.Services, o.Services)
 }
 
 func (e *ConsulTerminatingConfigEntry) Validate() error {

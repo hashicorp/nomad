@@ -546,3 +546,65 @@ func Test_NewSafeTimer(t *testing.T) {
 		<-timer.C
 	})
 }
+
+func Test_SameElements(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := []int(nil)
+		var b []int
+		must.True(t, SameElements(a, b))
+		must.True(t, SameElements(b, a))
+	})
+
+	t.Run("equal", func(t *testing.T) {
+		a := []int{1, 2, 3, 4}
+		b := []int{4, 3, 2, 1}
+		must.True(t, SameElements(a, b))
+		must.True(t, SameElements(b, a))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []int{0, 3, 2, 1}
+		b := []int{4, 3, 2, 1}
+		must.False(t, SameElements(a, b))
+		must.False(t, SameElements(b, a))
+	})
+}
+
+type employee struct {
+	id   int
+	name string
+}
+
+func (e *employee) Equals(o *employee) bool {
+	return e.id == o.id // name can be different
+}
+
+func Test_SameElementsEquals(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := []*employee(nil)
+		var b []*employee
+		must.True(t, SameElementsEquals(a, b))
+		must.True(t, SameElementsEquals(b, a))
+	})
+
+	t.Run("different sizes", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "mitchell"}, {2, "armon"}}
+		must.False(t, SameElementsEquals(a, b))
+		must.False(t, SameElementsEquals(b, a))
+	})
+
+	t.Run("equal", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
+		must.True(t, SameElementsEquals(a, b))
+		must.True(t, SameElementsEquals(b, a))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
+		must.False(t, SameElementsEquals(a, b))
+		must.False(t, SameElementsEquals(b, a))
+	})
+}
