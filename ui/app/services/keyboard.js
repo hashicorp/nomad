@@ -17,18 +17,18 @@ import MutableArray from '@ember/array/mutable';
 const DEBOUNCE_MS = 750;
 
 // Shit modifies event.key to a symbol; get the digit equivalent to perform commands
-const DIGIT_MAP = {
-  '!': 1,
-  '@': 2,
-  '#': 3,
-  $: 4,
-  '%': 5,
-  '^': 6,
-  '&': 7,
-  '*': 8,
-  '(': 9,
-  ')': 0,
-};
+// const DIGIT_MAP = {
+//   '!': 1,
+//   '@': 2,
+//   '#': 3,
+//   $: 4,
+//   '%': 5,
+//   '^': 6,
+//   '&': 7,
+//   '*': 8,
+//   '(': 9,
+//   ')': 0,
+// };
 
 export default class KeyboardService extends Service {
   /**
@@ -337,7 +337,7 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} key
    * @param {boolean} shifted
    */
-  @restartableTask *addKeyToBuffer(key, shifted) {
+  @restartableTask *addKeyToBuffer(/*key, shifted*/) {
     // Replace key with its unshifted equivalent if it's a number key
     // if (shifted && key in DIGIT_MAP) {
     //   key = DIGIT_MAP[key];
