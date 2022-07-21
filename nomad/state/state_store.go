@@ -2440,6 +2440,11 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	return s.csiVolumesByNamespaceImpl(txn, ws, namespace, prefix)
+}
+
+func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+
 	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
@@ -6334,6 +6339,17 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 				return fmt.Errorf("namespace %q contains at least one non-terminal job %q. "+
 					"All jobs must be terminal in namespace before it can be deleted", name, job.ID)
 			}
+		}
+
+		vIter, err := s.csiVolumesByNamespaceImpl(txn, nil, name, "")
+		if err != nil {
+			return err
+		}
+		rawVol := vIter.Next()
+		if rawVol != nil {
+			vol := rawVol.(*structs.CSIVolume)
+			return fmt.Errorf("namespace %q contains at least one CSI volume %q. "+
+				"All CSI volumes in namespace must be deleted before it can be deleted", name, vol.ID)
 		}
 
 		// Delete the namespace
