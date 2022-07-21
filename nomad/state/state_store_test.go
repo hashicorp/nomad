@@ -1009,6 +1009,41 @@ func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_DeleteNamespaces_CSIVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	plugin := mock.CSIPlugin()
+	vol := mock.CSIVolume(plugin)
+	vol.Namespace = ns.Name
+
+	require.NoError(t, state.UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one CSI volume")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_Namespaces(t *testing.T) {
 	ci.Parallel(t)
 
