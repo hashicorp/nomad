@@ -27,7 +27,7 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  */
 
 const DEBOUNCE_MS = 750;
-// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
+// This modifies event.key to a symbol; get the digit equivalent to perform commands
 const DIGIT_MAP = {
   '!': 1,
   '@': 2,
@@ -314,10 +314,20 @@ export default class KeyboardService extends Service {
    * @param {KeyboardEvent} event
    */
   recordKeypress(type, event) {
-    const inputElements = ['input', 'textarea'];
+    const inputElements = ['input', 'textarea', 'code'];
+    const disallowedClassNames = [
+      'ember-basic-dropdown-trigger',
+      'dropdown-option',
+    ];
     const targetElementName = event.target.nodeName.toLowerCase();
+    const inputDisallowed =
+      inputElements.includes(targetElementName) ||
+      disallowedClassNames.any((className) =>
+        event.target.classList.contains(className)
+      );
+
     // Don't fire keypress events from within an input field
-    if (!inputElements.includes(targetElementName)) {
+    if (!inputDisallowed) {
       // Treat Shift like a special modifier key.
       // If it's depressed, display shortcuts
       const { key } = event;
@@ -450,13 +460,14 @@ export default class KeyboardService extends Service {
   }
 
   listenForKeypress() {
-    document.addEventListener(
-      'keydown',
-      this.recordKeypress.bind(this, 'press')
-    );
-    document.addEventListener(
-      'keyup',
-      this.recordKeypress.bind(this, 'release')
-    );
+    set(this, '_keyDownHandler', this.recordKeypress.bind(this, 'press'));
+    document.addEventListener('keydown', this._keyDownHandler);
+    set(this, '_keyUpHandler', this.recordKeypress.bind(this, 'release'));
+    document.addEventListener('keyup', this._keyUpHandler);
+  }
+
+  willDestroy() {
+    document.removeEventListener('keydown', this._keyDownHandler);
+    document.removeEventListener('keyup', this._keyUpHandler);
   }
 }
