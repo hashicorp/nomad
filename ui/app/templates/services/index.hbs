@@ -13,7 +13,7 @@
 			</th>
 		</t.head>
 		<t.body as |row|>
-			<tr>
+			<tr data-test-service-row>
 				<td>{{row.model.name}}</td>
 				<td>
 					{{#each row.model.tags as |tag|}}

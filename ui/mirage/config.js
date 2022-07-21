@@ -863,6 +863,17 @@ export default function () {
   });
 
   //#endregion Secure Variables
+
+  //#region Services
+  this.get('/services', function (schema) {
+    return [
+      {
+        Namespace: 'default',
+        Services: schema.services.all().models,
+      },
+    ];
+  });
+  //#endregion Services
 }
 
 function filterKeys(object, ...keys) {

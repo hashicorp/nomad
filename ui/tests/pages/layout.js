@@ -80,6 +80,7 @@ export default create({
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
     visitStorage: clickable('[data-test-gutter-link="storage"]'),
+    visitServices: clickable('[data-test-gutter-link="services"]'),
   },
 
   breadcrumbs: collection('[data-test-breadcrumb]', {

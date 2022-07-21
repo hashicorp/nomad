@@ -10,8 +10,7 @@ export default class ServicesRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  model() {
-    console.log('store got', this.store.findAll('service'));
+  async model() {
     return RSVP.hash({
       services: this.store.findAll('service'),
     }).catch(notifyForbidden(this));
