@@ -61,7 +61,7 @@ func TestChecks_GetCheckQuery(t *testing.T) {
 			name:        "on-update ignore",
 			cType:       "http",
 			protocol:    "http",
-			onUpdate:    "ignore",
+			onUpdate:    structs.OnUpdateIgnore,
 			expMode:     structs.Readiness,
 			expProtocol: "http",
 		},

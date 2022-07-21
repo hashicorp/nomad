@@ -22,7 +22,7 @@ func TestChecks_NomadCheckID(t *testing.T) {
 		Timeout:     10 * time.Second,
 		Method:      "GET",
 		TaskName:    "t1",
-		OnUpdate:    "ignore",
+		OnUpdate:    OnUpdateIgnore,
 	}
 
 	different := func(a, b ServiceCheck) bool {

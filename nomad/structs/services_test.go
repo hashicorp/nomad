@@ -150,7 +150,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Limit:          3,
 				Grace:          5 * time.Second,
 			},
-			OnUpdate: "ignore_warnings",
+			OnUpdate: OnUpdateIgnoreWarn,
 		}).validateConsul()
 		require.EqualError(t, err, `on_update value "ignore_warnings" not supported with check_restart ignore_warnings value "false"`)
 	})
@@ -167,7 +167,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Limit:          3,
 				Grace:          5 * time.Second,
 			},
-			OnUpdate: "ignore",
+			OnUpdate: OnUpdateIgnore,
 		}).validateConsul()
 		require.EqualError(t, err, `on_update value "ignore" is not compatible with check_restart`)
 	})
@@ -184,7 +184,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 				Limit:          3,
 				Grace:          5 * time.Second,
 			},
-			OnUpdate: "ignore_warnings",
+			OnUpdate: OnUpdateIgnoreWarn,
 		}).validateConsul()
 		require.NoError(t, err)
 	})
@@ -215,7 +215,7 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Type:     ServiceCheckTCP,
 				Interval: 3 * time.Second,
 				Timeout:  1 * time.Second,
-				OnUpdate: "ignore_warnings",
+				OnUpdate: OnUpdateIgnoreWarn,
 			},
 			exp: `on_update may only be set to ignore_warnings for Consul service checks`,
 		},

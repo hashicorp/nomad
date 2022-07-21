@@ -25,7 +25,7 @@ const (
 
 // GetCheckMode determines whether the check is readiness or healthiness.
 func GetCheckMode(c *ServiceCheck) CheckMode {
-	if c != nil && c.OnUpdate == "ignore" {
+	if c != nil && c.OnUpdate == OnUpdateIgnore {
 		return Readiness
 	}
 	return Healthiness
