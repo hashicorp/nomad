@@ -6352,6 +6352,17 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 				"All CSI volumes in namespace must be deleted before it can be deleted", name, vol.ID)
 		}
 
+		varIter, err := s.getSecureVariablesByNamespaceImpl(txn, nil, name)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			// unlike job/volume, don't show the path here because the user may
+			// not have List permissions on the secure vars in this namespace
+			return fmt.Errorf("namespace %q contains at least one secure variable. "+
+				"All secure variables in namespace must be deleted before it can be deleted", name)
+		}
+
 		// Delete the namespace
 		if err := txn.Delete(TableNamespaces, existing); err != nil {
 			return fmt.Errorf("namespace deletion failed: %v", err)

@@ -29,7 +29,11 @@ func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, e
 func (s *StateStore) GetSecureVariablesByNamespace(
 	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
+	return s.getSecureVariablesByNamespaceImpl(txn, ws, namespace)
+}
 
+func (s *StateStore) getSecureVariablesByNamespaceImpl(
+	txn *txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table.
 	iter, err := txn.Get(TableSecureVariables, indexID+"_prefix", namespace, "")
 	if err != nil {

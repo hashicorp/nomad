@@ -1044,6 +1044,39 @@ func TestStateStore_DeleteNamespaces_CSIVolumes(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_DeleteNamespaces_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	sv := mock.SecureVariableEncrypted()
+	sv.Namespace = ns.Name
+	require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 1001, []*structs.SecureVariableEncrypted{sv}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one secure variable")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_Namespaces(t *testing.T) {
 	ci.Parallel(t)
 
