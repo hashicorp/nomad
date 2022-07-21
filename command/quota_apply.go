@@ -198,6 +198,7 @@ func parseQuotaLimits(result *[]*api.QuotaLimit, list *ast.ObjectList) error {
 		valid := []string{
 			"region",
 			"region_limit",
+			"secure_variables_limit",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err

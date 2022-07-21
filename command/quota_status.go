@@ -158,7 +158,7 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 	sort.Sort(api.QuotaLimitSort(spec.Limits))
 
 	limits := make([]string, len(spec.Limits)+1)
-	limits[0] = "Region|CPU Usage|Memory Usage|Memory Max Usage|Network Usage"
+	limits[0] = "Region|CPU Usage|Memory Usage|Memory Max Usage|Network Usage|Secure Variables Usage"
 	i := 0
 	for _, specLimit := range spec.Limits {
 		i++
@@ -185,7 +185,9 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 			memory := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
 			memoryMax := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 			net := fmt.Sprintf("- / %s", formatQuotaLimitInt(&specBits))
-			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, net)
+
+			vars := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.SecureVariablesLimit))
+			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, net, vars)
 			continue
 		}
 
@@ -204,7 +206,9 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 		if len(used.RegionLimit.Networks) == 1 {
 			net = fmt.Sprintf("%d / %s", *used.RegionLimit.Networks[0].MBits, formatQuotaLimitInt(&specBits))
 		}
-		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, net)
+
+		vars := fmt.Sprintf("%d / %s", orZero(used.SecureVariablesLimit), formatQuotaLimitInt(specLimit.SecureVariablesLimit))
+		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, net, vars)
 	}
 
 	return formatList(limits)

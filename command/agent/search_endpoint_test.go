@@ -701,9 +701,9 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 		sv2 := sv1.Copy()
 		sv2.Namespace = ns.Name
 
-		_ = state.UpsertNamespaces(7000, []*structs.Namespace{ns})
-		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1})
-		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2})
+		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
+		require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1}))
+		require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2}))
 
 		rootToken := s.RootToken
 
@@ -807,9 +807,9 @@ func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
 		sv2 := sv1.Copy()
 		sv2.Namespace = ns.Name
 
-		_ = state.UpsertNamespaces(7000, []*structs.Namespace{mock.Namespace()})
-		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1})
-		_ = state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2})
+		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
+		require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8000, []*structs.SecureVariableEncrypted{sv1}))
+		require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 8001, []*structs.SecureVariableEncrypted{&sv2}))
 
 		rootToken := s.RootToken
 		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default", mock.NamespacePolicy("default", "read", nil))
