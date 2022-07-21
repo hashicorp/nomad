@@ -55,7 +55,7 @@ func (o *observer) start() {
 			query := checks.GetCheckQuery(o.check)
 			result := o.checker.Do(o.ctx, o.qc, query)
 
-			// and put the results into the store
+			// and put the results into the store (already logged)
 			_ = o.checkStore.Set(o.allocID, result)
 
 			// setup timer for next interval

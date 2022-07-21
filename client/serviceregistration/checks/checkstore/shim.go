@@ -57,6 +57,8 @@ func (s *shim) restore() {
 	results, err := s.db.GetCheckResults()
 	if err != nil {
 		s.log.Error("failed to restore health check results", "error", err)
+		// may as well continue and let the check observers repopulate - maybe
+		// the persistent storage error was transitory
 		return
 	}
 
@@ -90,7 +92,10 @@ func (s *shim) Set(allocID string, qr *structs.CheckQueryResult) error {
 	// on Client restart restored check results may be outdated but the status
 	// is the same as the most recent result
 	if !exists || previous.Status != qr.Status {
-		return s.db.PutCheckResult(allocID, qr)
+		if err := s.db.PutCheckResult(allocID, qr); err != nil {
+			s.log.Error("failed to set check status", "alloc_id", allocID, "check_id", qr.ID, "error", err)
+			return err
+		}
 	}
 
 	return nil

@@ -15,7 +15,7 @@ const (
 	// will not move forward while the check is failing.
 	Healthiness CheckMode = "healthiness"
 
-	// A Readiness check is useful in the context of ensuring a service is
+	// A Readiness check is useful in the context of ensuring a service
 	// should be performing its duties (regardless of healthiness). This is an
 	// indicator that the check's on_update configuration is set to "ignore",
 	// implying that Deployments will move forward regardless if the check is

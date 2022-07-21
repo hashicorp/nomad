@@ -366,7 +366,7 @@ func (t *Tracker) watchTaskEvents() {
 			// reset task health
 			t.setTaskHealth(false, false)
 
-			// Avoid the timer from firing at the old start time
+			// Prevent the timer from firing at the old start time
 			waiter.disable()
 
 			// Set the timer since all tasks are started
@@ -492,9 +492,6 @@ OUTER:
 		// Store the task registrations
 		t.lock.Lock()
 		for task, reg := range allocReg.Tasks {
-			//TODO(schmichael) for now skip unknown tasks as
-			//they're task group services which don't currently
-			//support checks anyway
 			if v, ok := t.taskHealth[task]; ok {
 				v.taskRegistrations = reg
 			}
@@ -571,7 +568,7 @@ func (t *Tracker) watchNomadEvents() {
 	for {
 		select {
 
-		// we are shutting down
+		// tracker has been canceled, so stop waiting
 		case <-t.ctx.Done():
 			return
 
