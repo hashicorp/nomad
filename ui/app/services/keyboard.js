@@ -8,7 +8,7 @@ import { A } from '@ember/array';
 // eslint-disable-next-line no-unused-vars
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
@@ -393,11 +393,14 @@ export default class KeyboardService extends Service {
   }
 
   listenForKeypress() {
-    document.addEventListener('keydown', (event) =>
-      this.recordKeypress('press', event)
-    );
-    document.addEventListener('keyup', (event) =>
-      this.recordKeypress('release', event)
-    );
+    set(this, '_keyDownHandler', this.recordKeypress.bind(this, 'press'));
+    document.addEventListener('keydown', this._keyDownHandler);
+    set(this, '_keyUpHandler', this.recordKeypress.bind(this, 'release'));
+    document.addEventListener('keyup', this._keyUpHandler);
+  }
+
+  willDestroy() {
+    document.removeEventListener('keydown', this._keyDownHandler);
+    document.removeEventListener('keyup', this._keyUpHandler);
   }
 }
