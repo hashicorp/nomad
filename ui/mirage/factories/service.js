@@ -4,8 +4,8 @@ import { pickOne } from '../utils';
 import { provide } from '../utils';
 
 export default Factory.extend({
-  ServiceName: () => `${faker.hacker.adjective()}-${faker.hacker.noun()}`,
-  Tags: () => {
+  serviceName: () => `${faker.hacker.adjective()}-${faker.hacker.noun()}`,
+  tags: () => {
     if (!faker.random.boolean()) {
       return provide(
         faker.random.number({ min: 0, max: 2 }),

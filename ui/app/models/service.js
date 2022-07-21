@@ -4,7 +4,7 @@ import Model from '@ember-data/model';
 import { alias } from '@ember/object/computed';
 
 export default class Service extends Model {
-  @attr('string') ServiceName;
-  @alias('ServiceName') name;
+  @attr('string') serviceName;
+  @alias('serviceName') name;
   @attr() tags;
 }
