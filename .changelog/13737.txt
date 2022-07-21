@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where the timestamp for expiring one-time tokens was not deterministic between servers
+```

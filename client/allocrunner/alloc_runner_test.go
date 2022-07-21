@@ -1076,10 +1076,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 
 	// Assert that we have an event explaining why we are unhealthy.
 	require.Len(t, lastUpdate.TaskStates, 1)
-	state := lastUpdate.TaskStates[task.Name]
-	require.NotNil(t, state)
-	require.NotEmpty(t, state.Events)
-	last := state.Events[len(state.Events)-1]
+	taskState := lastUpdate.TaskStates[task.Name]
+	require.NotNil(t, taskState)
+	require.NotEmpty(t, taskState.Events)
+	last := taskState.Events[len(taskState.Events)-1]
 	require.Equal(t, allochealth.AllocHealthEventSource, last.Type)
 	require.Contains(t, last.Message, "by healthy_deadline")
 }

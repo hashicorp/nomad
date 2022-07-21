@@ -69,7 +69,7 @@ export default class Task extends Fragment {
       }
       return this._job.variables?.findBy(
         'path',
-        `jobs/${jobID}/${this.taskGroup.name}/${this.name}`
+        `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
       );
     }
   }

@@ -6,15 +6,6 @@ description: |-
   process beyond the standard flow.
 ---
 
-~> **Note**: Nomad users should not upgrade to Consul 1.12.0.<br /><br />Consul 1.12.0
-Enterprise introduced a change that prevents Nomad Enterprise from removing
-services from non-default Consul namespaces. To avoid errors, we recommend that
-Nomad Enterprise users wait to update Consul Enterprise until this issue is
-fixed in a future release.<br /><br />You may also encouter problems
-with Consul Service Mesh when using Consul 1.12.0. Refer to
-[`consul#13088`](https://github.com/hashicorp/consul/issues/13088) for more
-information.
-
 # Upgrade Guides
 
 The [upgrading page](/docs/upgrade) covers the details of doing a standard

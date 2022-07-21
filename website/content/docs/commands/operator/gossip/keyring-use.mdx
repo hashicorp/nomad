@@ -1,0 +1,36 @@
+---
+layout: docs
+page_title: 'Commands: operator gossip keyring use'
+description: |
+  Use a new gossip encryption key
+---
+
+# Command: operator gossip keyring use
+
+The `operator gossip keyring use` command changes the encryption key
+used for gossip. The key must already be installed before this
+operation can succeed.
+
+This command can only be run against server nodes. It returns 0 if all nodes
+reply and there are no errors. If any node fails to reply or reports failure,
+the exit code will be 1.
+
+If ACLs are enabled, this command requires a token with the `agent:write`
+capability.
+
+## Usage
+
+```plaintext
+nomad operator gossip keyring use [options] <key>
+```
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+```shell-session
+$ nomad operator gossip keyring use HD5Y61iE+neTxd1n6TnXhCPViPIUq5QpWq8WW8012XA=
+Changing primary gossip encryption key...
+```

@@ -2,6 +2,7 @@ package structs
 
 import (
 	"crypto/sha1"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -41,7 +43,7 @@ const (
 
 // ServiceCheck represents the Consul health check.
 type ServiceCheck struct {
-	Name                   string              // Name of the check, defaults to id
+	Name                   string              // Name of the check, defaults to a generated label
 	Type                   string              // Type of the check - tcp, http, docker and script
 	Command                string              // Command is the command to run for script checks
 	Args                   []string            // Args is a list of arguments for script checks
@@ -64,6 +66,12 @@ type ServiceCheck struct {
 	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
 	Body                   string              // Body to use in HTTP check
 	OnUpdate               string
+}
+
+// IsReadiness returns whether the configuration of the ServiceCheck is effectively
+// a readiness check - i.e. check failures do not affect a deployment.
+func (sc *ServiceCheck) IsReadiness() bool {
+	return sc != nil && sc.OnUpdate == "ignore"
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -207,48 +215,49 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 	}
 }
 
-// validate a Service's ServiceCheck
-func (sc *ServiceCheck) validate() error {
-	// Validate Type
+// validateCommon validates the parts of ServiceCheck shared across providers.
+func (sc *ServiceCheck) validateCommon(allowableTypes []string) error {
+	// validate the type is allowable (different between nomad, consul checks)
 	checkType := strings.ToLower(sc.Type)
+	if !slices.Contains(allowableTypes, checkType) {
+		s := strings.Join(allowableTypes, ", ")
+		return fmt.Errorf(`invalid check type (%q), must be one of %s`, checkType, s)
+	}
+
+	// validate specific check types
 	switch checkType {
-	case ServiceCheckGRPC:
-	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
-			return fmt.Errorf("http type must have a valid http path")
+			return fmt.Errorf("http type must have http path")
 		}
-		checkPath, err := url.Parse(sc.Path)
-		if err != nil {
-			return fmt.Errorf("http type must have a valid http path")
+		checkPath, pathErr := url.Parse(sc.Path)
+		if pathErr != nil {
+			return fmt.Errorf("http type must have valid http path")
 		}
 		if checkPath.IsAbs() {
-			return fmt.Errorf("http type must have a relative http path")
+			return fmt.Errorf("http type must have relative http path")
 		}
-
 	case ServiceCheckScript:
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
 		}
-
-	default:
-		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
-	// Validate interval and timeout
+	// validate interval
 	if sc.Interval == 0 {
 		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) cannot be lower than %v", sc.Interval, minCheckInterval)
 	}
 
+	// validate timeout
 	if sc.Timeout == 0 {
 		return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
 	} else if sc.Timeout < minCheckTimeout {
 		return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 	}
 
-	// Validate InitialStatus
+	// validate the initial status
 	switch sc.InitialStatus {
 	case "":
 	case api.HealthPassing:
@@ -256,10 +265,9 @@ func (sc *ServiceCheck) validate() error {
 	case api.HealthCritical:
 	default:
 		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q or empty`, sc.InitialStatus, api.HealthPassing, api.HealthWarning, api.HealthCritical)
-
 	}
 
-	// Validate AddressMode
+	// validate address_mode
 	switch sc.AddressMode {
 	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc:
 		// Ok
@@ -269,7 +277,7 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("invalid address_mode %q", sc.AddressMode)
 	}
 
-	// Validate OnUpdate
+	// validate on_update
 	switch sc.OnUpdate {
 	case "", OnUpdateIgnore, OnUpdateRequireHealthy, OnUpdateIgnoreWarn:
 		// OK
@@ -277,9 +285,102 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("on_update must be %q, %q, or %q; got %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, sc.OnUpdate)
 	}
 
+	// validate check_restart and on_update do not conflict
+	if sc.CheckRestart != nil {
+		// CheckRestart and OnUpdate Ignore are incompatible If OnUpdate treats
+		// an error has healthy, and the deployment succeeds followed by check
+		// restart restarting failing checks, the deployment is left in an odd
+		// state
+		if sc.OnUpdate == OnUpdateIgnore {
+			return fmt.Errorf("on_update value %q is not compatible with check_restart", sc.OnUpdate)
+		}
+		// CheckRestart IgnoreWarnings must be true if a check has defined OnUpdate
+		// ignore_warnings
+		if !sc.CheckRestart.IgnoreWarnings && sc.OnUpdate == OnUpdateIgnoreWarn {
+			return fmt.Errorf("on_update value %q not supported with check_restart ignore_warnings value %q", sc.OnUpdate, strconv.FormatBool(sc.CheckRestart.IgnoreWarnings))
+		}
+	}
+
+	// validate check_restart
+	if err := sc.CheckRestart.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validate a Service's ServiceCheck in the context of the Nomad provider.
+func (sc *ServiceCheck) validateNomad() error {
+	allowable := []string{ServiceCheckTCP, ServiceCheckHTTP}
+	if err := sc.validateCommon(allowable); err != nil {
+		return err
+	}
+
+	// expose is connect (consul) specific
+	if sc.Expose {
+		return fmt.Errorf("expose may only be set for Consul service checks")
+	}
+
+	// nomad checks do not have warnings
+	if sc.OnUpdate == "ignore_warnings" {
+		return fmt.Errorf("on_update may only be set to ignore_warnings for Consul service checks")
+	}
+
+	// below are temporary limitations on checks in nomad
+	// https://github.com/hashicorp/team-nomad/issues/354
+
+	// check_restart not yet supported on nomad
+	if sc.CheckRestart != nil {
+		return fmt.Errorf("check_restart may only be set for Consul service checks")
+	}
+
+	// address_mode="driver" not yet supported on nomad
+	if sc.AddressMode == "driver" {
+		return fmt.Errorf("address_mode = driver may only be set for Consul service checks")
+	}
+
+	if sc.Type == "http" {
+		if sc.Method != "" && sc.Method != "GET" {
+			// unset turns into GET
+			return fmt.Errorf("http checks may only use GET method in Nomad services")
+		}
+
+		if len(sc.Header) > 0 {
+			return fmt.Errorf("http checks may not set headers in Nomad services")
+		}
+
+		if len(sc.Body) > 0 {
+			return fmt.Errorf("http checks may not set Body in Nomad services")
+		}
+	}
+
+	// success_before_passing is consul only
+	if sc.SuccessBeforePassing != 0 {
+		return fmt.Errorf("success_before_passing may only be set for Consul service checks")
+	}
+
+	// failures_before_critical is consul only
+	if sc.FailuresBeforeCritical != 0 {
+		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
+	}
+
+	return nil
+}
+
+// validate a Service's ServiceCheck in the context of the Consul provider.
+func (sc *ServiceCheck) validateConsul() error {
+	allowable := []string{ServiceCheckGRPC, ServiceCheckTCP, ServiceCheckHTTP, ServiceCheckScript}
+	if err := sc.validateCommon(allowable); err != nil {
+		return err
+	}
+
+	checkType := strings.ToLower(sc.Type)
+
 	// Note that we cannot completely validate the Expose field yet - we do not
 	// know whether this ServiceCheck belongs to a connect-enabled group-service.
 	// Instead, such validation will happen in a job admission controller.
+	//
+	// Consul only.
 	if sc.Expose {
 		// We can however immediately ensure expose is configured only for HTTP
 		// and gRPC checks.
@@ -292,6 +393,8 @@ func (sc *ServiceCheck) validate() error {
 
 	// passFailCheckTypes are intersection of check types supported by both Consul
 	// and Nomad when using the pass/fail check threshold features.
+	//
+	// Consul only.
 	passFailCheckTypes := []string{"tcp", "http", "grpc"}
 
 	if sc.SuccessBeforePassing < 0 {
@@ -306,23 +409,7 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
-	// Check that CheckRestart and OnUpdate do not conflict
-	if sc.CheckRestart != nil {
-		// CheckRestart and OnUpdate Ignore are incompatible If OnUpdate treats
-		// an error has healthy, and the deployment succeeds followed by check
-		// restart restarting erroring checks, the deployment is left in an odd
-		// state
-		if sc.OnUpdate == OnUpdateIgnore {
-			return fmt.Errorf("on_update value %q is not compatible with check_restart", sc.OnUpdate)
-		}
-		// CheckRestart IgnoreWarnings must be true if a check has defined OnUpdate
-		// ignore_warnings
-		if !sc.CheckRestart.IgnoreWarnings && sc.OnUpdate == OnUpdateIgnoreWarn {
-			return fmt.Errorf("on_update value %q not supported with check_restart ignore_warnings value %q", sc.OnUpdate, strconv.FormatBool(sc.CheckRestart.IgnoreWarnings))
-		}
-	}
-
-	return sc.CheckRestart.Validate()
+	return nil
 }
 
 // RequiresPort returns whether the service check requires the task has a port.
@@ -399,6 +486,10 @@ func hashIntIfNonZero(h hash.Hash, name string, i int) {
 	if i != 0 {
 		hashString(h, fmt.Sprintf("%s:%d", name, i))
 	}
+}
+
+func hashDuration(h hash.Hash, dur time.Duration) {
+	_ = binary.Write(h, binary.LittleEndian, dur)
 }
 
 func hashHeader(h hash.Hash, m map[string][]string) {
@@ -621,14 +712,21 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+func (s *Service) validateCheckPort(c *ServiceCheck) error {
+	if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
+		return fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name)
+	}
+	return nil
+}
+
 // validateConsulService performs validation on a service which is using the
 // consul provider.
 func (s *Service) validateConsulService(mErr *multierror.Error) {
-
 	// check checks
 	for _, c := range s.Checks {
-		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
+		// validat ethe check port
+		if err := s.validateCheckPort(c); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
 
@@ -640,7 +738,8 @@ func (s *Service) validateConsulService(mErr *multierror.Error) {
 			continue
 		}
 
-		if err := c.validate(); err != nil {
+		// validate the consul check
+		if err := c.validateConsul(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: %v", c.Name, err))
 		}
 	}
@@ -662,12 +761,18 @@ func (s *Service) validateConsulService(mErr *multierror.Error) {
 // validateNomadService performs validation on a service which is using the
 // nomad provider.
 func (s *Service) validateNomadService(mErr *multierror.Error) {
+	// check checks
+	for _, c := range s.Checks {
+		// validate the check port
+		if err := s.validateCheckPort(c); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
 
-	// Service blocks for the Nomad provider do not support checks. We perform
-	// a nil check, as an empty check list is nilled within the service
-	// canonicalize function.
-	if s.Checks != nil {
-		mErr.Errors = append(mErr.Errors, errors.New("Service with provider nomad cannot include Check blocks"))
+		// validate the nomad check
+		if err := c.validateNomad(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	// Services using the Nomad provider do not support Consul connect.

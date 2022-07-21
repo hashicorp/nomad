@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	// note: this is aliased so that it's more noticeable if someone
@@ -43,6 +44,11 @@ const (
 	// Args: SecureVariablesByNameRequest
 	// Reply: SecureVariablesByNameResponse
 	SecureVariablesReadRPCMethod = "SecureVariables.Read"
+
+	// maxVariableSize is the maximum size of the unencrypted contents of
+	// a variable. This size is deliberately set low and is not
+	// configurable, to discourage DoS'ing the cluster
+	maxVariableSize = 16384
 )
 
 // SecureVariableMetadata is the metadata envelope for a Secure Variable, it
@@ -81,6 +87,15 @@ type SecureVariableDecrypted struct {
 // SecureVariableItems are the actual secrets stored in a secure variable. They
 // are always encrypted and decrypted as a single unit.
 type SecureVariableItems map[string]string
+
+func (svi SecureVariableItems) Size() uint64 {
+	var out uint64
+	for k, v := range svi {
+		out += uint64(len(k))
+		out += uint64(len(v))
+	}
+	return out
+}
 
 // Equals checks both the metadata and items in a SecureVariableDecrypted
 // struct
@@ -148,8 +163,23 @@ func (sv SecureVariableData) Copy() SecureVariableData {
 }
 
 func (sv SecureVariableDecrypted) Validate() error {
+
+	if len(sv.Path) == 0 {
+		return fmt.Errorf("variable requires path")
+	}
+	parts := strings.Split(sv.Path, "/")
+	switch {
+	case len(parts) == 1 && parts[0] == "nomad":
+		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
+	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs":
+		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
+	}
+
 	if len(sv.Items) == 0 {
 		return errors.New("empty variables are invalid")
+	}
+	if sv.Items.Size() > maxVariableSize {
+		return errors.New("variables are limited to 16KiB in total size")
 	}
 	if sv.Namespace == AllNamespacesSentinel {
 		return errors.New("can not target wildcard (\"*\")namespace")
@@ -296,7 +326,7 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 type RootKeyMeta struct {
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
-	CreateTime  time.Time
+	CreateTime  int64
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState
@@ -314,11 +344,12 @@ const (
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values
 func NewRootKeyMeta() *RootKeyMeta {
+	now := time.Now().UTC().UnixNano()
 	return &RootKeyMeta{
 		KeyID:      uuid.Generate(),
 		Algorithm:  EncryptionAlgorithmAES256GCM,
 		State:      RootKeyStateInactive,
-		CreateTime: time.Now(),
+		CreateTime: now,
 	}
 }
 
@@ -329,7 +360,7 @@ func NewRootKeyMeta() *RootKeyMeta {
 type RootKeyMetaStub struct {
 	KeyID      string
 	Algorithm  EncryptionAlgorithm
-	CreateTime time.Time
+	CreateTime int64
 	State      RootKeyState
 }
 

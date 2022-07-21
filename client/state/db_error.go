@@ -7,6 +7,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -80,8 +81,6 @@ func (m *ErrDB) PutDynamicPluginRegistryState(state *dynamicplugins.RegistryStat
 	return fmt.Errorf("Error!")
 }
 
-// GetDevicePluginState stores the device manager's plugin state or returns an
-// error.
 func (m *ErrDB) GetDevicePluginState() (*dmstate.PluginState, error) {
 	return nil, fmt.Errorf("Error!")
 }
@@ -94,9 +93,22 @@ func (m *ErrDB) PutDriverPluginState(ps *driverstate.PluginState) error {
 	return fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) Close() error {
+func (m *ErrDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) error {
 	return fmt.Errorf("Error!")
 }
 
-// Ensure *ErrDB implements StateDB
-var _ StateDB = (*ErrDB)(nil)
+func (m *ErrDB) GetCheckResults() (checks.ClientResults, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PurgeCheckResults(allocID string) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) Close() error {
+	return fmt.Errorf("Error!")
+}

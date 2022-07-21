@@ -173,7 +173,7 @@
   },
   "dependencies": {
     "@hashicorp/ember-flight-icons": "^2.0.5",
-    "@percy/cli": "^1.1.0",
+    "@percy/cli": "^1.6.1",
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
     "d3": "^7.3.0",

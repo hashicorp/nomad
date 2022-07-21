@@ -189,15 +189,11 @@ func TestKeyringReplicator(t *testing.T) {
 	checkReplicationFn := func(keyID string) func() bool {
 		return func() bool {
 			for _, srv := range servers {
-				if srv == leader {
-					continue
-				}
 				keyPath := filepath.Join(srv.GetConfig().DataDir, "keystore",
 					keyID+nomadKeystoreExtension)
 				if _, err := os.Stat(keyPath); err != nil {
 					return false
 				}
-
 			}
 			return true
 		}
@@ -245,9 +241,6 @@ func TestKeyringReplicator(t *testing.T) {
 	// key, and triggering a leader election.
 
 	for _, srv := range servers {
-		if srv == leader {
-			continue
-		}
 		srv.keyringReplicator.stop()
 	}
 
@@ -258,14 +251,17 @@ func TestKeyringReplicator(t *testing.T) {
 	err = leader.leadershipTransfer()
 	require.NoError(t, err)
 
+	testutil.WaitForLeader(t, leader.RPC)
+
 	for _, srv := range servers {
-		if ok, _ := srv.getLeader(); !ok {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go srv.keyringReplicator.run(ctx)
-		} else {
+		if ok, _ := srv.getLeader(); ok {
 			t.Logf("new leader is %s", srv.config.NodeName)
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		t.Logf("replicating on %s", srv.config.NodeName)
+		go srv.keyringReplicator.run(ctx)
 	}
 
 	require.Eventually(t, checkReplicationFn(keyID3),
@@ -302,7 +298,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	alloc := mock.Alloc()
-	claim := alloc.ToTaskIdentityClaims("web")
+	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
 	out, err := e.SignClaims(claim)

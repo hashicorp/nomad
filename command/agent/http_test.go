@@ -1254,41 +1254,15 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// Create a new connection that will go over the connection limit.
 		limitConn, err := dial(t, addr, useTLS)
 
-		// At this point, the state of the connection + handshake are up in the
-		// air.
-		//
-		// 1) dial failed, handshake never started
-		//     => Conn is nil + io.EOF
-		// 2) dial completed, handshake failed
-		//     => Conn is malformed + (net.OpError OR io.EOF)
-		// 3) dial completed, handshake succeeded
-		//     => Conn is not nil + no error, however using the Conn should
-		//        result in io.EOF
-		//
-		// At no point should Nomad actually write through the limited Conn.
-
-		if limitConn == nil || err != nil {
-			// Case 1 or Case 2 - returned Conn is useless and the error should
-			// be one of:
-			//   "EOF"
-			//   "closed network connection"
-			//   "connection reset by peer"
-			msg := err.Error()
-			acceptable := strings.Contains(msg, "EOF") ||
-				strings.Contains(msg, "closed network connection") ||
-				strings.Contains(msg, "connection reset by peer")
-			require.True(t, acceptable)
-		} else {
-			// Case 3 - returned Conn is usable, but Nomad should not write
-			// anything before closing it.
-			buf := make([]byte, bufSize)
-			deadline := time.Now().Add(10 * time.Second)
-			require.NoError(t, limitConn.SetReadDeadline(deadline))
-			n, err := limitConn.Read(buf)
-			require.Equal(t, io.EOF, err)
-			require.Zero(t, n)
-			require.NoError(t, limitConn.Close())
-		}
+		response := "HTTP/1.1 429"
+		buf := make([]byte, len(response))
+		deadline := time.Now().Add(10 * time.Second)
+		require.NoError(t, limitConn.SetReadDeadline(deadline))
+		n, err := limitConn.Read(buf)
+		require.Equal(t, response, string(buf))
+		require.Nil(t, err)
+		require.Equal(t, len(response), n)
+		require.NoError(t, limitConn.Close())
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)

@@ -10,16 +10,19 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
+	regmock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTracker_Checks_Healthy(t *testing.T) {
+func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -60,7 +63,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
@@ -76,9 +79,9 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-		time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -87,6 +90,143 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 		require.Fail(t, "timed out while waiting for health")
 	case h := <-tracker.HealthyCh():
 		require.True(t, h)
+	}
+}
+
+func TestTracker_NomadChecks_Healthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+	alloc.Job.TaskGroups[0].Tasks[0].Services[0].Provider = "nomad"
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		alloc.Job.TaskGroups[0].Tasks[0].Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	err := checks.Set(alloc.ID, &structs.CheckQueryResult{
+		ID:        "abc123",
+		Mode:      "healthiness",
+		Status:    "pending",
+		Output:    "nomad: waiting to run",
+		Timestamp: time.Now().Unix(),
+		Group:     alloc.TaskGroup,
+		Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+		Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+		Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+	})
+	must.NoError(t, err)
+
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	go func() {
+		// wait a bit then update the check to passing
+		time.Sleep(15 * time.Millisecond)
+		must.NoError(t, checks.Set(alloc.ID, &structs.CheckQueryResult{
+			ID:        "abc123",
+			Mode:      "healthiness",
+			Status:    "success",
+			Output:    "nomad: http ok",
+			Timestamp: time.Now().Unix(),
+			Group:     alloc.TaskGroup,
+			Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+			Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+			Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+		}))
+	}()
+
+	select {
+	case <-time.After(4 * checkInterval):
+		t.Fatalf("timed out while waiting for success")
+	case healthy := <-tracker.HealthyCh():
+		must.True(t, healthy)
+	}
+}
+
+func TestTracker_NomadChecks_Unhealthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+	alloc.Job.TaskGroups[0].Tasks[0].Services[0].Provider = "nomad"
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		alloc.Job.TaskGroups[0].Tasks[0].Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	err := checks.Set(alloc.ID, &structs.CheckQueryResult{
+		ID:        "abc123",
+		Mode:      "healthiness",
+		Status:    "pending", // start out pending
+		Output:    "nomad: waiting to run",
+		Timestamp: time.Now().Unix(),
+		Group:     alloc.TaskGroup,
+		Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+		Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+		Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+	})
+	must.NoError(t, err)
+
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	go func() {
+		// wait a bit then update the check to failing
+		time.Sleep(15 * time.Millisecond)
+		must.NoError(t, checks.Set(alloc.ID, &structs.CheckQueryResult{
+			ID:        "abc123",
+			Mode:      "healthiness",
+			Status:    "failing",
+			Output:    "connection refused",
+			Timestamp: time.Now().Unix(),
+			Group:     alloc.TaskGroup,
+			Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+			Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+			Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+		}))
+	}()
+
+	// make sure we are always unhealthy across 4 check intervals
+	for i := 0; i < 4; i++ {
+		<-time.After(checkInterval)
+		select {
+		case <-tracker.HealthyCh():
+			t.Fatalf("should not receive on healthy chan with failing check")
+		default:
+		}
 	}
 }
 
@@ -112,13 +252,13 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul := regmock.NewServiceRegistrationHandler(logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-		time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -153,13 +293,13 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul := regmock.NewServiceRegistrationHandler(logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-		alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -171,7 +311,7 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 	}
 }
 
-func TestTracker_Checks_Unhealthy(t *testing.T) {
+func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -220,7 +360,7 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
@@ -236,9 +376,9 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-		time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -249,9 +389,9 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	tracker.l.Lock()
+	tracker.lock.Lock()
 	require.False(t, tracker.checksHealthy)
-	tracker.l.Unlock()
+	tracker.lock.Unlock()
 
 	select {
 	case v := <-tracker.HealthyCh():
@@ -270,8 +410,7 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	tracker := NewTracker(ctx, logger, alloc, nil, nil,
-		time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, nil, nil, nil, time.Millisecond, true)
 
 	assertNoHealth := func() {
 		require.NoError(t, tracker.ctx.Err())
@@ -362,7 +501,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
@@ -378,9 +517,9 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-		time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -419,7 +558,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 }
 
-func TestTracker_Checks_OnUpdate(t *testing.T) {
+func TestTracker_ConsulChecks_OnUpdate(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
@@ -504,7 +643,7 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 
 			// Don't reply on the first call
 			var called uint64
-			consul := regMock.NewServiceRegistrationHandler(logger)
+			consul := regmock.NewServiceRegistrationHandler(logger)
 			consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 				if atomic.AddUint64(&called, 1) == 1 {
 					return nil, nil
@@ -520,9 +659,9 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
 			defer cancelFn()
 
+			checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 			checkInterval := 10 * time.Millisecond
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
-				time.Millisecond, true)
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
 			tracker.checkLookupInterval = checkInterval
 			tracker.Start()
 
@@ -544,6 +683,123 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 				// Ok, tracker should exit after reporting healthy
 			default:
 				require.Fail(t, "expected tracker to exit after reporting healthy")
+			}
+		})
+	}
+}
+
+func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name         string
+		checkMode    structs.CheckMode
+		checkResult  structs.CheckStatus
+		expectedPass bool
+	}{
+		{
+			name:         "mode is healthiness and check is healthy",
+			checkMode:    structs.Healthiness,
+			checkResult:  structs.CheckSuccess,
+			expectedPass: true,
+		},
+		{
+			name:         "mode is healthiness and check is unhealthy",
+			checkMode:    structs.Healthiness,
+			checkResult:  structs.CheckFailure,
+			expectedPass: false,
+		},
+		{
+			name:         "mode is readiness and check is healthy",
+			checkMode:    structs.Readiness,
+			checkResult:  structs.CheckSuccess,
+			expectedPass: true,
+		},
+		{
+			name:         "mode is readiness and check is healthy",
+			checkMode:    structs.Readiness,
+			checkResult:  structs.CheckFailure,
+			expectedPass: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := mock.Alloc()
+			alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+			alloc.Job.TaskGroups[0].Tasks[0].Services[0].Provider = "nomad"
+
+			logger := testlog.HCLogger(t)
+			b := cstructs.NewAllocBroadcaster(logger)
+			defer b.Close()
+
+			// Synthesize running alloc and tasks
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.TaskStates = map[string]*structs.TaskState{
+				alloc.Job.TaskGroups[0].Tasks[0].Name: {
+					State:     structs.TaskStateRunning,
+					StartedAt: time.Now(),
+				},
+			}
+
+			// Set a check that is pending
+			checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+			err := checks.Set(alloc.ID, &structs.CheckQueryResult{
+				ID:        "abc123",
+				Mode:      tc.checkMode,
+				Status:    structs.CheckPending,
+				Output:    "nomad: waiting to run",
+				Timestamp: time.Now().Unix(),
+				Group:     alloc.TaskGroup,
+				Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+				Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+				Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+			})
+			must.NoError(t, err)
+
+			go func() {
+				// wait a bit then update the check to passing
+				time.Sleep(15 * time.Millisecond)
+				must.NoError(t, checks.Set(alloc.ID, &structs.CheckQueryResult{
+					ID:        "abc123",
+					Mode:      tc.checkMode,
+					Status:    tc.checkResult,
+					Output:    "some output",
+					Timestamp: time.Now().Unix(),
+					Group:     alloc.TaskGroup,
+					Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+					Service:   alloc.Job.TaskGroups[0].Tasks[0].Services[0].Name,
+					Check:     alloc.Job.TaskGroups[0].Tasks[0].Services[0].Checks[0].Name,
+				}))
+			}()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			consul := regmock.NewServiceRegistrationHandler(logger)
+			minHealthyTime := 1 * time.Millisecond
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, minHealthyTime, true)
+			tracker.checkLookupInterval = 10 * time.Millisecond
+			tracker.Start()
+
+			select {
+			case <-time.After(8 * tracker.checkLookupInterval):
+				if !tc.expectedPass {
+					// tracker should still be running
+					must.NoError(t, tracker.ctx.Err())
+					return
+				}
+				t.Fatal("timed out while waiting for health")
+			case h := <-tracker.HealthyCh():
+				require.True(t, h)
+			}
+
+			// For healthy checks, the tracker should stop watching
+			select {
+			case <-tracker.ctx.Done():
+				// Ok, tracker should exit after reporting healthy
+			default:
+				t.Fatal("expected tracker to exit after reporting healthy")
 			}
 		})
 	}

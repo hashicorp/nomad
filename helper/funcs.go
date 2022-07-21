@@ -245,6 +245,8 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 }
 
 // SliceStringContains returns whether item exists at least once in list.
+//
+// Deprecated; use slices.Contains instead.
 func SliceStringContains(list []string, item string) bool {
 	for _, s := range list {
 		if s == item {

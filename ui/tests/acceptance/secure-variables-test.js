@@ -17,6 +17,7 @@ import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
+import percySnapshot from '@percy/ember';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -53,6 +54,7 @@ module('Acceptance | secure variables', function (hooks) {
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
     assert.ok(Layout.gutter.variables.isVisible);
+    await percySnapshot(assert);
   });
 
   test('it correctly traverses to and deletes a variable', async function (assert) {
@@ -92,6 +94,8 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.ok(fooLink, 'foo0 file is present');
 
+    await percySnapshot(assert);
+
     await click(fooLink);
     assert.equal(
       currentURL(),
@@ -100,6 +104,8 @@ module('Acceptance | secure variables', function (hooks) {
     );
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
+
+    await percySnapshot(assert);
 
     await click(deleteButton);
     assert
@@ -131,7 +137,7 @@ module('Acceptance | secure variables', function (hooks) {
     assert.notOk(fooLink, 'foo0 file is no longer present');
   });
 
-  test('variables prefixed with jobs/ correctly link to entities', async function (assert) {
+  test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
     assert.expect(23);
     defaultScenario(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
@@ -181,7 +187,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/variables/path/jobs',
+      '/variables/path/nomad/jobs',
       'correctly traverses to the jobs directory'
     );
     let jobFileLink = find('[data-test-file-row]');
@@ -190,7 +196,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     await click(jobFileLink);
     assert.ok(
-      currentURL().startsWith('/variables/var/jobs/'),
+      currentURL().startsWith('/variables/var/nomad/jobs/'),
       'correctly traverses to a job file'
     );
     relatedEntitiesBox = find('.related-entities');
@@ -202,6 +208,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is job-oriented'
     );
 
+    await percySnapshot(assert);
+
     let relatedJobLink = find('.related-entities a');
     await click(relatedJobLink);
     assert
@@ -210,7 +218,9 @@ module('Acceptance | secure variables', function (hooks) {
     let jobVariableLink = find('[data-test-job-stat="variables"] a');
     await click(jobVariableLink);
     assert.ok(
-      currentURL().startsWith(`/variables/var/jobs/${variableLinkedJob.id}`),
+      currentURL().startsWith(
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}`
+      ),
       'correctly traverses from job to variable'
     );
 
@@ -234,6 +244,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is group-oriented'
     );
 
+    await percySnapshot(assert);
+
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
     assert
@@ -243,7 +255,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(groupVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
       ),
       'correctly traverses from group to variable'
     );
@@ -270,6 +282,8 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is task-oriented'
     );
 
+    await percySnapshot(assert);
+
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
@@ -283,7 +297,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click(taskVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
       ),
       'correctly traverses from task to variable'
     );
@@ -296,6 +310,7 @@ module('Acceptance | secure variables', function (hooks) {
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
+    assert.expect(5);
     defaultScenario(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visitNew();
@@ -308,6 +323,9 @@ module('Acceptance | secure variables', function (hooks) {
 
     await typeIn('.key-value label:nth-child(1) input', 'myKey');
     await typeIn('.key-value label:nth-child(2) input', 'superSecret');
+
+    await percySnapshot(assert);
+
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
@@ -399,10 +417,60 @@ module('Acceptance | secure variables', function (hooks) {
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });
+
+    test('allows creating a variable that starts with nomad/jobs/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/jobs/foo/bar');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      await click('[data-test-submit-var]');
+
+      assert.equal(
+        currentRouteName(),
+        'variables.variable.index',
+        'Navigates user back to variables list page after creating variable.'
+      );
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on creation.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('disallows creating a variable that starts with nomad/<something-other-than-jobs>/', async function (assert) {
+      // Arrange Test Set-up
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      await typeIn('[data-test-path-input]', 'nomad/foo/');
+      await typeIn('[data-test-var-key]', 'my-test-key');
+      await typeIn('[data-test-var-value]', 'my_test_value');
+      assert
+        .dom('[data-test-submit-var]')
+        .isDisabled(
+          'Cannot submit a variable that begins with nomad/<not-jobs>/'
+        );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
   });
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
+      assert.expect(7);
       // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);
@@ -426,6 +494,8 @@ module('Acceptance | secure variables', function (hooks) {
         'variables.variable.edit',
         'Clicking the button navigates you to editing view.'
       );
+
+      await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
       await clickTrigger('[data-test-variable-namespace-filter]');

@@ -334,10 +334,10 @@ export default class Job extends Model {
     if (this.parent.get('id')) {
       return this.variables?.findBy(
         'path',
-        `jobs/${JSON.parse(this.parent.get('id'))[0]}`
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
       );
     } else {
-      return this.variables?.findBy('path', `jobs/${this.plainId}`);
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }
 }
