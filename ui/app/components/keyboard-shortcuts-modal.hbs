@@ -42,7 +42,7 @@
     <footer>
       <strong>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</strong>
       <Toggle
-        data-test-cpu-toggle
+        data-test-enable-shortcuts-toggle
         @isActive={{this.keyboard.enabled}}
         @onToggle={{this.toggleListener}}
         title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
