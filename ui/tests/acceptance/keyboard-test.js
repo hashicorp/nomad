@@ -5,18 +5,24 @@ import { click, currentURL, visit, triggerEvent } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Acceptance | keyboard', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  hooks.beforeEach(function () {
+    window.localStorage.clear();
+  });
 
   module('modal', function () {
     test('Opening and closing shortcuts modal with key commands', async function (assert) {
+      assert.expect(4);
       await visit('/');
       assert.notOk(Layout.keyboard.modalShown);
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       assert.ok(Layout.keyboard.modalShown);
       await percySnapshot(assert);
+      await a11yAudit(assert);
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       assert.notOk(Layout.keyboard.modalShown);
     });
