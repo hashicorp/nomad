@@ -264,7 +264,6 @@ module('Acceptance | keyboard', function (hooks) {
         1,
         'Third job gets a shortcut hint'
       );
-      await percySnapshot(assert);
 
       triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
       triggerEvent('.page-layout', 'keydown', { key: '0' });
