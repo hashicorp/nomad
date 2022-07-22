@@ -470,7 +470,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
-      assert.expect(7);
+      assert.expect(8);
       // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);

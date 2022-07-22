@@ -259,7 +259,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       await typeIn('.key-value label:nth-child(1) input', 'superSecret');
       assert.dom('.key-value-error').doesNotExist();
 
-      find('.key-value:nth-child(2) label:nth-child(1) input').value = '';
+      find('.key-value label:nth-child(1) input').value = '';
 
       await typeIn('.key-value label:nth-child(1) input', 'super.secret');
       assert.dom('.key-value-error').exists();
@@ -277,15 +277,13 @@ module('Integration | Component | secure-variable-form', function (hooks) {
 
       await click('.key-value button.add-more');
 
-      await typeIn(
-        '.key-value:nth-child(3) label:nth-child(1) input',
-        'myWonderfulKey'
-      );
+      const secondKey = document.querySelectorAll('[data-test-var-key]')[1];
+      await typeIn(secondKey, 'myWonderfulKey');
       assert.dom('.key-value-error').doesNotExist();
 
-      find('.key-value:nth-child(3) label:nth-child(1) input').value = '';
+      secondKey.value = '';
 
-      await typeIn('.key-value:nth-child(3) label:nth-child(1) input', 'myKey');
+      await typeIn(secondKey, 'myKey');
       assert.dom('.key-value-error').exists();
     });
   });
