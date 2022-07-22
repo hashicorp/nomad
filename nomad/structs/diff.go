@@ -1529,13 +1529,15 @@ func consulProxyUpstreamDiff(prev, next ConsulUpstream, contextual bool) *Object
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ConsulUpstreams"}
 	var oldPrimFlat, newPrimFlat map[string]string
 
+	empty := ConsulUpstream{}
+
 	if reflect.DeepEqual(prev, next) {
 		return nil
-	} else if prev.Equals(new(ConsulUpstream)) {
+	} else if prev == empty {
 		prev = ConsulUpstream{}
 		diff.Type = DiffTypeAdded
 		newPrimFlat = flatmap.Flatten(next, nil, true)
-	} else if next.Equals(new(ConsulUpstream)) {
+	} else if next == empty {
 		next = ConsulUpstream{}
 		diff.Type = DiffTypeDeleted
 		oldPrimFlat = flatmap.Flatten(prev, nil, true)

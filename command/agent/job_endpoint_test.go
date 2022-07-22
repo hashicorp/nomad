@@ -11,7 +11,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
-	api "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -3694,7 +3694,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:        8000,
 		Datacenter:           "dc2",
 		LocalBindAddress:     "127.0.0.2",
-		MeshGateway:          &structs.ConsulMeshGateway{Mode: "local"},
+		MeshGateway:          structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
@@ -3707,8 +3707,8 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 
 func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiMeshGatewayToStructs(nil))
-	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
+	require.Equal(t, structs.ConsulMeshGateway{}, apiMeshGatewayToStructs(nil))
+	require.Equal(t, structs.ConsulMeshGateway{Mode: "remote"},
 		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 

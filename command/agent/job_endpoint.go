@@ -1655,11 +1655,11 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 	return upstreams
 }
 
-func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) *structs.ConsulMeshGateway {
+func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) structs.ConsulMeshGateway {
 	if in == nil {
-		return nil
+		return structs.ConsulMeshGateway{}
 	}
-	return &structs.ConsulMeshGateway{
+	return structs.ConsulMeshGateway{
 		Mode: in.Mode,
 	}
 }
