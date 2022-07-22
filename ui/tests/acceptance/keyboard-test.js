@@ -6,6 +6,7 @@ import {
   currentURL,
   visit,
   triggerEvent,
+  triggerKeyEvent,
   findAll,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -203,6 +204,137 @@ module('Acceptance | keyboard', function (hooks) {
       assert
         .dom('[data-test-command-label="Go to Clients"] button.re-bind')
         .hasText('b o o p');
+    });
+  });
+
+  module('Hints', function () {
+    test('Hints show up on shift', async function (assert) {
+      await visit('/');
+
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert.equal(
+        document.querySelectorAll('[data-test-keyboard-hint]').length,
+        7,
+        'Shows 7 hints by default'
+      );
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+
+      assert.equal(
+        document.querySelectorAll('[data-test-keyboard-hint]').length,
+        0,
+        'Hints disappear when you release Shift'
+      );
+    });
+  });
+
+  module('Dynamic Nav', function (dynamicHooks) {
+    dynamicHooks.beforeEach(async function () {
+      server.create('node');
+    });
+    test('Dynamic Table Nav', async function (assert) {
+      server.createList('job', 3, { createRecommendations: true });
+      await visit('/jobs');
+
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert.equal(
+        document.querySelectorAll('[data-shortcut="Shift+01"]').length,
+        1,
+        'First job gets a shortcut hint'
+      );
+      assert.equal(
+        document.querySelectorAll('[data-shortcut="Shift+02"]').length,
+        1,
+        'Second job gets a shortcut hint'
+      );
+      assert.equal(
+        document.querySelectorAll('[data-shortcut="Shift+03"]').length,
+        1,
+        'Third job gets a shortcut hint'
+      );
+      await percySnapshot(assert);
+
+      triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      triggerEvent('.page-layout', 'keydown', { key: '0' });
+      await triggerEvent('.page-layout', 'keydown', { key: '1' });
+
+      const clickedJob = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
+      assert.equal(
+        currentURL(),
+        `/jobs/${clickedJob}@default`,
+        'Shift+01 takes you to the first job'
+      );
+    });
+    test('Multi-Table Nav', async function (assert) {
+      server.createList('job', 3, { createRecommendations: true });
+      await visit(
+        `/jobs/${server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`
+      );
+      const numberOfGroups = findAll('.task-group-row').length;
+      const numberOfAllocs = findAll('.allocation-row').length;
+
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      [...Array(numberOfGroups + numberOfAllocs)].forEach((_, iter) => {
+        assert.equal(
+          document.querySelectorAll(`[data-shortcut="Shift+0${iter + 1}"]`)
+            .length,
+          1,
+          `Dynamic item #${iter + 1} gets a shortcut hint`
+        );
+      });
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+    });
+
+    test('Dynamic nav arrows and looping', async function (assert) {
+      server.createList('job', 3, { createAllocations: true, type: 'system' });
+      const jobID = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
+      await visit(`/jobs/${jobID}@default`);
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default/definition`,
+        'Shift+ArrowRight takes you to the next tab (Definition)'
+      );
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default/versions`,
+        'Shift+ArrowRight takes you to the next tab (Version)'
+      );
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default/allocations`,
+        'Shift+ArrowRight takes you to the next tab (Allocations)'
+      );
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default/evaluations`,
+        'Shift+ArrowRight takes you to the next tab (Evaluations)'
+      );
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default`,
+        'Shift+ArrowRight takes you to the first tab in the loop'
+      );
+
+      // await this.pauseTest();
     });
   });
 });

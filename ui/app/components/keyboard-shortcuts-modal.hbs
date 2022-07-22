@@ -55,8 +55,9 @@
 {{#if (and this.keyboard.enabled this.keyboard.displayHints)}}
   {{#each this.hints as |hint|}}
     <span
-      {{did-insert this.tetherToElement element=hint.element hint=hint}}
-      {{will-destroy this.untetherFromElement element=hint.element hint=hint}}
+      {{did-insert (fn this.tetherToElement hint.element hint)}}
+      {{will-destroy (fn this.untetherFromElement hint)}}
+      data-test-keyboard-hint
       data-shortcut={{hint.pattern}}
       class="{{if hint.menuLevel "menu-level"}}"
       aria-hidden="true"

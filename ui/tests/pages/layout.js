@@ -110,6 +110,5 @@ export default create({
 
   keyboard: {
     modalShown: isPresent('.keyboard-shortcuts'),
-    hintsShown: isPresent('[data-shortcut]'),
   },
 });
