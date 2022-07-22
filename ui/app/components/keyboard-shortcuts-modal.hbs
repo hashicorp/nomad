@@ -20,7 +20,7 @@
     </header>
     <ul class="commands-list">
       {{#each this.commands as |command|}}
-        <li>
+        <li data-test-command-label={{command.label}}>
           <strong>{{command.label}}</strong>
             <span class="keys">
               {{#if command.recording}}
@@ -31,7 +31,7 @@
                 {{/if}}
               {{/if}}
 
-              <button disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+              <button class="re-bind" disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
                 {{#each command.pattern as |key|}}
                   <span>{{clean-keycommand key}}</span>
                 {{/each}}
