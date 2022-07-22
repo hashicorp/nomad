@@ -113,7 +113,7 @@ const (
 	SecureVariableDeleteRequestType              MessageType = 51
 	RootKeyMetaUpsertRequestType                 MessageType = 52
 	RootKeyMetaDeleteRequestType                 MessageType = 53
-	SVERequestType                               MessageType = 54 // This should actually replace 50 and 51
+	SVApplyStateRequestType                      MessageType = 54 // FIXME: replace 50 and 51
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64

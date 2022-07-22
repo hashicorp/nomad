@@ -31,6 +31,14 @@ const (
 	// Reply: SecureVariablesDeleteResponse
 	SecureVariablesDeleteRPCMethod = "SecureVariables.Delete"
 
+	// SecureVariablesApplyRPCMethod is the RPC method for upserting or
+	// deleting a secure variable by its namespace and path, with optional
+	// conflict detection.
+	//
+	// Args: SecureVariablesApplyRequest
+	// Reply: SecureVariablesApplyResponse
+	SecureVariablesApplyRPCMethod = "SecureVariables.Apply"
+
 	// SecureVariablesListRPCMethod is the RPC method for listing secure
 	// variables within Nomad.
 	//
@@ -235,6 +243,130 @@ func (svq *SecureVariablesQuota) Copy() *SecureVariablesQuota {
 	return nq
 }
 
+// ---------------------------------------
+// RPC and FSM request/response objects
+
+// SVOp constants give possible operations available in a transaction.
+type SVOp string
+
+const (
+	SVOpSet       SVOp = "set"
+	SVOpDelete    SVOp = "delete"
+	SVOpDeleteCAS SVOp = "delete-cas"
+	SVOpCAS       SVOp = "cas"
+)
+
+// SVOpResult constants give possible operations results from a transaction.
+type SVOpResult string
+
+const (
+	SVOpResultOk       SVOpResult = "ok"
+	SVOpResultConflict SVOpResult = "conflict"
+	SVOpResultRedacted SVOpResult = "conflict-redacted"
+	SVOpResultError    SVOpResult = "error"
+)
+
+// SecureVariablesApplyRequest is used by users to operate on the secure variable store
+type SecureVariablesApplyRequest struct {
+	Op  SVOp                     // Operation to be performed during apply
+	Var *SecureVariableDecrypted // Variable-shaped request data
+	WriteRequest
+}
+
+// SecureVariablesApplyResponse is sent back to the user to inform them of success or failure
+type SecureVariablesApplyResponse struct {
+	Op       SVOp                     // Operation performed
+	Input    *SecureVariableDecrypted // Input supplied
+	Result   SVOpResult               // Return status from operation
+	Error    error                    // Error if any
+	Conflict *SecureVariableDecrypted // Conflicting value if applicable
+	Output   *SecureVariableDecrypted // Operation Result if successful; nil for successful deletes
+	WriteMeta
+}
+
+func (r *SecureVariablesApplyResponse) IsOk() bool {
+	return r.Result == SVOpResultOk
+}
+
+func (r *SecureVariablesApplyResponse) IsConflict() bool {
+	return r.Result == SVOpResultConflict || r.Result == SVOpResultRedacted
+}
+
+func (r *SecureVariablesApplyResponse) IsError() bool {
+	return r.Result == SVOpResultError
+}
+
+func (r *SecureVariablesApplyResponse) IsRedacted() bool {
+	return r.Result == SVOpResultRedacted
+}
+
+// SVApplyStateRequest is used by the FSM to modify the secure variable store
+type SVApplyStateRequest struct {
+	Op  SVOp                     // Which operation are we performing
+	Var *SecureVariableEncrypted // Which directory entry
+	WriteRequest
+}
+
+// SVApplyStateResponse is used by the FSM to inform the RPC layer of success or failure
+type SVApplyStateResponse struct {
+	Op            SVOp                     // Which operation did we performing
+	Result        SVOpResult               // What happened (ok, conflict, error)
+	Error         error                    // error if any
+	Conflict      *SecureVariableEncrypted // conflicting secure variable if applies
+	WrittenSVMeta *SecureVariableMetadata  // for making the SecureVariablesApplyResponse
+	WriteMeta
+}
+
+func (r *SVApplyStateRequest) ErrorResponse(raftIndex uint64, err error) *SVApplyStateResponse {
+	return &SVApplyStateResponse{
+		Op:        r.Op,
+		Result:    SVOpResultError,
+		Error:     err,
+		WriteMeta: WriteMeta{Index: raftIndex},
+	}
+}
+
+func (r *SVApplyStateRequest) SuccessResponse(raftIndex uint64, meta *SecureVariableMetadata) *SVApplyStateResponse {
+	return &SVApplyStateResponse{
+		Op:            r.Op,
+		Result:        SVOpResultOk,
+		WrittenSVMeta: meta,
+		WriteMeta:     WriteMeta{Index: raftIndex},
+	}
+}
+
+func (r *SVApplyStateRequest) ConflictResponse(raftIndex uint64, cv *SecureVariableEncrypted) *SVApplyStateResponse {
+	var cvCopy SecureVariableEncrypted
+	if cv != nil {
+		// make a copy so that we aren't sending
+		// the live state store version
+		cvCopy = cv.Copy()
+	}
+	return &SVApplyStateResponse{
+		Op:        r.Op,
+		Result:    SVOpResultConflict,
+		Conflict:  &cvCopy,
+		WriteMeta: WriteMeta{Index: raftIndex},
+	}
+}
+
+func (r *SVApplyStateResponse) IsOk() bool {
+	return r.Result == SVOpResultOk
+}
+
+func (r *SVApplyStateResponse) IsConflict() bool {
+	return r.Result == SVOpResultConflict
+}
+
+func (r *SVApplyStateResponse) IsError() bool {
+	// FIXME: This is brittle and requires immense faith that
+	// the response is properly managed.
+	return r.Result == SVOpResultError
+}
+
+// TODO delete everything between the two lines below
+// ----------------------------------------------------
+
 type SecureVariablesUpsertRequest struct {
 	Data       []*SecureVariableDecrypted
 	CheckIndex *uint64
@@ -288,6 +420,12 @@ type SecureVariablesDeleteResponse struct {
 	Conflict *SecureVariableDecrypted
 	WriteMeta
 }
+
+// ----------------------------------------------------
+// TODO delete everything between the two lines above
+
+// ---------------------------------------
+// Keyring state and RPC objects
 
 // RootKey is used to encrypt and decrypt secure variables. It is
 // never stored in raft.

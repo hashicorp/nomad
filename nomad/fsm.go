@@ -321,8 +321,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applySecureVariableUpsert(msgType, buf[1:], log.Index)
 	case structs.SecureVariableDeleteRequestType:
 		return n.applySecureVariableDelete(msgType, buf[1:], log.Index)
-	case structs.SVERequestType:
-		return n.applySVEOperation(msgType, buf[1:], log.Index)
+	case structs.SVApplyStateRequestType:
+		return n.applySecureVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaDeleteRequestType:
@@ -2068,21 +2068,21 @@ func (n *nomadFSM) applySecureVariableDelete(msgType structs.MessageType, buf []
 	return nil
 }
 
-func (n *nomadFSM) applySVEOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	var req structs.SVERequest
+func (n *nomadFSM) applySecureVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	var req structs.SVApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"nomad", "fsm", "apply_sv_operation"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
-	case structs.SVSet:
+	case structs.SVOpSet:
 		return n.state.SVESet(index, &req)
-	case structs.SVDelete:
+	case structs.SVOpDelete:
 		return n.state.SVEDelete(index, &req)
-	case structs.SVDeleteCAS:
+	case structs.SVOpDeleteCAS:
 		return n.state.SVEDeleteCAS(index, &req)
-	case structs.SVCAS:
+	case structs.SVOpCAS:
 		return n.state.SVESetCAS(index, &req)
 	default:
 		err := fmt.Errorf("Invalid SVE operation '%s'", req.Op)
