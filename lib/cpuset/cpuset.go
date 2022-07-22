@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// Empty represents an empty CPUSet.
+// Always use .Equals to compare with this value.
+//
+// Do not modify this value.
+var Empty = New()
+
 // CPUSet is a set like object that provides methods helpful when working with cpus with systems
 // such as the Linux cpuset cgroup subsystem. A CPUSet is immutable and can be safely accessed concurrently.
 type CPUSet struct {

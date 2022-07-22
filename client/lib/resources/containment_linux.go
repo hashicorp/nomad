@@ -15,6 +15,10 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
+const (
+	freezerSubsystem = "freezer"
+)
+
 type containment struct {
 	lock   sync.RWMutex
 	cgroup *configs.Cgroup
@@ -36,7 +40,7 @@ func (c *containment) Apply(pid int) error {
 
 	// for v2 use manager to create and enter the cgroup
 	if cgutil.UseV2 {
-		mgr, err := fs2.NewManager(c.cgroup, "", false)
+		mgr, err := fs2.NewManager(c.cgroup, "")
 		if err != nil {
 			return fmt.Errorf("failed to create v2 cgroup manager for containment: %w", err)
 		}
@@ -55,7 +59,7 @@ func (c *containment) Apply(pid int) error {
 	}
 
 	// for v1 a random cgroup was created already; just enter it
-	if err := cgroups.EnterPid(c.cgroup.Paths, pid); err != nil {
+	if err := cgroups.EnterPid(map[string]string{freezerSubsystem: c.cgroup.Path}, pid); err != nil {
 		return fmt.Errorf("failed to add pid to v1 cgroup: %w", err)
 	}
 
@@ -89,7 +93,7 @@ func (c *containment) GetPIDs() PIDs {
 	if cgutil.UseV2 {
 		path = filepath.Join(cgutil.CgroupRoot, c.cgroup.Path)
 	} else {
-		path = c.cgroup.Paths["freezer"]
+		path = c.cgroup.Path
 	}
 
 	// find the pids in the cgroup under containment

@@ -299,16 +299,18 @@ func (c *cpusetManagerV1) signalReconcile() {
 }
 
 func (c *cpusetManagerV1) getCpuset(group string) (cpuset.CPUSet, error) {
-	man := fs.NewManager(
+	man, err := fs.NewManager(
 		&configs.Cgroup{
 			Path: filepath.Join(c.cgroupParent, group),
 		},
 		map[string]string{"cpuset": filepath.Join(c.cgroupParentPath, group)},
-		false,
 	)
+	if err != nil {
+		return cpuset.Empty, err
+	}
 	stats, err := man.GetStats()
 	if err != nil {
-		return cpuset.CPUSet{}, err
+		return cpuset.Empty, err
 	}
 	return cpuset.New(stats.CPUSetStats.CPUs...), nil
 }
@@ -332,7 +334,10 @@ func getCPUsFromCgroupV1(group string) ([]uint16, error) {
 		return nil, err
 	}
 
-	man := fs.NewManager(&configs.Cgroup{Path: group}, map[string]string{"cpuset": cgroupPath}, false)
+	man, err := fs.NewManager(&configs.Cgroup{Path: group}, map[string]string{"cpuset": cgroupPath})
+	if err != nil {
+		return nil, err
+	}
 	stats, err := man.GetStats()
 	if err != nil {
 		return nil, err
