@@ -6,6 +6,7 @@ import Tether from 'tether';
 
 export default class KeyboardShortcutsModalComponent extends Component {
   @service keyboard;
+  @service config;
 
   escapeCommand = {
     label: 'Hide Keyboard Shortcuts',
@@ -42,18 +43,25 @@ export default class KeyboardShortcutsModalComponent extends Component {
     }
   }
 
-  tetherToElement(self, _, { element, hint }) {
-    let binder = new Tether({
-      element: self,
-      target: element,
-      attachment: 'top left',
-      targetAttachment: 'top left',
-      targetModifier: 'visible',
-    });
-    hint.binder = binder;
+  @action
+  tetherToElement(element, hint, self) {
+    if (!this.config.isTest) {
+      let binder = new Tether({
+        element: self,
+        target: element,
+        attachment: 'top left',
+        targetAttachment: 'top left',
+        targetModifier: 'visible',
+      });
+      hint.binder = binder;
+    }
   }
-  untetherFromElement(self, _, { hint }) {
-    hint.binder.destroy();
+
+  @action
+  untetherFromElement(hint) {
+    if (!this.config.isTest) {
+      hint.binder.destroy();
+    }
   }
 
   @action toggleListener() {
