@@ -31,6 +31,10 @@ const (
 	ServiceCheckScript = "script"
 	ServiceCheckGRPC   = "grpc"
 
+	OnUpdateRequireHealthy = "require_healthy"
+	OnUpdateIgnoreWarn     = "ignore_warnings"
+	OnUpdateIgnore         = "ignore"
+
 	// minCheckInterval is the minimum check interval permitted.  Consul
 	// currently has its MinInterval set to 1s.  Mirror that here for
 	// consistency.
@@ -71,7 +75,7 @@ type ServiceCheck struct {
 // IsReadiness returns whether the configuration of the ServiceCheck is effectively
 // a readiness check - i.e. check failures do not affect a deployment.
 func (sc *ServiceCheck) IsReadiness() bool {
-	return sc != nil && sc.OnUpdate == "ignore"
+	return sc != nil && sc.OnUpdate == OnUpdateIgnore
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -322,7 +326,7 @@ func (sc *ServiceCheck) validateNomad() error {
 	}
 
 	// nomad checks do not have warnings
-	if sc.OnUpdate == "ignore_warnings" {
+	if sc.OnUpdate == OnUpdateIgnoreWarn {
 		return fmt.Errorf("on_update may only be set to ignore_warnings for Consul service checks")
 	}
 
@@ -582,12 +586,6 @@ type Service struct {
 	// left empty by the operator.
 	Provider string
 }
-
-const (
-	OnUpdateRequireHealthy = "require_healthy"
-	OnUpdateIgnoreWarn     = "ignore_warnings"
-	OnUpdateIgnore         = "ignore"
-)
 
 // Copy the stanza recursively. Returns nil if nil.
 func (s *Service) Copy() *Service {
