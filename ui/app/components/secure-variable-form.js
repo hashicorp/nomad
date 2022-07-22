@@ -19,8 +19,9 @@ const EMPTY_KV = {
 };
 
 export default class SecureVariableFormComponent extends Component {
-  @service router;
   @service flashMessages;
+  @service router;
+  @service store;
 
   /**
    * @typedef {Object} DuplicatePathWarning
@@ -31,6 +32,23 @@ export default class SecureVariableFormComponent extends Component {
    * @type {DuplicatePathWarning}
    */
   @tracked duplicatePathWarning = null;
+  @tracked variableNamespace = null;
+  @tracked namespaceOptions = null;
+
+  @action
+  setNamespace(namespace) {
+    this.variableNamespace = namespace;
+  }
+
+  @action
+  setNamespaceOptions(options) {
+    this.namespaceOptions = options;
+
+    // Set first namespace option
+    if (options.length) {
+      this.variableNamespace = options[0].key;
+    }
+  }
 
   get shouldDisableSave() {
     const disallowedPath =
@@ -138,6 +156,15 @@ export default class SecureVariableFormComponent extends Component {
         throw new Error('Please provide at least one key/value pair.');
       } else {
         this.keyValues = nonEmptyItems;
+      }
+
+      if (this.args.model?.isNew) {
+        if (this.namespaceOptions) {
+          this.args.model.set('namespace', this.variableNamespace);
+        } else {
+          const [namespace] = this.store.peekAll('namespace').toArray();
+          this.args.model.set('namespace', namespace.id);
+        }
       }
 
       this.args.model.set('keyValues', this.keyValues);

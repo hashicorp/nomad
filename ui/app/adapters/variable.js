@@ -21,8 +21,27 @@ export default class VariableAdapter extends ApplicationAdapter {
     let baseUrl = this.buildURL(modelName);
     return pluralize(baseUrl);
   }
+
+  urlForQuery(_query, modelName) {
+    let baseUrl = this.buildURL(modelName);
+    return pluralize(baseUrl);
+  }
+
   urlForFindRecord(id, modelName, snapshot) {
+    const namespace = snapshot?.attr('namespace') || 'default';
+
     let baseUrl = this.buildURL(modelName, id, snapshot);
-    return baseUrl;
+    return `${baseUrl}?namespace=${namespace}`;
+  }
+
+  urlForUpdateRecord(id, modelName) {
+    return this.buildURL(modelName, id);
+  }
+
+  urlForDeleteRecord(id, modelName, snapshot) {
+    const namespace = snapshot?.attr('namespace') || 'default';
+
+    const baseUrl = this.buildURL(modelName, id);
+    return `${baseUrl}?namespace=${namespace}`;
   }
 }

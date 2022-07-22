@@ -1,6 +1,6 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
-import { pickOne } from '../utils';
+
 export default Factory.extend({
   id: () => faker.random.words(3).split(' ').join('/').toLowerCase(),
   path() {
@@ -29,6 +29,10 @@ export default Factory.extend({
         (server.db.jobs && server.db.jobs[0]?.namespace) || 'default';
       variable.update({
         namespace,
+      });
+    } else {
+      variable.update({
+        namespace: variable.namespaceId,
       });
     }
   },

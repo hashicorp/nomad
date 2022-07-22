@@ -9,14 +9,28 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
   @service router;
   @service store;
 
+  queryParams = {
+    qpNamespace: {
+      refreshModel: true,
+    },
+  };
+
   beforeModel() {
     if (this.can.cannot('list variables')) {
       this.router.transitionTo('/jobs');
     }
   }
-  async model() {
+
+  async model({ qpNamespace }) {
+    const namespace = qpNamespace ?? '*';
     try {
-      const variables = await this.store.findAll('variable', { reload: true });
+      await this.store.findAll('namespace');
+      const variables = await this.store.query(
+        'variable',
+        { namespace },
+        { reload: true }
+      );
+
       return {
         variables,
         pathTree: new PathTree(variables),

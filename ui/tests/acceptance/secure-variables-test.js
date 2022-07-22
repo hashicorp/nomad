@@ -8,6 +8,10 @@ import {
   visit,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -357,6 +361,20 @@ module('Acceptance | secure variables', function (hooks) {
       assert.equal(currentRouteName(), 'variables.new');
 
       await typeIn('[data-test-path-input]', 'foo/bar');
+      await clickTrigger('[data-test-variable-namespace-filter]');
+
+      assert.dom('.dropdown-options').exists('Namespace can be edited.');
+      assert
+        .dom('[data-test-variable-namespace-filter]')
+        .containsText(
+          'default',
+          'The first alphabetically sorted namespace should be selected as the default option.'
+        );
+
+      await selectChoose(
+        '[data-test-variable-namespace-filter]',
+        'namespace-1'
+      );
       await typeIn('[data-test-var-key]', 'kiki');
       await typeIn('[data-test-var-value]', 'do you love me');
       await click('[data-test-submit-var]');
@@ -452,7 +470,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
-      assert.expect(7);
+      assert.expect(8);
       // Arrange Test Set-up
       defaultScenario(server);
       server.createList('variable', 3);
@@ -480,6 +498,10 @@ module('Acceptance | secure variables', function (hooks) {
       await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
+      await clickTrigger('[data-test-variable-namespace-filter]');
+      assert
+        .dom('.dropdown-options')
+        .doesNotExist('Namespace cannot be edited.');
 
       document.querySelector('[data-test-var-key]').value = ''; // clear current input
       await typeIn('[data-test-var-key]', 'kiki');
@@ -584,6 +606,134 @@ module('Acceptance | secure variables', function (hooks) {
 
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
+    });
+  });
+
+  module('namespace filtering', function () {
+    test('allows a user to filter variables by namespace', async function (assert) {
+      assert.expect(3);
+
+      // Arrange
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+
+      assert
+        .dom('[data-test-variable-namespace-filter]')
+        .exists('Shows a dropdown of namespaces');
+
+      // Assert Side Side Effect
+      server.get('/vars', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: 'default',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      // Act
+      await clickTrigger('[data-test-variable-namespace-filter]');
+      await selectChoose('[data-test-variable-namespace-filter]', 'default');
+
+      assert
+        .dom('[data-test-empty-variables-list-headline]')
+        .exists('Renders an empty list.');
+    });
+
+    test('does not show namespace filtering if the user only has access to one namespace', async function (assert) {
+      defaultScenario(server);
+      server.createList('variable', 3);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      const twoTokens = server.db.namespaces.slice(0, 2);
+      server.db.namespaces.remove(twoTokens);
+      await Variables.visit();
+
+      assert.equal(
+        server.db.namespaces.length,
+        1,
+        'There should only be one namespace.'
+      );
+      assert
+        .dom('[data-test-variable-namespace-filter]')
+        .doesNotExist('Does not show a dropdown of namespaces');
+    });
+
+    module('path route', function () {
+      test('allows a user to filter variables by namespace', async function (assert) {
+        assert.expect(4);
+
+        // Arrange
+        defaultScenario(server);
+        server.createList('variable', 3);
+        const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+        window.localStorage.nomadTokenSecret = variablesToken.secretId;
+        await Variables.visit();
+        await click('[data-test-folder-row]');
+
+        assert.equal(
+          currentRouteName(),
+          'variables.path',
+          'It navigates a user to the path subroute'
+        );
+
+        assert
+          .dom('[data-test-variable-namespace-filter]')
+          .exists('Shows a dropdown of namespaces');
+
+        // Assert Side Side Effect
+        server.get('/vars', function (_server, fakeRequest) {
+          assert.deepEqual(
+            fakeRequest.queryParams,
+            {
+              namespace: 'default',
+            },
+            'It makes another server request using the options selected by the user'
+          );
+          return [];
+        });
+
+        // Act
+        await clickTrigger('[data-test-variable-namespace-filter]');
+        await selectChoose('[data-test-variable-namespace-filter]', 'default');
+
+        assert
+          .dom('[data-test-empty-variables-list-headline]')
+          .exists('Renders an empty list.');
+      });
+
+      test('does not show namespace filtering if the user only has access to one namespace', async function (assert) {
+        defaultScenario(server);
+        server.createList('variable', 3);
+        const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+        window.localStorage.nomadTokenSecret = variablesToken.secretId;
+        const twoTokens = server.db.namespaces.slice(0, 2);
+        server.db.namespaces.remove(twoTokens);
+        await Variables.visit();
+
+        assert.equal(
+          server.db.namespaces.length,
+          1,
+          'There should only be one namespace.'
+        );
+
+        await click('[data-test-folder-row]');
+
+        assert.equal(
+          currentRouteName(),
+          'variables.path',
+          'It navigates a user to the path subroute'
+        );
+
+        assert
+          .dom('[data-test-variable-namespace-filter]')
+          .doesNotExist('Does not show a dropdown of namespaces');
+      });
     });
   });
 });

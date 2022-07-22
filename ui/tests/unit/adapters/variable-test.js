@@ -9,6 +9,10 @@ module('Unit | Adapter | Variable', function (hooks) {
     this.subject = () => this.store.adapterFor('variable');
 
     let newVariable = await this.store.createRecord('variable');
+    // we're incorrectly passing an object with a `Model` interface
+    // we should be passing a `Snapshot`
+    // hacky fix to rectify the issue
+    newVariable.attr = () => 'default';
 
     assert.equal(
       this.subject().urlForFindAll('variable'),
@@ -17,7 +21,7 @@ module('Unit | Adapter | Variable', function (hooks) {
     );
     assert.equal(
       this.subject().urlForFindRecord('foo/bar', 'variable', newVariable),
-      `/v1/var/${encodeURIComponent('foo/bar')}`,
+      `/v1/var/${encodeURIComponent('foo/bar')}?namespace=default`,
       'singularizes findRecord lookup'
     );
   });

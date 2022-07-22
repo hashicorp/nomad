@@ -27,6 +27,8 @@
   }
 
   .path-input {
+    height: 2.25em;
+
     &:disabled {
       background-color: #f5f5f5;
     }
@@ -39,6 +41,12 @@
   .duplicate-path-error {
     position: relative;
     animation: slide-in 0.3s ease-out;
+  }
+
+  .path-namespace {
+    display: grid;
+    grid-template-columns: 6fr 1fr;
+    gap: 0 1rem;
   }
 
   .key-value {

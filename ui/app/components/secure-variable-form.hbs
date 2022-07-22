@@ -1,17 +1,19 @@
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
-  <div>
+
+  {{#if @model.isNew}}
+    <div class="related-entities related-entities-hint">
+      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
+      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+    </div>
+  {{/if}}
+
+  <div class={{if this.namespaceOptions "path-namespace"}}>
     <label>
       <span>
         Path
       </span>
-      {{#if @model.isNew}}
-      <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
-        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-      </div>
-      {{/if}}
       <Input
         @type="text"
         @value={{@model.path}}
@@ -22,26 +24,40 @@
         {{autofocus}}
         data-test-path-input
       />
+      {{#if this.duplicatePathWarning}}
+        <p class="duplicate-path-error help is-danger">
+          There is already a Secure Variable located at
+          {{@model.path}}
+          .
+          <br />
+          Please choose a different path, or
+          <LinkTo
+            @route="variables.variable.edit"
+            @model={{this.duplicatePathWarning.path}}
+          >
+            edit the existing Secure Variable
+          </LinkTo>
+          .
+        </p>
+      {{/if}}
     </label>
-    {{#if this.duplicatePathWarning}}
-      <p class="duplicate-path-error help is-danger">
-        There is already a Secure Variable located at
-        {{@model.path}}
-        .
-        <br />
-        Please choose a different path, or
-        <LinkTo
-          @route="variables.variable.edit"
-          @model={{this.duplicatePathWarning.path}}
-        >
-          edit the existing Secure Variable
-        </LinkTo>
-        .
-      </p>
-    {{/if}}
+    <SecureVariableForm::NamespaceFilter 
+      @data={{hash 
+        disabled=(not @model.isNew)
+        selection=this.variableNamespace
+        namespaceOptions=this.namespaceOptions
+      }}
+      @fns={{hash
+        onSelect=this.setNamespace
+        setNamespaceOptions=this.setNamespaceOptions
+      }}
+    />
   </div>
   {{#if (eq this.view "json")}}
-    <div class="editor-wrapper boxed-section-body is-full-bleed {{if this.JSONError "error"}}">
+    <div
+      class="editor-wrapper boxed-section-body is-full-bleed
+        {{if this.JSONError 'error'}}"
+    >
       <div
         data-test-json-editor
         {{code-mirror
@@ -49,7 +65,7 @@
           onUpdate=this.updateCode
           extraKeys=(hash Cmd-Enter=(action "save"))
         }}
-      />
+      ></div>
       {{#if this.JSONError}}
         <p class="help is-danger">
           {{this.JSONError}}
