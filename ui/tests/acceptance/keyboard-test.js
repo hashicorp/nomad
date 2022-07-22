@@ -1,4 +1,4 @@
-// @ts-check
+/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import {
@@ -123,7 +123,9 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       assert.ok(Layout.keyboard.modalShown);
 
-      await click('[data-test-command-label="Go to Clients"] button.re-bind');
+      await click(
+        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+      );
 
       triggerEvent('.page-layout', 'keydown', { key: 'r' });
       triggerEvent('.page-layout', 'keydown', { key: 'o' });
@@ -131,7 +133,9 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: 'l' });
       await triggerEvent('.page-layout', 'keydown', { key: 'Enter' });
       assert
-        .dom('[data-test-command-label="Go to Clients"] button.re-bind')
+        .dom(
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        )
         .hasText('r o f l');
 
       assert.equal(
@@ -151,7 +155,9 @@ module('Acceptance | keyboard', function (hooks) {
         'typing the newly bound shortcut brings me to clients'
       );
 
-      await click('[data-test-command-label="Go to Clients"] button.re-bind');
+      await click(
+        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+      );
 
       triggerEvent('.page-layout', 'keydown', { key: 'n' });
       triggerEvent('.page-layout', 'keydown', { key: 'o' });
@@ -159,7 +165,9 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: 'e' });
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       assert
-        .dom('[data-test-command-label="Go to Clients"] button.re-bind')
+        .dom(
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        )
         .hasText(
           'r o f l',
           'text unchanged when I hit escape during recording'
@@ -169,7 +177,9 @@ module('Acceptance | keyboard', function (hooks) {
         '[data-test-command-label="Go to Clients"] button.reset-to-default'
       );
       assert
-        .dom('[data-test-command-label="Go to Clients"] button.re-bind')
+        .dom(
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        )
         .hasText('g c', 'Resetting to default rebinds the shortcut');
     });
 
@@ -202,7 +212,9 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       assert.ok(Layout.keyboard.modalShown);
       assert
-        .dom('[data-test-command-label="Go to Clients"] button.re-bind')
+        .dom(
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        )
         .hasText('b o o p');
     });
   });
@@ -232,6 +244,7 @@ module('Acceptance | keyboard', function (hooks) {
       server.create('node');
     });
     test('Dynamic Table Nav', async function (assert) {
+      assert.expect(4);
       server.createList('job', 3, { createRecommendations: true });
       await visit('/jobs');
 
