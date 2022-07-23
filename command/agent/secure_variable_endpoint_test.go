@@ -307,7 +307,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			// Make the HTTP request
 			{
 				buf := encodeReq(&svU)
-				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas=0", buf)
+				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas=1", buf)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -389,7 +389,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 			// Make the HTTP request
 			{
-				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas=0", nil)
+				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas=1", nil)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -480,12 +480,15 @@ func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariableDecrypted, er
 
 // rpcWriteSV lets this test write a secure variable using the RPC endpoint
 func rpcWriteSV(s *TestAgent, sv *structs.SecureVariableDecrypted) error {
-	args := structs.SecureVariablesUpsertRequest{
-		Data:         []*structs.SecureVariableDecrypted{sv},
+
+	args := structs.SecureVariablesApplyRequest{
+		Op:           structs.SVOpSet,
+		Var:          sv,
 		WriteRequest: structs.WriteRequest{Namespace: sv.Namespace, Region: "global"},
 	}
-	var resp structs.SecureVariablesUpsertResponse
-	err := s.Agent.RPC(structs.SecureVariablesUpsertRPCMethod, &args, &resp)
+
+	var resp structs.SecureVariablesApplyResponse
+	err := s.Agent.RPC(structs.SecureVariablesApplyRPCMethod, &args, &resp)
 	if err != nil {
 		return err
 	}
@@ -515,17 +518,20 @@ func rpcResetSV(s *TestAgent) {
 	err := s.Agent.RPC(structs.SecureVariablesListRPCMethod, &lArgs, &lResp)
 	require.NoError(s.T, err)
 
-	var dArgs structs.SecureVariablesDeleteRequest
-	var dResp structs.SecureVariablesDeleteResponse
+	dArgs := structs.SecureVariablesApplyRequest{
+		Op:  structs.SVOpDelete,
+		Var: &structs.SecureVariableDecrypted{},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	var dResp structs.SecureVariablesApplyResponse
+
 	for _, v := range lResp.Data {
-		dArgs = structs.SecureVariablesDeleteRequest{
-			Path: v.Path,
-			WriteRequest: structs.WriteRequest{
-				Namespace: v.Namespace,
-				Region:    "global",
-			},
-		}
-		err := s.Agent.RPC(structs.SecureVariablesDeleteRPCMethod, &dArgs, &dResp)
+		dArgs.Var.Path = v.Path
+		dArgs.Var.Namespace = v.Namespace
+		err := s.Agent.RPC(structs.SecureVariablesApplyRPCMethod, &dArgs, &dResp)
 		require.NoError(s.T, err)
 	}
 
