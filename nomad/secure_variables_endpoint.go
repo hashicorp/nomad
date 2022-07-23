@@ -36,18 +36,38 @@ func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, repl
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "apply"}, time.Now())
 
-	// TODO: what to do with Ok, delete later if need be
-	_, canRead, err := svePreApply(sv, args, args.Var)
+	// Check if the Namespace is explicitly set on the secure variable. If
+	// not, use the RequestNamespace
+	if args.Var == nil {
+		return fmt.Errorf("variable must not be nil")
+	}
+	targetNS := args.Var.Namespace
+	if targetNS == "" {
+		targetNS = args.RequestNamespace()
+		args.Var.Namespace = targetNS
+	}
+
+	canRead, err := svePreApply(sv, args, args.Var)
 	if err != nil {
 		return err
 	}
 
-	// TODO: Maybe do a CAS check here?
+	var ev *structs.SecureVariableEncrypted
 
-	// Encrypt
-	ev, err := sv.encrypt(args.Var)
-	if err != nil {
-		return fmt.Errorf("secure variable error: encrypt: %w", err)
+	switch args.Op {
+	case structs.SVOpSet, structs.SVOpCAS:
+		ev, err = sv.encrypt(args.Var)
+		if err != nil {
+			return fmt.Errorf("secure variable error: encrypt: %w", err)
+		}
+	case structs.SVOpDelete, structs.SVOpDeleteCAS:
+		ev = &structs.SecureVariableEncrypted{
+			SecureVariableMetadata: structs.SecureVariableMetadata{
+				Namespace:   args.Var.Namespace,
+				Path:        args.Var.Path,
+				ModifyIndex: args.Var.ModifyIndex,
+			},
+		}
 	}
 
 	// Make a SVEArgs
@@ -62,7 +82,6 @@ func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, repl
 	if err != nil {
 		return fmt.Errorf("raft apply failed: %w", err)
 	}
-
 	r, err := sv.makeSecureVariablesApplyResponse(args, out.(*structs.SVApplyStateResponse), canRead)
 	if err != nil {
 		return err
@@ -72,9 +91,8 @@ func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, repl
 	return nil
 }
 
-func svePreApply(sv *SecureVariables, args *structs.SecureVariablesApplyRequest, vd *structs.SecureVariableDecrypted) (ok bool, canRead bool, err error) {
+func svePreApply(sv *SecureVariables, args *structs.SecureVariablesApplyRequest, vd *structs.SecureVariableDecrypted) (canRead bool, err error) {
 
-	ok = false
 	canRead = false
 	var aclObj *acl.ACL
 
@@ -89,30 +107,16 @@ func svePreApply(sv *SecureVariables, args *structs.SecureVariablesApplyRequest,
 		canRead = hasPerm(acl.SecureVariablesCapabilityRead)
 
 		switch args.Op {
-		case structs.SVOpSet:
+		case structs.SVOpSet, structs.SVOpCAS:
 			if !hasPerm(acl.SecureVariablesCapabilityWrite) {
 				err = structs.ErrPermissionDenied
 				return
 			}
-
-		case structs.SVOpCAS:
-			if !hasPerm(acl.SecureVariablesCapabilityWrite) {
-				err = structs.ErrPermissionDenied
-				return
-			}
-
-		case structs.SVOpDelete:
+		case structs.SVOpDelete, structs.SVOpDeleteCAS:
 			if !hasPerm(acl.SecureVariablesCapabilityDestroy) {
 				err = structs.ErrPermissionDenied
 				return
 			}
-
-		case structs.SVOpDeleteCAS:
-			if !hasPerm(acl.SecureVariablesCapabilityDestroy) {
-				err = structs.ErrPermissionDenied
-				return
-			}
-
 		default:
 			err = fmt.Errorf("svPreApply: unexpected SVOp received: %q", args.Op)
 			return
@@ -122,8 +126,18 @@ func svePreApply(sv *SecureVariables, args *structs.SecureVariablesApplyRequest,
 		canRead = true
 	}
 
-	if err = args.Var.Validate(); err != nil {
-		return
+	switch args.Op {
+	case structs.SVOpSet, structs.SVOpCAS:
+		args.Var.Canonicalize()
+		if err = args.Var.Validate(); err != nil {
+			return
+		}
+
+	case structs.SVOpDelete, structs.SVOpDeleteCAS:
+		if args.Var == nil || args.Var.Path == "" {
+			err = fmt.Errorf("delete requires a Path")
+			return
+		}
 	}
 
 	return
@@ -144,10 +158,12 @@ func (sv *SecureVariables) makeSecureVariablesApplyResponse(
 	}
 
 	if eResp.IsOk() {
-		// The writer is allowed to read their own write
-		out.Output = &structs.SecureVariableDecrypted{
-			SecureVariableMetadata: *eResp.WrittenSVMeta,
-			Items:                  req.Var.Items.Copy(),
+		if eResp.WrittenSVMeta != nil {
+			// The writer is allowed to read their own write
+			out.Output = &structs.SecureVariableDecrypted{
+				SecureVariableMetadata: *eResp.WrittenSVMeta,
+				Items:                  req.Var.Items.Copy(),
+			}
 		}
 		return &out, nil
 	}
@@ -166,15 +182,22 @@ func (sv *SecureVariables) makeSecureVariablesApplyResponse(
 		return &out, nil
 	}
 
-	// At this point, the caller has read access to the conflicting
-	// value so we can return it in the output; decrypt it.
-	dv, err := sv.decrypt(eResp.Conflict)
-	if err != nil {
-		return nil, err
+	if eResp.Conflict == nil || eResp.Conflict.KeyID == "" {
+		// zero-value conflicts can be returned for delete-if-set
+		dv := &structs.SecureVariableDecrypted{}
+		dv.Namespace = eResp.Conflict.Namespace
+		dv.Path = eResp.Conflict.Path
+		out.Conflict = dv
+	} else {
+		// At this point, the caller has read access to the conflicting
+		// value so we can return it in the output; decrypt it.
+		dv, err := sv.decrypt(eResp.Conflict)
+		if err != nil {
+			return nil, err
+		}
+		out.Conflict = dv
 	}
 
-	// Store it in conflict and ship it
-	out.Conflict = dv
 	return &out, nil
 }
 
