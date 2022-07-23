@@ -60,6 +60,9 @@ func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, repl
 		if err != nil {
 			return fmt.Errorf("secure variable error: encrypt: %w", err)
 		}
+		now := time.Now().UnixNano()
+		ev.CreateTime = now // existing will override if it exists
+		ev.ModifyTime = now
 	case structs.SVOpDelete, structs.SVOpDeleteCAS:
 		ev = &structs.SecureVariableEncrypted{
 			SecureVariableMetadata: structs.SecureVariableMetadata{

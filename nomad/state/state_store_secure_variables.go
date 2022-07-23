@@ -343,21 +343,33 @@ func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *str
 // transaction.
 func svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	sv := req.Var
-	existing, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	raw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
 	}
-	e, ok := existing.(*structs.SecureVariableEncrypted)
-	// Check if the we should do the set. A ModifyIndex of 0 means that
-	// we are doing a set-if-not-exists.
-	if sv.ModifyIndex == 0 && existing != nil {
-		return req.ConflictResponse(idx, e)
+	svEx, ok := raw.(*structs.SecureVariableEncrypted)
+
+	// ModifyIndex of 0 means that we are doing a set-if-not-exists.
+	if sv.ModifyIndex == 0 && raw != nil {
+		return req.ConflictResponse(idx, svEx)
 	}
-	if sv.ModifyIndex != 0 && existing == nil {
-		return req.ConflictResponse(idx, nil)
+
+	// If the ModifyIndex is set but the variable doesn't exist, return a
+	// plausible zero value as the conflict
+	if sv.ModifyIndex != 0 && raw == nil {
+		zeroVal := &structs.SecureVariableEncrypted{
+			SecureVariableMetadata: structs.SecureVariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
 	}
-	if ok && sv.ModifyIndex != 0 && sv.ModifyIndex != e.ModifyIndex {
-		return req.ConflictResponse(idx, e)
+
+	// If the existing index does not match the provided CAS index arg, then we
+	// shouldn't update anything and can safely return early here.
+	if ok && sv.ModifyIndex != svEx.ModifyIndex {
+		return req.ConflictResponse(idx, svEx)
 	}
 
 	// If we made it this far, we should perform the set.
@@ -495,17 +507,34 @@ func (s *StateStore) SVEDeleteCAS(idx uint64, req *structs.SVApplyStateRequest) 
 // conditional delete.
 func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	sv := req.Var
-	entry, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	raw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed secure variable lookup: %s", err))
 	}
 
-	// If the existing index does not match the provided CAS
-	// index arg, then we shouldn't update anything and can safely
-	// return early here.
-	sve, ok := entry.(*structs.SecureVariableEncrypted)
-	if !ok || sv.ModifyIndex != sve.ModifyIndex {
-		return req.ConflictResponse(idx, sv)
+	svEx, ok := raw.(*structs.SecureVariableEncrypted)
+
+	// ModifyIndex of 0 means that we are doing a delete-if-not-exists.
+	if sv.ModifyIndex == 0 && raw != nil {
+		return req.ConflictResponse(idx, svEx)
+	}
+
+	// If the ModifyIndex is set but the variable doesn't exist, return a
+	// plausible zero value as the conflict
+	if sv.ModifyIndex != 0 && raw == nil {
+		zeroVal := &structs.SecureVariableEncrypted{
+			SecureVariableMetadata: structs.SecureVariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+
+	// If the existing index does not match the provided CAS index arg, then we
+	// shouldn't update anything and can safely return early here.
+	if !ok || sv.ModifyIndex != svEx.ModifyIndex {
+		return req.ConflictResponse(idx, svEx)
 	}
 
 	// Call the actual deletion if the above passed.
@@ -525,14 +554,6 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.SVApplySt
 		return req.SuccessResponse(idx, nil)
 	}
 
-	// TODO: In the Consul code, they create tombstones because there is a risk
-	// of the index values going backwards(?). Should we do something similar?
-
-	// // Create a tombstone.
-	// if err := s.kvsGraveyard.InsertTxn(tx, key, idx, entMeta); err != nil {
-	// 	return fmt.Errorf("failed adding to graveyard: %s", err)
-	// }
-
 	return svDeleteWithSVE(tx, idx, req)
 }
 
@@ -547,7 +568,7 @@ func svDeleteWithSVE(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) 
 		return req.ErrorResponse(idx, fmt.Errorf("failed updating secure variable index: %s", err))
 	}
 
-	return req.SuccessResponse(idx, &sv.SecureVariableMetadata)
+	return req.SuccessResponse(idx, nil)
 }
 
 // This extra indirection is to facilitate the tombstone case if it matters.
