@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,9 +11,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"golang.org/x/time/rate"
 )
 
 // CoreScheduler is a special "scheduler" that is registered
@@ -914,7 +917,7 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 		if err != nil {
 			return err
 		}
-		err = c.batchRotateVariables(varIter, eval)
+		err = c.rotateVariables(varIter, eval)
 		if err != nil {
 			return err
 		}
@@ -947,32 +950,63 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 	return nil
 }
 
-// rootKeyFullRotatePerKey runs over an iterator of secure variables
-// and decrypts them, and then sends them back as batches to be
-// re-encrypted with the currently active key.
-func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+// rotateVariables runs over an iterator of secure variables and decrypts them,
+// and then sends them back to be re-encrypted with the currently active key,
+// checking for conflicts
+func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
 
-	upsertFn := func(variables []*structs.SecureVariableDecrypted) error {
-		if len(variables) == 0 {
-			return nil
-		}
-		args := &structs.SecureVariablesUpsertRequest{
-			Data: variables,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL,
-			},
-		}
-		reply := &structs.SecureVariablesUpsertResponse{}
-		return c.srv.RPC("SecureVariables.Upsert", args, reply)
+	args := &structs.SecureVariablesApplyRequest{
+		Op: structs.SVOpCAS,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.config.Region,
+			AuthToken: eval.LeaderACL,
+		},
 	}
 
-	variables := []*structs.SecureVariableDecrypted{}
+	// We may have to work on a very large number of variables. There's no
+	// BatchApply RPC because it makes conflict detection, and even if we did,
+	// we'd be blocking this scheduler goroutine for a very long time using the
+	// same snapshot. This would increase the risk that any given batch hits a
+	// conflict b/c of a concurrent change and make it more likely that we fail
+	// the eval. For large sets, this would likely mean the eval would run out
+	// of retries.
+	//
+	// Instead, we'll rate limit RPC requests and have a timeout. If we still
+	// haven't finished the set by the timeout, emit a new eval.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	limiter := rate.NewLimiter(rate.Limit(100), 100)
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
+
+		select {
+		case <-ctx.Done():
+			newEval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   "-",
+				Priority:    structs.CoreJobPriority,
+				Type:        structs.JobTypeCore,
+				TriggeredBy: structs.EvalTriggerScheduled,
+				JobID:       eval.JobID,
+				Status:      structs.EvalStatusPending,
+				LeaderACL:   eval.LeaderACL,
+			}
+			return c.srv.RPC("Eval.Create", &structs.EvalUpdateRequest{
+				Evals:     []*structs.Evaluation{newEval},
+				EvalToken: uuid.Generate(),
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}, &structs.GenericResponse{})
+
+		default:
+		}
+
 		ev := raw.(*structs.SecureVariableEncrypted)
 		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
 		if err != nil {
@@ -986,18 +1020,23 @@ func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *st
 		if err != nil {
 			return err
 		}
-		variables = append(variables, dv)
-		if len(variables) == 20 {
-			err := upsertFn(variables)
-			if err != nil {
-				return err
-			}
-			variables = []*structs.SecureVariableDecrypted{}
+		args.Var = dv
+		reply := &structs.SecureVariablesApplyResponse{}
+
+		if err := limiter.Wait(ctx); err != nil {
+			return err
+		}
+
+		err = c.srv.RPC("SecureVariables.Apply", args, reply)
+		if err != nil {
+			return err
+		}
+		if reply.IsConflict() {
+			return fmt.Errorf("cas error for %q in namespace %q", ev.Path, ev.Namespace)
 		}
 	}
 
-	// ensure we submit any partial batch
-	return upsertFn(variables)
+	return nil
 }
 
 // getThreshold returns the index threshold for determining whether an

@@ -2548,18 +2548,15 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	require.NotNil(t, key0, "expected keyring to be bootstapped")
 	require.NoError(t, err)
 
-	req := &structs.SecureVariablesUpsertRequest{
-		Data: []*structs.SecureVariableDecrypted{
-			mock.SecureVariable(),
-			mock.SecureVariable(),
-			mock.SecureVariable(),
-		},
-		WriteRequest: structs.WriteRequest{
-			Region: srv.config.Region,
-		},
+	for i := 0; i < 3; i++ {
+		req := &structs.SecureVariablesApplyRequest{
+			Op:           structs.SVOpSet,
+			Var:          mock.SecureVariable(),
+			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
+		}
+		resp := &structs.SecureVariablesApplyResponse{}
+		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
 	}
-	resp := &structs.SecureVariablesUpsertResponse{}
-	require.NoError(t, srv.RPC("SecureVariables.Upsert", req, resp))
 
 	rotateReq := &structs.KeyringRotateRootKeyRequest{
 		WriteRequest: structs.WriteRequest{
@@ -2569,17 +2566,15 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	var rotateResp structs.KeyringRotateRootKeyResponse
 	require.NoError(t, srv.RPC("Keyring.Rotate", rotateReq, &rotateResp))
 
-	req2 := &structs.SecureVariablesUpsertRequest{
-		Data: []*structs.SecureVariableDecrypted{
-			mock.SecureVariable(),
-			mock.SecureVariable(),
-			mock.SecureVariable(),
-		},
-		WriteRequest: structs.WriteRequest{
-			Region: srv.config.Region,
-		},
+	for i := 0; i < 3; i++ {
+		req := &structs.SecureVariablesApplyRequest{
+			Op:           structs.SVOpSet,
+			Var:          mock.SecureVariable(),
+			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
+		}
+		resp := &structs.SecureVariablesApplyResponse{}
+		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
 	}
-	require.NoError(t, srv.RPC("SecureVariables.Upsert", req2, resp))
 
 	rotateReq.Full = true
 	require.NoError(t, srv.RPC("Keyring.Rotate", rotateReq, &rotateResp))
