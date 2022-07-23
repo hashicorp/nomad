@@ -221,7 +221,6 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 
 // shouldWrite can be used to determine if a write needs to happen.
 func shouldWrite(sv, existing *structs.SecureVariableEncrypted) bool {
-	// FIXME: Move this to the RPC layer eventually.
 	if existing == nil {
 		return true
 	}

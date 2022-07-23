@@ -54,8 +54,6 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.ServiceRegistrationUpsertRequestType:         "ServiceRegistrationUpsertRequestType",
 	structs.ServiceRegistrationDeleteByIDRequestType:     "ServiceRegistrationDeleteByIDRequestType",
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: "ServiceRegistrationDeleteByNodeIDRequestType",
-	structs.SecureVariableUpsertRequestType:              "SecureVariableUpsertRequestType",
-	structs.SecureVariableDeleteRequestType:              "SecureVariableDeleteRequestType",
 	structs.SVApplyStateRequestType:                      "SVApplyStateRequestType",
 	structs.RootKeyMetaUpsertRequestType:                 "RootKeyMetaUpsertRequestType",
 	structs.RootKeyMetaDeleteRequestType:                 "RootKeyMetaDeleteRequestType",

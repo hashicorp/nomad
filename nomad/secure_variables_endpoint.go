@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -204,164 +202,6 @@ func (sv *SecureVariables) makeSecureVariablesApplyResponse(
 	return &out, nil
 }
 
-// Upsert creates or updates secure variables held within Nomad. Due to ACL
-// checking, every element in Data will be checked for namespace and targeted
-// to the namespace in the SecureVariable. Therefore, the caller must ensure
-// that the provided struct's Namespace is the desired destination. Unset
-// Namespace values will default to `args.RequestNamespace`
-func (sv *SecureVariables) Upsert(
-	args *structs.SecureVariablesUpsertRequest,
-	reply *structs.SecureVariablesUpsertResponse) error {
-
-	if done, err := sv.srv.forward(structs.SecureVariablesUpsertRPCMethod, args, args, reply); done {
-		return err
-	}
-	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "upsert"}, time.Now())
-
-	// Use a multierror, so we can capture all validation errors and pass this
-	// back so they can be addressed by the caller in a single pass.
-	var mErr multierror.Error
-	uArgs := structs.SecureVariablesEncryptedUpsertRequest{
-		Data:         make([]*structs.SecureVariableEncrypted, len(args.Data)),
-		WriteRequest: args.WriteRequest,
-	}
-
-	// Iterate the secure variables and validate them. Any error results in the
-	// call failing.
-	for i, v := range args.Data {
-
-		// Check if the Namespace is explicitly set on the secure variable. If
-		// not, use the RequestNamespace
-		targetNS := v.Namespace
-		if targetNS == "" {
-			targetNS = args.RequestNamespace()
-			v.Namespace = targetNS
-		}
-
-		// Perform the ACL token resolution.
-		if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
-			return err
-		} else if aclObj != nil {
-			for _, variable := range args.Data {
-				if !aclObj.AllowSecureVariableOperation(targetNS,
-					variable.Path, acl.PolicyWrite) {
-					return structs.ErrPermissionDenied
-				}
-			}
-		}
-
-		v.Canonicalize()
-		if err := v.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-			continue
-		}
-
-		ns, err := sv.srv.State().NamespaceByName(nil, v.Namespace)
-		if err != nil {
-			return err
-		}
-		if ns == nil {
-			return fmt.Errorf("secure variable %q is in nonexistent namespace %q",
-				v.Path, v.Namespace)
-		}
-
-		if args.CheckIndex != nil {
-			var conflict *structs.SecureVariableDecrypted
-			if err := sv.validateCASUpdate(*args.CheckIndex, v, &conflict); err != nil {
-				if reply.Conflicts == nil {
-					reply.Conflicts = make([]*structs.SecureVariableDecrypted, len(args.Data))
-				}
-				reply.Conflicts[i] = conflict
-				continue
-			}
-		}
-		ev, err := sv.encrypt(v)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-			continue
-		}
-		uArgs.Data[i] = ev
-	}
-	if len(reply.Conflicts) != 0 {
-		// This is a reply with CAS conflicts so it needs to return here
-		// "successfully". The caller needs to check to see if Conflicts
-		// is non-Nil.
-		return nil
-	}
-	if err := mErr.ErrorOrNil(); err != nil {
-		return &mErr
-	}
-
-	// Update via Raft.
-	out, index, err := sv.srv.raftApply(structs.SecureVariableUpsertRequestType, uArgs)
-	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
-		return err
-	}
-
-	// Update the index. There is no need to floor this as we are writing to
-	// state and therefore will get a non-zero index response.
-	reply.Index = index
-	return nil
-}
-
-// Delete removes a single secure variable, as specified by its namespace and
-// path from Nomad.
-func (sv *SecureVariables) Delete(
-	args *structs.SecureVariablesDeleteRequest,
-	reply *structs.SecureVariablesDeleteResponse) error {
-
-	if done, err := sv.srv.forward(structs.SecureVariablesDeleteRPCMethod, args, args, reply); done {
-		return err
-	}
-	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "delete"}, time.Now())
-
-	// Perform the ACL token resolution.
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowSecureVariableOperation(args.RequestNamespace(), args.Path, acl.PolicyWrite) {
-			return structs.ErrPermissionDenied
-		}
-	}
-	if args.CheckIndex != nil {
-
-		if err := sv.validateCASDelete(*args.CheckIndex, args.Namespace, args.Path, &reply.Conflict); err != nil {
-
-			// If the validateCASDelete func sends back the conflict sentinel
-			// error value then it will have put the conflict into the reply,
-			// and we need to "succeed".
-			if err.Error() == "conflict" {
-				reply.Index = reply.Conflict.ModifyIndex
-				return nil
-			}
-
-			// There are a few cases where validateCASDelete can error that
-			// aren't conflicts.
-			return err
-		}
-	}
-	// Update via Raft.
-	out, index, err := sv.srv.raftApply(structs.SecureVariableDeleteRequestType, args)
-	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
-		return err
-	}
-
-	// Update the index. There is no need to floor this as we are writing to
-	// state and therefore will get a non-zero index response.
-	reply.Index = index
-	return nil
-}
-
 // Read is used to get a specific secure variable
 func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply *structs.SecureVariablesReadResponse) error {
 	if done, err := sv.srv.forward(structs.SecureVariablesReadRPCMethod, args, args, reply); done {
@@ -369,7 +209,6 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "read"}, time.Now())
 
-	// FIXME: Temporary ACL Test policy. Update once implementation complete
 	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyRead, args.Path)
 	if err != nil {
@@ -421,7 +260,6 @@ func (sv *SecureVariables) List(
 		return sv.listAllSecureVariables(args, reply)
 	}
 
-	// FIXME: Temporary ACL Test policy. Update once implementation complete
 	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyList, args.Prefix)
 	if err != nil {
@@ -706,55 +544,5 @@ func (sv *SecureVariables) authValidatePrefix(claims *structs.IdentityClaims, ns
 			return structs.ErrPermissionDenied
 		}
 	}
-	return nil
-}
-
-func (s *SecureVariables) validateCASUpdate(cidx uint64, sv *structs.SecureVariableDecrypted, conflict **structs.SecureVariableDecrypted) error {
-	return s.validateCAS(cidx, sv.Namespace, sv.Path, conflict)
-}
-
-func (s *SecureVariables) validateCASDelete(cidx uint64, namespace, path string, conflict **structs.SecureVariableDecrypted) error {
-	return s.validateCAS(cidx, namespace, path, conflict)
-}
-
-func (s *SecureVariables) validateCAS(cidx uint64, namespace, path string, conflictOut **structs.SecureVariableDecrypted) error {
-	casConflict := errors.New("conflict")
-	// lookup any existing key and validate the update
-	snap, err := s.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	ws := memdb.NewWatchSet()
-	exist, err := snap.GetSecureVariable(ws, namespace, path)
-	if err != nil {
-		return fmt.Errorf("cas error: %w", err)
-	}
-	if exist == nil && cidx != 0 {
-		// return a zero value with the namespace and path applied
-		zeroVal := &structs.SecureVariableDecrypted{
-			SecureVariableMetadata: structs.SecureVariableMetadata{
-				Namespace:   namespace,
-				Path:        path,
-				CreateIndex: 0,
-				CreateTime:  0,
-				ModifyIndex: 0,
-				ModifyTime:  0,
-			},
-			Items: nil,
-		}
-		*conflictOut = zeroVal
-		return casConflict
-	}
-	if exist != nil && exist.ModifyIndex != cidx {
-		dec, err := s.decrypt(exist)
-		if err != nil {
-			// we can't return the conflict and we will have to bail out
-			decErrStr := fmt.Sprintf(". Additional error decrypting conflict: %s", err)
-			return fmt.Errorf("cas error: requested index %v; found index %v%s", cidx, exist.ModifyIndex, decErrStr)
-		}
-		*conflictOut = dec
-		return casConflict
-	}
-
 	return nil
 }

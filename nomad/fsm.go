@@ -317,10 +317,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
 	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
 		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
-	case structs.SecureVariableUpsertRequestType:
-		return n.applySecureVariableUpsert(msgType, buf[1:], log.Index)
-	case structs.SecureVariableDeleteRequestType:
-		return n.applySecureVariableDelete(msgType, buf[1:], log.Index)
 	case structs.SVApplyStateRequestType:
 		return n.applySecureVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
@@ -2036,36 +2032,6 @@ func (f *FSMFilter) Include(item interface{}) bool {
 		return false
 	}
 	return true
-}
-
-func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_upsert"}, time.Now())
-	var req structs.SecureVariablesEncryptedUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertSecureVariables(msgType, index, req.Data); err != nil {
-		n.logger.Error("UpsertSecureVariables failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applySecureVariableDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_delete"}, time.Now())
-	var req structs.SecureVariablesDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteSecureVariables(msgType, index, req.Namespace, []string{req.Path}); err != nil {
-		n.logger.Error("DeleteSecureVariables failed", "error", err)
-		return err
-	}
-
-	return nil
 }
 
 func (n *nomadFSM) applySecureVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {

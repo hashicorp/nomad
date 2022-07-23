@@ -17,20 +17,6 @@ import (
 )
 
 const (
-	// SecureVariablesUpsertRPCMethod is the RPC method for upserting
-	// secure variables into Nomad state.
-	//
-	// Args: SecureVariablesUpsertRequest
-	// Reply: SecureVariablesUpsertResponse
-	SecureVariablesUpsertRPCMethod = "SecureVariables.Upsert"
-
-	// SecureVariablesDeleteRPCMethod is the RPC method for deleting
-	// a secure variable by its namespace and path.
-	//
-	// Args: SecureVariablesDeleteRequest
-	// Reply: SecureVariablesDeleteResponse
-	SecureVariablesDeleteRPCMethod = "SecureVariables.Delete"
-
 	// SecureVariablesApplyRPCMethod is the RPC method for upserting or
 	// deleting a secure variable by its namespace and path, with optional
 	// conflict detection.
@@ -364,29 +350,6 @@ func (r *SVApplyStateResponse) IsError() bool {
 	return r.Result == SVOpResultError
 }
 
-// TODO delete everything between the two lines below
-// ----------------------------------------------------
-
-type SecureVariablesUpsertRequest struct {
-	Data       []*SecureVariableDecrypted
-	CheckIndex *uint64
-	WriteRequest
-}
-
-func (svur *SecureVariablesUpsertRequest) SetCheckIndex(ci uint64) {
-	svur.CheckIndex = &ci
-}
-
-type SecureVariablesEncryptedUpsertRequest struct {
-	Data []*SecureVariableEncrypted
-	WriteRequest
-}
-
-type SecureVariablesUpsertResponse struct {
-	Conflicts []*SecureVariableDecrypted
-	WriteMeta
-}
-
 type SecureVariablesListRequest struct {
 	QueryOptions
 }
@@ -405,24 +368,6 @@ type SecureVariablesReadResponse struct {
 	Data *SecureVariableDecrypted
 	QueryMeta
 }
-
-type SecureVariablesDeleteRequest struct {
-	Path       string
-	CheckIndex *uint64
-	WriteRequest
-}
-
-func (svdr *SecureVariablesDeleteRequest) SetCheckIndex(ci uint64) {
-	svdr.CheckIndex = &ci
-}
-
-type SecureVariablesDeleteResponse struct {
-	Conflict *SecureVariableDecrypted
-	WriteMeta
-}
-
-// ----------------------------------------------------
-// TODO delete everything between the two lines above
 
 // ---------------------------------------
 // Keyring state and RPC objects
