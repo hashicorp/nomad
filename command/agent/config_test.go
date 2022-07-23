@@ -1432,6 +1432,7 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.NotNil(t, templateConfig.WaitBounds)
 	require.NotNil(t, templateConfig.ConsulRetry)
 	require.NotNil(t, templateConfig.VaultRetry)
+	require.NotNil(t, templateConfig.NomadRetry)
 
 	// Direct properties
 	require.Equal(t, 300*time.Second, *templateConfig.MaxStale)
@@ -1452,6 +1453,11 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
 	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
 	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
+	// Nomad Retry
+	require.NotNil(t, templateConfig.NomadRetry)
+	require.Equal(t, 15, *templateConfig.NomadRetry.Attempts)
+	require.Equal(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
+	require.Equal(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
 }
 
 func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {
