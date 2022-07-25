@@ -6,7 +6,11 @@ description: The "scaling" stanza allows specifying scaling policy for a task gr
 
 # `scaling` Stanza
 
-<Placement groups={['job', 'group']} />
+<Placement
+  groups={[
+    ['job', 'group', 'scaling'],
+  ]}
+/>
 
 The `scaling` stanza allows configuring scaling options for a task group, for the purpose
 of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler)
