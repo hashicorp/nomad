@@ -289,6 +289,12 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
+	if agentConfig.normalizedAddrs == nil {
+		if err := agentConfig.normalizeAddrs(); err != nil {
+			return nil, fmt.Errorf("Failed to normalized addresses : %v", err)
+		}
+	}
+
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {
