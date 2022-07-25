@@ -103,16 +103,16 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 	socketMountPoint := filepath.Join(config.clientStateDirPath, "csi",
 		"plugins", config.runner.Alloc().ID)
 
-	// In v1.3.0, Nomad started instructing CSI plugins to stage and publish 
+	// In v1.3.0, Nomad started instructing CSI plugins to stage and publish
 	// within /csi/local. Plugins deployed after the introduction of
-	// StagePublishDir default to StagePublishDir = /csi/local. However, 
-	// plugins deployed between v1.3.0 and the introduction of 
+	// StagePublishDir default to StagePublishDir = /csi/local. However,
+	// plugins deployed between v1.3.0 and the introduction of
 	// StagePublishDir have StagePublishDir = "". Default to /csi/local here
 	// to avoid breaking plugins that aren't redeployed.
 	if task.CSIPluginConfig.StagePublishDir == "" {
 		task.CSIPluginConfig.StagePublishDir = filepath.Join("/local", "csi")
 	}
-	
+
 	if task.CSIPluginConfig.HealthTimeout == 0 {
 		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
 	}
