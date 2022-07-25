@@ -118,7 +118,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 
 	shutdownDelayCtx, shutdownDelayCancelFn := context.WithCancel(context.Background())
 
-	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Create a closed channel to mock TaskCoordinator.startConditionForTask.
 	// Closed channel indicates this task is not blocked on prestart hooks.
 	closedCh := make(chan struct{})
 	close(closedCh)
@@ -142,7 +142,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		DeviceManager:         devicemanager.NoopMockManager(),
 		DriverManager:         drivermanager.TestDriverManager(t),
 		ServersContactedCh:    make(chan struct{}),
-		StartConditionMetCtx:  closedCh,
+		StartConditionMetCh:   closedCh,
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,

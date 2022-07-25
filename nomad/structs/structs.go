@@ -7105,6 +7105,25 @@ func (t *Task) UsesConnectSidecar() bool {
 	return t.Kind.IsConnectProxy() || t.Kind.IsAnyConnectGateway()
 }
 
+func (t *Task) IsPrestart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPrestart
+}
+
+func (t *Task) IsMain() bool {
+	return t != nil && (t.Lifecycle == nil || t.Lifecycle.Hook == "")
+}
+
+func (t *Task) IsPoststart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststart
+}
+
+func (t *Task) IsPoststop() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststop
+}
+
 func (t *Task) Copy() *Task {
 	if t == nil {
 		return nil

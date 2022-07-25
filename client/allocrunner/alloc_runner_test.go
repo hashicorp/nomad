@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -803,28 +804,52 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 
-	// We should see all tasks with Prestart hooks are not blocked from running:
-	// i.e. the "init" and "side" task hook coordinator channels are closed
-	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["init"].Task())), "init channel was open, should be closed")
-	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task())), "side channel was open, should be closed")
+	go ar.Run()
+	defer destroy(ar)
 
-	isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task()))
+	// Wait for the coordinator to transition from the "init" state.
+	testutil.WaitForResultUntil(time.Second,
+		func() (bool, error) {
+			return ar.taskCoordinator.currentState != taskCoordinatorStateInit, nil
+		},
+		func(err error) {
+			t.Fatalf("task coordinator didn't transition in time")
+		})
 
-	// Mimic client dies while init task running, and client restarts after init task finished
+	// We should see all tasks with Prestart hooks are not blocked from running.
+	requireTaskAllowed(t, ar.taskCoordinator, ar.tasks["init"].Task())
+	requireTaskAllowed(t, ar.taskCoordinator, ar.tasks["side"].Task())
+	requireTaskBlocked(t, ar.taskCoordinator, ar.tasks["web"].Task())
+	requireTaskBlocked(t, ar.taskCoordinator, ar.tasks["poststart"].Task())
+
+	// Mimic client dies while init task running, and client restarts after
+	// init task finished and web is running.
 	ar.tasks["init"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskTerminated))
 	ar.tasks["side"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+	ar.tasks["web"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 
-	// Create a new AllocRunner to test RestoreState and Run
+	// Create a new AllocRunner to test Restore and Run.
 	ar2, err := NewAllocRunner(conf)
 	require.NoError(t, err)
+	require.NoError(t, ar2.Restore())
 
-	if err := ar2.Restore(); err != nil {
-		t.Fatalf("error restoring state: %v", err)
-	}
+	go ar2.Run()
+	defer destroy(ar2)
 
-	// We want to see Restore resume execution with correct hook ordering:
-	// i.e. we should see the "web" main task hook coordinator channel is closed
-	require.Truef(t, isChannelClosed(ar2.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task())), "web channel was open, should be closed")
+	// Wait for the coordinator to transition from the "init" state.
+	testutil.WaitForResultUntil(time.Second,
+		func() (bool, error) {
+			return ar2.taskCoordinator.currentState != taskCoordinatorStateInit, nil
+		},
+		func(err error) {
+			t.Fatalf("task coordinator didn't transition in time")
+		})
+
+	// Restore resumes execution with correct lifecycle ordering.
+	requireTaskBlocked(t, ar2.taskCoordinator, ar2.tasks["init"].Task())
+	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
+	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
+	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
@@ -1810,4 +1835,91 @@ func TestAllocRunner_Lifecycle_Shutdown_Order(t *testing.T) {
 
 	last = upd.Last()
 	require.Less(t, last.TaskStates[sidecarTask.Name].FinishedAt, last.TaskStates[poststopTask.Name].FinishedAt)
+}
+
+func TestHasSidecarTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	falseV, trueV := false, true
+
+	cases := []struct {
+		name string
+		// nil if main task, false if non-sidecar hook, true if sidecar hook
+		indicators []*bool
+
+		hasSidecars    bool
+		hasNonsidecars bool
+	}{
+		{
+			name:           "all sidecar - one",
+			indicators:     []*bool{&trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "all sidecar - multiple",
+			indicators:     []*bool{&trueV, &trueV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "some sidecars, some others",
+			indicators:     []*bool{nil, &falseV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: true,
+		},
+		{
+			name:           "no sidecars",
+			indicators:     []*bool{nil, &falseV, nil},
+			hasSidecars:    false,
+			hasNonsidecars: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			alloc := allocWithSidecarIndicators(c.indicators)
+			arConf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(arConf)
+			require.NoError(t, err)
+
+			require.Equal(t, c.hasSidecars, hasSidecarTasks(ar.tasks), "sidecars")
+
+			runners := []*taskrunner.TaskRunner{}
+			for _, r := range ar.tasks {
+				runners = append(runners, r)
+			}
+			require.Equal(t, c.hasNonsidecars, hasNonSidecarTasks(runners), "non-sidecars")
+
+		})
+	}
+}
+
+func allocWithSidecarIndicators(indicators []*bool) *structs.Allocation {
+	alloc := mock.BatchAlloc()
+
+	tasks := []*structs.Task{}
+	resources := map[string]*structs.AllocatedTaskResources{}
+
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	for i, indicator := range indicators {
+		task := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+		task.Name = fmt.Sprintf("task%d", i)
+		if indicator != nil {
+			task.Lifecycle = &structs.TaskLifecycleConfig{
+				Hook:    structs.TaskLifecycleHookPrestart,
+				Sidecar: *indicator,
+			}
+		}
+		tasks = append(tasks, task)
+		resources[task.Name] = tr
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = tasks
+
+	alloc.AllocatedResources.Tasks = resources
+	return alloc
 }
