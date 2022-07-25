@@ -11191,9 +11191,9 @@ func (e *Evaluation) ShouldBlock() bool {
 	}
 }
 
-// MakePlan is used to make a plan from the given evaluation
-// for a given Job
-func (e *Evaluation) MakePlan(j *Job) *Plan {
+// NewPlan is used to make an empty plan from the given evaluation for a given
+// Job.
+func (e *Evaluation) NewPlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:          e.ID,
 		Priority:        e.Priority,

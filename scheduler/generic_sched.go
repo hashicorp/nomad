@@ -256,8 +256,8 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
 	s.followUpEvals = nil
 
-	// Create a plan
-	s.plan = s.eval.MakePlan(s.job)
+	// Create a new plan for this proces attempt
+	s.plan = s.eval.NewPlan(s.job)
 
 	if !s.batch {
 		// Get any existing deployment
