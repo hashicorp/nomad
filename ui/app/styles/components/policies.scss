@@ -4,6 +4,11 @@ table.policies {
     a {
       padding: 1.25em 1.5em;
       display: block;
+      color: black;
+      text-decoration: none;
+      &:hover {
+        background-color: #f5f5f5;
+      }
     }
   }
 }

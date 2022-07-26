@@ -15,22 +15,24 @@ export default class PoliciesPolicyController extends Controller {
   // }
 
   @action updatePolicy(value, codemirror) {
-    codemirror.performLint();
-    try {
-      const hasLintErrors = codemirror?.state.lint.marked?.length > 0;
-      if (hasLintErrors || !JSON.parse(value)) {
-        throw new Error('Invalid JSON');
-      }
-      // set(this, 'JSONError', null);
-      set(this, 'modifiedRules', JSON.parse(value));
-    } catch (error) {
-      console.log('o no', error);
-      // set(this, 'JSONError', error);
-    }
+    this.modifiedRules = value;
+    // codemirror.performLint();
+    // try {
+    //   const hasLintErrors = codemirror?.state.lint.marked?.length > 0;
+    //   if (hasLintErrors || !JSON.parse(value)) {
+    //     throw new Error('Invalid JSON');
+    //   }
+    //   // set(this, 'JSONError', null);
+    //   set(this, 'modifiedRules', JSON.parse(value));
+    // } catch (error) {
+    //   console.log('o no', error);
+    //   // set(this, 'JSONError', error);
+    // }
   }
   @action savePolicy() {
-    // console.log('saving', this.modifiedRules);
-    this.model.rulesJSON = this.modifiedRules;
+    console.log('saving policy');
+    // this.model.rules = stringifyObject([this.modifiedRules]);
+    this.model.rules = this.modifiedRules;
     this.model.save();
   }
 }

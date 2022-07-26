@@ -15,8 +15,10 @@
 		class="policy-editor"
 		data-test-json-editor
 		{{code-mirror
+			mode="ruby"
 			content=@json
 			onUpdate=@onUpdate
+			extraKeys=(hash Cmd-Enter=(action "onSave"))
 		}}></div>
 	</div>
 </div>

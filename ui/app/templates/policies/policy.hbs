@@ -1,5 +1,5 @@
 {{page-title "Policy"}}
-	<PolicyEditor @json={{stringify-object this.model.rulesJSON}}
+	<PolicyEditor @json={{this.model.rules}}
 		@onUpdate={{this.updatePolicy}}
 		@onSave={{this.savePolicy}}
 	/>
