@@ -28,7 +28,7 @@
   </div>
   {{#if this.hasPolicies}}
     <ListTable
-      @source={{@model.policies}}
+      @source={{this.policies}}
       @class="policies" as |t|>
       <t.head>
         <th>Policy Name</th>

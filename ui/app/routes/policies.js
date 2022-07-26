@@ -1,33 +1,17 @@
 import Route from '@ember/routing/route';
+import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
+import { inject as service } from '@ember/service';
 
-import notifyError from 'nomad-ui/utils/notify-error';
-import PathTree from 'nomad-ui/utils/path-tree';
-
-export default class PoliciesRoute extends Route {
-  async model() {
+export default class PoliciesRoute extends Route.extend(withForbiddenState) {
+  @service store;
+  async model(params) {
+    console.log({ params });
     try {
-      // await this.store.findAll('policies');
-      // const policies = await this.store.query(
-      //   'policy',
-      //   { },
-      //   { reload: true }
-      // );
+      const policies = await this.store.query('policy', { reload: true });
+      console.log('and thus', { policies });
 
-      const policies = [
-        {
-          id: 1,
-          name: 'foo',
-          description: 'bar',
-          rules: `
-            foo = "bar"
-          `,
-        },
-      ];
-
-      return {
-        policies,
-        pathTree: new PathTree(policies),
-      };
+      return policies;
     } catch (e) {
       notifyError(this)(e);
     }
