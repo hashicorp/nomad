@@ -34,7 +34,7 @@
         <th>Policy Name</th>
       </t.head>
       <t.body as |row|>
-        <tr data-test-policy>
+        <tr data-test-policy @onClick={{action "goToPolicy" row.model}}>
           <td data-test-policy-name>{{row.model.name}}</td>
         </tr>
       </t.body>
