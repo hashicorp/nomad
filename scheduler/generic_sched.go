@@ -242,11 +242,13 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 func (s *GenericScheduler) process() (bool, error) {
 	// Lookup the Job by ID
 	var err error
-	ws := memdb.NewWatchSet()
-	s.job, err = s.state.JobByID(ws, s.eval.Namespace, s.eval.JobID)
+
+	s.job, err = s.state.JobByID(nil, s.eval.Namespace, s.eval.JobID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get job %q: %v", s.eval.JobID, err)
 	}
+
+	s.logger.Info("---------> got job", "j", s.job)
 
 	numTaskGroups := 0
 	stopped := s.job.Stopped()
@@ -261,7 +263,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	if !s.batch {
 		// Get any existing deployment
-		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+		s.deployment, err = s.state.LatestDeploymentByJobID(nil, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
 			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
 		}
@@ -284,6 +286,8 @@ func (s *GenericScheduler) process() (bool, error) {
 		s.logger.Error("failed to compute job allocations", "error", err)
 		return false, err
 	}
+
+	s.logger.Info("----------> computed", "plan", s.plan)
 
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
@@ -357,8 +361,7 @@ func (s *GenericScheduler) process() (bool, error) {
 // existing allocations and node status to update the allocations.
 func (s *GenericScheduler) computeJobAllocs() error {
 	// Lookup the allocations by JobID
-	ws := memdb.NewWatchSet()
-	allocs, err := s.state.AllocsByJob(ws, s.eval.Namespace, s.eval.JobID, true)
+	allocs, err := s.state.AllocsByJob(nil, s.eval.Namespace, s.eval.JobID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get allocs for job '%s': %v",
 			s.eval.JobID, err)

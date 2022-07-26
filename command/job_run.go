@@ -102,6 +102,9 @@ Run Options:
     has been supplied which is not defined within the root variables. Defaults
     to true.
 
+  -online
+    Schedule the job within the request/response lifecycle.
+
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
@@ -168,6 +171,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 			"-eval-priority":   complete.PredictNothing,
+			"-online":          complete.PredictNothing,
 		})
 }
 
@@ -182,7 +186,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override, preserveCounts bool
+	var detach, verbose, online, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, consulNamespace, vaultToken, vaultNamespace string
 	var evalPriority int
 
@@ -204,6 +208,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 	flagSet.IntVar(&evalPriority, "eval-priority", 0, "")
+	flagSet.BoolVar(&online, "online", false, "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -313,6 +318,7 @@ func (c *JobRunCommand) Run(args []string) int {
 		PolicyOverride: override,
 		PreserveCounts: preserveCounts,
 		EvalPriority:   evalPriority,
+		Online:         online,
 	}
 	if enforce {
 		opts.EnforceIndex = true

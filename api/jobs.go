@@ -105,6 +105,7 @@ type RegisterOptions struct {
 	PolicyOverride bool
 	PreserveCounts bool
 	EvalPriority   int
+	Online         bool
 }
 
 // Register is used to register a new job. It returns the ID
@@ -134,6 +135,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
 		req.EvalPriority = opts.EvalPriority
+		req.Online = opts.Online
 	}
 
 	var resp JobRegisterResponse
@@ -1230,6 +1232,8 @@ type JobRegisterRequest struct {
 	// busy clusters with a large evaluation backlog. This avoids needing to
 	// change the job priority which also impacts preemption.
 	EvalPriority int `json:",omitempty"`
+
+	Online bool `json:",omitempty"`
 
 	WriteRequest
 }

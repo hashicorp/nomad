@@ -608,6 +608,9 @@ type JobRegisterRequest struct {
 	// Eval is the evaluation that is associated with the job registration
 	Eval *Evaluation
 
+	// Online schedules the job immediately instead of enqueueing an eval
+	Online bool
+
 	WriteRequest
 }
 

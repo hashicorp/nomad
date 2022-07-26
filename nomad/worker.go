@@ -121,7 +121,7 @@ func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (
 	return w, nil
 }
 
-// _newWorker creates a worker without calling its Start func. This is useful for testing.
+// newWorker creates a worker without calling its Start func. This is useful for testing.
 func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) *Worker {
 	w := &Worker{
 		id:                uuid.Generate(),
