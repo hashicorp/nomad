@@ -1,2 +1,6 @@
 {{page-title "Policy"}}
+	<PolicyEditor @json={{stringify-object this.model.rulesJSON}}
+		@onUpdate={{this.updatePolicy}}
+		@onSave={{this.savePolicy}}
+	/>
 {{outlet}}

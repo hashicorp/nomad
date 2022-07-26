@@ -8,18 +8,26 @@ export default class PoliciesPolicyRoute extends Route.extend(
   WithModelErrorHandling
 ) {
   @service store;
-  model() {
-    // return this.store.findRecord('policy', decodeURIComponent(params.path), {
-    //   reload: true,
-    // });
-
-    return {
-      id: 1,
-      name: 'foo',
-      description: 'bar',
-      rules: `
-        foo = "bar"
-      `,
-    };
+  model(params) {
+    console.log('params', params);
+    return this.store.findRecord('policy', decodeURIComponent(params.name), {
+      reload: true,
+    });
   }
+
+  // @service store;
+  // model() {
+  //   // return this.store.findRecord('policy', decodeURIComponent(params.path), {
+  //   //   reload: true,
+  //   // });
+
+  //   return {
+  //     id: 1,
+  //     name: 'foo',
+  //     description: 'bar',
+  //     rules: `
+  //       foo = "bar"
+  //     `,
+  //   };
+  // }
 }

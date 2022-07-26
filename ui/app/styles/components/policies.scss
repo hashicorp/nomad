@@ -1,0 +1,14 @@
+table.policies {
+  td {
+    padding: 0;
+    a {
+      padding: 1.25em 1.5em;
+      display: block;
+    }
+  }
+}
+
+.policy-editor {
+  max-height: 600px;
+  overflow: auto;
+}

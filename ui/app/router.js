@@ -105,7 +105,7 @@ Router.map(function () {
     this.route(
       'policy',
       {
-        path: '/policy/*id',
+        path: '/policy/:name',
       },
       function () {
         this.route('edit');

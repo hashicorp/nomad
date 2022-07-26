@@ -1,0 +1,26 @@
+<div class="boxed-section">
+	<div class="boxed-section-head">
+		Policy Definition
+		{{!-- {{#if this.cancelable}}
+			<button
+				class="button is-light is-compact pull-right"
+				onclick={{action this.onCancel}}
+				data-test-cancel-editing
+				type="button"
+			>Cancel</button>
+		{{/if}} --}}
+	</div>
+	<div class="boxed-section-body is-full-bleed">
+	<div
+		class="policy-editor"
+		data-test-json-editor
+		{{code-mirror
+			content=@json
+			onUpdate=@onUpdate
+		}}></div>
+	</div>
+</div>
+
+<footer>
+	<button type="button" class="save-policy primary" {{on "click" (fn @onSave this.policyString)}}><marquee>SAVE</marquee></button>
+</footer>

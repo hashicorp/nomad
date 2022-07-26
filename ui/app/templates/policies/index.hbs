@@ -26,7 +26,7 @@
       </div>
     </div>
   </div>
-  {{#if this.hasPolicies}}
+  {{#if this.policies.length}}
     <ListTable
       @source={{this.policies}}
       @class="policies" as |t|>
@@ -34,8 +34,10 @@
         <th>Policy Name</th>
       </t.head>
       <t.body as |row|>
-        <tr data-test-policy @onClick={{action "goToPolicy" row.model}}>
-          <td data-test-policy-name>{{row.model.name}}</td>
+        <tr data-test-policy>
+          <td data-test-policy-name>
+						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+					</td>
         </tr>
       </t.body>
     </ListTable>

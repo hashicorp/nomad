@@ -5,12 +5,10 @@ import { inject as service } from '@ember/service';
 
 export default class PoliciesRoute extends Route.extend(withForbiddenState) {
   @service store;
-  async model(params) {
-    console.log({ params });
+  async model(params, b, c) {
+    console.log({ params }, b, c);
     try {
       const policies = await this.store.query('policy', { reload: true });
-      console.log('and thus', { policies });
-
       return policies;
     } catch (e) {
       notifyError(this)(e);
