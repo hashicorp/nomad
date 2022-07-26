@@ -98,6 +98,20 @@ Router.map(function () {
       path: '/path/*absolutePath',
     });
   });
+
+  this.route('policies', function () {
+    this.route('new');
+
+    this.route(
+      'policy',
+      {
+        path: '/policy/*id',
+      },
+      function () {
+        this.route('edit');
+      }
+    );
+  });
   // Mirage-only route for testing OIDC flow
   if (config['ember-cli-mirage']) {
     this.route('oidc-mock');
