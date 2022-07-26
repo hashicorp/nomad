@@ -1,7 +1,52 @@
 {{page-title "Policies"}}
 <section class="section">
-    Here are your <marquee>policies</marquee>
-    {{#each (range 10 20) as |number|}}
-        lol <marquee>{{item}}</marquee>
-    {{/each}}
+  <div class="toolbar">
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+      {{!-- {{#if (can "write policy" path="*")}} --}}
+        <LinkTo
+          @route="policies.new"
+          class="button is-primary"
+          data-test-create-var
+        >
+          Create Policy
+        </LinkTo>
+      {{!-- {{else}}
+        <button
+          class="button is-primary is-disabled tooltip is-right-aligned"
+          aria-label="You don’t have sufficient permissions"
+          disabled
+          type="button"
+          data-test-disabled-create-var
+        >
+          Create Policy
+        </button>
+      {{/if}} --}}
+
+      </div>
+    </div>
+  </div>
+  {{#if this.hasPolicies}}
+    <ListTable
+      @source={{@model.policies}}
+      @class="policies" as |t|>
+      <t.head>
+        <th>Policy Name</th>
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-policy>
+          <td data-test-policy-name>{{row.model.name}}</td>
+        </tr>
+      </t.body>
+    </ListTable>
+  {{else}}
+    <div class="empty-message">
+      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="policies.new">creating a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
 </section>
