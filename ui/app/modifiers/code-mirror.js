@@ -49,6 +49,8 @@ export default class CodeMirrorModifier extends Modifier {
         screenReaderLabel: this.args.named.screenReaderLabel || '',
       });
 
+      editor.focus();
+
       editor.on('change', bind(this, this._onChange));
 
       this._editor = editor;

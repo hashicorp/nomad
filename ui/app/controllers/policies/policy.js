@@ -3,36 +3,36 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { set } from '@ember/object';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
+import { inject as service } from '@ember/service';
 
 export default class PoliciesPolicyController extends Controller {
+  @service flashMessages;
+  @service router;
   modifiedRules = '';
-  // get policyString() {
-  //   return stringifyObject([this.model.rulesJSON]);
-  // }
-
-  // set policyString() {
-  // 	console.log('setting policyString',a,b,c);
-  // }
 
   @action updatePolicy(value, codemirror) {
     this.modifiedRules = value;
-    // codemirror.performLint();
-    // try {
-    //   const hasLintErrors = codemirror?.state.lint.marked?.length > 0;
-    //   if (hasLintErrors || !JSON.parse(value)) {
-    //     throw new Error('Invalid JSON');
-    //   }
-    //   // set(this, 'JSONError', null);
-    //   set(this, 'modifiedRules', JSON.parse(value));
-    // } catch (error) {
-    //   console.log('o no', error);
-    //   // set(this, 'JSONError', error);
-    // }
   }
-  @action savePolicy() {
-    console.log('saving policy');
-    // this.model.rules = stringifyObject([this.modifiedRules]);
-    this.model.rules = this.modifiedRules;
-    this.model.save();
+  @action async savePolicy() {
+    try {
+      this.model.rules = this.modifiedRules;
+      await this.model.save();
+
+      this.flashMessages.add({
+        title: 'Policy Updated!',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+      this.router.transitionTo('policies');
+    } catch (error) {
+      this.flashMessages.add({
+        title: `Error saving Policy ${this.model.path}`,
+        message: error,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
   }
 }
