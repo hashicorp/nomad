@@ -313,6 +313,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 				// Make the request
 				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
+				require.NoError(t, err)
 				require.Equal(t, http.StatusConflict, respW.Result().StatusCode)
 
 				// Evaluate the conflict variable
