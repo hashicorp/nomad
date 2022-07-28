@@ -1,6 +1,28 @@
 {{page-title "Policy"}}
-	<PolicyEditor @json={{this.model.rules}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			{{this.model.name}}
+		</div>
+		<div>
+			<TwoStepButton
+				data-test-delete-button
+				@idleText="Delete"
+				@cancelText="Cancel"
+				@confirmText="Yes, delete"
+				@confirmationMessage="Are you sure?"
+				@awaitingConfirmation={{this.deletePolicy.isRunning}}
+				@onConfirm={{perform this.deletePolicy}}
+				@onPrompt={{this.onDeletePrompt}}
+				@onCancel={{this.onDeleteCancel}}
+			/>
+		</div>
+	</h1>
+	<PolicyEditor
+		@isNew={{false}}
+		@policy={{this.model}}
 		@onUpdate={{this.updatePolicy}}
 		@onSave={{this.savePolicy}}
 	/>
+</section>
 {{outlet}}

@@ -3,15 +3,14 @@ import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
 import { inject as service } from '@ember/service';
 
-export default class PoliciesRoute extends Route.extend(withForbiddenState) {
+export default class PoliciesRoute extends Route.extend(
+  withForbiddenState,
+  WithModelErrorHandling
+) {
   @service store;
   async model(params, b, c) {
     console.log({ params }, b, c);
-    try {
-      const policies = await this.store.query('policy', { reload: true });
-      return policies;
-    } catch (e) {
-      notifyError(this)(e);
-    }
+    const policies = await this.store.query('policy', { reload: true });
+    return policies;
   }
 }

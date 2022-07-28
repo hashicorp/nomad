@@ -1,0 +1,12 @@
+{{page-title "Create Policy"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		Create Policy
+	</h1>
+	<PolicyEditor
+		@isNew={{true}}
+    @policy={{this.model}}
+		@onUpdate={{this.updatePolicy}}
+		@onSave={{this.savePolicy}}
+	/>
+</section>

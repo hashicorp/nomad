@@ -13,7 +13,13 @@ table.policies {
   }
 }
 
-.policy-editor {
-  max-height: 600px;
-  overflow: auto;
+.edit-policy {
+  .policy-editor {
+    max-height: 600px;
+    overflow: auto;
+  }
+
+  .input {
+    margin-bottom: 1rem;
+  }
 }
