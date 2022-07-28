@@ -9,15 +9,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -1421,10 +1423,17 @@ func TestAgent_ProxyRPC_Dev(t *testing.T) {
 		},
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	testutil.WaitForResultUntil(time.Second,
+		func() (bool, error) {
+			var resp cstructs.ClientStatsResponse
+			err := agent.RPC("ClientStats.Stats", req, &resp)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf("was unable to read ClientStats.Stats RPC: %v", err)
+		})
 
-	var resp cstructs.ClientStatsResponse
-	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
 }
