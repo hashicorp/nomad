@@ -1,5 +1,10 @@
 <form class="edit-policy" autocomplete="off">
-	{{#if @isNew }}
+	{{#if @policy.isNew }}
+    <div class="related-entities related-entities-hint">
+      <p>Prefix your policy name with <code>_:/</code> to automatically make your policy apply to a specified job, task group, or task.<br />
+      Format: <code>_:/&lt;namespace&gt;/&lt;jobname&gt;</code>, <code>_:/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>_:/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+    </div>
+
 		<label>
 			<span>
 				Policy Name
@@ -45,6 +50,16 @@
 			/>
 		</label>
 	</div>
+
+	{{#if this.shouldShowLinkedEntities}}
+    <PolicyRelatedEntities
+      @new={{@policy.isNew}}
+      @job={{@policy.nameLinkedEntities.job}}
+      @group={{@policy.nameLinkedEntities.group}}
+      @task={{@policy.nameLinkedEntities.task}}
+      @namespace={{@policy.nameLinkedEntities.namespace}}
+    />
+  {{/if}}
 
 	<footer>
 		<button

@@ -1,0 +1,15 @@
+<p class="related-entities notification">
+<FlightIcon @name="info-fill" @color="var(--blue)" />
+<span>
+    This policy {{#if @new}}will be{{else}}is{{/if}} applied to
+    {{#if @task}}
+    task <strong>{{@task}}</strong> in group <LinkTo @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}}>{{@group}} <FlightIcon @name="external-link" /></LinkTo> in namespace  <strong>{{ @namespace }}</strong>
+    {{else if @group}}
+    group <LinkTo @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}}>{{@group}} <FlightIcon @name="external-link" /></LinkTo> in namespace  <strong>{{ @namespace }}</strong>
+    {{else if @job}}
+    job <LinkTo @route="jobs.job" @model={{concat @job "@" @namespace}}>{{@job}} <FlightIcon @name="external-link" /></LinkTo> in namespace  <strong>{{ @namespace }}</strong>
+    {{else if @namespace}}
+    all jobs in namespace <strong>{{ @namespace }}</strong>
+    {{/if}}
+</span>
+</p>
