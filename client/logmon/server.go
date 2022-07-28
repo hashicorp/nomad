@@ -1,9 +1,9 @@
 package logmon
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/logmon/proto"
 )
 
