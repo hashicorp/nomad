@@ -1253,6 +1253,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 		// Create a new connection that will go over the connection limit.
 		limitConn, err := dial(t, addr, useTLS)
+		require.NoError(t, err)
 
 		response := "HTTP/1.1 429"
 		buf := make([]byte, len(response))
