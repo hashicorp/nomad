@@ -2383,9 +2383,9 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support OOM Killer")
-	}
+	// waiting on upstream fix for cgroups v2
+	// see https://github.com/hashicorp/nomad/issues/13119
+	testutil.CgroupsCompatibleV1(t)
 
 	taskCfg := newTaskConfig("", []string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
 	task := &drivers.TaskConfig{
