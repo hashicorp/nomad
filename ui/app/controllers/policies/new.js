@@ -11,6 +11,9 @@ export default class PoliciesNewController extends Controller {
 
   @action async savePolicy() {
     try {
+      // NOTE: I don't understand why this is necessary
+      this.model.id = this.model.name;
+
       await this.model.save();
 
       this.flashMessages.add({
