@@ -31,7 +31,7 @@
 					theme="hashi"
 					mode="terraform"
 					content=@policy.rules
-					onUpdate=@onUpdate
+					onUpdate=(action (mut @policy.rules))
 					extraKeys=(hash Cmd-Enter=(action "onSave"))
 				}}>
 			</div>

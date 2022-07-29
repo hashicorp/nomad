@@ -9,15 +9,9 @@ import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 export default class PoliciesPolicyController extends Controller {
   @service flashMessages;
   @service router;
-  modifiedRules = '';
-
-  @action updatePolicy(value, codemirror) {
-    this.modifiedRules = value;
-  }
 
   @action async savePolicy() {
     try {
-      this.model.rules = this.modifiedRules;
       await this.model.save();
 
       this.flashMessages.add({

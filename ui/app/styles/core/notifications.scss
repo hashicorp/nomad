@@ -4,6 +4,7 @@ section.notifications {
   position: fixed;
   bottom: 10px;
   right: 10px;
+  z-index: 100;
 
   .flash-message {
     width: 300px;
