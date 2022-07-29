@@ -7,5 +7,6 @@ export default class Policy extends AbstractAbility {
   @alias('selfTokenIsManagement') canRead;
   @alias('selfTokenIsManagement') canList;
   @alias('selfTokenIsManagement') canWrite;
+  @alias('selfTokenIsManagement') canUpdate;
   @alias('selfTokenIsManagement') canDestroy;
 }

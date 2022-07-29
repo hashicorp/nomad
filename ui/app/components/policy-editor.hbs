@@ -62,13 +62,15 @@
   {{/if}}
 
 	<footer>
-		<button
-			{{on "click" (fn @onSave this.policyString)}}
-			disabled={{this.shouldDisableSave}}
-			class="button is-primary"
-			type="button"
-		>
-			Save Policy
-		</button>
+		{{#if (can "update policy")}}
+			<button
+				{{on "click" (fn @onSave this.policyString)}}
+				disabled={{this.shouldDisableSave}}
+				class="button is-primary"
+				type="button"
+			>
+				Save Policy
+			</button>
+		{{/if}}
 	</footer>
 </form>

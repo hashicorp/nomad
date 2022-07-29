@@ -56,6 +56,7 @@
 .tooltip.always-active::after {
   opacity: 1;
   bottom: 120%;
+  z-index: 100;
 }
 
 .tooltip:hover::before,

@@ -3,7 +3,7 @@
   <div class="toolbar">
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
-      {{!-- {{#if (can "write policy" path="*")}} --}}
+      {{#if (can "write policy")}}
         <LinkTo
           @route="policies.new"
           class="button is-primary"
@@ -11,7 +11,7 @@
         >
           Create Policy
         </LinkTo>
-      {{!-- {{else}}
+      {{else}}
         <button
           class="button is-primary is-disabled tooltip is-right-aligned"
           aria-label="You don’t have sufficient permissions"
@@ -21,7 +21,7 @@
         >
           Create Policy
         </button>
-      {{/if}} --}}
+      {{/if}}
 
       </div>
     </div>

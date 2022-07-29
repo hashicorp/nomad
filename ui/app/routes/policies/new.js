@@ -1,4 +1,5 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 
 const INITIAL_POLICY_RULES = `
 # See https://learn.hashicorp.com/tutorials/nomad/access-control-policies for ACL Policy details
@@ -65,6 +66,15 @@ operator {
 `;
 
 export default class PoliciesNewRoute extends Route {
+  @service can;
+  @service router;
+
+  beforeModel() {
+    if (this.can.cannot('write policy')) {
+      this.router.transitionTo('/policies');
+    }
+  }
+
   model() {
     return this.store.createRecord('policy', {
       rules: INITIAL_POLICY_RULES,

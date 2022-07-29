@@ -6,19 +6,21 @@
 		<div>
 			{{this.model.name}}
 		</div>
-		<div>
-			<TwoStepButton
-				data-test-delete-button
-				@idleText="Delete"
-				@cancelText="Cancel"
-				@confirmText="Yes, delete"
-				@confirmationMessage="Are you sure?"
-				@awaitingConfirmation={{this.deletePolicy.isRunning}}
-				@onConfirm={{perform this.deletePolicy}}
-				@onPrompt={{this.onDeletePrompt}}
-				@onCancel={{this.onDeleteCancel}}
-			/>
-		</div>
+		{{#if (can "destroy policy")}}
+			<div>
+				<TwoStepButton
+					data-test-delete-button
+					@idleText="Delete"
+					@cancelText="Cancel"
+					@confirmText="Yes, delete"
+					@confirmationMessage="Are you sure?"
+					@awaitingConfirmation={{this.deletePolicy.isRunning}}
+					@onConfirm={{perform this.deletePolicy}}
+					@onPrompt={{this.onDeletePrompt}}
+					@onCancel={{this.onDeleteCancel}}
+				/>
+			</div>
+		{{/if}}
 	</h1>
 	<PolicyEditor
 		@isNew={{false}}
