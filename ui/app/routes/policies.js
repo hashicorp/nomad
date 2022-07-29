@@ -17,7 +17,6 @@ export default class PoliciesRoute extends Route.extend(
   }
 
   async model(params, b, c) {
-    console.log({ params }, b, c);
     const policies = await this.store.query('policy', { reload: true });
     return policies;
   }

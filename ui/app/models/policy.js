@@ -29,8 +29,6 @@ export default class Policy extends Model {
         .split('/')
         .slice(1, 5)
         .reduce((acc, namePart, index) => {
-          console.log('acc', acc);
-          console.log('namePart', namePart);
           acc[entityTypes[index]] = namePart;
           return acc;
         }, emptyEntities);

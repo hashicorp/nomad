@@ -9,7 +9,6 @@ export default class PoliciesPolicyRoute extends Route.extend(
 ) {
   @service store;
   model(params) {
-    console.log('params', params);
     return this.store.findRecord('policy', decodeURIComponent(params.name), {
       reload: true,
     });
