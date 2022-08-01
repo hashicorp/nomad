@@ -33,8 +33,8 @@ _:/$namespace/$job_id
 _:/$namespace
 ```
 
-For example, the task created by the example job spec created with `nomad job
-init -short` will have the following policies:
+For example, a task named "redis", in a group named "cache", in a job named
+"example", will automatically have the following policies:
 
 ```
 _:/default/example/cache/redis

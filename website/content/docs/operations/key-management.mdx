@@ -43,9 +43,11 @@ immediately before a leader election.
 
 ## Restoring the Keyring from Backup
 
-Key material is never stored in raft. This allows the HashiCorp engineering and
-support organization to safely handle cluster snapshots you might provide
-without exposing any of your keys or encrypted secure variables.
+Key material is never stored in raft. This prevents an attacker with a backup of
+the state store from getting access to encrypted secure variables. It also
+allows the HashiCorp engineering and support organization to safely handle
+cluster snapshots you might provide without exposing any of your keys or secure
+variables.
 
 However, this means that to restore a cluster from snapshot you need to also
 provide the keystore directory with the `.nks.json` key files on at least one
@@ -55,4 +57,4 @@ backup and recovery strategy for the cluster.
 [Secure Variables]: /docs/concepts/secure-variables
 [workload identities]: /docs/concepts/workload-identity
 [data directory]: /docs/configuration#data_dir
-[`nomad operator keyring secure-variables`]: /docs/commands/operator/secure-variables/keyring-rotate.mdx
+[`nomad operator keyring secure-variables rotate -full`]: /docs/commands/operator/secure-variables/keyring-rotate.mdx
