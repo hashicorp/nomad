@@ -66,12 +66,12 @@ type TaskCSIPluginConfig struct {
 	// socket (called CSISocketName) for communication with Nomad. Default is /csi.
 	MountDir string
 
-	// StagePublishDir is the base directory (within its container) in which the plugin
+	// StagePublishBaseDir is the base directory (within its container) in which the plugin
 	// mounts volumes being staged and bind mount volumes being published.
-	// e.g. staging_target_path = {StagePublishDir}/staging/{volume-id}/{usage-mode}
-	// e.g. target_path = {StagePublishDir}/per-alloc/{alloc-id}/{volume-id}/{usage-mode}
+	// e.g. staging_target_path = {StagePublishBaseDir}/staging/{volume-id}/{usage-mode}
+	// e.g. target_path = {StagePublishBaseDir}/per-alloc/{alloc-id}/{volume-id}/{usage-mode}
 	// Default is /local/csi.
-	StagePublishDir string
+	StagePublishBaseDir string
 
 	// HealthTimeout is the time after which the CSI plugin tasks will be killed
 	// if the CSI Plugin is not healthy.

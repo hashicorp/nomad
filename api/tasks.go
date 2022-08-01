@@ -1036,12 +1036,12 @@ type TaskCSIPluginConfig struct {
 	// socket (called CSISocketName) for communication with Nomad. Default is /csi.
 	MountDir string `mapstructure:"mount_dir" hcl:"mount_dir,optional"`
 
-	// StagePublishDir is the base directory (within its container) in which the plugin
+	// StagePublishBaseDir is the base directory (within its container) in which the plugin
 	// mounts volumes being staged and bind mounts volumes being published.
-	// e.g. staging_target_path = {StagePublishDir}/staging/{volume-id}/{usage-mode}
-	// e.g. target_path = {StagePublishDir}/per-alloc/{alloc-id}/{volume-id}/{usage-mode}
+	// e.g. staging_target_path = {StagePublishBaseDir}/staging/{volume-id}/{usage-mode}
+	// e.g. target_path = {StagePublishBaseDir}/per-alloc/{alloc-id}/{volume-id}/{usage-mode}
 	// Default is /local/csi.
-	StagePublishDir string `mapstructure:"stage_publish_dir" hcl:"stage_publish_dir,optional"`
+	StagePublishBaseDir string `mapstructure:"stage_publish_base_dir" hcl:"stage_publish_base_dir,optional"`
 
 	// HealthTimeout is the time after which the CSI plugin tasks will be killed
 	// if the CSI Plugin is not healthy.
@@ -1053,8 +1053,8 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 		t.MountDir = "/csi"
 	}
 
-	if t.StagePublishDir == "" {
-		t.StagePublishDir = filepath.Join("/local", "csi")
+	if t.StagePublishBaseDir == "" {
+		t.StagePublishBaseDir = filepath.Join("/local", "csi")
 	}
 
 	if t.HealthTimeout == 0 {
