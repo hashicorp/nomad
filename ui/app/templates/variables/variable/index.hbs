@@ -36,7 +36,7 @@
   </div>
   <div>
     {{#unless this.isDeleting}}
-      {{#if (can "write variable" path=this.model.path)}}
+      {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
       <div class="two-step-button">
         <LinkTo
           data-test-edit-button
@@ -50,7 +50,7 @@
       </div>
       {{/if}}
     {{/unless}}
-    {{#if (can "destroy variable" path=this.model.path)}}
+    {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
       <TwoStepButton
         data-test-delete-button
         @alignRight={{true}}

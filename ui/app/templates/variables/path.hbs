@@ -15,7 +15,7 @@
           />
         {{/if}}
         <div class="button-bar">
-        {{#if (can "write variable" path=this.model.absolutePath)}}
+        {{#if (can "write variable" path=this.model.absolutePath namespace=this.model.namespace)}}
           <LinkTo
             @route="variables.new"
             @query={{hash path=(concat this.model.absolutePath "/")}}
