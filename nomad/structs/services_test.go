@@ -57,6 +57,41 @@ func TestServiceCheck_Hash(t *testing.T) {
 	})
 }
 
+func TestServiceCheck_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("defaults", func(t *testing.T) {
+		sc := &ServiceCheck{
+			Args:     []string{},
+			Header:   make(map[string][]string),
+			Method:   "",
+			OnUpdate: "",
+		}
+		sc.Canonicalize("MyService")
+		must.Nil(t, sc.Args)
+		must.Nil(t, sc.Header)
+		must.Eq(t, `service: "MyService" check`, sc.Name)
+		must.Eq(t, "", sc.Method)
+		must.Eq(t, OnUpdateRequireHealthy, sc.OnUpdate)
+	})
+
+	t.Run("check name set", func(t *testing.T) {
+		sc := &ServiceCheck{
+			Name: "Some Check",
+		}
+		sc.Canonicalize("MyService")
+		must.Eq(t, "Some Check", sc.Name)
+	})
+
+	t.Run("on_update is set", func(t *testing.T) {
+		sc := &ServiceCheck{
+			OnUpdate: OnUpdateIgnore,
+		}
+		sc.Canonicalize("MyService")
+		must.Eq(t, OnUpdateIgnore, sc.OnUpdate)
+	})
+}
+
 func TestServiceCheck_validate_PassingTypes(t *testing.T) {
 	ci.Parallel(t)
 
@@ -268,7 +303,17 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Path:     "/health",
 				Method:   "HEAD",
 			},
-			exp: `http checks may only use GET method in Nomad services`,
+		},
+		{
+			name: "http unknown method type",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Method:   "Invalid",
+			},
+			exp: `method type "Invalid" not supported in Nomad http check`,
 		},
 		{
 			name: "http with headers",

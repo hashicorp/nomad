@@ -200,6 +200,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 		sc.Args = nil
 	}
 
+	// Ensure empty slices are nil
 	if len(sc.Header) == 0 {
 		sc.Header = nil
 	} else {
@@ -210,10 +211,12 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 		}
 	}
 
+	// Ensure a default name for the check
 	if sc.Name == "" {
 		sc.Name = fmt.Sprintf("service: %q check", serviceName)
 	}
 
+	// Ensure OnUpdate defaults to require_healthy (i.e. healthiness check)
 	if sc.OnUpdate == "" {
 		sc.OnUpdate = OnUpdateRequireHealthy
 	}
@@ -344,15 +347,16 @@ func (sc *ServiceCheck) validateNomad() error {
 	}
 
 	if sc.Type == "http" {
-		if sc.Method != "" && sc.Method != "GET" {
-			// unset turns into GET
-			return fmt.Errorf("http checks may only use GET method in Nomad services")
+		if sc.Method != "" && !helper.IsMethodHTTP(sc.Method) {
+			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
 		}
 
+		// todo(shoenig) support headers
 		if len(sc.Header) > 0 {
 			return fmt.Errorf("http checks may not set headers in Nomad services")
 		}
 
+		// todo(shoenig) support body
 		if len(sc.Body) > 0 {
 			return fmt.Errorf("http checks may not set Body in Nomad services")
 		}
