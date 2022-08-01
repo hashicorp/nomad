@@ -859,4 +859,100 @@ module('Unit | Ability | variable', function (hooks) {
       );
     });
   });
+
+  module('#allPaths', function () {
+    test('it filters by namespace and shows all matching paths on the namespace', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
+                  },
+                },
+                {
+                  Name: 'bar',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [
+                      { Capabilities: ['read', 'write'], PathSpec: 'foo' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.namespace = 'bar';
+
+      const allPaths = this.ability.allPaths;
+
+      assert.deepEqual(
+        allPaths,
+        [
+          {
+            capabilities: ['read', 'write'],
+            name: 'foo',
+          },
+        ],
+        'It should return the exact path match.'
+      );
+    });
+
+    test('it matches on default if no namespace is selected', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
+                  },
+                },
+                {
+                  Name: 'bar',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [
+                      { Capabilities: ['read', 'write'], PathSpec: 'foo' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.namespace = undefined;
+
+      const allPaths = this.ability.allPaths;
+
+      assert.deepEqual(
+        allPaths,
+        [
+          {
+            capabilities: ['write'],
+            name: 'foo',
+          },
+        ],
+        'It should return the exact path match.'
+      );
+    });
+  });
 });

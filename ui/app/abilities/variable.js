@@ -61,15 +61,12 @@ export default class Variable extends AbstractAbility {
       ?.capabilities?.includes('destroy');
   }
 
-  @computed('token.selfTokenPolicies.[]', '_namespace')
+  @computed('token.selfTokenPolicies.[]', 'namespace')
   get allPaths() {
     return (get(this, 'token.selfTokenPolicies') || [])
       .toArray()
       .reduce((paths, policy) => {
-        const matchingNamespace = this._findMatchingNamespace(
-          get(policy, 'rulesJSON.Namespaces') || [],
-          this._namespace
-        );
+        const matchingNamespace = this.namespace ?? 'default';
 
         const variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
           (namespace) => namespace.Name === matchingNamespace

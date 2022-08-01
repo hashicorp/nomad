@@ -62,6 +62,11 @@ module('Acceptance | secure variables', function (hooks) {
     defaultScenario(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
+    server.db.variables.update({ namespace: 'default' });
+    const policy = server.db.policies.find('Variable Maker');
+    policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
+      (path) => path.PathSpec === '*'
+    ).Capabilities = ['list', 'read', 'destroy'];
 
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
@@ -480,6 +485,7 @@ module('Acceptance | secure variables', function (hooks) {
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'write'];
+      server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up
@@ -559,6 +565,7 @@ module('Acceptance | secure variables', function (hooks) {
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'destroy'];
+      server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up
