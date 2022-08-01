@@ -104,13 +104,13 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 		"plugins", config.runner.Alloc().ID)
 
 	// In v1.3.0, Nomad started instructing CSI plugins to stage and publish
-	// within /csi/local. Plugins deployed after the introduction of
-	// StagePublishDir default to StagePublishDir = /csi/local. However,
+	// within /local/csi. Plugins deployed after the introduction of
+	// StagePublishBaseDir default to StagePublishBaseDir = /local/csi. However,
 	// plugins deployed between v1.3.0 and the introduction of
-	// StagePublishDir have StagePublishDir = "". Default to /csi/local here
+	// StagePublishBaseDir have StagePublishBaseDir = "". Default to /local/csi here
 	// to avoid breaking plugins that aren't redeployed.
-	if task.CSIPluginConfig.StagePublishDir == "" {
-		task.CSIPluginConfig.StagePublishDir = filepath.Join("/local", "csi")
+	if task.CSIPluginConfig.StagePublishBaseDir == "" {
+		task.CSIPluginConfig.StagePublishBaseDir = filepath.Join("/local", "csi")
 	}
 
 	if task.CSIPluginConfig.HealthTimeout == 0 {
@@ -167,12 +167,11 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 	// where the staging and per-alloc directories will be mounted
 	volumeStagingMounts := &drivers.MountConfig{
-		TaskPath:        h.task.CSIPluginConfig.StagePublishDir,
+		TaskPath:        h.task.CSIPluginConfig.StagePublishBaseDir,
 		HostPath:        h.mountPoint,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
 	}
-	h.logger.Info("", "volumeStagingMounts", volumeStagingMounts) // TODO: Remove this before merge.
 	// devices from the host
 	devMount := &drivers.MountConfig{
 		TaskPath: "/dev",
@@ -370,7 +369,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(client csi.CSIPlugin, socketPat
 			Options: map[string]string{
 				"Provider":            info.Name, // vendor name
 				"MountPoint":          h.mountPoint,
-				"ContainerMountPoint": h.task.CSIPluginConfig.StagePublishDir,
+				"ContainerMountPoint": h.task.CSIPluginConfig.StagePublishBaseDir,
 			},
 		}
 	}
