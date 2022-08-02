@@ -2921,7 +2921,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						TaggedAddresses: map[string]string{
 							"wan": "1.2.3.4",
 						},
-						OnUpdate: "require_healthy",
+						OnUpdate: structs.OnUpdateRequireHealthy,
 						Checks: []*structs.ServiceCheck{
 							{
 								Name:          "bar",
@@ -2945,7 +2945,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName:               "task1",
-								OnUpdate:               "require_healthy",
+								OnUpdate:               structs.OnUpdateRequireHealthy,
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
 							},
@@ -3015,7 +3015,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
-								OnUpdate: "require_healthy",
+								OnUpdate: structs.OnUpdateRequireHealthy,
 								Checks: []*structs.ServiceCheck{
 									{
 										Name:                   "bar",
@@ -3038,7 +3038,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
 										},
-										OnUpdate: "require_healthy",
+										OnUpdate: structs.OnUpdateRequireHealthy,
 									},
 									{
 										Name:      "check2",
@@ -3050,7 +3050,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Limit: 4,
 											Grace: 11 * time.Second,
 										},
-										OnUpdate: "require_healthy",
+										OnUpdate: structs.OnUpdateRequireHealthy,
 									},
 								},
 							},

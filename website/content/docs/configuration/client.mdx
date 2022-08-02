@@ -206,9 +206,12 @@ chroot as doing so would cause infinite recursion.
 
 - `disk` `(int: 0)` - Specifies the amount of disk to reserve, in MB.
 
-- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
-  reserve on all fingerprinted network devices. Ranges can be specified by using
-  a hyphen separated the two inclusive ends.
+- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports
+  to reserve on all fingerprinted network devices. Ranges can be specified by
+  using a hyphen separating the two inclusive ends. See also
+  [`host_network`](#host_network-stanza) for reserving ports on specific host
+  networks.
+
 
 ### `artifact` Parameters
 
@@ -396,8 +399,10 @@ client {
 - `interface` `(string: "")` - Filters searching of addresses to a specific interface.
 
 - `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
-  reserve on all fingerprinted network devices. Ranges can be specified by using
+  reserve on all addresses associated with this network. Ranges can be specified by using
   a hyphen separating the two inclusive ends.
+  [`reserved.reserved_ports`](#reserved_ports) are also reserved on each host
+  network.
 
 ## `client` Examples
 

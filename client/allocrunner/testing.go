@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
@@ -67,12 +68,14 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 	consulRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
 	nomadRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
 
+	stateDB := new(state.NoopDB)
+
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
 		Alloc:              alloc.Copy(),
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
-		StateDB:            state.NoopDB{},
+		StateDB:            stateDB,
 		Consul:             consulRegMock,
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		Vault:              vaultclient.NewMockVaultClient(),
@@ -84,6 +87,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		CpusetManager:      new(cgutil.NoopCpusetManager),
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
+		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
 		Getter:             getter.TestDefaultGetter(t),
 	}
 

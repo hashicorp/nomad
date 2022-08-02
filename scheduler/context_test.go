@@ -435,7 +435,7 @@ func TestPortCollisionEvent_Copy(t *testing.T) {
 	evCopy.Allocations = append(evCopy.Allocations, mock.Alloc())
 	require.NotEqual(t, ev.Allocations, evCopy.Allocations)
 
-	evCopy.NetIndex.AddReservedPortRange("1000-2000")
+	evCopy.NetIndex.AddAllocs(evCopy.Allocations)
 	require.NotEqual(t, ev.NetIndex, evCopy.NetIndex)
 }
 

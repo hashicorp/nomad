@@ -1,11 +1,11 @@
 package base
 
 import (
+	"context"
 	"fmt"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"golang.org/x/net/context"
 )
 
 // basePluginServer wraps a base plugin and exposes it via gRPC.

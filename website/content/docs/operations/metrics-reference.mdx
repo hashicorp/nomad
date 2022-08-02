@@ -133,7 +133,7 @@ configuration block.
 Please see the [agent configuration](/docs/configuration/telemetry)
 page for more details.
 
-As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized) and
+Additional labels are emitted for [parameterized](/docs/job-specification/parameterized) and
 [periodic](/docs/job-specification/parameterized) jobs. Nomad
 emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
 and `periodic_id` are emitted, containing the ID of the specific invocation of the
@@ -155,9 +155,9 @@ Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 | `nomad.client.allocated.cpu`            | Total amount of CPU shares the scheduler has allocated to tasks                     | Mhz        | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated.memory`         | Total amount of memory the scheduler has allocated to tasks                         | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated_disk`           | Total amount of disk space the scheduler has allocated to tasks                     | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.blocked`      | Number of allocations blocked                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.migrating`    | Number of allocations migrating                                                     | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.allocations.pending`      | Number of allocations pending                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.blocked`      | Number of allocations waiting for previous versions to exit                         | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.migrating`    | Number of allocations migrating data from previous versions (see [`sticky`][sticky])| Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.allocations.pending`      | Number of allocations pending (received by the client but not yet running)          | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.running`      | Number of allocations running                                                       | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.start`        | Number of allocations starting                                                      | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocations.terminal`     | Number of allocations terminal                                                      | Integer    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
@@ -258,9 +258,9 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.blocked_evals.memory`                   | Amount of memory requested by blocked evals                                    | Integer              | Gauge   | datacenter, host, node_class                            |
 | `nomad.nomad.blocked_evals.job.cpu`                  | Amount of CPU shares requested by blocked evals of a job                       | Integer              | Gauge   | host, job, namespace                                    |
 | `nomad.nomad.blocked_evals.job.memory`               | Amount of memory requested by blocked evals of a job                           | Integer              | Gauge   | host, job, namespace                                    |
-| `nomad.nomad.blocked_evals.total_blocked`            | Count of evals in the blocked state                                            | Integer              | Gauge   | host                                                    |
+| `nomad.nomad.blocked_evals.total_blocked`            | Count of evals in the blocked state for any reason (cluster resource exhaustion or quota limtis) | Integer | Gauge | host |
 | `nomad.nomad.blocked_evals.total_escaped`            | Count of evals that have escaped computed node classes. This indicates a scheduler optimization was skipped and is not usually a source of concern. | Integer | Gauge | host |
-| `nomad.nomad.blocked_evals.total_quota_limit`        | Count of blocked evals due to quota limits                                     | Integer              | Gauge   | host                                                    |
+| `nomad.nomad.blocked_evals.total_quota_limit`        | Count of blocked evals due to quota limits (the resources for these jobs are *not* counted in other blocked_evals metrics) | Integer | Gauge | host |
 | `nomad.nomad.broker.batch_ready`                     | Count of batch evals ready to be scheduled                                     | Integer              | Gauge   | host                                                    |
 | `nomad.nomad.broker.batch_unacked`                   | Count of unacknowledged batch evals                                            | Integer              | Gauge   | host                                                    |
 | `nomad.nomad.broker.eval_waiting`                    | Time elapsed with evaluation waiting to be enqueued                            | Nanoseconds          | Gauge   | eval_id, job, namespace                                 |
@@ -394,6 +394,7 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.plan.apply`                             | Time elapsed to apply a plan                                                   | Nanoseconds          | Summary | host                                                    |
 | `nomad.nomad.plan.evaluate`                          | Time elapsed to evaluate a plan                                                | Nanoseconds          | Summary | host                                                    |
 | `nomad.nomad.plan.node_rejected`                     | Number of times a node has had a plan rejected                                 | Integer              | Counter | host, node_id                                           |
+| `nomad.nomad.plan.rejection_tracker.node_score`      | Number of times a node has had a plan rejected within the tracker window       | Integer              | Gauge   | host, node_id                                           |
 | `nomad.nomad.plan.queue_depth`                       | Count of evals in the plan queue                                               | Integer              | Gauge   | host                                                    |
 | `nomad.nomad.plan.submit`                            | Time elapsed for `Plan.Submit` RPC call                                        | Nanoseconds          | Summary | host                                                    |
 | `nomad.nomad.plan.wait_for_index`                    | Time elapsed that planner waits for the raft index of the plan to be processed | Nanoseconds          | Summary | host                                                    |
@@ -479,5 +480,14 @@ Raft database metrics are emitted by the `raft-boltdb` library.
 | `nomad.raft.boltdb.txstats.write`         | Count of total write operations           | Integer     | Counter |
 | `nomad.raft.boltdb.txstats.writeTime`     | Sample of write operation times           | Nanoseconds | Summary |
 
+## Agent Metrics
+
+Agent metrics are emitted by all Nomad agents running in either client or server mode.
+
+| Metric                                    | Description                                           | Unit        | Type    |
+| ----------------------------------------- | ----------------------------------------------------- | ----------- | ------- |
+| `nomad.agent.http.exceeded`               | Count of HTTP connections exceeding concurrency limit | Integer     | Counter |
+
 [tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
+[sticky]: /docs/job-specification/ephemeral_disk#sticky
 [s_port_plan_failure]: /s/port-plan-failure

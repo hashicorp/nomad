@@ -204,6 +204,22 @@ type Config struct {
 	// must be to be collected by GC.
 	ACLTokenExpirationGCThreshold time.Duration
 
+	// RootKeyGCInterval is how often we dispatch a job to GC
+	// encryption key metadata
+	RootKeyGCInterval time.Duration
+
+	// RootKeyGCThreshold is how "old" encryption key metadata must be
+	// to be eligible for GC.
+	RootKeyGCThreshold time.Duration
+
+	// RootKeyRotationThreshold is how "old" an active key can be
+	// before it's rotated
+	RootKeyRotationThreshold time.Duration
+
+	// SecureVariablesRekeyInterval is how often we dispatch a job to
+	// rekey any variables associated with a key in the Rekeying state
+	SecureVariablesRekeyInterval time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -239,6 +255,17 @@ type Config struct {
 	// the baseline in which to wait before retrying a failed evaluation. The
 	// additional delay is selected from this range randomly.
 	EvalFailedFollowupDelayRange time.Duration
+
+	// NodePlanRejectionEnabled controls if node rejection tracker is enabled.
+	NodePlanRejectionEnabled bool
+
+	// NodePlanRejectionThreshold is the number of times a node must have a
+	// plan rejection before it is set as ineligible.
+	NodePlanRejectionThreshold int
+
+	// NodePlanRejectionWindow is the time window used to track plan
+	// rejections for nodes.
+	NodePlanRejectionWindow time.Duration
 
 	// MinHeartbeatTTL is the minimum time between heartbeats.
 	// This is used as a floor to prevent excessive updates.
@@ -403,6 +430,10 @@ func DefaultConfig() *Config {
 		OneTimeTokenGCInterval:           10 * time.Minute,
 		ACLTokenExpirationGCInterval:     5 * time.Minute,
 		ACLTokenExpirationGCThreshold:    1 * time.Hour,
+		RootKeyGCInterval:                10 * time.Minute,
+		RootKeyGCThreshold:               1 * time.Hour,
+		RootKeyRotationThreshold:         720 * time.Hour, // 30 days
+		SecureVariablesRekeyInterval:     10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -413,6 +444,9 @@ func DefaultConfig() *Config {
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,
 		FailoverHeartbeatTTL:             300 * time.Second,
+		NodePlanRejectionEnabled:         false,
+		NodePlanRejectionThreshold:       15,
+		NodePlanRejectionWindow:          10 * time.Minute,
 		ConsulConfig:                     config.DefaultConsulConfig(),
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,

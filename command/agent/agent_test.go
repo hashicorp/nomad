@@ -9,15 +9,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -362,6 +364,82 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 			serverConf, err := convertServerConfig(conf)
 			assert.NoError(t, err)
 			require.NotNil(t, serverConf)
+		})
+	}
+}
+
+func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		trackerConfig  *PlanRejectionTracker
+		expectedConfig *PlanRejectionTracker
+		expectedErr    string
+	}{
+		{
+			name:          "default",
+			trackerConfig: nil,
+			expectedConfig: &PlanRejectionTracker{
+				NodeThreshold: 100,
+				NodeWindow:    5 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "valid config",
+			trackerConfig: &PlanRejectionTracker{
+				Enabled:       helper.BoolToPtr(true),
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedConfig: &PlanRejectionTracker{
+				Enabled:       helper.BoolToPtr(true),
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "invalid node window",
+			trackerConfig: &PlanRejectionTracker{
+				NodeThreshold: 123,
+			},
+			expectedErr: "node_window must be greater than 0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := DevConfig(nil)
+			require.NoError(t, config.normalizeAddrs())
+
+			if tc.trackerConfig != nil {
+				config.Server.PlanRejectionTracker = tc.trackerConfig
+			}
+
+			serverConfig, err := convertServerConfig(config)
+
+			if tc.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				if tc.expectedConfig.Enabled != nil {
+					require.Equal(t,
+						*tc.expectedConfig.Enabled,
+						serverConfig.NodePlanRejectionEnabled,
+					)
+				}
+				require.Equal(t,
+					tc.expectedConfig.NodeThreshold,
+					serverConfig.NodePlanRejectionThreshold,
+				)
+				require.Equal(t,
+					tc.expectedConfig.NodeWindow,
+					serverConfig.NodePlanRejectionWindow,
+				)
+			}
 		})
 	}
 }
@@ -1345,10 +1423,17 @@ func TestAgent_ProxyRPC_Dev(t *testing.T) {
 		},
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	testutil.WaitForResultUntil(time.Second,
+		func() (bool, error) {
+			var resp cstructs.ClientStatsResponse
+			err := agent.RPC("ClientStats.Stats", req, &resp)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf("was unable to read ClientStats.Stats RPC: %v", err)
+		})
 
-	var resp cstructs.ClientStatsResponse
-	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
 }

@@ -835,6 +835,34 @@ export default function () {
       return {};
     }
   );
+
+  //#region Secure Variables
+
+  this.get('/vars', function (schema) {
+    return schema.variables.all();
+  });
+
+  this.get('/var/:id', function ({ variables }, { params }) {
+    return variables.find(params.id);
+  });
+
+  this.put('/var/:id', function (schema, request) {
+    const { Path, Namespace, Items } = JSON.parse(request.requestBody);
+    return server.create('variable', {
+      Path,
+      Namespace,
+      Items,
+      id: Path,
+    });
+  });
+
+  this.delete('/var/:id', function (schema, request) {
+    const { id } = request.params;
+    server.db.variables.remove(id);
+    return okEmpty();
+  });
+
+  //#endregion Secure Variables
 }
 
 function filterKeys(object, ...keys) {

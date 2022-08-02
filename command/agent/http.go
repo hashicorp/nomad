@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armon/go-metrics"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
@@ -22,6 +23,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/noxssrw"
@@ -57,13 +59,16 @@ var (
 	// tag isn't enabled
 	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
 
-	// allowCORS sets permissive CORS headers for a handler
-	allowCORS = cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"HEAD", "GET"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-	})
+	// allowCORSWithMethods sets permissive CORS headers for a handler, used by
+	// wrapCORS and wrapCORSWithMethods
+	allowCORSWithMethods = func(methods ...string) *cors.Cors {
+		return cors.New(cors.Options{
+			AllowedOrigins:   []string{"*"},
+			AllowedMethods:   methods,
+			AllowedHeaders:   []string{"*"},
+			AllowCredentials: true,
+		})
+	}
 )
 
 type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
@@ -153,7 +158,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		httpServer := http.Server{
 			Addr:      srv.Addr,
 			Handler:   handlers.CompressHandler(srv.mux),
-			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
 
@@ -210,13 +215,12 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 //
 // If limit > 0, a per-address connection limit will be enabled regardless of
 // TLS. If connLimit == 0 there is no connection limit.
-func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) func(conn net.Conn, state http.ConnState) {
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+	connLimiter := connLimiter(connLimit, logger)
 	if !isTLS || handshakeTimeout == 0 {
 		if connLimit > 0 {
 			// Still return the connection limiter
-			return connlimit.NewLimiter(connlimit.Config{
-				MaxConnsPerClientIP: connLimit,
-			}).HTTPConnStateFunc()
+			return connLimiter
 		}
 		return nil
 	}
@@ -224,9 +228,6 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 	if connLimit > 0 {
 		// Return conn state callback with connection limiting and a
 		// handshake timeout.
-		connLimiter := connlimit.NewLimiter(connlimit.Config{
-			MaxConnsPerClientIP: connLimit,
-		}).HTTPConnStateFunc()
 
 		return func(conn net.Conn, state http.ConnState) {
 			switch state {
@@ -263,6 +264,35 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 			conn.SetDeadline(time.Time{})
 		}
 	}
+}
+
+// connLimiter returns a connection-limiter function with a rate-limited 429-response error handler.
+// The rate-limit prevents the TLS handshake necessary to write the HTTP response
+// from consuming too many server resources.
+func connLimiter(connLimit int, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+	// Global rate-limit of 10 responses per second with a 100-response burst.
+	limiter := rate.NewLimiter(10, 100)
+
+	tooManyConnsMsg := "Your IP is issuing too many concurrent connections, please rate limit your calls\n"
+	tooManyRequestsResponse := []byte(fmt.Sprintf("HTTP/1.1 429 Too Many Requests\r\n"+
+		"Content-Type: text/plain\r\n"+
+		"Content-Length: %d\r\n"+
+		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg))
+	return connlimit.NewLimiter(connlimit.Config{
+		MaxConnsPerClientIP: connLimit,
+	}).HTTPConnStateFuncWithErrorHandler(func(err error, conn net.Conn) {
+		if err == connlimit.ErrPerClientIPLimitReached {
+			metrics.IncrCounter([]string{"nomad", "agent", "http", "exceeded"}, 1)
+			if n := limiter.Reserve(); n.Delay() == 0 {
+				logger.Warn("Too many concurrent connections", "address", conn.RemoteAddr().String(), "limit", connLimit)
+				conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+				conn.Write(tooManyRequestsResponse)
+			} else {
+				n.Cancel()
+			}
+		}
+		conn.Close()
+	})
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
@@ -394,9 +424,9 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search/fuzzy", s.wrap(s.FuzzySearchRequest))
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
-
 	s.mux.HandleFunc("/v1/operator/license", s.wrap(s.LicenseRequest))
 	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/keyring/", s.wrap(s.KeyringRequest))
 	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
 	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 	s.mux.HandleFunc("/v1/operator/snapshot", s.wrap(s.SnapshotRequest))
@@ -407,9 +437,13 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
 	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
+
 	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+
+	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.SecureVariablesListRequest)))
+	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.SecureVariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
 	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
 
@@ -901,7 +935,14 @@ func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
 	}
 }
 
-// wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler
+// wrapCORS wraps a HandlerFunc in allowCORS with read ("HEAD", "GET") methods
+// and returns a http.Handler
 func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
-	return allowCORS.Handler(http.HandlerFunc(f))
+	return wrapCORSWithAllowedMethods(f, "HEAD", "GET")
+}
+
+// wrapCORSWithAllowedMethods wraps a HandlerFunc in an allowCORS with the given
+// method list and returns a http.Handler
+func wrapCORSWithAllowedMethods(f func(http.ResponseWriter, *http.Request), methods ...string) http.Handler {
+	return allowCORSWithMethods(methods...).Handler(http.HandlerFunc(f))
 }

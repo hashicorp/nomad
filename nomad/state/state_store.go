@@ -35,6 +35,17 @@ const (
 )
 
 const (
+	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
+	// is set to ineligible due to multiple plan failures.
+	// This is a preventive measure to signal scheduler workers to not consider
+	// the node for future placements.
+	// Plan rejections for a node are expected due to the optimistic and
+	// concurrent nature of the scheduling process, but repeated failures for
+	// the same node may indicate an underlying issue not detected by Nomad.
+	// The plan applier keeps track of plan rejection history and will mark
+	// nodes as ineligible if they cross a given threshold.
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
+
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
 	NodeRegisterEventRegistered = "Node registered"
@@ -359,6 +370,21 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+
+	// Mark nodes as ineligible.
+	for _, nodeID := range results.IneligibleNodes {
+		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+
+		nodeEvent := structs.NewNodeEvent().
+			SetSubsystem(structs.NodeEventSubsystemScheduler).
+			SetMessage(NodeEligibilityEventPlanRejectThreshold)
+
+		err := s.updateNodeEligibilityImpl(index, nodeID,
+			structs.NodeSchedulingIneligible, results.UpdatedAt, nodeEvent, txn)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
@@ -1137,10 +1163,15 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
 func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
-
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+	if err := s.updateNodeEligibilityImpl(index, nodeID, eligibility, updatedAt, event, txn); err != nil {
+		return err
+	}
+	return txn.Commit()
+}
 
+func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent, txn *txn) error {
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -1177,7 +1208,7 @@ func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index ui
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return txn.Commit()
+	return nil
 }
 
 // UpsertNodeEvents adds the node events to the nodes, rotating events as
@@ -2408,6 +2439,11 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 // CSIVolumesByNamespace looks up the entire csi_volumes table
 func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
+
+	return s.csiVolumesByNamespaceImpl(txn, ws, namespace, prefix)
+}
+
+func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 
 	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
 	if err != nil {
@@ -5821,11 +5857,11 @@ func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // ExpireOneTimeTokens deletes tokens that have expired
-func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64) error {
+func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64, timestamp time.Time) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	iter, err := s.oneTimeTokensExpiredTxn(txn, nil)
+	iter, err := s.oneTimeTokensExpiredTxn(txn, nil, timestamp)
 	if err != nil {
 		return err
 	}
@@ -5856,14 +5892,14 @@ func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
-func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet, timestamp time.Time) (memdb.ResultIterator, error) {
 	iter, err := txn.Get("one_time_token", "id")
 	if err != nil {
 		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
-	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(timestamp))
 	return iter, nil
 }
 
@@ -6305,6 +6341,28 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 			}
 		}
 
+		vIter, err := s.csiVolumesByNamespaceImpl(txn, nil, name, "")
+		if err != nil {
+			return err
+		}
+		rawVol := vIter.Next()
+		if rawVol != nil {
+			vol := rawVol.(*structs.CSIVolume)
+			return fmt.Errorf("namespace %q contains at least one CSI volume %q. "+
+				"All CSI volumes in namespace must be deleted before it can be deleted", name, vol.ID)
+		}
+
+		varIter, err := s.getSecureVariablesByNamespaceImpl(txn, nil, name)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			// unlike job/volume, don't show the path here because the user may
+			// not have List permissions on the secure vars in this namespace
+			return fmt.Errorf("namespace %q contains at least one secure variable. "+
+				"All secure variables in namespace must be deleted before it can be deleted", name)
+		}
+
 		// Delete the namespace
 		if err := txn.Delete(TableNamespaces, existing); err != nil {
 			return fmt.Errorf("namespace deletion failed: %v", err)
@@ -6626,4 +6684,163 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 
 func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
+}
+
+// UpsertRootKeyMeta saves root key meta or updates it in-place.
+func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta, rekey bool) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// get any existing key for updating
+	raw, err := txn.First(TableRootKeyMeta, indexID, rootKeyMeta.KeyID)
+	if err != nil {
+		return fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+
+	isRotation := false
+
+	if raw != nil {
+		existing := raw.(*structs.RootKeyMeta)
+		rootKeyMeta.CreateIndex = existing.CreateIndex
+		rootKeyMeta.CreateTime = existing.CreateTime
+		isRotation = !existing.Active() && rootKeyMeta.Active()
+	} else {
+		rootKeyMeta.CreateIndex = index
+		isRotation = rootKeyMeta.Active()
+	}
+	rootKeyMeta.ModifyIndex = index
+
+	if rekey && !isRotation {
+		return fmt.Errorf("cannot rekey without setting the new key active")
+	}
+
+	// if the upsert is for a newly-active key, we need to set all the
+	// other keys as inactive in the same transaction.
+	if isRotation {
+		iter, err := txn.Get(TableRootKeyMeta, indexID)
+		if err != nil {
+			return err
+		}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			key := raw.(*structs.RootKeyMeta)
+			modified := false
+
+			switch key.State {
+			case structs.RootKeyStateInactive:
+				if rekey {
+					key.SetRekeying()
+					modified = true
+				}
+			case structs.RootKeyStateActive:
+				if rekey {
+					key.SetRekeying()
+				} else {
+					key.SetInactive()
+				}
+				modified = true
+			case structs.RootKeyStateRekeying, structs.RootKeyStateDeprecated:
+				// nothing to do
+			}
+
+			if modified {
+				key.ModifyIndex = index
+				if err := txn.Insert(TableRootKeyMeta, key); err != nil {
+					return err
+				}
+			}
+
+		}
+	}
+
+	if err := txn.Insert(TableRootKeyMeta, rootKeyMeta); err != nil {
+		return err
+	}
+
+	// update the indexes table
+	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+// DeleteRootKeyMeta deletes a single root key, or returns an error if
+// it doesn't exist.
+func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// find the old key
+	existing, err := txn.First(TableRootKeyMeta, indexID, keyID)
+	if err != nil {
+		return fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("root key metadata not found")
+	}
+	if err := txn.Delete(TableRootKeyMeta, existing); err != nil {
+		return fmt.Errorf("root key metadata delete failed: %v", err)
+	}
+
+	// update the indexes table
+	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return txn.Commit()
+}
+
+// RootKeyMetas returns an iterator over all root key metadata
+func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// RootKeyMetaByID returns a specific root key meta
+func (s *StateStore) RootKeyMetaByID(ws memdb.WatchSet, id string) (*structs.RootKeyMeta, error) {
+	txn := s.db.ReadTxn()
+
+	watchCh, raw, err := txn.FirstWatch(TableRootKeyMeta, indexID, id)
+	if err != nil {
+		return nil, fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if raw != nil {
+		return raw.(*structs.RootKeyMeta), nil
+	}
+	return nil, nil
+}
+
+// GetActiveRootKeyMeta returns the metadata for the currently active root key
+func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMeta, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		key := raw.(*structs.RootKeyMeta)
+		if key.Active() {
+			return key, nil
+		}
+	}
+	return nil, nil
 }

@@ -24,8 +24,8 @@ type BlockedStats struct {
 	BlockedResources *BlockedResourcesStats
 }
 
-// node stores information related to nodes.
-type node struct {
+// classInDC is a coordinate of a specific class in a specific datacenter
+type classInDC struct {
 	dc    string
 	class string
 }
@@ -65,9 +65,9 @@ func (b *BlockedStats) prune(cutoff time.Time) {
 		}
 	}
 
-	for k, v := range b.BlockedResources.ByNode {
+	for k, v := range b.BlockedResources.ByClassInDC {
 		if shouldPrune(v) {
-			delete(b.BlockedResources.ByNode, k)
+			delete(b.BlockedResources.ByClassInDC, k)
 		}
 	}
 }
@@ -89,6 +89,10 @@ func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 		for class := range allocMetrics.ClassExhausted {
 			classes[class] = struct{}{}
 		}
+		if len(allocMetrics.ClassExhausted) == 0 {
+			// some evaluations have no class
+			classes[""] = struct{}{}
+		}
 		for _, r := range allocMetrics.ResourcesExhausted {
 			resources.CPU += r.CPU
 			resources.MemoryMB += r.MemoryMB
@@ -99,32 +103,32 @@ func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 	nsID := structs.NewNamespacedID(eval.JobID, eval.Namespace)
 	byJob[nsID] = resources
 
-	byNodeInfo := make(map[node]BlockedResourcesSummary)
+	byClassInDC := make(map[classInDC]BlockedResourcesSummary)
 	for dc := range dcs {
 		for class := range classes {
-			k := node{dc: dc, class: class}
-			byNodeInfo[k] = resources
+			k := classInDC{dc: dc, class: class}
+			byClassInDC[k] = resources
 		}
 	}
 
 	return &BlockedResourcesStats{
-		ByJob:  byJob,
-		ByNode: byNodeInfo,
+		ByJob:       byJob,
+		ByClassInDC: byClassInDC,
 	}
 }
 
 // BlockedResourcesStats stores resources requested by blocked evaluations,
 // tracked both by job and by node.
 type BlockedResourcesStats struct {
-	ByJob  map[structs.NamespacedID]BlockedResourcesSummary
-	ByNode map[node]BlockedResourcesSummary
+	ByJob       map[structs.NamespacedID]BlockedResourcesSummary
+	ByClassInDC map[classInDC]BlockedResourcesSummary
 }
 
 // NewBlockedResourcesStats returns a new BlockedResourcesStats.
 func NewBlockedResourcesStats() *BlockedResourcesStats {
 	return &BlockedResourcesStats{
-		ByJob:  make(map[structs.NamespacedID]BlockedResourcesSummary),
-		ByNode: make(map[node]BlockedResourcesSummary),
+		ByJob:       make(map[structs.NamespacedID]BlockedResourcesSummary),
+		ByClassInDC: make(map[classInDC]BlockedResourcesSummary),
 	}
 }
 
@@ -136,8 +140,8 @@ func (b *BlockedResourcesStats) Copy() *BlockedResourcesStats {
 		result.ByJob[k] = v // value copy
 	}
 
-	for k, v := range b.ByNode {
-		result.ByNode[k] = v // value copy
+	for k, v := range b.ByClassInDC {
+		result.ByClassInDC[k] = v // value copy
 	}
 
 	return result
@@ -152,8 +156,8 @@ func (b *BlockedResourcesStats) Add(a *BlockedResourcesStats) *BlockedResourcesS
 		result.ByJob[k] = b.ByJob[k].Add(v)
 	}
 
-	for k, v := range a.ByNode {
-		result.ByNode[k] = b.ByNode[k].Add(v)
+	for k, v := range a.ByClassInDC {
+		result.ByClassInDC[k] = b.ByClassInDC[k].Add(v)
 	}
 
 	return result
@@ -168,8 +172,8 @@ func (b *BlockedResourcesStats) Subtract(a *BlockedResourcesStats) *BlockedResou
 		result.ByJob[k] = b.ByJob[k].Subtract(v)
 	}
 
-	for k, v := range a.ByNode {
-		result.ByNode[k] = b.ByNode[k].Subtract(v)
+	for k, v := range a.ByClassInDC {
+		result.ByClassInDC[k] = b.ByClassInDC[k].Subtract(v)
 	}
 
 	return result

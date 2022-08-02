@@ -161,6 +161,7 @@
       "server_serf_check_name": "nomad-server-serf-health-check",
       "server_service_name": "nomad",
       "ssl": true,
+      "timeout": "5s",
       "token": "token1",
       "verify_ssl": true
     }
@@ -280,6 +281,11 @@
       "node_gc_threshold": "12h",
       "non_voting_server": true,
       "num_schedulers": 2,
+      "plan_rejection_tracker": {
+        "enabled": true,
+        "node_threshold": 100,
+        "node_window": "41m"
+      },
       "raft_protocol": 3,
       "raft_multiplier": 4,
       "redundancy_zone": "foo",

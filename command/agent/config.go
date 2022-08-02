@@ -20,6 +20,7 @@ import (
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -447,6 +448,19 @@ type ServerConfig struct {
 	// be collected by GC.
 	ACLTokenGCThreshold string `hcl:"acl_token_gc_threshold"`
 
+	// RootKeyGCInterval is how often we dispatch a job to GC
+	// encryption key metadata
+	RootKeyGCInterval string `hcl:"root_key_gc_interval"`
+
+	// RootKeyGCThreshold is how "old" encryption key metadata must be
+	// to be eligible for GC.
+	RootKeyGCThreshold string `hcl:"root_key_gc_threshold"`
+
+	// RootKeyRotationThreshold is how "old" an encryption key must be
+	// before it is automatically rotated on the next garbage
+	// collection interval.
+	RootKeyRotationThreshold string `hcl:"root_key_rotation_threshold"`
+
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
 	HeartbeatGrace    time.Duration
@@ -519,6 +533,10 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// PlanRejectionTracker configures the node plan rejection tracker that
+	// detects potentially bad nodes.
+	PlanRejectionTracker *PlanRejectionTracker `hcl:"plan_rejection_tracker"`
+
 	// EnableEventBroker configures whether this server's state store
 	// will generate events for its event stream.
 	EnableEventBroker *bool `hcl:"enable_event_broker"`
@@ -562,6 +580,53 @@ type RaftBoltConfig struct {
 	//
 	// Default: false.
 	NoFreelistSync bool `hcl:"no_freelist_sync"`
+}
+
+// PlanRejectionTracker is used in servers to configure the plan rejection
+// tracker.
+type PlanRejectionTracker struct {
+	// Enabled controls if the plan rejection tracker is active or not.
+	Enabled *bool `hcl:"enabled"`
+
+	// NodeThreshold is the number of times a node can have plan rejections
+	// before it is marked as ineligible.
+	NodeThreshold int `hcl:"node_threshold"`
+
+	// NodeWindow is the time window used to track active plan rejections for
+	// nodes.
+	NodeWindow    time.Duration
+	NodeWindowHCL string `hcl:"node_window" json:"-"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (p *PlanRejectionTracker) Merge(b *PlanRejectionTracker) *PlanRejectionTracker {
+	if p == nil {
+		return b
+	}
+
+	result := *p
+
+	if b == nil {
+		return &result
+	}
+
+	if b.Enabled != nil {
+		result.Enabled = b.Enabled
+	}
+
+	if b.NodeThreshold != 0 {
+		result.NodeThreshold = b.NodeThreshold
+	}
+
+	if b.NodeWindow != 0 {
+		result.NodeWindow = b.NodeWindow
+	}
+	if b.NodeWindowHCL != "" {
+		result.NodeWindowHCL = b.NodeWindowHCL
+	}
+	return &result
 }
 
 // Search is used in servers to configure search API options.
@@ -939,6 +1004,7 @@ func DevConfig(mode *devModeConfig) *Config {
 		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 		DisableSandbox:   false,
 	}
+	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
 	conf.Telemetry.PrometheusMetrics = true
@@ -1001,6 +1067,11 @@ func DefaultConfig() *Config {
 			EventBufferSize:   helper.IntToPtr(100),
 			RaftProtocol:      3,
 			StartJoin:         []string{},
+			PlanRejectionTracker: &PlanRejectionTracker{
+				Enabled:       helper.BoolToPtr(false),
+				NodeThreshold: 100,
+				NodeWindow:    5 * time.Minute,
+			},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1557,6 +1628,15 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.ACLTokenGCThreshold != "" {
 		result.ACLTokenGCThreshold = b.ACLTokenGCThreshold
 	}
+	if b.RootKeyGCInterval != "" {
+		result.RootKeyGCInterval = b.RootKeyGCInterval
+	}
+	if b.RootKeyGCThreshold != "" {
+		result.RootKeyGCThreshold = b.RootKeyGCThreshold
+	}
+	if b.RootKeyRotationThreshold != "" {
+		result.RootKeyRotationThreshold = b.RootKeyRotationThreshold
+	}
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
 	}
@@ -1615,6 +1695,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.EventBufferSize != nil {
 		result.EventBufferSize = b.EventBufferSize
+	}
+
+	if b.PlanRejectionTracker != nil {
+		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
 	}
 
 	if b.DefaultSchedulerConfig != nil {

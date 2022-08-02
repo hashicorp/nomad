@@ -189,20 +189,10 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 			},
 		},
 	}
-	collide, reason := idx.SetNode(n)
-	if collide || reason != "" {
-		t.Fatalf("bad")
-	}
-
-	if len(idx.AvailNetworks) != 1 {
-		t.Fatalf("Bad")
-	}
-	if idx.AvailBandwidth["eth0"] != 1000 {
-		t.Fatalf("Bad")
-	}
-	if !idx.UsedPorts["192.168.0.100"].Check(22) {
-		t.Fatalf("Bad")
-	}
+	require.NoError(t, idx.SetNode(n))
+	require.Len(t, idx.TaskNetworks, 1)
+	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
+	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 func TestNetworkIndex_AddAllocs(t *testing.T) {
@@ -327,7 +317,7 @@ func TestNetworkIndex_yieldIP(t *testing.T) {
 	}
 }
 
-func TestNetworkIndex_AssignNetwork(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 	ci.Parallel(t)
 	idx := NewNetworkIndex()
 	n := &Node{
@@ -379,7 +369,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask := &NetworkResource{
 		ReservedPorts: []Port{{"main", 8000, 0, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.101", offer.IP)
@@ -391,7 +381,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, -1, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.100", offer.IP)
@@ -410,7 +400,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 		ReservedPorts: []Port{{"main", 2345, 0, ""}},
 		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.100", offer.IP)
@@ -423,7 +413,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	require.Error(t, err)
 	require.Equal(t, "bandwidth exceeded", err.Error())
 	require.Nil(t, offer)
@@ -431,7 +421,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
-func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a node that only has one free port
@@ -459,7 +449,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	ask := &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -503,23 +493,11 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 			},
 		},
 	}
-	collide, reason := idx.SetNode(n)
-	if collide || reason != "" {
-		t.Fatalf("bad")
-	}
-
-	if len(idx.AvailNetworks) != 1 {
-		t.Fatalf("Bad")
-	}
-	if idx.AvailBandwidth["eth0"] != 1000 {
-		t.Fatalf("Bad")
-	}
-	if idx.UsedBandwidth["eth0"] != 1 {
-		t.Fatalf("Bad")
-	}
-	if !idx.UsedPorts["192.168.0.100"].Check(22) {
-		t.Fatalf("Bad")
-	}
+	require.NoError(t, idx.SetNode(n))
+	require.Len(t, idx.TaskNetworks, 1)
+	require.Equal(t, 1000, idx.AvailBandwidth["eth0"])
+	require.Equal(t, 1, idx.UsedBandwidth["eth0"])
+	require.True(t, idx.UsedPorts["192.168.0.100"].Check(22))
 }
 
 // COMPAT(0.11): Remove in 0.11
@@ -618,7 +596,7 @@ func TestNetworkIndex_yieldIP_Old(t *testing.T) {
 }
 
 // COMPAT(0.11): Remove in 0.11
-func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 	ci.Parallel(t)
 
 	idx := NewNetworkIndex()
@@ -681,7 +659,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask := &NetworkResource{
 		ReservedPorts: []Port{{"main", 8000, 0, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -700,7 +678,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask = &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -724,7 +702,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 		ReservedPorts: []Port{{"main", 2345, 0, ""}},
 		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -744,7 +722,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
-	offer, err = idx.AssignNetwork(ask)
+	offer, err = idx.AssignTaskNetwork(ask)
 	if err.Error() != "bandwidth exceeded" {
 		t.Fatalf("err: %v", err)
 	}
@@ -756,7 +734,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 // COMPAT(0.11): Remove in 0.11
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
-func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
+func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention_Old(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a node that only has one free port
@@ -791,7 +769,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 	ask := &NetworkResource{
 		DynamicPorts: []Port{{"http", 0, 80, ""}},
 	}
-	offer, err := idx.AssignNetwork(ask)
+	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -811,7 +789,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 
 func TestIntContains(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	l := []int{1, 2, 10, 20}
 	if isPortReserved(l, 50) {
 		t.Fatalf("bad")
@@ -822,4 +800,117 @@ func TestIntContains(t *testing.T) {
 	if !isPortReserved(l, 1) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestNetworkIndex_SetNode_HostNets(t *testing.T) {
+	ci.Parallel(t)
+
+	idx := NewNetworkIndex()
+	n := &Node{
+		NodeResources: &NodeResources{
+			Networks: []*NetworkResource{
+				// As of Nomad v1.3 bridge networks get
+				// registered with only their mode set.
+				{
+					Mode: "bridge",
+				},
+
+				// Localhost (agent interface)
+				{
+					CIDR:   "127.0.0.1/32",
+					Device: "lo",
+					IP:     "127.0.0.1",
+					MBits:  1000,
+					Mode:   "host",
+				},
+				{
+					CIDR:   "::1/128",
+					Device: "lo",
+					IP:     "::1",
+					MBits:  1000,
+					Mode:   "host",
+				},
+
+				// Node.NodeResources.Networks does *not*
+				// contain host_networks.
+			},
+			NodeNetworks: []*NodeNetworkResource{
+				// As of Nomad v1.3 bridge networks get
+				// registered with only their mode set.
+				{
+					Mode: "bridge",
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address: "127.0.0.1",
+							Alias:   "default",
+							Family:  "ipv4",
+						},
+						{
+							Address: "::1",
+							Alias:   "default",
+							Family:  "ipv6",
+						},
+					},
+					Device: "lo",
+					Mode:   "host",
+					Speed:  1000,
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address:       "192.168.0.1",
+							Alias:         "eth0",
+							Family:        "ipv4",
+							ReservedPorts: "22",
+						},
+					},
+					Device:     "enxaaaaaaaaaaaa",
+					MacAddress: "aa:aa:aa:aa:aa:aa",
+					Mode:       "host",
+					Speed:      1000,
+				},
+				{
+					Addresses: []NodeNetworkAddress{
+						{
+							Address:       "192.168.1.1",
+							Alias:         "eth1",
+							Family:        "ipv4",
+							ReservedPorts: "80",
+						},
+					},
+					Device:     "enxbbbbbbbbbbbb",
+					MacAddress: "bb:bb:bb:bb:bb:bb",
+					Mode:       "host",
+					Speed:      1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
+	}
+
+	require.NoError(t, idx.SetNode(n))
+
+	// TaskNetworks should only contain the bridge and agent network
+	require.Len(t, idx.TaskNetworks, 2)
+
+	// Ports should be used across all 4 IPs
+	require.Equal(t, 4, len(idx.UsedPorts))
+
+	// 22 should be reserved on all IPs
+	require.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
+	require.True(t, idx.UsedPorts["::1"].Check(22))
+	require.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
+	require.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
+
+	// 80 should only be reserved on eth1's address
+	require.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
+	require.False(t, idx.UsedPorts["::1"].Check(80))
+	require.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
+	require.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
 }

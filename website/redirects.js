@@ -1386,6 +1386,11 @@ module.exports = [
     destination: '/api-docs/:path*',
     permanent: true,
   },
+  {
+    source: '/docs/internals/:path*',
+    destination: '/docs/concepts/:path*',
+    permanent: true,
+  },
 
   // Redirects for exact versioned-docs to respective generic versions
   {

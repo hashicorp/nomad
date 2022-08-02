@@ -75,38 +75,38 @@
     "divider": true
   },
   {
-    "title": "Internals",
+    "title": "Concepts",
     "routes": [
       {
         "title": "Overview",
-        "path": "internals"
+        "path": "concepts"
       },
       {
         "title": "Architecture",
-        "path": "internals/architecture"
+        "path": "concepts/architecture"
       },
       {
         "title": "Plugins",
         "routes": [
           {
             "title": "Overview",
-            "path": "internals/plugins"
+            "path": "concepts/plugins"
           },
           {
             "title": "Base",
-            "path": "internals/plugins/base"
+            "path": "concepts/plugins/base"
           },
           {
             "title": "Task Drivers",
-            "path": "internals/plugins/task-drivers"
+            "path": "concepts/plugins/task-drivers"
           },
           {
             "title": "Devices",
-            "path": "internals/plugins/devices"
+            "path": "concepts/plugins/devices"
           },
           {
             "title": "Storage",
-            "path": "internals/plugins/csi"
+            "path": "concepts/plugins/csi"
           }
         ]
       },
@@ -115,33 +115,33 @@
         "routes": [
           {
             "title": "Overview",
-            "path": "internals/scheduling"
+            "path": "concepts/scheduling"
           },
           {
-            "title": "Internals",
-            "path": "internals/scheduling/scheduling"
+            "title": "Concepts",
+            "path": "concepts/scheduling/scheduling"
           },
           {
             "title": "Preemption",
-            "path": "internals/scheduling/preemption"
+            "path": "concepts/scheduling/preemption"
           }
         ]
       },
       {
         "title": "Consensus Protocol",
-        "path": "internals/consensus"
+        "path": "concepts/consensus"
       },
       {
         "title": "Filesystem",
-        "path": "internals/filesystem"
+        "path": "concepts/filesystem"
       },
       {
         "title": "Gossip Protocol",
-        "path": "internals/gossip"
+        "path": "concepts/gossip"
       },
       {
         "title": "Security Model",
-        "path": "internals/security"
+        "path": "concepts/security"
       }
     ]
   },
@@ -546,16 +546,46 @@
             "path": "commands/operator/api"
           },
           {
-            "title": "autopilot get-config",
-            "path": "commands/operator/autopilot-get-config"
-          },
-          {
-            "title": "autopilot set-config",
-            "path": "commands/operator/autopilot-set-config"
+            "title": "autopilot",
+            "routes": [
+              {
+                "title": "get-config",
+                "path": "commands/operator/autopilot/get-config"
+              },
+              {
+                "title": "set-config",
+                "path": "commands/operator/autopilot/set-config"
+              }
+            ]
           },
           {
             "title": "debug",
             "path": "commands/operator/debug"
+          },
+          {
+            "title": "gossip",
+            "routes": [
+              {
+                "title": "keyring generate",
+                "path": "commands/operator/gossip/keyring-generate"
+              },
+              {
+                "title": "keyring install",
+                "path": "commands/operator/gossip/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/gossip/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/gossip/keyring-remove"
+              },
+              {
+                "title": "keyring use",
+                "path": "commands/operator/gossip/keyring-use"
+              }
+            ]
           },
           {
             "title": "keygen",
@@ -570,52 +600,88 @@
             "path": "commands/operator/metrics"
           },
           {
-            "title": "raft info",
-            "path": "commands/operator/raft-info"
+            "title": "raft",
+            "routes": [
+              {
+                "title": "info",
+                "path": "commands/operator/raft/info"
+              },
+              {
+                "title": "list-peers",
+                "path": "commands/operator/raft/list-peers"
+              },
+              {
+                "title": "logs",
+                "path": "commands/operator/raft/logs"
+              },
+              {
+                "title": "remove-peer",
+                "path": "commands/operator/raft/remove-peer"
+              },
+              {
+                "title": "state",
+                "path": "commands/operator/raft/state"
+              }
+            ]
           },
           {
-            "title": "raft list-peers",
-            "path": "commands/operator/raft-list-peers"
+            "title": "scheduler",
+            "routes": [
+              {
+                "title": "get-config",
+                "path": "commands/operator/scheduler/get-config"
+              },
+              {
+                "title": "set-config",
+                "path": "commands/operator/scheduler/set-config"
+              }
+            ]
           },
           {
-            "title": "raft logs",
-            "path": "commands/operator/raft-logs"
+            "title": "secure-variables",
+            "routes": [
+              {
+                "title": "keyring install",
+                "path": "commands/operator/secure-variables/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/secure-variables/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/secure-variables/keyring-remove"
+              },
+              {
+                "title": "keyring rotate",
+                "path": "commands/operator/secure-variables/keyring-rotate"
+              }
+            ]
           },
           {
-            "title": "raft remove-peer",
-            "path": "commands/operator/raft-remove-peer"
-          },
-          {
-            "title": "raft state",
-            "path": "commands/operator/raft-state"
-          },
-          {
-            "title": "scheduler get-config",
-            "path": "commands/operator/scheduler-get-config"
-          },
-          {
-            "title": "scheduler set-config",
-            "path": "commands/operator/scheduler-set-config"
-          },
-          {
-            "title": "snapshot agent",
-            "path": "commands/operator/snapshot-agent"
-          },
-          {
-            "title": "snapshot inspect",
-            "path": "commands/operator/snapshot-inspect"
-          },
-          {
-            "title": "snapshot restore",
-            "path": "commands/operator/snapshot-restore"
-          },
-          {
-            "title": "snapshot save",
-            "path": "commands/operator/snapshot-save"
-          },
-          {
-            "title": "snapshot state",
-            "path": "commands/operator/snapshot-state"
+            "title": "snapshot",
+            "routes": [
+              {
+                "title": "agent",
+                "path": "commands/operator/snapshot/agent"
+              },
+              {
+                "title": "inspect",
+                "path": "commands/operator/snapshot/inspect"
+              },
+              {
+                "title": "restore",
+                "path": "commands/operator/snapshot/restore"
+              },
+              {
+                "title": "save",
+                "path": "commands/operator/snapshot/save"
+              },
+              {
+                "title": "state",
+                "path": "commands/operator/snapshot/state"
+              }
+            ]
           }
         ]
       },
@@ -1285,6 +1351,10 @@
         "path": "job-specification/affinity"
       },
       {
+        "title": "check",
+        "path": "job-specification/check"
+      },
+      {
         "title": "check_restart",
         "path": "job-specification/check_restart"
       },
@@ -1436,6 +1506,10 @@
       {
         "title": "Overview",
         "path": "other-specifications"
+      },
+      {
+        "title": "ACL Policy",
+        "path": "other-specifications/acl-policy"
       },
       {
         "title": "Volume",

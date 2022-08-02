@@ -1009,6 +1009,74 @@ func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_DeleteNamespaces_CSIVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	plugin := mock.CSIPlugin()
+	vol := mock.CSIVolume(plugin)
+	vol.Namespace = ns.Name
+
+	require.NoError(t, state.UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one CSI volume")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespaces_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	sv := mock.SecureVariableEncrypted()
+	sv.Namespace = ns.Name
+	require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 1001, []*structs.SecureVariableEncrypted{sv}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one secure variable")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_Namespaces(t *testing.T) {
 	ci.Parallel(t)
 
@@ -8912,9 +8980,9 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 
 	// now verify expiration
 
-	getExpiredTokens := func() []*structs.OneTimeToken {
+	getExpiredTokens := func(now time.Time) []*structs.OneTimeToken {
 		txn := state.db.ReadTxn()
-		iter, err := state.oneTimeTokensExpiredTxn(txn, nil)
+		iter, err := state.oneTimeTokensExpiredTxn(txn, nil, now)
 		require.NoError(t, err)
 
 		results := []*structs.OneTimeToken{}
@@ -8930,7 +8998,7 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 		return results
 	}
 
-	results = getExpiredTokens()
+	results = getExpiredTokens(time.Now())
 	require.Len(t, results, 2)
 
 	// results aren't ordered
@@ -8942,10 +9010,10 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 
 	// clear the expired tokens and verify they're gone
 	index++
-	require.NoError(t,
-		state.ExpireOneTimeTokens(structs.MsgTypeTestSetup, index))
+	require.NoError(t, state.ExpireOneTimeTokens(
+		structs.MsgTypeTestSetup, index, time.Now()))
 
-	results = getExpiredTokens()
+	results = getExpiredTokens(time.Now())
 	require.Len(t, results, 0)
 
 	// query the unexpired token
@@ -9906,6 +9974,75 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		actualEvents = append(actualEvents, event.Meta["i"].(int))
 	}
 	require.Equal(expectedEvents, actualEvents)
+}
+
+func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
+	ci.Parallel(t)
+	store := testStateStore(t)
+	index, err := store.LatestIndex()
+	require.NoError(t, err)
+
+	// create 3 default keys, one of which is active
+	keyIDs := []string{}
+	for i := 0; i < 3; i++ {
+		key := structs.NewRootKeyMeta()
+		keyIDs = append(keyIDs, key.KeyID)
+		if i == 0 {
+			key.SetActive()
+		}
+		index++
+		require.NoError(t, store.UpsertRootKeyMeta(index, key, false))
+	}
+
+	// retrieve the active key
+	activeKey, err := store.GetActiveRootKeyMeta(nil)
+	require.NoError(t, err)
+	require.NotNil(t, activeKey)
+
+	// update an inactive key to active and verify the rotation
+	inactiveKey, err := store.RootKeyMetaByID(nil, keyIDs[1])
+	require.NoError(t, err)
+	require.NotNil(t, inactiveKey)
+	oldCreateIndex := inactiveKey.CreateIndex
+	newlyActiveKey := inactiveKey.Copy()
+	newlyActiveKey.SetActive()
+	index++
+	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey, false))
+
+	iter, err := store.RootKeyMetas(nil)
+	require.NoError(t, err)
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		key := raw.(*structs.RootKeyMeta)
+		if key.KeyID == newlyActiveKey.KeyID {
+			require.True(t, key.Active(), "expected updated key to be active")
+			require.Equal(t, oldCreateIndex, key.CreateIndex)
+		} else {
+			require.False(t, key.Active(), "expected other keys to be inactive")
+		}
+	}
+
+	// delete the active key and verify it's been deleted
+	index++
+	require.NoError(t, store.DeleteRootKeyMeta(index, keyIDs[1]))
+
+	iter, err = store.RootKeyMetas(nil)
+	require.NoError(t, err)
+	var found int
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		key := raw.(*structs.RootKeyMeta)
+		require.NotEqual(t, keyIDs[1], key.KeyID)
+		require.False(t, key.Active(), "expected remaining keys to be inactive")
+		found++
+	}
+	require.Equal(t, 2, found, "expected only 2 keys remaining")
 }
 
 func TestStateStore_Abandon(t *testing.T) {

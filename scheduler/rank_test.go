@@ -492,12 +492,13 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
-func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
+func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 	_, ctx := testContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
 
-	// Collide on host with duplicate IPs.
+	// Host networks can have overlapping addresses in which case their
+	// reserved ports are merged.
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -577,9 +578,110 @@ func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 	out := collectRanked(scoreNorm)
 
-	// We expect a placement failure due to  port collision.
+	// Placement should succeed since reserved ports are merged instead of
+	// treating them as a collision
+	require.Len(t, out, 1)
+}
+
+// TestBinPackIterator_Network_NodeError asserts that NetworkIndex.SetNode can
+// return an error and cause a node to be infeasible.
+//
+// This should never happen as it indicates "bad" configuration was either not
+// caught by validation or caused by bugs in serverside Node handling.
+func TestBinPackIterator_Network_NodeError(t *testing.T) {
+	_, ctx := testContext(t)
+	eventsCh := make(chan interface{})
+	ctx.eventsCh = eventsCh
+
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				Resources: &structs.Resources{
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							IP:     "192.158.0.100",
+						},
+					},
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							IP:     "192.158.0.100",
+						},
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "default",
+									Address:       "192.168.0.100",
+									ReservedPorts: "22,80",
+								},
+								{
+									Alias:         "private",
+									Address:       "192.168.0.100",
+									ReservedPorts: "22",
+								},
+							},
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "not-valid-ports",
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+	out := collectRanked(scoreNorm)
+
+	// We expect a placement failure because the node has invalid reserved
+	// ports
 	require.Len(t, out, 0)
-	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
+	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: invalid node"],
+		ctx.metrics.DimensionExhausted)
 }
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {

@@ -1999,7 +1999,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Interval: 10 * time.Second,
 	}
 
-	err := invalidCheck.validate()
+	err := invalidCheck.validateConsul()
 	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
 		t.Fatalf("expected a timeout validation error but received: %q", err)
 	}
@@ -2011,12 +2011,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	if err := check1.validate(); err != nil {
+	if err := check1.validateConsul(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = "foo"
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2026,19 +2026,19 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	}
 
 	check1.InitialStatus = api.HealthCritical
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = api.HealthPassing
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = ""
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2051,22 +2051,22 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Path:     "/foo/bar",
 	}
 
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = ""
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if !strings.Contains(err.Error(), "valid http path") {
+	if !strings.Contains(err.Error(), "http type must have http path") {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = "http://www.example.com"
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2082,7 +2082,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Expose:   true,
-			}).validate())
+			}).validateConsul())
 		})
 		t.Run("type tcp", func(t *testing.T) {
 			require.EqualError(t, (&ServiceCheck{
@@ -2090,7 +2090,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Interval: 1 * time.Second,
 				Timeout:  1 * time.Second,
 				Expose:   true,
-			}).validate(), "expose may only be set on HTTP or gRPC checks")
+			}).validateConsul(), "expose may only be set on HTTP or gRPC checks")
 		})
 	})
 }

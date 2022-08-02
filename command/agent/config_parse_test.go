@@ -127,6 +127,12 @@ var basicConfig = &Config{
 		EncryptKey:                "abc",
 		EnableEventBroker:         helper.BoolToPtr(false),
 		EventBufferSize:           helper.IntToPtr(200),
+		PlanRejectionTracker: &PlanRejectionTracker{
+			Enabled:       helper.BoolToPtr(true),
+			NodeThreshold: 100,
+			NodeWindow:    41 * time.Minute,
+			NodeWindowHCL: "41m",
+		},
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
@@ -218,6 +224,7 @@ var basicConfig = &Config{
 		AutoAdvertise:        &trueValue,
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
+		TimeoutHCL:           "5s",
 	},
 	Vault: &config.VaultConfig{
 		Addr:                 "127.0.0.1:9500",
@@ -425,7 +432,10 @@ func TestConfig_ParseMerge(t *testing.T) {
 	actual, err := ParseConfigFile(path)
 	require.NoError(t, err)
 
-	require.Equal(t, basicConfig.Client, actual.Client)
+	// The Vault connection retry interval is an internal only configuration
+	// option, and therefore needs to be added here to ensure the test passes.
+	actual.Vault.ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	require.Equal(t, basicConfig, actual)
 
 	oldDefault := &Config{
 		Consul:    config.DefaultConsulConfig(),
@@ -436,8 +446,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 		Audit:     &config.AuditConfig{},
 	}
 	merged := oldDefault.Merge(actual)
-	require.Equal(t, basicConfig.Client, merged.Client)
-
+	require.Equal(t, basicConfig, merged)
 }
 
 func TestConfig_Parse(t *testing.T) {
@@ -545,6 +554,9 @@ func (c *Config) addDefaults() {
 	if c.Server.ServerJoin == nil {
 		c.Server.ServerJoin = &ServerJoin{}
 	}
+	if c.Server.PlanRejectionTracker == nil {
+		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
+	}
 }
 
 // Tests for a panic parsing json with an object of exactly
@@ -622,6 +634,11 @@ var sample0 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
@@ -712,6 +729,11 @@ var sample1 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,

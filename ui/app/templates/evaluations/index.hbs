@@ -11,34 +11,36 @@
         />
       </div>
       <div class="toolbar-item is-right-aligned">
-        <SingleSelectDropdown
-          data-test-evaluation-status-facet
-          @label="Status"
-          @options={{this.optionsEvaluationsStatus}}
-          @selection={{this.status}}
-          @onSelect={{action this.setQueryParam "status"}}
-        />
-        <SingleSelectDropdown
-          data-test-evaluation-triggered-by-facet
-          @label="Triggered By"
-          @options={{this.optionsTriggeredBy}}
-          @selection={{this.triggeredBy}}
-          @onSelect={{action this.setQueryParam "triggeredBy"}}
-        />
-        <SingleSelectDropdown
-          data-test-evaluation-type-facet
-          @label="Type"
-          @options={{this.optionsType}}
-          @selection={{this.type}}
-          @onSelect={{action this.setQueryParam "type"}}
-        />
-        <SingleSelectDropdown
-          data-test-evaluation-namespace-facet
-          @label="Namespace"
-          @options={{this.optionsNamespaces}}
-          @selection={{this.qpNamespace}}
-          @onSelect={{action this.setQueryParam "qpNamespace"}}
-        />
+        <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-evaluation-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action this.setQueryParam "qpNamespace"}}
+          />
+          <SingleSelectDropdown
+            data-test-evaluation-status-facet
+            @label="Status"
+            @options={{this.optionsEvaluationsStatus}}
+            @selection={{this.status}}
+            @onSelect={{action this.setQueryParam "status"}}
+          />
+          <SingleSelectDropdown
+            data-test-evaluation-triggered-by-facet
+            @label="Triggered By"
+            @options={{this.optionsTriggeredBy}}
+            @selection={{this.triggeredBy}}
+            @onSelect={{action this.setQueryParam "triggeredBy"}}
+          />
+          <SingleSelectDropdown
+            data-test-evaluation-type-facet
+            @label="Type"
+            @options={{this.optionsType}}
+            @selection={{this.type}}
+            @onSelect={{action this.setQueryParam "type"}}
+          />
+        </div>
       </div>
     </div>
   <div class="table-container">

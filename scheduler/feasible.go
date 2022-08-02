@@ -417,13 +417,13 @@ func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
 			}
 			found := false
 			for _, net := range option.NodeResources.NodeNetworks {
-				if net.HasAlias(hostNetworkValue.(string)) {
+				if net.HasAlias(hostNetworkValue) {
 					found = true
 					break
 				}
 			}
 			if !found {
-				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", hostNetworkValue.(string), port.Label))
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", hostNetworkValue, port.Label))
 				return false
 			}
 		}
@@ -766,7 +766,7 @@ func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, opti
 }
 
 // resolveTarget is used to resolve the LTarget and RTarget of a Constraint.
-func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
+func resolveTarget(target string, node *structs.Node) (string, bool) {
 	// If no prefix, this must be a literal value
 	if !strings.HasPrefix(target, "${") {
 		return target, true
@@ -797,7 +797,7 @@ func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
 		return val, ok
 
 	default:
-		return nil, false
+		return "", false
 	}
 }
 

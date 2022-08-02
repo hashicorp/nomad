@@ -108,6 +108,7 @@ func (a *AllocRegistration) NumChecks() int {
 // ServiceRegistrations holds the status of services registered for a
 // particular task or task group.
 type ServiceRegistrations struct {
+	// Services maps service_id -> service registration
 	Services map[string]*ServiceRegistration
 }
 
