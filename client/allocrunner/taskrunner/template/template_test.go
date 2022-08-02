@@ -543,12 +543,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 	uid := int(sys.(*syscall.Stat_t).Uid)
 	gid := int(sys.(*syscall.Stat_t).Gid)
 
-	if uid != template.Uid {
-		t.Fatalf("Got uid #{uid}; want #{template.Uid}")
-	}
-	if gid != template.Gid {
-		t.Fatalf("Got gid #{uid}; want #{template.Gid}")
-	}
+must.Eq(t, template.Uid, uid)
+must.Eq(t, template.Gid, gid)
 }
 
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
