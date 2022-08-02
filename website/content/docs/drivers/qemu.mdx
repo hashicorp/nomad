@@ -51,22 +51,16 @@ The `qemu` driver supports the following configuration in the job spec:
   signal to virtual machines rather than simply terminating them. This emulates
   a physical power button press, and gives instances a chance to shut down
   cleanly. If the VM is still running after `kill_timeout`, it will be
-  forcefully terminated. (Note that
-  [prior to qemu 2.10.1](https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6),
-  the monitor socket path is limited to 108 characters. Graceful shutdown will
-  be disabled if QEMU is < 2.10.1 and the generated monitor path exceeds this
-  length. You may encounter this issue if you set long
-  [data_dir](/docs/configuration#data_dir)
-  or
-  [alloc_dir](/docs/configuration/client#alloc_dir)
-  paths.) This feature is currently not supported on Windows.
+  forcefully terminated. This feature uses a Unix socket that is placed within
+  the task directory and operating systems may impose a limit on how long these
+  paths can be. This feature is currently not supported on Windows.
 
-- `guest_agent` `(bool: false)` - Enable support for the [QEMU Guest 
-  Agent](https://wiki.qemu.org/Features/GuestAgent) for this virtual machine. This 
-  will add the necessary virtual hardware and create a `qemu-guest-agent.sock`
-  file in the task's working directory for interacting with the agent. The QEMU Guest
-  Agent must be running in the guest VM.  This feature is currently not supported
-  on Windows.
+- `guest_agent` `(bool: false)` - Enable support for the [QEMU Guest
+  Agent](https://wiki.qemu.org/Features/GuestAgent) for this virtual machine.
+  This will add the necessary virtual hardware and create a `qa.sock` file in
+  the task's working directory for interacting with the agent. The QEMU Guest
+  Agent must be running in the guest VM. This feature is currently not
+  supported on Windows.
 
 - `port_map` - (Optional) A key-value map of port labels.
 
