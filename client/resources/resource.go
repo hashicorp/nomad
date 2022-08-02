@@ -15,7 +15,7 @@ import (
 // available per client.
 type Resource struct {
 	Name  string `hcl:"name,label"`
-	Range *Range `hcl:"range,optional"`
+	Range *Range `hcl:"range,block,optional"`
 }
 
 func (r *Resource) ValidateConfig() error {
@@ -37,7 +37,11 @@ type Range struct {
 	Lower int `hcl:"lower"`
 }
 
-func (r *Range) Validate(val int) error {
+func (r *Range) Validate(iface interface{}) error {
+	val, ok := iface.(int)
+	if !ok {
+		return fmt.Errorf("invalid resource config: value %#v cannot be cast to int", iface)
+	}
 	if val < r.Lower {
 		return fmt.Errorf("invalid resource config: value %d cannot be less than lower bound %d", val, r.Lower)
 	}
@@ -100,8 +104,11 @@ func Parse(tmplContent string, filename string) (*Resource, error) {
 
 		result.Name = block.Labels[0]
 
-		rangeDiags := parseRange(block, result)
-		diags = append(diags, rangeDiags...)
+		diags = append(diags, parseRange(block, result)...)
+
+		// Add parsing logic for all custom resource block types here, then trap
+		// parsing errors once at the end of the loop.
+
 		if diags.HasErrors() {
 			return nil, diags
 		}
@@ -112,6 +119,7 @@ func Parse(tmplContent string, filename string) (*Resource, error) {
 
 func parseRange(block *hcl.Block, result *Resource) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
 	rangeContent, _, rangeDiags := block.Body.PartialContent(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
 			{
@@ -126,34 +134,57 @@ func parseRange(block *hcl.Block, result *Resource) hcl.Diagnostics {
 	}
 
 	for _, rangeBlock := range rangeContent.Blocks {
+		if rangeBlock.Type != "range" {
+			return append(diags, &hcl.Diagnostic{
+				Severity: 0,
+				Summary:  "range parse error",
+				Detail:   fmt.Sprintf("invalid block type: %s", rangeBlock.Type),
+				Subject:  &rangeBlock.TypeRange,
+				Context:  &block.TypeRange,
+			})
+		}
+
 		result.Range = &Range{}
-		switch rangeBlock.Type {
-		case "range":
-			attrs, attrDiags := rangeBlock.Body.JustAttributes()
-			diags = append(diags, attrDiags...)
+
+		rangeBlockContent, _, rangeBlockDiags := rangeBlock.Body.PartialContent(&hcl.BodySchema{
+			Attributes: []hcl.AttributeSchema{
+				{
+					Name:     "lower",
+					Required: true,
+				},
+				{
+					Name:     "upper",
+					Required: true,
+				},
+			},
+		})
+
+		diags = append(diags, rangeBlockDiags...)
+		if diags.HasErrors() {
+			return diags
+		}
+
+		for _, attribute := range rangeBlockContent.Attributes {
+			val, valDiags := attribute.Expr.Value(nil)
+			diags = append(diags, valDiags...)
 			if diags.HasErrors() {
 				return diags
 			}
-			for _, attr := range attrs {
-				val, valDiags := attr.Expr.Value(nil)
-				diags = append(diags, valDiags...)
-				if diags.HasErrors() {
-					return diags
-				}
-				switch attr.Name {
-				case "upper":
-					gocty.FromCtyValue(val, &result.Range.Upper)
-				case "lower":
-					gocty.FromCtyValue(val, &result.Range.Lower)
-				}
+
+			switch attribute.Name {
+			case "upper":
+				gocty.FromCtyValue(val, &result.Range.Upper)
+			case "lower":
+				gocty.FromCtyValue(val, &result.Range.Lower)
+			default:
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "unsupported attribute",
+					Detail:   fmt.Sprintf("attribute %q is not supported", attribute.Name),
+					Subject:  &attribute.Range,
+					Context:  &rangeBlock.TypeRange,
+				})
 			}
-		default:
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "unsupported block type",
-				Detail:   fmt.Sprintf("block type %q is not supported", rangeBlock.Type),
-				Subject:  &rangeBlock.TypeRange,
-			})
 		}
 	}
 

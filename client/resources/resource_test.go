@@ -43,7 +43,7 @@ resource "%s" {
 			value:     5,
 			lower:     nil,
 			upper:     10,
-			parseErr:  "Missing required argument",
+			parseErr:  "The argument \"lower\" is required",
 			cfgErrMsg: "",
 			errMsg:    "",
 			tmpl: `
@@ -72,8 +72,8 @@ resource "%s" {
 			name:      "invalid-config-no-upper-bound",
 			value:     5,
 			lower:     0,
-			upper:     10,
-			parseErr:  "Argument or block definition required",
+			upper:     nil,
+			parseErr:  "The argument \"upper\" is required",
 			cfgErrMsg: "",
 			errMsg:    "",
 			tmpl: `
@@ -83,7 +83,9 @@ resource "%s" {
  	}
 }
 	`,
-			formatFn: defaultFormatFn,
+			formatFn: func(tc testCase) string {
+				return fmt.Sprintf(tc.tmpl, tc.name, tc.lower)
+			},
 		},
 		{
 			name:      "invalid-config-upper-bound",
@@ -194,7 +196,7 @@ resource "%s" {
 				return
 			}
 
-			err = resource.Range.Validate(tc.value.(int))
+			err = resource.Range.Validate(tc.value)
 
 			if tc.errMsg == "" {
 				require.NoError(t, err)
