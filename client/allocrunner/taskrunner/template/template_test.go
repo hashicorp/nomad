@@ -34,6 +34,7 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -543,8 +544,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 	uid := int(sys.(*syscall.Stat_t).Uid)
 	gid := int(sys.(*syscall.Stat_t).Gid)
 
-must.Eq(t, template.Uid, uid)
-must.Eq(t, template.Gid, gid)
+	must.Eq(t, template.Uid, uid)
+	must.Eq(t, template.Gid, gid)
 }
 
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
