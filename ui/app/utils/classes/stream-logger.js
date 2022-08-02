@@ -38,15 +38,29 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
     const logFetch = this.logFetch;
 
     const reader = yield logFetch(url).then((res) => {
-      const reader = res.body.getReader();
-      // It's possible that the logger was stopped between the time
-      // polling was started and the log request responded.
-      // If the logger was stopped, the reader needs to be immediately
-      // canceled to prevent an endless request running in the background.
-      if (this.poll.isRunning) {
-        return reader;
+      console.log('rez', res);
+      function appendToDOMStream(el) {
+        return new WritableStream({
+          write(chunk) {
+            el.append(chunk);
+            console.log('chunk', chunk);
+          },
+        });
       }
-      reader.cancel();
+      res.body
+        .pipeThrough(new TextDecoderStream())
+        // .pipeThrough(upperCaseStream())
+        .pipeTo(appendToDOMStream(document.body));
+      debugger;
+      // const reader = res.body.getReader();
+      // // It's possible that the logger was stopped between the time
+      // // polling was started and the log request responded.
+      // // If the logger was stopped, the reader needs to be immediately
+      // // canceled to prevent an endless request running in the background.
+      // if (this.poll.isRunning) {
+      //   return reader;
+      // }
+      // reader.cancel();
     }, fetchFailure(url));
 
     if (!reader) {
@@ -61,6 +75,7 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
 
     while (!streamClosed) {
       yield reader.read().then(({ value, done }) => {
+        // console.log('valdo', value, done);
         streamClosed = done;
 
         // There is no guarantee that value will be a complete JSON object,
