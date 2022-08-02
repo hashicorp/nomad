@@ -44,6 +44,16 @@ const (
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
 )
 
+const (
+	// JobPeriodicLaunchSuffix is the string appended to the periodic jobs ID
+	// when launching derived instances of it.
+	JobPeriodicLaunchSuffix = "/periodic-"
+
+	// JobDispatchLaunchSuffix is the string appended to the parameterized job's ID
+	// when dispatching instances of it.
+	JobDispatchLaunchSuffix = "/dispatch-"
+)
+
 // Jobs is used to access the job-specific endpoints.
 type Jobs struct {
 	client *Client

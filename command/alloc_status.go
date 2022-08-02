@@ -13,9 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type AllocStatusCommand struct {
@@ -498,7 +496,7 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = strings.Join(parts, ", ")
 	case api.TaskRestarting:
 		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-		if event.RestartReason != "" && event.RestartReason != restarts.ReasonWithinPolicy {
+		if event.RestartReason != "" && event.RestartReason != api.AllocRestartReasonWithinPolicy {
 			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
 		} else {
 			desc = in
@@ -821,14 +819,14 @@ FOUND:
 	for _, volMount := range task.VolumeMounts {
 		volReq := tg.Volumes[*volMount.Volume]
 		switch volReq.Type {
-		case structs.VolumeTypeHost:
+		case api.CSIVolumeTypeHost:
 			hostVolumesOutput = append(hostVolumesOutput,
 				fmt.Sprintf("%s|%v", volReq.Name, *volMount.ReadOnly))
-		case structs.VolumeTypeCSI:
+		case api.CSIVolumeTypeCSI:
 			if verbose {
 				source := volReq.Source
 				if volReq.PerAlloc {
-					source = source + structs.AllocSuffix(alloc.Name)
+					source = source + api.AllocSuffix(alloc.Name)
 				}
 
 				// there's an extra API call per volume here so we toggle it

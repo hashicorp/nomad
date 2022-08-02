@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -247,7 +246,7 @@ func (c *JobStatusCommand) outputPeriodicInfo(client *api.Client, job *api.Job) 
 	}
 
 	// Generate the prefix that matches launched jobs from the periodic job.
-	prefix := fmt.Sprintf("%s%s", *job.ID, structs.PeriodicLaunchSuffix)
+	prefix := fmt.Sprintf("%s%s", *job.ID, api.JobPeriodicLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
@@ -294,7 +293,7 @@ func (c *JobStatusCommand) outputParameterizedInfo(client *api.Client, job *api.
 	}
 
 	// Generate the prefix that matches launched jobs from the parameterized job.
-	prefix := fmt.Sprintf("%s%s", *job.ID, structs.DispatchLaunchSuffix)
+	prefix := fmt.Sprintf("%s%s", *job.ID, api.JobDispatchLaunchSuffix)
 	children, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
 		return fmt.Errorf("Error querying job: %s", err)
