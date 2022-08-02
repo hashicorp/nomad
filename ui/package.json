@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
+    "@ember/legacy-built-in-components": "^0.4.1",
     "@ember/optional-features": "2.0.0",
     "@ember/render-modifiers": "^2.0.4",
     "@ember/test-helpers": "^2.6.0",
