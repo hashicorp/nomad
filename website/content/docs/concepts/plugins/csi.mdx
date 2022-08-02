@@ -38,9 +38,10 @@ A CSI plugin task requires the [`csi_plugin`][csi_plugin] block:
 
 ```hcl
 csi_plugin {
-  id        = "csi-hostpath"
-  type      = "monolith"
-  mount_dir = "/csi"
+  id                     = "csi-hostpath"
+  type                   = "monolith"
+  mount_dir              = "/csi"
+  stage_publish_base_dir = "/local/csi"
 }
 ```
 
@@ -73,7 +74,11 @@ Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
 plugin task, and communicates over the gRPC protocol expected by the
 CSI specification. The `mount_dir` field tells Nomad where the plugin
 expects to find the socket file. The path to this socket is exposed in
-the container as the `CSI_ENDPOINT` environment variable.
+the container as the `CSI_ENDPOINT` environment variable. 
+
+Some plugins also require the `stage_publish_base_dir` field, which
+tells Nomad where to instruct the plugin to mount volumes for staging 
+and/or publishing.
 
 ### Plugin Lifecycle and State
 
