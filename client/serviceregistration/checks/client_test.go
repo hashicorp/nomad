@@ -311,7 +311,7 @@ func TestChecker_Do_TCP(t *testing.T) {
 			switch tc.tcpMode {
 			case "ok":
 				// simulate tcp server by listening
-				go tcpServer(ctx, tc.tcpPort)
+				tcpServer(t, ctx, tc.tcpPort)
 			case "hang":
 				// simulate tcp hang by setting an already expired context
 				timeout, stop := context.WithDeadline(ctx, now.Add(-1*time.Second))
@@ -327,16 +327,25 @@ func TestChecker_Do_TCP(t *testing.T) {
 	}
 }
 
-func tcpServer(ctx context.Context, port int) {
+// tcpServer will start a tcp listener that accepts connections and closes them.
+// The caller can close the listener by cancelling ctx.
+func tcpServer(t *testing.T, ctx context.Context, port int) {
 	var lc net.ListenConfig
-	l, _ := lc.Listen(ctx, "tcp", net.JoinHostPort(
+	l, err := lc.Listen(ctx, "tcp", net.JoinHostPort(
 		"localhost", fmt.Sprintf("%d", port),
 	))
-	defer func() {
+	must.NoError(t, err, must.Sprint("port", port))
+	t.Cleanup(func() {
 		_ = l.Close()
-	}()
-	con, _ := l.Accept()
-	defer func() {
-		_ = con.Close()
+	})
+
+	go func() {
+		// caller can stop us by cancelling ctx
+		for {
+			_, acceptErr := l.Accept()
+			if acceptErr != nil {
+				return
+			}
+		}
 	}()
 }
