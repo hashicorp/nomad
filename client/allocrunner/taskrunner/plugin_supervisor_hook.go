@@ -81,7 +81,7 @@ var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 //       Per-allocation directories of unix domain sockets used to communicate
 //       with the CSI plugin. Nomad creates the directory and the plugin creates
 //       the socket file. This directory is bind-mounted to the
-//       csi_plugin.mount_config dir in the plugin task.
+//       csi_plugin.mount_dir in the plugin task.
 //
 // {plugin-type}/{plugin-id}/
 //    staging/
@@ -102,6 +102,16 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 
 	socketMountPoint := filepath.Join(config.clientStateDirPath, "csi",
 		"plugins", config.runner.Alloc().ID)
+
+	// In v1.3.0, Nomad started instructing CSI plugins to stage and publish
+	// within /local/csi. Plugins deployed after the introduction of
+	// StagePublishBaseDir default to StagePublishBaseDir = /local/csi. However,
+	// plugins deployed between v1.3.0 and the introduction of
+	// StagePublishBaseDir have StagePublishBaseDir = "". Default to /local/csi here
+	// to avoid breaking plugins that aren't redeployed.
+	if task.CSIPluginConfig.StagePublishBaseDir == "" {
+		task.CSIPluginConfig.StagePublishBaseDir = filepath.Join("/local", "csi")
+	}
 
 	if task.CSIPluginConfig.HealthTimeout == 0 {
 		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
@@ -157,8 +167,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 	// where the staging and per-alloc directories will be mounted
 	volumeStagingMounts := &drivers.MountConfig{
-		// TODO(tgross): add this TaskPath to the CSIPluginConfig as well
-		TaskPath:        "/local/csi",
+		TaskPath:        h.task.CSIPluginConfig.StagePublishBaseDir,
 		HostPath:        h.mountPoint,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
@@ -360,7 +369,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(client csi.CSIPlugin, socketPat
 			Options: map[string]string{
 				"Provider":            info.Name, // vendor name
 				"MountPoint":          h.mountPoint,
-				"ContainerMountPoint": "/local/csi",
+				"ContainerMountPoint": h.task.CSIPluginConfig.StagePublishBaseDir,
 			},
 		}
 	}
