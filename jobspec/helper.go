@@ -18,6 +18,11 @@ func stringToPtr(str string) *string {
 	return &str
 }
 
+// intToPtr returns the pointer to an int
+func intToPtr(i int) *int {
+	return &i
+}
+
 // timeToPtr returns the pointer to a time.Duration.
 func timeToPtr(t time.Duration) *time.Duration {
 	return &t

@@ -1,0 +1,3 @@
+```release-note:improvement
+template: Templates support new uid/gid parameter pair
+```

@@ -799,6 +799,8 @@ type Template struct {
 	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
 	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
+	Uid          *int           `mapstructure:"uid" hcl:"uid,optional"`
+	Gid          *int           `mapstructure:"gid" hcl:"gid,optional"`
 	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
 	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
 	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
@@ -834,6 +836,12 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.Perms == nil {
 		tmpl.Perms = stringToPtr("0644")
+	}
+	if tmpl.Uid == nil {
+		tmpl.Uid = intToPtr(0)
+	}
+	if tmpl.Gid == nil {
+		tmpl.Gid = intToPtr(0)
 	}
 	if tmpl.LeftDelim == nil {
 		tmpl.LeftDelim = stringToPtr("{{")

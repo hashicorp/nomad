@@ -7711,6 +7711,9 @@ type Template struct {
 
 	// Perms is the permission the file should be written out with.
 	Perms string
+	// User and group that should own the file.
+	Uid int
+	Gid int
 
 	// LeftDelim and RightDelim are optional configurations to control what
 	// delimiter is utilized when parsing the template.
