@@ -24,6 +24,17 @@ const (
 	templateChangeModeRestart = "restart"
 )
 
+// Helper functions below are only used by this test suite
+func int8ToPtr(i int8) *int8 {
+	return &i
+}
+func uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+func int64ToPtr(i int64) *int64 {
+	return &i
+}
+
 func TestParse(t *testing.T) {
 	ci.Parallel(t)
 
@@ -363,6 +374,8 @@ func TestParse(t *testing.T) {
 										ChangeSignal: stringToPtr("foo"),
 										Splay:        timeToPtr(10 * time.Second),
 										Perms:        stringToPtr("0644"),
+										Uid:          intToPtr(0),
+										Gid:          intToPtr(0),
 										Envvars:      boolToPtr(true),
 										VaultGrace:   timeToPtr(33 * time.Second),
 									},
@@ -372,6 +385,8 @@ func TestParse(t *testing.T) {
 										ChangeMode: stringToPtr(templateChangeModeRestart),
 										Splay:      timeToPtr(5 * time.Second),
 										Perms:      stringToPtr("777"),
+										Uid:        intToPtr(1001),
+										Gid:        intToPtr(20),
 										LeftDelim:  stringToPtr("--"),
 										RightDelim: stringToPtr("__"),
 									},

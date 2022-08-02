@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -512,6 +514,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Perms:        "777",
+		Uid:          503,
+		Gid:          20,
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
@@ -535,6 +539,13 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 	if m := fi.Mode(); m != os.ModePerm {
 		t.Fatalf("Got mode %v; want %v", m, os.ModePerm)
 	}
+
+	sys := fi.Sys()
+	uid := int(sys.(*syscall.Stat_t).Uid)
+	gid := int(sys.(*syscall.Stat_t).Gid)
+
+	must.Eq(t, template.Uid, uid)
+	must.Eq(t, template.Gid, gid)
 }
 
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {

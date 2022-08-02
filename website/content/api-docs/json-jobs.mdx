@@ -1077,6 +1077,20 @@ README][ct].
 - `Perms` - Specifies the rendered template's permissions. File permissions are
   given as octal of the Unix file permissions `rwxrwxrwx`.
 
+- `Uid` - Specifies the rendered template owner's user ID.
+ 
+  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
+  containerized drivers, suck as `docker` or `podman`, as groups and users
+  inside the container may have different IDs than on the host system. This
+  feature will also **not** work with Docker Desktop. 
+
+- `Gid` - Specifies the rendered template owner's group ID.
+  
+  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
+  containerized drivers, suck as `docker` or `podman`, as groups and users
+  inside the container may have different IDs than on the host system. This
+  feature will also **not** work with Docker Desktop. 
+
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
