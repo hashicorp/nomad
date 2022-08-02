@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -409,7 +408,7 @@ func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
 		}
 
 		for _, v := range tg.Volumes {
-			if v.Type == structs.VolumeTypeCSI {
+			if v.Type == api.CSIVolumeTypeCSI {
 				names = append(names, v.Name)
 			}
 		}
@@ -669,7 +668,7 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 		}
 
 		for _, v := range tg.Volumes {
-			if v.Type == structs.VolumeTypeCSI {
+			if v.Type == api.CSIVolumeTypeCSI {
 				names = append(names, v.Name)
 				requests[v.Source] = v
 			}

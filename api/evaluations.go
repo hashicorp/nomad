@@ -64,6 +64,14 @@ func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*Allocation
 	return resp, qm, nil
 }
 
+const (
+	EvalStatusBlocked   = "blocked"
+	EvalStatusPending   = "pending"
+	EvalStatusComplete  = "complete"
+	EvalStatusFailed    = "failed"
+	EvalStatusCancelled = "canceled"
+)
+
 // Evaluation is used to serialize an evaluation.
 type Evaluation struct {
 	ID                   string

@@ -13,7 +13,6 @@ import (
 	"github.com/gosuri/uilive"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
 	"github.com/moby/term"
@@ -300,7 +299,7 @@ UPDATE:
 		).Row().MarginLeft(2)
 
 		switch status {
-		case structs.DeploymentStatusFailed:
+		case api.DeploymentStatusFailed:
 			if hasAutoRevert(deploy) {
 				// Separate rollback monitoring from failed deployment
 				d.Set(
@@ -340,12 +339,12 @@ UPDATE:
 				).Row().MarginLeft(2)
 				break UPDATE
 			}
-		case structs.DeploymentStatusSuccessful:
+		case api.DeploymentStatusSuccessful:
 			endSpinner = glint.Layout(
 				glint.Text(fmt.Sprintf("✓ Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
 			break UPDATE
-		case structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
+		case api.DeploymentStatusCancelled, api.DeploymentStatusBlocked:
 			endSpinner = glint.Layout(
 				glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
@@ -415,7 +414,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 		}
 
 		switch status {
-		case structs.DeploymentStatusFailed:
+		case api.DeploymentStatusFailed:
 			if hasAutoRevert(deploy) {
 				// Wait for rollback to launch
 				time.Sleep(1 * time.Second)
@@ -443,7 +442,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 			}
 			return
 
-		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
+		case api.DeploymentStatusSuccessful, api.DeploymentStatusCancelled, api.DeploymentStatusBlocked:
 			return
 		default:
 			q.WaitIndex = meta.LastIndex
