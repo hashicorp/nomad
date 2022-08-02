@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func (c *VolumeStatusCommand) csiBanner() {
@@ -273,10 +272,10 @@ func (c *VolumeStatusCommand) formatTopology(vol *api.CSIVolume) string {
 }
 
 func csiVolMountOption(volume, request *api.CSIMountOptions) string {
-	var req, opts *structs.CSIMountOptions
+	var req, opts *api.CSIMountOptions
 
 	if request != nil {
-		req = &structs.CSIMountOptions{
+		req = &api.CSIMountOptions{
 			FSType:     request.FSType,
 			MountFlags: request.MountFlags,
 		}
@@ -285,7 +284,7 @@ func csiVolMountOption(volume, request *api.CSIMountOptions) string {
 	if volume == nil {
 		opts = req
 	} else {
-		opts = &structs.CSIMountOptions{
+		opts = &api.CSIMountOptions{
 			FSType:     volume.FSType,
 			MountFlags: volume.MountFlags,
 		}

@@ -136,6 +136,17 @@ func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []s
 	return &resp, wm, nil
 }
 
+const (
+	DeploymentStatusRunning    = "running"
+	DeploymentStatusPaused     = "paused"
+	DeploymentStatusFailed     = "failed"
+	DeploymentStatusSuccessful = "successful"
+	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusPending    = "pending"
+	DeploymentStatusBlocked    = "blocked"
+	DeploymentStatusUnblocking = "unblocking"
+)
+
 // Deployment is used to serialize an deployment.
 type Deployment struct {
 	// ID is a generated UUID for the deployment
