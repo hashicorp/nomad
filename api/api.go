@@ -33,6 +33,11 @@ const (
 	// AllNamespacesNamespace is a sentinel Namespace value to indicate that api should search for
 	// jobs and allocations in all the namespaces the requester can access.
 	AllNamespacesNamespace = "*"
+
+	// PermissionDeniedErrorContent is the string content of an error returned
+	// by the API which indicates the caller does not have permission to
+	// perform the action.
+	PermissionDeniedErrorContent = "Permission denied"
 )
 
 // QueryOptions are used to parametrize a query

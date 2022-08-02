@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,10 @@ const (
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
 	AllocClientStatusLost     = "lost"
+)
+
+const (
+	AllocRestartReasonWithinPolicy = "Restart within policy"
 )
 
 // Allocations is used to query the alloc-related endpoints.
@@ -488,4 +493,13 @@ type ExecStreamingOutput struct {
 
 	Exited bool                     `json:"exited,omitempty"`
 	Result *ExecStreamingExitResult `json:"result,omitempty"`
+}
+
+func AllocSuffix(name string) string {
+	idx := strings.LastIndex(name, "[")
+	if idx == -1 {
+		return ""
+	}
+	suffix := name[idx:]
+	return suffix
 }

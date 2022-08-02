@@ -179,6 +179,9 @@ check: ## Lint the source code
 	@echo "==> Check API package is isolated from rest"
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
+	@echo "==> Check command package does not import structs"
+	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
+
 	@echo "==> Checking Go mod.."
 	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \

@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -222,6 +221,30 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	out.Warnings = structs.MergeMultierrorWarnings(job.Warnings())
+	out.Warnings = mergeMultierrorWarnings(job.Warnings())
 	return &out, nil
+}
+
+func mergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
+		return ""
+	}
+
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
+}
+
+func warningsFormatter(es []error) string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
+	}
+
+	return sb.String()
 }
