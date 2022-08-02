@@ -46,7 +46,7 @@ export default class SecureVariableFormComponent extends Component {
 
     // Set first namespace option
     if (options.length) {
-      this.variableNamespace = options[0].key;
+      this.variableNamespace = this.args.model.namespace;
     }
   }
 
