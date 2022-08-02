@@ -86,15 +86,17 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
 
 - `uid` `(int: 0)` - Specifies the rendered template owner's user ID.
   
-  ~> **Caveat:** Works only on Linux. Be careful when using the docker driver as
-  groups and users inside the container may have different IDs than on the host
-  system. This feature will also **not** work with Docker Desktop. 
+  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
+  containerized drivers, suck as `docker` or `podman`, as groups and users
+  inside the container may have different IDs than on the host system. This
+  feature will also **not** work with Docker Desktop. 
 
 - `gid` `(int: 0)` - Specifies the rendered template owner's group ID.
 
-  ~> **Caveat:** Works only on Linux. Be careful when using the docker driver as
-  groups and users inside the container may have different IDs than on the host
-  system. This feature will also **not** work with Docker Desktop. 
+  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
+  containerized drivers, suck as `docker` or `podman`, as groups and users
+  inside the container may have different IDs than on the host system. This
+  feature will also **not** work with Docker Desktop. 
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
