@@ -126,6 +126,12 @@ type QuotaLimit struct {
 	// useful for once we support GPUs
 	RegionLimit *Resources
 
+	// SecureVariablesLimit is the maximum total size of all secure
+	// variables SecureVariable.EncryptedData. A value of zero is
+	// treated as unlimited and a negative value is treated as fully
+	// disallowed.
+	SecureVariablesLimit *int `mapstructure:"secure_variables_limit" hcl:"secure_variables_limit,optional"`
+
 	// Hash is the hash of the object and is used to make replication efficient.
 	Hash []byte
 }

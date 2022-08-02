@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/hashicorp/go-memdb"
@@ -146,7 +147,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		return fmt.Errorf("secure variable quota lookup failed: %v", err)
 	}
 
-	var quotaChange int
+	var quotaChange int64
 
 	// Setup the indexes correctly
 	nowNano := time.Now().UnixNano()
@@ -160,13 +161,13 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		sv.CreateTime = exist.CreateTime
 		sv.ModifyIndex = index
 		sv.ModifyTime = nowNano
-		quotaChange = len(sv.Data) - len(exist.Data)
+		quotaChange = int64(len(sv.Data) - len(exist.Data))
 	} else {
 		sv.CreateIndex = index
 		sv.CreateTime = nowNano
 		sv.ModifyIndex = index
 		sv.ModifyTime = nowNano
-		quotaChange = len(sv.Data)
+		quotaChange = int64(len(sv.Data))
 	}
 
 	// Insert the secure variable
@@ -174,24 +175,41 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 		return fmt.Errorf("secure variable insert failed: %v", err)
 	}
 
+	// Track quota usage
+	var quotaUsed *structs.SecureVariablesQuota
+	if existingQuota != nil {
+		quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = quotaUsed.Copy()
+	} else {
+		quotaUsed = &structs.SecureVariablesQuota{
+			Namespace:   sv.Namespace,
+			CreateIndex: index,
+		}
+	}
+
+	if quotaChange > math.MaxInt64-quotaUsed.Size {
+		// this limit is actually shared across all namespaces in the region's
+		// quota (if there is one), but we need this check here to prevent
+		// overflow as well
+		return fmt.Errorf("secure variables can store a maximum of %d bytes of encrypted data per namespace", math.MaxInt)
+	}
+
+	if quotaChange > 0 {
+		quotaUsed.Size += quotaChange
+	} else if quotaChange < 0 {
+		quotaUsed.Size -= helper.Min(quotaUsed.Size, -quotaChange)
+	}
+
+	err = s.enforceSecureVariablesQuota(index, txn, sv.Namespace, quotaChange)
+	if err != nil {
+		return err
+	}
+
+	// we check enforcement above even if there's no change because another
+	// namespace may have used up quota to make this no longer valid, but we
+	// only update the table if this namespace has changed
 	if quotaChange != 0 {
-		// Track quota usage
-		var quotaUsed *structs.SecureVariablesQuota
-		if existingQuota != nil {
-			quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
-			quotaUsed = quotaUsed.Copy()
-		} else {
-			quotaUsed = &structs.SecureVariablesQuota{
-				Namespace:   sv.Namespace,
-				CreateIndex: index,
-			}
-		}
 		quotaUsed.ModifyIndex = index
-		if quotaChange > 0 {
-			quotaUsed.Size += uint64(quotaChange)
-		} else {
-			quotaUsed.Size -= uint64(helper.MinInt(int(quotaUsed.Size), -quotaChange))
-		}
 		if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
 			return fmt.Errorf("secure variable quota insert failed: %v", err)
 		}
@@ -275,7 +293,7 @@ func (s *StateStore) DeleteSecureVariableTxn(index uint64, namespace, path strin
 		quotaUsed := existingQuota.(*structs.SecureVariablesQuota)
 		quotaUsed = quotaUsed.Copy()
 		sv := existing.(*structs.SecureVariableEncrypted)
-		quotaUsed.Size -= uint64(len(sv.Data))
+		quotaUsed.Size -= helper.Min(quotaUsed.Size, int64(len(sv.Data)))
 		quotaUsed.ModifyIndex = index
 		if err := txn.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
 			return fmt.Errorf("secure variable quota insert failed: %v", err)
