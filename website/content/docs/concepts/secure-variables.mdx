@@ -1,0 +1,161 @@
+---
+layout: docs
+page_title: Secure Variables
+description: Learn about Nomad's secure variables feature
+---
+
+# Secure Variables
+
+Most Nomad workloads need access to config values or secrets. Nomad has a
+`template` block to provide such configuration to tasks, but has left the role
+of storing that configuration to external services such as [HashiCorp Consul]
+and [HashiCorp Vault].
+
+Nomad's Secure Variables feature provides the option to securely store
+configuration at file-like paths directly in Nomad's state store. The contents
+of these secrets are encrypted and replicated between servers via raft. Access
+to secrets is controlled by ACL policies, and tasks have implicit ACL policies
+that allow them to access their own secrets. You can create, read, update, or
+delete secrets via the command line, the Nomad API, or in the Nomad web UI.
+
+Note that the Secure Variables feature is intended for small pieces of
+configuration data needed by workloads. Because writing to the Nomad state store
+uses resources needed by Nomad, it is not well-suited for large or fast-changing
+data. For example, do not store batch job results as Secure Variables - these
+should be stored in an external database. Secure Variables are also not intended
+to be a full replacement for HashiCorp Vault. If you need powerful options like
+dynamic secrets or transit encryption, continue using Vault.
+
+## ACL for Secure Variables
+
+Every Secure Variable belongs to a specific Nomad namespace. ACL policies can
+restrict access to Secure Variables within a namespace on a per-path basis,
+using a list of `path` blocks, located under `namespace.secure_variables`. See
+the [ACL policy specification] docs for details about the syntax and structure
+of an ACL policy.
+
+Path definitions may also include wildcard symbols, also called globs, allowing
+a single path policy definition to apply to a set of paths within that
+namespace. For example, the policy below allows full access to secure variables
+at all paths in the "dev" namespace that are prefixed with "project/" (including
+child paths) but only read access to paths prefixed with "system/". Note that
+the glob can match an empty string and all other characters. This policy grants
+read access to paths prefixed with "system/" but not a path named "system"
+(without a trailing slash).
+
+```hcl
+namespace "dev" {
+  policy       = "write"
+  capabilities = ["alloc-node-exec"]
+
+  secure_variables {
+
+    # full access to secrets in all "project" paths
+    path "project/*" {
+      capabilities = ["write", "read", "destroy", "list"]
+    }
+
+    # read/list access within a "system/" path belonging to administrators
+    path "system/*" {
+      capabilities = ["read"]
+    }
+  }
+}
+```
+
+The available capabilities for Secure Variables are as follows:
+
+| Capability | Notes                                                                                                                        |
+|------------|------------------------------------------------------------------------------------------------------------------------------|
+| write      | Create or update Secure Variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
+| read       | Read the decrypted contents of Secure Variables at this path. Also includes the "list" capability                            |
+| list       | List the metadata but not contents of Secure Variables at this path.                                                         |
+| destroy    | Delete Secure Variables at this path.                                                                                        |
+
+## Task Access to Secure Variables
+
+In Nomad 1.4.0 tasks can only access Secure Variables with the [`template`]
+block. The [workload identity] for each task grants it automatic read and list
+access to Secure Variables found at Nomad-owned paths with the prefix
+`nomad/jobs/`, followed by the job ID, task group name, and task name. This is
+equivalent to the following policy:
+
+```hcl
+namespace "$namespace" {
+  secure_variables {
+
+    path "nomad/jobs" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/$job_id" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/$job_id/$task_group" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/$job_id/$task_group/$task_name" {
+      capabilities = ["read", "list"]
+    }
+  }
+}
+```
+
+For example, a task named "redis", in a group named "cache", in a job named
+"example", will automatically have access to Secure Variables as if it had the
+following policy:
+
+```hcl
+namespace "default" {
+  secure_variables {
+
+    path "nomad/jobs" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/example" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/example/cache" {
+      capabilities = ["read", "list"]
+    }
+
+    path "nomad/jobs/example/cache/redis" {
+      capabilities = ["read", "list"]
+    }
+  }
+}
+```
+
+You can provide access to additional secrets by creating policies associated
+with the task's [workload identity]. For example, to give the task above access to
+set of shared secrets, you can create the following policy file:
+
+```hcl
+namespace "shared" {
+  secure_variables {
+    path "*" {
+      capabilities = ["read"]
+    }
+  }
+}
+```
+
+Then create the policy with to give the task read access to
+all paths in the "shared" namespace:
+
+```shell-session
+nomad acl policy apply "_:/default/example/cache/redis" ./policy.hcl
+```
+
+See [Implicit Access to ACL Policies] for more details.
+
+[HashiCorp Consul]: https://consul.io
+[HashiCorp Vault]: https://vaultproject.io
+[ACL policy specification]: docs/other-specifications/acl-policy
+[`template`]: /docs/job-specification/template
+[workload identity]: /docs/concepts/workload-identity
+[Implicit Access to ACL Policies]: /docs/concepts/workload-identity#implicit-access-to-acl-policies
