@@ -24,6 +24,7 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  * @property {boolean} [enumerated]
  * @property {boolean} [recording]
  * @property {boolean} [custom]
+ * @property {boolean} [exclusive]
  */
 
 const DEBOUNCE_MS = 750;
@@ -206,6 +207,11 @@ export default class KeyboardService extends Service {
   addCommands(commands) {
     schedule('afterRender', () => {
       commands.forEach((command) => {
+        if (command.exclusive) {
+          this.removeCommands(
+            this.keyCommands.filterBy('label', command.label)
+          );
+        }
         this.keyCommands.pushObject(command);
         if (command.enumerated) {
           // Recompute enumerated numbers to handle things like sort

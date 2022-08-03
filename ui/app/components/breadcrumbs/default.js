@@ -12,7 +12,7 @@ export default class BreadcrumbsTemplate extends Component {
     this.router.transitionTo(path, ...rest);
   }
 
-  get keyboardShortcut() {
+  get maybeKeyboardShortcut() {
     return this.args.isOneCrumbUp() ? KeyboardShortcutModifier : null;
   }
 }

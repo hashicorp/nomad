@@ -28,11 +28,12 @@
     {{/if}}
     <li
       {{(modifier
-        this.keyboardShortcut
+        this.maybeKeyboardShortcut
         label="Go up a level"
         pattern=(array "u")
         menuLevel=true
         action=(action this.traverseUpALevel (array "jobs.job" this.job.idWithNamespace))
+        exclusive=true
       )}}
     >
       <LinkTo

@@ -15,6 +15,7 @@ export default class KeyboardShortcutModifier extends Modifier {
       action = () => {},
       menuLevel = false,
       enumerated = false,
+      exclusive = false,
     }
   ) {
     let commands = [
@@ -25,6 +26,7 @@ export default class KeyboardShortcutModifier extends Modifier {
         element,
         menuLevel,
         enumerated,
+        exclusive,
       },
     ];
 
