@@ -85,8 +85,8 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       });
 
       const taskMemoryUsed =
-        frame.ResourceUsage.MemoryStats.Usage ||
-        frame.ResourceUsage.MemoryStats.RSS ||
+        taskFrame.ResourceUsage.MemoryStats.Usage ||
+        taskFrame.ResourceUsage.MemoryStats.RSS ||
         0;
 
       const percentMemoryTotal = percent(
