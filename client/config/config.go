@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -358,6 +359,13 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	VaultRetry *RetryConfig `hcl:"vault_retry,optional"`
+
+	// This controls the retry behavior when an error is returned from Nomad.
+	// Consul Template is highly fault tolerant, meaning it does not exit in the
+	// face of failure. Instead, it uses exponential back-off and retry functions
+	// to wait for the cluster to become available, as is customary in distributed
+	// systems.
+	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -396,6 +404,10 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 		nc.VaultRetry = c.VaultRetry.Copy()
 	}
 
+	if c.NomadRetry != nil {
+		nc.NomadRetry = c.NomadRetry.Copy()
+	}
+
 	return nc
 }
 
@@ -413,7 +425,8 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.MaxStaleHCL == "" &&
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
-		c.VaultRetry.IsEmpty()
+		c.VaultRetry.IsEmpty() &&
+		c.NomadRetry.IsEmpty()
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
@@ -730,10 +743,13 @@ func DefaultConfig() *Config {
 				Max: helper.TimeToPtr(4 * time.Minute),
 			},
 			ConsulRetry: &RetryConfig{
-				Attempts: helper.IntToPtr(0), // unlimited
+				Attempts: pointer.Of[int](0), // unlimited
 			},
 			VaultRetry: &RetryConfig{
-				Attempts: helper.IntToPtr(0), // unlimited
+				Attempts: pointer.Of[int](0), // unlimited
+			},
+			NomadRetry: &RetryConfig{
+				Attempts: pointer.Of[int](0), // unlimited
 			},
 		},
 		RPCHoldTimeout:     5 * time.Second,

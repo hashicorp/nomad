@@ -823,6 +823,17 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	conf.Nomad.Namespace = &config.NomadNamespace
 	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
 	conf.Nomad.Token = &config.NomadToken
+	if cc.TemplateConfig != nil && cc.TemplateConfig.NomadRetry != nil {
+		// Set the user-specified Nomad RetryConfig
+		var err error
+		if err = cc.TemplateConfig.NomadRetry.Validate(); err != nil {
+			return nil, err
+		}
+		conf.Nomad.Retry, err = cc.TemplateConfig.NomadRetry.ToConsulTemplate()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	conf.Finalize()
 	return conf, nil

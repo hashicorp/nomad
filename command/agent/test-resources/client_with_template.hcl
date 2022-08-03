@@ -26,6 +26,12 @@ client {
       backoff     = "15s"
       max_backoff = "20s"
     }
+
+    nomad_retry {
+      attempts    = 15
+      backoff     = "20s"
+      max_backoff = "25s"
+    }
   }
 
 }
