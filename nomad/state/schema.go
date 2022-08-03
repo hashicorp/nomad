@@ -17,6 +17,7 @@ const (
 	TableSecureVariables       = "secure_variables"
 	TableSecureVariablesQuotas = "secure_variables_quota"
 	TableRootKeyMeta           = "secure_variables_root_key_meta"
+	TableACLRoles              = "acl_roles"
 )
 
 const (
@@ -29,6 +30,7 @@ const (
 	indexExpiresLocal  = "expires-local"
 	indexKeyID         = "key_id"
 	indexPath          = "path"
+	indexName          = "name"
 )
 
 var (
@@ -80,6 +82,7 @@ func init() {
 		secureVariablesTableSchema,
 		secureVariablesQuotasTableSchema,
 		secureVariablesRootKeyMetaSchema,
+		aclRolesTableSchema,
 	}...)
 }
 
@@ -1385,6 +1388,30 @@ func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "KeyID",
 					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+func aclRolesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLRoles,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
 				},
 			},
 		},

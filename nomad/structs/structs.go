@@ -113,6 +113,8 @@ const (
 	SecureVariableDeleteRequestType              MessageType = 51
 	RootKeyMetaUpsertRequestType                 MessageType = 52
 	RootKeyMetaDeleteRequestType                 MessageType = 53
+	ACLRolesUpsertRequestType                    MessageType = 54
+	ACLRolesDeleteByIDRequestType                MessageType = 55
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64

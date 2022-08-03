@@ -1,13 +1,17 @@
 package structs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -40,6 +44,14 @@ const (
 	// large number of expired tokens pending garbage collection, this value is
 	// a potential limiting factor.
 	ACLMaxExpiredBatchSize = 4096
+
+	// maxACLRoleDescriptionLength limits an ACL roles description length.
+	maxACLRoleDescriptionLength = 256
+)
+
+var (
+	// validACLRoleName is used to validate an ACL role name.
+	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // Canonicalize performs basic canonicalization on the ACL token object. It is
@@ -160,4 +172,153 @@ func (a *ACLToken) IsExpired(t time.Time) bool {
 	}
 
 	return a.ExpirationTime.Before(t) || t.IsZero()
+}
+
+// ACLRole is an abstraction for the ACL system which allows the grouping of
+// ACL policies into a single object. ACL tokens can be created and linked to
+// a role; the token then inherits all the permissions granted by the policies.
+type ACLRole struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Name is unique across the entire set of federated clusters and is
+	// supplied by the operator on role creation. The name can be modified by
+	// updating the role and including the Nomad generated ID. This update will
+	// not affect tokens created and linked to this role. This is a required
+	// field.
+	Name string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the role. This is an operational field.
+	Description string
+
+	// Policies is an array of ACL policy links. Although currently policies
+	// can only be linked using their name, in the future we will want to add
+	// IDs also and thus allow operators to specify either a name, an ID, or
+	// both.
+	Policies []*ACLRolePolicyLink
+
+	// Hash is the hashed value of the role and is generated using all fields
+	// above this point.
+	Hash []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLRolePolicyLink is used to link a policy to an ACL role. We use a struct
+// rather than a list of strings as in the future we will want to add IDs to
+// policies and then link via these.
+type ACLRolePolicyLink struct {
+
+	// Name is the ACLPolicy.Name value which will be linked to the ACL role.
+	Name string
+}
+
+// SetHash is used to compute and set the hash of the ACL role. This should be
+// called every and each time a user specified field on the role is changed
+// before updating the Nomad state store.
+func (a *ACLRole) SetHash() []byte {
+
+	// Initialize a 256bit Blake2 hash (32 bytes).
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields.
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Description))
+
+	for _, policyLink := range a.Policies {
+		_, _ = hash.Write([]byte(policyLink.Name))
+	}
+
+	// Finalize the hash.
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash.
+	a.Hash = hashVal
+	return hashVal
+}
+
+// Validate ensure the ACL role contains valid information which meets Nomad's
+// internal requirements. This does not include any state calls, such as
+// ensuring the linked policies exist.
+func (a *ACLRole) Validate() error {
+
+	var mErr multierror.Error
+
+	if !validACLRoleName.MatchString(a.Name) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
+	}
+
+	if len(a.Description) > maxACLRoleDescriptionLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("description longer than %d", maxACLRoleDescriptionLength))
+	}
+
+	if len(a.Policies) < 1 {
+		mErr.Errors = append(mErr.Errors, errors.New("at least one policy should be specified"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// Equals performs an equality check on the two service registrations. It
+// handles nil objects.
+func (a *ACLRole) Equals(o *ACLRole) bool {
+	if a == nil || o == nil {
+		return a == o
+	}
+	if len(a.Hash) == 0 {
+		a.SetHash()
+	}
+	if len(o.Hash) == 0 {
+		o.SetHash()
+	}
+	return bytes.Equal(a.Hash, o.Hash)
+}
+
+// Copy creates a deep copy of the ACL role. This copy can then be safely
+// modified. It handles nil objects.
+func (a *ACLRole) Copy() *ACLRole {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLRole)
+	*c = *a
+
+	c.Policies = slices.Clone(a.Policies)
+	c.Hash = slices.Clone(a.Hash)
+
+	return c
+}
+
+// ACLRolesUpsertRequest is the request object used to upsert one or more ACL
+// roles.
+type ACLRolesUpsertRequest struct {
+	ACLRoles []*ACLRole
+	WriteRequest
+}
+
+// ACLRolesUpsertResponse is the response object when one or more ACL roles
+// have been successfully upserted into state.
+type ACLRolesUpsertResponse struct {
+	WriteMeta
+}
+
+// ACLRolesDeleteByIDRequest is the request object to delete one or more ACL
+// roles using the role ID.
+type ACLRolesDeleteByIDRequest struct {
+	ACLRoleIDs []string
+	WriteRequest
+}
+
+// ACLRolesDeleteByIDResponse is the response object when performing a deletion
+// of one or more ACL roles using the role ID.
+type ACLRolesDeleteByIDResponse struct {
+	WriteMeta
 }

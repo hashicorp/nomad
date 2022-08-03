@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -284,4 +285,356 @@ func TestACLToken_IsExpired(t *testing.T) {
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
+}
+
+func TestACLRole_SetHash(t *testing.T) {
+	testCases := []struct {
+		name           string
+		inputACLRole   *ACLRole
+		expectedOutput []byte
+	}{
+		{
+			name: "no hash set",
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash:        []byte{},
+			},
+			expectedOutput: []byte{
+				122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+				171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+			},
+		},
+		{
+			name: "hash set with change",
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					137, 147, 2, 29, 53, 94, 78, 13, 45, 51, 127, 193, 21, 248, 230, 126, 34,
+					106, 216, 73, 248, 219, 209, 146, 204, 107, 185, 2, 89, 255, 198, 5,
+				},
+			},
+			expectedOutput: []byte{
+				122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+				171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputACLRole.SetHash()
+			require.Equal(t, tc.expectedOutput, actualOutput)
+			require.Equal(t, tc.inputACLRole.Hash, actualOutput)
+		})
+	}
+}
+
+func TestACLRole_Validate(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		inputACLRole          *ACLRole
+		expectedError         bool
+		expectedErrorContains string
+	}{
+		{
+			name: "role name too long",
+			inputACLRole: &ACLRole{
+				Name: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			},
+			expectedError:         true,
+			expectedErrorContains: "invalid name",
+		},
+		{
+			name: "role name too short",
+			inputACLRole: &ACLRole{
+				Name: "",
+			},
+			expectedError:         true,
+			expectedErrorContains: "invalid name",
+		},
+		{
+			name: "role name with invalid characters",
+			inputACLRole: &ACLRole{
+				Name: "--#$%$^%_%%_?>",
+			},
+			expectedError:         true,
+			expectedErrorContains: "invalid name",
+		},
+		{
+			name: "description too long",
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			},
+			expectedError:         true,
+			expectedErrorContains: "description longer than",
+		},
+		{
+			name: "no policies",
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "",
+			},
+			expectedError:         true,
+			expectedErrorContains: "at least one policy should be specified",
+		},
+		{
+			name: "valid",
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "policy-1"},
+				},
+			},
+			expectedError:         false,
+			expectedErrorContains: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputACLRole.Validate()
+			if tc.expectedError {
+				require.ErrorContains(t, actualOutput, tc.expectedErrorContains)
+			} else {
+				require.NoError(t, actualOutput)
+			}
+		})
+	}
+}
+
+func TestACLRole_Equals(t *testing.T) {
+	testCases := []struct {
+		name            string
+		composedACLRole *ACLRole
+		inputACLRole    *ACLRole
+		expectedOutput  bool
+	}{
+		{
+			name: "equal with hash set",
+			composedACLRole: &ACLRole{
+				Name:        "acl-role-",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+			expectedOutput: true,
+		},
+		{
+			name: "equal without hash set",
+			composedACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash:        []byte{},
+			},
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash:        []byte{},
+			},
+			expectedOutput: true,
+		},
+		{
+			name:            "both nil",
+			composedACLRole: nil,
+			inputACLRole:    nil,
+			expectedOutput:  true,
+		},
+		{
+			name:            "not equal composed nil",
+			composedACLRole: nil,
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+			expectedOutput: false,
+		},
+		{
+			name: "not equal input nil",
+			composedACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+			inputACLRole:   nil,
+			expectedOutput: false,
+		},
+		{
+			name: "not equal with hash set",
+			composedACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					137, 147, 2, 29, 53, 94, 78, 13, 45, 51, 127, 193, 21, 248, 230, 126, 34,
+					106, 216, 73, 248, 219, 209, 146, 204, 107, 185, 2, 89, 255, 198, 5,
+				},
+			},
+			expectedOutput: false,
+		},
+		{
+			name: "not equal without hash set",
+			composedACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash:        []byte{},
+			},
+			inputACLRole: &ACLRole{
+				Name:        "acl-role",
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash:        []byte{},
+			},
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.composedACLRole.Equals(tc.inputACLRole)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestACLRole_Copy(t *testing.T) {
+	testCases := []struct {
+		name         string
+		inputACLRole *ACLRole
+	}{
+		{
+			name:         "nil input",
+			inputACLRole: nil,
+		},
+		{
+			name: "general 1",
+			inputACLRole: &ACLRole{
+				Name:        fmt.Sprintf("acl-role"),
+				Description: "mocked-test-acl-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "mocked-test-policy-1"},
+					{Name: "mocked-test-policy-2"},
+				},
+				CreateIndex: 10,
+				ModifyIndex: 10,
+				Hash: []byte{
+					122, 193, 189, 171, 197, 13, 37, 81, 141, 213, 188, 212, 179, 223, 148, 160,
+					171, 141, 155, 136, 21, 128, 252, 100, 149, 195, 236, 148, 94, 70, 173, 102,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputACLRole.Copy()
+			require.Equal(t, tc.inputACLRole, actualOutput)
+		})
+	}
+}
+
+func Test_ACLRolesUpsertRequest(t *testing.T) {
+	req := ACLRolesUpsertRequest{}
+	require.False(t, req.IsRead())
+}
+
+func Test_ACLRolesDeleteByIDRequest(t *testing.T) {
+	req := ACLRolesDeleteByIDRequest{}
+	require.False(t, req.IsRead())
 }
