@@ -3,6 +3,7 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -715,4 +716,22 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	}
 
 	return t, cancel
+}
+
+// IsMethodHTTP returns whether s is a known HTTP method, ignoring case.
+func IsMethodHTTP(s string) bool {
+	switch strings.ToUpper(s) {
+	case http.MethodGet:
+	case http.MethodHead:
+	case http.MethodPost:
+	case http.MethodPut:
+	case http.MethodPatch:
+	case http.MethodDelete:
+	case http.MethodConnect:
+	case http.MethodOptions:
+	case http.MethodTrace:
+	default:
+		return false
+	}
+	return true
 }

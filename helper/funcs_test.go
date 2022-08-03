@@ -546,3 +546,31 @@ func Test_NewSafeTimer(t *testing.T) {
 		<-timer.C
 	})
 }
+
+func Test_IsMethodHTTP(t *testing.T) {
+	t.Run("is method", func(t *testing.T) {
+		cases := []string{
+			"GET", "Get", "get",
+			"HEAD", "Head", "head",
+			"POST", "Post", "post",
+			"PUT", "Put", "put",
+			"PATCH", "Patch", "patch",
+			"DELETE", "Delete", "delete",
+			"CONNECT", "Connect", "connect",
+			"OPTIONS", "Options", "options",
+			"TRACE", "Trace", "trace",
+		}
+		for _, tc := range cases {
+			result := IsMethodHTTP(tc)
+			must.True(t, result)
+		}
+	})
+
+	t.Run("is not method", func(t *testing.T) {
+		not := []string{"GETTER", "!GET", ""}
+		for _, tc := range not {
+			result := IsMethodHTTP(tc)
+			must.False(t, result)
+		}
+	})
+}
