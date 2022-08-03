@@ -345,8 +345,6 @@ module('Acceptance | keyboard', function (hooks) {
         `/jobs/${jobID}@default`,
         'Shift+ArrowRight takes you to the first tab in the loop'
       );
-
-      // await this.pauseTest();
     });
   });
 });

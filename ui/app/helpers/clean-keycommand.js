@@ -7,10 +7,6 @@ const KEY_ALIAS_MAP = {
   ArrowUp: '↑',
   ArrowDown: '↓',
   '+': ' + ',
-  // Enter: '⏎',
-  // Tab: '⇥',
-  // Space: '␣',
-  // Shift: '⇧',
 };
 
 export default helper(function cleanKeycommand([key] /*, named*/) {
