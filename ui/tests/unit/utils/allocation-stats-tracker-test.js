@@ -251,7 +251,83 @@ module('Unit | Util | AllocationStatsTracker', function () {
       ],
       'One frame of memory'
     );
-
+    const mockedTasks = [
+      {
+        task: 'service',
+        reservedCPU: 100,
+        reservedMemory: 256,
+        cpu: [
+          {
+            timestamp: makeDate(refDate + 1),
+            used: 51,
+            percent: 51 / 100,
+            percentStack: 51 / (100 + 50 + 50),
+            percentTotal: 51 / (100 + 50 + 50),
+          },
+        ],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 1),
+            used: 101 * 1024 * 1024,
+            percent: 101 / 256,
+            percentStack: 101 / (256 + 128 + 128),
+            percentTotal: 101 / (256 + 128 + 128),
+          },
+        ],
+      },
+      {
+        task: 'sidecar',
+        reservedCPU: 50,
+        reservedMemory: 128,
+        cpu: [
+          {
+            timestamp: makeDate(refDate + 100),
+            used: 27,
+            percent: 27 / 50,
+            percentStack: (27 + 51) / (100 + 50 + 50),
+            percentTotal: 27 / (100 + 50 + 50),
+          },
+        ],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 100),
+            used: 52 * 1024 * 1024,
+            percent: 52 / 128,
+            percentStack: (52 + 101) / (256 + 128 + 128),
+            percentTotal: 52 / (256 + 128 + 128),
+          },
+        ],
+      },
+      {
+        task: 'log-shipper',
+        reservedCPU: 50,
+        reservedMemory: 128,
+        cpu: [
+          {
+            timestamp: makeDate(refDate + 10),
+            used: 26,
+            percent: 26 / 50,
+            percentStack: (26 + 27 + 51) / (100 + 50 + 50),
+            percentTotal: 26 / (100 + 50 + 50),
+          },
+        ],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 10),
+            used: 51 * 1024 * 1024,
+            percent: 51 / 128,
+            percentStack: (51 + 52 + 101) / (256 + 128 + 128),
+            percentTotal: 51 / (256 + 128 + 128),
+          },
+        ],
+      },
+    ];
+    console.log('=================================');
+    console.log('CI test log');
+    console.log(JSON.stringify(tracker.get('tasks')));
+    console.log(JSON.stringify(mockedTasks));
+    console.log('end CI test log');
+    console.log('=================================');
     assert.deepEqual(
       tracker.get('tasks'),
       [
