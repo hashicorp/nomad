@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"math/rand"
 	"os"
 	"sort"
@@ -47,6 +48,9 @@ var (
 type TaskTemplateManager struct {
 	// config holds the template managers configuration
 	config *TaskTemplateManagerConfig
+
+	// logger holds the named logger for the template manager
+	logger hclog.Logger
 
 	// lookup allows looking up the set of Nomad templates by their consul-template ID
 	lookup map[string][]*structs.Template
@@ -141,6 +145,7 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 
 	tm := &TaskTemplateManager{
 		config:     config,
+		logger:     config.ClientConfig.Logger.NamedIntercept("template_manager"),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -467,6 +472,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 
 		if restart {
+			tm.logger.Debug("restart required due to template change mode")
 			tm.config.Lifecycle.Restart(context.Background(),
 				structs.NewTaskEvent(structs.TaskRestartSignal).
 					SetDisplayMessage("Template with change_mode restart re-rendered"), false)

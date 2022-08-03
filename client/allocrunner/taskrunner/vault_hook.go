@@ -261,7 +261,7 @@ OUTER:
 					return
 				}
 			case structs.VaultChangeModeRestart:
-				const noFailure = false
+				h.logger.Debug("restart required due to vault change mode")
 				h.lifecycle.Restart(h.ctx,
 					structs.NewTaskEvent(structs.TaskRestartSignal).
 						SetDisplayMessage("Vault: new Vault token acquired"), false)
