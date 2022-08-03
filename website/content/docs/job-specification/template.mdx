@@ -84,19 +84,21 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
   File permissions are given as octal of the Unix file permissions `rwxrwxrwx`.
 
-- `uid` `(int: 0)` - Specifies the rendered template owner's user ID.
-  
-  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
-  containerized drivers, suck as `docker` or `podman`, as groups and users
-  inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
-
-- `gid` `(int: 0)` - Specifies the rendered template owner's group ID.
+- `uid` `(int: -1)` - Specifies the rendered template owner's user ID. Negative
+  values will use the ID of the Nomad agent user.
 
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, suck as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
+  feature will also **not** work with Docker Desktop.
+
+- `gid` `(int: -1)` - Specifies the rendered template owner's group ID.
+  Negative values will use the ID of the Nomad agent group.
+
+  ~> **Caveat:** Works only on Unix-based systems. Be careful when using
+  containerized drivers, suck as `docker` or `podman`, as groups and users
+  inside the container may have different IDs than on the host system. This
+  feature will also **not** work with Docker Desktop.
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
