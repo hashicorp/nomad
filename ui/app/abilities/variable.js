@@ -1,3 +1,4 @@
+// @ts-check
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
 import AbstractAbility from './abstract';
@@ -40,8 +41,46 @@ export default class Variable extends AbstractAbility {
 
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableView() {
-    return this.rulesForNamespace.some((rules) => {
-      return get(rules, 'SecureVariables');
+    return this.policyNamespacesIncludeSecureVariablesCapabilities(
+      this.token.selfTokenPolicies,
+      ['list', 'read', 'write', 'destroy']
+    );
+  }
+
+  /**
+   *
+   * Map to your policy's namespaces,
+   * and each of their SecureVariables blocks' paths,
+   * and each of their capabilities.
+   * Then, check to see if any of the permissions you're looking for
+   * are contained within at least one of them.
+   *
+   * @param {Object} policies
+   * @param {string[]} capabilities
+   * @returns {boolean}
+   */
+  policyNamespacesIncludeSecureVariablesCapabilities(
+    policies = [],
+    capabilities = []
+  ) {
+    const namespacesWithSecureVariableCapabilities = policies
+      .toArray()
+      .map((policy) => get(policy, 'rulesJSON.Namespaces'))
+      .flat()
+      .map((namespace = {}) => {
+        return namespace.SecureVariables?.Paths;
+      })
+      .flat()
+      .compact()
+      .map((secVarsBlock = {}) => {
+        return secVarsBlock.Capabilities;
+      })
+      .flat()
+      .compact();
+
+    // Check for requested permissions
+    return namespacesWithSecureVariableCapabilities.some((abilityList) => {
+      return capabilities.includes(abilityList);
     });
   }
 
