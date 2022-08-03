@@ -108,6 +108,8 @@ type TaskTemplateManagerConfig struct {
 
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
+
+	Handle interfaces.ScriptExecutor
 }
 
 // Validate validates the configuration.
@@ -436,6 +438,8 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 				signals[tmpl.ChangeSignal] = struct{}{}
 			case structs.TemplateChangeModeRestart:
 				restart = true
+			case structs.TemplateChangeModeScript:
+				// do stuff
 			case structs.TemplateChangeModeNoop:
 				continue
 			}
