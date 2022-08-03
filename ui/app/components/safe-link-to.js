@@ -6,8 +6,4 @@ import classic from 'ember-classic-decorator';
 // https://github.com/emberjs/ember.js/issues/20051
 
 @classic
-export default class SafeLinkToComponent extends LinkComponent {
-  constructor() {
-    super(...arguments);
-  }
-}
+export default class SafeLinkToComponent extends LinkComponent {}
