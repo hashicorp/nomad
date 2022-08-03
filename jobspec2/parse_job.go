@@ -108,10 +108,10 @@ func normalizeTemplates(templates []*api.Template) {
 			t.Perms = stringToPtr("0644")
 		}
 		if t.Uid == nil {
-			t.Uid = intToPtr(0)
+			t.Uid = intToPtr(-1)
 		}
 		if t.Gid == nil {
-			t.Gid = intToPtr(0)
+			t.Gid = intToPtr(-1)
 		}
 		if t.Splay == nil {
 			t.Splay = durationToPtr(5 * time.Second)
