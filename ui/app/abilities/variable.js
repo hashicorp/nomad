@@ -21,7 +21,7 @@ export default class Variable extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableView'
+    'policiesSupportVariableList'
   )
   canList;
 
@@ -39,8 +39,8 @@ export default class Variable extends AbstractAbility {
   )
   canDestroy;
 
-  @computed('rulesForNamespace.@each.capabilities')
-  get policiesSupportVariableView() {
+  @computed('rulesForNamespace.@each.capabilities', 'token.selfTokenPolicies')
+  get policiesSupportVariableList() {
     return this.policyNamespacesIncludeSecureVariablesCapabilities(
       this.token.selfTokenPolicies,
       ['list', 'read', 'write', 'destroy']
