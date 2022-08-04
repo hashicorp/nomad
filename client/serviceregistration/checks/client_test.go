@@ -269,6 +269,12 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 				[2]string{"Authorization", "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
 			),
 		},
+		{
+			name:    "with body",
+			method:  "POST",
+			headers: makeHeaders(encoding, agent),
+			body:    "some payload",
+		},
 	}
 
 	for _, tc := range cases {
@@ -295,6 +301,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			Path:        "/",
 			Method:      tc.method,
 			Headers:     tc.headers,
+			Body:        tc.body,
 		}
 
 		t.Run(tc.name, func(t *testing.T) {

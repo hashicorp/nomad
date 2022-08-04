@@ -336,10 +336,9 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Interval: 3 * time.Second,
 				Timeout:  1 * time.Second,
 				Path:     "/health",
-				Method:   "GET",
-				Body:     "blah",
+				Method:   "POST",
+				Body:     "this is a request payload!",
 			},
-			exp: `http checks may not set Body in Nomad services`,
 		},
 	}
 

@@ -24,6 +24,7 @@ func GetCheckQuery(c *structs.ServiceCheck) *Query {
 		Path:        c.Path,
 		Method:      c.Method,
 		Headers:     helper.CopyMap(c.Header),
+		Body:        c.Body,
 	}
 }
 
@@ -42,6 +43,7 @@ type Query struct {
 	Path     string      // http checks only
 	Method   string      // http checks only
 	Headers  http.Header // http checks only
+	Body     string      // http checks only
 }
 
 // A QueryContext contains allocation and service parameters necessary for
