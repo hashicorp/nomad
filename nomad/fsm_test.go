@@ -3378,7 +3378,14 @@ func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
 	// Generate and upsert some secure variables.
 	msvs := mock.SecureVariablesEncrypted(3, 3)
 	svs := msvs.List()
-	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, 10, svs))
+
+	for _, sv := range svs {
+		setResp := testState.SVESet(10, &structs.SVApplyStateRequest{
+			Op:  structs.SVOpSet,
+			Var: sv,
+		})
+		require.NoError(t, setResp.Error)
+	}
 
 	// Update the mock secure variables data with the actual create information
 	iter, err := testState.SecureVariables(memdb.NewWatchSet())

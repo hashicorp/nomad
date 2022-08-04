@@ -2482,8 +2482,12 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	variable := mock.SecureVariableEncrypted()
 	variable.KeyID = key2.KeyID
-	require.NoError(t, store.UpsertSecureVariables(
-		structs.MsgTypeTestSetup, 601, []*structs.SecureVariableEncrypted{variable}))
+
+	setResp := store.SVESet(601, &structs.SVApplyStateRequest{
+		Op:  structs.SVOpSet,
+		Var: variable,
+	})
+	require.NoError(t, setResp.Error)
 
 	// insert an allocation
 	alloc := mock.Alloc()
