@@ -838,10 +838,10 @@ func (tmpl *Template) Canonicalize() {
 		tmpl.Perms = stringToPtr("0644")
 	}
 	if tmpl.Uid == nil {
-		tmpl.Uid = intToPtr(0)
+		tmpl.Uid = intToPtr(-1)
 	}
 	if tmpl.Gid == nil {
-		tmpl.Gid = intToPtr(0)
+		tmpl.Gid = intToPtr(-1)
 	}
 	if tmpl.LeftDelim == nil {
 		tmpl.LeftDelim = stringToPtr("{{")
