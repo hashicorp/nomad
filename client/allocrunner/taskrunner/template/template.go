@@ -109,7 +109,8 @@ type TaskTemplateManagerConfig struct {
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
 
-	Handle interfaces.ScriptExecutor
+	// ExecHandle is used to execute scripts
+	ExecHandle interfaces.ScriptExecutor
 }
 
 // Validate validates the configuration.
@@ -439,7 +440,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			case structs.TemplateChangeModeRestart:
 				restart = true
 			case structs.TemplateChangeModeScript:
-				// do stuff
+				tm.config.ExecHandle.Exec(time.Minute, "", []string{}) // FIXME: figure out how to pass this
 			case structs.TemplateChangeModeNoop:
 				continue
 			}

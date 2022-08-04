@@ -133,7 +133,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
-		Handle:               h.config.handle,
+		ExecHandle:           h.config.handle,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
