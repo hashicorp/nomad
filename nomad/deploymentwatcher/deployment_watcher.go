@@ -293,17 +293,21 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 			continue
 		}
 
-		if !dstate.AutoPromote || dstate.DesiredCanaries != len(dstate.PlacedCanaries) {
+		if !dstate.AutoPromote || len(dstate.PlacedCanaries) < dstate.DesiredCanaries {
 			return nil
 		}
 
+		healthyCanaries := 0
 		// Find the health status of each canary
 		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
-				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
-					return nil
+				if c == a.ID && a.DeploymentStatus.IsHealthy() {
+					healthyCanaries += 1
 				}
 			}
+		}
+		if healthyCanaries != dstate.DesiredCanaries {
+			return nil
 		}
 	}
 
