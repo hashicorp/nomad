@@ -401,11 +401,9 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	require.NoError(err)
 
 	for subsystem, cgroup := range subsystems {
-		if !strings.Contains(cgroup, "nomad/") {
-			// this should only be rdma at this point
+		if subsystem == "" || !strings.Contains(cgroup, "nomad/") {
 			continue
 		}
-
 		p, err := cgutil.GetCgroupPathHelperV1(subsystem, cgroup)
 		require.NoError(err)
 		require.Falsef(cgroups.PathExists(p), "cgroup for %s %s still exists", subsystem, cgroup)
