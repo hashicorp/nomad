@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: when determining whether to let a user see Secure Variables, check against all paths in all namespaces.
-```
