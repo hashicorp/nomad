@@ -323,9 +323,11 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Method:   "GET",
-				Header:   map[string][]string{"foo": {"bar"}},
+				Header: map[string][]string{
+					"foo": {"bar"},
+					"baz": nil,
+				},
 			},
-			exp: `http checks may not set headers in Nomad services`,
 		},
 		{
 			name: "http with body",
