@@ -31,10 +31,6 @@ const (
 	// in case for e.g. Nomad tasks should be further constrained by an externally
 	// configured systemd cgroup.
 	DefaultCgroupParentV2 = "nomad.slice"
-
-	// rootless is (for now) always false; Nomad clients require root, so we
-	// assume to not need to do the extra plumbing for rootless cgroups.
-	rootless = false
 )
 
 // nothing is used for treating a map like a set with no values
@@ -145,7 +141,7 @@ func (c *cpusetManagerV2) CgroupPathFor(allocID, task string) CgroupPathGetter {
 
 		for {
 			path := c.pathOf(makeID(allocID, task))
-			mgr, err := fs2.NewManager(nil, path, rootless)
+			mgr, err := fs2.NewManager(nil, path)
 			if err != nil {
 				return "", err
 			}
@@ -229,7 +225,7 @@ func (c *cpusetManagerV2) cleanup() {
 	}
 }
 
-//pathOf returns the absolute path to a task with identity id.
+// pathOf returns the absolute path to a task with identity id.
 func (c *cpusetManagerV2) pathOf(id identity) string {
 	return filepath.Join(c.parentAbs, makeScope(id))
 }
@@ -239,7 +235,7 @@ func (c *cpusetManagerV2) pathOf(id identity) string {
 // We avoid removing a cgroup if it still contains a PID, as the cpuset manager
 // may be initially empty on a Nomad client restart.
 func (c *cpusetManagerV2) remove(path string) {
-	mgr, err := fs2.NewManager(nil, path, rootless)
+	mgr, err := fs2.NewManager(nil, path)
 	if err != nil {
 		c.logger.Warn("failed to create manager", "path", path, "err", err)
 		return
@@ -267,14 +263,16 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 	path := c.pathOf(id)
 
 	// make a manager for the cgroup
-	m, err := fs2.NewManager(nil, path, rootless)
+	m, err := fs2.NewManager(new(configs.Cgroup), path)
 	if err != nil {
 		c.logger.Error("failed to manage cgroup", "path", path, "err", err)
+		return
 	}
 
 	// create the cgroup
 	if err = m.Apply(CreationPID); err != nil {
 		c.logger.Error("failed to apply cgroup", "path", path, "err", err)
+		return
 	}
 
 	// set the cpuset value for the cgroup
@@ -282,13 +280,14 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 		CpusetCpus: set.String(),
 	}); err != nil {
 		c.logger.Error("failed to set cgroup", "path", path, "err", err)
+		return
 	}
 }
 
 // ensureParentCgroup will create parent cgroup for the manager if it does not
 // exist yet. No PIDs are added to any cgroup yet.
 func (c *cpusetManagerV2) ensureParent() error {
-	mgr, err := fs2.NewManager(nil, c.parentAbs, rootless)
+	mgr, err := fs2.NewManager(nil, c.parentAbs)
 	if err != nil {
 		return err
 	}
