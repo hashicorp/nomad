@@ -116,6 +116,9 @@ func normalizeTemplates(templates []*api.Template) {
 		if t.Splay == nil {
 			t.Splay = durationToPtr(5 * time.Second)
 		}
+		if t.ErrMissingKey == nil {
+			t.ErrMissingKey = boolToPtr(false)
+		}
 	}
 }
 

@@ -312,6 +312,7 @@ job "binstore-storagelocker" {
         splay         = "10s"
         env           = true
         vault_grace   = "33s"
+        error_on_missing_key = true
       }
 
       template {
