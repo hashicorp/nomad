@@ -77,6 +77,9 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   validation error. Setting `env` when the `change_mode` is `noop` is
   permitted but will not update the environment variables in the task.
 
+- `error_on_missing_key` `(bool: false)` - Specifies how the template behaves
+  when attempting to index a struct or map key that does not exist.
+
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
@@ -85,18 +88,18 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   File permissions are given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `uid` `(int: 0)` - Specifies the rendered template owner's user ID.
-  
+
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, suck as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
+  feature will also **not** work with Docker Desktop.
 
 - `gid` `(int: 0)` - Specifies the rendered template owner's group ID.
 
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, suck as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
+  feature will also **not** work with Docker Desktop.
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
