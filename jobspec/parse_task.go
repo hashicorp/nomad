@@ -461,11 +461,12 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 
 		templ := &api.Template{
-			ChangeMode: stringToPtr("restart"),
-			Splay:      timeToPtr(5 * time.Second),
-			Perms:      stringToPtr("0644"),
-			Uid:        intToPtr(0),
-			Gid:        intToPtr(0),
+			ChangeMode:    stringToPtr("restart"),
+			Splay:         timeToPtr(5 * time.Second),
+			Perms:         stringToPtr("0644"),
+			Uid:           intToPtr(0),
+			Gid:           intToPtr(0),
+			ErrMissingKey: boolToPtr(false),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
