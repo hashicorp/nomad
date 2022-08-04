@@ -308,7 +308,7 @@ func (s *StateStore) SVESet(idx uint64, sv *structs.SVApplyStateRequest) *struct
 	defer tx.Abort()
 
 	// Perform the actual set.
-	resp := svSetTxn(tx, idx, sv)
+	resp := s.svSetTxn(tx, idx, sv)
 	if resp.IsError() {
 		return resp
 	}
@@ -327,7 +327,7 @@ func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *str
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
 
-	resp := svSetCASTxn(tx, idx, sv)
+	resp := s.svSetCASTxn(tx, idx, sv)
 	if resp.IsError() || resp.IsConflict() {
 		return resp
 	}
@@ -340,7 +340,7 @@ func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *str
 
 // svSetCASTxn is the inner method used to do a CAS inside an existing
 // transaction.
-func svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	sv := req.Var
 	raw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
@@ -372,64 +372,97 @@ func svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *str
 	}
 
 	// If we made it this far, we should perform the set.
-	return svSetTxn(tx, idx, req)
+	return s.svSetTxn(tx, idx, req)
 }
 
 // svSetTxn is used to insert or update a secure variable in the state
 // store. It is the inner method used and handles only the actual storage.
-func svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	sv := req.Var
-	existingNode, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	existingRaw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
 	}
-	existing, _ := existingNode.(*structs.SecureVariableEncrypted)
+	existing, _ := existingRaw.(*structs.SecureVariableEncrypted)
 
-	now := time.Now()
+	existingQuota, err := tx.First(TableSecureVariablesQuotas, indexID, sv.Namespace)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("secure variable quota lookup failed: %v", err))
+	}
+
+	var quotaChange int64
+
 	// Set the CreateIndex and CreateTime
 	if existing != nil {
 		sv.CreateIndex = existing.CreateIndex
 		sv.CreateTime = existing.CreateTime
+
+		if existing.Equals(*sv) {
+			// Skip further writing in the state store if the entry is not actually
+			// changed. Nevertheless, the input's ModifyIndex should be reset
+			// since the TXN API returns a copy in the response.
+			sv.ModifyIndex = existing.ModifyIndex
+			sv.ModifyTime = existing.ModifyTime
+			return req.SuccessResponse(idx, nil)
+		}
+		sv.ModifyIndex = idx
+		quotaChange = int64(len(sv.Data) - len(existing.Data))
 	} else {
 		sv.CreateIndex = idx
-		sv.CreateTime = now.UnixNano()
+		sv.ModifyIndex = idx
+		quotaChange = int64(len(sv.Data))
 	}
 
-	// Set the ModifyIndex.
-	if existing != nil && existing.Equals(*sv) {
-		// Skip further writing in the state store if the entry is not actually
-		// changed. Nevertheless, the input's ModifyIndex should be reset
-		// since the TXN API returns a copy in the response.
-		sv.ModifyIndex = existing.ModifyIndex
-		sv.ModifyTime = existing.ModifyTime
-		return nil
-	}
-	sv.ModifyIndex = idx
-	sv.ModifyTime = now.UnixNano()
-
-	// Store the secure variable in the state store and update the index.
-	if err := insertSVTxn(tx, sv, false); err != nil {
+	if err := tx.Insert(TableSecureVariables, sv); err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed inserting secure variable: %s", err))
 	}
 
-	return req.SuccessResponse(idx, &sv.SecureVariableMetadata)
-}
-
-func insertSVTxn(tx WriteTxn, sv *structs.SecureVariableEncrypted, updateMax bool) error {
-	if err := tx.Insert(TableSecureVariables, sv); err != nil {
-		return err
-	}
-	// updateMax is true during restores and false for normal sets
-	if updateMax {
-		if err := indexUpdateMaxTxn(tx, sv.ModifyIndex, TableSecureVariables); err != nil {
-			return fmt.Errorf("failed updating secure variable index: %v", err)
-		}
+	// Track quota usage
+	var quotaUsed *structs.SecureVariablesQuota
+	if existingQuota != nil {
+		quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = quotaUsed.Copy()
 	} else {
-		if err := tx.Insert(tableIndex, &IndexEntry{TableSecureVariables, sv.ModifyIndex}); err != nil {
-			return fmt.Errorf("failed updating secure variable index: %s", err)
+		quotaUsed = &structs.SecureVariablesQuota{
+			Namespace:   sv.Namespace,
+			CreateIndex: idx,
 		}
 	}
-	return nil
+
+	if quotaChange > math.MaxInt64-quotaUsed.Size {
+		// this limit is actually shared across all namespaces in the region's
+		// quota (if there is one), but we need this check here to prevent
+		// overflow as well
+		return req.ErrorResponse(idx, fmt.Errorf("secure variables can store a maximum of %d bytes of encrypted data per namespace", math.MaxInt))
+	}
+
+	if quotaChange > 0 {
+		quotaUsed.Size += quotaChange
+	} else if quotaChange < 0 {
+		quotaUsed.Size -= helper.Min(quotaUsed.Size, -quotaChange)
+	}
+
+	err = s.enforceSecureVariablesQuota(idx, tx, sv.Namespace, quotaChange)
+	if err != nil {
+		return req.ErrorResponse(idx, err)
+	}
+
+	// we check enforcement above even if there's no change because another
+	// namespace may have used up quota to make this no longer valid, but we
+	// only update the table if this namespace has changed
+	if quotaChange != 0 {
+		quotaUsed.ModifyIndex = idx
+		if err := tx.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
+			return req.ErrorResponse(idx, fmt.Errorf("secure variable quota insert failed: %v", err))
+		}
+	}
+
+	if err := tx.Insert(tableIndex,
+		&IndexEntry{TableSecureVariables, idx}); err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed updating secure variable index: %s", err))
+	}
+
+	return req.SuccessResponse(idx, &sv.SecureVariableMetadata)
 }
 
 // SVEGet is used to retrieve a key/value pair from the state store.
@@ -545,19 +578,32 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.SVAppl
 func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 
 	// Look up the entry in the state store.
-	sv, err := tx.First(TableSecureVariables, indexID, req.Var.Namespace, req.Var.Path)
+	existingRaw, err := tx.First(TableSecureVariables, indexID, req.Var.Namespace, req.Var.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed secure variable lookup: %s", err))
 	}
-	if sv == nil {
+	if existingRaw == nil {
 		return req.SuccessResponse(idx, nil)
 	}
 
-	return svDeleteWithSVE(tx, idx, req)
-}
+	existingQuota, err := tx.First(TableSecureVariablesQuotas, indexID, req.Var.Namespace)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("secure variable quota lookup failed: %v", err))
+	}
 
-func svDeleteWithSVE(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
-	sv := req.Var
+	sv := existingRaw.(*structs.SecureVariableEncrypted)
+
+	// Track quota usage
+	if existingQuota != nil {
+		quotaUsed := existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = quotaUsed.Copy()
+		quotaUsed.Size -= helper.Min(quotaUsed.Size, int64(len(sv.Data)))
+		quotaUsed.ModifyIndex = idx
+		if err := tx.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
+			return req.ErrorResponse(idx, fmt.Errorf("secure variable quota insert failed: %v", err))
+		}
+	}
+
 	// Delete the secure variable and update the index table.
 	if err := tx.Delete(TableSecureVariables, sv); err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed deleting secure variable entry: %s", err))
