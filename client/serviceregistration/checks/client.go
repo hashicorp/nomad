@@ -162,6 +162,7 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
+	request.Header = q.Headers
 	request = request.WithContext(ctx)
 
 	result, err := c.httpClient.Do(request)

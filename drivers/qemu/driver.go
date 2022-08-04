@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-semver/semver"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -38,14 +38,13 @@ const (
 
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
+	// Use a short file name since socket paths have a maximum length.
 	qemuGracefulShutdownMsg = "system_powerdown\n"
-	qemuMonitorSocketName   = "qemu-monitor.sock"
+	qemuMonitorSocketName   = "qm.sock"
 
 	// Socket file enabling communication with the Qemu Guest Agent (if enabled and running)
-	qemuGuestAgentSocketName = "qemu-guest-agent.sock"
-
-	// Maximum socket path length prior to qemu 2.10.1
-	qemuLegacyMaxMonitorPathLen = 108
+	// Use a short file name since socket paths have a maximum length.
+	qemuGuestAgentSocketName = "qa.sock"
 
 	// taskHandleVersion is the version of task handle which this driver sets
 	// and understands how to decode driver state
@@ -68,14 +67,6 @@ var (
 	}
 
 	versionRegex = regexp.MustCompile(`version (\d[\.\d+]+)`)
-
-	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
-	// We should consider this if driver.qemu.version is < 2.10.1 and the
-	// generated monitor path is too long.
-	//
-	// Relevant fix is here:
-	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
-	qemuVersionLongSocketPathFix = semver.New("2.10.1")
 
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
@@ -304,9 +295,27 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
+	// Try to restore monitor socket path.
+	taskDir := filepath.Join(handle.Config.AllocDir, handle.Config.Name)
+	possiblePaths := []string{
+		filepath.Join(taskDir, qemuMonitorSocketName),
+		// Support restoring tasks that used the old socket name.
+		filepath.Join(taskDir, "qemu-monitor.sock"),
+	}
+
+	var monitorPath string
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			monitorPath = path
+			d.logger.Debug("found existing monitor socket", "monitor", monitorPath)
+			break
+		}
+	}
+
 	h := &taskHandle{
 		exec:         execImpl,
 		pid:          taskState.Pid,
+		monitorPath:  monitorPath,
 		pluginClient: pluginClient,
 		taskConfig:   taskState.TaskConfig,
 		procState:    drivers.TaskStateRunning,
@@ -457,6 +466,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		}
 	}
 
+	taskDir := filepath.Join(cfg.AllocDir, cfg.Name)
+
 	var monitorPath string
 	if driverConfig.GracefulShutdown {
 		if runtime.GOOS == "windows" {
@@ -464,14 +475,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		}
 		// This socket will be used to manage the virtual machine (for example,
 		// to perform graceful shutdowns)
-		taskDir := filepath.Join(cfg.AllocDir, cfg.Name)
-		fingerPrint := d.buildFingerprint()
-		if fingerPrint.Attributes == nil {
-			return nil, nil, fmt.Errorf("unable to get qemu driver version from fingerprinted attributes")
-		}
-		monitorPath, err = d.getMonitorPath(taskDir, fingerPrint)
-		if err != nil {
-			d.logger.Debug("could not get qemu monitor path", "error", err)
+		monitorPath = filepath.Join(taskDir, qemuMonitorSocketName)
+		if err := validateSocketPath(monitorPath); err != nil {
 			return nil, nil, err
 		}
 		d.logger.Debug("got monitor path", "monitorPath", monitorPath)
@@ -483,8 +488,12 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, errors.New("QEMU Guest Agent socket is unsupported on the Windows platform")
 		}
 		// This socket will be used to communicate with the Guest Agent (if it's running)
-		taskDir := filepath.Join(cfg.AllocDir, cfg.Name)
-		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s/%s,server,nowait,id=qga0", taskDir, qemuGuestAgentSocketName))
+		agentSocketPath := filepath.Join(taskDir, qemuGuestAgentSocketName)
+		if err := validateSocketPath(agentSocketPath); err != nil {
+			return nil, nil, err
+		}
+
+		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s,server,nowait,id=qga0", agentSocketPath))
 		args = append(args, "-device", "virtio-serial")
 		args = append(args, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0")
 	}
@@ -636,6 +645,8 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		if err := sendQemuShutdown(d.logger, handle.monitorPath, handle.pid); err != nil {
 			d.logger.Debug("error sending graceful shutdown ", "pid", handle.pid, "error", err)
 		}
+	} else {
+		d.logger.Debug("monitor socket is empty, forcing shutdown")
 	}
 
 	// TODO(preetha) we are calling shutdown on the executor here
@@ -737,27 +748,16 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	}
 }
 
-// getMonitorPath is used to determine whether a qemu monitor socket can be
-// safely created and accessed in the task directory by the version of qemu
-// present on the host. If it is safe to use, the socket's full path is
-// returned along with a nil error. Otherwise, an empty string is returned
-// along with a descriptive error.
-func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (string, error) {
-	var longPathSupport bool
-	currentQemuVer := fingerPrint.Attributes[driverVersionAttr]
-	currentQemuSemver := semver.New(currentQemuVer.GoString())
-	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
-		longPathSupport = false
-		d.logger.Debug("long socket paths are not available in this version of QEMU", "version", currentQemuVer)
-	} else {
-		longPathSupport = true
-		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
+// validateSocketPath provides best effort validation of socket paths since
+// some rules may be platform-dependant.
+func validateSocketPath(path string) error {
+	if maxSocketPathLen > 0 && len(path) > maxSocketPathLen {
+		return fmt.Errorf(
+			"socket path %s is longer than the maximum length allowed (%d), try to reduce the task name or Nomad's data_dir if possible.",
+			path, maxSocketPathLen)
 	}
-	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
-	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && !longPathSupport {
-		return "", fmt.Errorf("monitor path is too long for this version of qemu")
-	}
-	return fullSocketPath, nil
+
+	return nil
 }
 
 // sendQemuShutdown attempts to issue an ACPI power-off command via the qemu

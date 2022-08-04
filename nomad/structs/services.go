@@ -351,11 +351,6 @@ func (sc *ServiceCheck) validateNomad() error {
 			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
 		}
 
-		// todo(shoenig) support headers
-		if len(sc.Header) > 0 {
-			return fmt.Errorf("http checks may not set headers in Nomad services")
-		}
-
 		// todo(shoenig) support body
 		if len(sc.Body) > 0 {
 			return fmt.Errorf("http checks may not set Body in Nomad services")
