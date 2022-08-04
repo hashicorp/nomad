@@ -475,7 +475,7 @@ executors:
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     macos:
-      xcode: 12.4.0
+      xcode: 12.5.1
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
