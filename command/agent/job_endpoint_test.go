@@ -14,6 +14,7 @@ import (
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -2742,6 +2743,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
+								ErrMissingKey: pointer.Of[bool](true),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -3149,6 +3151,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
+								ErrMissingKey: true,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
