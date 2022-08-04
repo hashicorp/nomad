@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -302,9 +303,19 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
+	// Try to restore monitor socket path.
+	taskDir := filepath.Join(handle.Config.AllocDir, handle.Config.Name)
+	monitorPath := filepath.Join(taskDir, qemuMonitorSocketName)
+	if _, err := os.Stat(monitorPath); err == nil {
+		d.logger.Debug("found existing monitor socket", "monitor", monitorPath)
+	} else {
+		monitorPath = ""
+	}
+
 	h := &taskHandle{
 		exec:         execImpl,
 		pid:          taskState.Pid,
+		monitorPath:  monitorPath,
 		pluginClient: pluginClient,
 		taskConfig:   taskState.TaskConfig,
 		procState:    drivers.TaskStateRunning,
