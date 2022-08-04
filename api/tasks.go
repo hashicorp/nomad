@@ -796,7 +796,7 @@ type Template struct {
 	DestPath              *string        `mapstructure:"destination" hcl:"destination,optional"`
 	EmbeddedTmpl          *string        `mapstructure:"data" hcl:"data,optional"`
 	ChangeMode            *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeScriptPath      *string        `mapstructure:"change_mode_path" hcl:"change_mode_path,optional"`
+	ChangeScriptPath      *string        `mapstructure:"change_script_path" hcl:"change_script_path,optional"`
 	ChangeScriptArguments *string        `mapstructure:"change_script_arguments" hcl:"change_script_arguments,optional"`
 	ChangeScriptTimeout   *time.Duration `mapstructure:"change_script_timeout" hcl:"change_script_timeout,optional"`
 	ChangeSignal          *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
@@ -838,7 +838,7 @@ func (tmpl *Template) Canonicalize() {
 		tmpl.ChangeScriptPath = stringToPtr("")
 	}
 	if tmpl.ChangeScriptArguments == nil {
-		tmpl.ChangeScriptPath = stringToPtr("")
+		tmpl.ChangeScriptArguments = stringToPtr("")
 	}
 	if tmpl.ChangeScriptTimeout == nil {
 		tmpl.ChangeScriptTimeout = timeToPtr(5 * time.Second)
