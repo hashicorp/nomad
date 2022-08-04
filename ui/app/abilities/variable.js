@@ -39,7 +39,7 @@ export default class Variable extends AbstractAbility {
   )
   canDestroy;
 
-  @computed('rulesForNamespace.@each.capabilities', 'token.selfTokenPolicies')
+  @computed('token.selfTokenPolicies')
   get policiesSupportVariableList() {
     return this.policyNamespacesIncludeSecureVariablesCapabilities(
       this.token.selfTokenPolicies,
