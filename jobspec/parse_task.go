@@ -437,6 +437,9 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		valid := []string{
 			"change_mode",
 			"change_signal",
+			"change_script_path",
+			"change_script_arguments",
+			"change_script_timeout",
 			"data",
 			"destination",
 			"left_delimiter",
