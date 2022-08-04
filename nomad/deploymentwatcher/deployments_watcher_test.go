@@ -696,7 +696,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
-func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
+func TestWatcher_AutoPromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	ci.Parallel(t)
 	w, m := defaultTestDeploymentWatcher(t)
 	now := time.Now()
@@ -708,12 +708,8 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 	canaryUpd.Canary = 2
 	canaryUpd.ProgressDeadline = 5 * time.Second
 
-	rollingUpd := structs.DefaultUpdateStrategy.Copy()
-	rollingUpd.ProgressDeadline = 5 * time.Second
-
 	j := mock.MultiTaskGroupJob()
 	j.TaskGroups[0].Update = canaryUpd
-	j.TaskGroups[1].Update = rollingUpd
 
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -724,12 +720,6 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 			AutoPromote:      canaryUpd.AutoPromote,
 			AutoRevert:       canaryUpd.AutoRevert,
 			ProgressDeadline: canaryUpd.ProgressDeadline,
-			DesiredTotal:     2,
-		},
-		"api": {
-			AutoPromote:      rollingUpd.AutoPromote,
-			AutoRevert:       rollingUpd.AutoRevert,
-			ProgressDeadline: rollingUpd.ProgressDeadline,
 			DesiredTotal:     2,
 		},
 	}
@@ -745,37 +735,16 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 		return a
 	}
 
-	rollingAlloc := func() *structs.Allocation {
-		a := mock.Alloc()
-		a.DeploymentID = d.ID
-		a.CreateTime = now.UnixNano()
-		a.ModifyTime = now.UnixNano()
-		a.TaskGroup = "api"
-		a.AllocatedResources.Tasks["api"] = a.AllocatedResources.Tasks["web"].Copy()
-		delete(a.AllocatedResources.Tasks, "web")
-		a.TaskResources["api"] = a.TaskResources["web"].Copy()
-		delete(a.TaskResources, "web")
-		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Canary: false,
-		}
-		return a
-	}
-
-	// Web taskgroup (0)
+	// Web taskgroup
 	ca1 := canaryAlloc()
 	ca2 := canaryAlloc()
 	ca3 := canaryAlloc()
 
-	// Api taskgroup (1)
-	ra1 := rollingAlloc()
-	ra2 := rollingAlloc()
-
 	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID, ca3.ID}
 	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
-	d.TaskGroups[ra1.TaskGroup].PlacedAllocs = 2
 	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ca3, ra1, ra2}), "UpsertAllocs")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ca3}), "UpsertAllocs")
 
 	// =============================================================
 	// Support method calls
@@ -794,7 +763,7 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 
 	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
 		DeploymentID: d.ID,
-		Healthy:      []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
+		Healthy:      []string{ca1.ID, ca2.ID},
 		Eval:         true,
 	}
 	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
@@ -825,10 +794,10 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 		},
 	)
 
-	// Mark the canaries healthy
+	// Mark only 2 canaries as healthy
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         d.ID,
-		HealthyAllocationIDs: []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID},
 	}
 	var resp structs.DeploymentUpdateResponse
 	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
@@ -847,6 +816,7 @@ func TestWatcher_AutoPromoteDeployment_WithUnhealthyCanaries(t *testing.T) {
 		func(err error) { require.NoError(t, err) },
 	)
 
+	// Verify that a promotion request was submitted.
 	require.Equal(t, 1, len(w.watchers), "Deployment should still be active")
 	m.AssertCalled(t, "UpdateDeploymentPromotion", mocker.MatchedBy(matcher2))
 
