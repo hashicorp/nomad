@@ -1066,11 +1066,11 @@ README][ct].
   `script`.
 
 - `ChangeScriptArguments` - Comma-separated list of arguments that are passed to
-  the script that is to be executed on template change. This option is required if
-  the `change_mode` is `script`.
+  the script that is to be executed on template change.
 
-- `ChangeScriptTimeout` - Timeout for script execution in seconds. This option
-  is required if the `change_mode` is `script`.
+- `ChangeScriptTimeout` - Timeout for script execution specified using a label
+  suffix like "30s" or "1h", This option is required if the `change_mode` is
+  `script`.
 
 - `DestPath` - Specifies the location where the resulting template should be
   rendered, relative to the task directory.

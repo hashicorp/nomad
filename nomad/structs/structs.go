@@ -7686,7 +7686,7 @@ const (
 var (
 	// TemplateChangeModeInvalidError is the error for when an invalid change
 	// mode is given
-	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, restart")
+	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, script, restart")
 )
 
 // Template represents a template configuration to be rendered for a given task
@@ -7716,7 +7716,7 @@ type Template struct {
 	ChangeScriptArguments string
 	// ChangeScriptTimeout is the amount of seconds we wait for the script to
 	// run
-	ChangeScriptTimeout int
+	ChangeScriptTimeout time.Duration
 
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
@@ -7815,6 +7815,10 @@ func (t *Template) Validate() error {
 		}
 		if t.Envvars {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
+		}
+	case TemplateChangeModeScript:
+		if t.ChangeScriptPath == "" || t.ChangeScriptTimeout == 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path and timeout value when change mode is signal"))
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)

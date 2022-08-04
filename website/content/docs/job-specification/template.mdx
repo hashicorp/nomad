@@ -64,11 +64,11 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   `change_mode` is `script`.
 
 - `change_script_arguments` `(string: "")` - Comma-separated list of arguments
-  that are passed to the script that is to be executed on template change. This
-  option is required if the `change_mode` is `script`.
+  that are passed to the script that is to be executed on template change. 
 
-- `change_script_timeout` `(int: 0)` - Timeout for script execution in seconds.
-  This option is required if the `change_mode` is `script`.
+- `change_script_timeout` `(string: "5s")` - Timeout for script execution
+  specified using a label suffix like "30s" or "1h", This option is required if
+  the `change_mode` is `script`.
 
 - `data` `(string: "")` - Specifies the raw template to execute. One of `source`
   or `data` must be specified, but not both. This is useful for smaller

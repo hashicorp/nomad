@@ -445,7 +445,6 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			case structs.TemplateChangeModeRestart:
 				restart = true
 			case structs.TemplateChangeModeScript:
-				duration, _ := time.ParseDuration(strconv.Itoa(tmpl.ChangeScriptTimeout) + "s")
 				scripts = append(scripts, struct {
 					path    string
 					args    []string
@@ -453,7 +452,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 				}{
 					path:    tmpl.ChangeScriptPath,
 					args:    strings.Split(tmpl.ChangeScriptArguments, ","),
-					timeout: duration,
+					timeout: tmpl.ChangeScriptTimeout,
 				})
 			case structs.TemplateChangeModeNoop:
 				continue
