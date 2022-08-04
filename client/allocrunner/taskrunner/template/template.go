@@ -819,7 +819,10 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up Nomad
 	conf.Nomad.Namespace = &config.NomadNamespace
 	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
-	conf.Nomad.Token = &config.NomadToken
+	
+	// Use the Node's SecretID to authenticate Nomad template function calls.
+	conf.Nomad.Token = &cc.Node.SecretID
+
 	if cc.TemplateConfig != nil && cc.TemplateConfig.NomadRetry != nil {
 		// Set the user-specified Nomad RetryConfig
 		var err error
