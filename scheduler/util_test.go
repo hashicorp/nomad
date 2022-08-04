@@ -837,6 +837,24 @@ func TestTasksUpdated(t *testing.T) {
 	j28 := j27.Copy()
 	j28.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = "monolith"
 	require.True(t, tasksUpdated(j27, j28, name))
+
+	// Compare identical Template ErrMissingKey
+	j29 := mock.Job()
+	j29.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			ErrMissingKey: false,
+		},
+	}
+	j30 := mock.Job()
+	j30.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			ErrMissingKey: false,
+		},
+	}
+	require.False(t, tasksUpdated(j29, j30, name))
+	// Compare changed Template ErrMissingKey
+	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
+	require.True(t, tasksUpdated(j29, j30, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
