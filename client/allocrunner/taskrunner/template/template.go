@@ -109,8 +109,8 @@ type TaskTemplateManagerConfig struct {
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
 
-	// ExecHandle is used to execute scripts
-	ExecHandle interfaces.ScriptExecutor
+	// Handle is used to execute scripts
+	Handle interfaces.ScriptExecutor
 }
 
 // Validate validates the configuration.
@@ -395,6 +395,11 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 
 	var handling []string
 	signals := make(map[string]struct{})
+	scripts := []struct {
+		path    string
+		args    []string
+		timeout time.Duration
+	}{}
 	restart := false
 	var splay time.Duration
 
@@ -440,7 +445,16 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			case structs.TemplateChangeModeRestart:
 				restart = true
 			case structs.TemplateChangeModeScript:
-				tm.config.ExecHandle.Exec(time.Minute, "", []string{}) // FIXME: figure out how to pass this
+				duration, _ := time.ParseDuration(strconv.Itoa(tmpl.ChangeScriptTimeout) + "s")
+				scripts = append(scripts, struct {
+					path    string
+					args    []string
+					timeout time.Duration
+				}{
+					path:    tmpl.ChangeScriptPath,
+					args:    strings.Split(tmpl.ChangeScriptArguments, ","),
+					timeout: duration,
+				})
 			case structs.TemplateChangeModeNoop:
 				continue
 			}
@@ -495,6 +509,14 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 					structs.NewTaskEvent(structs.TaskKilling).
 						SetFailsTask().
 						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
+			}
+		} else if len(scripts) != 0 {
+			for _, script := range scripts {
+				_, _, err := tm.config.Handle.Exec(script.timeout, script.path, script.args)
+				if err != nil {
+					structs.NewTaskEvent(structs.TaskDriverMessage).
+						SetDisplayMessage(fmt.Sprintf("Template failed to run script on change: %v", err))
+				}
 			}
 		}
 	}

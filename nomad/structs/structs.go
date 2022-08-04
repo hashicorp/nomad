@@ -7708,6 +7708,16 @@ type Template struct {
 	// requires it.
 	ChangeSignal string
 
+	// ChangeScriptPath is the path to the script that is being triggered if the
+	// change mode requires it
+	ChangeScriptPath string
+	// ChangeScriptArguments is a coma-separated list of arguments passed to the
+	// script
+	ChangeScriptArguments string
+	// ChangeScriptTimeout is the amount of seconds we wait for the script to
+	// run
+	ChangeScriptTimeout int
+
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
