@@ -696,6 +696,142 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
+func TestWatcher_AutoPromoteDeployment_UnhealthyCanaries(t *testing.T) {
+	ci.Parallel(t)
+	w, m := defaultTestDeploymentWatcher(t)
+	now := time.Now()
+
+	// Create 1 UpdateStrategy, 1 job (2 TaskGroups), 2 canaries, and 1 deployment
+	canaryUpd := structs.DefaultUpdateStrategy.Copy()
+	canaryUpd.AutoPromote = true
+	canaryUpd.MaxParallel = 2
+	canaryUpd.Canary = 2
+	canaryUpd.ProgressDeadline = 5 * time.Second
+
+	j := mock.MultiTaskGroupJob()
+	j.TaskGroups[0].Update = canaryUpd
+
+	d := mock.Deployment()
+	d.JobID = j.ID
+	// This is created in scheduler.computeGroup at runtime, where properties from the
+	// UpdateStrategy are copied in
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"web": {
+			AutoPromote:      canaryUpd.AutoPromote,
+			AutoRevert:       canaryUpd.AutoRevert,
+			ProgressDeadline: canaryUpd.ProgressDeadline,
+			DesiredTotal:     2,
+		},
+	}
+
+	canaryAlloc := func() *structs.Allocation {
+		a := mock.Alloc()
+		a.DeploymentID = d.ID
+		a.CreateTime = now.UnixNano()
+		a.ModifyTime = now.UnixNano()
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary: true,
+		}
+		return a
+	}
+
+	// Web taskgroup
+	ca1 := canaryAlloc()
+	ca2 := canaryAlloc()
+	ca3 := canaryAlloc()
+
+	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID, ca3.ID}
+	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
+	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
+	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ca3}), "UpsertAllocs")
+
+	// =============================================================
+	// Support method calls
+
+	// clear UpdateDeploymentStatus default expectation
+	m.Mock.ExpectedCalls = nil
+
+	matchConfig0 := &matchDeploymentStatusUpdateConfig{
+		DeploymentID:      d.ID,
+		Status:            structs.DeploymentStatusFailed,
+		StatusDescription: structs.DeploymentStatusDescriptionProgressDeadline,
+		Eval:              true,
+	}
+	matcher0 := matchDeploymentStatusUpdateRequest(matchConfig0)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher0)).Return(nil)
+
+	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
+		DeploymentID: d.ID,
+		Healthy:      []string{ca1.ID, ca2.ID},
+		Eval:         true,
+	}
+	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher1)).Return(nil)
+
+	matchConfig2 := &matchDeploymentPromoteRequestConfig{
+		Promotion: &structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+		Eval: true,
+	}
+	matcher2 := matchDeploymentPromoteRequest(matchConfig2)
+	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher2)).Return(nil)
+	// =============================================================
+
+	// Start the deployment
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) {
+		w.l.RLock()
+		defer w.l.RUnlock()
+		return 1 == len(w.watchers), nil
+	},
+		func(err error) {
+			w.l.RLock()
+			defer w.l.RUnlock()
+			require.Equal(t, 1, len(w.watchers), "Should have 1 deployment")
+		},
+	)
+
+	// Mark only 2 canaries as healthy
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:         d.ID,
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID},
+	}
+	var resp structs.DeploymentUpdateResponse
+	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
+	// state.UpdateDeploymentAllocHealth via a raft shim?
+	err := w.SetAllocHealth(req, &resp)
+	require.NoError(t, err)
+
+	ws := memdb.NewWatchSet()
+
+	testutil.WaitForResult(
+		func() (bool, error) {
+			ds, _ := m.state.DeploymentsByJobID(ws, j.Namespace, j.ID, true)
+			d = ds[0]
+			return 2 == d.TaskGroups["web"].HealthyAllocs, nil
+		},
+		func(err error) { require.NoError(t, err) },
+	)
+
+	// Verify that a promotion request was submitted.
+	require.Equal(t, 1, len(w.watchers), "Deployment should still be active")
+	m.AssertCalled(t, "UpdateDeploymentPromotion", mocker.MatchedBy(matcher2))
+
+	require.Equal(t, "running", d.Status)
+	require.True(t, d.TaskGroups["web"].Promoted)
+
+	a1, _ := m.state.AllocByID(ws, ca1.ID)
+	require.False(t, a1.DeploymentStatus.Canary)
+	require.Equal(t, "pending", a1.ClientStatus)
+	require.Equal(t, "run", a1.DesiredStatus)
+
+	b1, _ := m.state.AllocByID(ws, ca2.ID)
+	require.False(t, b1.DeploymentStatus.Canary)
+}
+
 // Test pausing a deployment that is running
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	ci.Parallel(t)
