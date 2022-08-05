@@ -406,6 +406,101 @@ module('Unit | Ability | variable', function (hooks) {
     });
   });
 
+  module('#read', function () {
+    test('it does not permit reading variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canRead);
+    });
+
+    test('it permits reading variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it permits reading variables when acl is disabled', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: false,
+        selfToken: { type: 'client' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it permits reading variables when token has SecureVariables with read capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: ['read'], PathSpec: '*' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it handles namespace matching', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
+                  },
+                },
+                {
+                  Name: 'pablo',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: ['read'], PathSpec: 'foo/bar' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.path = 'foo/bar';
+      this.ability.namespace = 'pablo';
+
+      assert.ok(this.ability.canRead);
+    });
+  });
+
   module('#_nearestMatchingPath', function () {
     test('returns capabilities for an exact path match', function (assert) {
       const mockToken = Service.extend({
