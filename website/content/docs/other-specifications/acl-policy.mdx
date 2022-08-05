@@ -202,6 +202,7 @@ Variables are as follows:
 | read       | Read the decrypted contents of Secure Variables at this path. Also includes the "list" capability                            |
 | list       | List the metadata but not contents of Secure Variables at this path.                                                         |
 | destroy    | Delete Secure Variables at this path.                                                                                        |
+| deny       | No permissions at this path. Deny takes precedence over other capabilities.                                                  |
 
 For example, the policy below allows full access to secure variables at all
 paths in the "dev" namespace that are prefixed with "project/", but only read

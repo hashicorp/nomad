@@ -75,6 +75,7 @@ const (
 	SecureVariablesCapabilityRead    = "read"
 	SecureVariablesCapabilityWrite   = "write"
 	SecureVariablesCapabilityDestroy = "destroy"
+	SecureVariablesCapabilityDeny    = "deny"
 )
 
 // Policy represents a parsed HCL or JSON policy.
@@ -187,7 +188,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 func isPathCapabilityValid(cap string) bool {
 	switch cap {
 	case SecureVariablesCapabilityWrite, SecureVariablesCapabilityRead,
-		SecureVariablesCapabilityList, SecureVariablesCapabilityDestroy:
+		SecureVariablesCapabilityList, SecureVariablesCapabilityDestroy, SecureVariablesCapabilityDeny:
 		return true
 	default:
 		return false
@@ -269,6 +270,8 @@ func expandSecureVariablesCapabilities(caps []string) []string {
 	var foundRead, foundList bool
 	for _, cap := range caps {
 		switch cap {
+		case SecureVariablesCapabilityDeny:
+			return []string{SecureVariablesCapabilityDeny}
 		case SecureVariablesCapabilityRead:
 			foundRead = true
 		case SecureVariablesCapabilityList:
