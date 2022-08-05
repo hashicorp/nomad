@@ -60,9 +60,7 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {
-                    'Path "*"': {
-                      Capabilities: ['list'],
-                    },
+                    Paths: [{ Capabilities: ['list'], PathSpec: '*' }],
                   },
                 },
               ],
@@ -76,7 +74,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canList);
     });
 
-    test('it permits listing variables when token has SecureVariables alone in its rules', function (assert) {
+    test('it does not permit listing variables when token has SecureVariables alone in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -88,6 +86,123 @@ module('Unit | Ability | variable', function (hooks) {
                   Name: 'default',
                   Capabilities: [],
                   SecureVariables: {},
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has a null SecureVariables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: null,
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has a SecureVariables block where paths are without capabilities', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [
+                      { Capabilities: [], PathSpec: '*' },
+                      { Capabilities: [], PathSpec: 'foo' },
+                      { Capabilities: [], PathSpec: 'foo/bar' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has no SecureVariables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it permits listing variables when token multiple namespaces, only one of which having a SecureVariables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  SecureVariables: null,
+                },
+                {
+                  Name: 'nonsense',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [{ Capabilities: [], PathSpec: '*' }],
+                  },
+                },
+                {
+                  Name: 'shenanigans',
+                  Capabilities: [],
+                  SecureVariables: {
+                    Paths: [
+                      { Capabilities: ['list'], PathSpec: 'foo/bar/baz' },
+                    ],
+                  },
                 },
               ],
             },
