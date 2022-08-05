@@ -60,7 +60,7 @@ func (d *killer) v1(cgroup *configs.Cgroup) error {
 	}
 
 	// the actual path to our tasks freezer cgroup
-	path := cgroup.Paths[freezer]
+	path := cgroup.Path
 
 	d.logger.Trace("killing processes", "cgroup_path", path, "cgroup_version", "v1", "executor_pid", d.pid)
 
@@ -109,7 +109,7 @@ func (d *killer) v2(cgroup *configs.Cgroup) error {
 
 	d.logger.Trace("killing processes", "cgroup_path", path, "cgroup_version", "v2", "executor_pid", d.pid, "existing_pids", existingPIDs)
 
-	mgr, err := fs2.NewManager(cgroup, "", rootless)
+	mgr, err := fs2.NewManager(cgroup, "")
 	if err != nil {
 		return fmt.Errorf("failed to create v2 cgroup manager: %w", err)
 	}
@@ -117,7 +117,7 @@ func (d *killer) v2(cgroup *configs.Cgroup) error {
 	// move executor PID into the root init.scope so we can kill the task pids
 	// without killing the executor (which is the process running this code, doing
 	// the killing)
-	init, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, "init.scope"), rootless)
+	init, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, "init.scope"))
 	if err != nil {
 		return fmt.Errorf("failed to create v2 init cgroup manager: %w", err)
 	}

@@ -689,7 +689,11 @@ func (c *Client) init() error {
 		cores := c.config.ReservableCores
 		if len(cores) == 0 {
 			// otherwise lookup the effective cores from the parent cgroup
-			cores, _ = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
+			cores, err = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
+			if err != nil {
+				c.logger.Warn("failed to lookup cpuset from cgroup parent, and not set as reservable_cores", "parent", c.config.CgroupParent)
+				// will continue with a disabled cpuset manager
+			}
 		}
 		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
 			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
