@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -47,7 +48,7 @@ func TestFS_Logs(t *testing.T) {
 			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
 		}
 		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
-			return false, fmt.Errorf("mock_driver not ready")
+			return false, errors.New("mock_driver not ready")
 		}
 		return true, nil
 	}, func(err error) {
@@ -279,7 +280,7 @@ func TestFS_FrameReader_Error(t *testing.T) {
 	r.SetUnblockTime(10 * time.Millisecond)
 
 	// Send an error
-	expected := fmt.Errorf("test error")
+	expected := errors.New("test error")
 	errCh <- expected
 
 	// Read a little
