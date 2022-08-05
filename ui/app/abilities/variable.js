@@ -105,9 +105,13 @@ export default class Variable extends AbstractAbility {
     return (get(this, 'token.selfTokenPolicies') || [])
       .toArray()
       .reduce((paths, policy) => {
-        const matchingNamespace = this.namespace ?? 'default';
+        const namespaces = get(policy, 'rulesJSON.Namespaces');
+        const matchingNamespace = this._nearestMatchingNamespace(
+          namespaces,
+          this.namespace
+        );
 
-        const variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
+        const variables = (namespaces || []).find(
           (namespace) => namespace.Name === matchingNamespace
         )?.SecureVariables;
 
@@ -122,6 +126,12 @@ export default class Variable extends AbstractAbility {
 
         return paths;
       }, []);
+  }
+
+  _nearestMatchingNamespace(policyNamespaces, namespace) {
+    if (!namespace || !policyNamespaces) return 'default';
+
+    return this._findMatchingNamespace(policyNamespaces, namespace);
   }
 
   _formatMatchingPathRegEx(path, wildCardPlacement = 'end') {
