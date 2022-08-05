@@ -1,8 +1,8 @@
 <form class="edit-policy" autocomplete="off">
 	{{#if @policy.isNew }}
     <div class="related-entities related-entities-hint">
-      <p>Prefix your policy name with <code>_:/</code> to automatically make your policy apply to a specified namespace, job, task group, or task.<br />
-      Format: <code>_:/&lt;namespace&gt;/&lt;jobname&gt;</code>, <code>_:/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>_:/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      <p>Prefix your policy name with <code>nomad/</code> to automatically make your policy apply to a specified namespace, job, task group, or task.<br />
+      Format: <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;</code>, <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
     </div>
 
 		<label>

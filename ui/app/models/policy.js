@@ -7,7 +7,7 @@ export default class Policy extends Model {
   @attr('string') rules;
   @attr() rulesJSON;
 
-  // Gets the name of the policy, and if it starts with _:/, delimits on / and returns each part separately in an array
+  // Gets the name of the policy, and if it starts with nomad/, delimits on / and returns each part separately in an array
 
   /**
    * @typedef nameLinkedEntities
@@ -24,7 +24,7 @@ export default class Policy extends Model {
   get nameLinkedEntities() {
     const entityTypes = ['namespace', 'job', 'group', 'task'];
     const emptyEntities = { namespace: '', job: '', group: '', task: '' };
-    if (this.name?.startsWith('_:/') && this.name?.split('/').length <= 5) {
+    if (this.name?.startsWith('nomad/') && this.name?.split('/').length <= 5) {
       return this.name
         .split('/')
         .slice(1, 5)
