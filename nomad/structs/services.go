@@ -350,11 +350,6 @@ func (sc *ServiceCheck) validateNomad() error {
 		if sc.Method != "" && !helper.IsMethodHTTP(sc.Method) {
 			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
 		}
-
-		// todo(shoenig) support body
-		if len(sc.Body) > 0 {
-			return fmt.Errorf("http checks may not set Body in Nomad services")
-		}
 	}
 
 	// success_before_passing is consul only

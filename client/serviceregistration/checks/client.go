@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -163,6 +164,7 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		return qr
 	}
 	request.Header = q.Headers
+	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
 
 	result, err := c.httpClient.Do(request)
