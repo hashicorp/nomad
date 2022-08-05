@@ -64,6 +64,24 @@ type AllocResourceUsage struct {
 	Timestamp     int64
 }
 
+// AllocCheckStatus contains the current status of a nomad service discovery check.
+type AllocCheckStatus struct {
+	ID         string
+	Check      string
+	Group      string
+	Mode       string
+	Output     string
+	Service    string
+	Task       string
+	Status     string
+	StatusCode int
+	Timestamp  int64
+}
+
+// AllocCheckStatuses holds the set of nomad service discovery checks within
+// the allocation (including group and task level service checks).
+type AllocCheckStatuses map[string]AllocCheckStatus
+
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
