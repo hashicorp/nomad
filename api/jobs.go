@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -400,7 +401,7 @@ func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *Wr
 
 func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
 	if job == nil {
-		return nil, nil, fmt.Errorf("must pass non-nil job")
+		return nil, nil, errors.New("must pass non-nil job")
 	}
 
 	// Setup the request
