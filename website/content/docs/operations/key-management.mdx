@@ -21,7 +21,7 @@ recovery.
 Only one key in the keyring is "active" at any given time, and all encryption
 and signing operations happen on the leader. Nomad automatically rotates the
 active encryption key every 30 days. When a key is rotated, the existing keys
-are marked as "inactive" but not deleted, so they can be be used for decrypting
+are marked as "inactive" but not deleted, so they can be used for decrypting
 previously encrypted variables and verifying workload identities for existing
 allocations.
 
