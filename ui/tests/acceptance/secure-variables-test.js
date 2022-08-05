@@ -23,6 +23,7 @@ import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
 
 const SECURE_TOKEN_ID = '53cur3-v4r14bl35';
+const LIMITED_SECURE_TOKEN_ID = 'f3w3r-53cur3-v4r14bl35';
 
 module('Acceptance | secure variables', function (hooks) {
   setupApplicationTest(hooks);
@@ -611,6 +612,45 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-delete-button]')
         .doesNotExist('The delete button is hidden in the view.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+  });
+
+  module('read flow', function () {
+    test('allows a user with correct permissions to read a secure variable', async function (assert) {
+      defaultScenario(server);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+
+      assert
+        .dom('[data-test-file-row]:not(.inaccessible)')
+        .exists(
+          { count: 3 },
+          'Shows 3 variable files, none of which are inaccessible'
+        );
+
+      await click('[data-test-file-row]');
+      assert.equal(currentRouteName(), 'variables.variable.index');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('prevents users from delete a secure variable without proper permissions', async function (assert) {
+      defaultScenario(server);
+      const variablesToken = server.db.tokens.find(LIMITED_SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visit();
+
+      assert
+        .dom('[data-test-file-row].inaccessible')
+        .exists(
+          { count: 3 },
+          'Shows 3 variable files, all of which are inaccessible'
+        );
 
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
