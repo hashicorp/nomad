@@ -28,6 +28,8 @@ module('Acceptance | secure variables', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {
+    server.create('node');
+    server.createList('job', 3);
     server.createList('variable', 3);
   });
 
@@ -484,7 +486,7 @@ module('Acceptance | secure variables', function (hooks) {
       const policy = server.db.policies.find('Variable Maker');
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
-      ).Capabilities = ['list', 'write'];
+      ).Capabilities = ['list', 'read', 'write'];
       server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
       await click('[data-test-file-row]');
@@ -539,7 +541,7 @@ module('Acceptance | secure variables', function (hooks) {
       const policy = server.db.policies.find('Variable Maker');
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
-      ).Capabilities = ['list'];
+      ).Capabilities = ['list', 'read'];
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up
@@ -564,12 +566,11 @@ module('Acceptance | secure variables', function (hooks) {
       const policy = server.db.policies.find('Variable Maker');
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
-      ).Capabilities = ['list', 'destroy'];
+      ).Capabilities = ['list', 'read', 'destroy'];
       server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up
-
       assert.equal(currentRouteName(), 'variables.variable.index');
       assert
         .dom('[data-test-delete-button]')
@@ -601,7 +602,7 @@ module('Acceptance | secure variables', function (hooks) {
       const policy = server.db.policies.find('Variable Maker');
       policy.rulesJSON.Namespaces[0].SecureVariables.Paths.find(
         (path) => path.PathSpec === '*'
-      ).Capabilities = ['list'];
+      ).Capabilities = ['list', 'read'];
       await Variables.visit();
       await click('[data-test-file-row]');
       // End Test Set-up

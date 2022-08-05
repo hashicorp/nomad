@@ -238,6 +238,10 @@ function createTokens(server) {
     name: 'Secure McVariables',
     id: '53cur3-v4r14bl35',
   });
+  server.create('token', {
+    name: "Safe O'Constants",
+    id: 'f3w3r-53cur3-v4r14bl35',
+  });
   logTokens(server);
 }
 

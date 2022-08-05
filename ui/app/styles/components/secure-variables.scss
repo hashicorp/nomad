@@ -103,6 +103,9 @@
 table.path-tree {
   tr {
     cursor: pointer;
+    &.inaccessible {
+      cursor: not-allowed;
+    }
     svg {
       margin-bottom: -2px;
       margin-right: 10px;
