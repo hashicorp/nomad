@@ -100,7 +100,7 @@ that volume.
 
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` stanza reading from Consul KV will
-  scoped to the the specified Consul namespace. If Consul ACLs are enabled and the
+  scoped to the specified Consul namespace. If Consul ACLs are enabled and the
   [`consul` stanza `allow_unauthenticated`] is disabled in the Nomad server configuration, then
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.

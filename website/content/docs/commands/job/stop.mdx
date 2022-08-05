@@ -10,7 +10,7 @@ description: |
 **Alias: `nomad stop`**
 
 The `job stop` command is used to stop a running job and signals the scheduler
-to cancel all of the running allocations.
+to cancel all the running allocations.
 
 ## Usage
 
@@ -56,7 +56,7 @@ When ACLs are enabled, this command requires a token with the `submit-job`,
   stop only a single region at a time. Ignored for single-region jobs.
 
 - `-no-shutdown-delay`
-  Ignore the the group and task [`shutdown_delay`] configuration so that
+  Ignore the group and task [`shutdown_delay`] configuration so that
   there is no delay between service deregistration and task
   shutdown. Note that using this flag will result in failed network
   connections to the allocations being stopped.
