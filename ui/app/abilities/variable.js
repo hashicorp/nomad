@@ -130,15 +130,6 @@ export default class Variable extends AbstractAbility {
           (namespace) => namespace.Name === matchingNamespace
         )?.SecureVariables;
 
-        // TODO: temporary fix while https://github.com/hashicorp/nomad/issues/14034 is in flight
-        if (!variables) {
-          variables = (get(policy, 'rulesJSON.Namespaces') || []).find(
-            (namespace) => {
-              return namespace.Name.includes('*');
-            }
-          )?.SecureVariables;
-        }
-
         const pathNames = variables?.Paths?.map((path) => ({
           name: path.PathSpec,
           capabilities: path.Capabilities,
