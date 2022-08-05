@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +66,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 			Method:   "",
 			OnUpdate: "",
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Nil(t, sc.Args)
 		must.Nil(t, sc.Header)
 		must.Eq(t, `service: "MyService" check`, sc.Name)
@@ -79,7 +78,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 		sc := &ServiceCheck{
 			Name: "Some Check",
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Eq(t, "Some Check", sc.Name)
 	})
 
@@ -87,7 +86,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 		sc := &ServiceCheck{
 			OnUpdate: OnUpdateIgnore,
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Eq(t, OnUpdateIgnore, sc.OnUpdate)
 	})
 }
@@ -1675,24 +1674,24 @@ func TestService_Validate(t *testing.T) {
 		name      string
 	}{
 		{
+			name: "base service",
 			input: &Service{
 				Name: "testservice",
 			},
 			expErr: false,
-			name:   "base service",
 		},
 		{
+			name: "Native Connect without task name",
 			input: &Service{
 				Name: "testservice",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
 			},
-			expErr:    true,
-			expErrStr: "Connect Native and requires setting the task",
-			name:      "Native Connect without task name",
+			expErr: false, // gets set automatically
 		},
 		{
+			name: "Native Connect with task name",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1701,9 +1700,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "Native Connect with task name",
 		},
 		{
+			name: "Native Connect with Sidecar",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1714,9 +1713,9 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Consul Connect must be exclusively native",
-			name:      "Native Connect with Sidecar",
 		},
 		{
+			name: "provider nomad with checks",
 			input: &Service{
 				Name:      "testservice",
 				Provider:  "nomad",
@@ -1738,9 +1737,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "provider nomad with checks",
 		},
 		{
+			name: "provider nomad with invalid check type",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1752,9 +1751,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: true,
-			name:   "provider nomad with invalid check type",
 		},
 		{
+			name: "provider nomad with connect",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1764,15 +1763,14 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Service with provider nomad cannot include Connect blocks",
-			name:      "provider nomad with connect",
 		},
 		{
+			name: "provider nomad valid",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
 			},
 			expErr: false,
-			name:   "provider nomad valid",
 		},
 	}
 
@@ -1781,10 +1779,10 @@ func TestService_Validate(t *testing.T) {
 			tc.input.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
 			err := tc.input.Validate()
 			if tc.expErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expErrStr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expErrStr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -6675,10 +6675,19 @@ func (tg *TaskGroup) validateServices() error {
 
 		for _, service := range task.Services {
 
-			// Ensure no task-level checks specify a task
+			// Ensure no task-level service can only specify the task it belongs to.
+			if service.TaskName != "" && service.TaskName != task.Name {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("Service %s is invalid: may only specify task the service belongs to, got %q", service.Name, service.TaskName),
+				)
+			}
+
+			// Ensure no task-level checks can only specify the task they belong to.
 			for _, check := range service.Checks {
-				if check.TaskName != "" {
-					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
+				if check.TaskName != "" && check.TaskName != task.Name {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Check %s is invalid: may only specify task the check belongs to, got %q", check.Name, check.TaskName),
+					)
 				}
 			}
 
@@ -7924,7 +7933,7 @@ type AllocState struct {
 // they are assigned to is down, their state is migrated to the replacement
 // allocation.
 //
-//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+// Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
 type TaskHandle struct {
 	// Version of driver state. Used by the driver to gracefully handle
 	// plugin upgrades.
