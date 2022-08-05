@@ -1069,5 +1069,76 @@ module('Unit | Ability | variable', function (hooks) {
         'It should return the exact path match.'
       );
     });
+
+    test('it handles globs in namespaces', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: '*',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  SecureVariables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list'],
+                        PathSpec: '*',
+                      },
+                    ],
+                  },
+                },
+                {
+                  Name: 'namespace-1',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  SecureVariables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list', 'read', 'destroy', 'create'],
+                        PathSpec: '*',
+                      },
+                    ],
+                  },
+                },
+                {
+                  Name: 'namespace-2',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  SecureVariables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list', 'read', 'destroy', 'create'],
+                        PathSpec: 'blue/*',
+                      },
+                      {
+                        Capabilities: ['list', 'read', 'create'],
+                        PathSpec: 'nomad/jobs/*',
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.namespace = 'pablo';
+
+      const allPaths = this.ability.allPaths;
+
+      assert.deepEqual(
+        allPaths,
+        [
+          {
+            capabilities: ['list'],
+            name: '*',
+          },
+        ],
+        'It should return the glob matching namespace match.'
+      );
+    });
   });
 });
