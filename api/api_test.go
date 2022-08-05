@@ -501,7 +501,7 @@ func TestCloneHttpClient(t *testing.T) {
 	client := defaultHttpClient()
 	originalTransport := client.Transport.(*http.Transport)
 	originalTransport.Proxy = func(*http.Request) (*url.URL, error) {
-		return nil, fmt.Errorf("stub function")
+		return nil, errors.New("stub function")
 	}
 
 	t.Run("closing with negative timeout", func(t *testing.T) {
