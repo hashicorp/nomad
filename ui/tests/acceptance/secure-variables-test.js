@@ -637,7 +637,7 @@ module('Acceptance | secure variables', function (hooks) {
       window.localStorage.nomadTokenSecret = null;
     });
 
-    test('prevents users from delete a secure variable without proper permissions', async function (assert) {
+    test('prevents users from reading a secure variable without proper permissions', async function (assert) {
       defaultScenario(server);
       const variablesToken = server.db.tokens.find(LIMITED_SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
