@@ -75,10 +75,22 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
-    `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
-    `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
-    `nomad/jobs/${variableLinkedJob.id}`,
   ].forEach((path) => server.create('variable', { id: path }));
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
 
   // #region evaluations
 

@@ -26,12 +26,7 @@ export default Factory.extend({
 
   afterCreate(variable, server) {
     if (!variable.namespaceId) {
-      Ember.assert(
-        '[Mirage] No jobs! make sure jobs are created before variables',
-        server.db.jobs.length
-      );
-
-      const namespace = pickOne(server.db.jobs).namespace || 'default';
+      const namespace = pickOne(server.db.jobs)?.namespace || 'default';
       variable.update({
         namespace,
       });

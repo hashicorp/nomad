@@ -29,8 +29,6 @@ module('Acceptance | secure variables', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {
-    server.create('node');
-    server.createList('job', 3);
     server.createList('variable', 3);
   });
 
