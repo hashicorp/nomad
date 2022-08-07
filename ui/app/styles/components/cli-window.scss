@@ -16,4 +16,15 @@
   &.is-elastic {
     height: auto;
   }
+
+  .floating-filter {
+    position: sticky;
+    top: -1.25rem;
+    margin-left: -1.5rem;
+    background: rgba(0, 100, 0, 0.8);
+    z-index: 200;
+    width: calc(100% + 3rem);
+    display: block;
+    padding: 1rem;
+  }
 }

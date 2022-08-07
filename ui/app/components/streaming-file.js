@@ -1,6 +1,11 @@
+import { inject as service } from '@ember/service';
+import { action, computed } from '@ember/object';
+import { htmlSafe } from '@ember/template';
+import { tracked } from '@glimmer/tracking';
+
 import Component from '@ember/component';
 import { scheduleOnce, once } from '@ember/runloop';
-import { task } from 'ember-concurrency';
+import { task, timeout } from 'ember-concurrency';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import {
   classNames,
@@ -142,6 +147,22 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   @task(function* () {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
+    this.logger.on('tick', this, () => {
+      console.log('tick');
+      if (this.activeFilterBuffer) {
+        console.log('ya', this.activeFilterBuffer);
+        let filteredOutput = this.logger.output.string
+          .split('\n')
+          .filter((line) => line.includes(this.activeFilterBuffer))
+          .join('\n');
+        console.log({ filteredOutput });
+        if (filteredOutput) {
+          this.filteredOutput = htmlSafe(filteredOutput);
+        }
+      } else {
+        this.filteredOutput = '';
+      }
+    });
 
     yield this.logger.startStreaming();
     this.logger.off('tick', this, 'scheduleScrollSynchronization');
@@ -156,4 +177,72 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     super.willDestroy(...arguments);
     this.logger.stop();
   }
+
+  //#region Keynav Demo
+  @service keyboard;
+
+  // @tracked
+  // activeFilterBuffer = "";
+
+  @tracked listenForBuffer = false;
+  @tracked activeFilterBuffer = '';
+
+  // @computed('keyboard.buffer', 'listenForBuffer')
+  @(task(function* () {
+    do {
+      if (this.keyboard.buffer.length) {
+        console.log('doin', this.keyboard.buffer);
+        this.activeFilterBuffer = this.keyboard.buffer.join('');
+        yield this.keyboard.buffer.join('');
+      }
+      yield timeout(500);
+    } while (this.keyboard.buffer.length);
+  }).drop())
+  filterBufferWatcher;
+
+  // get filterBufferWatcher() {
+  //   if (this.listenForBuffer && this.keyboard.buffer.length) {
+  //     console.log("buffer???", this.keyboard.buffer);
+  //     this.activeFilterBuffer = this.keyboard.buffer.join();
+  //   }
+  //   else {
+  //     console.log("nope");
+  //     // return this.activeFilterBuffer;
+  //   }
+  // }
+
+  @tracked
+  filteredOutput = '';
+
+  @action
+  filterLogs() {
+    console.log('filtering logs, what is keyboard buffer?');
+    // this.activeFilterBuffer = "lol";
+    // this.listenForBuffer = true;
+    this.filteredOutput = 'filtering...';
+    this.filterBufferWatcher.perform();
+    console.log('buffy', this.filterBufferWatcher);
+    // setTimeout(() => this.listenForBuffer = false, 3000); // TODO: ember concurrency
+  }
+
+  @action
+  unFilterLogs() {
+    this.activeFilterBuffer = '';
+    // this.listenForBuffer = false;
+  }
+
+  keyCommands = [
+    {
+      label: 'Filter Logs',
+      pattern: ['f'],
+      action: () => this.filterLogs(),
+    },
+    {
+      label: 'Nuke log filter',
+      pattern: ['Escape'],
+      action: () => this.unFilterLogs(),
+    },
+  ];
+
+  //#endregion Keynav Demo
 }

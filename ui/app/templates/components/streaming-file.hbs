@@ -1,1 +1,7 @@
-<code data-test-output>{{this.logger.output}}</code>
+{{keyboard-commands this.keyCommands}}
+
+{{#if this.activeFilterBuffer}}
+    <span class="floating-filter">Filtering: {{this.activeFilterBuffer}}</span>
+{{/if}}
+
+<code data-test-output>{{or this.filteredOutput this.logger.output}}</code>
