@@ -5,7 +5,12 @@ import { tracked } from '@glimmer/tracking';
 
 import Component from '@ember/component';
 import { scheduleOnce, once } from '@ember/runloop';
-import { task, timeout } from 'ember-concurrency';
+import {
+  task,
+  timeout,
+  restartableTask,
+  waitForProperty,
+} from 'ember-concurrency';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import {
   classNames,
@@ -148,19 +153,19 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
     this.logger.on('tick', this, () => {
-      console.log('tick');
+      console.log('tick', this.activeFilterBuffer);
       if (this.activeFilterBuffer) {
-        console.log('ya', this.activeFilterBuffer);
-        let filteredOutput = this.logger.output.string
-          .split('\n')
-          .filter((line) => line.includes(this.activeFilterBuffer))
-          .join('\n');
+        let filteredOutput =
+          this.logger.output.string
+            .split('\n')
+            .filter((line) => line.includes(this.activeFilterBuffer))
+            .join('\n') || "No logs match '" + this.activeFilterBuffer + "'";
         console.log({ filteredOutput });
         if (filteredOutput) {
           this.filteredOutput = htmlSafe(filteredOutput);
         }
       } else {
-        this.filteredOutput = '';
+        this.filteredOutput = null;
       }
     });
 
@@ -184,21 +189,31 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   // @tracked
   // activeFilterBuffer = "";
 
-  @tracked listenForBuffer = false;
-  @tracked activeFilterBuffer = '';
+  // @tracked listenForBuffer = false;
+  @tracked bufferString = ''; // for caching
 
   // @computed('keyboard.buffer', 'listenForBuffer')
-  @(task(function* () {
-    do {
-      if (this.keyboard.buffer.length) {
-        console.log('doin', this.keyboard.buffer);
-        this.activeFilterBuffer = this.keyboard.buffer.join('');
-        yield this.keyboard.buffer.join('');
+  @restartableTask *filterBufferWatcher() {
+    this.keyboard.set('enabled', false);
+    // let listening = yield waitForProperty(this, 'listenForBuffer');
+    // console.log('listening', listening);
+    console.log('buffer is', this.keyboard.buffer);
+    yield waitForProperty(this, 'keyboard.buffer.length');
+    yield timeout(750); // debounce
+    if (this.keyboard.buffer.length) {
+      if (
+        this.keyboard.buffer.map((k) => k.slice(-1)).join('') !==
+        this.bufferString
+      ) {
+        console.log('--> reperform');
+        this.filterBufferWatcher.perform();
       }
-      yield timeout(500);
-    } while (this.keyboard.buffer.length);
-  }).drop())
-  filterBufferWatcher;
+      this.bufferString = this.keyboard.buffer.map((k) => k.slice(-1)).join('');
+      console.log('setting activeFilterBuffer to', this.bufferString);
+      this.activeFilterBuffer = this.bufferString;
+    }
+    this.keyboard.set('enabled', true);
+  }
 
   // get filterBufferWatcher() {
   //   if (this.listenForBuffer && this.keyboard.buffer.length) {
@@ -212,16 +227,25 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   // }
 
   @tracked
-  filteredOutput = '';
+  filteredOutput = null;
+
+  @tracked activeFilterBuffer = '';
+
+  // @computed('keyboard.buffer', 'listenForBuffer')
+  // get activeFilterBuffer() {
+  //   console.log('AFB');
+  //   let output = this.filterBufferWatcher.perform();
+  //   console.log('output', output);
+  //   // return output;
+  // };
 
   @action
   filterLogs() {
     console.log('filtering logs, what is keyboard buffer?');
     // this.activeFilterBuffer = "lol";
     // this.listenForBuffer = true;
-    this.filteredOutput = 'filtering...';
+    // this.filteredOutput = 'filtering...';
     this.filterBufferWatcher.perform();
-    console.log('buffy', this.filterBufferWatcher);
     // setTimeout(() => this.listenForBuffer = false, 3000); // TODO: ember concurrency
   }
 

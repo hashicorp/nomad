@@ -388,6 +388,7 @@ export default class KeyboardService extends Service {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
+    console.log('+++', this.buffer);
     let recorder = this.keyCommands.find((c) => c.recording);
     if (recorder) {
       if (key === 'Escape' || key === '/') {
