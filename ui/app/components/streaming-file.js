@@ -153,13 +153,40 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
     this.logger.on('tick', this, () => {
-      console.log('tick', this.activeFilterBuffer);
+      // console.log('tick', this.activeFilterBuffer);
       if (this.activeFilterBuffer) {
-        let filteredOutput =
-          this.logger.output.string
-            .split('\n')
-            .filter((line) => line.includes(this.activeFilterBuffer))
-            .join('\n') || "No logs match '" + this.activeFilterBuffer + "'";
+        // Extremely hacky demo time
+        let filteredOutput = '';
+        // if an operator is present in activeFilterBuffer, we need to check if the log matches the condition
+        if (this.activeFilterBuffer.includes('>')) {
+          filteredOutput =
+            this.logger.output.string
+              .split('\n')
+              .filter(
+                (line) =>
+                  parseInt(line) >
+                  parseInt(this.activeFilterBuffer.match(/\d/g)?.join(''))
+              )
+              .join('\n') ||
+            "No logs match greater than '" + this.activeFilterBuffer + "'";
+        } else if (this.activeFilterBuffer.includes('<')) {
+          filteredOutput =
+            this.logger.output.string
+              .split('\n')
+              .filter(
+                (line) =>
+                  parseInt(line) <
+                  parseInt(this.activeFilterBuffer.match(/\d/g)?.join(''))
+              )
+              .join('\n') ||
+            "No logs match less than '" + this.activeFilterBuffer + "'";
+        } else {
+          filteredOutput =
+            this.logger.output.string
+              .split('\n')
+              .filter((line) => line.includes(this.activeFilterBuffer))
+              .join('\n') || "No logs match '" + this.activeFilterBuffer + "'";
+        }
         console.log({ filteredOutput });
         if (filteredOutput) {
           this.filteredOutput = htmlSafe(filteredOutput);
