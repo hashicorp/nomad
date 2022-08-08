@@ -643,6 +643,10 @@ module('Acceptance | secure variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await Variables.visit();
 
+      server.db.variables.forEach((v) => {
+        console.log('variable exists', v.id);
+      });
+
       assert
         .dom('[data-test-file-row].inaccessible')
         .exists(
