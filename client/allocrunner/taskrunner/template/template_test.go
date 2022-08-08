@@ -1201,6 +1201,56 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
 }
 
+func TestTaskTemplateManager_Script(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	// Make a template that renders based on a key in Consul and triggers a script
+	key1 := "foo"
+	content1 := "bar"
+	content2 := "baz"
+	embedded1 := fmt.Sprintf(`{{key "%s"}}`, key1)
+	file1 := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl:          embedded1,
+		DestPath:              file1,
+		ChangeMode:            structs.TemplateChangeModeScript,
+		ChangeScriptPath:      "", // FIXME
+		ChangeScriptArguments: "", // FIXME
+		ChangeScriptTimeout:   5 * time.Second,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// harness.mockHooks.SignalError = fmt.Errorf("test error")
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content1))
+
+	// Wait a little
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(2*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
+	}
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content2))
+
+	// Wait for kill channel
+	select {
+	case <-harness.mockHooks.KillCh:
+		break
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
+	}
+
+	require.NotNil(harness.mockHooks.KillEvent)
+	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+}
+
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
 // environment variables found in task env-vars and not read the nomad host
 // process environment variables.  nomad host process environment variables
