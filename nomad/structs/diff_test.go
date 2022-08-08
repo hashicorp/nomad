@@ -7261,19 +7261,19 @@ func TestTaskDiff(t *testing.T) {
 								New:  "",
 							},
 							{
-								Type: DiffTypeAdded,
+								Type: DiffTypeDeleted,
 								Name: "ChangeScriptArguments",
 								Old:  "-debugs",
 								New:  "",
 							},
 							{
-								Type: DiffTypeAdded,
+								Type: DiffTypeDeleted,
 								Name: "ChangeScriptPath",
 								Old:  "/bin/foo2",
 								New:  "",
 							},
 							{
-								Type: DiffTypeAdded,
+								Type: DiffTypeDeleted,
 								Name: "ChangeScriptTimeout",
 								Old:  "6",
 								New:  "",
