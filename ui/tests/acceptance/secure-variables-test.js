@@ -555,7 +555,7 @@ module('Acceptance | secure variables', function (hooks) {
     });
   });
 
-  module('delete flow', function () {
+  module.skip('delete flow', function () {
     test('allows a user with correct permissions to delete a secure variable', async function (assert) {
       // Arrange Test Set-up
       defaultScenario(server);
