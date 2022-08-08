@@ -1182,7 +1182,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	// Wait a little
 	select {
 	case <-harness.mockHooks.UnblockCh:
-	case <-time.After(time.Duration(2*testutil.TestMultiplier()) * time.Second):
+	case <-time.After(time.Duration(30 * time.Second)):
 		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
 	}
 
@@ -1212,12 +1212,10 @@ func TestTaskTemplateManager_Script(t *testing.T) {
 	embedded1 := fmt.Sprintf(`{{key "%s"}}`, key1)
 	file1 := "my.tmpl"
 	template := &structs.Template{
-		EmbeddedTmpl:          embedded1,
-		DestPath:              file1,
-		ChangeMode:            structs.TemplateChangeModeScript,
-		ChangeScriptPath:      "", // FIXME
-		ChangeScriptArguments: "", // FIXME
-		ChangeScriptTimeout:   5 * time.Second,
+		EmbeddedTmpl:       embedded1,
+		DestPath:           file1,
+		ChangeMode:         structs.TemplateChangeModeScript,
+		ChangeScriptConfig: &structs.ChangeScriptConfig{},
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)

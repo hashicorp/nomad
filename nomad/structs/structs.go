@@ -7689,6 +7689,19 @@ var (
 	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, script, restart")
 )
 
+// ChangeScriptConfig holds the configuration for the script that is executed if
+// change mode is set to script
+type ChangeScriptConfig struct {
+	// Path is the full path to the script
+	Path string
+	// Args is a slice of arguments passed to the script
+	Args []string
+	// Timeout is the amount of seconds we wait for the script to finish
+	Timeout time.Duration
+	// TODO: add a field that users could use to specify whether a task should
+	// fail if the script fails
+}
+
 // Template represents a template configuration to be rendered for a given task
 type Template struct {
 	// SourcePath is the path to the template to be rendered
@@ -7708,15 +7721,9 @@ type Template struct {
 	// requires it.
 	ChangeSignal string
 
-	// ChangeScriptPath is the path to the script that is being triggered if the
-	// change mode requires it
-	ChangeScriptPath string
-	// ChangeScriptArguments is a coma-separated list of arguments passed to the
-	// script
-	ChangeScriptArguments string
-	// ChangeScriptTimeout is the amount of seconds we wait for the script to
-	// run
-	ChangeScriptTimeout time.Duration
+	// ChangeScriptConfig is the configuration of the script. It's required if
+	// ChangeMode is set to script.
+	ChangeScriptConfig *ChangeScriptConfig
 
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
@@ -7817,8 +7824,11 @@ func (t *Template) Validate() error {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	case TemplateChangeModeScript:
-		if t.ChangeScriptPath == "" || t.ChangeScriptTimeout == 0 {
+		if t.ChangeScriptConfig.Path == "" {
 			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path and timeout value when change mode is signal"))
+		}
+		if t.ChangeScriptConfig.Timeout == 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify script timeout value when change mode is script, timeout value must be greater than 0"))
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)
@@ -7942,7 +7952,7 @@ type AllocState struct {
 // they are assigned to is down, their state is migrated to the replacement
 // allocation.
 //
-//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+//	Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
 type TaskHandle struct {
 	// Version of driver state. Used by the driver to gracefully handle
 	// plugin upgrades.

@@ -791,24 +791,28 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return nwc
 }
 
+type ChangeScriptConfig struct {
+	Path    *string        `mapstructure:"path" hcl:"path"`
+	Args    []*string      `mapstructure:"args" hcl:"args,optional"`
+	Timeout *time.Duration `mapstructure:"timeout" hcl:"timeout"`
+}
+
 type Template struct {
-	SourcePath            *string        `mapstructure:"source" hcl:"source,optional"`
-	DestPath              *string        `mapstructure:"destination" hcl:"destination,optional"`
-	EmbeddedTmpl          *string        `mapstructure:"data" hcl:"data,optional"`
-	ChangeMode            *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeScriptPath      *string        `mapstructure:"change_script_path" hcl:"change_script_path,optional"`
-	ChangeScriptArguments *string        `mapstructure:"change_script_arguments" hcl:"change_script_arguments,optional"`
-	ChangeScriptTimeout   *time.Duration `mapstructure:"change_script_timeout" hcl:"change_script_timeout,optional"`
-	ChangeSignal          *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
-	Splay                 *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
-	Perms                 *string        `mapstructure:"perms" hcl:"perms,optional"`
-	Uid                   *int           `mapstructure:"uid" hcl:"uid,optional"`
-	Gid                   *int           `mapstructure:"gid" hcl:"gid,optional"`
-	LeftDelim             *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
-	RightDelim            *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
-	Envvars               *bool          `mapstructure:"env" hcl:"env,optional"`
-	VaultGrace            *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
-	Wait                  *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
+	SourcePath         *string             `mapstructure:"source" hcl:"source,optional"`
+	DestPath           *string             `mapstructure:"destination" hcl:"destination,optional"`
+	EmbeddedTmpl       *string             `mapstructure:"data" hcl:"data,optional"`
+	ChangeMode         *string             `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeScriptConfig *ChangeScriptConfig `mapstructure:"change_script_config" hcl:"change_script_config,optional"`
+	ChangeSignal       *string             `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Splay              *time.Duration      `mapstructure:"splay" hcl:"splay,optional"`
+	Perms              *string             `mapstructure:"perms" hcl:"perms,optional"`
+	Uid                *int                `mapstructure:"uid" hcl:"uid,optional"`
+	Gid                *int                `mapstructure:"gid" hcl:"gid,optional"`
+	LeftDelim          *string             `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
+	RightDelim         *string             `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
+	Envvars            *bool               `mapstructure:"env" hcl:"env,optional"`
+	VaultGrace         *time.Duration      `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
+	Wait               *WaitConfig         `mapstructure:"wait" hcl:"wait,block"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -834,14 +838,12 @@ func (tmpl *Template) Canonicalize() {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = stringToPtr(strings.ToUpper(sig))
 	}
-	if tmpl.ChangeScriptPath == nil {
-		tmpl.ChangeScriptPath = stringToPtr("")
-	}
-	if tmpl.ChangeScriptArguments == nil {
-		tmpl.ChangeScriptArguments = stringToPtr("")
-	}
-	if tmpl.ChangeScriptTimeout == nil {
-		tmpl.ChangeScriptTimeout = timeToPtr(5 * time.Second)
+	if tmpl.ChangeScriptConfig == nil {
+		tmpl.ChangeScriptConfig = &ChangeScriptConfig{
+			stringToPtr(""),
+			[]*string{},
+			timeToPtr(5 * time.Second),
+		}
 	}
 	if tmpl.Splay == nil {
 		tmpl.Splay = timeToPtr(5 * time.Second)

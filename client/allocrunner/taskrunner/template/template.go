@@ -395,11 +395,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 
 	var handling []string
 	signals := make(map[string]struct{})
-	scripts := []struct {
-		path    string
-		args    []string
-		timeout time.Duration
-	}{}
+	scripts := []structs.ChangeScriptConfig{}
 	restart := false
 	var splay time.Duration
 
@@ -445,15 +441,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			case structs.TemplateChangeModeRestart:
 				restart = true
 			case structs.TemplateChangeModeScript:
-				scripts = append(scripts, struct {
-					path    string
-					args    []string
-					timeout time.Duration
-				}{
-					path:    tmpl.ChangeScriptPath,
-					args:    strings.Split(tmpl.ChangeScriptArguments, ","),
-					timeout: tmpl.ChangeScriptTimeout,
-				})
+				scripts = append(scripts, *tmpl.ChangeScriptConfig)
 			case structs.TemplateChangeModeNoop:
 				continue
 			}
@@ -509,9 +497,10 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 						SetFailsTask().
 						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 			}
-		} else if len(scripts) != 0 {
+		}
+		if len(scripts) != 0 {
 			for _, script := range scripts {
-				_, _, err := tm.config.Handle.Exec(script.timeout, script.path, script.args)
+				_, _, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
 				if err != nil {
 					structs.NewTaskEvent(structs.TaskDriverMessage).
 						SetDisplayMessage(fmt.Sprintf("Template failed to run script on change: %v", err))
