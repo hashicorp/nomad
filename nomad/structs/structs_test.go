@@ -4321,7 +4321,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		err := tc.Input.Validate()
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
-			continue
 		}
 	}
 }
@@ -6669,7 +6668,6 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		out, err := r.ParseReservedHostPorts()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
-			continue
 		}
 
 		require.Equal(out, tc.Parsed)
