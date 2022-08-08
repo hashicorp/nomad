@@ -151,9 +151,10 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   @task(function* () {
     // Follow the log if the scroll position is near the bottom of the cli window
+    console.log('logger', this.logger);
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
     this.logger.on('tick', this, () => {
-      // console.log('tick', this.activeFilterBuffer);
+      console.log('tick', this.activeFilterBuffer);
       if (this.activeFilterBuffer) {
         // Extremely hacky demo time
         let filteredOutput = '';
@@ -164,7 +165,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
               .split('\n')
               .filter(
                 (line) =>
-                  parseInt(line) >
+                  parseInt(line.split('\t').slice(-1)) >
                   parseInt(this.activeFilterBuffer.match(/\d/g)?.join(''))
               )
               .join('\n') ||
@@ -175,7 +176,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
               .split('\n')
               .filter(
                 (line) =>
-                  parseInt(line) <
+                  parseInt(line.split('\t').slice(-1)) <
                   parseInt(this.activeFilterBuffer.match(/\d/g)?.join(''))
               )
               .join('\n') ||
@@ -212,74 +213,42 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   //#region Keynav Demo
   @service keyboard;
-
-  // @tracked
-  // activeFilterBuffer = "";
-
-  // @tracked listenForBuffer = false;
-  @tracked bufferString = ''; // for caching
+  @tracked cachedBufferString = ''; // for caching
+  @tracked filteredOutput = null;
+  @tracked activeFilterBuffer = '';
 
   // @computed('keyboard.buffer', 'listenForBuffer')
   @restartableTask *filterBufferWatcher() {
     this.keyboard.set('enabled', false);
-    // let listening = yield waitForProperty(this, 'listenForBuffer');
-    // console.log('listening', listening);
     console.log('buffer is', this.keyboard.buffer);
     yield waitForProperty(this, 'keyboard.buffer.length');
     yield timeout(750); // debounce
     if (this.keyboard.buffer.length) {
       if (
         this.keyboard.buffer.map((k) => k.slice(-1)).join('') !==
-        this.bufferString
+        this.cachedBufferString
       ) {
         console.log('--> reperform');
         this.filterBufferWatcher.perform();
       }
-      this.bufferString = this.keyboard.buffer.map((k) => k.slice(-1)).join('');
-      console.log('setting activeFilterBuffer to', this.bufferString);
-      this.activeFilterBuffer = this.bufferString;
+      this.cachedBufferString = this.keyboard.buffer
+        .map((k) => k.slice(-1))
+        .join('');
+      console.log('setting activeFilterBuffer to', this.cachedBufferString);
+      this.activeFilterBuffer = this.cachedBufferString;
     }
     this.keyboard.set('enabled', true);
   }
 
-  // get filterBufferWatcher() {
-  //   if (this.listenForBuffer && this.keyboard.buffer.length) {
-  //     console.log("buffer???", this.keyboard.buffer);
-  //     this.activeFilterBuffer = this.keyboard.buffer.join();
-  //   }
-  //   else {
-  //     console.log("nope");
-  //     // return this.activeFilterBuffer;
-  //   }
-  // }
-
-  @tracked
-  filteredOutput = null;
-
-  @tracked activeFilterBuffer = '';
-
-  // @computed('keyboard.buffer', 'listenForBuffer')
-  // get activeFilterBuffer() {
-  //   console.log('AFB');
-  //   let output = this.filterBufferWatcher.perform();
-  //   console.log('output', output);
-  //   // return output;
-  // };
-
   @action
   filterLogs() {
     console.log('filtering logs, what is keyboard buffer?');
-    // this.activeFilterBuffer = "lol";
-    // this.listenForBuffer = true;
-    // this.filteredOutput = 'filtering...';
     this.filterBufferWatcher.perform();
-    // setTimeout(() => this.listenForBuffer = false, 3000); // TODO: ember concurrency
   }
 
   @action
   unFilterLogs() {
     this.activeFilterBuffer = '';
-    // this.listenForBuffer = false;
   }
 
   keyCommands = [
