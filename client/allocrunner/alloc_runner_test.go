@@ -1840,86 +1840,109 @@ func TestAllocRunner_Lifecycle_Shutdown_Order(t *testing.T) {
 func TestHasSidecarTasks(t *testing.T) {
 	ci.Parallel(t)
 
-	falseV, trueV := false, true
-
-	cases := []struct {
-		name string
-		// nil if main task, false if non-sidecar hook, true if sidecar hook
-		indicators []*bool
-
+	testCases := []struct {
+		name           string
+		lifecycle      []*structs.TaskLifecycleConfig
 		hasSidecars    bool
 		hasNonsidecars bool
 	}{
 		{
-			name:           "all sidecar - one",
-			indicators:     []*bool{&trueV},
+			name: "all sidecar - one",
+			lifecycle: []*structs.TaskLifecycleConfig{
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: true,
+				},
+			},
 			hasSidecars:    true,
 			hasNonsidecars: false,
 		},
 		{
-			name:           "all sidecar - multiple",
-			indicators:     []*bool{&trueV, &trueV, &trueV},
+			name: "all sidecar - multiple",
+			lifecycle: []*structs.TaskLifecycleConfig{
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: true,
+				},
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: true,
+				},
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: true,
+				},
+			},
 			hasSidecars:    true,
 			hasNonsidecars: false,
 		},
 		{
-			name:           "some sidecars, some others",
-			indicators:     []*bool{nil, &falseV, &trueV},
+			name: "some sidecars, some others",
+			lifecycle: []*structs.TaskLifecycleConfig{
+				nil,
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: false,
+				},
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: true,
+				},
+			},
 			hasSidecars:    true,
 			hasNonsidecars: true,
 		},
 		{
-			name:           "no sidecars",
-			indicators:     []*bool{nil, &falseV, nil},
+			name: "no sidecars",
+			lifecycle: []*structs.TaskLifecycleConfig{
+				nil,
+				{
+					Hook:    structs.TaskLifecycleHookPrestart,
+					Sidecar: false,
+				},
+				nil,
+			},
 			hasSidecars:    false,
 			hasNonsidecars: true,
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			alloc := allocWithSidecarIndicators(c.indicators)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create alloc with the given task lifecycle configurations.
+			alloc := mock.BatchAlloc()
+
+			tasks := []*structs.Task{}
+			resources := map[string]*structs.AllocatedTaskResources{}
+
+			tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+			for i, lifecycle := range tc.lifecycle {
+				task := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+				task.Name = fmt.Sprintf("task%d", i)
+				task.Lifecycle = lifecycle
+				tasks = append(tasks, task)
+				resources[task.Name] = tr
+			}
+
+			alloc.Job.TaskGroups[0].Tasks = tasks
+			alloc.AllocatedResources.Tasks = resources
+
+			// Create alloc runner.
 			arConf, cleanup := testAllocRunnerConfig(t, alloc)
 			defer cleanup()
 
 			ar, err := NewAllocRunner(arConf)
 			require.NoError(t, err)
 
-			require.Equal(t, c.hasSidecars, hasSidecarTasks(ar.tasks), "sidecars")
+			require.Equal(t, tc.hasSidecars, hasSidecarTasks(ar.tasks), "sidecars")
 
 			runners := []*taskrunner.TaskRunner{}
 			for _, r := range ar.tasks {
 				runners = append(runners, r)
 			}
-			require.Equal(t, c.hasNonsidecars, hasNonSidecarTasks(runners), "non-sidecars")
+			require.Equal(t, tc.hasNonsidecars, hasNonSidecarTasks(runners), "non-sidecars")
 
 		})
 	}
-}
-
-func allocWithSidecarIndicators(indicators []*bool) *structs.Allocation {
-	alloc := mock.BatchAlloc()
-
-	tasks := []*structs.Task{}
-	resources := map[string]*structs.AllocatedTaskResources{}
-
-	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
-
-	for i, indicator := range indicators {
-		task := alloc.Job.TaskGroups[0].Tasks[0].Copy()
-		task.Name = fmt.Sprintf("task%d", i)
-		if indicator != nil {
-			task.Lifecycle = &structs.TaskLifecycleConfig{
-				Hook:    structs.TaskLifecycleHookPrestart,
-				Sidecar: *indicator,
-			}
-		}
-		tasks = append(tasks, task)
-		resources[task.Name] = tr
-	}
-
-	alloc.Job.TaskGroups[0].Tasks = tasks
-
-	alloc.AllocatedResources.Tasks = resources
-	return alloc
 }
