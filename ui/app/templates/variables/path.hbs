@@ -43,12 +43,24 @@
   />
 {{else}}
   <div class="empty-message">
-    <h3 data-test-empty-variables-list-headline class="empty-message-headline">
-      Path /{{this.model.absolutePath}} contains no variables
-    </h3>
-    <p class="empty-message-body">
-      To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.model.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
-    </p>
+    {{#if (eq this.namespaceSelection "*")}}
+      <h3 data-test-empty-variables-list-headline class="empty-message-headline">
+        Path /{{this.model.absolutePath}} contains no variables
+      </h3>
+      <p class="empty-message-body">
+        To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.model.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
+      </p>
+    {{else}}
+      <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
+        No Matches
+      </h3>
+      <p class="empty-message-body">
+        No paths or variables match the namespace 
+        <strong>
+          {{this.namespaceSelection}}
+        </strong>
+      </p>
+    {{/if}}
   </div>
 {{/if}}
   </section>
