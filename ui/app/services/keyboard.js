@@ -388,7 +388,7 @@ export default class KeyboardService extends Service {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    console.log('+++', this.buffer);
+    console.log(this.buffer);
     let recorder = this.keyCommands.find((c) => c.recording);
     if (recorder) {
       if (key === 'Escape' || key === '/') {
@@ -414,12 +414,12 @@ export default class KeyboardService extends Service {
           ) {
             command.action();
 
-            // TODO: Temporary dev log
-            if (this.config.isDev) {
-              this.matchedCommands.forEach((command) =>
-                console.log('command run', command, command.action.toString())
-              );
-            }
+            // // TODO: Temporary dev log
+            // if (this.config.isDev) {
+            //   this.matchedCommands.forEach((command) =>
+            //     console.log('command run', command.label, command.action.toString())
+            //   );
+            // }
           }
         });
         this.clearBuffer();
@@ -463,6 +463,7 @@ export default class KeyboardService extends Service {
   }
 
   clearBuffer() {
+    console.log('%cBUFFER CLEARED', 'font-size:70%');
     this.buffer.clear();
   }
 

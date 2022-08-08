@@ -151,10 +151,10 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   @task(function* () {
     // Follow the log if the scroll position is near the bottom of the cli window
-    console.log('logger', this.logger);
+    // console.log('logger', this.logger);
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
     this.logger.on('tick', this, () => {
-      console.log('tick', this.activeFilterBuffer);
+      // console.log('tick', this.activeFilterBuffer);
       if (this.activeFilterBuffer) {
         // Extremely hacky demo time
         let filteredOutput = '';
@@ -188,7 +188,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
               .filter((line) => line.includes(this.activeFilterBuffer))
               .join('\n') || "No logs match '" + this.activeFilterBuffer + "'";
         }
-        console.log({ filteredOutput });
+        // console.log({ filteredOutput });
         if (filteredOutput) {
           this.filteredOutput = htmlSafe(filteredOutput);
         }
@@ -220,7 +220,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   // @computed('keyboard.buffer', 'listenForBuffer')
   @restartableTask *filterBufferWatcher() {
     this.keyboard.set('enabled', false);
-    console.log('buffer is', this.keyboard.buffer);
+    // console.log('buffer is', this.keyboard.buffer);
     yield waitForProperty(this, 'keyboard.buffer.length');
     yield timeout(750); // debounce
     if (this.keyboard.buffer.length) {
@@ -228,13 +228,13 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
         this.keyboard.buffer.map((k) => k.slice(-1)).join('') !==
         this.cachedBufferString
       ) {
-        console.log('--> reperform');
+        // console.log('--> reperform');
         this.filterBufferWatcher.perform();
       }
       this.cachedBufferString = this.keyboard.buffer
         .map((k) => k.slice(-1))
         .join('');
-      console.log('setting activeFilterBuffer to', this.cachedBufferString);
+      // console.log('setting activeFilterBuffer to', this.cachedBufferString);
       this.activeFilterBuffer = this.cachedBufferString;
     }
     this.keyboard.set('enabled', true);
@@ -242,7 +242,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   @action
   filterLogs() {
-    console.log('filtering logs, what is keyboard buffer?');
+    // console.log('filtering logs, what is keyboard buffer?');
     this.filterBufferWatcher.perform();
   }
 
