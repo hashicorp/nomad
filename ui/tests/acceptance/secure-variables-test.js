@@ -648,7 +648,7 @@ module('Acceptance | secure variables', function (hooks) {
       await selectChoose('[data-test-variable-namespace-filter]', 'default');
 
       assert
-        .dom('[data-test-empty-variables-list-headline]')
+        .dom('[data-test-no-matching-variables-list-headline]')
         .exists('Renders an empty list.');
     });
 
@@ -710,7 +710,7 @@ module('Acceptance | secure variables', function (hooks) {
         await selectChoose('[data-test-variable-namespace-filter]', 'default');
 
         assert
-          .dom('[data-test-empty-variables-list-headline]')
+          .dom('[data-test-no-matching-variables-list-headline]')
           .exists('Renders an empty list.');
       });
 
