@@ -111,7 +111,7 @@ module('Acceptance | secure variables', function (hooks) {
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
 
-    await percySnapshot(assert);
+    await percySnapshot('deeply nested variable');
 
     await click(deleteButton);
     assert
@@ -250,7 +250,7 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is group-oriented'
     );
 
-    await percySnapshot(assert);
+    await percySnapshot('related entities box for group variable');
 
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
