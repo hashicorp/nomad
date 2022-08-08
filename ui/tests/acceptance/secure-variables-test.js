@@ -158,7 +158,7 @@ module('Acceptance | secure variables', function (hooks) {
     const variableLinkedTaskAlloc = server.db.allocations.filterBy(
       'taskGroup',
       variableLinkedGroup.name
-    )[1];
+    )[0];
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
     // Non-job variable
