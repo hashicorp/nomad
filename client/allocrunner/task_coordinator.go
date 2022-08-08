@@ -13,10 +13,10 @@ type taskCoordinatorState string
 
 const (
 	taskCoordinatorStateInit      taskCoordinatorState = "init"
-	taskCoordinatorStatePrestart                       = "prestart"
-	taskCoordinatorStateMain                           = "main"
-	taskCoordinatorStatePoststart                      = "poststart"
-	taskCoordinatorStatePoststop                       = "poststop"
+	taskCoordinatorStatePrestart  taskCoordinatorState = "prestart"
+	taskCoordinatorStateMain      taskCoordinatorState = "main"
+	taskCoordinatorStatePoststart taskCoordinatorState = "poststart"
+	taskCoordinatorStatePoststop  taskCoordinatorState = "poststop"
 )
 
 // taskLifecycle represents a lifecycle configuration of interest for the task
@@ -31,17 +31,17 @@ const (
 
 	// taskLifecyclePrestartSidecar are tasks with the "prestart" hook and
 	// sidecar set to "true".
-	taskLifecyclePrestartSidecar = "prestart_sidecar"
+	taskLifecyclePrestartSidecar taskLifecycle = "prestart_sidecar"
 
 	// taskLifecycleMain are tasks without a lifecycle or a lifecycle with an
 	// empty hook value.
-	taskLifecycleMain = "main"
+	taskLifecycleMain taskLifecycle = "main"
 
 	// taskLifecyclePoststart are tasks with the "poststart" hook.
-	taskLifecyclePoststart = "poststart"
+	taskLifecyclePoststart taskLifecycle = "poststart"
 
 	// taskLifecyclePoststop are tasks with the "poststop" hook.
-	taskLifecyclePoststop = "poststop"
+	taskLifecyclePoststop taskLifecycle = "poststop"
 )
 
 // taskCoordinator controls when tasks with a given lifecycle configuration are
@@ -153,13 +153,13 @@ func (c *taskCoordinator) nextStateLocked(states map[string]*structs.TaskState) 
 			return taskCoordinatorStatePrestart
 		}
 		if c.hasMain() {
-			return taskLifecycleMain
+			return taskCoordinatorStateMain
 		}
 		if c.hasPoststart() {
-			return taskLifecyclePoststart
+			return taskCoordinatorStatePoststart
 		}
 		if c.hasPoststop() {
-			return taskLifecyclePoststop
+			return taskCoordinatorStatePoststop
 		}
 
 	case taskCoordinatorStatePrestart:
@@ -168,13 +168,13 @@ func (c *taskCoordinator) nextStateLocked(states map[string]*structs.TaskState) 
 		}
 
 		if c.hasMain() {
-			return taskLifecycleMain
+			return taskCoordinatorStateMain
 		}
 		if c.hasPoststart() {
-			return taskLifecyclePoststart
+			return taskCoordinatorStatePoststart
 		}
 		if c.hasPoststop() {
-			return taskLifecyclePoststop
+			return taskCoordinatorStatePoststop
 		}
 
 	case taskCoordinatorStateMain:
@@ -183,10 +183,10 @@ func (c *taskCoordinator) nextStateLocked(states map[string]*structs.TaskState) 
 		}
 
 		if c.hasPoststart() {
-			return taskLifecyclePoststart
+			return taskCoordinatorStatePoststart
 		}
 		if c.hasPoststop() {
-			return taskLifecyclePoststop
+			return taskCoordinatorStatePoststop
 		}
 
 	case taskCoordinatorStatePoststart:
@@ -195,7 +195,7 @@ func (c *taskCoordinator) nextStateLocked(states map[string]*structs.TaskState) 
 		}
 
 		if c.hasPoststop() {
-			return taskLifecyclePoststop
+			return taskCoordinatorStatePoststop
 		}
 
 	case taskCoordinatorStatePoststop:
