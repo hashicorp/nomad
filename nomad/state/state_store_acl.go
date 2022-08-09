@@ -88,8 +88,9 @@ func (s *StateStore) upsertACLRoleTxn(
 	}
 
 	// This validation also happens within the RPC handler, but Raft latency
-	// could mean that by the state call is invoked, another Raft update has
-	// deleted policies detailed in role. Therefore, check again.
+	// could mean that by the time the state call is invoked, another Raft
+	// update has deleted policies detailed in role. Therefore, check again
+	// while in our write txn.
 	if err := s.validateACLRolePolicyLinksTxn(txn, role); err != nil {
 		return false, err
 	}
