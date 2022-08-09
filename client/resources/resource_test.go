@@ -17,10 +17,6 @@ resource "%s" {
 }
 	`
 
-	type Resources struct {
-		Custom []*Resource `hcl:"resource,block"`
-	}
-
 	type testCase struct {
 		name      string
 		value     interface{}
@@ -197,6 +193,127 @@ resource "%s" {
 			}
 
 			err = resource.Range.Validate(tc.value)
+
+			if tc.errMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.errMsg)
+			}
+		})
+	}
+}
+
+func TestResource_Set(t *testing.T) {
+	setTmpl := `
+resource "%s" {
+	set {
+   		members = [%s]
+ 	}
+}
+	`
+
+	type testCase struct {
+		name      string
+		value     interface{}
+		members   string
+		parseErr  string
+		cfgErrMsg string
+		errMsg    string
+		tmpl      string
+		formatFn  func(testCase) string
+	}
+
+	defaultFormatFn := func(tc testCase) string {
+		return fmt.Sprintf(tc.tmpl, tc.name, tc.members)
+	}
+
+	testCases := []testCase{
+		{
+			name:      "invalid-config-no-members",
+			members:   "",
+			value:     "1234",
+			parseErr:  "The argument \"members\" is required",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl: `
+resource "%s" {
+	set {
+ 	}
+}
+	`,
+			formatFn: func(tc testCase) string {
+				return fmt.Sprintf(tc.tmpl, tc.name)
+			},
+		},
+		{
+			name:      "invalid-config-empty-members",
+			members:   "",
+			value:     "1234",
+			parseErr:  "",
+			cfgErrMsg: "has no members",
+			errMsg:    "",
+			tmpl:      setTmpl,
+			formatFn:  defaultFormatFn,
+		},
+		{
+			name:      "invalid-config-duplicate",
+			members:   "\"1234\",\"1234\"",
+			value:     "1234",
+			parseErr:  "",
+			cfgErrMsg: "more than once",
+			errMsg:    "",
+			tmpl:      setTmpl,
+			formatFn:  defaultFormatFn,
+		},
+		{
+			name:      "valid",
+			members:   "\"1234\",\"abcd\"",
+			value:     "1234",
+			parseErr:  "",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      setTmpl,
+			formatFn:  defaultFormatFn,
+		},
+		{
+			name:      "invalid-does-not-exist",
+			members:   "\"1234\",\"abcd\"",
+			value:     "4321",
+			parseErr:  "",
+			cfgErrMsg: "",
+			errMsg:    "not a member",
+			tmpl:      setTmpl,
+			formatFn:  defaultFormatFn,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resourceHCL := tc.formatFn(tc)
+			resource, diags := Parse(resourceHCL, tc.name)
+
+			if tc.parseErr != "" {
+				require.NotNil(t, diags)
+				require.Contains(t, diags.Error(), tc.parseErr)
+				return
+			}
+
+			require.NoError(t, diags)
+			require.NotNil(t, resource)
+			require.Equal(t, tc.name, resource.Name)
+			require.NotNil(t, resource.Set)
+
+			err := resource.ValidateConfig()
+
+			if tc.cfgErrMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.cfgErrMsg)
+				return
+			}
+
+			err = resource.Set.Validate(tc.value)
 
 			if tc.errMsg == "" {
 				require.NoError(t, err)

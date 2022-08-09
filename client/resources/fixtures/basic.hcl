@@ -14,7 +14,7 @@ resource "ip" {
 
 resource "github_token" {
   set {
-    items = ["1234", "abcd"]
+    members = ["1234", "abcd"]
   }
 }
 
