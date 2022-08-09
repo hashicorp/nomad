@@ -2726,21 +2726,23 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Templates: []*api.Template{
 							{
-								SourcePath:            helper.StringToPtr("source"),
-								DestPath:              helper.StringToPtr("dest"),
-								EmbeddedTmpl:          helper.StringToPtr("embedded"),
-								ChangeMode:            helper.StringToPtr("change"),
-								ChangeSignal:          helper.StringToPtr("signal"),
-								ChangeScriptPath:      helper.StringToPtr("/bin/foo"),
-								ChangeScriptArguments: helper.StringToPtr("-h"),
-								ChangeScriptTimeout:   helper.TimeToPtr(5 * time.Second),
-								Splay:                 helper.TimeToPtr(1 * time.Minute),
-								Perms:                 helper.StringToPtr("666"),
-								Uid:                   helper.IntToPtr(1000),
-								Gid:                   helper.IntToPtr(1000),
-								LeftDelim:             helper.StringToPtr("abc"),
-								RightDelim:            helper.StringToPtr("def"),
-								Envvars:               helper.BoolToPtr(true),
+								SourcePath:   helper.StringToPtr("source"),
+								DestPath:     helper.StringToPtr("dest"),
+								EmbeddedTmpl: helper.StringToPtr("embedded"),
+								ChangeMode:   helper.StringToPtr("change"),
+								ChangeSignal: helper.StringToPtr("signal"),
+								ChangeScriptConfig: &api.ChangeScriptConfig{
+									Path:    helper.StringToPtr("/bin/foo"),
+									Args:    &[]string{"-h"},
+									Timeout: helper.TimeToPtr(5 * time.Second),
+								},
+								Splay:      helper.TimeToPtr(1 * time.Minute),
+								Perms:      helper.StringToPtr("666"),
+								Uid:        helper.IntToPtr(1000),
+								Gid:        helper.IntToPtr(1000),
+								LeftDelim:  helper.StringToPtr("abc"),
+								RightDelim: helper.StringToPtr("def"),
+								Envvars:    helper.BoolToPtr(true),
 								Wait: &api.WaitConfig{
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
@@ -3136,21 +3138,23 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Templates: []*structs.Template{
 							{
-								SourcePath:            "source",
-								DestPath:              "dest",
-								EmbeddedTmpl:          "embedded",
-								ChangeMode:            "change",
-								ChangeSignal:          "SIGNAL",
-								ChangeScriptPath:      "/bin/foo",
-								ChangeScriptArguments: "-h",
-								ChangeScriptTimeout:   5 * time.Second,
-								Splay:                 1 * time.Minute,
-								Perms:                 "666",
-								Uid:                   1000,
-								Gid:                   1000,
-								LeftDelim:             "abc",
-								RightDelim:            "def",
-								Envvars:               true,
+								SourcePath:   "source",
+								DestPath:     "dest",
+								EmbeddedTmpl: "embedded",
+								ChangeMode:   "change",
+								ChangeSignal: "SIGNAL",
+								ChangeScriptConfig: &structs.ChangeScriptConfig{
+									Path:    "/bin/foo",
+									Args:    []string{"-h"},
+									Timeout: 5 * time.Second,
+								},
+								Splay:      1 * time.Minute,
+								Perms:      "666",
+								Uid:        1000,
+								Gid:        1000,
+								LeftDelim:  "abc",
+								RightDelim: "def",
+								Envvars:    true,
 								Wait: &structs.WaitConfig{
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
@@ -3492,6 +3496,7 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 }
 
 // TestJobs_Matching_Resources asserts:
+//
 //	api.{Default,Min}Resources == structs.{Default,Min}Resources
 //
 // While this is an odd place to test that, this is where both are imported,

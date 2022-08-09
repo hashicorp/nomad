@@ -793,7 +793,7 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 
 type ChangeScriptConfig struct {
 	Path    *string        `mapstructure:"path" hcl:"path"`
-	Args    []*string      `mapstructure:"args" hcl:"args,optional"`
+	Args    *[]string      `mapstructure:"args" hcl:"args,optional"`
 	Timeout *time.Duration `mapstructure:"timeout" hcl:"timeout"`
 }
 
@@ -841,7 +841,7 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.ChangeScriptConfig == nil {
 		tmpl.ChangeScriptConfig = &ChangeScriptConfig{
 			stringToPtr(""),
-			[]*string{},
+			&[]string{},
 			timeToPtr(5 * time.Second),
 		}
 	}

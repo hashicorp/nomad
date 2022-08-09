@@ -1219,23 +1219,21 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			}
 			structsTask.Templates = append(structsTask.Templates,
 				&structs.Template{
-					SourcePath:            *template.SourcePath,
-					DestPath:              *template.DestPath,
-					EmbeddedTmpl:          *template.EmbeddedTmpl,
-					ChangeMode:            *template.ChangeMode,
-					ChangeSignal:          *template.ChangeSignal,
-					ChangeScriptPath:      *template.ChangeScriptPath,
-					ChangeScriptArguments: *template.ChangeScriptArguments,
-					ChangeScriptTimeout:   *template.ChangeScriptTimeout,
-					Splay:                 *template.Splay,
-					Perms:                 *template.Perms,
-					Uid:                   uid,
-					Gid:                   gid,
-					LeftDelim:             *template.LeftDelim,
-					RightDelim:            *template.RightDelim,
-					Envvars:               *template.Envvars,
-					VaultGrace:            *template.VaultGrace,
-					Wait:                  ApiWaitConfigToStructsWaitConfig(template.Wait),
+					SourcePath:         *template.SourcePath,
+					DestPath:           *template.DestPath,
+					EmbeddedTmpl:       *template.EmbeddedTmpl,
+					ChangeMode:         *template.ChangeMode,
+					ChangeSignal:       *template.ChangeSignal,
+					ChangeScriptConfig: apiChangeScriptConfigToStructsChangeScriptConfig(template.ChangeScriptConfig),
+					Splay:              *template.Splay,
+					Perms:              *template.Perms,
+					Uid:                uid,
+					Gid:                gid,
+					LeftDelim:          *template.LeftDelim,
+					RightDelim:         *template.RightDelim,
+					Envvars:            *template.Envvars,
+					VaultGrace:         *template.VaultGrace,
+					Wait:               apiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1254,16 +1252,28 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	}
 }
 
-// ApiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
+// apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
 // representation of a WaitConfig from a struct representation of a WaitConfig.
-func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
+func apiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
 	if waitConfig == nil {
 		return nil
 	}
 
 	return &structs.WaitConfig{
-		Min: &*waitConfig.Min,
-		Max: &*waitConfig.Max,
+		Min: waitConfig.Min,
+		Max: waitConfig.Max,
+	}
+}
+
+func apiChangeScriptConfigToStructsChangeScriptConfig(changeScriptConfig *api.ChangeScriptConfig) *structs.ChangeScriptConfig {
+	if changeScriptConfig == nil {
+		return nil
+	}
+
+	return &structs.ChangeScriptConfig{
+		Path:    *changeScriptConfig.Path,
+		Args:    *changeScriptConfig.Args,
+		Timeout: *changeScriptConfig.Timeout,
 	}
 }
 
