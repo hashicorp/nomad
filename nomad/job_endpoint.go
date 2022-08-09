@@ -464,10 +464,8 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 	}
 }
 
-// Summary retrieves the summary of a job
-func (j *Job) Summary(args *structs.JobSummaryRequest,
-	reply *structs.JobSummaryResponse) error {
-
+// Summary retrieves the summary of a job.
+func (j *Job) Summary(args *structs.JobSummaryRequest, reply *structs.JobSummaryResponse) error {
 	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
@@ -511,8 +509,14 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
-// Validate validates a job
+// Validate validates a job.
+//
+// Must forward to the leader, because only the leader will have a live Vault
+// client with which to validate vault tokens.
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
+	if done, err := j.srv.forward("Job.Validate", args, args, reply); done {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
