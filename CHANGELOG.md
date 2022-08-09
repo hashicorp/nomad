@@ -225,6 +225,16 @@ BUG FIXES:
 * ui: fix broken link to task-groups in the Recent Allocations table in the Job Detail overview page. [[GH-12765](https://github.com/hashicorp/nomad/issues/12765)]
 * ui: fix the unit for the task row memory usage metric [[GH-11980](https://github.com/hashicorp/nomad/issues/11980)]
 
+## 1.2.10 (August 05, 2022)
+
+BUG FIXES:
+
+* acl: Fixed a bug where the timestamp for expiring one-time tokens was not deterministic between servers [[GH-13737](https://github.com/hashicorp/nomad/issues/13737)]
+* deployments: Fixed a bug that prevented auto-approval if canaries were marked as unhealthy during deployment [[GH-14001](https://github.com/hashicorp/nomad/issues/14001)]
+* metrics: Fixed a bug where blocked evals with no class produced no dc:class scope metrics [[GH-13786](https://github.com/hashicorp/nomad/issues/13786)]
+* namespaces: Fixed a bug that allowed deleting a namespace that contained a CSI volume [[GH-13880](https://github.com/hashicorp/nomad/issues/13880)]
+* qemu: restore the monitor socket path when restoring a QEMU task. [[GH-14000](https://github.com/hashicorp/nomad/issues/14000)]
+
 ## 1.2.9 (July 13, 2022)
 
 BUG FIXES:
@@ -473,6 +483,15 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.16 (August 05, 2022)
+
+BUG FIXES:
+
+* acl: Fixed a bug where the timestamp for expiring one-time tokens was not deterministic between servers [[GH-13737](https://github.com/hashicorp/nomad/issues/13737)]
+* deployments: Fixed a bug that prevented auto-approval if canaries were marked as unhealthy during deployment [[GH-14001](https://github.com/hashicorp/nomad/issues/14001)]
+* namespaces: Fixed a bug that allowed deleting a namespace that contained a CSI volume [[GH-13880](https://github.com/hashicorp/nomad/issues/13880)]
+* qemu: restore the monitor socket path when restoring a QEMU task. [[GH-14000](https://github.com/hashicorp/nomad/issues/14000)]
 
 ## 1.1.15 (July 13, 2022)
 
