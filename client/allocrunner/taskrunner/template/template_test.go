@@ -1214,7 +1214,6 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
@@ -1276,19 +1275,29 @@ BAR={{key "bar"}}
 	harness.consul.SetKV(t, key1, []byte(content1_2))
 
 	// Wait for restart
-	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+	timeout := time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second)
 OUTER:
 	for {
 		select {
 		case <-harness.mockHooks.RestartCh:
+			require.Fail(t, "restart not expected")
+		case <-harness.mockHooks.EmitEventCh:
 			break OUTER
 		case <-harness.mockHooks.SignalCh:
-			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+			require.Fail(t, "signal not expected")
 		case <-timeout:
-			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+			require.Fail(t, "should have received an event")
 		}
 	}
-	require.Contains(harness.mockHooks.Events, "Template ran a script")
+
+	eventPublished := false
+	for _, ev := range harness.mockHooks.Events {
+		if strings.Contains(ev.DisplayMessage, "Template ran a script") {
+			eventPublished = true
+			break
+		}
+	}
+	require.True(t, eventPublished)
 }
 
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
