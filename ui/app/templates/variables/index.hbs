@@ -12,7 +12,7 @@
           />
         {{/if}}
       <div class="button-bar">
-      {{#if (can "write variable" path="*")}}
+      {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
         <LinkTo
           @route="variables.new"
           class="button is-primary"
@@ -45,9 +45,11 @@
         <h3 data-test-empty-variables-list-headline class="empty-message-headline">
           No Secure Variables
         </h3>
-        <p class="empty-message-body">
-          Get started by <LinkTo @route="variables.new">creating a new secure variable</LinkTo>
-        </p>
+        {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+          <p class="empty-message-body">
+            Get started by <LinkTo @route="variables.new">creating a new secure variable</LinkTo>
+          </p>
+        {{/if}}
       {{else}}
         <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
           No Matches
