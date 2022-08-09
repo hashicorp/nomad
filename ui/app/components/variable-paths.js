@@ -5,6 +5,7 @@ import { inject as service } from '@ember/service';
 import compactPath from '../utils/compact-path';
 export default class VariablePathsComponent extends Component {
   @service router;
+  @service can;
 
   /**
    * @returns {Array<Object.<string, Object>>}
@@ -25,7 +26,9 @@ export default class VariablePathsComponent extends Component {
   }
 
   @action
-  async handleFileClick(path) {
-    this.router.transitionTo('variables.variable', path);
+  async handleFileClick({ path, variable: { namespace } }) {
+    if (this.can.can('read variable', null, { path, namespace })) {
+      this.router.transitionTo('variables.variable', path);
+    }
   }
 }

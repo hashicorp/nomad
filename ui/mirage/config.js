@@ -838,8 +838,12 @@ export default function () {
 
   //#region Secure Variables
 
-  this.get('/vars', function (schema) {
-    return schema.variables.all();
+  this.get('/vars', function (schema, { queryParams: { namespace } }) {
+    if (namespace && namespace !== '*') {
+      return schema.variables.all().filter((v) => v.namespace === namespace);
+    } else {
+      return schema.variables.all();
+    }
   });
 
   this.get('/var/:id', function ({ variables }, { params }) {

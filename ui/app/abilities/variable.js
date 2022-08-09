@@ -39,12 +39,27 @@ export default class Variable extends AbstractAbility {
   )
   canDestroy;
 
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportVariableRead'
+  )
+  canRead;
+
   @computed('token.selfTokenPolicies')
   get policiesSupportVariableList() {
     return this.policyNamespacesIncludeSecureVariablesCapabilities(
       this.token.selfTokenPolicies,
       ['list', 'read', 'write', 'destroy']
     );
+  }
+
+  @computed('path', 'allPaths')
+  get policiesSupportVariableRead() {
+    const matchingPath = this._nearestMatchingPath(this.path);
+    return this.allPaths
+      .find((path) => path.name === matchingPath)
+      ?.capabilities?.includes('read');
   }
 
   /**
@@ -159,7 +174,6 @@ export default class Variable extends AbstractAbility {
 
   _nearestMatchingPath(path) {
     const pathNames = this.allPaths.map((path) => path.name);
-
     if (pathNames.includes(path)) {
       return path;
     }

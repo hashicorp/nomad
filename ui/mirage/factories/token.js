@@ -34,23 +34,13 @@ export default Factory.extend({
         id: 'Variable Maker',
         rules: `
 # Allow read only access to the default namespace
-namespace "default" {
+namespace "*" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
   secure_variables {
-    # full access to secrets in all project paths
-    path "blue/*" {
-      capabilities = ["write", "read", "destroy", "list"]
-    }
-
-    # full access to secrets in all project paths
+    # Base access is to all abilities for all secure variables
     path "*" {
-      capabilities = ["write", "read", "destroy", "list"]
-    }
-
-    # read/list access within a "system" path belonging to administrators
-    path "system/*" {
-      capabilities = ["read", "list"]
+      capabilities = ["list", "read", "destroy", "create"]
     }
   }
 }
@@ -63,21 +53,13 @@ node {
         rulesJSON: {
           Namespaces: [
             {
-              Name: 'default',
+              Name: '*',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
               SecureVariables: {
                 Paths: [
                   {
                     Capabilities: ['write', 'read', 'destroy', 'list'],
-                    PathSpec: 'blue/*',
-                  },
-                  {
-                    Capabilities: ['write', 'read', 'destroy', 'list'],
                     PathSpec: '*',
-                  },
-                  {
-                    Capabilities: ['read', 'list'],
-                    PathSpec: 'system/*',
                   },
                 ],
               },
@@ -87,6 +69,100 @@ node {
       };
       server.create('policy', variableMakerPolicy);
       token.policyIds.push(variableMakerPolicy.id);
+    }
+    if (token.id === 'f3w3r-53cur3-v4r14bl35') {
+      const variableViewerPolicy = {
+        id: 'Variable Viewer',
+        rules: `
+# Allow read only access to the default namespace
+namespace "*" {
+  policy = "read"
+  capabilities = ["list-jobs", "alloc-exec", "read-logs"]
+  secure_variables {
+    # Base access is to all abilities for all secure variables
+    path "*" {
+      capabilities = ["list"]
+    }
+  }
+}
+
+namespace "namespace-1" {
+  policy = "read"
+  capabilities = ["list-jobs", "alloc-exec", "read-logs"]
+  secure_variables {
+    # Base access is to all abilities for all secure variables
+    path "*" {
+      capabilities = ["list", "read", "destroy", "create"]
+    }
+  }
+}
+
+namespace "namespace-2" {
+  policy = "read"
+  capabilities = ["list-jobs", "alloc-exec", "read-logs"]
+  secure_variables {
+    # Base access is to all abilities for all secure variables
+    path "blue/*" {
+      capabilities = ["list", "read", "destroy", "create"]
+    }
+    path "nomad/jobs/*" {
+      capabilities = ["list", "read", "create"]
+    }
+  }
+}
+
+node {
+  policy = "read"
+}
+      `,
+
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: '*',
+              Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+              SecureVariables: {
+                Paths: [
+                  {
+                    Capabilities: ['list'],
+                    PathSpec: '*',
+                  },
+                ],
+              },
+            },
+            {
+              Name: 'namespace-1',
+              Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+              SecureVariables: {
+                Paths: [
+                  {
+                    Capabilities: ['list', 'read', 'destroy', 'create'],
+                    PathSpec: '*',
+                  },
+                ],
+              },
+            },
+            {
+              Name: 'namespace-2',
+              Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+              SecureVariables: {
+                Paths: [
+                  {
+                    Capabilities: ['list', 'read', 'destroy', 'create'],
+                    PathSpec: 'blue/*',
+                  },
+                  {
+                    Capabilities: ['list', 'read', 'create'],
+                    PathSpec: 'nomad/jobs/*',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      };
+      server.create('policy', variableViewerPolicy);
+      token.policyIds.push(variableViewerPolicy.id);
     }
   },
 });
