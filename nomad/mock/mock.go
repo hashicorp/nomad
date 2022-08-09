@@ -2438,3 +2438,19 @@ func mockSecureVariableMetadata() structs.SecureVariableMetadata {
 	}
 	return out
 }
+
+func ACLRole() *structs.ACLRole {
+	role := structs.ACLRole{
+		ID:          uuid.Generate(),
+		Name:        fmt.Sprintf("acl-role-%s", uuid.Short()),
+		Description: "mocked-test-acl-role",
+		Policies: []*structs.ACLRolePolicyLink{
+			{Name: "mocked-test-policy-1"},
+			{Name: "mocked-test-policy-2"},
+		},
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	role.SetHash()
+	return &role
+}

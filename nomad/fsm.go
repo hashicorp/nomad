@@ -58,6 +58,7 @@ const (
 	SecureVariablesSnapshot              SnapshotType = 22
 	SecureVariablesQuotaSnapshot         SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
+	ACLRoleSnapshot                      SnapshotType = 25
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -325,6 +326,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaDeleteRequestType:
 		return n.applyRootKeyMetaDelete(msgType, buf[1:], log.Index)
+	case structs.ACLRolesUpsertRequestType:
+		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
+	case structs.ACLRolesDeleteByIDRequestType:
+		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1750,6 +1755,20 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
 				return err
 			}
+		case ACLRoleSnapshot:
+
+			// Create a new ACLRole object, so we can decode the message into
+			// it.
+			aclRole := new(structs.ACLRole)
+
+			if err := dec.Decode(aclRole); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ACLRoleRestore(aclRole); err != nil {
+				return err
+			}
 
 		default:
 			// Check if this is an enterprise only object being restored
@@ -2010,6 +2029,36 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 	return nil
 }
 
+func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_upsert"}, time.Now())
+	var req structs.ACLRolesUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLRoles(msgType, index, req.ACLRoles); err != nil {
+		n.logger.Error("UpsertACLRoles failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_delete_by_id"}, time.Now())
+	var req structs.ACLRolesDeleteByIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteACLRolesByID(msgType, index, req.ACLRoleIDs); err != nil {
+		n.logger.Error("DeleteACLRolesByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 type FSMFilter struct {
 	evaluator *bexpr.Evaluator
 }
@@ -2215,6 +2264,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLRoles(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2843,6 +2896,33 @@ func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
 		}
 	}
 	return nil
+}
+
+func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the ACL roles.
+	ws := memdb.NewWatchSet()
+	aclRolesIter, err := s.snap.GetACLRoles(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item.
+		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+
+			// Prepare the request struct.
+			role := raw.(*structs.ACLRole)
+
+			// Write out an ACL role snapshot.
+			sink.Write([]byte{byte(ACLRoleSnapshot)})
+			if err := encoder.Encode(role); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // Release is a no-op, as we just need to GC the pointer
