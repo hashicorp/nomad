@@ -15,7 +15,7 @@ import {
 import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import defaultScenario from '../../mirage/scenarios/default';
+import { allScenarios } from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
 import percySnapshot from '@percy/ember';
 
@@ -39,7 +39,7 @@ module('Acceptance | secure variables', function (hooks) {
   });
 
   test('it allows access for management level tokens', async function (assert) {
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
@@ -48,7 +48,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   test('it allows access for list-variables allowed ACL rules', async function (assert) {
     assert.expect(2);
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
@@ -60,7 +60,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   test('it correctly traverses to and deletes a variable', async function (assert) {
     assert.expect(13);
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     server.db.variables.update({ namespace: 'default' });
@@ -145,7 +145,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
     assert.expect(23);
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
 
     const variableLinkedJob = server.db.jobs[0];
@@ -292,6 +292,10 @@ module('Acceptance | secure variables', function (hooks) {
 
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
+    // console.log('long way', variableLinkedTaskAlloc, variableLinkedTask, server.db.allocations.mapBy('taskGroup'));
+    // console.log('variableLinkedGroup', variableLinkedGroup);
+    // console.log('variableLinkedJob', variableLinkedJob);
+    // await this.pauseTest();
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
     await visit(
       `/allocations/${variableLinkedTaskAlloc.id}/${variableLinkedTask.name}`
@@ -317,7 +321,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   test('it does not allow you to save if you lack Items', async function (assert) {
     assert.expect(5);
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visitNew();
     assert.equal(currentURL(), '/variables/new');
@@ -340,17 +344,17 @@ module('Acceptance | secure variables', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     assert.expect(1);
-    defaultScenario(server);
+    allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     await Variables.visit();
     await a11yAudit(assert);
   });
 
-  module.skip('create flow', function () {
+  module('create flow', function () {
     test('allows a user with correct permissions to create a secure variable', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -403,7 +407,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     test('prevents users from creating a secure variable without proper permissions', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -426,7 +430,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     test('allows creating a variable that starts with nomad/jobs/', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -453,7 +457,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     test('disallows creating a variable that starts with nomad/<something-other-than-jobs>/', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -478,7 +482,7 @@ module('Acceptance | secure variables', function (hooks) {
     test('allows a user with correct permissions to edit a secure variable', async function (assert) {
       assert.expect(8);
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -533,7 +537,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     test('prevents users from editing a secure variable without proper permissions', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -555,10 +559,10 @@ module('Acceptance | secure variables', function (hooks) {
     });
   });
 
-  module.skip('delete flow', function () {
+  module('delete flow', function () {
     test('allows a user with correct permissions to delete a secure variable', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -594,7 +598,7 @@ module('Acceptance | secure variables', function (hooks) {
 
     test('prevents users from delete a secure variable without proper permissions', async function (assert) {
       // Arrange Test Set-up
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -618,7 +622,7 @@ module('Acceptance | secure variables', function (hooks) {
 
   module('read flow', function () {
     test('allows a user with correct permissions to read a secure variable', async function (assert) {
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await Variables.visit();
@@ -638,14 +642,10 @@ module('Acceptance | secure variables', function (hooks) {
     });
 
     test('prevents users from reading a secure variable without proper permissions', async function (assert) {
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       const variablesToken = server.db.tokens.find(LIMITED_SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await Variables.visit();
-
-      server.db.variables.forEach((v) => {
-        console.log('variable exists', v.id);
-      });
 
       assert
         .dom('[data-test-file-row].inaccessible')
@@ -664,7 +664,7 @@ module('Acceptance | secure variables', function (hooks) {
       assert.expect(3);
 
       // Arrange
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -696,7 +696,7 @@ module('Acceptance | secure variables', function (hooks) {
     });
 
     test('does not show namespace filtering if the user only has access to one namespace', async function (assert) {
-      defaultScenario(server);
+      allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -719,7 +719,7 @@ module('Acceptance | secure variables', function (hooks) {
         assert.expect(4);
 
         // Arrange
-        defaultScenario(server);
+        allScenarios.variableTestCluster(server);
         server.createList('variable', 3);
         const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
         window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -758,7 +758,7 @@ module('Acceptance | secure variables', function (hooks) {
       });
 
       test('does not show namespace filtering if the user only has access to one namespace', async function (assert) {
-        defaultScenario(server);
+        allScenarios.variableTestCluster(server);
         server.createList('variable', 3);
         const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
         window.localStorage.nomadTokenSecret = variablesToken.secretId;

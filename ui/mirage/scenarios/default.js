@@ -7,7 +7,7 @@ const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
 const withRegions = getConfigValue('mirageWithRegions', false);
 
-const allScenarios = {
+export const allScenarios = {
   smallCluster,
   mediumCluster,
   largeCluster,
@@ -16,6 +16,7 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  variableTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -166,6 +167,58 @@ function mediumCluster(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 50);
   server.createList('job', 25);
+}
+
+function variableTestCluster(server) {
+  createTokens(server);
+  createNamespaces(server);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node', 5);
+  server.createList('job', 3);
+  server.createList('variable', 3);
+  // server.createList('allocFile', 5);
+  // server.create('allocFile', 'dir', { depth: 2 });
+  // server.createList('csi-plugin', 2);
+
+  const variableLinkedJob = server.db.jobs[0];
+  const variableLinkedGroup = server.db.taskGroups.findBy({
+    jobId: variableLinkedJob.id,
+  });
+  const variableLinkedTask = server.db.tasks.findBy({
+    taskGroupId: variableLinkedGroup.id,
+  });
+  [
+    'a/b/c/foo0',
+    'a/b/c/bar1',
+    'a/b/c/d/e/foo2',
+    'a/b/c/d/e/bar3',
+    'a/b/c/d/e/f/foo4',
+    'a/b/c/d/e/f/g/foo5',
+    'a/b/c/x/y/z/foo6',
+    'a/b/c/x/y/z/bar7',
+    'a/b/c/x/y/z/baz8',
+    'w/x/y/foo9',
+    'w/x/y/z/foo10',
+    'w/x/y/z/bar11',
+    'just some arbitrary file',
+    'another arbitrary file',
+    'another arbitrary file again',
+  ].forEach((path) => server.create('variable', { id: path }));
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: `nomad/jobs/${variableLinkedJob.id}`,
+    namespaceId: variableLinkedJob.namespace,
+  });
 }
 
 // Due to Mirage performance, large cluster scenarios will be slow
