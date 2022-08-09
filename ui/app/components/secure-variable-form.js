@@ -180,6 +180,7 @@ export default class SecureVariableFormComponent extends Component {
       });
       this.router.transitionTo('variables.variable', this.args.model.path);
     } catch (error) {
+      console.log('errrrrrrrr', error);
       this.flashMessages.add({
         title: `Error saving ${this.args.model.path}`,
         message: error,

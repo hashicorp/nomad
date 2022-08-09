@@ -10,6 +10,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   // /v1/var instead of /v1/vars on create (urlForFindRecord)
   createRecord(_store, _type, snapshot) {
     let data = this.serialize(snapshot);
+    console.log('adapting', data);
     return this.ajax(
       this.urlForFindRecord(snapshot.id, snapshot.modelName),
       'PUT',
@@ -35,6 +36,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   urlForUpdateRecord(id, modelName) {
+    console.log('urlForUpdateRecord', id, modelName);
     return this.buildURL(modelName, id);
   }
 

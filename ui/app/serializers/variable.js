@@ -6,6 +6,15 @@ export default class VariableSerializer extends ApplicationSerializer {
   primaryKey = 'Path';
   separateNanos = ['CreateTime', 'ModifyTime'];
 
+  normalize(typeHash, hash) {
+    // hash.NamespaceID = hash.Namespace;
+
+    // ID is a composite of both the job ID and the namespace the job is in
+    hash.PlainId = hash.ID;
+    hash.ID = JSON.stringify([hash.Path, hash.Namespace || 'default']);
+    return super.normalize(typeHash, hash);
+  }
+
   // Transform API's Items object into an array of a KeyValue objects
   normalizeFindRecordResponse(store, typeClass, hash, id, ...args) {
     // TODO: prevent items-less saving at API layer
@@ -38,6 +47,7 @@ export default class VariableSerializer extends ApplicationSerializer {
     delete json.KeyValues;
     delete json.ModifyTime;
     delete json.CreateTime;
+    console.log('serializing', json);
     return json;
   }
 }
