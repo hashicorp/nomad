@@ -354,7 +354,8 @@ export default class KeyboardService extends Service {
     }
   }
 
-  rebindCommand = (cmd) => {
+  rebindCommand = (cmd, ele) => {
+    ele.target.blur(); // keynav ignores on inputs
     this.clearBuffer();
     set(cmd, 'recording', true);
     set(cmd, 'previousPattern', cmd.pattern);
