@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
@@ -172,7 +173,7 @@ type allocRunner struct {
 
 	// taskCoordinator is used to controlled when tasks are allowed to run
 	// depending on their lifecycle configuration.
-	taskCoordinator *taskCoordinator
+	taskCoordinator *tasklifecycle.Coordinator
 
 	shutdownDelayCtx      context.Context
 	shutdownDelayCancelFn context.CancelFunc
@@ -243,7 +244,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
 
-	ar.taskCoordinator = newTaskCoordinator(ar.logger, tg.Tasks, ar.waitCh)
+	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
@@ -283,7 +284,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DeviceManager:       ar.devicemanager,
 			DriverManager:       ar.driverManager,
 			ServersContactedCh:  ar.serversContactedCh,
-			StartConditionMetCh: ar.taskCoordinator.startConditionForTask(task),
+			StartConditionMetCh: ar.taskCoordinator.StartConditionForTask(task),
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
@@ -443,7 +444,7 @@ func (ar *allocRunner) Restore() error {
 		states[tr.Task().Name] = tr.TaskState()
 	}
 
-	ar.taskCoordinator.restore(states)
+	ar.taskCoordinator.Restore(states)
 
 	return nil
 }
@@ -578,7 +579,7 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		ar.taskCoordinator.taskStateUpdated(states)
+		ar.taskCoordinator.TaskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
