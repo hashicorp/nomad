@@ -107,7 +107,7 @@ export default class Variable extends AbstractAbility {
     });
   }
 
-  @computed('path', 'namespace', 'allPaths')
+  @computed('allPaths', 'namespace', 'path', 'token.selfTokenPolicies')
   get policiesSupportVariableWriting() {
     if (this.namespace === WILDCARD_GLOB && this.path === WILDCARD_GLOB) {
       // If you're checking if you can write from root, and you don't specify a namespace,
