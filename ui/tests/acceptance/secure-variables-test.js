@@ -214,7 +214,7 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is job-oriented'
     );
 
-    await percySnapshot(assert);
+    await percySnapshot('related entities box for job variable');
 
     let relatedJobLink = find('.related-entities a');
     await click(relatedJobLink);
@@ -288,14 +288,10 @@ module('Acceptance | secure variables', function (hooks) {
       'Related Entities box is task-oriented'
     );
 
-    await percySnapshot(assert);
+    await percySnapshot('related entities box for task variable');
 
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
-    // console.log('long way', variableLinkedTaskAlloc, variableLinkedTask, server.db.allocations.mapBy('taskGroup'));
-    // console.log('variableLinkedGroup', variableLinkedGroup);
-    // console.log('variableLinkedJob', variableLinkedJob);
-    // await this.pauseTest();
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
     await visit(
       `/allocations/${variableLinkedTaskAlloc.id}/${variableLinkedTask.name}`
