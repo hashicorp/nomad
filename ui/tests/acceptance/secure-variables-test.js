@@ -347,7 +347,7 @@ module('Acceptance | secure variables', function (hooks) {
     await a11yAudit(assert);
   });
 
-  module('create flow', function () {
+  module.skip('create flow', function () {
     test('allows a user with correct permissions to create a secure variable', async function (assert) {
       // Arrange Test Set-up
       defaultScenario(server);
