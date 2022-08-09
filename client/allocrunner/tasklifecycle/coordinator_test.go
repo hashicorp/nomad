@@ -1,4 +1,4 @@
-package allocrunner
+package tasklifecycle
 
 import (
 	"testing"
@@ -8,10 +8,9 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 )
 
-func TestTaskCoordinator_OnlyMainApp(t *testing.T) {
+func TestCoordinator_OnlyMainApp(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -21,7 +20,7 @@ func TestTaskCoordinator_OnlyMainApp(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// Tasks starts blocked.
 	requireTaskBlocked(t, coord, task)
@@ -33,7 +32,7 @@ func TestTaskCoordinator_OnlyMainApp(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, task)
 
 	// After main is running, main tasks are still allowed to run.
@@ -43,11 +42,11 @@ func TestTaskCoordinator_OnlyMainApp(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, task)
 }
 
-func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
+func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -61,7 +60,7 @@ func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
 	requireTaskBlocked(t, coord, initTask)
@@ -83,7 +82,7 @@ func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
@@ -103,7 +102,7 @@ func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
@@ -123,7 +122,7 @@ func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
@@ -143,13 +142,13 @@ func TestTaskCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskBlocked(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskAllowed(t, coord, mainTask)
 }
 
-func TestTaskCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
+func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -164,7 +163,7 @@ func TestTaskCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
 	requireTaskBlocked(t, coord, init1Task)
@@ -186,7 +185,7 @@ func TestTaskCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, init1Task)
 	requireTaskAllowed(t, coord, init2Task)
 	requireTaskBlocked(t, coord, mainTask)
@@ -209,13 +208,13 @@ func TestTaskCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskBlocked(t, coord, init1Task)
 	requireTaskBlocked(t, coord, init2Task)
 	requireTaskAllowed(t, coord, mainTask)
 }
 
-func TestTaskCoordinator_FailedInitTask(t *testing.T) {
+func TestCoordinator_FailedInitTask(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -230,7 +229,7 @@ func TestTaskCoordinator_FailedInitTask(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
 	requireTaskBlocked(t, coord, init1Task)
@@ -252,7 +251,7 @@ func TestTaskCoordinator_FailedInitTask(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, init1Task)
 	requireTaskAllowed(t, coord, init2Task)
 	requireTaskBlocked(t, coord, mainTask)
@@ -275,13 +274,13 @@ func TestTaskCoordinator_FailedInitTask(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, init1Task)
 	requireTaskAllowed(t, coord, init2Task)
 	requireTaskBlocked(t, coord, mainTask)
 }
 
-func TestTaskCoordinator_SidecarNeverStarts(t *testing.T) {
+func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -295,7 +294,7 @@ func TestTaskCoordinator_SidecarNeverStarts(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
 	requireTaskBlocked(t, coord, initTask)
@@ -317,7 +316,7 @@ func TestTaskCoordinator_SidecarNeverStarts(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
@@ -339,13 +338,13 @@ func TestTaskCoordinator_SidecarNeverStarts(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, initTask)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
 }
 
-func TestTaskCoordinator_PoststartStartsAfterMain(t *testing.T) {
+func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -362,7 +361,7 @@ func TestTaskCoordinator_PoststartStartsAfterMain(t *testing.T) {
 
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
-	coord := newTaskCoordinator(logger, tasks, shutdownCh)
+	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
 	requireTaskBlocked(t, coord, sideTask)
@@ -385,7 +384,7 @@ func TestTaskCoordinator_PoststartStartsAfterMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
 	requireTaskBlocked(t, coord, postTask)
@@ -407,43 +406,8 @@ func TestTaskCoordinator_PoststartStartsAfterMain(t *testing.T) {
 			Failed: false,
 		},
 	}
-	coord.taskStateUpdated(states)
+	coord.TaskStateUpdated(states)
 	requireTaskAllowed(t, coord, sideTask)
 	requireTaskAllowed(t, coord, mainTask)
 	requireTaskAllowed(t, coord, postTask)
-}
-
-func requireTaskBlocked(t *testing.T, c *taskCoordinator, task *structs.Task) {
-	ch := c.startConditionForTask(task)
-	requireChannelBlocking(t, ch, task.Name)
-}
-
-func requireTaskAllowed(t *testing.T, c *taskCoordinator, task *structs.Task) {
-	ch := c.startConditionForTask(task)
-	requireChannelPassing(t, ch, task.Name)
-}
-
-func requireChannelPassing(t *testing.T, ch <-chan struct{}, name string) {
-	testutil.WaitForResult(func() (bool, error) {
-		return !isChannelBlocking(ch), nil
-	}, func(_ error) {
-		t.Fatalf("%s channel was blocking, should be passing", name)
-	})
-}
-
-func requireChannelBlocking(t *testing.T, ch <-chan struct{}, name string) {
-	testutil.WaitForResult(func() (bool, error) {
-		return isChannelBlocking(ch), nil
-	}, func(_ error) {
-		t.Fatalf("%s channel was passing, should be blocking", name)
-	})
-}
-
-func isChannelBlocking(ch <-chan struct{}) bool {
-	select {
-	case <-ch:
-		return false
-	default:
-		return true
-	}
 }
