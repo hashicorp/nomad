@@ -498,13 +498,22 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 			}
 		}
-		if len(scripts) != 0 {
-			for _, script := range scripts {
-				_, _, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
-				if err != nil {
-					structs.NewTaskEvent(structs.TaskDriverMessage).
-						SetDisplayMessage(fmt.Sprintf("Template failed to run script on change: %v", err))
-				}
+	}
+	if len(scripts) != 0 {
+		for _, script := range scripts {
+			_, exitCode, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
+			if err != nil {
+				structs.NewTaskEvent(structs.TaskHookFailed).
+					SetDisplayMessage(
+						fmt.Sprintf(
+							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+						))
+			} else {
+				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+					SetDisplayMessage(
+						fmt.Sprintf(
+							"Template ran a script from %v with exit code: %v", script.Path, exitCode,
+						)))
 			}
 		}
 	}

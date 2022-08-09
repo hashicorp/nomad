@@ -24,6 +24,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
@@ -123,6 +124,14 @@ func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 
 func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 
+// MockExecutor is implementing script executor interface
+type MockExecutor struct {
+}
+
+func (m *MockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	return []byte{}, 0, nil
+}
+
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
@@ -138,6 +147,7 @@ type testHarness struct {
 	consul         *ctestutil.TestServer
 	emitRate       time.Duration
 	nomadNamespace string
+	driver         interfaces.ScriptExecutor
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
@@ -211,6 +221,7 @@ func (h *testHarness) startWithErr() error {
 		VaultToken:           h.vaultToken,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
+		Handle:               h.driver,
 		MaxTemplateEventRate: h.emitRate,
 	})
 
@@ -1182,7 +1193,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	// Wait a little
 	select {
 	case <-harness.mockHooks.UnblockCh:
-	case <-time.After(time.Duration(30 * time.Second)):
+	case <-time.After(time.Duration(2*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
 	}
 
@@ -1205,24 +1216,28 @@ func TestTaskTemplateManager_Script(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	// Make a template that renders based on a key in Consul and triggers a script
+	m := MockExecutor{}
+
 	key1 := "foo"
 	content1 := "bar"
-	content2 := "baz"
 	embedded1 := fmt.Sprintf(`{{key "%s"}}`, key1)
 	file1 := "my.tmpl"
 	template := &structs.Template{
-		EmbeddedTmpl:       embedded1,
-		DestPath:           file1,
-		ChangeMode:         structs.TemplateChangeModeScript,
-		ChangeScriptConfig: &structs.ChangeScriptConfig{},
+		EmbeddedTmpl: embedded1,
+		DestPath:     file1,
+		ChangeMode:   structs.TemplateChangeModeScript,
+		ChangeScriptConfig: &structs.ChangeScriptConfig{
+			Path:    "/bin/foo",
+			Args:    []string{},
+			Timeout: 5 * time.Second,
+		},
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	// inject a mock driver into the test harness
+	harness.driver = &m
 	harness.start(t)
 	defer harness.stop()
-
-	// harness.mockHooks.SignalError = fmt.Errorf("test error")
 
 	// Write the key to Consul
 	harness.consul.SetKV(t, key1, []byte(content1))
@@ -1234,19 +1249,7 @@ func TestTaskTemplateManager_Script(t *testing.T) {
 		t.Fatalf("Should have received unblock: %+v", harness.mockHooks)
 	}
 
-	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content2))
-
-	// Wait for kill channel
-	select {
-	case <-harness.mockHooks.KillCh:
-		break
-	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
-	}
-
-	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+	require.Contains(harness.mockHooks.Events, "Template ran a script")
 }
 
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
