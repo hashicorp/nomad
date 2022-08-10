@@ -7244,12 +7244,6 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "Args",
-										Old:  "",
-										New:  "-debugss",
-									},
-									{
-										Type: DiffTypeAdded,
 										Name: "Path",
 										Old:  "",
 										New:  "/bin/foo3",
@@ -7259,6 +7253,20 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Timeout",
 										Old:  "",
 										New:  "7",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Args",
+												Old:  "",
+												New:  "-debugss",
+											},
+										},
 									},
 								},
 							},
@@ -7342,12 +7350,6 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,
-										Name: "Args",
-										Old:  "-debugs",
-										New:  "",
-									},
-									{
-										Type: DiffTypeDeleted,
 										Name: "Path",
 										Old:  "/bin/foo2",
 										New:  "",
@@ -7357,6 +7359,20 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Timeout",
 										Old:  "6",
 										New:  "",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Args",
+												Old:  "-debugs",
+												New:  "",
+											},
+										},
 									},
 								},
 							},
