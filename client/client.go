@@ -772,21 +772,29 @@ func (c *Client) GetConfig() *config.Config {
 
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	return c.config.Node.Datacenter
 }
 
 // Region returns the region for the given client
 func (c *Client) Region() string {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	return c.config.Region
 }
 
 // NodeID returns the node ID for the given client
 func (c *Client) NodeID() string {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	return c.config.Node.ID
 }
 
 // secretNodeID returns the secret node ID for the given client
 func (c *Client) secretNodeID() string {
+	c.configLock.RLock()
+	defer c.configLock.RUnlock()
 	return c.config.Node.SecretID
 }
 
@@ -1865,9 +1873,8 @@ func (c *Client) retryRegisterNode() {
 
 // registerNode is used to register the node or update the registration
 func (c *Client) registerNode() error {
-	node := c.Node()
 	req := structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         c.Node(),
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
@@ -1877,8 +1884,9 @@ func (c *Client) registerNode() error {
 
 	// Update the node status to ready after we register.
 	c.configLock.Lock()
-	node.Status = structs.NodeStatusReady
-	c.config.Node.Status = structs.NodeStatusReady
+	newConfig := c.config.Copy()
+	newConfig.Node.Status = structs.NodeStatusReady
+	c.config = newConfig
 	c.configLock.Unlock()
 
 	c.logger.Info("node registration complete")
