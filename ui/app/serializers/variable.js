@@ -3,15 +3,15 @@ import ApplicationSerializer from './application';
 
 @classic
 export default class VariableSerializer extends ApplicationSerializer {
-  primaryKey = 'Path';
+  // primaryKey = 'Path';
   separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {
     // hash.NamespaceID = hash.Namespace;
 
     // ID is a composite of both the job ID and the namespace the job is in
-    hash.PlainId = hash.ID;
-    hash.ID = JSON.stringify([hash.Path, hash.Namespace || 'default']);
+    hash.PlainId = hash.Path;
+    hash.ID = `${hash.Path}@${hash.Namespace || 'default'}`;
     return super.normalize(typeHash, hash);
   }
 
@@ -39,6 +39,7 @@ export default class VariableSerializer extends ApplicationSerializer {
 
   // Transform our KeyValues array into an Items object
   serialize(snapshot, options) {
+    console.log('about to serialize', snapshot);
     const json = super.serialize(snapshot, options);
     json.Items = json.KeyValues.reduce((acc, { key, value }) => {
       acc[key] = value;

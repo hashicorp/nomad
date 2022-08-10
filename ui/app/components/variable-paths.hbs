@@ -25,6 +25,7 @@
     {{/each}}
 
     {{#each this.files as |file|}}
+    {{log "FILE" file}}
       <tr
         data-test-file-row
         {{on "click" (fn this.handleFileClick file)}}
@@ -35,7 +36,7 @@
           {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
           <LinkTo
             @route="variables.variable"
-            @model={{file.absoluteFilePath}}
+            @model={{file.variable.id}}
             @query={{hash namespace="*"}}
           >
             {{file.name}}

@@ -62,6 +62,8 @@ export default class VariableModel extends Model {
     return folderPath.join('/');
   }
 
+  @attr('string', { defaultValue: '' }) plainId;
+
   /**
    * Removes starting and trailing slashes, pathLinkedEntitiesand sets the ID property
    */
