@@ -33,6 +33,12 @@ var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
 // invalidFilenameStrict = invalidFilename plus additional punctuation
 var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
 
+type Copyable[T any] interface {
+	any
+
+	Copy() T
+}
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -260,6 +266,14 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
+func CopyPtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	np := *p
+	return &np
+}
+
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
 // If m is nil or contains no elements, the return value is nil.
@@ -271,6 +285,20 @@ func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
 	result := make(M, len(m))
 	for k, v := range m {
 		result[k] = v
+	}
+	return result
+}
+
+// CopySlice creates a deep copy of s. For slices with elements that do not
+// implement Copy(), use slices.Clone.
+func CopySlice[S ~[]E, E Copyable[E]](s S) S {
+	if s == nil {
+		return nil
+	}
+
+	result := make(S, len(s))
+	for i, v := range s {
+		result[i] = v.Copy()
 	}
 	return result
 }

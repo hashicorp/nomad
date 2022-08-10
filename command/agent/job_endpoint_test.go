@@ -79,7 +79,6 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		"aabbbbbb-e8f7-fd38-c855-ab94ceb89706",
 		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
 	}
-	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job

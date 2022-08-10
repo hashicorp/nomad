@@ -59,6 +59,15 @@ type SearchConfig struct {
 	MinTermLength int `hcl:"min_term_length"`
 }
 
+func (s *SearchConfig) Copy() *SearchConfig {
+	if s == nil {
+		return nil
+	}
+
+	ns := *s
+	return &ns
+}
+
 // SearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of Context.
 type SearchResponse struct {
