@@ -19,8 +19,8 @@ In the diagrams below, a solid line from a Gate indicates that it's open
 taskRunner connected to an open Gate is allowed to run, while one that is
 connected to a closed Gate is blocked.
 
-The O/C control line represents the Coordinator calling the Open() and Close()
-methods of the Gates.
+The Open/Close control line represents the Coordinator calling the Open() and
+Close() methods of the Gates.
 
 In this state, the Coordinator is allowing prestart tasks to run, while
 blocking the main tasks.
@@ -41,14 +41,14 @@ blocking the main tasks.
             │     │                   │
             │     │                   │         ┌─────────────┐
             │     │ COORDINATOR       │         │ TASK RUNNER │
-            │     │             ┌-----┼-------┬-┤   (Main)    │
-            │     │             |     │       | └─────────────┘
-            │     │             |     │       |
-            │     │             |     │       | ┌─────────────┐
-            │   Prestart       Main   │       | │ TASK RUNNER │
-            └─────┬─┬───────────┬─┬───┘       └-┤   (Main)    │
-                  │ │O/C        | │O/C          └─────────────┘
-                  │ │           | │
+            │     │             ┌─ ─ ─┼─ ─ ─ ─┬╶┤   (Main)    │
+            │     │             ╷     │       ╷ └─────────────┘
+            │     │             ╷     │       ╷
+            │     │             ╷     │       ╷ ┌─────────────┐
+            │   Prestart       Main   │       ╷ │ TASK RUNNER │
+            └─────┬─┬───────────┬─┬───┘       └╶┤   (Main)    │
+                  │ │Open/      ╷ │Open/        └─────────────┘
+                  │ │Close      ╷ │Close
                ┌──┴─▼─┐      ┌──┴─▼─┐
                │ GATE │      │ GATE │
                └──────┘      └──────┘
@@ -70,19 +70,19 @@ the Gate for main tasks, allowing them to start.
             │Current state:           │
             │Main                     │         ┌─────────────┐
             │                         │         │ TASK RUNNER │
-            │     ┌-------------------┼---------┤ (Prestart)  │
-            │     |                   │         └─────────────┘
-            │     |                   │
-            │     |                   │         ┌─────────────┐
-            │     | COORDINATOR       │         │ TASK RUNNER │
-            │     |             ┌─────┼───────┬─┤   (Main)    │
-            │     |             │     │       │ └─────────────┘
-            │     |             │     │       │
-            │     |             │     │       │ ┌─────────────┐
+            │     ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼─ ─ ─ ─ ─┤ (Prestart)  │
+            │     ╷                   │         └─────────────┘
+            │     ╷                   │
+            │     ╷                   │         ┌─────────────┐
+            │     ╷ COORDINATOR       │         │ TASK RUNNER │
+            │     ╷             ┌─────┼───────┬─┤   (Main)    │
+            │     ╷             │     │       │ └─────────────┘
+            │     ╷             │     │       │
+            │     ╷             │     │       │ ┌─────────────┐
             │   Prestart       Main   │       │ │ TASK RUNNER │
             └─────┼─┬───────────┬─┬───┘       └─┤   (Main)    │
-                  | │O/C        │ │O/C          └─────────────┘
-                  | │           │ │
+                  ╷ │Open/      │ │Open/        └─────────────┘
+                  ╷ │Close      │ │Close
                ┌──┴─▼─┐      ┌──┴─▼─┐
                │ GATE │      │ GATE │
                └──────┘      └──────┘
