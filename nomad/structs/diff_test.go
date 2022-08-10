@@ -7043,9 +7043,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScriptConfig: &ChangeScriptConfig{
-							Path:    "/bin/foo",
-							Args:    []string{"-debug"},
-							Timeout: 5,
+							Path:     "/bin/foo",
+							Args:     []string{"-debug"},
+							Timeout:  5,
+							FailTask: false,
 						},
 						Splay: 1,
 						Perms: "0644",
@@ -7063,9 +7064,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
 						ChangeScriptConfig: &ChangeScriptConfig{
-							Path:    "/bin/foo2",
-							Args:    []string{"-debugs"},
-							Timeout: 6,
+							Path:     "/bin/foo2",
+							Args:     []string{"-debugs"},
+							Timeout:  6,
+							FailTask: false,
 						},
 						Splay:   2,
 						Perms:   "0666",
@@ -7084,9 +7086,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScriptConfig: &ChangeScriptConfig{
-							Path:    "/bin/foo",
-							Args:    []string{"-debug"},
-							Timeout: 5,
+							Path:     "/bin/foo",
+							Args:     []string{"-debug"},
+							Timeout:  5,
+							FailTask: false,
 						},
 						Splay: 1,
 						Perms: "0644",
@@ -7104,9 +7107,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
 						ChangeScriptConfig: &ChangeScriptConfig{
-							Path:    "/bin/foo3",
-							Args:    []string{"-debugss"},
-							Timeout: 7,
+							Path:     "/bin/foo3",
+							Args:     []string{"-debugss"},
+							Timeout:  7,
+							FailTask: false,
 						},
 						Splay: 3,
 						Perms: "0776",
@@ -7244,6 +7248,12 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
+										Name: "FailTask",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Path",
 										Old:  "",
 										New:  "/bin/foo3",
@@ -7348,6 +7358,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "ChangeScriptConfig",
 								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "FailTask",
+										Old:  "false",
+										New:  "",
+									},
 									{
 										Type: DiffTypeDeleted,
 										Name: "Path",

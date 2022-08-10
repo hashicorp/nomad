@@ -1227,9 +1227,10 @@ FOO={{key "bam"}}
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScriptConfig: &structs.ChangeScriptConfig{
-			Path:    "/bin/foo",
-			Args:    []string{},
-			Timeout: 5 * time.Second,
+			Path:     "/bin/foo",
+			Args:     []string{},
+			Timeout:  5 * time.Second,
+			FailTask: false,
 		},
 		Envvars: true,
 	}
@@ -1240,9 +1241,10 @@ BAR={{key "bar"}}
 		DestPath:   "test2.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScriptConfig: &structs.ChangeScriptConfig{
-			Path:    "/bin/foo",
-			Args:    []string{},
-			Timeout: 5 * time.Second,
+			Path:     "/bin/foo",
+			Args:     []string{},
+			Timeout:  5 * time.Second,
+			FailTask: false,
 		},
 		Envvars: true,
 	}
