@@ -411,3 +411,135 @@ func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	RequireTaskAllowed(t, coord, mainTask)
 	RequireTaskAllowed(t, coord, postTask)
 }
+
+func TestCoordinator_Restore(t *testing.T) {
+	ci.Parallel(t)
+
+	task := mock.Job().TaskGroups[0].Tasks[0]
+
+	preEphemeral := task.Copy()
+	preEphemeral.Name = "pre_ephemeral"
+	preEphemeral.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPrestart,
+		Sidecar: false,
+	}
+
+	preSide := task.Copy()
+	preSide.Name = "pre_side"
+	preSide.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPrestart,
+		Sidecar: true,
+	}
+
+	main := task.Copy()
+	main.Name = "main"
+	main.Lifecycle = nil
+
+	postEphemeral := task.Copy()
+	postEphemeral.Name = "post_ephemeral"
+	postEphemeral.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPoststart,
+		Sidecar: false,
+	}
+
+	postSide := task.Copy()
+	postSide.Name = "post_side"
+	postSide.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPoststart,
+		Sidecar: true,
+	}
+
+	poststop := task.Copy()
+	poststop.Name = "poststop"
+	poststop.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPoststop,
+		Sidecar: false,
+	}
+
+	testCases := []struct {
+		name       string
+		tasks      []*structs.Task
+		tasksState map[string]*structs.TaskState
+		testFn     func(*testing.T, *Coordinator)
+	}{
+		{
+			name:  "prestart ephemeral running",
+			tasks: []*structs.Task{preEphemeral, preSide, main},
+			tasksState: map[string]*structs.TaskState{
+				preEphemeral.Name: {State: structs.TaskStateRunning},
+				preSide.Name:      {State: structs.TaskStateRunning},
+				main.Name:         {State: structs.TaskStatePending},
+			},
+			testFn: func(t *testing.T, c *Coordinator) {
+				RequireTaskBlocked(t, c, main)
+
+				RequireTaskAllowed(t, c, preEphemeral)
+				RequireTaskAllowed(t, c, preSide)
+			},
+		},
+		{
+			name:  "prestart ephemeral complete",
+			tasks: []*structs.Task{preEphemeral, preSide, main},
+			tasksState: map[string]*structs.TaskState{
+				preEphemeral.Name: {State: structs.TaskStateDead},
+				preSide.Name:      {State: structs.TaskStateRunning},
+				main.Name:         {State: structs.TaskStatePending},
+			},
+			testFn: func(t *testing.T, c *Coordinator) {
+				RequireTaskBlocked(t, c, preEphemeral)
+
+				RequireTaskAllowed(t, c, preSide)
+				RequireTaskAllowed(t, c, main)
+			},
+		},
+		{
+			name:  "main running",
+			tasks: []*structs.Task{main},
+			tasksState: map[string]*structs.TaskState{
+				main.Name: {State: structs.TaskStateRunning},
+			},
+			testFn: func(t *testing.T, c *Coordinator) {
+				RequireTaskAllowed(t, c, main)
+			},
+		},
+		{
+			name:  "poststart with sidecar",
+			tasks: []*structs.Task{main, postEphemeral, postSide},
+			tasksState: map[string]*structs.TaskState{
+				main.Name:          {State: structs.TaskStateRunning},
+				postEphemeral.Name: {State: structs.TaskStateDead},
+				postSide.Name:      {State: structs.TaskStateRunning},
+			},
+			testFn: func(t *testing.T, c *Coordinator) {
+				RequireTaskBlocked(t, c, postEphemeral)
+
+				RequireTaskAllowed(t, c, main)
+				RequireTaskAllowed(t, c, postSide)
+			},
+		},
+		{
+			name:  "poststop running",
+			tasks: []*structs.Task{main, poststop},
+			tasksState: map[string]*structs.TaskState{
+				main.Name:     {State: structs.TaskStateDead},
+				poststop.Name: {State: structs.TaskStateRunning},
+			},
+			testFn: func(t *testing.T, c *Coordinator) {
+				RequireTaskBlocked(t, c, main)
+
+				RequireTaskAllowed(t, c, poststop)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			shutdownCh := make(chan struct{})
+			defer close(shutdownCh)
+
+			c := NewCoordinator(testlog.HCLogger(t), tc.tasks, shutdownCh)
+			c.Restore(tc.tasksState)
+			tc.testFn(t, c)
+		})
+	}
+}

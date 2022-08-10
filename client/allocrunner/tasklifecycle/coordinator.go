@@ -16,6 +16,7 @@ const (
 	coordinatorStatePrestart
 	coordinatorStateMain
 	coordinatorStatePoststart
+	coordinatorStateWaitMain
 	coordinatorStatePoststop
 )
 
@@ -29,6 +30,8 @@ func (s coordinatorState) String() string {
 		return "main"
 	case coordinatorStatePoststart:
 		return "poststart"
+	case coordinatorStateWaitMain:
+		return "wait_main"
 	case coordinatorStatePoststop:
 		return "poststart"
 	}
@@ -57,8 +60,13 @@ const (
 	// empty hook value.
 	lifecycleStageMain
 
-	// lifecycleStagePoststart are tasks with the "poststart" hook.
-	lifecycleStagePoststart
+	// lifecycleStagePoststartEphemeral are tasks with the "poststart" hook and
+	// sidecar set to "false"
+	lifecycleStagePoststartEphemeral
+
+	// lifecycleStagePoststartSidecar are tasks with the "poststart" hook and
+	// sidecar set to "true".
+	lifecycleStagePoststartSidecar
 
 	// lifecycleStagePoststop are tasks with the "poststop" hook.
 	lifecycleStagePoststop
@@ -149,62 +157,38 @@ func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coor
 		if !c.isInitDone(states) {
 			return coordinatorStateInit
 		}
-
-		if c.hasPrestart() {
-			return coordinatorStatePrestart
-		}
-		if c.hasMain() {
-			return coordinatorStateMain
-		}
-		if c.hasPoststart() {
-			return coordinatorStatePoststart
-		}
-		if c.hasPoststop() {
-			return coordinatorStatePoststop
-		}
+		return coordinatorStatePrestart
 
 	case coordinatorStatePrestart:
 		if !c.isPrestartDone(states) {
 			return coordinatorStatePrestart
 		}
-
-		if c.hasMain() {
-			return coordinatorStateMain
-		}
-		if c.hasPoststart() {
-			return coordinatorStatePoststart
-		}
-		if c.hasPoststop() {
-			return coordinatorStatePoststop
-		}
+		return coordinatorStateMain
 
 	case coordinatorStateMain:
 		if !c.isMainDone(states) {
 			return coordinatorStateMain
 		}
-
-		if c.hasPoststart() {
-			return coordinatorStatePoststart
-		}
-		if c.hasPoststop() {
-			return coordinatorStatePoststop
-		}
+		return coordinatorStatePoststart
 
 	case coordinatorStatePoststart:
 		if !c.isPoststartDone(states) {
 			return coordinatorStatePoststart
 		}
+		return coordinatorStateWaitMain
 
-		if c.hasPoststop() {
-			return coordinatorStatePoststop
+	case coordinatorStateWaitMain:
+		if !c.isWaitMainDone(states) {
+			return coordinatorStateWaitMain
 		}
+		return coordinatorStatePoststop
 
 	case coordinatorStatePoststop:
 		return coordinatorStatePoststop
 	}
 
 	// If the code reaches here it's a programming error, since the switch
-	// statement should cover all possible states.
+	// statement should cover all possible states and return the next state.
 	c.logger.Warn(fmt.Sprintf("unexpected state %s", c.currentState))
 	return c.currentState
 }
@@ -220,12 +204,14 @@ func (c *Coordinator) enterStateLocked(state coordinatorState) {
 		c.block(lifecycleStagePrestartEphemeral)
 		c.block(lifecycleStagePrestartSidecar)
 		c.block(lifecycleStageMain)
-		c.block(lifecycleStagePoststart)
+		c.block(lifecycleStagePoststartEphemeral)
+		c.block(lifecycleStagePoststartSidecar)
 		c.block(lifecycleStagePoststop)
 
 	case coordinatorStatePrestart:
 		c.block(lifecycleStageMain)
-		c.block(lifecycleStagePoststart)
+		c.block(lifecycleStagePoststartEphemeral)
+		c.block(lifecycleStagePoststartSidecar)
 		c.block(lifecycleStagePoststop)
 
 		c.allow(lifecycleStagePrestartEphemeral)
@@ -233,7 +219,8 @@ func (c *Coordinator) enterStateLocked(state coordinatorState) {
 
 	case coordinatorStateMain:
 		c.block(lifecycleStagePrestartEphemeral)
-		c.block(lifecycleStagePoststart)
+		c.block(lifecycleStagePoststartEphemeral)
+		c.block(lifecycleStagePoststartSidecar)
 		c.block(lifecycleStagePoststop)
 
 		c.allow(lifecycleStagePrestartSidecar)
@@ -245,13 +232,24 @@ func (c *Coordinator) enterStateLocked(state coordinatorState) {
 
 		c.allow(lifecycleStagePrestartSidecar)
 		c.allow(lifecycleStageMain)
-		c.allow(lifecycleStagePoststart)
+		c.allow(lifecycleStagePoststartEphemeral)
+		c.allow(lifecycleStagePoststartSidecar)
+
+	case coordinatorStateWaitMain:
+		c.block(lifecycleStagePrestartEphemeral)
+		c.block(lifecycleStagePoststartEphemeral)
+		c.block(lifecycleStagePoststop)
+
+		c.allow(lifecycleStagePrestartSidecar)
+		c.allow(lifecycleStageMain)
+		c.allow(lifecycleStagePoststartSidecar)
 
 	case coordinatorStatePoststop:
 		c.block(lifecycleStagePrestartEphemeral)
 		c.block(lifecycleStagePrestartSidecar)
 		c.block(lifecycleStageMain)
-		c.block(lifecycleStagePoststart)
+		c.block(lifecycleStagePoststartEphemeral)
+		c.block(lifecycleStagePoststartSidecar)
 
 		c.allow(lifecycleStagePoststop)
 	}
@@ -271,10 +269,15 @@ func (c *Coordinator) isInitDone(states map[string]*structs.TaskState) bool {
 }
 
 // isPrestartDone returns true when the following conditions are met:
+//   - there is at least one prestart task
 //   - all ephemeral prestart tasks are in the "dead" state.
 //   - no ephemeral prestart task has failed.
 //   - all prestart sidecar tasks are running.
 func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool {
+	if !c.hasPrestart() {
+		return true
+	}
+
 	for _, task := range c.tasksByLifecycle[lifecycleStagePrestartEphemeral] {
 		if states[task].State != structs.TaskStateDead || states[task].Failed {
 			return false
@@ -289,8 +292,13 @@ func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool 
 }
 
 // isMainDone returns true when the following conditions are met:
+//   - there is at least one main task.
 //   - all main tasks are no longer "pending".
 func (c *Coordinator) isMainDone(states map[string]*structs.TaskState) bool {
+	if !c.hasMain() {
+		return true
+	}
+
 	for _, task := range c.tasksByLifecycle[lifecycleStageMain] {
 		if states[task].State == structs.TaskStatePending {
 			return false
@@ -300,8 +308,24 @@ func (c *Coordinator) isMainDone(states map[string]*structs.TaskState) bool {
 }
 
 // isPoststartDone returns true when the following conditions are met:
-//   - all tasks that are not poststop are in the "dead" state.
+//   - there is at least one poststart task.
+//   - all ephemeral poststart tasks are in the "dead" state.
 func (c *Coordinator) isPoststartDone(states map[string]*structs.TaskState) bool {
+	if !c.hasPoststart() {
+		return true
+	}
+
+	for _, task := range c.tasksByLifecycle[lifecycleStagePoststartEphemeral] {
+		if states[task].State != structs.TaskStateDead {
+			return false
+		}
+	}
+	return true
+}
+
+// isWaitMainDone returns true when the following conditions are met:
+//   - all tasks that are not poststop are in the "dead" state.
+func (c *Coordinator) isWaitMainDone(states map[string]*structs.TaskState) bool {
 	for lifecycle, tasks := range c.tasksByLifecycle {
 		if lifecycle == lifecycleStagePoststop {
 			continue
@@ -326,7 +350,8 @@ func (c *Coordinator) hasMain() bool {
 }
 
 func (c *Coordinator) hasPoststart() bool {
-	return len(c.tasksByLifecycle[lifecycleStagePoststart]) > 0
+	return len(c.tasksByLifecycle[lifecycleStagePoststartEphemeral])+
+		len(c.tasksByLifecycle[lifecycleStagePoststartSidecar]) > 0
 }
 
 func (c *Coordinator) hasPoststop() bool {
@@ -375,7 +400,10 @@ func taskLifecycleStage(task *structs.Task) lifecycleStage {
 		}
 		return lifecycleStagePrestartEphemeral
 	} else if task.IsPoststart() {
-		return lifecycleStagePoststart
+		if task.Lifecycle.Sidecar {
+			return lifecycleStagePoststartSidecar
+		}
+		return lifecycleStagePoststartEphemeral
 	} else if task.IsPoststop() {
 		return lifecycleStagePoststop
 	}
