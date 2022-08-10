@@ -2,19 +2,32 @@ package tasklifecycle
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
-func requireTaskBlocked(t *testing.T, c *Coordinator, task *structs.Task) {
+func RequireTaskBlocked(t *testing.T, c *Coordinator, task *structs.Task) {
 	ch := c.StartConditionForTask(task)
 	requireChannelBlocking(t, ch, task.Name)
 }
 
-func requireTaskAllowed(t *testing.T, c *Coordinator, task *structs.Task) {
+func RequireTaskAllowed(t *testing.T, c *Coordinator, task *structs.Task) {
 	ch := c.StartConditionForTask(task)
 	requireChannelPassing(t, ch, task.Name)
+}
+
+func WaitNotInitUntil(c *Coordinator, until time.Duration, errorFunc func()) {
+	testutil.WaitForResultUntil(until,
+		func() (bool, error) {
+			c.currentStateLock.RLock()
+			defer c.currentStateLock.RUnlock()
+			return c.currentState != coordinatorStateInit, nil
+		},
+		func(_ error) {
+			errorFunc()
+		})
 }
 
 func requireChannelPassing(t *testing.T, ch <-chan struct{}, name string) {
