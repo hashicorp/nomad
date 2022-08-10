@@ -170,7 +170,7 @@ func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 	requireTaskBlocked(t, coord, init2Task)
 	requireTaskBlocked(t, coord, mainTask)
 
-	// Set initial state, prestart tasks are allowed to run, mais is blocked.
+	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
 		init1Task.Name: {
 			State:  structs.TaskStatePending,
@@ -236,7 +236,7 @@ func TestCoordinator_FailedInitTask(t *testing.T) {
 	requireTaskBlocked(t, coord, init2Task)
 	requireTaskBlocked(t, coord, mainTask)
 
-	// Set initial state, prestart tasks are allowed to run, mais is blocked.
+	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
 		init1Task.Name: {
 			State:  structs.TaskStatePending,
@@ -301,7 +301,7 @@ func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 	requireTaskBlocked(t, coord, sideTask)
 	requireTaskBlocked(t, coord, mainTask)
 
-	// Set initial state, prestart tasks are allowed to run, mais is blocked.
+	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
 		initTask.Name: {
 			State:  structs.TaskStatePending,
