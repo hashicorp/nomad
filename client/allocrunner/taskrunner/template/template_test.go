@@ -1281,25 +1281,16 @@ OUTER:
 		select {
 		case <-harness.mockHooks.RestartCh:
 			require.Fail(t, "restart not expected")
-		case <-harness.mockHooks.EmitEventCh:
-			break OUTER
+		case ev := <-harness.mockHooks.EmitEventCh:
+			if strings.Contains(ev.DisplayMessage, t1.ChangeScriptConfig.Path) {
+				break OUTER
+			}
 		case <-harness.mockHooks.SignalCh:
 			require.Fail(t, "signal not expected")
 		case <-timeout:
 			require.Fail(t, "should have received an event")
 		}
 	}
-
-	eventPublished := false
-	fmt.Printf("[WTF] len of mockHooks events: %v\n", len(harness.mockHooks.Events))
-	for _, ev := range harness.mockHooks.Events {
-		fmt.Printf("[WTF] ev display message: %v\n", ev.DisplayMessage)
-		if strings.Contains(ev.DisplayMessage, t1.ChangeScriptConfig.Path) {
-			eventPublished = true
-			break
-		}
-	}
-	require.True(t, eventPublished)
 }
 
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
