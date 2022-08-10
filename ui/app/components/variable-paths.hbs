@@ -25,7 +25,6 @@
     {{/each}}
 
     {{#each this.files as |file|}}
-    {{log "FILE" file}}
       <tr
         data-test-file-row
         {{on "click" (fn this.handleFileClick file)}}
