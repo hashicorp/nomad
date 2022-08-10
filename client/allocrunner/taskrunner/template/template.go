@@ -520,7 +520,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 					SetDisplayMessage(
 						fmt.Sprintf(
-							"Template ran a script from %v with exit code: %v", script.Path, exitCode,
+							"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
 						)))
 			}
 		}
