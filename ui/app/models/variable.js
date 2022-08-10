@@ -62,14 +62,14 @@ export default class VariableModel extends Model {
     return folderPath.join('/');
   }
 
-  @attr('string', { defaultValue: '' }) plainId;
-
   /**
    * Removes starting and trailing slashes, pathLinkedEntitiesand sets the ID property
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
-    this.set('id', this.get('path'));
+    if (!this.get('id')) {
+      this.set('id', `${this.get('path')}@${this.get('namespace')}`);
+    }
   }
 
   /**

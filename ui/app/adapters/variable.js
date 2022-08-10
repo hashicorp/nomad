@@ -11,7 +11,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   createRecord(_store, _type, snapshot) {
     let data = this.serialize(snapshot);
     return this.ajax(
-      this.urlForFindRecord(snapshot.id, snapshot.modelName),
+      this.urlForFindRecord(data.Path, snapshot.modelName),
       'PUT',
       { data }
     );
@@ -27,21 +27,30 @@ export default class VariableAdapter extends ApplicationAdapter {
     return pluralize(baseUrl);
   }
 
-  urlForFindRecord(id, modelName, snapshot) {
-    const namespace = snapshot?.attr('namespace') || 'default';
-
-    let baseUrl = this.buildURL(modelName, snapshot.attr('plainId'), snapshot);
+  urlForFindRecord(identifier, modelName, snapshot) {
+    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
+    let baseUrl = this.buildURL(modelName, id);
     return `${baseUrl}?namespace=${namespace}`;
   }
 
-  urlForUpdateRecord(id, modelName) {
-    return this.buildURL(modelName, id);
+  urlForUpdateRecord(identifier, modelName, snapshot) {
+    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
+    let baseUrl = this.buildURL(modelName, id);
+    return `${baseUrl}?namespace=${namespace}`;
   }
 
-  urlForDeleteRecord(id, modelName, snapshot) {
-    const namespace = snapshot?.attr('namespace') || 'default';
-
+  urlForDeleteRecord(identifier, modelName, snapshot) {
+    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
     const baseUrl = this.buildURL(modelName, id);
     return `${baseUrl}?namespace=${namespace}`;
   }
+}
+
+function _extractIDAndNamespace(identifier, snapshot) {
+  const namespace = snapshot?.attr('namespace') || 'default';
+  const id = snapshot?.attr('path') || identifier;
+  return {
+    namespace,
+    id,
+  };
 }

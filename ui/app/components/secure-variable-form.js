@@ -178,7 +178,7 @@ export default class SecureVariableFormComponent extends Component {
         destroyOnClick: false,
         timeout: 5000,
       });
-      this.router.transitionTo('variables.variable', this.args.model.path);
+      this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       this.flashMessages.add({
         title: `Error saving ${this.args.model.path}`,

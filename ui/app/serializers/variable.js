@@ -10,7 +10,6 @@ export default class VariableSerializer extends ApplicationSerializer {
     // hash.NamespaceID = hash.Namespace;
 
     // ID is a composite of both the job ID and the namespace the job is in
-    hash.PlainId = hash.Path;
     hash.ID = `${hash.Path}@${hash.Namespace || 'default'}`;
     return super.normalize(typeHash, hash);
   }
@@ -39,8 +38,8 @@ export default class VariableSerializer extends ApplicationSerializer {
 
   // Transform our KeyValues array into an Items object
   serialize(snapshot, options) {
-    console.log('about to serialize', snapshot);
     const json = super.serialize(snapshot, options);
+    json.ID = json.Path;
     json.Items = json.KeyValues.reduce((acc, { key, value }) => {
       acc[key] = value;
       return acc;
@@ -48,7 +47,6 @@ export default class VariableSerializer extends ApplicationSerializer {
     delete json.KeyValues;
     delete json.ModifyTime;
     delete json.CreateTime;
-    console.log('serializing', json);
     return json;
   }
 }
