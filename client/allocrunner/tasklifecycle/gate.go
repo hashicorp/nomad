@@ -1,8 +1,8 @@
 package tasklifecycle
 
 const (
-	gateClosed = true
-	gateOpened = false
+	gateClosed = false
+	gateOpened = true
 )
 
 // Gate is used by the Coordinator to block or allow tasks from running.
@@ -33,8 +33,8 @@ func NewGate(shutdownCh <-chan struct{}) *Gate {
 	return g
 }
 
-// WaitCh returns a channel that can be used to determine if the caller should
-// block and wait or proceed.
+// WaitCh returns a channel that the listener must block on before starting its
+// task.
 func (g *Gate) WaitCh() <-chan struct{} {
 	return g.sendCh
 }
