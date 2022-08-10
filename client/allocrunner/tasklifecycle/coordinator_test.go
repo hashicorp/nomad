@@ -23,7 +23,7 @@ func TestCoordinator_OnlyMainApp(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// Tasks starts blocked.
-	requireTaskBlocked(t, coord, task)
+	RequireTaskBlocked(t, coord, task)
 
 	// When main is pending it's allowed to run.
 	states := map[string]*structs.TaskState{
@@ -33,7 +33,7 @@ func TestCoordinator_OnlyMainApp(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, task)
+	RequireTaskAllowed(t, coord, task)
 
 	// After main is running, main tasks are still allowed to run.
 	states = map[string]*structs.TaskState{
@@ -43,7 +43,7 @@ func TestCoordinator_OnlyMainApp(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, task)
+	RequireTaskAllowed(t, coord, task)
 }
 
 func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
@@ -63,9 +63,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
-	requireTaskBlocked(t, coord, initTask)
-	requireTaskBlocked(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, initTask)
+	RequireTaskBlocked(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Set initial state, prestart tasks are allowed to run.
 	states := map[string]*structs.TaskState{
@@ -83,9 +83,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Sidecar task is running, main is blocked.
 	states = map[string]*structs.TaskState{
@@ -103,9 +103,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Init task is running, main is blocked.
 	states = map[string]*structs.TaskState{
@@ -123,9 +123,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Init task is done, main is now allowed to run.
 	states = map[string]*structs.TaskState{
@@ -143,9 +143,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskBlocked(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskAllowed(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskAllowed(t, coord, mainTask)
 }
 
 func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
@@ -166,9 +166,9 @@ func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
-	requireTaskBlocked(t, coord, init1Task)
-	requireTaskBlocked(t, coord, init2Task)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, init1Task)
+	RequireTaskBlocked(t, coord, init2Task)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
@@ -186,9 +186,9 @@ func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, init1Task)
-	requireTaskAllowed(t, coord, init2Task)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, init1Task)
+	RequireTaskAllowed(t, coord, init2Task)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Init tasks complete, main is allowed to run.
 	states = map[string]*structs.TaskState{
@@ -209,9 +209,9 @@ func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskBlocked(t, coord, init1Task)
-	requireTaskBlocked(t, coord, init2Task)
-	requireTaskAllowed(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, init1Task)
+	RequireTaskBlocked(t, coord, init2Task)
+	RequireTaskAllowed(t, coord, mainTask)
 }
 
 func TestCoordinator_FailedInitTask(t *testing.T) {
@@ -232,9 +232,9 @@ func TestCoordinator_FailedInitTask(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
-	requireTaskBlocked(t, coord, init1Task)
-	requireTaskBlocked(t, coord, init2Task)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, init1Task)
+	RequireTaskBlocked(t, coord, init2Task)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
@@ -252,9 +252,9 @@ func TestCoordinator_FailedInitTask(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, init1Task)
-	requireTaskAllowed(t, coord, init2Task)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, init1Task)
+	RequireTaskAllowed(t, coord, init2Task)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Init task dies, main is still blocked.
 	states = map[string]*structs.TaskState{
@@ -275,9 +275,9 @@ func TestCoordinator_FailedInitTask(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, init1Task)
-	requireTaskAllowed(t, coord, init2Task)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, init1Task)
+	RequireTaskAllowed(t, coord, init2Task)
+	RequireTaskBlocked(t, coord, mainTask)
 }
 
 func TestCoordinator_SidecarNeverStarts(t *testing.T) {
@@ -297,9 +297,9 @@ func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
-	requireTaskBlocked(t, coord, initTask)
-	requireTaskBlocked(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, initTask)
+	RequireTaskBlocked(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Set initial state, prestart tasks are allowed to run, main is blocked.
 	states := map[string]*structs.TaskState{
@@ -317,9 +317,9 @@ func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 
 	// Init completes, but sidecar not yet.
 	states = map[string]*structs.TaskState{
@@ -339,9 +339,9 @@ func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, initTask)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, initTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
 }
 
 func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
@@ -364,9 +364,9 @@ func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	coord := NewCoordinator(logger, tasks, shutdownCh)
 
 	// All tasks start blocked.
-	requireTaskBlocked(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
-	requireTaskBlocked(t, coord, postTask)
+	RequireTaskBlocked(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, postTask)
 
 	// Set initial state, prestart tasks are allowed to run, main and poststart
 	// are blocked.
@@ -385,9 +385,9 @@ func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskBlocked(t, coord, mainTask)
-	requireTaskBlocked(t, coord, postTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskBlocked(t, coord, mainTask)
+	RequireTaskBlocked(t, coord, postTask)
 
 	// Sidecar and main running, poststart allowed to run.
 	states = map[string]*structs.TaskState{
@@ -407,7 +407,7 @@ func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 		},
 	}
 	coord.TaskStateUpdated(states)
-	requireTaskAllowed(t, coord, sideTask)
-	requireTaskAllowed(t, coord, mainTask)
-	requireTaskAllowed(t, coord, postTask)
+	RequireTaskAllowed(t, coord, sideTask)
+	RequireTaskAllowed(t, coord, mainTask)
+	RequireTaskAllowed(t, coord, postTask)
 }

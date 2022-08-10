@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
+	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -808,19 +809,15 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	defer destroy(ar)
 
 	// Wait for the coordinator to transition from the "init" state.
-	testutil.WaitForResultUntil(time.Second,
-		func() (bool, error) {
-			return ar.taskCoordinator.currentState != taskCoordinatorStateInit, nil
-		},
-		func(err error) {
-			t.Fatalf("task coordinator didn't transition in time")
-		})
+	tasklifecycle.WaitNotInitUntil(ar.taskCoordinator, time.Second, func() {
+		t.Fatalf("task coordinator didn't transition from init in time")
+	})
 
 	// We should see all tasks with Prestart hooks are not blocked from running.
-	requireTaskAllowed(t, ar.taskCoordinator, ar.tasks["init"].Task())
-	requireTaskAllowed(t, ar.taskCoordinator, ar.tasks["side"].Task())
-	requireTaskBlocked(t, ar.taskCoordinator, ar.tasks["web"].Task())
-	requireTaskBlocked(t, ar.taskCoordinator, ar.tasks["poststart"].Task())
+	tasklifecycle.RequireTaskAllowed(t, ar.taskCoordinator, ar.tasks["init"].Task())
+	tasklifecycle.RequireTaskAllowed(t, ar.taskCoordinator, ar.tasks["side"].Task())
+	tasklifecycle.RequireTaskBlocked(t, ar.taskCoordinator, ar.tasks["web"].Task())
+	tasklifecycle.RequireTaskBlocked(t, ar.taskCoordinator, ar.tasks["poststart"].Task())
 
 	// Mimic client dies while init task running, and client restarts after
 	// init task finished and web is running.
@@ -837,19 +834,15 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	defer destroy(ar2)
 
 	// Wait for the coordinator to transition from the "init" state.
-	testutil.WaitForResultUntil(time.Second,
-		func() (bool, error) {
-			return ar2.taskCoordinator.currentState != taskCoordinatorStateInit, nil
-		},
-		func(err error) {
-			t.Fatalf("task coordinator didn't transition in time")
-		})
+	tasklifecycle.WaitNotInitUntil(ar.taskCoordinator, time.Second, func() {
+		t.Fatalf("task coordinator didn't transition from init in time")
+	})
 
 	// Restore resumes execution with correct lifecycle ordering.
-	requireTaskBlocked(t, ar2.taskCoordinator, ar2.tasks["init"].Task())
-	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
-	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
-	requireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
+	tasklifecycle.RequireTaskBlocked(t, ar2.taskCoordinator, ar2.tasks["init"].Task())
+	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
+	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
+	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
