@@ -43,7 +43,7 @@ type EventBroker struct {
 	aclDelegate ACLDelegate
 	aclCache    *lru.TwoQueueCache
 
-	aclCh chan *structs.Event
+	aclCh chan structs.Event
 
 	logger hclog.Logger
 }
@@ -72,7 +72,7 @@ func NewEventBroker(ctx context.Context, aclDelegate ACLDelegate, cfg EventBroke
 		logger:      cfg.Logger.Named("event_broker"),
 		eventBuf:    buffer,
 		publishCh:   make(chan *structs.Events, 64),
-		aclCh:       make(chan *structs.Event, 10),
+		aclCh:       make(chan structs.Event, 10),
 		aclDelegate: aclDelegate,
 		aclCache:    aclCache,
 		subscriptions: &subscriptions{
@@ -101,7 +101,7 @@ func (e *EventBroker) Publish(events *structs.Events) {
 	// updated ACL Token or Policy
 	for _, event := range events.Events {
 		if event.Topic == structs.TopicACLToken || event.Topic == structs.TopicACLPolicy {
-			e.aclCh <- &event
+			e.aclCh <- event
 		}
 	}
 
