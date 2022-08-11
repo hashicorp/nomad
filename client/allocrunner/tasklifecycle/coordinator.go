@@ -109,6 +109,15 @@ func NewCoordinator(logger hclog.Logger, tasks []*structs.Task, shutdownCh <-cha
 	return c
 }
 
+// Restart sets the Coordinator state back to "init" and is used to coordinate
+// a full alloc restart. Since all tasks will run again they need to be pending
+// before they are allowed to proceed.
+func (c *Coordinator) Restart() {
+	c.currentStateLock.Lock()
+	defer c.currentStateLock.Unlock()
+	c.enterStateLocked(coordinatorStateInit)
+}
+
 // Restore is used to set the Coordinator FSM to the correct state when an
 // alloc is restored. Must be called before the allocrunner is running.
 func (c *Coordinator) Restore(states map[string]*structs.TaskState) {

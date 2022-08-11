@@ -160,6 +160,7 @@ type AllocRunner interface {
 	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
+	RestartRunning(taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
 	Reconnect(update *structs.Allocation) error
 

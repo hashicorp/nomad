@@ -103,7 +103,7 @@ func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) 
 
 		// Tell TaskRunner to restart due to failure
 		reason := fmt.Sprintf("healthcheck: check %q unhealthy", c.checkName)
-		event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason)
+		event := structs.NewTaskEvent(structs.TaskRestartRunningSignal).SetRestartReason(reason)
 		go asyncRestart(ctx, c.logger, c.task, event)
 		return true
 	}
