@@ -1271,10 +1271,10 @@ func apiChangeScriptConfigToStructsChangeScriptConfig(changeScriptConfig *api.Ch
 	}
 
 	return &structs.ChangeScriptConfig{
-		Path:     *changeScriptConfig.Path,
-		Args:     *changeScriptConfig.Args,
-		Timeout:  *changeScriptConfig.Timeout,
-		FailTask: *changeScriptConfig.FailTask,
+		Path:        *changeScriptConfig.Path,
+		Args:        *changeScriptConfig.Args,
+		Timeout:     *changeScriptConfig.Timeout,
+		FailOnError: *changeScriptConfig.FailOnError,
 	}
 }
 

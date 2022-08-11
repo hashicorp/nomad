@@ -21,10 +21,10 @@ job "docs" {
         destination = "local/redis.conf"
         change_mode = "script"
         change_script_config {
-          path      = "/bin/foo"
-          args      = ["-verbose", "-debug"]
-          timeout   = "5s"
-          fail_task = false
+          path          = "/bin/foo"
+          args          = ["-verbose", "-debug"]
+          timeout       = "5s"
+          fail_on_error = false
         }
       }
     }
@@ -45,6 +45,6 @@ job "docs" {
   label suffix like "30s" or "1h". This option is required if the `change_mode` is
   `script`.
 
-- `fail_task` `(bool: false)` - If `true`, Nomad will kill the task if the
+- `fail_on_error` `(bool: false)` - If `true`, Nomad will kill the task if the
   script execution fails. If `false`, script failure will be logged but the task
   will continue uninterrupted. 

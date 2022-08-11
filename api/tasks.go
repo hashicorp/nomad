@@ -792,10 +792,10 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 type ChangeScriptConfig struct {
-	Path     *string        `mapstructure:"path" hcl:"path"`
-	Args     *[]string      `mapstructure:"args" hcl:"args,optional"`
-	Timeout  *time.Duration `mapstructure:"timeout" hcl:"timeout"`
-	FailTask *bool          `mapstructure:"fail_task" hcl:"fail_task"`
+	Path        *string        `mapstructure:"path" hcl:"path"`
+	Args        *[]string      `mapstructure:"args" hcl:"args,optional"`
+	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout"`
+	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
 }
 
 type Template struct {

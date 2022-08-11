@@ -508,7 +508,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 						fmt.Sprintf(
 							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
 						))
-				if script.FailTask {
+				if script.FailOnError {
 					tm.config.Lifecycle.Kill(context.Background(),
 						structs.NewTaskEvent(structs.TaskKilling).
 							SetFailsTask().

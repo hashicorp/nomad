@@ -7707,9 +7707,9 @@ type ChangeScriptConfig struct {
 	Args []string
 	// Timeout is the amount of seconds we wait for the script to finish
 	Timeout time.Duration
-	// FailTask indicates whether a task should fail in case script execution
+	// FailOnError indicates whether a task should fail in case script execution
 	// fails or log script failure and don't interrupt the task
-	FailTask bool
+	FailOnError bool
 }
 
 // Template represents a template configuration to be rendered for a given task
