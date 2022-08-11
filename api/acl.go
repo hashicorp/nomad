@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -202,6 +203,96 @@ func (a *ACLTokens) ExchangeOneTimeToken(secret string, q *WriteOptions) (*ACLTo
 	return resp.Token, wm, nil
 }
 
+var (
+	// errMissingACLRoleID is the generic errors to use when a call is missing
+	// the required ACL Role ID parameter.
+	errMissingACLRoleID = errors.New("missing ACL role ID")
+)
+
+// ACLRoles is used to query the ACL Role endpoints.
+type ACLRoles struct {
+	client *Client
+}
+
+// ACLRoles returns a new handle on the ACL roles API client.
+func (c *Client) ACLRoles() *ACLRoles {
+	return &ACLRoles{client: c}
+}
+
+// List is used to detail all the ACL roles currently stored within state.
+func (a *ACLRoles) List(q *QueryOptions) ([]*ACLRole, *QueryMeta, error) {
+	var resp []*ACLRole
+	qm, err := a.client.query("/v1/acl/roles", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Create is used to create an ACL role.
+func (a *ACLRoles) Create(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta, error) {
+	if role.ID != "" {
+		return nil, nil, errors.New("cannot specify ACL role ID")
+	}
+	var resp ACLRole
+	wm, err := a.client.write("/v1/acl/role", role, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Update is used to update an existing ACL role.
+func (a *ACLRoles) Update(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta, error) {
+	if role.ID == "" {
+		return nil, nil, errMissingACLRoleID
+	}
+	var resp ACLRole
+	wm, err := a.client.write("/v1/acl/role/"+role.ID, role, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Delete is used to delete an ACL role.
+func (a *ACLRoles) Delete(roleID string, w *WriteOptions) (*WriteMeta, error) {
+	if roleID == "" {
+		return nil, errMissingACLRoleID
+	}
+	wm, err := a.client.delete("/v1/acl/role/"+roleID, nil, nil, w)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// Get is used to look up an ACL role.
+func (a *ACLRoles) Get(roleID string, q *QueryOptions) (*ACLRole, *QueryMeta, error) {
+	if roleID == "" {
+		return nil, nil, errMissingACLRoleID
+	}
+	var resp ACLRole
+	qm, err := a.client.query("/v1/acl/role/"+roleID, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// GetByName is used to look up an ACL role using its name.
+func (a *ACLRoles) GetByName(roleName string, q *QueryOptions) (*ACLRole, *QueryMeta, error) {
+	if roleName == "" {
+		return nil, nil, errors.New("missing ACL role name")
+	}
+	var resp ACLRole
+	qm, err := a.client.query("/v1/acl/role/name/"+roleName, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // ACLPolicyListStub is used to for listing ACL policies
 type ACLPolicyListStub struct {
 	Name        string
@@ -284,4 +375,43 @@ type OneTimeTokenExchangeResponse struct {
 // BootstrapRequest is used for when operators provide an ACL Bootstrap Token
 type BootstrapRequest struct {
 	BootstrapSecret string
+}
+
+// ACLRole is an abstraction for the ACL system which allows the grouping of
+// ACL policies into a single object. ACL tokens can be created and linked to
+// a role; the token then inherits all the permissions granted by the policies.
+type ACLRole struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad. It can be used after role creation to update the existing role.
+	ID string
+
+	// Name is unique across the entire set of federated clusters and is
+	// supplied by the operator on role creation. The name can be modified by
+	// updating the role and including the Nomad generated ID. This update will
+	// not affect tokens created and linked to this role. This is a required
+	// field.
+	Name string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the role. This is an optional field.
+	Description string
+
+	// Policies is an array of ACL policy links. Although currently policies
+	// can only be linked using their name, in the future we will want to add
+	// IDs also and thus allow operators to specify either a name, an ID, or
+	// both. At least one entry is required.
+	Policies []*ACLRolePolicyLink
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLRolePolicyLink is used to link a policy to an ACL role. We use a struct
+// rather than a list of strings as in the future we will want to add IDs to
+// policies and then link via these.
+type ACLRolePolicyLink struct {
+
+	// Name is the ACLPolicy.Name value which will be linked to the ACL role.
+	Name string
 }

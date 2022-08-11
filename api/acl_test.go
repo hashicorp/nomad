@@ -346,3 +346,77 @@ func TestACLTokens_BootstrapValidToken(t *testing.T) {
 	assertWriteMeta(t, wm)
 	assert.Equal(t, bootkn, out.SecretID)
 }
+
+func TestACLRoles(t *testing.T) {
+	testutil.Parallel(t)
+
+	testClient, testServer, _ := makeACLClient(t, nil, nil)
+	defer testServer.Stop()
+
+	// An initial listing shouldn't return any results.
+	aclRoleListResp, queryMeta, err := testClient.ACLRoles().List(nil)
+	require.NoError(t, err)
+	require.Empty(t, aclRoleListResp)
+	assertQueryMeta(t, queryMeta)
+
+	// Create an ACL policy that can be referenced within the ACL role.
+	aclPolicy := ACLPolicy{
+		Name: "acl-role-api-test",
+		Rules: `namespace "default" {
+			policy = "read"
+		}
+		`,
+	}
+	writeMeta, err := testClient.ACLPolicies().Upsert(&aclPolicy, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Create an ACL role referencing the previously created policy.
+	role := ACLRole{
+		Name:     "acl-role-api-test",
+		Policies: []*ACLRolePolicyLink{{Name: aclPolicy.Name}},
+	}
+	aclRoleCreateResp, writeMeta, err := testClient.ACLRoles().Create(&role, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+	require.NotEmpty(t, aclRoleCreateResp.ID)
+	require.Equal(t, role.Name, aclRoleCreateResp.Name)
+
+	// Another listing should return one result.
+	aclRoleListResp, queryMeta, err = testClient.ACLRoles().List(nil)
+	require.NoError(t, err)
+	require.Len(t, aclRoleListResp, 1)
+	assertQueryMeta(t, queryMeta)
+
+	// Read the role using its ID.
+	aclRoleReadResp, queryMeta, err := testClient.ACLRoles().Get(aclRoleCreateResp.ID, nil)
+	require.NoError(t, err)
+	assertQueryMeta(t, queryMeta)
+	require.Equal(t, aclRoleCreateResp, aclRoleReadResp)
+
+	// Read the role using its name.
+	aclRoleReadResp, queryMeta, err = testClient.ACLRoles().GetByName(aclRoleCreateResp.Name, nil)
+	require.NoError(t, err)
+	assertQueryMeta(t, queryMeta)
+	require.Equal(t, aclRoleCreateResp, aclRoleReadResp)
+
+	// Update the role name.
+	role.Name = "acl-role-api-test-badger-badger-badger"
+	role.ID = aclRoleCreateResp.ID
+	aclRoleUpdateResp, writeMeta, err := testClient.ACLRoles().Update(&role, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+	require.Equal(t, role.Name, aclRoleUpdateResp.Name)
+	require.Equal(t, role.ID, aclRoleUpdateResp.ID)
+
+	// Delete the role.
+	writeMeta, err = testClient.ACLRoles().Delete(aclRoleCreateResp.ID, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Make sure there are no ACL roles now present.
+	aclRoleListResp, queryMeta, err = testClient.ACLRoles().List(nil)
+	require.NoError(t, err)
+	require.Empty(t, aclRoleListResp)
+	assertQueryMeta(t, queryMeta)
+}
