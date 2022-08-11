@@ -20,7 +20,6 @@
         placeholder="nomad/jobs/my-job/my-group/my-task"
         class="input path-input {{if this.duplicatePathWarning "error"}}"
         disabled={{not @model.isNew}}
-        {{on "input" this.validatePath}}
         {{autofocus}}
         data-test-path-input
       />

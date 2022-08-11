@@ -6,7 +6,7 @@ import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
-import EmberObject, { set } from '@ember/object';
+import EmberObject, { computed, set } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
@@ -23,15 +23,6 @@ export default class SecureVariableFormComponent extends Component {
   @service router;
   @service store;
 
-  /**
-   * @typedef {Object} DuplicatePathWarning
-   * @property {string} path
-   */
-
-  /**
-   * @type {DuplicatePathWarning}
-   */
-  @tracked duplicatePathWarning = null;
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
 
@@ -94,19 +85,31 @@ export default class SecureVariableFormComponent extends Component {
     ]);
   }
 
-  @action
-  validatePath(e) {
-    const value = trimPath([e.target.value]);
+  /**
+   * @typedef {Object} DuplicatePathWarning
+   * @property {string} path
+   */
+
+  /**
+   * @type {DuplicatePathWarning}
+   */
+  @computed('args.model.path', 'args.existingVariables', 'variableNamespace')
+  get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     let existingVariable = existingVariables
       .without(this.args.model)
-      .find((v) => v.path === value);
+      .find((v) => {
+        return (
+          v.path === this.args.model.path &&
+          v.namespace === this.variableNamespace
+        );
+      });
     if (existingVariable) {
-      this.duplicatePathWarning = {
+      return {
         path: existingVariable.path,
       };
     } else {
-      this.duplicatePathWarning = null;
+      return null;
     }
   }
 
