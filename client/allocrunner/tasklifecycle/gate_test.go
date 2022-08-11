@@ -2,8 +2,10 @@ package tasklifecycle
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 )
 
 func TestGate(t *testing.T) {
@@ -88,4 +90,46 @@ func TestGate(t *testing.T) {
 			tc.test(t, g)
 		})
 	}
+}
+
+// TestGate_shutdown tests a gate with a closed shutdown channel.
+func TestGate_shutdown(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a Gate with a closed shutdownCh.
+	shutdownCh := make(chan struct{})
+	close(shutdownCh)
+
+	g := NewGate(shutdownCh)
+
+	// Test that Open() and Close() doesn't block forever.
+	openCh := make(chan struct{})
+	closeCh := make(chan struct{})
+
+	go func() {
+		g.Open()
+		close(openCh)
+	}()
+	go func() {
+		g.Close()
+		close(closeCh)
+	}()
+
+	timer, stop := helper.NewSafeTimer(time.Second)
+	defer stop()
+
+	select {
+	case <-openCh:
+	case <-timer.C:
+		t.Fatalf("timeout waiting for gate operations")
+	}
+
+	select {
+	case <-closeCh:
+	case <-timer.C:
+		t.Fatalf("timeout waiting for gate operations")
+	}
+
+	// A Gate with a shutdownCh should be closed.
+	requireChannelBlocking(t, g.WaitCh(), "gate should be closed")
 }
