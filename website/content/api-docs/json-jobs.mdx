@@ -1061,9 +1061,23 @@ README][ct].
   "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
   `signal`.
 
-- `ChangeScriptPath`  - Specifies the full path to a script that is to be
-  executed on template change.  This option is required if the `change_mode` is
-  `script`.
+- `ChangeScriptConfig` - Configures the script triggered on template change.
+  This option is required if the `change_mode` is `script`.
+
+  The `ChangeScriptConfig` object supports the following attributes:
+
+  - `path` - Specifies the full path to a script that is to be executed on
+    template change. This option is required is the `change_mode` is `script`.
+  
+  - `args` - List of arguments that are passed to the script that is to be
+    executed on template change. 
+  
+  - `timeout` - Timeout for script execution specified using a label suffix like
+    "30s" or "1h". This option is required if the `change_mode` is `script`.
+  
+  - `fail_on_error` - If `true`, Nomad will kill the task if the script
+    execution fails. If `false`, script failure will be logged but the task will
+    continue uninterrupted. 
 
 - `ChangeScriptArguments` - Comma-separated list of arguments that are passed to
   the script that is to be executed on template change.
