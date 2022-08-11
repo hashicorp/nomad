@@ -223,6 +223,9 @@ config {
   entrypoint = ["/bin/bash", "-c"]
   extra_hosts = ["127.0.0.1  localhost.example.com"]
   force_pull = true
+  healthchecks {
+    disable = true
+  }
   hostname = "self.example.com"
   interactive = true
   ipc_mode = "host"
@@ -376,6 +379,7 @@ config {
 		Entrypoint:       []string{"/bin/bash", "-c"},
 		ExtraHosts:       []string{"127.0.0.1  localhost.example.com"},
 		ForcePull:        true,
+		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
 		Interactive:      true,
 		IPCMode:          "host",
