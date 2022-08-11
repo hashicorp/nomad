@@ -42,8 +42,7 @@ job "docs" {
   that is to be executed on template change. 
 
 - `timeout` `(string: "5s")` - Timeout for script execution specified using a
-  label suffix like "30s" or "1h". This option is required if the `change_mode` is
-  `script`.
+  label suffix like "30s" or "1h". 
 
 - `fail_on_error` `(bool: false)` - If `true`, Nomad will kill the task if the
   script execution fails. If `false`, script failure will be logged but the task
