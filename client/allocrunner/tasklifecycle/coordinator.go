@@ -135,9 +135,11 @@ func (c *Coordinator) TaskStateUpdated(states map[string]*structs.TaskState) {
 	c.currentStateLock.Lock()
 	defer c.currentStateLock.Unlock()
 
-	// When restoring an alloc it's likely that the coordinator FSM is not
-	// in the right state, so we need to loop and advance until we find a
-	// stable state that matches the given states of the tasks.
+	// We may be able to move directly through some states (for example, when
+	// an alloc doesn't have any prestart task we can skip the prestart state),
+	// so loop until we stabilize.
+	// This is also important when restoring an alloc since we need to find the
+	// state where FSM was last positioned.
 	for {
 		nextState := c.nextStateLocked(states)
 		if nextState == c.currentState {
