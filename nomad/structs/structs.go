@@ -7835,10 +7835,7 @@ func (t *Template) Validate() error {
 		}
 	case TemplateChangeModeScript:
 		if t.ChangeScriptConfig.Path == "" {
-			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path and timeout value when change mode is signal"))
-		}
-		if t.ChangeScriptConfig.Timeout == 0 {
-			_ = multierror.Append(&mErr, fmt.Errorf("must specify script timeout value when change mode is script, timeout value must be greater than 0"))
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)

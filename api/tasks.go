@@ -794,8 +794,23 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 type ChangeScriptConfig struct {
 	Path        *string        `mapstructure:"path" hcl:"path"`
 	Args        *[]string      `mapstructure:"args" hcl:"args,optional"`
-	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout"`
+	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
 	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+}
+
+func (ch *ChangeScriptConfig) Canonicalize() {
+	if ch.Path == nil {
+		ch.Path = stringToPtr("")
+	}
+	if ch.Args == nil {
+		ch.Args = &[]string{}
+	}
+	if ch.Timeout == nil {
+		ch.Timeout = timeToPtr(5 * time.Second)
+	}
+	if ch.FailOnError == nil {
+		ch.FailOnError = boolToPtr(false)
+	}
 }
 
 type Template struct {
@@ -803,7 +818,7 @@ type Template struct {
 	DestPath           *string             `mapstructure:"destination" hcl:"destination,optional"`
 	EmbeddedTmpl       *string             `mapstructure:"data" hcl:"data,optional"`
 	ChangeMode         *string             `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeScriptConfig *ChangeScriptConfig `mapstructure:"change_script_config" hcl:"change_script_config,optional"`
+	ChangeScriptConfig *ChangeScriptConfig `mapstructure:"change_script_config" hcl:"change_script_config,block"`
 	ChangeSignal       *string             `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	Splay              *time.Duration      `mapstructure:"splay" hcl:"splay,optional"`
 	Perms              *string             `mapstructure:"perms" hcl:"perms,optional"`
@@ -839,13 +854,8 @@ func (tmpl *Template) Canonicalize() {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = stringToPtr(strings.ToUpper(sig))
 	}
-	if tmpl.ChangeScriptConfig == nil {
-		tmpl.ChangeScriptConfig = &ChangeScriptConfig{
-			Path:        stringToPtr(""),
-			Args:        &[]string{},
-			Timeout:     timeToPtr(5 * time.Second),
-			FailOnError: boolToPtr(false),
-		}
+	if tmpl.ChangeScriptConfig != nil {
+		tmpl.ChangeScriptConfig.Canonicalize()
 	}
 	if tmpl.Splay == nil {
 		tmpl.Splay = timeToPtr(5 * time.Second)
