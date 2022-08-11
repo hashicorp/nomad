@@ -7248,7 +7248,7 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "FailTask",
+										Name: "FailOnError",
 										Old:  "",
 										New:  "false",
 									},
@@ -7360,7 +7360,7 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,
-										Name: "FailTask",
+										Name: "FailOnError",
 										Old:  "false",
 										New:  "",
 									},
