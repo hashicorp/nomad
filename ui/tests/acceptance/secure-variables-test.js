@@ -335,7 +335,7 @@ module('Acceptance | secure variables', function (hooks) {
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/variables/var/foo/bar');
+    assert.equal(currentURL(), '/variables/var/foo/bar@default');
   });
 
   test('it passes an accessibility audit', async function (assert) {
