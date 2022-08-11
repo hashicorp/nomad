@@ -418,6 +418,34 @@ func TestACLRole_Validate(t *testing.T) {
 	}
 }
 
+func TestACLRole_Canonicalize(t *testing.T) {
+	testCases := []struct {
+		name         string
+		inputACLRole *ACLRole
+	}{
+		{
+			name:         "no ID set",
+			inputACLRole: &ACLRole{},
+		},
+		{
+			name:         "id set",
+			inputACLRole: &ACLRole{ID: "some-random-uuid"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			existing := tc.inputACLRole.Copy()
+			tc.inputACLRole.Canonicalize()
+			if existing.ID == "" {
+				require.NotEmpty(t, tc.inputACLRole.ID)
+			} else {
+				require.Equal(t, existing.ID, tc.inputACLRole.ID)
+			}
+		})
+	}
+}
+
 func TestACLRole_Equals(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -637,4 +665,19 @@ func Test_ACLRolesUpsertRequest(t *testing.T) {
 func Test_ACLRolesDeleteByIDRequest(t *testing.T) {
 	req := ACLRolesDeleteByIDRequest{}
 	require.False(t, req.IsRead())
+}
+
+func Test_ACLRolesListRequest(t *testing.T) {
+	req := ACLRolesListRequest{}
+	require.True(t, req.IsRead())
+}
+
+func Test_ACLRoleByIDRequest(t *testing.T) {
+	req := ACLRoleByIDRequest{}
+	require.True(t, req.IsRead())
+}
+
+func Test_ACLRoleByNameRequest(t *testing.T) {
+	req := ACLRoleByNameRequest{}
+	require.True(t, req.IsRead())
 }

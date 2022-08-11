@@ -35,6 +35,40 @@ const (
 	// Args: ACLTokenDeleteRequest
 	// Reply: GenericResponse
 	ACLDeleteTokensRPCMethod = "ACL.DeleteTokens"
+
+	// ACLUpsertRolesRPCMethod is the RPC method for batch creating or
+	// modifying ACL roles.
+	//
+	// Args: ACLRolesUpsertRequest
+	// Reply: ACLRolesUpsertResponse
+	ACLUpsertRolesRPCMethod = "ACL.UpsertRoles"
+
+	// ACLDeleteRolesByIDRPCMethod the RPC method for batch deleting ACL
+	// roles by their ID.
+	//
+	// Args: ACLRolesDeleteByIDRequest
+	// Reply: ACLRolesDeleteByIDResponse
+	ACLDeleteRolesByIDRPCMethod = "ACL.DeleteRolesByID"
+
+	// ACLListRolesRPCMethod is the RPC method for listing ACL roles.
+	//
+	// Args: ACLRolesListRequest
+	// Reply: ACLRolesListResponse
+	ACLListRolesRPCMethod = "ACL.ListRoles"
+
+	// ACLGetRoleByIDRPCMethod is the RPC method for detailing an individual
+	// ACL role using its ID.
+	//
+	// Args: ACLRoleByIDRequest
+	// Reply: ACLRoleByIDResponse
+	ACLGetRoleByIDRPCMethod = "ACL.GetRoleByID"
+
+	// ACLGetRoleByNameRPCMethod is the RPC method for detailing an individual
+	// ACL role using its name.
+	//
+	// Args: ACLRoleByNameRequest
+	// Reply: ACLRoleByNameResponse
+	ACLGetRoleByNameRPCMethod = "ACL.GetRoleByName"
 )
 
 const (
@@ -266,6 +300,15 @@ func (a *ACLRole) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Canonicalize performs basic canonicalization on the ACL role object. It is
+// important for callers to understand certain fields such as ID are set if it
+// is empty, so copies should be taken if needed before calling this function.
+func (a *ACLRole) Canonicalize() {
+	if a.ID == "" {
+		a.ID = uuid.Generate()
+	}
+}
+
 // Equals performs an equality check on the two service registrations. It
 // handles nil objects.
 func (a *ACLRole) Equals(o *ACLRole) bool {
@@ -307,6 +350,7 @@ type ACLRolesUpsertRequest struct {
 // ACLRolesUpsertResponse is the response object when one or more ACL roles
 // have been successfully upserted into state.
 type ACLRolesUpsertResponse struct {
+	ACLRoles []*ACLRole
 	WriteMeta
 }
 
@@ -321,4 +365,44 @@ type ACLRolesDeleteByIDRequest struct {
 // of one or more ACL roles using the role ID.
 type ACLRolesDeleteByIDResponse struct {
 	WriteMeta
+}
+
+// ACLRolesListRequest is the request object when performing ACL role listings.
+type ACLRolesListRequest struct {
+	QueryOptions
+}
+
+// ACLRolesListResponse is the response object when performing ACL role
+// listings.
+type ACLRolesListResponse struct {
+	ACLRoles []*ACLRole
+	QueryMeta
+}
+
+// ACLRoleByIDRequest is the request object to perform a lookup of an ACL
+// role using a specific ID.
+type ACLRoleByIDRequest struct {
+	RoleID string
+	QueryOptions
+}
+
+// ACLRoleByIDResponse is the response object when performing a lookup of an
+// ACL role matching a specific ID.
+type ACLRoleByIDResponse struct {
+	ACLRole *ACLRole
+	QueryMeta
+}
+
+// ACLRoleByNameRequest is the request object to perform a lookup of an ACL
+// role using a specific name.
+type ACLRoleByNameRequest struct {
+	RoleName string
+	QueryOptions
+}
+
+// ACLRoleByNameResponse is the response object when performing a lookup of an
+// ACL role matching a specific name.
+type ACLRoleByNameResponse struct {
+	ACLRole *ACLRole
+	QueryMeta
 }

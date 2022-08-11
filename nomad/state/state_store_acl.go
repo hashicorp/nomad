@@ -120,13 +120,6 @@ func (s *StateStore) upsertACLRoleTxn(
 	return true, nil
 }
 
-// ValidateACLRolePolicyLinks ensures all ACL policies linked to from the ACL
-// role exist within state.
-func (s *StateStore) ValidateACLRolePolicyLinks(role *structs.ACLRole) error {
-	txn := s.db.ReadTxn()
-	return s.validateACLRolePolicyLinksTxn(txn, role)
-}
-
 // validateACLRolePolicyLinksTxn is the same as ValidateACLRolePolicyLinks but
 // allows callers to pass their own transaction.
 func (s *StateStore) validateACLRolePolicyLinksTxn(txn *txn, role *structs.ACLRole) error {
@@ -227,4 +220,18 @@ func (s *StateStore) GetACLRoleByName(ws memdb.WatchSet, roleName string) (*stru
 		return existing.(*structs.ACLRole), nil
 	}
 	return nil, nil
+}
+
+// GetACLRoleByIDPrefix is used to lookup ACL policies using a prefix to match
+// on the ID.
+func (s *StateStore) GetACLRoleByIDPrefix(ws memdb.WatchSet, idPrefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableACLRoles, indexID+"_prefix", idPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("ACL role lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
 }
