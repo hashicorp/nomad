@@ -124,12 +124,14 @@ func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 
 func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 
-// MockExecutor is implementing script executor interface
-type MockExecutor struct {
+// mockExecutor implements script executor interface
+type mockExecutor struct {
+	DesiredExit int
+	DesiredErr  error
 }
 
-func (m *MockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
-	return []byte{}, 0, nil
+func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	return []byte{}, m.DesiredExit, m.DesiredErr
 }
 
 // testHarness is used to test the TaskTemplateManager by spinning up
@@ -1249,9 +1251,9 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	m := MockExecutor{}
+	me := mockExecutor{}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
-	harness.driver = &m
+	harness.driver = &me
 	harness.start(t)
 	defer harness.stop()
 
@@ -1270,7 +1272,7 @@ BAR={{key "bar"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		// t.Fatalf("Task unblock should have been called")
+		t.Fatalf("Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
@@ -1293,6 +1295,85 @@ OUTER:
 			require.Fail(t, "should have received an event")
 		}
 	}
+}
+
+// TestTaskTemplateManager_ScriptExecutionFailTask tests whether we fail the
+// task upon script execution failure if that's how it's configured.
+func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	// Make a template that renders based on a key in Consul and triggers script
+	key1 := "bam"
+	key2 := "bar"
+	content1_1 := "cat"
+	content1_2 := "dog"
+	t1 := &structs.Template{
+		EmbeddedTmpl: `
+FOO={{key "bam"}}
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScriptConfig: &structs.ChangeScriptConfig{
+			Path:     "/bin/foo",
+			Args:     []string{},
+			Timeout:  5 * time.Second,
+			FailTask: true,
+		},
+		Envvars: true,
+	}
+	t2 := &structs.Template{
+		EmbeddedTmpl: `
+BAR={{key "bar"}}
+`,
+		DestPath:   "test2.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScriptConfig: &structs.ChangeScriptConfig{
+			Path:     "/bin/foo",
+			Args:     []string{},
+			Timeout:  5 * time.Second,
+			FailTask: false,
+		},
+		Envvars: true,
+	}
+
+	me := mockExecutor{DesiredExit: 1, DesiredErr: fmt.Errorf("Script failed")}
+	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.driver = &me
+	harness.start(t)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Update the keys in Consul
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+
+	// Wait for kill channel
+	select {
+	case <-harness.mockHooks.KillCh:
+		break
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
+	}
+
+	require.NotNil(harness.mockHooks.KillEvent)
+	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to run script")
 }
 
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
