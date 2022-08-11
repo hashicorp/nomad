@@ -186,10 +186,18 @@ jobs:
             echo "Version ${{ github.event.inputs.version }} is a prerelease, skipping update of LAST_RELEASE"
           fi
 
+      - name: Remove generated files
+        run: |
+          # These generated files are only needed when building the final
+          # binary and should be not be present in the repository afterwards.
+          find . -name '*.generated.go' | xargs git rm
+          git status
+
       - name: Commit post-release changes
         run: |
-          # Display stated and unstaged diffs.
-          git diff --color=always HEAD
+          # Display staged and unstaged diffs, skipping deleted files to avoid
+          # cluttering the output with the generated files.
+          git diff --diff-filter=d --color=always HEAD
           git add -A .
           if ! git diff-index --quiet HEAD --; then
             git commit --message 'Prepare for next release'
