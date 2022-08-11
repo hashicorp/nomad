@@ -80,17 +80,17 @@ function smallCluster(server) {
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   // #region evaluations
@@ -207,17 +207,17 @@ function variableTestCluster(server) {
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 }
 

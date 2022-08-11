@@ -7,8 +7,6 @@ export default class VariableSerializer extends ApplicationSerializer {
   separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {
-    // hash.NamespaceID = hash.Namespace;
-
     // ID is a composite of both the job ID and the namespace the job is in
     hash.ID = `${hash.Path}@${hash.Namespace || 'default'}`;
     return super.normalize(typeHash, hash);
@@ -16,7 +14,6 @@ export default class VariableSerializer extends ApplicationSerializer {
 
   // Transform API's Items object into an array of a KeyValue objects
   normalizeFindRecordResponse(store, typeClass, hash, id, ...args) {
-    // TODO: prevent items-less saving at API layer
     if (!hash.Items) {
       hash.Items = { '': '' };
     }

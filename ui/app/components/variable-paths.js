@@ -26,7 +26,7 @@ export default class VariablePathsComponent extends Component {
   }
 
   @action
-  async handleFileClick({ path, namespace, variable: { id } }) {
+  async handleFileClick({ path, variable: { id, namespace } }) {
     if (this.can.can('read variable', null, { path, namespace })) {
       this.router.transitionTo('variables.variable', id);
     }
