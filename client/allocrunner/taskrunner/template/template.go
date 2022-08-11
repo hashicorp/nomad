@@ -395,7 +395,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 
 	var handling []string
 	signals := make(map[string]struct{})
-	scripts := []structs.ChangeScriptConfig{}
+	scripts := []*structs.ChangeScriptConfig{}
 	restart := false
 	var splay time.Duration
 
@@ -441,7 +441,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			case structs.TemplateChangeModeRestart:
 				restart = true
 			case structs.TemplateChangeModeScript:
-				scripts = append(scripts, *tmpl.ChangeScriptConfig)
+				scripts = append(scripts, tmpl.ChangeScriptConfig)
 			case structs.TemplateChangeModeNoop:
 				continue
 			}

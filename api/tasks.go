@@ -841,10 +841,10 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.ChangeScriptConfig == nil {
 		tmpl.ChangeScriptConfig = &ChangeScriptConfig{
-			stringToPtr(""),
-			&[]string{},
-			timeToPtr(5 * time.Second),
-			boolToPtr(false),
+			Path:        stringToPtr(""),
+			Args:        &[]string{},
+			Timeout:     timeToPtr(5 * time.Second),
+			FailOnError: boolToPtr(false),
 		}
 	}
 	if tmpl.Splay == nil {

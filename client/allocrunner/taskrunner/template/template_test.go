@@ -1260,7 +1260,7 @@ BAR={{key "bar"}}
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		t.Fatalf("Task unblock should not have been called")
+		require.Fail(t, "Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1272,7 +1272,7 @@ BAR={{key "bar"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
+		require.Fail(t, "Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
@@ -1346,7 +1346,7 @@ BAR={{key "bar"}}
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		t.Fatalf("Task unblock should not have been called")
+		require.Fail("Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1358,7 +1358,7 @@ BAR={{key "bar"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
+		require.Fail("Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
@@ -1369,7 +1369,7 @@ BAR={{key "bar"}}
 	case <-harness.mockHooks.KillCh:
 		break
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
+		require.Fail("Should have received a signals: %+v", harness.mockHooks)
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
