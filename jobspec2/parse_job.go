@@ -116,6 +116,25 @@ func normalizeTemplates(templates []*api.Template) {
 		if t.Splay == nil {
 			t.Splay = durationToPtr(5 * time.Second)
 		}
+		normalizeChangeScriptConfig(t.ChangeScriptConfig)
+	}
+}
+
+func normalizeChangeScriptConfig(ch *api.ChangeScriptConfig) {
+	if ch == nil {
+		return
+	}
+
+	if ch.Args == nil {
+		ch.Args = &[]string{}
+	}
+
+	if ch.Timeout == nil {
+		ch.Timeout = durationToPtr(5 * time.Second)
+	}
+
+	if ch.FailOnError == nil {
+		ch.FailOnError = boolToPtr(false)
 	}
 }
 

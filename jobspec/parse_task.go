@@ -433,6 +433,14 @@ func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 
 func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
+		// we'll need a list of all ast objects for later
+		var listVal *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
 		// Check for invalid keys
 		valid := []string{
 			"change_mode",
@@ -458,6 +466,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
+		delete(m, "change_script_config") // change_script_config is its own object
 
 		templ := &api.Template{
 			ChangeMode: stringToPtr("restart"),
@@ -477,6 +486,40 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 		if err := dec.Decode(m); err != nil {
 			return err
+		}
+
+		// If we have change_script_config, parse it
+		if o := listVal.Filter("change_script_config"); len(o.Items) > 0 {
+			if len(o.Items) != 1 {
+				return fmt.Errorf(
+					"change_script_config -> expected single stanza, got %d", len(o.Items),
+				)
+			}
+			var m map[string]interface{}
+			changeScriptConfigBlock := o.Items[0]
+
+			// check for invalid fields
+			valid := []string{"path", "args", "timeout", "fail_on_error"}
+			if err := checkHCLKeys(changeScriptConfigBlock.Val, valid); err != nil {
+				return multierror.Prefix(err, "change_script_config ->")
+			}
+
+			if err := hcl.DecodeObject(&m, changeScriptConfigBlock.Val); err != nil {
+				return err
+			}
+
+			templ.ChangeScriptConfig = &api.ChangeScriptConfig{}
+			dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+				DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+				WeaklyTypedInput: true,
+				Result:           templ.ChangeScriptConfig,
+			})
+			if err != nil {
+				return err
+			}
+			if err := dec.Decode(m); err != nil {
+				return err
+			}
 		}
 
 		*result = append(*result, templ)
