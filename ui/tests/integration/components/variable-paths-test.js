@@ -1,9 +1,11 @@
+/* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import pathTree from 'nomad-ui/utils/path-tree';
+import Service from '@ember/service';
 
 const PATHSTRINGS = [
   { path: '/foo/bar/baz' },
@@ -69,6 +71,36 @@ module('Integration | Component | variable-paths', function (hooks) {
   });
 
   test('it allows for traversal: Files', async function (assert) {
+    // Arrange Test Set-up
+    const mockToken = Service.extend({
+      selfTokenPolicies: [
+        [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: '*',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  SecureVariables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list', 'read'],
+                        PathSpec: '*',
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      ],
+    });
+
+    this.owner.register('service:token', mockToken);
+
+    // End Test Set-up
+
     assert.expect(5);
 
     this.set('tree', tree.findPath('foo/bar'));

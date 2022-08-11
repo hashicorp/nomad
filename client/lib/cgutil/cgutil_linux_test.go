@@ -86,7 +86,7 @@ func TestUtil_GetCPUsFromCgroup(t *testing.T) {
 }
 
 func create(t *testing.T, name string) {
-	mgr, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, name), rootless)
+	mgr, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, name))
 	require.NoError(t, err)
 	if err = mgr.Apply(CreationPID); err != nil {
 		_ = cgroups.RemovePath(name)

@@ -14,7 +14,7 @@ types.
 ## Validate Job
 
 This endpoint validates a Nomad job file. The local Nomad agent forwards the
-request to a server. In the event a server can't be reached the agent verifies
+request to the leader. In the event the leader cannot be reached the agent verifies
 the job file locally but skips validating driver configurations.
 
 ~> This endpoint accepts a **JSON job file**, not an HCL job file.

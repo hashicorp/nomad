@@ -3,6 +3,10 @@
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
 <section class="section single-variable">
-  {{outlet}}
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{outlet}}
+  {{/if}}
 </section>
  

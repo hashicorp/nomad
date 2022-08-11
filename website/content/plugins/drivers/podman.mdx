@@ -408,7 +408,7 @@ the networking namespace of one container for other tasks in the same group.
 
 A typical example is a network server and a metric exporter or log shipping
 sidecar. The metric exporter needs access to a private monitoring port which
-should not be exposed the the network and thus is usually bound to `localhost`.
+should not be exposed to the network and thus is usually bound to `localhost`.
 
 The [`nomad-driver-podman` repository][homepage] includes three different
 examples jobs for such a setup. All of them will start a

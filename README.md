@@ -1,4 +1,6 @@
-Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](https://circleci.com/gh/hashicorp/nomad) [![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
+Nomad
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
 ===
 
 <p align="center" style="text-align:center;">
@@ -14,7 +16,6 @@ Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, 
 * Website: https://nomadproject.io
 * Tutorials: [HashiCorp Learn](https://learn.hashicorp.com/nomad)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
-* Mailing List: [Google Groups](https://groups.google.com/group/nomad-tool)
 * Gitter: [hashicorp-nomad](https://gitter.im/hashicorp-nomad/Lobby)
 
 Nomad provides several key features:

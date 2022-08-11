@@ -261,6 +261,20 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			method:  "HEAD",
 			headers: makeHeaders(agent),
 		},
+		{
+			name:   "extra headers",
+			method: "GET",
+			headers: makeHeaders(encoding, agent,
+				[2]string{"X-My-Header", "hello"},
+				[2]string{"Authorization", "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
+			),
+		},
+		{
+			name:    "with body",
+			method:  "POST",
+			headers: makeHeaders(encoding, agent),
+			body:    "some payload",
+		},
 	}
 
 	for _, tc := range cases {
@@ -286,19 +300,23 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			Protocol:    "http",
 			Path:        "/",
 			Method:      tc.method,
+			Headers:     tc.headers,
+			Body:        tc.body,
 		}
 
-		logger := testlog.HCLogger(t)
-		c := New(logger)
-		ctx := context.Background()
-		result := c.Do(ctx, qc, q)
-		must.Eq(t, http.StatusOK, result.StatusCode,
-			must.Sprintf("test.URL: %s", ts.URL),
-			must.Sprintf("headers: %v", tc.headers),
-		)
-		must.Eq(t, tc.method, method)
-		must.Eq(t, tc.body, string(body))
-		must.Eq(t, tc.headers, headers)
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testlog.HCLogger(t)
+			c := New(logger)
+			ctx := context.Background()
+			result := c.Do(ctx, qc, q)
+			must.Eq(t, http.StatusOK, result.StatusCode,
+				must.Sprintf("test.URL: %s", ts.URL),
+				must.Sprintf("headers: %v", tc.headers),
+			)
+			must.Eq(t, tc.method, method)
+			must.Eq(t, tc.body, string(body))
+			must.Eq(t, tc.headers, headers)
+		})
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
-
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -3431,6 +3430,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate task in name",
 		},
@@ -3446,6 +3446,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "no interpolation in name",
 		},
@@ -3461,6 +3462,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate job, taskgroup and task in name",
 		},
@@ -3476,6 +3478,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate base in name",
 		},
@@ -3492,6 +3495,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "nomad",
 				Namespace: "platform",
+				TaskName:  "redis",
 			},
 			name: "nomad provider",
 		},
@@ -4321,7 +4325,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		err := tc.Input.Validate()
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
-			continue
 		}
 	}
 }
@@ -6669,7 +6672,6 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		out, err := r.ParseReservedHostPorts()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
-			continue
 		}
 
 		require.Equal(out, tc.Parsed)

@@ -25,9 +25,14 @@
     {{/each}}
 
     {{#each this.files as |file|}}
-      <tr data-test-file-row {{on "click" (fn this.handleFileClick file.absoluteFilePath)}}>
+      <tr
+        data-test-file-row
+        {{on "click" (fn this.handleFileClick file)}}
+        class={{if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace) "" "inaccessible"}}
+      >
         <td>
           <FlightIcon @name="file-text" />
+          {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
           <LinkTo
             @route="variables.variable"
             @model={{file.absoluteFilePath}}
@@ -35,6 +40,9 @@
           >
             {{file.name}}
           </LinkTo>
+          {{else}}
+            <span title="Your access policy does not allow you to view the contents of {{file.name}}">{{file.name}}</span>
+          {{/if}}
         </td>
         <td>
           {{file.variable.namespace}}

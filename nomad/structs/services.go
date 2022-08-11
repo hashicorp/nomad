@@ -193,7 +193,7 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	return true
 }
 
-func (sc *ServiceCheck) Canonicalize(serviceName string) {
+func (sc *ServiceCheck) Canonicalize(serviceName, taskName string) {
 	// Ensure empty maps/slices are treated as null to avoid scheduling
 	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
@@ -214,6 +214,11 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 	// Ensure a default name for the check
 	if sc.Name == "" {
 		sc.Name = fmt.Sprintf("service: %q check", serviceName)
+	}
+
+	// Set task name if not already set
+	if sc.TaskName == "" && taskName != "group" {
+		sc.TaskName = taskName
 	}
 
 	// Ensure OnUpdate defaults to require_healthy (i.e. healthiness check)
@@ -349,16 +354,6 @@ func (sc *ServiceCheck) validateNomad() error {
 	if sc.Type == "http" {
 		if sc.Method != "" && !helper.IsMethodHTTP(sc.Method) {
 			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
-		}
-
-		// todo(shoenig) support headers
-		if len(sc.Header) > 0 {
-			return fmt.Errorf("http checks may not set headers in Nomad services")
-		}
-
-		// todo(shoenig) support body
-		if len(sc.Body) > 0 {
-			return fmt.Errorf("http checks may not set Body in Nomad services")
 		}
 	}
 
@@ -538,9 +533,10 @@ type Service struct {
 	Name string
 
 	// Name of the Task associated with this service.
-	//
-	// Currently only used to identify the implementing task of a Consul
-	// Connect Native enabled service.
+	// Group services do not have a task name, unless they are a connect native
+	// service specifying the task implementing the service.
+	// Task-level services automatically have the task name plumbed through
+	// down to checks for convenience.
 	TaskName string
 
 	// PortLabel is either the numeric port number or the `host:port`.
@@ -636,6 +632,11 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 		s.TaggedAddresses = nil
 	}
 
+	// Set the task name if not already set
+	if s.TaskName == "" && task != "group" {
+		s.TaskName = task
+	}
+
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -644,7 +645,7 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	})
 
 	for _, check := range s.Checks {
-		check.Canonicalize(s.Name)
+		check.Canonicalize(s.Name, s.TaskName)
 	}
 
 	// Set the provider to its default value. The value of consul ensures this

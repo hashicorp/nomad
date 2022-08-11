@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"sort"
 	"strings"
@@ -12,7 +12,7 @@ import (
 var (
 	// NodeDownErr marks an operation as not able to complete since the node is
 	// down.
-	NodeDownErr = fmt.Errorf("node down")
+	NodeDownErr = errors.New("node down")
 )
 
 const (
@@ -106,8 +106,7 @@ func (a *Allocations) Exec(ctx context.Context,
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
-	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
-	_, err := a.client.query(path, &resp, q)
+	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, q)
 	return &resp, err
 }
 
