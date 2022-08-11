@@ -734,9 +734,9 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
-	c.configLock.Lock()
-	c.config.TLSConfig = newConfig
-	c.configLock.Unlock()
+	c.UpdateConfig(func(c *config.Config) {
+		c.TLSConfig = newConfig
+	})
 
 	c.connPool.ReloadTLS(tlsWrap)
 
