@@ -112,21 +112,19 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 }
 
 var (
-	// PluginID is the rawexec plugin metadata registered in the plugin
-	// catalog.
+	// PluginID is the docker plugin metadata registered in the plugin catalog.
 	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
 	}
 
-	// PluginConfig is the rawexec factory function registered in the
-	// plugin catalog.
+	// PluginConfig is the docker config factory function registered in the plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
 		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
 	}
 
-	// pluginInfo is the response returned for the PluginInfo RPC
+	// pluginInfo is the response returned for the PluginInfo RPC.
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDriver,
 		PluginApiVersions: []string{drivers.ApiVersion010},
@@ -321,6 +319,11 @@ var (
 		})),
 	})
 
+	// healthchecksBodySpec is the hcl specification for the `healthchecks` block
+	healthchecksBodySpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"disable": hclspec.NewAttr("disable", "bool", false),
+	})
+
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
@@ -354,6 +357,7 @@ var (
 		"entrypoint":         hclspec.NewAttr("entrypoint", "list(string)", false),
 		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
 		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
+		"healthchecks":       hclspec.NewBlock("healthchecks", false, healthchecksBodySpec),
 		"hostname":           hclspec.NewAttr("hostname", "string", false),
 		"init":               hclspec.NewAttr("init", "bool", false),
 		"interactive":        hclspec.NewAttr("interactive", "bool", false),
@@ -435,6 +439,7 @@ type TaskConfig struct {
 	Entrypoint        []string           `codec:"entrypoint"`
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
+	Healthchecks      DockerHealthchecks `codec:"healthchecks"`
 	Hostname          string             `codec:"hostname"`
 	Init              bool               `codec:"init"`
 	Interactive       bool               `codec:"interactive"`
@@ -512,6 +517,14 @@ type DockerLogging struct {
 	Type   string             `codec:"type"`
 	Driver string             `codec:"driver"`
 	Config hclutils.MapStrStr `codec:"config"`
+}
+
+type DockerHealthchecks struct {
+	Disable bool `codec:"disable"`
+}
+
+func (dh *DockerHealthchecks) Disabled() bool {
+	return dh == nil || dh.Disable
 }
 
 type DockerMount struct {
