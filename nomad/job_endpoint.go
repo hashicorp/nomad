@@ -1019,6 +1019,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
+	// Since job is going to be mutated we must copy it since state store methods
+	// return a shared pointer.
+	job = job.Copy()
+
 	// Find target group in job TaskGroups
 	groupName := args.Target[structs.ScalingTargetGroup]
 	var group *structs.TaskGroup
