@@ -526,7 +526,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		if token.AccessorID != "" {
 			out, err := stateSnapshot.ACLTokenByAccessorID(nil, token.AccessorID)
 			if err != nil {
-				return structs.NewErrRPCCodedf(http.StatusBadRequest, "token lookup failed: %v", err)
+				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "token lookup failed: %v", err)
 			}
 			if out == nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find token %s", token.AccessorID)
@@ -1027,4 +1027,342 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 	}
 	reply.Index = index
 	return nil
+}
+
+// UpsertRoles creates or updates ACL roles held within Nomad.
+func (a *ACL) UpsertRoles(
+	args *structs.ACLRolesUpsertRequest,
+	reply *structs.ACLRolesUpsertResponse) error {
+
+	// Only allow operators to upsert ACL roles when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// This endpoint always forwards to the authoritative region as ACL roles
+	// are global.
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLUpsertRolesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_roles"}, time.Now())
+
+	// Only tokens with management level permissions can create ACL roles.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Snapshot the state so we can perform lookups against the ID and policy
+	// links if needed. Do it here, so we only need to do this once no matter
+	// how many roles we are upserting.
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate each role.
+	for idx, role := range args.ACLRoles {
+
+		// Perform all the static validation of the ACL role object. Use the
+		// array index as we cannot be sure the error was caused by a missing
+		// name.
+		if err := role.Validate(); err != nil {
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "role %d invalid: %v", idx, err)
+		}
+
+		policyNames := make(map[string]struct{})
+		var policiesLinks []*structs.ACLRolePolicyLink
+
+		// We need to deduplicate the ACL policy links within this role as well
+		// as ensure the policies exist within state.
+		for _, policyLink := range role.Policies {
+
+			// Perform a state look up for the policy. An error or not being
+			// able to find the policy is terminal. We can include the name in
+			// the error message as it has previously been validated.
+			existing, err := stateSnapshot.ACLPolicyByName(nil, policyLink.Name)
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "policy lookup failed: %v", err)
+			}
+			if existing == nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find policy %s", policyLink.Name)
+			}
+
+			// If the policy name is not found within our map, this means we
+			// have not seen it previously. We need to add this to our
+			// deduplicated array and also mark the policy name as seen, so we
+			// skip any future policies of the same name.
+			if _, ok := policyNames[policyLink.Name]; !ok {
+				policiesLinks = append(policiesLinks, policyLink)
+				policyNames[policyLink.Name] = struct{}{}
+			}
+		}
+
+		// Stored the potentially updated policy links within our role.
+		role.Policies = policiesLinks
+
+		// If the caller has passed a role ID, this call is considered an
+		// update to an existing role. We should therefore ensure it is found
+		// within state.
+		if role.ID != "" {
+			out, err := stateSnapshot.GetACLRoleByID(nil, role.ID)
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "role lookup failed: %v", err)
+			}
+			if out == nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find role %s", role.ID)
+			}
+		}
+
+		role.Canonicalize()
+		role.SetHash()
+	}
+
+	// Update via Raft.
+	out, index, err := a.srv.raftApply(structs.ACLRolesUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Populate the response. We do a lookup against the state to pick up the
+	// proper create / modify times.
+	stateSnapshot, err = a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, role := range args.ACLRoles {
+		lookupACLRole, err := stateSnapshot.GetACLRoleByName(nil, role.Name)
+		if err != nil {
+			return structs.NewErrRPCCodedf(400, "ACL role lookup failed: %v", err)
+		}
+		reply.ACLRoles = append(reply.ACLRoles, lookupACLRole)
+	}
+
+	// Update the index. There is no need to floor this as we are writing to
+	// state and therefore will get a non-zero index response.
+	reply.Index = index
+	return nil
+}
+
+// DeleteRolesByID is used to batch delete ACL roles using the ID as the
+// deletion key.
+func (a *ACL) DeleteRolesByID(
+	args *structs.ACLRolesDeleteByIDRequest,
+	reply *structs.ACLRolesDeleteByIDResponse) error {
+
+	// Only allow operators to delete ACL roles when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// This endpoint always forwards to the authoritative region as ACL roles
+	// are global.
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLDeleteRolesByIDRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_roles"}, time.Now())
+
+	// Only tokens with management level permissions can create ACL roles.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Update via Raft.
+	out, index, err := a.srv.raftApply(structs.ACLRolesDeleteByIDRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Update the index. There is no need to floor this as we are writing to
+	// state and therefore will get a non-zero index response.
+	reply.Index = index
+	return nil
+}
+
+// ListRoles is used to list ACL roles within state. If not prefix is supplied,
+// all ACL roles are listed, otherwise a prefix search is performed on the ACL
+// role name.
+func (a *ACL) ListRoles(
+	args *structs.ACLRolesListRequest,
+	reply *structs.ACLRolesListResponse) error {
+
+	// Only allow operators to list ACL roles when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLListRolesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "list_roles"}, time.Now())
+
+	// TODO (jrasell) allow callers to list role associated to their token.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			var (
+				err  error
+				iter memdb.ResultIterator
+			)
+
+			// If the operator supplied a prefix, perform a prefix search.
+			// Otherwise, list all ACL roles in state.
+			switch args.QueryOptions.Prefix {
+			case "":
+				iter, err = stateStore.GetACLRoles(ws)
+			default:
+				iter, err = stateStore.GetACLRoleByIDPrefix(ws, args.QueryOptions.Prefix)
+			}
+			if err != nil {
+				return err
+			}
+
+			// Iterate all the results and add these to our reply object. There
+			// is no stub object for an ACL role and the hash is needed by the
+			// replication process.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				reply.ACLRoles = append(reply.ACLRoles, raw.(*structs.ACLRole))
+			}
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableACLRoles, &reply.QueryMeta)
+		},
+	})
+}
+
+// GetRoleByID is used to look up an individual ACL role using its ID.
+func (a *ACL) GetRoleByID(
+	args *structs.ACLRoleByIDRequest,
+	reply *structs.ACLRoleByIDResponse) error {
+
+	// Only allow operators to read an ACL role when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLGetRoleByIDRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_id"}, time.Now())
+
+	// TODO (jrasell) allow callers to detail a role associated to their token.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Perform a lookup for the ACL role.
+			out, err := stateStore.GetACLRoleByID(ws, args.RoleID)
+			if err != nil {
+				return err
+			}
+
+			// Set the index correctly depending on whether the ACL role was
+			// found.
+			switch out {
+			case nil:
+				index, err := stateStore.Index(state.TableACLRoles)
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			default:
+				reply.Index = out.ModifyIndex
+			}
+
+			// We didn't encounter an error looking up the index; set the ACL
+			// role on the reply and exit successfully.
+			reply.ACLRole = out
+			return nil
+		},
+	})
+}
+
+// GetRoleByName is used to look up an individual ACL role using its name.
+func (a *ACL) GetRoleByName(
+	args *structs.ACLRoleByNameRequest,
+	reply *structs.ACLRoleByNameResponse) error {
+
+	// Only allow operators to read an ACL role when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLGetRoleByNameRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_name"}, time.Now())
+
+	// TODO (jrasell) allow callers to detail a role associated to their token.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Perform a lookup for the ACL role.
+			out, err := stateStore.GetACLRoleByName(ws, args.RoleName)
+			if err != nil {
+				return err
+			}
+
+			// Set the index correctly depending on whether the ACL role was
+			// found.
+			switch out {
+			case nil:
+				index, err := stateStore.Index(state.TableACLRoles)
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			default:
+				reply.Index = out.ModifyIndex
+			}
+
+			// We didn't encounter an error looking up the index; set the ACL
+			// role on the reply and exit successfully.
+			reply.ACLRole = out
+			return nil
+		},
+	})
 }

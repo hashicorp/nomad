@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -442,4 +443,48 @@ func TestStateStore_GetACLRoleByName(t *testing.T) {
 	aclRole, err = testState.GetACLRoleByName(ws, mockedACLRoles[1].Name)
 	require.NoError(t, err)
 	require.Equal(t, mockedACLRoles[1], aclRole)
+}
+
+func TestStateStore_GetACLRoleByIDPrefix(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Create the policies our ACL roles wants to link to.
+	policy1 := mock.ACLPolicy()
+	policy1.Name = "mocked-test-policy-1"
+	policy2 := mock.ACLPolicy()
+	policy2.Name = "mocked-test-policy-2"
+
+	require.NoError(t, testState.UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+	// Generate a some mocked ACL roles for testing and upsert these straight
+	// into state. Set the ID to something with a prefix we know so it is easy
+	// to test.
+	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+	mockedACLRoles[0].ID = "test-prefix-" + uuid.Generate()
+	mockedACLRoles[1].ID = "test-prefix-" + uuid.Generate()
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+
+	ws := memdb.NewWatchSet()
+
+	// Try using a prefix that doesn't match any entries.
+	iter, err := testState.GetACLRoleByIDPrefix(ws, "nope")
+	require.NoError(t, err)
+
+	var aclRoles []*structs.ACLRole
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
+	}
+	require.Len(t, aclRoles, 0)
+
+	// Use a prefix which should match two entries in state.
+	iter, err = testState.GetACLRoleByIDPrefix(ws, "test-prefix-")
+	require.NoError(t, err)
+
+	aclRoles = []*structs.ACLRole{}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
+	}
+	require.Len(t, aclRoles, 2)
 }
