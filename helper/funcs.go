@@ -266,15 +266,30 @@ func CopyPtr[T any](p *T) *T {
 
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
-// If m is nil or contains no elements, the return value is nil.
+// If m is nil the return value is nil.
 func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
-	if len(m) == 0 {
+	if m == nil {
 		return nil
 	}
 
 	result := make(M, len(m))
 	for k, v := range m {
 		result[k] = v
+	}
+	return result
+}
+
+// DeepCopyMap creates a copy of m by calling Copy() on each value.
+//
+// If m is nil the return value is nil.
+func DeepCopyMap[M ~map[K]V, K comparable, V Copyable[V]](m M) M {
+	if m == nil {
+		return nil
+	}
+
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v.Copy()
 	}
 	return result
 }
@@ -297,12 +312,11 @@ func CopySlice[S ~[]E, E Copyable[E]](s S) S {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]string, l)
+	c := make(map[string]string, len(m))
 	for k, v := range m {
 		c[k] = v
 	}
@@ -313,12 +327,11 @@ func CopyMapStringString(m map[string]string) map[string]string {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]struct{}, l)
+	c := make(map[string]struct{}, len(m))
 	for k := range m {
 		c[k] = struct{}{}
 	}
@@ -329,12 +342,11 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]interface{}, l)
+	c := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		c[k] = v
 	}
