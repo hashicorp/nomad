@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where vault token not respected in plan command
+```
