@@ -7,6 +7,10 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 import percySnapshot from '@percy/ember';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 
 module('Integration | Component | secure-variable-form', function (hooks) {
   setupRenderingTest(hooks);
@@ -219,6 +223,8 @@ module('Integration | Component | secure-variable-form', function (hooks) {
 
   module('Validation', function () {
     test('warns when you try to create a path that already exists', async function (assert) {
+      this.server.createList('namespace', 3);
+
       this.set(
         'mockedModel',
         server.create('variable', {
@@ -227,23 +233,41 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         })
       );
 
-      this.set(
-        'existingVariables',
-        server.createList('variable', 1, {
-          path: 'baz/bat',
-        })
-      );
+      server.create('variable', {
+        path: 'baz/bat',
+      });
+      server.create('variable', {
+        path: 'baz/bat/qux',
+        namespace: server.db.namespaces[2].id,
+      });
+
+      this.set('existingVariables', server.db.variables.toArray());
 
       await render(
         hbs`<SecureVariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`
       );
-      await typeIn('.path-input', 'baz/bat');
-      assert.dom('.duplicate-path-error').exists();
-      assert.dom('.path-input').hasClass('error');
 
       await typeIn('.path-input', 'foo/bar');
       assert.dom('.duplicate-path-error').doesNotExist();
       assert.dom('.path-input').doesNotHaveClass('error');
+
+      document.querySelector('.path-input').value = ''; // clear current input
+      await typeIn('.path-input', 'baz/bat');
+      assert.dom('.duplicate-path-error').exists();
+      assert.dom('.path-input').hasClass('error');
+
+      await clickTrigger('[data-test-variable-namespace-filter]');
+      await selectChoose(
+        '[data-test-variable-namespace-filter]',
+        server.db.namespaces[2].id
+      );
+      assert.dom('.duplicate-path-error').doesNotExist();
+      assert.dom('.path-input').doesNotHaveClass('error');
+
+      document.querySelector('.path-input').value = ''; // clear current input
+      await typeIn('.path-input', 'baz/bat/qux');
+      assert.dom('.duplicate-path-error').exists();
+      assert.dom('.path-input').hasClass('error');
     });
 
     test('warns you when you set a key with . in it', async function (assert) {
