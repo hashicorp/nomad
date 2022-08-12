@@ -145,7 +145,7 @@ export default class SecureVariableFormComponent extends Component {
     if (e.type === 'submit') {
       e.preventDefault();
     }
-    // TODO: temp, hacky way to force translation to tabular keyValues
+
     if (this.view === 'json') {
       this.translateAndValidateItems('table');
     }
