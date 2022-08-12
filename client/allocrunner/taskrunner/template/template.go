@@ -499,33 +499,30 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			}
 		}
 	}
-	if len(scripts) != 0 {
-		for _, script := range scripts {
-			_, exitCode, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
-			if err != nil {
-				structs.NewTaskEvent(structs.TaskHookFailed).
-					SetDisplayMessage(
-						fmt.Sprintf(
-							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+	for _, script := range scripts {
+		_, exitCode, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
+		if err != nil {
+			structs.NewTaskEvent(structs.TaskHookFailed).
+				SetDisplayMessage(
+					fmt.Sprintf(
+						"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+					))
+			if script.FailOnError {
+				tm.config.Lifecycle.Kill(context.Background(),
+					structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(
+							fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
 						))
-				if script.FailOnError {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(
-								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
-							))
-				}
-			} else {
-				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
-					SetDisplayMessage(
-						fmt.Sprintf(
-							"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
-						)))
 			}
+		} else {
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+				SetDisplayMessage(
+					fmt.Sprintf(
+						"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
+					)))
 		}
 	}
-
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
