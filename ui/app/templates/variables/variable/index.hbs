@@ -1,28 +1,3 @@
-{{#if this.error}}
-  <div data-test-inline-error class="notification is-danger">
-    <div class="columns">
-      <div class="column">
-        <h3 data-test-inline-error-title class="title is-4">
-          {{this.error.title}}
-        </h3>
-        <p data-test-inline-error-body>
-          {{this.error.description}}
-        </p>
-      </div>
-      <div class="column is-centered is-minimum">
-        <button
-          data-test-inline-error-close
-          class="button is-danger"
-          onclick={{action this.onDismissError}}
-          type="button"
-        >
-          Okay
-        </button>
-      </div>
-    </div>
-  </div>
-{{/if}}
-
 <h1 class="variable-title title with-flex">
   <div>
     <FlightIcon @name="file-text" />
