@@ -15,12 +15,7 @@
           />
         {{/if}}
         <div class="button-bar">
-          {{#if 
-            (and
-              (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)
-              (not this.isForbidden)
-            )
-          }}
+          {{#if (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)}}
             <LinkTo
               @route="variables.new"
               @query={{hash path=(concat this.absolutePath "/")}}
