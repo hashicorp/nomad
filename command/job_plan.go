@@ -2,11 +2,13 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
@@ -62,6 +64,10 @@ Alias: nomad plan
     * 1: Allocations created or destroyed.
     * 255: Error determining plan results.
 
+  The plan command will set the vault_token of the job based on the following
+  precedence, going from highest to lowest: the -vault-token flag, the
+  $VAULT_TOKEN environment variable and finally the value in the job file.
+
   When ACLs are enabled, this command requires a token with the 'submit-job'
   capability for the job's namespace.
 
@@ -91,6 +97,22 @@ Plan Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -vault-token
+    Used to validate if the user submitting the job has permission to run the job
+    according to its Vault policies. A Vault token must be supplied if the vault
+    stanza allow_unauthenticated is disabled in the Nomad server configuration.
+    If the -vault-token flag is set, the passed Vault token is added to the jobspec
+    before sending to the Nomad servers. This allows passing the Vault token
+    without storing it in the job file. This overrides the token found in the
+    $VAULT_TOKEN environment variable and the vault_token field in the job file.
+    This token is cleared from the job after validating and cannot be used within
+    the job executing environment. Use the vault stanza when templating in a job
+    with a Vault token.
+
+  -vault-namespace
+    If set, the passed Vault namespace is stored in the job before sending to the
+    Nomad servers.
+
   -var 'key=value'
     Variable for template, can be used multiple times.
 
@@ -116,6 +138,8 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-json":            complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
 			"-hcl2-strict":     complete.PredictNothing,
+			"-vault-token":     complete.PredictAnything,
+			"-vault-namespace": complete.PredictAnything,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 		})
@@ -132,6 +156,7 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
+	var vaultToken, vaultNamespace string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
@@ -141,6 +166,8 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
+	flagSet.StringVar(&vaultToken, "vault-token", "", "")
+	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
@@ -184,6 +211,22 @@ func (c *JobPlanCommand) Run(args []string) int {
 	// Force the namespace to be that of the job.
 	if n := job.Namespace; n != nil {
 		client.SetNamespace(*n)
+	}
+
+	// Parse the Vault token.
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	// Set the vault token.
+	if vaultToken != "" {
+		job.VaultToken = pointer.Of(vaultToken)
+	}
+
+	//  Set the vault namespace.
+	if vaultNamespace != "" {
+		job.VaultNamespace = pointer.Of(vaultNamespace)
 	}
 
 	// Setup the options
