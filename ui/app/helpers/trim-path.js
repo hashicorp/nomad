@@ -11,7 +11,7 @@ export function trimPath([path]) {
   if (path.startsWith('/')) {
     path = trimPath([path.slice(1)]);
   }
-  if (path.endsWith('/')) {
+  if (path?.endsWith('/')) {
     path = trimPath([path.slice(0, -1)]);
   }
   return path;

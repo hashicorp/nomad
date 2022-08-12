@@ -35,32 +35,36 @@
       </div>
     </div>
   </div>
-  {{#if this.hasVariables}}
-    <VariablePaths
-      @branch={{this.root}}
-    />
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
   {{else}}
-    <div class="empty-message">
-      {{#if (eq this.namespaceSelection "*")}}
-        <h3 data-test-empty-variables-list-headline class="empty-message-headline">
-          No Secure Variables
-        </h3>
-        {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+    {{#if this.hasVariables}}
+      <VariablePaths
+        @branch={{this.root}}
+      />
+    {{else}}
+      <div class="empty-message">
+        {{#if (eq this.namespaceSelection "*")}}
+          <h3 data-test-empty-variables-list-headline class="empty-message-headline">
+            No Secure Variables
+          </h3>
+          {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+            <p class="empty-message-body">
+              Get started by <LinkTo @route="variables.new">creating a new secure variable</LinkTo>
+            </p>
+          {{/if}}
+        {{else}}
+          <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
+            No Matches
+          </h3>
           <p class="empty-message-body">
-            Get started by <LinkTo @route="variables.new">creating a new secure variable</LinkTo>
+            No paths or variables match the namespace
+            <strong>
+              {{this.namespaceSelection}}
+            </strong>
           </p>
         {{/if}}
-      {{else}}
-        <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
-          No Matches
-        </h3>
-        <p class="empty-message-body">
-          No paths or variables match the namespace
-          <strong>
-            {{this.namespaceSelection}}
-          </strong>
-        </p>
-      {{/if}}
-    </div>
+      </div>
+    {{/if}}
   {{/if}}
 </section>
