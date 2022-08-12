@@ -6,7 +6,8 @@ import Helper from '@ember/component/helper';
  * @param {Array<string>} params
  * @returns {string}
  */
-export function trimPath([path = '']) {
+export function trimPath([path]) {
+  if (!path) return;
   if (path.startsWith('/')) {
     path = trimPath([path.slice(1)]);
   }
