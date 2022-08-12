@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -154,6 +155,60 @@ job "job1" {
 		t.Fatalf("expected connection refused error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
+}
+
+func TestPlanCommand_From_Files(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Create a Nomad server
+	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
+		c.Vault.Address = v.HTTPAddr
+		c.Vault.Enabled = true
+		c.Vault.AllowUnauthenticated = false
+		c.Vault.Token = v.RootToken
+	})
+	defer s.Stop()
+
+	t.Run("fail to place", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-basic.nomad"}
+		code := cmd.Run(args)
+		require.Equal(t, 1, code) // no client running, fail to place
+		must.StrContains(t, ui.OutputWriter.String(), "WARNING: Failed to place all allocations.")
+	})
+
+	t.Run("vault no token", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		must.Eq(t, 255, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "* Vault used in the job but missing Vault token")
+	})
+
+	t.Run("vault bad token via flag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "-vault-token=abc123", "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		must.Eq(t, 255, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
+	})
+
+	t.Run("vault bad token via env", func(t *testing.T) {
+		t.Setenv("VAULT_TOKEN", "abc123")
+		ui := cli.NewMockUi()
+		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		must.Eq(t, 255, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
+	})
 }
 
 func TestPlanCommand_From_URL(t *testing.T) {
