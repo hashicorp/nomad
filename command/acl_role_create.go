@@ -46,7 +46,7 @@ ACL Create Options:
 
   -policy-name
     Specifies a policy to associate with the role identified by their name. This
-    flag can be specified multiple times and should be specified at least once.
+    flag can be specified multiple times and must be specified at least once.
 
   -json
     Output the ACL role in a JSON format.

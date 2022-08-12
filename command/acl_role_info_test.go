@@ -82,7 +82,7 @@ func TestACLRoleInfoCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	// Look up the ACL role using its ID.
+	// Look up the ACL role using its Name.
 	require.Equal(t, 0, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "-by-name", aclRole.Name}))
 	s = ui.OutputWriter.String()
 	require.Contains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
