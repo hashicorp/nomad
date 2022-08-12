@@ -18,6 +18,8 @@ export default class VariablesPathController extends Controller {
         return m + n + '/';
       }, []);
       return crumbs;
+    } else {
+      return [];
     }
   }
 

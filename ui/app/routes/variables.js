@@ -1,7 +1,6 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
-import notifyError from 'nomad-ui/utils/notify-error';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import PathTree from 'nomad-ui/utils/path-tree';
 
