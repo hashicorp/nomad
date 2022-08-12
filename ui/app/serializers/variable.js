@@ -3,7 +3,6 @@ import ApplicationSerializer from './application';
 
 @classic
 export default class VariableSerializer extends ApplicationSerializer {
-  // primaryKey = 'Path';
   separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {

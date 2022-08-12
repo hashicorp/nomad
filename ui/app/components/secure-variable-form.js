@@ -6,7 +6,7 @@ import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
-import EmberObject, { computed, set } from '@ember/object';
+import EmberObject, { set, computed } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
