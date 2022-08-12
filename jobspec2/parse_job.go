@@ -126,7 +126,7 @@ func normalizeChangeScriptConfig(ch *api.ChangeScriptConfig) {
 	}
 
 	if ch.Args == nil {
-		ch.Args = &[]string{}
+		ch.Args = []string{}
 	}
 
 	if ch.Timeout == nil {

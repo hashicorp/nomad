@@ -2733,7 +2733,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeSignal: helper.StringToPtr("signal"),
 								ChangeScriptConfig: &api.ChangeScriptConfig{
 									Path:        helper.StringToPtr("/bin/foo"),
-									Args:        &[]string{"-h"},
+									Args:        []string{"-h"},
 									Timeout:     helper.TimeToPtr(5 * time.Second),
 									FailOnError: helper.BoolToPtr(false),
 								},

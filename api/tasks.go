@@ -793,7 +793,7 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 
 type ChangeScriptConfig struct {
 	Path        *string        `mapstructure:"path" hcl:"path"`
-	Args        *[]string      `mapstructure:"args" hcl:"args,optional"`
+	Args        []string       `mapstructure:"args" hcl:"args,optional"`
 	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
 	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
 }
@@ -803,7 +803,7 @@ func (ch *ChangeScriptConfig) Canonicalize() {
 		ch.Path = stringToPtr("")
 	}
 	if ch.Args == nil {
-		ch.Args = &[]string{}
+		ch.Args = []string{}
 	}
 	if ch.Timeout == nil {
 		ch.Timeout = timeToPtr(5 * time.Second)
