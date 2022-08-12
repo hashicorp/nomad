@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -843,6 +844,26 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 
 	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
 	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
+func TestDockerDriver_HealthchecksDisable(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	cfg.Healthchecks.Disable = true
+	defer freeport.Return(ports)
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	must.NoError(t, err)
+
+	must.NotNil(t, container.Config.Healthcheck)
+	must.Eq(t, []string{"NONE"}, container.Config.Healthcheck.Test)
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
