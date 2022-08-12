@@ -6,7 +6,7 @@ import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
-import EmberObject, { set, computed } from '@ember/object';
+import EmberObject, { set } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
@@ -25,6 +25,12 @@ export default class SecureVariableFormComponent extends Component {
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
+
+  @tracked path = '';
+  constructor() {
+    super(...arguments);
+    set(this, 'path', this.args.model.path);
+  }
 
   @action
   setNamespace(namespace) {
@@ -93,10 +99,10 @@ export default class SecureVariableFormComponent extends Component {
   /**
    * @type {DuplicatePathWarning}
    */
-  @computed('args.{model.path,existingVariables}', 'variableNamespace')
+  // @computed('args.{model.path,existingVariables}', 'variableNamespace')
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
-    const pathValue = trimPath([this.args.model.path]);
+    const pathValue = trimPath([this.path]);
     let existingVariable = existingVariables
       .without(this.args.model)
       .find(

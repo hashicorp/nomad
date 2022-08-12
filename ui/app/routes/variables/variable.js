@@ -8,7 +8,6 @@ export default class VariablesVariableRoute extends Route.extend(
 ) {
   @service store;
   model(params) {
-    // console.log('paramas', params, this.store.findAll('variable'));
     return this.store
       .findRecord('variable', decodeURIComponent(params.id), {
         reload: true,

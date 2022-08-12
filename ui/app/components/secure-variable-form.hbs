@@ -16,7 +16,7 @@
       </span>
       <Input
         @type="text"
-        @value={{@model.path}}
+        @value={{this.path}}
         placeholder="nomad/jobs/my-job/my-group/my-task"
         class="input path-input {{if this.duplicatePathWarning "error"}}"
         disabled={{not @model.isNew}}
@@ -26,7 +26,7 @@
       {{#if this.duplicatePathWarning}}
         <p class="duplicate-path-error help is-danger">
           There is already a Secure Variable located at
-          {{@model.path}}
+          {{this.path}}
           .
           <br />
           Please choose a different path, or
