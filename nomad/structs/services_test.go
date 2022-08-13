@@ -712,8 +712,8 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	})
 
 	t.Run("different mesh_gateway", func(t *testing.T) {
-		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "local"}}}
-		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "remote"}}}
+		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "local"}}}
+		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "remote"}}}
 		require.False(t, upstreamsEquals(a, b))
 	})
 
@@ -1637,11 +1637,11 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 func TestConsulMeshGateway_Equals(t *testing.T) {
 	ci.Parallel(t)
 
-	c := &ConsulMeshGateway{Mode: "local"}
-	require.False(t, c.Equals(nil))
+	c := ConsulMeshGateway{Mode: "local"}
+	require.False(t, c.Equals(ConsulMeshGateway{}))
 	require.True(t, c.Equals(c))
 
-	o := &ConsulMeshGateway{Mode: "remote"}
+	o := ConsulMeshGateway{Mode: "remote"}
 	require.False(t, c.Equals(o))
 }
 

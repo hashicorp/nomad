@@ -3486,6 +3486,7 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 }
 
 // TestJobs_Matching_Resources asserts:
+//
 //	api.{Default,Min}Resources == structs.{Default,Min}Resources
 //
 // While this is an odd place to test that, this is where both are imported,
@@ -3694,7 +3695,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:        8000,
 		Datacenter:           "dc2",
 		LocalBindAddress:     "127.0.0.2",
-		MeshGateway:          &structs.ConsulMeshGateway{Mode: "local"},
+		MeshGateway:          structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
@@ -3707,8 +3708,8 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 
 func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiMeshGatewayToStructs(nil))
-	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
+	require.Equal(t, structs.ConsulMeshGateway{}, apiMeshGatewayToStructs(nil))
+	require.Equal(t, structs.ConsulMeshGateway{Mode: "remote"},
 		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 

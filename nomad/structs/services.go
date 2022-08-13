@@ -1457,21 +1457,13 @@ type ConsulMeshGateway struct {
 	Mode string
 }
 
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
+func (c *ConsulMeshGateway) Copy() ConsulMeshGateway {
+	return ConsulMeshGateway{
 		Mode: c.Mode,
 	}
 }
 
-func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
-	if c == nil || o == nil {
-		return c == o
-	}
-
+func (c *ConsulMeshGateway) Equals(o ConsulMeshGateway) bool {
 	return c.Mode == o.Mode
 }
 
@@ -1509,7 +1501,7 @@ type ConsulUpstream struct {
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
-	MeshGateway *ConsulMeshGateway
+	MeshGateway ConsulMeshGateway
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {

@@ -2778,7 +2778,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											LocalBindPort:        8000,
 											Datacenter:           "dc2",
 											LocalBindAddress:     "127.0.0.2",
-											MeshGateway: &ConsulMeshGateway{
+											MeshGateway: ConsulMeshGateway{
 												Mode: "remote",
 											},
 										},
