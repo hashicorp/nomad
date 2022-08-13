@@ -1160,6 +1160,7 @@ func (a *Agent) Reload(newConfig *Config) error {
 
 	if updatedLogging {
 		current.LogLevel = newConfig.LogLevel
+		a.logger.SetLevel(log.LevelFromString(current.LogLevel))
 	}
 
 	// Update eventer config
@@ -1196,8 +1197,10 @@ func (a *Agent) Reload(newConfig *Config) error {
 		if err != nil {
 			return err
 		}
+
 		current.TLSConfig = newConfig.TLSConfig
 		current.TLSConfig.KeyLoader = keyloader
+		a.config = current
 		return nil
 	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
@@ -1207,11 +1210,8 @@ func (a *Agent) Reload(newConfig *Config) error {
 		fullUpdateTLSConfig()
 	}
 
-	// Set agent config to the new config
+	// Set agent config to the updated config
 	a.config = current
-
-	// Ensure logger's level matches config's
-	a.logger.SetLevel(log.LevelFromString(a.config.LogLevel))
 	return nil
 }
 
