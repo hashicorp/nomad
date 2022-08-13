@@ -413,9 +413,12 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[computedClass] = index
+
+	// Capture chan in lock as Flush overwrites it
+	ch := b.capacityChangeCh
 	b.l.Unlock()
 
-	b.capacityChangeCh <- &capacityUpdate{
+	ch <- &capacityUpdate{
 		computedClass: computedClass,
 		index:         index,
 	}
