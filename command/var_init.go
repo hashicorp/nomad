@@ -120,29 +120,29 @@ func (c *VarInitCommand) Run(args []string) int {
 
 const (
 	msgWarnKeys = `
-	REMINDER: While keys in the 'Items' collection can contain dots, using
-	them in templates is easier when they do not. As a best practice, avoid
-	dotted keys when possible.`
+	REMINDER: While keys in the items map can contain dots, using them in
+	templates is easier when they do not. As a best practice, avoid dotted
+	keys when possible.`
 )
 
 var defaultHclVarSpec = strings.TrimSpace(`
-# A secure variable Path can be specified in the specification file
+# A secure variable path can be specified in the specification file
 # and will be used when writing the variable without specifying a
-# Path in the command or when writing JSON directly to the `+"`/var/`"+`
+# path in the command or when writing JSON directly to the `+"`/var/`"+`
 # HTTP API endpoint
-Path = "path/to/variable" 
+# path = "path/to/variable" 
 
 # The Namespace to write the variable can be included in the specification
 # and is the highest precedence way to set the namespace value.
-Namespace = "default"
+# namespace = "default"
 
-# The Items collection is the only strictly required part of a secure
-# variable specification. It contains the sensitive material to encrypt
-# and store as a Nomad secure variable. The entire Items collection are
-# encrypted and decrypted as a single unit.
+# The items map is the only strictly required part of a secure variable
+# specification, since path and namespace can be set via other means. It
+# contains the sensitive material to encrypt and store as a Nomad secure
+# variable. The entire items map is encrypted and decrypted as a single unit.
 
 `+warnInHCLFile()+`
-Items {
+items {
   key1 = "value 1"
   key2 = "value 2"
 }
@@ -173,25 +173,6 @@ func WrapString(input string, lineLen int) string {
 func WrapAndPrepend(input string, lineLen int, prefix string) string {
 	ss := strings.Split(wordwrap.String(input, lineLen), "\n")
 	prefixStringList(ss, prefix)
-	return strings.Join(ss, "\n")
-}
-
-// HangingIndent will indent all lines except the first line by the
-// given indent value, wrapping all lines at lineLen.
-func HangingIndent(input string, lineLen int, indent int) string {
-	ss := strings.Split(wordwrap.String(input, lineLen), "\n")
-	// wrap as though indent was not in play at all and get the first line
-	if len(ss) == 1 {
-		return ss[0]
-	}
-	var out strings.Builder
-	out.WriteString(ss[0])
-
-	// reassemble and split the wraps taking the indent into account
-	input = strings.Join(ss[1:], "\n")
-	ss = strings.Split(wordwrap.String(input, lineLen-indent), "\n")
-	prefixStringList(ss, strings.Repeat(" ", indent))
-
 	return strings.Join(ss, "\n")
 }
 
