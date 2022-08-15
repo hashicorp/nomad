@@ -4,16 +4,23 @@ import { action } from '@ember/object';
 const ALL_NAMESPACE_WILDCARD = '*';
 
 export default class VariablesPathController extends Controller {
+  get absolutePath() {
+    return this.model?.absolutePath || '';
+  }
   get breadcrumbs() {
-    let crumbs = [];
-    this.model.absolutePath.split('/').reduce((m, n) => {
-      crumbs.push({
-        label: n,
-        args: [`variables.path`, m + n],
-      });
-      return m + n + '/';
-    }, []);
-    return crumbs;
+    if (this.absolutePath) {
+      let crumbs = [];
+      this.absolutePath.split('/').reduce((m, n) => {
+        crumbs.push({
+          label: n,
+          args: [`variables.path`, m + n],
+        });
+        return m + n + '/';
+      }, []);
+      return crumbs;
+    } else {
+      return [];
+    }
   }
 
   @controller variables;

@@ -853,9 +853,9 @@ export default function () {
   this.put('/var/:id', function (schema, request) {
     const { Path, Namespace, Items } = JSON.parse(request.requestBody);
     return server.create('variable', {
-      Path,
-      Namespace,
-      Items,
+      path: Path,
+      namespace: Namespace,
+      items: Items,
       id: Path,
     });
   });
@@ -863,7 +863,7 @@ export default function () {
   this.delete('/var/:id', function (schema, request) {
     const { id } = request.params;
     server.db.variables.remove(id);
-    return okEmpty();
+    return '';
   });
 
   //#endregion Secure Variables

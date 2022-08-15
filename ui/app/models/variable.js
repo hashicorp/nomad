@@ -67,7 +67,9 @@ export default class VariableModel extends Model {
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
-    this.set('id', this.get('path'));
+    if (!this.get('id')) {
+      this.set('id', `${this.get('path')}@${this.get('namespace')}`);
+    }
   }
 
   /**

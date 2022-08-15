@@ -8,13 +8,10 @@ export default class VariableAdapter extends ApplicationAdapter {
 
   // PUT instead of POST on create;
   // /v1/var instead of /v1/vars on create (urlForFindRecord)
-  createRecord(_store, _type, snapshot) {
+  createRecord(_store, type, snapshot) {
     let data = this.serialize(snapshot);
-    return this.ajax(
-      this.urlForFindRecord(snapshot.id, snapshot.modelName),
-      'PUT',
-      { data }
-    );
+    let baseUrl = this.buildURL(type.modelName, data.ID);
+    return this.ajax(baseUrl, 'PUT', { data });
   }
 
   urlForFindAll(modelName) {
@@ -27,21 +24,30 @@ export default class VariableAdapter extends ApplicationAdapter {
     return pluralize(baseUrl);
   }
 
-  urlForFindRecord(id, modelName, snapshot) {
-    const namespace = snapshot?.attr('namespace') || 'default';
-
-    let baseUrl = this.buildURL(modelName, id, snapshot);
+  urlForFindRecord(identifier, modelName, snapshot) {
+    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
+    let baseUrl = this.buildURL(modelName, id);
     return `${baseUrl}?namespace=${namespace}`;
   }
 
-  urlForUpdateRecord(id, modelName) {
-    return this.buildURL(modelName, id);
+  urlForUpdateRecord(identifier, modelName, snapshot) {
+    const { id } = _extractIDAndNamespace(identifier, snapshot);
+    let baseUrl = this.buildURL(modelName, id);
+    return `${baseUrl}`;
   }
 
-  urlForDeleteRecord(id, modelName, snapshot) {
-    const namespace = snapshot?.attr('namespace') || 'default';
-
+  urlForDeleteRecord(identifier, modelName, snapshot) {
+    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
     const baseUrl = this.buildURL(modelName, id);
     return `${baseUrl}?namespace=${namespace}`;
   }
+}
+
+function _extractIDAndNamespace(identifier, snapshot) {
+  const namespace = snapshot?.attr('namespace') || 'default';
+  const id = snapshot?.attr('path') || identifier;
+  return {
+    namespace,
+    id,
+  };
 }

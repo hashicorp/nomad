@@ -35,7 +35,7 @@
           {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
           <LinkTo
             @route="variables.variable"
-            @model={{file.absoluteFilePath}}
+            @model={{file.variable.id}}
             @query={{hash namespace="*"}}
           >
             {{file.name}}

@@ -103,9 +103,8 @@ module('Acceptance | secure variables', function (hooks) {
     await percySnapshot(assert);
 
     await click(fooLink);
-    assert.equal(
-      currentURL(),
-      '/variables/var/a/b/c/foo0',
+    assert.ok(
+      currentURL().includes('/variables/var/a/b/c/foo0'),
       'correctly traverses to a deeply nested variable file'
     );
     const deleteButton = find('[data-test-delete-button] button');
@@ -173,9 +172,8 @@ module('Acceptance | secure variables', function (hooks) {
     assert.ok(nonJobLink, 'non-job file is present');
 
     await click(nonJobLink);
-    assert.equal(
-      currentURL(),
-      '/variables/var/just some arbitrary file',
+    assert.ok(
+      currentURL().includes('/variables/var/just some arbitrary file'),
       'correctly traverses to a non-job file'
     );
     let relatedEntitiesBox = find('.related-entities');
@@ -335,7 +333,10 @@ module('Acceptance | secure variables', function (hooks) {
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/variables/var/foo/bar');
+    assert.ok(
+      currentURL().includes('/variables/var/foo'),
+      'drops you back off to the parent page'
+    );
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -514,7 +515,6 @@ module('Acceptance | secure variables', function (hooks) {
       await typeIn('[data-test-var-key]', 'kiki');
       await typeIn('[data-test-var-value]', 'do you love me');
       await click('[data-test-submit-var]');
-
       assert.equal(
         currentRouteName(),
         'variables.variable.index',
