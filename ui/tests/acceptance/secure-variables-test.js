@@ -553,6 +553,43 @@ module('Acceptance | secure variables', function (hooks) {
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });
+    test('handles conflicts on save', async function (assert) {
+      // Arrange Test Set-up
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      // End Test Set-up
+
+      await Variables.visitConflicting();
+      await click('button[type="submit"]');
+
+      assert
+        .dom('.notification.conflict')
+        .exists('Notification alerting user of conflict is present');
+
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-submit-var]');
+
+      await click('button[data-test-overwrite-button');
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting Variable@default',
+        'Selecting overwrite forces a save and redirects'
+      );
+
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on edit.');
+
+      assert
+        .dom('[data-test-var=buddy]')
+        .exists('The edited variable key should appear in the list.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
   });
 
   module('delete flow', function () {

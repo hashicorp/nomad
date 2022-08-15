@@ -24,8 +24,8 @@
         <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
       {{/if}}
       <div class="options">
-        <button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
-        <button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
+        <button data-test-refresh-button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
+        <button data-test-overwrite-button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
       </div>
     </div>
   {{/if}}
