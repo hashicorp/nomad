@@ -200,9 +200,6 @@ function variableTestCluster(server) {
     'w/x/y/foo9',
     'w/x/y/z/foo10',
     'w/x/y/z/bar11',
-    'just some arbitrary file',
-    'another arbitrary file',
-    'another arbitrary file again',
   ].forEach((path) => server.create('variable', { id: path }));
 
   server.create('variable', {
@@ -218,6 +215,21 @@ function variableTestCluster(server) {
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
     namespace: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: 'just some arbitrary file',
+    namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'another arbitrary file',
+    namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'another arbitrary file again',
+    namespace: 'namespace-2',
   });
 }
 

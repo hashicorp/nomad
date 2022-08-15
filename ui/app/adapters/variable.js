@@ -34,9 +34,9 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   urlForUpdateRecord(identifier, modelName, snapshot) {
-    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
+    const { id } = _extractIDAndNamespace(identifier, snapshot);
     let baseUrl = this.buildURL(modelName, id);
-    return `${baseUrl}?namespace=${namespace}`;
+    return `${baseUrl}`;
   }
 
   urlForDeleteRecord(identifier, modelName, snapshot) {

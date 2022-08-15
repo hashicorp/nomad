@@ -49,9 +49,8 @@ export default class SecureVariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.args.model?.path?.startsWith('nomad/') &&
-      !this.args.model?.path?.startsWith('nomad/jobs');
-    return !!this.JSONError || !this.args.model?.path || disallowedPath;
+      this.path?.startsWith('nomad/') && !this.path?.startsWith('nomad/jobs');
+    return !!this.JSONError || !this.path || disallowedPath;
   }
 
   /**
@@ -99,7 +98,6 @@ export default class SecureVariableFormComponent extends Component {
   /**
    * @type {DuplicatePathWarning}
    */
-  // @computed('args.{model.path,existingVariables}', 'variableNamespace')
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     const pathValue = trimPath([this.path]);
@@ -175,12 +173,13 @@ export default class SecureVariableFormComponent extends Component {
       }
 
       this.args.model.set('keyValues', this.keyValues);
+      this.args.model.set('path', this.path);
       this.args.model.setAndTrimPath();
       await this.args.model.save();
 
       this.flashMessages.add({
         title: 'Secure Variable saved',
-        message: `${this.args.model.path} successfully saved`,
+        message: `${this.path} successfully saved`,
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
@@ -188,7 +187,7 @@ export default class SecureVariableFormComponent extends Component {
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       this.flashMessages.add({
-        title: `Error saving ${this.args.model.path}`,
+        title: `Error saving ${this.path}`,
         message: error,
         type: 'error',
         destroyOnClick: false,
