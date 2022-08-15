@@ -317,10 +317,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
 	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
 		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
-	case structs.SecureVariableUpsertRequestType:
-		return n.applySecureVariableUpsert(msgType, buf[1:], log.Index)
-	case structs.SecureVariableDeleteRequestType:
-		return n.applySecureVariableDelete(msgType, buf[1:], log.Index)
+	case structs.SVApplyStateRequestType:
+		return n.applySecureVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaDeleteRequestType:
@@ -2036,34 +2034,27 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_upsert"}, time.Now())
-	var req structs.SecureVariablesEncryptedUpsertRequest
+func (n *nomadFSM) applySecureVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	var req structs.SVApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-
-	if err := n.state.UpsertSecureVariables(msgType, index, req.Data); err != nil {
-		n.logger.Error("UpsertSecureVariables failed", "error", err)
+	defer metrics.MeasureSinceWithLabels([]string{"nomad", "fsm", "apply_sv_operation"}, time.Now(),
+		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
+	switch req.Op {
+	case structs.SVOpSet:
+		return n.state.SVESet(index, &req)
+	case structs.SVOpDelete:
+		return n.state.SVEDelete(index, &req)
+	case structs.SVOpDeleteCAS:
+		return n.state.SVEDeleteCAS(index, &req)
+	case structs.SVOpCAS:
+		return n.state.SVESetCAS(index, &req)
+	default:
+		err := fmt.Errorf("Invalid SVE operation '%s'", req.Op)
+		n.logger.Warn("Invalid SVE operation", "operation", req.Op)
 		return err
 	}
-
-	return nil
-}
-
-func (n *nomadFSM) applySecureVariableDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_delete"}, time.Now())
-	var req structs.SecureVariablesDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteSecureVariables(msgType, index, req.Namespace, []string{req.Path}); err != nil {
-		n.logger.Error("DeleteSecureVariables failed", "error", err)
-		return err
-	}
-
-	return nil
 }
 
 func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {

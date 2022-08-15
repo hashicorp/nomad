@@ -1054,7 +1054,12 @@ func TestStateStore_DeleteNamespaces_SecureVariables(t *testing.T) {
 
 	sv := mock.SecureVariableEncrypted()
 	sv.Namespace = ns.Name
-	require.NoError(t, state.UpsertSecureVariables(structs.MsgTypeTestSetup, 1001, []*structs.SecureVariableEncrypted{sv}))
+
+	resp := state.SVESet(1001, &structs.SVApplyStateRequest{
+		Op:  structs.SVOpSet,
+		Var: sv,
+	})
+	require.NoError(t, resp.Error)
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
