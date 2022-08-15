@@ -38,8 +38,12 @@ export default class VariableAdapter extends ApplicationAdapter {
   urlForUpdateRecord(identifier, modelName, snapshot) {
     const { id } = _extractIDAndNamespace(identifier, snapshot);
     let baseUrl = this.buildURL(modelName, id);
-    const checkAndSetValue = snapshot?.attr('modifyIndex') || 0;
-    return `${baseUrl}?cas=${checkAndSetValue}`;
+    if (snapshot?.adapterOptions?.overwrite) {
+      return `${baseUrl}`;
+    } else {
+      const checkAndSetValue = snapshot?.attr('modifyIndex') || 0;
+      return `${baseUrl}?cas=${checkAndSetValue}`;
+    }
   }
 
   urlForDeleteRecord(identifier, modelName, snapshot) {

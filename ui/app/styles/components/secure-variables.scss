@@ -98,6 +98,15 @@
       }
     }
   }
+
+  .notification.conflict {
+    p {
+      color: $text;
+    }
+    footer {
+      margin-top: 1rem;
+    }
+  }
 }
 
 table.path-tree {
