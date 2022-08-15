@@ -572,7 +572,7 @@ module('Acceptance | secure variables', function (hooks) {
       await typeIn('[data-test-var-value]', 'pal');
       await click('[data-test-submit-var]');
 
-      await click('button[data-test-overwrite-button');
+      await click('button[data-test-overwrite-button]');
       assert.equal(
         currentURL(),
         '/variables/var/Auto-conflicting Variable@default',
