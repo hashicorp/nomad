@@ -210,7 +210,7 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "read"}, time.Now())
 
-	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+	_, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyRead, args.Path)
 	if err != nil {
 		return err
@@ -261,7 +261,7 @@ func (sv *SecureVariables) List(
 		return sv.listAllSecureVariables(args, reply)
 	}
 
-	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+	aclObj, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyList, args.Prefix)
 	if err != nil {
 		return err
@@ -291,13 +291,23 @@ func (sv *SecureVariables) List(
 				},
 			)
 
+			filters := []paginator.Filter{
+				paginator.GenericFilter{
+					Allow: func(raw interface{}) (bool, error) {
+						sv := raw.(*structs.SecureVariableEncrypted)
+						return strings.HasPrefix(sv.Path, args.Prefix) &&
+							(aclObj == nil || aclObj.AllowSecureVariableOperation(sv.Namespace, sv.Path, acl.PolicyList)), nil
+					},
+				},
+			}
+
 			// Set up our output after we have checked the error.
 			var svs []*structs.SecureVariableMetadata
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the secure variables
 			// stubs slice.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.SecureVariableEncrypted)
 					svStub := sv.SecureVariableMetadata
@@ -356,7 +366,7 @@ func (s *SecureVariables) listAllSecureVariables(
 			// Identify which namespaces the caller has access to. If they do
 			// not have access to any, send them an empty response. Otherwise,
 			// handle any error in a traditional manner.
-			allowedNSes, err := allowedNSes(aclObj, stateStore, allowFunc)
+			_, err := allowedNSes(aclObj, stateStore, allowFunc)
 			switch err {
 			case structs.ErrPermissionDenied:
 				reply.Data = make([]*structs.SecureVariableMetadata, 0)
@@ -384,24 +394,19 @@ func (s *SecureVariables) listAllSecureVariables(
 				},
 			)
 
-			// Wrap the SecureVariables iterator with a FilterIterator to
-			// eliminate invalid values before sending them to the paginator.
-			fltrIter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-
-				// Values are filtered when the func returns true.
-				sv := raw.(*structs.SecureVariableEncrypted)
-				if allowedNSes != nil && !allowedNSes[sv.Namespace] {
-					return true
-				}
-				if !strings.HasPrefix(sv.Path, args.Prefix) {
-					return true
-				}
-				return false
-			})
+			filters := []paginator.Filter{
+				paginator.GenericFilter{
+					Allow: func(raw interface{}) (bool, error) {
+						sv := raw.(*structs.SecureVariableEncrypted)
+						return strings.HasPrefix(sv.Path, args.Prefix) &&
+							(aclObj == nil || aclObj.AllowSecureVariableOperation(sv.Namespace, sv.Path, acl.PolicyList)), nil
+					},
+				},
+			}
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the stubs array.
-			paginatorImpl, err := paginator.NewPaginator(fltrIter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.SecureVariableEncrypted)
 					svStub := sv.SecureVariableMetadata
@@ -465,7 +470,7 @@ func (sv *SecureVariables) decrypt(v *structs.SecureVariableEncrypted) (*structs
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
 // either be called by external clients or by workload identity
-func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) error {
+func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) (*acl.ACL, error) {
 
 	// Perform the initial token resolution.
 	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
@@ -474,15 +479,15 @@ func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, ca
 		// are not enabled, otherwise trigger the allowed namespace function.
 		if aclObj != nil {
 			if !aclObj.AllowSecureVariableOperation(args.RequestNamespace(), pathOrPrefix, cap) {
-				return structs.ErrPermissionDenied
+				return nil, structs.ErrPermissionDenied
 			}
 		}
-		return nil
+		return aclObj, nil
 	}
 	if helper.IsUUID(args.AuthToken) {
 		// early return for ErrNotFound or other errors if it's formed
 		// like an ACLToken.SecretID
-		return err
+		return nil, err
 	}
 
 	// Attempt to verify the token as a JWT with a workload
@@ -492,27 +497,27 @@ func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, ca
 		metrics.IncrCounter([]string{
 			"nomad", "secure_variables", "invalid_allocation_identity"}, 1)
 		sv.logger.Trace("allocation identity was not valid", "error", err)
-		return structs.ErrPermissionDenied
+		return nil, structs.ErrPermissionDenied
 	}
 
 	// The workload identity gets access to paths that match its
 	// identity, without having to go thru the ACL system
 	err = sv.authValidatePrefix(claims, args.RequestNamespace(), pathOrPrefix)
 	if err == nil {
-		return nil
+		return aclObj, nil
 	}
 
 	// If the workload identity doesn't match the implicit permissions
 	// given to paths, check for its attached ACL policies
 	aclObj, err = sv.srv.ResolveClaims(claims)
 	if err != nil {
-		return err // this only returns an error when the state store has gone wrong
+		return nil, err // this only returns an error when the state store has gone wrong
 	}
 	if aclObj != nil && aclObj.AllowSecureVariableOperation(
 		args.RequestNamespace(), pathOrPrefix, cap) {
-		return nil
+		return aclObj, nil
 	}
-	return structs.ErrPermissionDenied
+	return nil, structs.ErrPermissionDenied
 }
 
 // authValidatePrefix asserts that the requested path is valid for

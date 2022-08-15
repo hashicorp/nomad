@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/acl"
@@ -91,7 +92,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	must.NoError(t, err)
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+		_, err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, "n/a",
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -103,7 +104,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+		_, err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, "n/a",
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -246,7 +247,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			err := srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+			_, err := srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
 				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
@@ -437,4 +438,125 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 		must.Eq(t, structs.SVOpResultOk, applyResp.Result)
 		must.Equals(t, sv.Items, applyResp.Output.Items)
 	})
+}
+
+func TestSecureVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
+
+	ci.Parallel(t)
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	idx := uint64(1000)
+
+	policyRules := `
+namespace "dev" {
+  secure_variables {
+    path "*" { capabilities = ["list", "read"] }
+    path "system/*" { capabilities = ["deny"] }
+    path "config/system/*" { capabilities = ["deny"] }
+  }
+}
+
+namespace "prod" {
+  secure_variables {
+    path  "*" {
+    capabilities = ["list"]
+    }
+  }
+}
+
+namespace "*" {}
+`
+
+	store := srv.fsm.State()
+
+	must.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{
+		{Name: "dev"}, {Name: "prod"}, {Name: "other"}}))
+
+	idx++
+	token := mock.CreatePolicyAndToken(t, store, idx, "developer", policyRules)
+
+	writeVar := func(ns, path string) {
+		idx++
+		sv := mock.SecureVariableEncrypted()
+		sv.Namespace = ns
+		sv.Path = path
+		resp := store.SVESet(idx, &structs.SVApplyStateRequest{
+			Op:  structs.SVOpSet,
+			Var: sv,
+		})
+		must.NoError(t, resp.Error)
+	}
+
+	writeVar("dev", "system/never-list")
+	writeVar("dev", "config/system/never-list")
+	writeVar("dev", "config/can-read")
+	writeVar("dev", "project/can-read")
+
+	writeVar("prod", "system/can-list")
+	writeVar("prod", "config/system/can-list")
+	writeVar("prod", "config/can-list")
+	writeVar("prod", "project/can-list")
+
+	writeVar("other", "system/never-list")
+	writeVar("other", "config/system/never-list")
+	writeVar("other", "config/never-list")
+	writeVar("other", "project/never-list")
+
+	testListPrefix := func(ns, prefix string, expectedCount int, expectErr error) {
+		t.Run(fmt.Sprintf("ns=%s-prefix=%s", ns, prefix), func(t *testing.T) {
+			req := &structs.SecureVariablesListRequest{
+				QueryOptions: structs.QueryOptions{
+					Namespace: ns,
+					Prefix:    prefix,
+					AuthToken: token.SecretID,
+					Region:    "global",
+				},
+			}
+			var resp structs.SecureVariablesListResponse
+
+			if expectErr != nil {
+				must.EqError(t,
+					msgpackrpc.CallWithCodec(codec, "SecureVariables.List", req, &resp),
+					expectErr.Error())
+				return
+			}
+			must.NoError(t, msgpackrpc.CallWithCodec(codec, "SecureVariables.List", req, &resp))
+
+			found := "found:\n"
+			for _, sv := range resp.Data {
+				found += fmt.Sprintf(" ns=%s path=%s\n", sv.Namespace, sv.Path)
+			}
+			must.Len(t, expectedCount, resp.Data, test.Sprintf("%s", found))
+		})
+	}
+
+	testListPrefix("dev", "system", 0, nil)
+	testListPrefix("dev", "config/system", 0, nil)
+	testListPrefix("dev", "config", 1, nil)
+	testListPrefix("dev", "project", 1, nil)
+	testListPrefix("dev", "", 2, nil)
+
+	testListPrefix("prod", "system", 1, nil)
+	testListPrefix("prod", "config/system", 1, nil)
+	testListPrefix("prod", "config", 2, nil)
+	testListPrefix("prod", "project", 1, nil)
+	testListPrefix("prod", "", 4, nil)
+
+	testListPrefix("other", "system", 0, structs.ErrPermissionDenied)
+	testListPrefix("other", "config/system", 0, structs.ErrPermissionDenied)
+	testListPrefix("other", "config", 0, structs.ErrPermissionDenied)
+	testListPrefix("other", "project", 0, structs.ErrPermissionDenied)
+	testListPrefix("other", "", 0, structs.ErrPermissionDenied)
+
+	testListPrefix("*", "system", 1, nil)
+	testListPrefix("*", "config/system", 1, nil)
+	testListPrefix("*", "config", 3, nil)
+	testListPrefix("*", "project", 2, nil)
+	testListPrefix("*", "", 6, nil)
+
 }
