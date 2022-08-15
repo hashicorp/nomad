@@ -16,7 +16,7 @@ const (
 	coordinatorStatePrestart
 	coordinatorStateMain
 	coordinatorStatePoststart
-	coordinatorStateWaitMain
+	coordinatorStateWaitAlloc
 	coordinatorStatePoststop
 )
 
@@ -30,8 +30,8 @@ func (s coordinatorState) String() string {
 		return "main"
 	case coordinatorStatePoststart:
 		return "poststart"
-	case coordinatorStateWaitMain:
-		return "wait_main"
+	case coordinatorStateWaitAlloc:
+		return "wait_alloc"
 	case coordinatorStatePoststop:
 		return "poststart"
 	}
@@ -151,6 +151,13 @@ func (c *Coordinator) TaskStateUpdated(states map[string]*structs.TaskState) {
 // current internal state and the received states of the tasks.
 // The currentStateLock must be held before calling this method.
 func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coordinatorState {
+
+	// coordinatorStatePoststop is the terminal state of the FSM, and can be
+	// reached at any time.
+	if c.isAllocDone(states) {
+		return coordinatorStatePoststop
+	}
+
 	switch c.currentState {
 	case coordinatorStateInit:
 		if !c.isInitDone(states) {
@@ -174,11 +181,11 @@ func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coor
 		if !c.isPoststartDone(states) {
 			return coordinatorStatePoststart
 		}
-		return coordinatorStateWaitMain
+		return coordinatorStateWaitAlloc
 
-	case coordinatorStateWaitMain:
-		if !c.isWaitMainDone(states) {
-			return coordinatorStateWaitMain
+	case coordinatorStateWaitAlloc:
+		if !c.isAllocDone(states) {
+			return coordinatorStateWaitAlloc
 		}
 		return coordinatorStatePoststop
 
@@ -233,7 +240,7 @@ func (c *Coordinator) enterStateLocked(state coordinatorState) {
 		c.allow(lifecycleStagePoststartEphemeral)
 		c.allow(lifecycleStagePoststartSidecar)
 
-	case coordinatorStateWaitMain:
+	case coordinatorStateWaitAlloc:
 		c.block(lifecycleStagePrestartEphemeral)
 		c.block(lifecycleStagePoststartEphemeral)
 		c.block(lifecycleStagePoststop)
@@ -321,9 +328,9 @@ func (c *Coordinator) isPoststartDone(states map[string]*structs.TaskState) bool
 	return true
 }
 
-// isWaitMainDone returns true when the following conditions are met:
-//   - all tasks that are not poststop are in the "dead" state.
-func (c *Coordinator) isWaitMainDone(states map[string]*structs.TaskState) bool {
+// isAllocDone returns true when the following conditions are met:
+//   - all non-poststop tasks are in the "dead" state.
+func (c *Coordinator) isAllocDone(states map[string]*structs.TaskState) bool {
 	for lifecycle, tasks := range c.tasksByLifecycle {
 		if lifecycle == lifecycleStagePoststop {
 			continue
