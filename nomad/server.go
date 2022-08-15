@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -41,7 +42,6 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
 	"go.etcd.io/bbolt"
-	"go.uber.org/atomic"
 )
 
 const (
@@ -354,10 +354,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		nodeConns:               make(map[string][]*nodeConnState),
 		peers:                   make(map[string][]*serverParts),
 		localPeers:              make(map[raft.ServerAddress]*serverParts),
-		bootstrapped:            atomic.NewBool(false),
+		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
 		reconcileCh:             make(chan serf.Member, 32),
-		readyForConsistentReads: atomic.NewBool(false),
+		readyForConsistentReads: &atomic.Bool{},
 		eventCh:                 make(chan serf.Event, 256),
 		evalBroker:              evalBroker,
 		blockedEvals:            NewBlockedEvals(evalBroker, logger),
