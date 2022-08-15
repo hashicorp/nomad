@@ -196,26 +196,16 @@ export default class SecureVariableFormComponent extends Component {
       });
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
-<<<<<<< HEAD
-      this.flashMessages.add({
-        title: `Error saving ${this.path}`,
-        message: error,
-        type: 'error',
-        destroyOnClick: false,
-        sticky: true,
-      });
-=======
       notifyConflict(this)(error);
       if (!this.hasConflict) {
         this.flashMessages.add({
-          title: `Error saving ${this.args.model.path}`,
+          title: `Error saving ${this.path}`,
           message: error,
           type: 'error',
           destroyOnClick: false,
           sticky: true,
         });
       }
->>>>>>> 98d181eec (Notify error and give them refresh or overwrite options)
     }
   }
 
