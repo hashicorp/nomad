@@ -11,6 +11,7 @@ import EmberObject, { set } from '@ember/object';
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
+import notifyConflict from 'nomad-ui/utils/notify-conflict';
 
 const EMPTY_KV = {
   key: '',
@@ -25,6 +26,18 @@ export default class SecureVariableFormComponent extends Component {
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
+  @tracked hasConflict = false;
+
+  /**
+   * @typedef {Object} conflictingVariable
+   * @property {string} ModifyTime
+   * @property {Object} Items
+   */
+
+  /**
+   * @type {conflictingVariable}
+   */
+  @tracked conflictingVariable = null;
 
   @tracked path = '';
   constructor() {
@@ -144,8 +157,17 @@ export default class SecureVariableFormComponent extends Component {
     this.keyValues.removeObject(row);
   }
 
+  @action refresh() {
+    window.location.reload();
+  }
+
+  @action saveWithOverwrite(e) {
+    set(this, 'conflictingVariable', null);
+    this.save(e, true);
+  }
+
   @action
-  async save(e) {
+  async save(e, overwrite = false) {
     if (e.type === 'submit') {
       e.preventDefault();
     }
@@ -175,7 +197,7 @@ export default class SecureVariableFormComponent extends Component {
       this.args.model.set('keyValues', this.keyValues);
       this.args.model.set('path', this.path);
       this.args.model.setAndTrimPath();
-      await this.args.model.save();
+      await this.args.model.save({ adapterOptions: { overwrite } });
 
       this.flashMessages.add({
         title: 'Secure Variable saved',
@@ -186,13 +208,21 @@ export default class SecureVariableFormComponent extends Component {
       });
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
-      this.flashMessages.add({
-        title: `Error saving ${this.path}`,
-        message: error,
-        type: 'error',
-        destroyOnClick: false,
-        sticky: true,
-      });
+      notifyConflict(this)(error);
+      if (!this.hasConflict) {
+        this.flashMessages.add({
+          title: `Error saving ${this.path}`,
+          message: error,
+          type: 'error',
+          destroyOnClick: false,
+          sticky: true,
+        });
+      } else {
+        if (error.errors[0]?.detail) {
+          set(this, 'conflictingVariable', error.errors[0].detail);
+        }
+        window.scrollTo(0, 0); // because the k/v list may be long, ensure the user is snapped to top to read error
+      }
     }
   }
 
