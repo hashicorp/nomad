@@ -8,7 +8,7 @@
     </li>
   {{/if}}
   {{#if trigger.data.isSuccess}}
-    {{#if trigger.data.result}}
+    {{#if (and trigger.data.result this.hasParent)}}
       <li>
         <LinkTo
           @route="jobs.job.index"
