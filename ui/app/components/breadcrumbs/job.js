@@ -7,6 +7,10 @@ export default class BreadcrumbsJob extends Component {
     return this.args.crumb.job;
   }
 
+  get hasParent() {
+    return !!this.job.belongsTo('parent').id();
+  }
+
   @action
   onError(err) {
     assert(`Error:  ${err.message}`);
@@ -14,8 +18,7 @@ export default class BreadcrumbsJob extends Component {
 
   @action
   fetchParent() {
-    const hasParent = !!this.job.belongsTo('parent').id();
-    if (hasParent) {
+    if (this.hasParent) {
       return this.job.get('parent');
     }
   }
