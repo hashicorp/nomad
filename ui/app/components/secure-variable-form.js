@@ -28,6 +28,17 @@ export default class SecureVariableFormComponent extends Component {
   @tracked namespaceOptions = null;
   @tracked hasConflict = false;
 
+  /**
+   * @typedef {Object} conflictingVariable
+   * @property {string} ModifyTime
+   * @property {Object} Items
+   */
+
+  /**
+   * @type {conflictingVariable}
+   */
+  @tracked conflictingVariable = null;
+
   @tracked path = '';
   constructor() {
     super(...arguments);
@@ -151,6 +162,7 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   @action saveWithOverwrite(e) {
+    set(this, 'conflictingVariable', null);
     this.save(e, true);
   }
 
@@ -205,6 +217,11 @@ export default class SecureVariableFormComponent extends Component {
           destroyOnClick: false,
           sticky: true,
         });
+      } else {
+        if (error.errors[0]?.detail) {
+          set(this, 'conflictingVariable', error.errors[0].detail);
+        }
+        window.scrollTo(0, 0); // because the k/v list may be long, ensure the user is snapped to top to read error
       }
     }
   }

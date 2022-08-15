@@ -100,11 +100,24 @@
   }
 
   .notification.conflict {
+    color: $text;
+
     p {
-      color: $text;
+      margin-bottom: 1rem;
     }
-    footer {
-      margin-top: 1rem;
+
+    pre {
+      background: black;
+      color: $white;
+      max-height: 500px;
+      overflow: auto;
+      code {
+        height: 100%;
+      }
+    }
+
+    .options {
+      margin: 1rem 0;
     }
   }
 }

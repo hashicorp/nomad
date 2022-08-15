@@ -1,6 +1,7 @@
 import ApplicationAdapter from './application';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
+import { ConflictError } from '@ember-data/adapter/error';
 
 @classic
 export default class VariableAdapter extends ApplicationAdapter {
@@ -12,11 +13,7 @@ export default class VariableAdapter extends ApplicationAdapter {
     let data = this.serialize(snapshot);
     let baseUrl = this.buildURL(type.modelName, data.ID);
     const checkAndSetValue = snapshot?.attr('modifyIndex') || 0;
-    return this.ajax(
-      `${baseUrl}&cas=${checkAndSetValue}`,
-      'PUT',
-      { data }
-    );
+    return this.ajax(`${baseUrl}&cas=${checkAndSetValue}`, 'PUT', { data });
   }
 
   urlForFindAll(modelName) {
@@ -51,6 +48,15 @@ export default class VariableAdapter extends ApplicationAdapter {
     const baseUrl = this.buildURL(modelName, id);
     return `${baseUrl}?namespace=${namespace}`;
   }
+
+  handleResponse(status, _, payload) {
+    if (status === 409) {
+      return new ConflictError([
+        { detail: _normalizeConflictErrorObject(payload), status: 409 },
+      ]);
+    }
+    return super.handleResponse(...arguments);
+  }
 }
 
 function _extractIDAndNamespace(identifier, snapshot) {
@@ -59,5 +65,12 @@ function _extractIDAndNamespace(identifier, snapshot) {
   return {
     namespace,
     id,
+  };
+}
+
+function _normalizeConflictErrorObject(conflictingVariable) {
+  return {
+    modifyTime: Math.floor(conflictingVariable.ModifyTime / 1000000),
+    items: conflictingVariable.Items,
   };
 }

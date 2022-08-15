@@ -93,6 +93,11 @@ function smallCluster(server) {
     namespace: variableLinkedJob.namespace,
   });
 
+  server.create('variable', {
+    id: 'Auto-conflicting Variable',
+    namespace: 'default',
+  });
+
   // #region evaluations
 
   // Branching: a single eval that relates to N-1 mutually-unrelated evals
@@ -230,6 +235,11 @@ function variableTestCluster(server) {
   server.create('variable', {
     id: 'another arbitrary file again',
     namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'Auto-conflicting Variable',
+    namespace: 'default',
   });
 }
 

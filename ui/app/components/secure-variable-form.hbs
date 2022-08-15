@@ -10,13 +10,23 @@
   {{/if}}
 
   {{#if this.hasConflict}}
-    <div class="notification conflict is-warning">
+    <div class="notification conflict is-danger">
       <h3 class="title is-4">Heads up! Your Secure Variable has a conflict.</h3>
       <p>This might be because someone else tried saving in the time since you've had it open.</p>
-      <footer>
-        <button type="button" class="button is-primary" {{on "click" this.refresh}}>Refresh your browser</button>
+      {{#if this.conflictingVariable.modifyTime}}
+        <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
+          {{moment-from-now this.conflictingVariable.modifyTime}}
+        </span>
+      {{/if}}
+      {{#if this.conflictingVariable.items}}
+        <pre><code>{{stringify-object this.conflictingVariable.items whitespace=2}}</code></pre>
+      {{else}}
+        <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
+      {{/if}}
+      <div class="options">
+        <button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
         <button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
-      </footer>
+      </div>
     </div>
   {{/if}}
 
