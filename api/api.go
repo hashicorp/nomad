@@ -25,7 +25,9 @@ import (
 var (
 	// ClientConnTimeout is the timeout applied when attempting to contact a
 	// client directly before switching to a connection through the Nomad
-	// server.
+	// server. For cluster topologies where API consumers don't have network
+	// access to Nomad clients, set this to a small value (ex 1ms) to avoid
+	// pausing on client APIs such as AllocFS.
 	ClientConnTimeout = 1 * time.Second
 )
 

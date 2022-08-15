@@ -81,6 +81,10 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 // * terminalSizeCh: A channel to send new tty terminal sizes
 //
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) Exec(ctx context.Context,
 	alloc *Allocation, task string, tty bool, command []string,
 	stdin io.Reader, stdout, stderr io.Writer,
@@ -104,18 +108,33 @@ func (a *Allocations) Exec(ctx context.Context,
 	return s.run(ctx)
 }
 
+// Stats gets allocation resource usage statistics about an allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
 	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, q)
 	return &resp, err
 }
 
+// GC forces a garbage collection of client state for an allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 	var resp struct{}
 	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/gc", &resp, nil)
 	return err
 }
 
+// Restart restarts an allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		TaskName: taskName,
@@ -126,6 +145,11 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 	return err
 }
 
+// Stop stops an allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopResponse, error) {
 	var resp AllocStopResponse
 	_, err := a.client.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
@@ -140,6 +164,11 @@ type AllocStopResponse struct {
 	WriteMeta
 }
 
+// Signal sends a signal to the allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
 	req := AllocSignalRequest{
 		Signal: signal,
