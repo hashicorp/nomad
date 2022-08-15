@@ -328,14 +328,17 @@ func Parse(rules string) (*Policy, error) {
 		}
 
 		if ns.SecureVariables != nil {
+			if len(ns.SecureVariables.Paths) == 0 {
+				return nil, fmt.Errorf("Invalid secure variable policy: no secure variable paths in namespace %s", ns.Name)
+			}
 			for _, pathPolicy := range ns.SecureVariables.Paths {
 				if pathPolicy.PathSpec == "" {
-					return nil, fmt.Errorf("Invalid missing secure variable path in namespace %#v", ns)
+					return nil, fmt.Errorf("Invalid missing secure variable path in namespace %s", ns.Name)
 				}
 				for _, cap := range pathPolicy.Capabilities {
 					if !isPathCapabilityValid(cap) {
 						return nil, fmt.Errorf(
-							"Invalid secure variable capability '%s' in namespace %#v", cap, ns)
+							"Invalid secure variable capability '%s' in namespace %s", cap, ns.Name)
 					}
 				}
 				pathPolicy.Capabilities = expandSecureVariablesCapabilities(pathPolicy.Capabilities)
