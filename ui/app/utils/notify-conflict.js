@@ -8,7 +8,7 @@ export default function notifyConflict(parent) {
     if (codesForError(error).includes('409')) {
       set(parent, 'hasConflict', true);
     } else {
-      throw error;
+      return error;
     }
   };
 }

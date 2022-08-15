@@ -663,8 +663,8 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-file-row]:not(.inaccessible)')
         .exists(
-          { count: 3 },
-          'Shows 3 variable files, none of which are inaccessible'
+          { count: 4 },
+          'Shows 4 variable files, none of which are inaccessible'
         );
 
       await click('[data-test-file-row]');
@@ -683,8 +683,8 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-file-row].inaccessible')
         .exists(
-          { count: 3 },
-          'Shows 3 variable files, all of which are inaccessible'
+          { count: 4 },
+          'Shows 4 variable files, all of which are inaccessible'
         );
 
       // Reset Token
