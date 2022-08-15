@@ -32,7 +32,8 @@ func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, repl
 	if done, err := sv.srv.forward(structs.SecureVariablesApplyRPCMethod, args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "apply"}, time.Now())
+	defer metrics.MeasureSince([]string{
+		"nomad", "secure_variables", "apply", string(args.Op)}, time.Now())
 
 	// Check if the Namespace is explicitly set on the secure variable. If
 	// not, use the RequestNamespace

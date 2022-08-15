@@ -964,12 +964,12 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 	}
 
 	// We may have to work on a very large number of variables. There's no
-	// BatchApply RPC because it makes conflict detection, and even if we did,
-	// we'd be blocking this scheduler goroutine for a very long time using the
-	// same snapshot. This would increase the risk that any given batch hits a
-	// conflict b/c of a concurrent change and make it more likely that we fail
-	// the eval. For large sets, this would likely mean the eval would run out
-	// of retries.
+	// BatchApply RPC because it makes for an awkward API around conflict
+	// detection, and even if we did, we'd be blocking this scheduler goroutine
+	// for a very long time using the same snapshot. This would increase the
+	// risk that any given batch hits a conflict because of a concurrent change
+	// and make it more likely that we fail the eval. For large sets, this would
+	// likely mean the eval would run out of retries.
 	//
 	// Instead, we'll rate limit RPC requests and have a timeout. If we still
 	// haven't finished the set by the timeout, emit a new eval.
@@ -1032,7 +1032,10 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 			return err
 		}
 		if reply.IsConflict() {
-			return fmt.Errorf("cas error for %q in namespace %q", ev.Path, ev.Namespace)
+			// we've already rotated the key by the time we took this
+			// evaluation's snapshot, so any conflict is going to be on a write
+			// made with the new key, so there's nothing for us to do here
+			continue
 		}
 	}
 

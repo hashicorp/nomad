@@ -295,7 +295,7 @@ type SVApplyStateRequest struct {
 
 // SVApplyStateResponse is used by the FSM to inform the RPC layer of success or failure
 type SVApplyStateResponse struct {
-	Op            SVOp                     // Which operation did we performing
+	Op            SVOp                     // Which operation were we performing
 	Result        SVOpResult               // What happened (ok, conflict, error)
 	Error         error                    // error if any
 	Conflict      *SecureVariableEncrypted // conflicting secure variable if applies
