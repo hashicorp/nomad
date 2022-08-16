@@ -175,13 +175,16 @@ type Server struct {
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
+	// bootstrapped indicates if Server has bootstrapped or not.
+	bootstrapped *atomic.Bool
+
 	// reconcileCh is used to pass events from the serf handler
 	// into the leader manager. Mostly used to handle when servers
 	// join/leave from the region.
 	reconcileCh chan serf.Member
 
 	// used to track when the server is ready to serve consistent reads, updated atomically
-	readyForConsistentReads int32
+	readyForConsistentReads *atomic.Bool
 
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
@@ -341,24 +344,26 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Create the server
 	s := &Server{
-		config:           config,
-		consulCatalog:    consulCatalog,
-		connPool:         pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:           logger,
-		tlsWrap:          tlsWrap,
-		rpcServer:        rpc.NewServer(),
-		streamingRpcs:    structs.NewStreamingRpcRegistry(),
-		nodeConns:        make(map[string][]*nodeConnState),
-		peers:            make(map[string][]*serverParts),
-		localPeers:       make(map[raft.ServerAddress]*serverParts),
-		reassertLeaderCh: make(chan chan error),
-		reconcileCh:      make(chan serf.Member, 32),
-		eventCh:          make(chan serf.Event, 256),
-		evalBroker:       evalBroker,
-		blockedEvals:     NewBlockedEvals(evalBroker, logger),
-		rpcTLS:           incomingTLS,
-		aclCache:         aclCache,
-		workersEventCh:   make(chan interface{}, 1),
+		config:                  config,
+		consulCatalog:           consulCatalog,
+		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:                  logger,
+		tlsWrap:                 tlsWrap,
+		rpcServer:               rpc.NewServer(),
+		streamingRpcs:           structs.NewStreamingRpcRegistry(),
+		nodeConns:               make(map[string][]*nodeConnState),
+		peers:                   make(map[string][]*serverParts),
+		localPeers:              make(map[raft.ServerAddress]*serverParts),
+		bootstrapped:            &atomic.Bool{},
+		reassertLeaderCh:        make(chan chan error),
+		reconcileCh:             make(chan serf.Member, 32),
+		readyForConsistentReads: &atomic.Bool{},
+		eventCh:                 make(chan serf.Event, 256),
+		evalBroker:              evalBroker,
+		blockedEvals:            NewBlockedEvals(evalBroker, logger),
+		rpcTLS:                  incomingTLS,
+		aclCache:                aclCache,
+		workersEventCh:          make(chan interface{}, 1),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -1894,17 +1899,17 @@ func (s *Server) getLeaderAcl() string {
 
 // Atomically sets a readiness state flag when leadership is obtained, to indicate that server is past its barrier write
 func (s *Server) setConsistentReadReady() {
-	atomic.StoreInt32(&s.readyForConsistentReads, 1)
+	s.readyForConsistentReads.Store(true)
 }
 
 // Atomically reset readiness state flag on leadership revoke
 func (s *Server) resetConsistentReadReady() {
-	atomic.StoreInt32(&s.readyForConsistentReads, 0)
+	s.readyForConsistentReads.Store(false)
 }
 
 // Returns true if this server is ready to serve consistent reads
 func (s *Server) isReadyForConsistentReads() bool {
-	return atomic.LoadInt32(&s.readyForConsistentReads) == 1
+	return s.readyForConsistentReads.Load()
 }
 
 // Regions returns the known regions in the cluster.

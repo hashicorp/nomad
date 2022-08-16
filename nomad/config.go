@@ -32,11 +32,6 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrapped indicates if Server has bootstrapped or not.
-	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
-	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
-	Bootstrapped int32
-
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
 	// bring up a collection of nodes.
