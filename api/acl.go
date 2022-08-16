@@ -212,11 +212,15 @@ type ACLPolicyListStub struct {
 
 // ACLPolicy is used to represent an ACL policy
 type ACLPolicy struct {
-	Name        string
-	Description string
-	Rules       string
-	CreateIndex uint64
-	ModifyIndex uint64
+	Name         string
+	Description  string
+	Rules        string
+	JobNamespace string
+	JobID        string
+	Group        string
+	Task         string
+	CreateIndex  uint64
+	ModifyIndex  uint64
 }
 
 // ACLToken represents a client token which is used to Authenticate

@@ -775,6 +775,21 @@ func aclPolicyTableSchema() *memdb.TableSchema {
 					Field: "Name",
 				},
 			},
+			"job": {
+				Name:         "job",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "JobNamespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
+				},
+			},
 		},
 	}
 }

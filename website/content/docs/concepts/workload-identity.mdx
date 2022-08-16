@@ -20,33 +20,16 @@ workload identity includes the following identity claims:
 }
 ```
 
-## Implicit Access to ACL Policies
+# Workload Associated ACL Policies
 
-Nomad automatically attaches a set of implicit ACL policies to every workload
-identity. The names of these policies start with the Nomad-owned prefix `_:`,
-followed by the namespace, job ID, task group name, and task name.
+You can associate additional ACL policies with workload identities by passing
+the `-job`, `-group`, and `-task` flags to `nomad acl policy apply`. When Nomad
+resolves a workload identity claim, it will automatically include policies that
+match. If no matching policies exist, the workload identity does not have any
+additional capabilities.
 
-```
-_:/$namespace/$job_id/$task_group/$task
-_:/$namespace/$job_id/$task_group
-_:/$namespace/$job_id
-_:/$namespace
-```
-
-For example, a task named "redis", in a group named "cache", in a job named
-"example", will automatically have the following policies:
-
-```
-_:/default/example/cache/redis
-_:/default/example/cache
-_:/default/example
-_:/default
-```
-
-If these policies do not exist, the workload identity does not have any
-additional capabilities. But you can create a policy with one of these names and
-the task will automatically have access to them. For example, to give the task
-above access to set of shared secrets, you can create the following policy file:
+For example, to allow a workload access to secrets from the namespace "shared",
+you can create the following policy file:
 
 ```hcl
 namespace "shared" {
@@ -58,11 +41,30 @@ namespace "shared" {
 }
 ```
 
-Then create the policy to give the task read access to
-all paths in the "shared" namespace:
+You can then apply this policy to a specific task:
 
 ```shell-session
-nomad acl policy apply "_:/default/example/cache/redis" ./policy.hcl
+nomad acl policy apply \
+   -namespace default -job example -group cache -task redis \
+   redis-policy ./policy.hcl
+```
+
+You can also apply this policy to all tasks in the group by omitting the `-task`
+flag:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default -job example -group cache \
+   redis-policy ./policy.hcl
+```
+
+And you can apply this policy to all groups in the job by omitting both the
+`-group` and `-task` flag:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default -job example \
+   redis-policy ./policy.hcl
 ```
 
 ## Using Workload Identity

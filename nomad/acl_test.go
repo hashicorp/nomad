@@ -4,6 +4,9 @@ import (
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -11,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestResolveACLToken(t *testing.T) {
@@ -63,7 +65,7 @@ func TestResolveACLToken(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, aclObj)
 
-	// Check that the ACL object is sane
+	// Check that the ACL object looks reasonable
 	assert.Equal(t, false, aclObj.IsManagement())
 	allowed := aclObj.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs)
 	assert.Equal(t, true, allowed)
@@ -131,4 +133,103 @@ func TestResolveSecretToken(t *testing.T) {
 		assert.NotEmpty(t, respToken.AccessorID)
 	}
 
+}
+
+func TestResolveClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, cleanup := TestACLServer(t, nil)
+	defer cleanup()
+
+	store := srv.fsm.State()
+	index := uint64(100)
+
+	alloc := mock.Alloc()
+
+	claims := &structs.IdentityClaims{
+		Namespace:    alloc.Namespace,
+		JobID:        alloc.Job.ID,
+		AllocationID: alloc.ID,
+		TaskName:     alloc.Job.TaskGroups[0].Tasks[0].Name,
+	}
+
+	// unrelated policy
+	policy0 := mock.ACLPolicy()
+
+	// policy for job
+	policy1 := mock.ACLPolicy()
+	policy1.JobNamespace = claims.Namespace
+	policy1.JobID = claims.JobID
+
+	// policy for job and group
+	policy2 := mock.ACLPolicy()
+	policy2.JobNamespace = claims.Namespace
+	policy2.JobID = claims.JobID
+	policy2.Group = alloc.Job.TaskGroups[0].Name
+
+	// policy for job and group	and task
+	policy3 := mock.ACLPolicy()
+	policy3.JobNamespace = claims.Namespace
+	policy3.JobID = claims.JobID
+	policy3.Group = alloc.Job.TaskGroups[0].Name
+	policy3.Task = claims.TaskName
+
+	// policy for job and group	but different task
+	policy4 := mock.ACLPolicy()
+	policy4.JobNamespace = claims.Namespace
+	policy4.JobID = claims.JobID
+	policy4.Group = alloc.Job.TaskGroups[0].Name
+	policy4.Task = "another"
+
+	// policy for job but different group
+	policy5 := mock.ACLPolicy()
+	policy5.JobNamespace = claims.Namespace
+	policy5.JobID = claims.JobID
+	policy5.Group = "another"
+
+	// policy for same namespace but different job
+	policy6 := mock.ACLPolicy()
+	policy6.JobNamespace = claims.Namespace
+	policy6.JobID = "another"
+
+	// policy for same job in different namespace
+	policy7 := mock.ACLPolicy()
+	policy7.JobNamespace = "another"
+	policy7.JobID = claims.JobID
+
+	index++
+	err := store.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{
+		policy0, policy1, policy2, policy3, policy4, policy5, policy6, policy7})
+	must.NoError(t, err)
+
+	aclObj, err := srv.ResolveClaims(claims)
+	must.Nil(t, aclObj)
+	must.EqError(t, err, "allocation does not exist")
+
+	// upsert the allocation
+	index++
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+	must.NoError(t, err)
+
+	aclObj, err = srv.ResolveClaims(claims)
+	must.NoError(t, err)
+	must.NotNil(t, aclObj)
+
+	// Check that the ACL object looks reasonable
+	must.False(t, aclObj.IsManagement())
+	must.True(t, aclObj.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs))
+	must.False(t, aclObj.AllowNamespaceOperation("other", acl.NamespaceCapabilityListJobs))
+
+	// Resolve the same claim again, should get cache value
+	aclObj2, err := srv.ResolveClaims(claims)
+	must.NoError(t, err)
+	must.NotNil(t, aclObj)
+	must.Eq(t, aclObj, aclObj2, must.Sprintf("expected cached value"))
+
+	policies, err := srv.resolvePoliciesForClaims(claims)
+	must.NoError(t, err)
+	must.Len(t, 3, policies)
+	must.Contains(t, policies, policy1)
+	must.Contains(t, policies, policy2)
+	must.Contains(t, policies, policy3)
 }
