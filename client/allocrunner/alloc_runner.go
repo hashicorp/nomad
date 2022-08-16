@@ -546,40 +546,63 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		// if all live runners are sidecars - kill alloc
-		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
-			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
-		}
-
-		// If there's a kill event set and live runners, kill them
-		if killEvent != nil && len(liveRunners) > 0 {
-
-			// Log kill reason
-			switch killEvent.Type {
-			case structs.TaskLeaderDead:
-				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			case structs.TaskMainDead:
-				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
-			default:
-				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+		if len(liveRunners) > 0 {
+			// if all live runners are sidecars - kill alloc
+			if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
+				killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 			}
 
-			// Emit kill event for live runners
-			for _, tr := range liveRunners {
-				tr.EmitEvent(killEvent)
+			// If there's a kill event set and live runners, kill them
+			if killEvent != nil {
+
+				// Log kill reason
+				switch killEvent.Type {
+				case structs.TaskLeaderDead:
+					ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
+				case structs.TaskMainDead:
+					ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+				default:
+					ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+				}
+
+				// Emit kill event for live runners
+				for _, tr := range liveRunners {
+					tr.EmitEvent(killEvent)
+				}
+
+				// Kill 'em all
+				states = ar.killTasks()
+
+				// Wait for TaskRunners to exit before continuing to
+				// prevent looping before TaskRunners have transitioned
+				// to Dead.
+				for _, tr := range liveRunners {
+					ar.logger.Info("killing task", "task", tr.Task().Name)
+					select {
+					case <-tr.WaitCh():
+					case <-ar.waitCh:
+					}
+				}
 			}
+		} else {
+			// If there are no live runners left kill all non-poststop task
+			// runners to unblock them from the alloc restart loop.
+			for _, tr := range ar.tasks {
+				if tr.IsPoststopTask() {
+					continue
+				}
 
-			// Kill 'em all
-			states = ar.killTasks()
-
-			// Wait for TaskRunners to exit before continuing to
-			// prevent looping before TaskRunners have transitioned
-			// to Dead.
-			for _, tr := range liveRunners {
-				ar.logger.Info("killing task", "task", tr.Task().Name)
 				select {
 				case <-tr.WaitCh():
 				case <-ar.waitCh:
+				default:
+					// Kill task runner without setting an event because the
+					// task is already dead, it's just waiting in the alloc
+					// restart loop.
+					err := tr.Kill(context.TODO(), nil)
+					if err != nil {
+						ar.logger.Warn("failed to kill task", "task", tr.Task().Name, "error", err)
+					}
 				}
 			}
 		}
