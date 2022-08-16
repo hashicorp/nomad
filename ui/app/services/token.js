@@ -89,7 +89,7 @@ export default class TokenService extends Service {
     const headers = {};
     const token = this.secret;
 
-    if (!token) return;
+    if (!token) return null;
 
     if (token) {
       headers['X-Nomad-Token'] = token;

@@ -16,18 +16,20 @@ export default class SystemService extends Service {
   @computed('activeRegion')
   get leader() {
     const token = this.token;
-
-    return PromiseObject.create({
-      promise: token
-        .authorizedRequest(`/${namespace}/status/leader`)
-        .then((res) => res.json())
-        .then((rpcAddr) => ({ rpcAddr }))
-        .then((leader) => {
-          // Dirty self so leader can be used as a dependent key
-          this.notifyPropertyChange('leader.rpcAddr');
-          return leader;
-        }),
-    });
+    if (token.secret) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRequest(`/${namespace}/status/leader`)
+          .then((res) => res.json())
+          .then((rpcAddr) => ({ rpcAddr }))
+          .then((leader) => {
+            // Dirty self so leader can be used as a dependent key
+            this.notifyPropertyChange('leader.rpcAddr');
+            return leader;
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
