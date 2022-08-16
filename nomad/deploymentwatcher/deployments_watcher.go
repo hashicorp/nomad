@@ -195,10 +195,10 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.Deployment, uint64, error) {
 	// state can be updated concurrently
 	w.l.Lock()
-	state := w.state
+	stateStore := w.state
 	w.l.Unlock()
 
-	resp, index, err := state.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
+	resp, index, err := stateStore.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
 	if err != nil {
 		return nil, 0, err
 	}
