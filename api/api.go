@@ -1096,9 +1096,10 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 	}
 	if resp.StatusCode != 200 {
 		var buf bytes.Buffer
-		io.Copy(&buf, resp.Body)
-		resp.Body.Close()
-		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+		_, _ = io.Copy(&buf, resp.Body)
+		_ = resp.Body.Close()
+		body := strings.TrimSpace(buf.String())
+		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, body)
 	}
 	return d, resp, nil
 }
