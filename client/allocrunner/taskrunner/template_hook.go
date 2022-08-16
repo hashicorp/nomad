@@ -42,9 +42,6 @@ type templateHookConfig struct {
 
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
-
-	// handle is the driver handle that allows driver operations
-	handle ti.ScriptExecutor
 }
 
 type templateHook struct {

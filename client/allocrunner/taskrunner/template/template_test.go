@@ -225,8 +225,6 @@ func (h *testHarness) startWithErr() error {
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
 	})
-	h.manager.SetDriverHandle(h.driver)
-
 	return err
 }
 
