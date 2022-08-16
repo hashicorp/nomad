@@ -33,47 +33,59 @@ export default class SystemService extends Service {
   @computed
   get agent() {
     const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/self`)
-        .then(jsonWithDefault({}))
-        .then((agent) => {
-          if (agent?.config?.Version) {
-            const { Version, VersionPrerelease, VersionMetadata } =
-              agent.config.Version;
-            agent.version = Version;
-            if (VersionPrerelease)
-              agent.version = `${agent.version}-${VersionPrerelease}`;
-            if (VersionMetadata)
-              agent.version = `${agent.version}+${VersionMetadata}`;
-          }
-          return agent;
-        }),
-    });
+
+    if (token.secret) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/agent/self`)
+          .then(jsonWithDefault({}))
+          .then((agent) => {
+            if (agent?.config?.Version) {
+              const { Version, VersionPrerelease, VersionMetadata } =
+                agent.config.Version;
+              agent.version = Version;
+              if (VersionPrerelease)
+                agent.version = `${agent.version}-${VersionPrerelease}`;
+              if (VersionMetadata)
+                agent.version = `${agent.version}+${VersionMetadata}`;
+            }
+            return agent;
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
   get defaultRegion() {
     const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/members`)
-        .then(jsonWithDefault({}))
-        .then((json) => {
-          return { region: json.ServerRegion };
-        }),
-    });
+
+    if (token.secret) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/agent/members`)
+          .then(jsonWithDefault({}))
+          .then((json) => {
+            return { region: json.ServerRegion };
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
   get regions() {
     const token = this.token;
 
-    return PromiseArray.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/regions`)
-        .then(jsonWithDefault([])),
-    });
+    if (token.secret) {
+      return PromiseArray.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/regions`)
+          .then(jsonWithDefault([])),
+      });
+    }
+
+    return null;
   }
 
   @computed('regions.[]')
