@@ -44,7 +44,7 @@ type templateHookConfig struct {
 	nomadNamespace string
 
 	// handle is the driver handle that allows driver operations
-	handle *DriverHandle
+	handle ti.ScriptExecutor
 }
 
 type templateHook struct {
@@ -118,6 +118,11 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
+func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
+	h.templateManager.SetDriverHandle(req.DriverExec)
+	return nil
+}
+
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
@@ -134,7 +139,6 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
-		Handle:               h.config.handle,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)

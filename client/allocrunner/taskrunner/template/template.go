@@ -54,6 +54,9 @@ type TaskTemplateManager struct {
 	// runner is the consul-template runner
 	runner *manager.Runner
 
+	// handle is used to execute scripts
+	handle interfaces.ScriptExecutor
+
 	// signals is a lookup map from the string representation of a signal to its
 	// actual signal
 	signals map[string]os.Signal
@@ -64,6 +67,11 @@ type TaskTemplateManager struct {
 	// shutdown marks whether the manager has been shutdown
 	shutdown     bool
 	shutdownLock sync.Mutex
+}
+
+// SetDriverHandle sets the executor
+func (ttm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
+	ttm.handle = executor
 }
 
 // TaskTemplateManagerConfig is used to configure an instance of the
@@ -108,9 +116,6 @@ type TaskTemplateManagerConfig struct {
 
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
-
-	// Handle is used to execute scripts
-	Handle interfaces.ScriptExecutor
 }
 
 // Validate validates the configuration.
@@ -500,13 +505,33 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 	}
 	for _, script := range scripts {
-		_, exitCode, err := tm.config.Handle.Exec(script.Timeout, script.Path, script.Args)
-		if err != nil {
-			structs.NewTaskEvent(structs.TaskHookFailed).
-				SetDisplayMessage(
-					fmt.Sprintf(
-						"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
-					))
+		if tm.handle != nil {
+			_, exitCode, err := tm.handle.Exec(script.Timeout, script.Path, script.Args)
+			if err != nil {
+				structs.NewTaskEvent(structs.TaskHookFailed).
+					SetDisplayMessage(
+						fmt.Sprintf(
+							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+						))
+				if script.FailOnError {
+					tm.config.Lifecycle.Kill(context.Background(),
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(
+								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
+							))
+				}
+			} else {
+				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+					SetDisplayMessage(
+						fmt.Sprintf(
+							"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
+						)))
+			}
+		} else {
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
+				SetDisplayMessage("Template failed to run a script: task is lacking a driver"),
+			)
 			if script.FailOnError {
 				tm.config.Lifecycle.Kill(context.Background(),
 					structs.NewTaskEvent(structs.TaskKilling).
@@ -515,12 +540,6 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 							fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
 						))
 			}
-		} else {
-			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
-				SetDisplayMessage(
-					fmt.Sprintf(
-						"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
-					)))
 		}
 	}
 }

@@ -223,9 +223,9 @@ func (h *testHarness) startWithErr() error {
 		VaultToken:           h.vaultToken,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
-		Handle:               h.driver,
 		MaxTemplateEventRate: h.emitRate,
 	})
+	h.manager.SetDriverHandle(h.driver)
 
 	return err
 }
@@ -1219,7 +1219,6 @@ func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
-	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
 	t1 := &structs.Template{
@@ -1266,7 +1265,6 @@ BAR={{key "bar"}}
 
 	// Write the key to Consul
 	harness.consul.SetKV(t, key1, []byte(content1_1))
-	harness.consul.SetKV(t, key2, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
@@ -1305,7 +1303,6 @@ func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
-	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
 	t1 := &structs.Template{
@@ -1352,7 +1349,6 @@ BAR={{key "bar"}}
 
 	// Write the key to Consul
 	harness.consul.SetKV(t, key1, []byte(content1_1))
-	harness.consul.SetKV(t, key2, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
