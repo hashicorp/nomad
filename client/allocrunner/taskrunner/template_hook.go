@@ -119,7 +119,9 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 }
 
 func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
-	h.templateManager.SetDriverHandle(req.DriverExec)
+	if req.DriverExec != nil {
+		h.templateManager.SetDriverHandle(req.DriverExec)
+	}
 	return nil
 }
 
