@@ -69,11 +69,6 @@ type TaskTemplateManager struct {
 	shutdownLock sync.Mutex
 }
 
-// SetDriverHandle sets the executor
-func (ttm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
-	ttm.handle = executor
-}
-
 // TaskTemplateManagerConfig is used to configure an instance of the
 // TaskTemplateManager
 type TaskTemplateManagerConfig struct {
@@ -198,6 +193,11 @@ func (tm *TaskTemplateManager) Stop() {
 	if tm.runner != nil {
 		tm.runner.Stop()
 	}
+}
+
+// SetDriverHandle sets the executor
+func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
+	tm.handle = executor
 }
 
 // run is the long lived loop that handles errors and templates being rendered

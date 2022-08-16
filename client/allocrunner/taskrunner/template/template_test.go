@@ -24,7 +24,6 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
@@ -149,7 +148,6 @@ type testHarness struct {
 	consul         *ctestutil.TestServer
 	emitRate       time.Duration
 	nomadNamespace string
-	driver         interfaces.ScriptExecutor
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
@@ -1217,6 +1215,7 @@ func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
+	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
 	t1 := &structs.Template{
@@ -1248,10 +1247,10 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	me := mockExecutor{}
+	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
-	harness.driver = &me
 	harness.start(t)
+	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
@@ -1263,6 +1262,7 @@ BAR={{key "bar"}}
 
 	// Write the key to Consul
 	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
@@ -1301,6 +1301,7 @@ func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
+	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
 	t1 := &structs.Template{
@@ -1334,8 +1335,8 @@ BAR={{key "bar"}}
 
 	me := mockExecutor{DesiredExit: 1, DesiredErr: fmt.Errorf("Script failed")}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
-	harness.driver = &me
 	harness.start(t)
+	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
@@ -1347,6 +1348,7 @@ BAR={{key "bar"}}
 
 	// Write the key to Consul
 	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
 
 	// Wait for the unblock
 	select {
