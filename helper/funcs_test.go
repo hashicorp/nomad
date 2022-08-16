@@ -8,8 +8,77 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_Min(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		a := 1
+		b := 2
+		must.Eq(t, 1, Min(a, b))
+		must.Eq(t, 1, Min(b, a))
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		a := 1.1
+		b := 2.2
+		must.Eq(t, 1.1, Min(a, b))
+		must.Eq(t, 1.1, Min(b, a))
+	})
+
+	t.Run("string", func(t *testing.T) {
+		a := "cat"
+		b := "dog"
+		must.Eq(t, "cat", Min(a, b))
+		must.Eq(t, "cat", Min(b, a))
+	})
+}
+
+func Test_Max(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		a := 1
+		b := 2
+		must.Eq(t, 2, Max(a, b))
+		must.Eq(t, 2, Max(b, a))
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		a := 1.1
+		b := 2.2
+		must.Eq(t, 2.2, Max(a, b))
+		must.Eq(t, 2.2, Max(b, a))
+	})
+
+	t.Run("string", func(t *testing.T) {
+		a := "cat"
+		b := "dog"
+		must.Eq(t, "dog", Max(a, b))
+		must.Eq(t, "dog", Max(b, a))
+	})
+}
+
+func Test_CopyMap(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		var m map[string]int
+		result := CopyMap(m)
+		must.Nil(t, result)
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		m := make(map[string]int, 10)
+		result := CopyMap(m)
+		must.Nil(t, result)
+	})
+
+	t.Run("elements", func(t *testing.T) {
+		m := map[string]int{"a": 1, "b": 2}
+		result := CopyMap(m)
+		result["a"] = -1
+		must.MapEq(t, map[string]int{"a": -1, "b": 2}, result)
+		must.MapEq(t, map[string]int{"a": 1, "b": 2}, m) // not modified
+	})
+}
 
 func TestSliceStringIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}

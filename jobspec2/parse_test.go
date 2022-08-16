@@ -1033,7 +1033,7 @@ func TestParseServiceCheck(t *testing.T) {
 
 func TestWaitConfig(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
 	require.NoError(t, err)
 

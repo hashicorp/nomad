@@ -16,11 +16,11 @@ import (
 //
 // - Register services and their checks with Consul
 //
-// - Bootstrap this Nomad Client with the list of Nomad Servers registered
-//   with Consul
+//   - Bootstrap this Nomad Client with the list of Nomad Servers registered
+//     with Consul
 //
-// - Establish how this Nomad Client will resolve Envoy Connect Sidecar
-//   images.
+//   - Establish how this Nomad Client will resolve Envoy Connect Sidecar
+//     images.
 //
 // Both the Agent and the executor need to be able to import ConsulConfig.
 type ConsulConfig struct {

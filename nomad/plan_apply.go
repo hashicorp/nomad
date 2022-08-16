@@ -92,7 +92,6 @@ func newPlanner(s *Server) (*planner, error) {
 // in anticipation of this case we cannot respond to the plan until
 // the Raft log is updated. This means our schedulers will stall,
 // but there are many of those and only a single plan verifier.
-//
 func (p *planner) planApply() {
 	// planIndexCh is used to track an outstanding application and receive
 	// its committed index while snap holds an optimistic state which

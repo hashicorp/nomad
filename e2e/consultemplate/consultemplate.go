@@ -89,7 +89,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 // - missing keys block allocations from starting
 // - key updates trigger re-render
 // - service updates trigger re-render
-// - 'noop' vs ''restart' configuration
+// - 'noop' vs ”restart' configuration
 func (tc *ConsulTemplateTest) TestTemplateUpdateTriggers(f *framework.F) {
 
 	wc := &e2eutil.WaitConfig{}

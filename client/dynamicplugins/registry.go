@@ -98,7 +98,8 @@ type PluginInfo struct {
 
 // PluginConnectionInfo is the data required to connect to the plugin.
 // note: We currently only support Unix Domain Sockets, but this may be expanded
-//       to support other connection modes in the future.
+//
+//	to support other connection modes in the future.
 type PluginConnectionInfo struct {
 	// SocketPath is the path to the plugins api socket.
 	SocketPath string

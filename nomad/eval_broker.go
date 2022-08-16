@@ -200,9 +200,9 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 // enqueued. The evaluation is handled in one of the following ways:
 // * Evaluation not outstanding: Process as a normal Enqueue
 // * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
-//    * Ack received:  Unblock the evaluation allowing it to be dequeued
-//    * Nack received: Drop the evaluation as it was created as a result of a
-//    scheduler run that was Nack'd
+//   - Ack received:  Unblock the evaluation allowing it to be dequeued
+//   - Nack received: Drop the evaluation as it was created as a result of a
+//     scheduler run that was Nack'd
 func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	// The lock needs to be held until all evaluations are enqueued. This is so
 	// that when Dequeue operations are unblocked they will pick the highest

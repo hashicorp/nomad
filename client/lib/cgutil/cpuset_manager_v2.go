@@ -229,7 +229,7 @@ func (c *cpusetManagerV2) cleanup() {
 	}
 }
 
-//pathOf returns the absolute path to a task with identity id.
+// pathOf returns the absolute path to a task with identity id.
 func (c *cpusetManagerV2) pathOf(id identity) string {
 	return filepath.Join(c.parentAbs, makeScope(id))
 }
