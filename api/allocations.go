@@ -156,6 +156,16 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 	return err
 }
 
+func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error {
+	req := AllocationRestartRequest{
+		AllTasks: true,
+	}
+
+	var resp struct{}
+	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/restart", &req, &resp, q)
+	return err
+}
+
 // Stop stops an allocation.
 //
 // Note: for cluster topologies where API consumers don't have network access to
@@ -447,6 +457,7 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 
 type AllocationRestartRequest struct {
 	TaskName string
+	AllTasks bool
 }
 
 type AllocSignalRequest struct {
