@@ -62,6 +62,11 @@ const (
 	// updates have come in since the last one was handled, we only need to
 	// handle the last one.
 	triggerUpdateChCap = 1
+
+	// restartChCap is the capacity for the restartCh used for triggering task
+	// restarts. It should be exactly 1 as even if multiple restarts have come
+	// we only need to handle the last one.
+	restartChCap = 1
 )
 
 type TaskRunner struct {
@@ -94,6 +99,9 @@ type TaskRunner struct {
 
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
+
+	// restartCh is used to signal that the task should restart.
+	restartCh chan struct{}
 
 	// shutdownCtx is used to exit the TaskRunner *without* affecting task state.
 	shutdownCtx context.Context
@@ -367,6 +375,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownCtx:            trCtx,
 		shutdownCtxCancel:      trCancel,
 		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
+		restartCh:              make(chan struct{}, restartChCap),
 		waitCh:                 make(chan struct{}),
 		csiManager:             config.CSIManager,
 		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
@@ -505,12 +514,14 @@ func (tr *TaskRunner) Run() {
 	var result *drivers.ExitResult
 
 	tr.stateLock.RLock()
-	dead := tr.state.State == structs.TaskStateDead
+	restoredDead := tr.state.State == structs.TaskStateDead
 	tr.stateLock.RUnlock()
 
-	// if restoring a dead task, ensure that task is cleared and all post hooks
-	// are called without additional state updates
-	if dead {
+	// If restoring a dead task, ensure that task is cleared and all post hooks
+	// are called without additional state updates.
+	// If the alloc is not terminal we must proceed until the ALLOC_RESTART
+	// loop to allow the task to run again in case the alloc is restarted.
+	if restoredDead && tr.Alloc().TerminalStatus() {
 		// do cleanup functions without emitting any additional events/work
 		// to handle cases where we restored a dead task where client terminated
 		// after task finished before completing post-run actions.
@@ -544,27 +555,27 @@ func (tr *TaskRunner) Run() {
 	// Set the initial task state.
 	tr.stateUpdater.TaskStateUpdated()
 
-	select {
-	case <-tr.startConditionMetCh:
-		tr.logger.Debug("lifecycle start condition has been met, proceeding")
-		// yay proceed
-	case <-tr.killCtx.Done():
-	case <-tr.shutdownCtx.Done():
-		return
-	}
-
 	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
 	defer stop()
 
 MAIN:
 	for !tr.shouldShutdown() {
+		if restoredDead {
+			// Break early when restoring a dead task and reset the flag so the
+			// loop runs again if the task is restarted.
+			restoredDead = false
+			break
+		}
+
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
 			return
-		default:
+		case <-tr.startConditionMetCh:
+			tr.logger.Debug("lifecycle start condition has been met, proceeding")
+			// yay proceed
 		}
 
 		// Run the prestart hooks
@@ -673,6 +684,28 @@ MAIN:
 
 	// Mark the task as dead
 	tr.UpdateState(structs.TaskStateDead, nil)
+
+	// Wait here in case the allocation is restarted. Poststop tasks will never
+	// run again so, skip them to avoid blocking forever.
+	if !tr.Task().IsPoststop() {
+	ALLOC_RESTART:
+		// Run in a loop to handle cases where restartCh is triggered but the
+		// task runner doesn't need to restart.
+		for {
+			select {
+			case <-tr.killCtx.Done():
+				break ALLOC_RESTART
+			case <-tr.shutdownCtx.Done():
+				return
+			case <-tr.restartCh:
+				// Restart without delay since the task is not running anymore.
+				restart, _ := tr.shouldRestart()
+				if restart {
+					goto MAIN
+				}
+			}
+		}
+	}
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {

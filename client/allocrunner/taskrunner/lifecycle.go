@@ -9,24 +9,55 @@ import (
 // Restart a task. Returns immediately if no task is running. Blocks until
 // existing task exits or passed-in context is canceled.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	tr.logger.Trace("Restart requested", "failure", failure)
+	tr.logger.Trace("Restart requested", "failure", failure, "event", event.GoString())
 
-	// Grab the handle
-	handle := tr.getDriverHandle()
-
-	// Check it is running
-	if handle == nil {
+	// Check if the task is able to restart based on its state and the type of
+	// restart event that was triggered.
+	taskState := tr.TaskState()
+	if taskState == nil {
 		return ErrTaskNotRunning
+	}
+
+	switch taskState.State {
+	case structs.TaskStatePending:
+		// Tasks that are "pending" are never allowed to restart.
+		return ErrTaskNotRunning
+	case structs.TaskStateDead:
+		// Tasks that are "dead" are only allowed to restart when restarting
+		// all tasks in the alloc, otherwise the taskCoordinator will prevent
+		// it from running again.
+		if event.Type != structs.TaskRestartAllSignal {
+			return ErrTaskNotRunning
+		}
 	}
 
 	// Emit the event since it may take a long time to kill
 	tr.EmitEvent(event)
 
-	// Run the pre-kill hooks prior to restarting the task
-	tr.preKill()
-
 	// Tell the restart tracker that a restart triggered the exit
 	tr.restartTracker.SetRestartTriggered(failure)
+
+	// Signal a restart to unblock tasks that are in the "dead" state, but
+	// don't block since the channel is buffered. Only one signal is enough to
+	// notify the tr.Run() loop.
+	// The channel must be signaled after SetRestartTriggered is called so the
+	// tr.Run() loop runs again.
+	if taskState.State == structs.TaskStateDead {
+		select {
+		case tr.restartCh <- struct{}{}:
+		default:
+		}
+	}
+
+	// Grab the handle to see if the task is still running and needs to be
+	// killed.
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil
+	}
+
+	// Run the pre-kill hooks prior to restarting the task
+	tr.preKill()
 
 	// Grab a handle to the wait channel that will timeout with context cancelation
 	// _before_ killing the task.

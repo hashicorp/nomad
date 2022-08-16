@@ -284,7 +284,7 @@ func (c *Coordinator) isInitDone(states map[string]*structs.TaskState) bool {
 
 // isPrestartDone returns true when the following conditions are met:
 //   - there is at least one prestart task
-//   - all ephemeral prestart tasks are in the "dead" state.
+//   - all ephemeral prestart tasks are successful.
 //   - no ephemeral prestart task has failed.
 //   - all prestart sidecar tasks are running.
 func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool {
@@ -293,7 +293,7 @@ func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool 
 	}
 
 	for _, task := range c.tasksByLifecycle[lifecycleStagePrestartEphemeral] {
-		if states[task].State != structs.TaskStateDead || states[task].Failed {
+		if !states[task].Successful() {
 			return false
 		}
 	}

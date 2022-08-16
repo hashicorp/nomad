@@ -8017,9 +8017,17 @@ const (
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Not Restarting"
 
-	// TaskRestartSignal indicates that the task has been signalled to be
+	// TaskRestartSignal indicates that the task has been signaled to be
 	// restarted
 	TaskRestartSignal = "Restart Signaled"
+
+	// TaskRestartRunningSignal indicates that all tasks in the allocation that
+	// are currently running have been signaled to be restarted.
+	TaskRestartRunningSignal = "Restart Running Signaled"
+
+	// TaskRestartAllSignal indicates that all tasks in the allocation have
+	// been signaled to be restarted, even the ones that have already run.
+	TaskRestartAllSignal = "Restart All Signaled"
 
 	// TaskSignaling indicates that the task is being signalled.
 	TaskSignaling = "Signaling"
@@ -8278,6 +8286,18 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 		} else {
 			desc = "Task signaled to restart"
 		}
+	case TaskRestartRunningSignal:
+		if e.RestartReason != "" {
+			desc = e.RestartReason
+		} else {
+			desc = "Running tasks signaled to restart"
+		}
+	case TaskRestartAllSignal:
+		if e.RestartReason != "" {
+			desc = e.RestartReason
+		} else {
+			desc = "All tasks signaled to restart"
+		}
 	case TaskDriverMessage:
 		desc = e.DriverMessage
 	case TaskLeaderDead:
@@ -8294,6 +8314,9 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 }
 
 func (e *TaskEvent) GoString() string {
+	if e == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 
