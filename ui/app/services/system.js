@@ -1,6 +1,7 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import Ember from 'ember';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
@@ -16,7 +17,7 @@ export default class SystemService extends Service {
   @computed('activeRegion')
   get leader() {
     const token = this.token;
-    if (token.secret) {
+    if (token.secret || Ember.testing) {
       return PromiseObject.create({
         promise: token
           .authorizedRequest(`/${namespace}/status/leader`)
@@ -36,7 +37,7 @@ export default class SystemService extends Service {
   get agent() {
     const token = this.token;
 
-    if (token.secret) {
+    if (token.secret || Ember.testing) {
       return PromiseObject.create({
         promise: token
           .authorizedRawRequest(`/${namespace}/agent/self`)
@@ -62,7 +63,7 @@ export default class SystemService extends Service {
   get defaultRegion() {
     const token = this.token;
 
-    if (token.secret) {
+    if (token.secret || Ember.testing) {
       return PromiseObject.create({
         promise: token
           .authorizedRawRequest(`/${namespace}/agent/members`)
@@ -79,7 +80,7 @@ export default class SystemService extends Service {
   get regions() {
     const token = this.token;
 
-    if (token.secret) {
+    if (token.secret || Ember.testing) {
       return PromiseArray.create({
         promise: token
           .authorizedRawRequest(`/${namespace}/regions`)
