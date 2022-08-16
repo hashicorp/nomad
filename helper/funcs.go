@@ -735,3 +735,27 @@ func IsMethodHTTP(s string) bool {
 	}
 	return true
 }
+
+// EqualsFunc represents a type implementing the Equals method.
+type EqualsFunc[A any] interface {
+	Equals(A) bool
+}
+
+// ElementsEquals returns true if slices a and b contain the same elements (in
+// no particular order) using the Equals function defined on their type for
+// comparison.
+func ElementsEquals[T EqualsFunc[T]](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item.Equals(other) {
+				continue OUTER
+			}
+		}
+		return false
+	}
+	return true
+}
