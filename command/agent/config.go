@@ -31,9 +31,9 @@ import (
 // Config is the configuration for the Nomad agent.
 //
 // time.Duration values have two parts:
-// - a string field tagged with an hcl:"foo" and json:"-"
-// - a time.Duration field in the same struct and a call to duration
-//   in config_parse.go ParseConfigFile
+//   - a string field tagged with an hcl:"foo" and json:"-"
+//   - a time.Duration field in the same struct and a call to duration
+//     in config_parse.go ParseConfigFile
 //
 // All config structs should have an ExtraKeysHCL field to check for
 // unexpected keys

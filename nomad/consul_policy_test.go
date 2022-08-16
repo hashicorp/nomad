@@ -461,7 +461,7 @@ func TestConsulPolicy_namespaceCheck(t *testing.T) {
 
 func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	t.Run("empty", func(t *testing.T) {
 		require.False(t, new(ConsulPolicy).allowsKeystoreRead(true, "default"))
 	})

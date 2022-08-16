@@ -16,9 +16,9 @@ import (
 // benchmark for the Nomad scheduler. The starting state for your
 // implementation will depend on the following environment variables:
 //
-//  - NOMAD_BENCHMARK_DATADIR: path to data directory
-//  - NOMAD_BENCHMARK_SNAPSHOT: path to raft snapshot
-//  - neither: empty starting state
+//   - NOMAD_BENCHMARK_DATADIR: path to data directory
+//   - NOMAD_BENCHMARK_SNAPSHOT: path to raft snapshot
+//   - neither: empty starting state
 //
 // You can run a profile for this benchmark with the usual -cpuprofile
 // -memprofile flags.

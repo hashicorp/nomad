@@ -458,10 +458,10 @@ type FingerprintResponse struct {
 	Attributes map[string]*proto1.Attribute `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Health is used to determine the state of the health the driver is in.
 	// Health can be one of the following states:
-	//  * UNDETECTED: driver dependencies are not met and the driver can not start
-	//  * UNHEALTHY: driver dependencies are met but the driver is unable to
-	//      perform operations due to some other problem
-	//  * HEALTHY: driver is able to perform all operations
+	//   - UNDETECTED: driver dependencies are not met and the driver can not start
+	//   - UNHEALTHY: driver dependencies are met but the driver is unable to
+	//     perform operations due to some other problem
+	//   - HEALTHY: driver is able to perform all operations
 	Health FingerprintResponse_HealthState `protobuf:"varint,2,opt,name=health,proto3,enum=hashicorp.nomad.plugins.drivers.proto.FingerprintResponse_HealthState" json:"health,omitempty"`
 	// HealthDescription is a human readable message describing the current
 	// state of driver health
@@ -641,9 +641,9 @@ type StartTaskResponse struct {
 	// Result is set depending on the type of error that occurred while starting
 	// a task:
 	//
-	//   * SUCCESS: No error occurred, handle is set
-	//   * RETRY: An error occurred, but is recoverable and the RPC should be retried
-	//   * FATAL: A fatal error occurred and is not likely to succeed if retried
+	//   - SUCCESS: No error occurred, handle is set
+	//   - RETRY: An error occurred, but is recoverable and the RPC should be retried
+	//   - FATAL: A fatal error occurred and is not likely to succeed if retried
 	//
 	// If Result is not successful, the DriverErrorMsg will be set.
 	Result StartTaskResponse_Result `protobuf:"varint,1,opt,name=result,proto3,enum=hashicorp.nomad.plugins.drivers.proto.StartTaskResponse_Result" json:"result,omitempty"`
@@ -2842,9 +2842,9 @@ type Device struct {
 	HostPath string `protobuf:"bytes,2,opt,name=host_path,json=hostPath,proto3" json:"host_path,omitempty"`
 	// CgroupPermissions defines the Cgroup permissions of the device.
 	// One or more of the following options can be set:
-	//  * r - allows the task to read from the specified device.
-	//  * w - allows the task to write to the specified device.
-	//  * m - allows the task to create device files that do not yet exist.
+	//   - r - allows the task to read from the specified device.
+	//   - w - allows the task to write to the specified device.
+	//   - m - allows the task to create device files that do not yet exist.
 	//
 	// Example: "rw"
 	CgroupPermissions    string   `protobuf:"bytes,3,opt,name=cgroup_permissions,json=cgroupPermissions,proto3" json:"cgroup_permissions,omitempty"`

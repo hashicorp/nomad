@@ -152,8 +152,8 @@ func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 }
 
 // getConsulNamespace will resolve the Consul namespace, choosing between
-//  - agent config (low precedence)
-//  - task group config (high precedence)
+//   - agent config (low precedence)
+//   - task group config (high precedence)
 func (h *envoyBootstrapHook) getConsulNamespace() string {
 	var namespace string
 	if h.consulConfig.Namespace != "" {

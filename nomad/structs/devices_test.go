@@ -211,7 +211,7 @@ func TestDeviceAccounter_AddReserved(t *testing.T) {
 // Test that collision detection works
 func TestDeviceAccounter_AddReserved_Collision(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)

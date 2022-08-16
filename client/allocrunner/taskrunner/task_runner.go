@@ -1413,7 +1413,7 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 	}
 }
 
-//TODO Remove Backwardscompat or use tr.Alloc()?
+// TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
@@ -1445,7 +1445,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	}
 }
 
-//TODO Remove Backwardscompat or use tr.Alloc()?
+// TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedCPU float32
