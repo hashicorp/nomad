@@ -1115,17 +1115,18 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	})
 
 	// initial check
+	conf := client.GetConfig()
 	expectedResources := &structs.NodeResources{
 		// computed through test client initialization
-		Networks:     client.configCopy.Node.NodeResources.Networks,
-		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
-		Disk:         client.configCopy.Node.NodeResources.Disk,
+		Networks:     conf.Node.NodeResources.Networks,
+		NodeNetworks: conf.Node.NodeResources.NodeNetworks,
+		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
 		Cpu: structs.NodeCpuResources{
 			CpuShares:          123,
-			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
-			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
 		Devices: []*structs.NodeDeviceResource{
@@ -1136,7 +1137,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources, client.configCopy.Node.NodeResources)
+	assert.EqualValues(t, expectedResources, conf.Node.NodeResources)
 
 	// overrides of values
 
@@ -1157,17 +1158,19 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	})
 
+	conf = client.GetConfig()
+
 	expectedResources2 := &structs.NodeResources{
 		// computed through test client initialization
-		Networks:     client.configCopy.Node.NodeResources.Networks,
-		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
-		Disk:         client.configCopy.Node.NodeResources.Disk,
+		Networks:     conf.Node.NodeResources.Networks,
+		NodeNetworks: conf.Node.NodeResources.NodeNetworks,
+		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
 		Cpu: structs.NodeCpuResources{
 			CpuShares:          123,
-			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
-			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
 		Devices: []*structs.NodeDeviceResource{
@@ -1182,7 +1185,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources2, client.configCopy.Node.NodeResources)
+	assert.EqualValues(t, expectedResources2, conf.Node.NodeResources)
 
 }
 
