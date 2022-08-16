@@ -416,11 +416,15 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 
 	// Capture chan in lock as Flush overwrites it
 	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	ch <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		computedClass: computedClass,
 		index:         index,
+	}:
 	}
 }
 
@@ -444,11 +448,16 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[quota] = index
+	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	b.capacityChangeCh <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		quotaChange: quota,
 		index:       index,
+	}:
 	}
 }
 
@@ -475,12 +484,16 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	// Capture chan inside the lock to prevent a race with it getting reset
 	// in Flush.
 	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	ch <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		computedClass: class,
 		quotaChange:   quota,
 		index:         index,
+	}:
 	}
 }
 
