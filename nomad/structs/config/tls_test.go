@@ -204,7 +204,7 @@ func TestTLS_Copy(t *testing.T) {
 // object
 func TestTLS_GetKeyloader(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	a := &TLSConfig{}
 	require.NotNil(a.GetKeyLoader())

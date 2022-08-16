@@ -1,0 +1,3 @@
+```release-note:improvement
+build: update to go1.19
+```

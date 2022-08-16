@@ -22,7 +22,6 @@ import (
 // basedir is used with file functions and allows a user to reference a file
 // using local path. Usually basedir is the directory in which the config file
 // is located
-//
 func Functions(basedir string, allowFS bool) map[string]function.Function {
 	funcs := map[string]function.Function{
 		"abs":             stdlib.AbsoluteFunc,

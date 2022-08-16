@@ -94,7 +94,8 @@ type SearchRequest struct {
 // ID.
 //
 // e.g. A Task-level service would have scope like,
-//   ["<namespace>", "<job>", "<group>", "<task>"]
+//
+//	["<namespace>", "<job>", "<group>", "<task>"]
 type FuzzyMatch struct {
 	ID    string   // ID is UUID or Name of object
 	Scope []string `json:",omitempty"` // IDs of parent objects

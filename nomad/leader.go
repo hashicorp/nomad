@@ -1764,10 +1764,10 @@ func (s *Server) generateClusterID() (string, error) {
 //
 // The function checks the server is the leader and uses a mutex to avoid any
 // potential timings problems. Consider the following timings:
-//  - operator updates the configuration via the API
-//  - the RPC handler applies the change via Raft
-//  - leadership transitions with write barrier
-//  - the RPC handler call this function to enact the change
+//   - operator updates the configuration via the API
+//   - the RPC handler applies the change via Raft
+//   - leadership transitions with write barrier
+//   - the RPC handler call this function to enact the change
 //
 // The mutex also protects against a situation where leadership is revoked
 // while this function is being called. Ensuring the correct series of actions

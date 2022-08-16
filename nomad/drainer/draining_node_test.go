@@ -46,7 +46,7 @@ func assertDrainingNode(t *testing.T, dn *drainingNode, isDone bool, remaining, 
 
 func TestDrainingNode_Table(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		name      string
 		isDone    bool
