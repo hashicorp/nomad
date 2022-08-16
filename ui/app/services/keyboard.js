@@ -72,7 +72,6 @@ export default class KeyboardService extends Service {
   defaultPatterns = {
     'Go to Jobs': ['g', 'j'],
     'Go to Storage': ['g', 'r'],
-    'Go to Variables': ['g', 'v'],
     'Go to Servers': ['g', 's'],
     'Go to Clients': ['g', 'c'],
     'Go to Topology': ['g', 't'],
@@ -99,11 +98,6 @@ export default class KeyboardService extends Service {
       {
         label: 'Go to Storage',
         action: () => this.router.transitionTo('csi.volumes'),
-        rebindable: true,
-      },
-      {
-        label: 'Go to Variables',
-        action: () => this.router.transitionTo('variables'),
         rebindable: true,
       },
       {
