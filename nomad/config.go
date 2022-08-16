@@ -11,8 +11,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -388,11 +388,11 @@ func (c *Config) Copy() *Config {
 	// PluginLoader loader.PluginCatalog
 	// PluginSingletonLoader loader.PluginCatalog
 
-	nc.RPCAddr = helper.CopyPtr(c.RPCAddr)
-	nc.ClientRPCAdvertise = helper.CopyPtr(c.ClientRPCAdvertise)
-	nc.ServerRPCAdvertise = helper.CopyPtr(c.ServerRPCAdvertise)
-	nc.RaftConfig = helper.CopyPtr(c.RaftConfig)
-	nc.SerfConfig = helper.CopyPtr(c.SerfConfig)
+	nc.RPCAddr = pointer.Copy(c.RPCAddr)
+	nc.ClientRPCAdvertise = pointer.Copy(c.ClientRPCAdvertise)
+	nc.ServerRPCAdvertise = pointer.Copy(c.ServerRPCAdvertise)
+	nc.RaftConfig = pointer.Copy(c.RaftConfig)
+	nc.SerfConfig = pointer.Copy(c.SerfConfig)
 	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()

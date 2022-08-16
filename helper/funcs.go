@@ -266,14 +266,6 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-func CopyPtr[T any](p *T) *T {
-	if p == nil {
-		return nil
-	}
-	np := *p
-	return &np
-}
-
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
 // If m is nil the return value is nil.

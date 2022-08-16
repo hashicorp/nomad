@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -344,12 +345,12 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Meta = helper.CopyMap(c.Meta)
 	nc.ChrootEnv = helper.CopyMap(c.ChrootEnv)
 	nc.Reserved = c.Reserved.Copy()
-	nc.NoHostUUID = helper.CopyPtr(c.NoHostUUID)
+	nc.NoHostUUID = pointer.Copy(c.NoHostUUID)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ServerJoin = c.ServerJoin.Copy()
 	nc.HostVolumes = helper.CopySlice(c.HostVolumes)
 	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
-	nc.NomadServiceDiscovery = helper.CopyPtr(c.NomadServiceDiscovery)
+	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
@@ -594,16 +595,16 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	}
 
 	ns := *s
-	ns.RaftMultiplier = helper.CopyPtr(s.RaftMultiplier)
-	ns.NumSchedulers = helper.CopyPtr(s.NumSchedulers)
+	ns.RaftMultiplier = pointer.Copy(s.RaftMultiplier)
+	ns.NumSchedulers = pointer.Copy(s.NumSchedulers)
 	ns.EnabledSchedulers = slices.Clone(s.EnabledSchedulers)
 	ns.StartJoin = slices.Clone(s.StartJoin)
 	ns.RetryJoin = slices.Clone(s.RetryJoin)
 	ns.ServerJoin = s.ServerJoin.Copy()
 	ns.DefaultSchedulerConfig = s.DefaultSchedulerConfig.Copy()
 	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
-	ns.EnableEventBroker = helper.CopyPtr(s.EnableEventBroker)
-	ns.EventBufferSize = helper.CopyPtr(s.EventBufferSize)
+	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
+	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
@@ -656,7 +657,7 @@ func (p *PlanRejectionTracker) Copy() *PlanRejectionTracker {
 	}
 
 	np := *p
-	np.Enabled = helper.CopyPtr(p.Enabled)
+	np.Enabled = pointer.Copy(p.Enabled)
 	np.ExtraKeysHCL = slices.Clone(p.ExtraKeysHCL)
 	return &np
 }
@@ -915,7 +916,7 @@ func (t *Telemetry) Copy() *Telemetry {
 	nt := *t
 	nt.DataDogTags = slices.Clone(t.DataDogTags)
 	nt.PrefixFilter = slices.Clone(t.PrefixFilter)
-	nt.FilterDefault = helper.CopyPtr(t.FilterDefault)
+	nt.FilterDefault = pointer.Copy(t.FilterDefault)
 	nt.ExtraKeysHCL = slices.Clone(t.ExtraKeysHCL)
 	return &nt
 }
@@ -1485,7 +1486,7 @@ func (c *Config) Copy() *Config {
 	nc.Server = c.Server.Copy()
 	nc.ACL = c.ACL.Copy()
 	nc.Telemetry = c.Telemetry.Copy()
-	nc.DisableUpdateCheck = helper.CopyPtr(c.DisableUpdateCheck)
+	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
 	nc.Consul = c.Consul.Copy()
 	nc.Vault = c.Vault.Copy()
 	nc.UI = c.UI.Copy()
