@@ -210,6 +210,10 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 
 // setCheckHealth is used to mark the checks as either healthy or unhealthy.
 // returns true if health is propagated and no more health monitoring is needed
+//
+// todo: this is currently being shared by watchConsulEvents and watchNomadEvents,
+// and must be split up if/when we support registering services (and thus checks)
+// of different providers.
 func (t *Tracker) setCheckHealth(healthy bool) bool {
 	t.l.Lock()
 	defer t.l.Unlock()

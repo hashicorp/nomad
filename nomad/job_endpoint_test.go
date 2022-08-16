@@ -4959,7 +4959,6 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 // TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server
 // returns all jobs across namespace.
-//
 func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 	ci.Parallel(t)
 

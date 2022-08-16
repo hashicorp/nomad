@@ -68,7 +68,8 @@ func (ns *NamespacesClient) allowable(now time.Time) bool {
 // List returns a list of Consul Namespaces.
 //
 // TODO(shoenig): return empty string instead of "default" when namespaces are not
-//   enabled. (Coming in followup PR).
+//
+//	enabled. (Coming in followup PR).
 func (ns *NamespacesClient) List() ([]string, error) {
 	if !ns.allowable(time.Now()) {
 		// TODO(shoenig): lets return the empty string instead, that way we do not

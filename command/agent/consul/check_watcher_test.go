@@ -57,7 +57,7 @@ func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string,
 // watching and is normally fulfilled by a TaskRunner.
 //
 // Restarts are recorded in the []restarts field and re-Watch the check.
-//func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
+// func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
 func (c *fakeCheckRestarter) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()

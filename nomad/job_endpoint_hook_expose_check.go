@@ -51,9 +51,9 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 }
 
 // Validate will ensure:
-// - The job contains valid network configuration for each task group in which
-//	an expose path is configured. The network must be of type bridge mode.
-// - The check Expose field is configured only for connect-enabled group-services.
+//   - The job contains valid network configuration for each task group in which
+//     an expose path is configured. The network must be of type bridge mode.
+//   - The check Expose field is configured only for connect-enabled group-services.
 func (jobExposeCheckHook) Validate(job *structs.Job) (warnings []error, err error) {
 	for _, tg := range job.TaskGroups {
 		// Make sure any group that contains a group-service that enables expose
