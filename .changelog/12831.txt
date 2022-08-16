@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: add general keyboard navigation to the Nomad UI
-```
