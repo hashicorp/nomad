@@ -65,7 +65,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 
 func TestVaultConfig_IsEqual(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 
 	trueValue, falseValue := true, false

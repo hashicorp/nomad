@@ -76,7 +76,7 @@ func TestDelayHeap_PushPop(t *testing.T) {
 
 func TestDelayHeap_Update(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	delayHeap := NewDelayHeap()
 	now := time.Now()
 	require := require.New(t)

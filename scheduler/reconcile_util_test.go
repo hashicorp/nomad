@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"testing"
-	
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"

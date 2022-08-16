@@ -145,15 +145,15 @@ type ACLsAPI interface {
 // of a service definition are different from the existing service definition as
 // known by Consul.
 //
-//  reason - The syncReason that triggered this synchronization with the consul
-//           agent API.
-//  wanted - Nomad's view of what the service definition is intended to be.
-//           Not nil.
-//  existing - Consul's view (agent, not catalog) of the actual service definition.
-//           Not nil.
-//  sidecar - Consul's view (agent, not catalog) of the service definition of the sidecar
-//           associated with existing that may or may not exist.
-//           May be nil.
+//	reason - The syncReason that triggered this synchronization with the consul
+//	         agent API.
+//	wanted - Nomad's view of what the service definition is intended to be.
+//	         Not nil.
+//	existing - Consul's view (agent, not catalog) of the actual service definition.
+//	         Not nil.
+//	sidecar - Consul's view (agent, not catalog) of the service definition of the sidecar
+//	         associated with existing that may or may not exist.
+//	         May be nil.
 func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 	switch reason {
 	case syncPeriodic:
@@ -1587,7 +1587,6 @@ func (c *ServiceClient) removeRegistration(allocID, taskName string) {
 //	{nomadServicePrefix}-{ROLE}-b32(sha1({Service.Name}-{Service.Tags...})
 //	Example Server ID: _nomad-server-fbbk265qn4tmt25nd4ep42tjvmyj3hr4
 //	Example Client ID: _nomad-client-ggnjpgl7yn7rgmvxzilmpvrzzvrszc7l
-//
 func makeAgentServiceID(role string, service *structs.Service) string {
 	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, "", false))
 }
@@ -1602,7 +1601,7 @@ func MakeAllocServiceID(allocID, taskName string, service *structs.Service) stri
 
 // MakeCheckID creates a unique ID for a check.
 //
-//  Example Check ID: _nomad-check-434ae42f9a57c5705344974ac38de2aee0ee089d
+//	Example Check ID: _nomad-check-434ae42f9a57c5705344974ac38de2aee0ee089d
 func MakeCheckID(serviceID string, check *structs.ServiceCheck) string {
 	return fmt.Sprintf("%s%s", nomadCheckPrefix, check.Hash(serviceID))
 }
@@ -1693,7 +1692,6 @@ func isNomadService(id string) bool {
 //
 //	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
 //	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
-//
 func isOldNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
@@ -1711,7 +1709,6 @@ const (
 // It is important not to reference the parent service, which may or may not still
 // be tracked by Nomad internally.
 //
-//
 // For example if you have a Connect enabled service with the ID:
 //
 //	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db
@@ -1719,7 +1716,6 @@ const (
 // Consul will create a service for the sidecar proxy with the ID:
 //
 //	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
-//
 func maybeConnectSidecar(id string) bool {
 	return strings.HasSuffix(id, sidecarSuffix)
 }

@@ -12,29 +12,29 @@ import (
 // "zone", "rack", etc.
 //
 // According to CSI, there are a few requirements for the keys within this map:
-// - Valid keys have two segments: an OPTIONAL prefix and name, separated
-//   by a slash (/), for example: "com.company.example/zone".
-// - The key name segment is REQUIRED. The prefix is OPTIONAL.
-// - The key name MUST be 63 characters or less, begin and end with an
-//   alphanumeric character ([a-z0-9A-Z]), and contain only dashes (-),
-//   underscores (_), dots (.), or alphanumerics in between, for example
-//   "zone".
-// - The key prefix MUST be 63 characters or less, begin and end with a
-//   lower-case alphanumeric character ([a-z0-9]), contain only
-//   dashes (-), dots (.), or lower-case alphanumerics in between, and
-//   follow domain name notation format
-//   (https://tools.ietf.org/html/rfc1035#section-2.3.1).
-// - The key prefix SHOULD include the plugin's host company name and/or
-//   the plugin name, to minimize the possibility of collisions with keys
-//   from other plugins.
-// - If a key prefix is specified, it MUST be identical across all
-//   topology keys returned by the SP (across all RPCs).
-// - Keys MUST be case-insensitive. Meaning the keys "Zone" and "zone"
-//   MUST not both exist.
-// - Each value (topological segment) MUST contain 1 or more strings.
-// - Each string MUST be 63 characters or less and begin and end with an
-//   alphanumeric character with '-', '_', '.', or alphanumerics in
-//   between.
+//   - Valid keys have two segments: an OPTIONAL prefix and name, separated
+//     by a slash (/), for example: "com.company.example/zone".
+//   - The key name segment is REQUIRED. The prefix is OPTIONAL.
+//   - The key name MUST be 63 characters or less, begin and end with an
+//     alphanumeric character ([a-z0-9A-Z]), and contain only dashes (-),
+//     underscores (_), dots (.), or alphanumerics in between, for example
+//     "zone".
+//   - The key prefix MUST be 63 characters or less, begin and end with a
+//     lower-case alphanumeric character ([a-z0-9]), contain only
+//     dashes (-), dots (.), or lower-case alphanumerics in between, and
+//     follow domain name notation format
+//     (https://tools.ietf.org/html/rfc1035#section-2.3.1).
+//   - The key prefix SHOULD include the plugin's host company name and/or
+//     the plugin name, to minimize the possibility of collisions with keys
+//     from other plugins.
+//   - If a key prefix is specified, it MUST be identical across all
+//     topology keys returned by the SP (across all RPCs).
+//   - Keys MUST be case-insensitive. Meaning the keys "Zone" and "zone"
+//     MUST not both exist.
+//   - Each value (topological segment) MUST contain 1 or more strings.
+//   - Each string MUST be 63 characters or less and begin and end with an
+//     alphanumeric character with '-', '_', '.', or alphanumerics in
+//     between.
 //
 // However, Nomad applies lighter restrictions to these, as they are already
 // only referenced by plugin within the scheduler and as such collisions and

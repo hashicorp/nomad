@@ -22,11 +22,11 @@ import (
 // to their requisite plugin manager.
 //
 // It provides a couple of things to a task running inside Nomad. These are:
-// * A mount to the `plugin_mount_dir`, that will then be used by Nomad
-//   to connect to the nested plugin and handle volume mounts.
-// * When the task has started, it starts a loop of attempting to connect to the
-//   plugin, to perform initial fingerprinting of the plugins capabilities before
-//   notifying the plugin manager of the plugin.
+//   - A mount to the `plugin_mount_dir`, that will then be used by Nomad
+//     to connect to the nested plugin and handle volume mounts.
+//   - When the task has started, it starts a loop of attempting to connect to the
+//     plugin, to perform initial fingerprinting of the plugins capabilities before
+//     notifying the plugin manager of the plugin.
 type csiPluginSupervisorHook struct {
 	logger     hclog.Logger
 	alloc      *structs.Allocation
@@ -202,13 +202,13 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 // the passed in context is terminated.
 //
 // The supervisor works by:
-// - Initially waiting for the plugin to become available. This loop is expensive
-//   and may do things like create new gRPC Clients on every iteration.
-// - After receiving an initial healthy status, it will inform the plugin catalog
-//   of the plugin, registering it with the plugins fingerprinted capabilities.
-// - We then perform a more lightweight check, simply probing the plugin on a less
-//   frequent interval to ensure it is still alive, emitting task events when this
-//   status changes.
+//   - Initially waiting for the plugin to become available. This loop is expensive
+//     and may do things like create new gRPC Clients on every iteration.
+//   - After receiving an initial healthy status, it will inform the plugin catalog
+//     of the plugin, registering it with the plugins fingerprinted capabilities.
+//   - We then perform a more lightweight check, simply probing the plugin on a less
+//     frequent interval to ensure it is still alive, emitting task events when this
+//     status changes.
 //
 // Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {

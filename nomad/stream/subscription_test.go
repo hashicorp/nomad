@@ -190,7 +190,7 @@ func TestFilter_NamespaceAll(t *testing.T) {
 
 func TestFilter_FilterKeys(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One", FilterKeys: []string{"extra-key"}}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Test", Key: "Two"})
 

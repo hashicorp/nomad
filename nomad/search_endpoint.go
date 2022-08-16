@@ -183,8 +183,9 @@ func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[st
 }
 
 // fuzzyIndex returns the index of text in name, ignoring case.
-//   text is assumed to be lower case.
-//   -1 is returned if name does not contain text.
+//
+//	text is assumed to be lower case.
+//	-1 is returned if name does not contain text.
 func fuzzyIndex(name, text string) int {
 	lower := strings.ToLower(name)
 	return strings.Index(lower, text)
@@ -231,12 +232,12 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 // of matchable Context. Results are categorized by Context and paired with their
 // score, but are unsorted.
 //
-//   job.name
-//   job|group.name
-//   job|group|service.name
-//   job|group|task.name
-//   job|group|task|service.name
-//   job|group|task|driver.{image,command,class}
+//	job.name
+//	job|group.name
+//	job|group|service.name
+//	job|group|task.name
+//	job|group|task|service.name
+//	job|group|task|driver.{image,command,class}
 func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context][]fuzzyMatch {
 	sm := make(map[structs.Context][]fuzzyMatch)
 	ns := j.Namespace
@@ -587,17 +588,20 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 // results are limited to policies of the provided ACL token.
 //
 // These types are limited to prefix UUID searching:
-//   Evals, Deployments, ScalingPolicies, Volumes
+//
+//	Evals, Deployments, ScalingPolicies, Volumes
 //
 // These types are available for fuzzy searching:
-//   Nodes, Namespaces, Jobs, Allocs, Plugins
+//
+//	Nodes, Namespaces, Jobs, Allocs, Plugins
 //
 // Jobs are a special case that expand into multiple types, and whose return
 // values include Scope which is a descending list of IDs of parent objects,
 // starting with the Namespace. The subtypes of jobs are fuzzy searchable.
 //
 // The Jobs type expands into these sub types:
-//   Jobs, Groups, Services, Tasks, Images, Commands, Classes
+//
+//	Jobs, Groups, Services, Tasks, Images, Commands, Classes
 //
 // The results are in descending order starting with strongest match, per Context type.
 func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.FuzzySearchResponse) error {

@@ -207,7 +207,7 @@ func TestParse(t *testing.T) {
 
 func TestCPUSet_String(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		cpuset   CPUSet
 		expected string

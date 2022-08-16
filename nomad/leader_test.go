@@ -1353,7 +1353,7 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 // (and unpaused) upon leader elections (and step downs).
 func TestLeader_PausingWorkers(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 12
 	})

@@ -915,7 +915,7 @@ func TestMergeMultierrorWarnings(t *testing.T) {
 // TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
 func TestParsePortRanges(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		name string
 		spec string
