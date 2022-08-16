@@ -881,7 +881,6 @@ func (b *Builder) SetDriverNetwork(n *drivers.DriverNetwork) *Builder {
 // Handled by setAlloc -> otherPorts:
 //
 //	Task:   NOMAD_TASK_{IP,PORT,ADDR}_<task>_<label> # Always host values
-//
 func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *drivers.DriverNetwork) {
 	for _, n := range nets {
 		for _, p := range n.ReservedPorts {

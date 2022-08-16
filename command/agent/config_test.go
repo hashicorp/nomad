@@ -1122,7 +1122,7 @@ func TestConfig_templateNetworkInterface(t *testing.T) {
 		{
 			name: "insignificant whitespace",
 			clientConfig: &ClientConfig{
-				Enabled: true,
+				Enabled:          true,
 				NetworkInterface: `		{{GetAllInterfaces | attr "name" }}`,
 			},
 			expectedInterface: iface.Name,

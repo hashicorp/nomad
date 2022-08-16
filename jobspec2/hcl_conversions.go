@@ -341,9 +341,10 @@ func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagno
 //
 // ```hcl
 // # block assignment
-// env {
-//   ENV = "production"
-// }
+//
+//	env {
+//	  ENV = "production"
+//	}
 //
 // # as attribute
 // env = { ENV: "production" }
@@ -357,7 +358,6 @@ func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagno
 // found map, the remaining body and diagnostics. If the named field is found
 // with block syntax, it returns a nil map, and caller falls back to reading
 // with block syntax.
-//
 func decodeAsAttribute(body hcl.Body, ctx *hcl.EvalContext, name string) (map[string]string, hcl.Body, hcl.Diagnostics) {
 	b, remain, diags := body.PartialContent(&hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{

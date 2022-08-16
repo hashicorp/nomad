@@ -282,7 +282,8 @@ func TestQemuDriver_User(t *testing.T) {
 
 }
 
-//  Verifies getting resource usage stats
+//	Verifies getting resource usage stats
+//
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
@@ -449,7 +450,7 @@ func TestIsAllowedImagePath(t *testing.T) {
 
 func TestArgsAllowList(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	pluginConfigAllowList := []string{"-drive", "-net", "-snapshot"}
 
 	validArgs := [][]string{

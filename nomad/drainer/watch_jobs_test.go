@@ -549,7 +549,7 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 
 func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	assert := assert.New(t)
 

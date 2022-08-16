@@ -3363,6 +3363,7 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 }
 
 // TestJobs_Matching_Resources asserts:
+//
 //	api.{Default,Min}Resources == structs.{Default,Min}Resources
 //
 // While this is an odd place to test that, this is where both are imported,

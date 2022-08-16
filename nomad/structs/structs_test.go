@@ -6583,7 +6583,7 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 
 func TestComparableResources_Superset(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	base := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
