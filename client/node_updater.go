@@ -46,13 +46,13 @@ SEND_BATCH:
 	// csi updates
 	var csiChanged bool
 	c.batchNodeUpdates.batchCSIUpdates(func(name string, info *structs.CSIInfo) {
-		if c.updateNodeFromCSIControllerLocked(name, info) {
+		if c.updateNodeFromCSIControllerLocked(name, info, newConfig.Node) {
 			if newConfig.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
 				newConfig.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
 			}
 			csiChanged = true
 		}
-		if c.updateNodeFromCSINodeLocked(name, info) {
+		if c.updateNodeFromCSINodeLocked(name, info, newConfig.Node) {
 			if newConfig.Node.CSINodePlugins[name].UpdateTime.IsZero() {
 				newConfig.Node.CSINodePlugins[name].UpdateTime = time.Now()
 			}
@@ -99,14 +99,14 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 
 	changed := false
 
-	if c.updateNodeFromCSIControllerLocked(name, info) {
+	if c.updateNodeFromCSIControllerLocked(name, info, newConfig.Node) {
 		if newConfig.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
 			newConfig.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
 		}
 		changed = true
 	}
 
-	if c.updateNodeFromCSINodeLocked(name, info) {
+	if c.updateNodeFromCSINodeLocked(name, info, newConfig.Node) {
 		if newConfig.Node.CSINodePlugins[name].UpdateTime.IsZero() {
 			newConfig.Node.CSINodePlugins[name].UpdateTime = time.Now()
 		}
@@ -125,7 +125,7 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 //
 // It is safe to call for all CSI Updates, but will only perform changes when
 // a ControllerInfo field is present.
-func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CSIInfo) bool {
+func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CSIInfo, node *structs.Node) bool {
 	var changed bool
 	if info.ControllerInfo == nil {
 		return false
@@ -133,15 +133,15 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 	i := info.Copy()
 	i.NodeInfo = nil
 
-	oldController, hadController := c.config.Node.CSIControllerPlugins[name]
+	oldController, hadController := node.CSIControllerPlugins[name]
 	if !hadController {
 		// If the controller info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSIControllerPlugins[name] = i
+		node.CSIControllerPlugins[name] = i
 	} else {
 		// The controller info has already been set, fix it up
 		if !oldController.Equal(i) {
-			c.config.Node.CSIControllerPlugins[name] = i
+			node.CSIControllerPlugins[name] = i
 			changed = true
 		}
 
@@ -168,7 +168,7 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 //
 // It is safe to call for all CSI Updates, but will only perform changes when
 // a NodeInfo field is present.
-func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo) bool {
+func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo, node *structs.Node) bool {
 	var changed bool
 	if info.NodeInfo == nil {
 		return false
@@ -176,15 +176,15 @@ func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo)
 	i := info.Copy()
 	i.ControllerInfo = nil
 
-	oldNode, hadNode := c.config.Node.CSINodePlugins[name]
+	oldNode, hadNode := node.CSINodePlugins[name]
 	if !hadNode {
 		// If the Node info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSINodePlugins[name] = i
+		node.CSINodePlugins[name] = i
 	} else {
 		// The node info has already been set, fix it up
 		if !oldNode.Equal(info) {
-			c.config.Node.CSINodePlugins[name] = i
+			node.CSINodePlugins[name] = i
 			changed = true
 		}
 
