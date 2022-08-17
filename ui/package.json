@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
+    "@ember/legacy-built-in-components": "^0.4.1",
     "@ember/optional-features": "2.0.0",
     "@ember/render-modifiers": "^2.0.4",
     "@ember/test-helpers": "^2.6.0",
@@ -97,7 +98,7 @@
     "ember-inline-svg": "^1.0.1",
     "ember-load-initializers": "^2.1.2",
     "ember-maybe-import-regenerator": "^1.0.0",
-    "ember-modifier": "^3.1.0",
+    "ember-modifier": "3.2.7",
     "ember-moment": "^9.0.1",
     "ember-named-blocks-polyfill": "^0.2.4",
     "ember-on-resize-modifier": "^1.0.0",
@@ -179,6 +180,7 @@
     "d3": "^7.3.0",
     "lru_map": "^0.4.1",
     "no-case": "^3.0.4",
+    "tether": "^2.0.0",
     "title-case": "^3.0.3"
   },
   "resolutions": {

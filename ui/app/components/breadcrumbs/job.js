@@ -1,8 +1,8 @@
 import { assert } from '@ember/debug';
 import { action } from '@ember/object';
-import Component from '@glimmer/component';
+import BreadcrumbsTemplate from './default';
 
-export default class BreadcrumbsJob extends Component {
+export default class BreadcrumbsJob extends BreadcrumbsTemplate {
   get job() {
     return this.args.crumb.job;
   }

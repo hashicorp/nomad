@@ -65,7 +65,9 @@ export default class EvaluationsController extends Controller {
   async handleEvaluationClick(evaluation, e) {
     if (
       e instanceof MouseEvent ||
-      (e instanceof KeyboardEvent && (e.code === 'Enter' || e.code === 'Space'))
+      (e instanceof KeyboardEvent &&
+        (e.code === 'Enter' || e.code === 'Space')) ||
+      !e
     ) {
       this.statechart.send('LOAD_EVALUATION', { evaluation });
     }

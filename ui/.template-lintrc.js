@@ -7,6 +7,12 @@ module.exports = {
     'no-action': 'off',
     'no-invalid-interactive': 'off',
     'no-inline-styles': 'off',
-    'no-curly-component-invocation': { allow: ['format-volume-name'] },
+    'no-curly-component-invocation': {
+      allow: ['format-volume-name', 'keyboard-commands'],
+    },
+    'no-implicit-this': { allow: ['keyboard-commands'] },
   },
+  ignore: [
+    'app/components/breadcrumbs/*', // using {{(modifier)}} syntax
+  ],
 };
