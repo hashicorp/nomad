@@ -1213,7 +1213,11 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	ar.Run()
 	defer destroy(ar)
 
-	require.Equal(t, structs.AllocClientStatusComplete, ar.AllocState().ClientStatus)
+	testutil.WaitForResult(func() (bool, error) {
+		return ar.AllocState().ClientStatus == structs.AllocClientStatusComplete, nil
+	}, func(_ error) {
+		t.Fatalf("expected alloc to be complete")
+	})
 
 	// Step 2. Modify its directory
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1241,7 +1245,11 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	ar2.Run()
 	defer destroy(ar2)
 
-	require.Equal(t, structs.AllocClientStatusComplete, ar2.AllocState().ClientStatus)
+	testutil.WaitForResult(func() (bool, error) {
+		return ar.AllocState().ClientStatus == structs.AllocClientStatusComplete, nil
+	}, func(_ error) {
+		t.Fatalf("expected alloc to be complete")
+	})
 
 	// Ensure that data from ar was moved to ar2
 	dataFile = filepath.Join(ar2.allocDir.SharedDir, "data", "data_file")

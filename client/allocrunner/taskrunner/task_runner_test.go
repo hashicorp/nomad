@@ -335,7 +335,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	defer newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for new task runner to exit when the process does
-	<-newTR.WaitCh()
+	testWaitForTaskToDie(t, newTR)
 
 	// Assert that the process was only started once
 	started := 0
@@ -603,11 +603,7 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 	defer cleanup()
 
 	// Wait for task to complete
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(3 * time.Second):
-		require.Fail("timeout waiting for task to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// Get the mock driver plugin
 	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
@@ -654,7 +650,9 @@ func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
 	go tr.Run()
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	// Wait for task to exit
+	// Wait for task to exit and kill the task runner to run the stop hooks.
+	testWaitForTaskToDie(t, tr)
+	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
 	timeout := 15 * time.Second
 	if testutil.IsCI() {
 		timeout = 120 * time.Second
@@ -703,7 +701,9 @@ func TestTaskRunner_TaskEnv_Image(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	// Wait for task to exit
+	// Wait for task to exit and kill task runner to run the stop hooks.
+	testWaitForTaskToDie(t, tr)
+	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(15 * time.Second):
@@ -750,7 +750,9 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 %s
 `, root, taskDir, taskDir, os.Getenv("PATH"))
 
-	// Wait for task to exit
+	// Wait for task to exit and kill the task runner to run the stop hooks.
+	testWaitForTaskToDie(t, tr)
+	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(15 * time.Second):
@@ -818,10 +820,7 @@ func TestTaskRunner_DevicePropogation(t *testing.T) {
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for task to complete
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(3 * time.Second):
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// Get the mock driver plugin
 	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
@@ -1306,15 +1305,15 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 		"Received",
 		"Task Setup",
 		"Started",
-		"Restart Signaled",
+		"Restart Running Signaled",
 		"Terminated",
 		"Restarting",
 		"Started",
-		"Restart Signaled",
+		"Restart Running Signaled",
 		"Terminated",
 		"Restarting",
 		"Started",
-		"Restart Signaled",
+		"Restart Running Signaled",
 		"Terminated",
 		"Not Restarting",
 	}
@@ -1328,11 +1327,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	// Wait until the task exits. Don't simply wait for it to run as it may
 	// get restarted and terminated before the test is able to observe it
 	// running.
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timeout")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	actualEvents := make([]string, len(state.Events))
@@ -1421,11 +1416,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 
 	// task runner should exit now that it has been unblocked and it is a batch
 	// job with a zero sleep time
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
-		r.Fail("timed out waiting for batch task to exist")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// assert task exited successfully
 	finalState := tr.TaskState()
@@ -1478,11 +1469,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	go tr.Run()
 
 	// assert task runner blocks on SI token
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		r.Fail("timed out waiting for task runner")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// assert task exited successfully
 	finalState := tr.TaskState()
@@ -1598,11 +1585,7 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 
 	// TR should exit now that it's unblocked by vault as its a batch job
 	// with 0 sleeping.
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
-		require.Fail(t, "timed out waiting for batch task to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// Assert task exited successfully
 	finalState := tr.TaskState()
@@ -1614,6 +1597,14 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	data, err := ioutil.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
+
+	// Kill task runner to trigger stop hooks
+	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to exit")
+	}
 
 	// Check the token was revoked
 	testutil.WaitForResult(func() (bool, error) {
@@ -1661,16 +1652,20 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 	go tr.Run()
 
-	// Wait for TR to exit and check its state
+	// Wait for TR to die and check its state
+	testWaitForTaskToDie(t, tr)
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.False(t, state.Failed)
+
+	// Kill task runner to trigger stop hooks
+	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		require.Fail(t, "timed out waiting for task runner to exit")
 	}
-
-	state := tr.TaskState()
-	require.Equal(t, structs.TaskStateDead, state.State)
-	require.False(t, state.Failed)
 
 	require.Equal(t, 1, count)
 
@@ -1771,11 +1766,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	defer cleanup()
 
 	// Wait for task to run and exit
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task runner to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -1816,11 +1807,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	defer cleanup()
 
 	// Wait for task to run and exit
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task runner to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -1851,11 +1838,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	defer cleanup()
 
 	// Wait for task to run and exit
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task runner to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -1902,11 +1885,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -2100,6 +2079,8 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	case <-time.After(1 * time.Second):
 	}
 
+	require.Equal(t, structs.TaskStatePending, tr.TaskState().State)
+
 	// Send a signal and restart
 	err = tr.Signal(structs.NewTaskEvent("don't panic"), "QUIT")
 	require.EqualError(t, err, ErrTaskNotRunning.Error())
@@ -2110,12 +2091,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 
 	// Unblock and let it finish
 	waitCh <- struct{}{}
-
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(10 * time.Second):
-		require.Fail(t, "timed out waiting for task to complete")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	// Assert the task ran and never restarted
 	state := tr.TaskState()
@@ -2153,11 +2129,7 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -2202,11 +2174,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 	go tr.Run()
 
 	// Wait for task to run and exit
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
-		require.Fail(t, "timed out waiting for task runner to exit")
-	}
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -2536,7 +2504,9 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	tr.Run()
+	go tr.Run()
+
+	testWaitForTaskToDie(t, tr)
 
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
@@ -2562,7 +2532,17 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
 		ts := tr.TaskState()
-		return ts.State == structs.TaskStateRunning, fmt.Errorf("%v", ts.State)
+		return ts.State == structs.TaskStateRunning, fmt.Errorf("expected task to be runnig, got %v", ts.State)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+// testWaitForTaskToDie waits for the task to die or fails the test
+func testWaitForTaskToDie(t *testing.T, tr *TaskRunner) {
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		return ts.State == structs.TaskStateDead, fmt.Errorf("expected task to be dead, got %v", ts.State)
 	}, func(err error) {
 		require.NoError(t, err)
 	})
