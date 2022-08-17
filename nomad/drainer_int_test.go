@@ -12,7 +12,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -52,7 +52,7 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 			}
 			newAlloc := alloc.Copy()
 			newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy:   helper.BoolToPtr(true),
+				Healthy:   pointer.Of(true),
 				Timestamp: now,
 			}
 			updates = append(updates, newAlloc)

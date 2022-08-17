@@ -70,80 +70,12 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// BoolToPtr returns the pointer to a boolean.
-//
-// Deprecated; use pointer.Of instead.
-func BoolToPtr(b bool) *bool {
-	return &b
-}
-
-// IntToPtr returns the pointer to an int.
-//
-// Deprecated; use pointer.Of instead.
-func IntToPtr(i int) *int {
-	return &i
-}
-
-// Int8ToPtr returns the pointer to an int8.
-//
-// Deprecated; use pointer.Of instead.
-func Int8ToPtr(i int8) *int8 {
-	return &i
-}
-
-// Int32ToPtr returns the pointer to an int32.
-//
-// Deprecated; use pointer.Of instead.
-func Int32ToPtr(i int32) *int32 {
-	return &i
-}
-
-// Int64ToPtr returns the pointer to an int64.
-//
-// Deprecated; use pointer.Of instead.
-func Int64ToPtr(i int64) *int64 {
-	return &i
-}
-
-// Uint64ToPtr returns the pointer to an uint64.
-//
-// Deprecated; use pointer.Of instead.
-func Uint64ToPtr(u uint64) *uint64 {
-	return &u
-}
-
-// UintToPtr returns the pointer to an uint.
-//
-// Deprecated; use pointer.Of instead.
-func UintToPtr(u uint) *uint {
-	return &u
-}
-
-// StringToPtr returns the pointer to a string.
-//
-// Deprecated; use pointer.Of instead.
-func StringToPtr(str string) *string {
-	return &str
-}
-
-// TimeToPtr returns the pointer to a time.Duration.
-func TimeToPtr(t time.Duration) *time.Duration {
-	return &t
-}
-
 // CompareTimePtrs return true if a is the same as b.
 func CompareTimePtrs(a, b *time.Duration) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
 	return *a == *b
-}
-
-// Float64ToPtr returns the pointer to an float64.
-//
-// Deprecated; use pointer.Of instead.
-func Float64ToPtr(f float64) *float64 {
-	return &f
 }
 
 // Min returns the minimum of a and b.
@@ -156,36 +88,6 @@ func Min[T constraints.Ordered](a, b T) T {
 
 // Max returns the maximum of a and b.
 func Max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// IntMin returns the minimum of a and b.
-//
-// Deprecated; use Min instead.
-func IntMin(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// IntMax returns the maximum of a and b.
-//
-// Deprecated; use Max instead.
-func IntMax(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// Uint64Max returns the maximum of a and b.
-//
-// Deprecated; use Max instead.
-func Uint64Max(a, b uint64) uint64 {
 	if a > b {
 		return a
 	}

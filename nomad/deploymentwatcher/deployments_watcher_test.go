@@ -7,7 +7,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -326,7 +326,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 			Status:            structs.DeploymentStatusFailed,
 			StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
 		},
-		JobVersion: helper.Uint64ToPtr(0),
+		JobVersion: pointer.Of(uint64(0)),
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
 	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
@@ -436,7 +436,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	d.TaskGroups[a.TaskGroup].DesiredCanaries = 1
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 	a.DeploymentID = d.ID
 	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
@@ -1077,7 +1077,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
 		StatusDescription: structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedAllocations, 0),
-		JobVersion:        helper.Uint64ToPtr(0),
+		JobVersion:        pointer.Of(uint64(0)),
 		Eval:              true,
 	}
 	m2 := matchDeploymentStatusUpdateRequest(c)
@@ -1150,7 +1150,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
 		StatusDescription: structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedAllocations, 0),
-		JobVersion:        helper.Uint64ToPtr(2),
+		JobVersion:        pointer.Of(uint64(2)),
 		Eval:              true,
 	}
 	m3 := matchDeploymentStatusUpdateRequest(c2)
@@ -1199,7 +1199,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	// Update the alloc to be unhealthy and require that nothing happens.
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(false),
+		Healthy:   pointer.Of(false),
 		Timestamp: now,
 	}
 	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, []*structs.Allocation{a2}))
@@ -1303,7 +1303,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 
 	// Update the first allocation to be healthy
 	a3 := a.Copy()
-	a3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+	a3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a3}), "UpsertAllocs")
 
 	// Get the updated deployment
@@ -1322,7 +1322,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 
 	// Update the second allocation to be healthy
 	a4 := a2.Copy()
-	a4.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+	a4.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a4}), "UpsertAllocs")
 
 	// Get the updated deployment
@@ -1383,7 +1383,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	// Update the alloc to be unhealthy and require that nothing happens.
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
@@ -1456,7 +1456,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
@@ -1477,7 +1477,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	a2.CreateTime = now.UnixNano()
 	a2.ModifyTime = now.UnixNano()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(2 * time.Second)
@@ -1605,7 +1605,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	canary2.ModifyTime = now.UnixNano()
 	canary2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    true,
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 
@@ -1624,7 +1624,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	canary1.ModifyTime = now.UnixNano()
 	canary1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    true,
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 
@@ -1680,7 +1680,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	alloc1a.ModifyTime = now.UnixNano()
 	alloc1a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    false,
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 
@@ -1689,7 +1689,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	alloc1b.ModifyTime = now.UnixNano()
 	alloc1b.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    false,
-		Healthy:   helper.BoolToPtr(true),
+		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
 
@@ -1762,7 +1762,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	// Update the alloc to be unhealthy
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(false),
+		Healthy:   pointer.Of(false),
 		Timestamp: time.Now(),
 	}
 	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))

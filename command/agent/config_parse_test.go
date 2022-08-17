@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
@@ -82,7 +82,7 @@ var basicConfig = &Config{
 		GCDiskUsageThreshold:  82,
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
-		NoHostUUID:            helper.BoolToPtr(false),
+		NoHostUUID:            pointer.Of(false),
 		DisableRemoteExec:     true,
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
@@ -97,8 +97,8 @@ var basicConfig = &Config{
 		BootstrapExpect:           5,
 		DataDir:                   "/tmp/data",
 		RaftProtocol:              3,
-		RaftMultiplier:            helper.IntToPtr(4),
-		NumSchedulers:             helper.IntToPtr(2),
+		RaftMultiplier:            pointer.Of(4),
+		NumSchedulers:             pointer.Of(2),
 		EnabledSchedulers:         []string{"test"},
 		NodeGCThreshold:           "12h",
 		EvalGCThreshold:           "12h",
@@ -124,10 +124,10 @@ var basicConfig = &Config{
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
-		EnableEventBroker:         helper.BoolToPtr(false),
-		EventBufferSize:           helper.IntToPtr(200),
+		EnableEventBroker:         pointer.Of(false),
+		EventBufferSize:           pointer.Of(200),
 		PlanRejectionTracker: &PlanRejectionTracker{
-			Enabled:       helper.BoolToPtr(true),
+			Enabled:       pointer.Of(true),
 			NodeThreshold: 100,
 			NodeWindow:    41 * time.Minute,
 			NodeWindowHCL: "41m",
@@ -157,7 +157,7 @@ var basicConfig = &Config{
 		ReplicationToken: "foobar",
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -196,7 +196,7 @@ var basicConfig = &Config{
 	LeaveOnTerm:               true,
 	EnableSyslog:              true,
 	SyslogFacility:            "LOCAL1",
-	DisableUpdateCheck:        helper.BoolToPtr(true),
+	DisableUpdateCheck:        pointer.Of(true),
 	DisableAnonymousSignature: true,
 	Consul: &config.ConsulConfig{
 		ServerServiceName:    "nomad",
@@ -639,7 +639,7 @@ var sample0 = &Config{
 		Enabled: true,
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -677,11 +677,11 @@ var sample0 = &Config{
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: helper.BoolToPtr(false),
-		ClientAutoJoin: helper.BoolToPtr(false),
+		ServerAutoJoin: pointer.Of(false),
+		ClientAutoJoin: pointer.Of(false),
 	},
 	Vault: &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
@@ -694,7 +694,7 @@ var sample0 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: helper.BoolToPtr(true),
+		CleanupDeadServers: pointer.Of(true),
 	},
 }
 
@@ -734,7 +734,7 @@ var sample1 = &Config{
 		Enabled: true,
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				Name:              "file",
@@ -771,13 +771,13 @@ var sample1 = &Config{
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
-		EnableSSL:      helper.BoolToPtr(true),
+		EnableSSL:      pointer.Of(true),
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: helper.BoolToPtr(false),
-		ClientAutoJoin: helper.BoolToPtr(false),
+		ServerAutoJoin: pointer.Of(false),
+		ClientAutoJoin: pointer.Of(false),
 	},
 	Vault: &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
@@ -790,7 +790,7 @@ var sample1 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: helper.BoolToPtr(true),
+		CleanupDeadServers: pointer.Of(true),
 	},
 }
 

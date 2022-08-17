@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -282,7 +282,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
@@ -295,7 +295,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 
 	// Verify the arguments.
 	if args.AllocID == "" {
-		handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(errors.New("missing AllocID"), pointer.Of(int64(400)), encoder)
 		return
 	}
 
@@ -308,7 +308,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 
 	alloc, err := getAlloc(snap, args.AllocID)
 	if structs.IsErrUnknownAllocation(err) {
-		handleStreamResultError(err, helper.Int64ToPtr(404), encoder)
+		handleStreamResultError(err, pointer.Of(int64(404)), encoder)
 		return
 	}
 	if err != nil {
@@ -331,18 +331,18 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	// Make sure Node is valid and new enough to support RPC
 	node, err := snap.NodeByID(nil, nodeID)
 	if err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
 	if node == nil {
 		err := fmt.Errorf("Unknown node %q", nodeID)
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(err, pointer.Of(int64(400)), encoder)
 		return
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(err, pointer.Of(int64(400)), encoder)
 		return
 	}
 
@@ -356,7 +356,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		if err != nil {
 			var code *int64
 			if structs.IsErrNoNodeConn(err) {
-				code = helper.Int64ToPtr(404)
+				code = pointer.Of(int64(404))
 			}
 			handleStreamResultError(err, code, encoder)
 			return

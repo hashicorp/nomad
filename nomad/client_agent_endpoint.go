@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/go-msgpack/codec"
@@ -121,7 +121,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
@@ -130,7 +130,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
-		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 		return
 	}
 
@@ -140,7 +140,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	if logLevel == log.NoLevel {
-		handleStreamResultError(errors.New("Unknown log level"), helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(errors.New("Unknown log level"), pointer.Of(int64(400)), encoder)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	region := args.RequestRegion()
 	if region == "" {
-		handleStreamResultError(fmt.Errorf("missing target RPC"), helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(fmt.Errorf("missing target RPC"), pointer.Of(int64(400)), encoder)
 		return
 	}
 	if region != a.srv.config.Region {
@@ -165,7 +165,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	if args.ServerID != "" {
 		serverToFwd, err := a.forwardFor(args.ServerID, region)
 		if err != nil {
-			handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+			handleStreamResultError(err, pointer.Of(int64(400)), encoder)
 			return
 		}
 		if serverToFwd != nil {
@@ -268,7 +268,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 }
@@ -317,7 +317,7 @@ func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 
 	state, srv, err := a.findClientConn(args.NodeID)
 	if err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
@@ -357,7 +357,7 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 
 	serverConn, err := a.srv.streamingRpc(server, "Agent.Monitor")
 	if err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 	defer serverConn.Close()
@@ -365,7 +365,7 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 	// Send the Request
 	outEncoder := codec.NewEncoder(serverConn, structs.MsgpackHandle)
 	if err := outEncoder.Encode(args); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
