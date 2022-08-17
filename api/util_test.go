@@ -4,6 +4,8 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func assertQueryMeta(t *testing.T, qm *QueryMeta) {
@@ -27,18 +29,18 @@ func testJob() *Job {
 	task := NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      intToPtr(100),
-			MemoryMB: intToPtr(256),
+			CPU:      pointer.Of(100),
+			MemoryMB: pointer.Of(256),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      intToPtr(1),
-			MaxFileSizeMB: intToPtr(2),
+			MaxFiles:      pointer.Of(1),
+			MaxFileSizeMB: pointer.Of(2),
 		})
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: intToPtr(25),
+			SizeMB: pointer.Of(25),
 		})
 
 	job := NewBatchJob("job1", "redis", "global", 1).
@@ -52,18 +54,18 @@ func testJobWithScalingPolicy() *Job {
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
 		Policy:  map[string]interface{}{},
-		Min:     int64ToPtr(1),
-		Max:     int64ToPtr(5),
-		Enabled: boolToPtr(true),
+		Min:     pointer.Of(int64(1)),
+		Max:     pointer.Of(int64(5)),
+		Enabled: pointer.Of(true),
 	}
 	return job
 }
 
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
-		Enabled:  boolToPtr(true),
-		Spec:     stringToPtr("*/30 * * * *"),
-		SpecType: stringToPtr("cron"),
+		Enabled:  pointer.Of(true),
+		Spec:     pointer.Of("*/30 * * * *"),
+		SpecType: pointer.Of("cron"),
 	})
 	return job
 }
@@ -109,8 +111,8 @@ func testQuotaSpec() *QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &Resources{
-					CPU:      intToPtr(2000),
-					MemoryMB: intToPtr(2000),
+					CPU:      pointer.Of(2000),
+					MemoryMB: pointer.Of(2000),
 				},
 			},
 		},

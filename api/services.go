@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // ServiceRegistration is an instance of a single allocation advertising itself
@@ -144,7 +146,7 @@ func (c *CheckRestart) Canonicalize() {
 	}
 
 	if c.Grace == nil {
-		c.Grace = timeToPtr(1 * time.Second)
+		c.Grace = pointer.Of(1 * time.Second)
 	}
 }
 

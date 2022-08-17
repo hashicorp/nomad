@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 )
 
@@ -23,25 +24,25 @@ func TestResources_Canonicalize(t *testing.T) {
 		{
 			name: "cores",
 			input: &Resources{
-				Cores:    intToPtr(2),
-				MemoryMB: intToPtr(1024),
+				Cores:    pointer.Of(2),
+				MemoryMB: pointer.Of(1024),
 			},
 			expected: &Resources{
-				CPU:      intToPtr(0),
-				Cores:    intToPtr(2),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointer.Of(0),
+				Cores:    pointer.Of(2),
+				MemoryMB: pointer.Of(1024),
 			},
 		},
 		{
 			name: "cpu",
 			input: &Resources{
-				CPU:      intToPtr(500),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointer.Of(500),
+				MemoryMB: pointer.Of(1024),
 			},
 			expected: &Resources{
-				CPU:      intToPtr(500),
-				Cores:    intToPtr(0),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointer.Of(500),
+				Cores:    pointer.Of(0),
+				MemoryMB: pointer.Of(1024),
 			},
 		},
 	}

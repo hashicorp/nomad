@@ -1,6 +1,10 @@
 package api
 
-import "time"
+import (
+	"time"
+
+	"github.com/hashicorp/nomad/helper/pointer"
+)
 
 // Consul represents configuration related to consul.
 type Consul struct {
@@ -121,11 +125,11 @@ func (st *SidecarTask) Canonicalize() {
 	}
 
 	if st.KillTimeout == nil {
-		st.KillTimeout = timeToPtr(5 * time.Second)
+		st.KillTimeout = pointer.Of(5 * time.Second)
 	}
 
 	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = timeToPtr(0)
+		st.ShutdownDelay = pointer.Of(time.Duration(0))
 	}
 }
 
@@ -313,7 +317,7 @@ func (p *ConsulGatewayProxy) Canonicalize() {
 
 	if p.ConnectTimeout == nil {
 		// same as the default from consul
-		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
+		p.ConnectTimeout = pointer.Of(defaultGatewayConnectTimeout)
 	}
 
 	if len(p.EnvoyGatewayBindAddresses) == 0 {
@@ -347,7 +351,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  timeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,

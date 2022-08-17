@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/require"
 )
@@ -240,8 +241,8 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				j, err := event.Job()
 				require.NoError(t, err)
 				require.Equal(t, &Job{
-					ID:        stringToPtr("some-id"),
-					Namespace: stringToPtr("some-namespace-id"),
+					ID:        pointer.Of("some-id"),
+					Namespace: pointer.Of("some-namespace-id"),
 				}, j)
 			},
 		},
