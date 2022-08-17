@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +39,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 	testutil.Parallel(t)
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
-		ns := pointer.Of("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "foo", a.Namespace)
 		require.Equal(t, "bar", *ns)
@@ -48,7 +47,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 
 	t.Run("inherit", func(t *testing.T) {
 		a := &Consul{Namespace: ""}
-		ns := pointer.Of("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "bar", a.Namespace)
 		require.Equal(t, "bar", *ns)
@@ -229,9 +228,9 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 
 	t.Run("non empty sidecar_task resources", func(t *testing.T) {
 		exp := DefaultResources()
-		exp.MemoryMB = pointer.Of(333)
+		exp.MemoryMB = pointerOf(333)
 		st := &SidecarTask{
-			Resources: &Resources{MemoryMB: pointer.Of(333)},
+			Resources: &Resources{MemoryMB: pointerOf(333)},
 		}
 		st.Canonicalize()
 		require.Equal(t, exp, st.Resources)
@@ -264,7 +263,7 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 			},
 		}
 		cg.Canonicalize()
-		require.Equal(t, pointer.Of(5*time.Second), cg.Proxy.ConnectTimeout)
+		require.Equal(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
 		require.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
 		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
 		require.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
@@ -284,7 +283,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	gateway := &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  pointer.Of(3 * time.Second),
+			ConnectTimeout:                  pointerOf(3 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2000},

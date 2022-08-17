@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,8 +24,8 @@ func TestServiceRegistrations_Delete(t *testing.T) {
 func TestService_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
 
-	j := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	j := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 	s := &Service{
 		TaggedAddresses: make(map[string]string),
@@ -46,8 +45,8 @@ func TestService_Canonicalize(t *testing.T) {
 func TestServiceCheck_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
 
-	j := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	j := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 	s := &Service{
 		Checks: []ServiceCheck{
@@ -65,8 +64,8 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 func TestService_Check_PassFail(t *testing.T) {
 	testutil.Parallel(t)
 
-	job := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	job := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 
 	t.Run("enforce minimums", func(t *testing.T) {
@@ -101,13 +100,13 @@ func TestService_Check_PassFail(t *testing.T) {
 func TestService_CheckRestart(t *testing.T) {
 	testutil.Parallel(t)
 
-	job := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	job := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 	service := &Service{
 		CheckRestart: &CheckRestart{
 			Limit:          11,
-			Grace:          pointer.Of(11 * time.Second),
+			Grace:          pointerOf(11 * time.Second),
 			IgnoreWarnings: true,
 		},
 		Checks: []ServiceCheck{
@@ -115,7 +114,7 @@ func TestService_CheckRestart(t *testing.T) {
 				Name: "all-set",
 				CheckRestart: &CheckRestart{
 					Limit:          22,
-					Grace:          pointer.Of(22 * time.Second),
+					Grace:          pointerOf(22 * time.Second),
 					IgnoreWarnings: true,
 				},
 			},
@@ -123,7 +122,7 @@ func TestService_CheckRestart(t *testing.T) {
 				Name: "some-set",
 				CheckRestart: &CheckRestart{
 					Limit: 33,
-					Grace: pointer.Of(33 * time.Second),
+					Grace: pointerOf(33 * time.Second),
 				},
 			},
 			{
@@ -149,8 +148,8 @@ func TestService_CheckRestart(t *testing.T) {
 func TestService_Connect_proxy_settings(t *testing.T) {
 	testutil.Parallel(t)
 
-	job := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	job := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 	service := &Service{
 		Connect: &ConsulConnect{
@@ -184,8 +183,8 @@ func TestService_Tags(t *testing.T) {
 	r := require.New(t)
 
 	// canonicalize does not modify eto or tags
-	job := &Job{Name: pointer.Of("job")}
-	tg := &TaskGroup{Name: pointer.Of("group")}
+	job := &Job{Name: pointerOf("job")}
+	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
 	service := &Service{
 		Tags:              []string{"a", "b"},

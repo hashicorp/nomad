@@ -12,7 +12,6 @@ import (
 
 	units "github.com/docker/go-units"
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,13 +63,13 @@ func TestFS_Logs(t *testing.T) {
 	}
 
 	job := &Job{
-		ID:          pointer.Of("TestFS_Logs"),
-		Region:      pointer.Of("global"),
+		ID:          pointerOf("TestFS_Logs"),
+		Region:      pointerOf("global"),
 		Datacenters: []string{"dc1"},
-		Type:        pointer.Of("batch"),
+		Type:        pointerOf("batch"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointer.Of("TestFS_LogsGroup"),
+				Name: pointerOf("TestFS_LogsGroup"),
 				Tasks: []*Task{
 					{
 						Name:   "logger",

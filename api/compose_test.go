@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func TestCompose(t *testing.T) {
@@ -16,13 +15,13 @@ func TestCompose(t *testing.T) {
 		SetMeta("foo", "bar").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-			CPU:      pointer.Of(1250),
-			MemoryMB: pointer.Of(1024),
-			DiskMB:   pointer.Of(2048),
+			CPU:      pointerOf(1250),
+			MemoryMB: pointerOf(1024),
+			DiskMB:   pointerOf(2048),
 			Networks: []*NetworkResource{
 				{
 					CIDR:          "0.0.0.0/0",
-					MBits:         pointer.Of(100),
+					MBits:         pointerOf(100),
 					ReservedPorts: []Port{{"", 80, 0, ""}, {"", 443, 0, ""}},
 				},
 			},
@@ -48,11 +47,11 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		Region:   pointer.Of("global"),
-		ID:       pointer.Of("job1"),
-		Name:     pointer.Of("myjob"),
-		Type:     pointer.Of(JobTypeService),
-		Priority: pointer.Of(2),
+		Region:   pointerOf("global"),
+		ID:       pointerOf("job1"),
+		Name:     pointerOf("myjob"),
+		Type:     pointerOf(JobTypeService),
+		Priority: pointerOf(2),
 		Datacenters: []string{
 			"dc1",
 		},
@@ -68,8 +67,8 @@ func TestCompose(t *testing.T) {
 		},
 		TaskGroups: []*TaskGroup{
 			{
-				Name:  pointer.Of("grp1"),
-				Count: pointer.Of(2),
+				Name:  pointerOf("grp1"),
+				Count: pointerOf(2),
 				Constraints: []*Constraint{
 					{
 						LTarget: "kernel.name",
@@ -82,13 +81,13 @@ func TestCompose(t *testing.T) {
 						LTarget: "${node.class}",
 						RTarget: "large",
 						Operand: "=",
-						Weight:  pointer.Of(int8(50)),
+						Weight:  pointerOf(int8(50)),
 					},
 				},
 				Spreads: []*Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    pointer.Of(int8(30)),
+						Weight:    pointerOf(int8(30)),
 						SpreadTarget: []*SpreadTarget{
 							{
 								Value:   "dc1",
@@ -106,13 +105,13 @@ func TestCompose(t *testing.T) {
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
-							CPU:      pointer.Of(1250),
-							MemoryMB: pointer.Of(1024),
-							DiskMB:   pointer.Of(2048),
+							CPU:      pointerOf(1250),
+							MemoryMB: pointerOf(1024),
+							DiskMB:   pointerOf(2048),
 							Networks: []*NetworkResource{
 								{
 									CIDR:  "0.0.0.0/0",
-									MBits: pointer.Of(100),
+									MBits: pointerOf(100),
 									ReservedPorts: []Port{
 										{"", 80, 0, ""},
 										{"", 443, 0, ""},

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/cronexpr"
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 const (
@@ -190,7 +189,7 @@ func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool
 
 	var count64 *int64
 	if count != nil {
-		count64 = pointer.Of(int64(*count))
+		count64 = pointerOf(int64(*count))
 	}
 	req := &ScalingRequest{
 		Count: count64,
@@ -514,15 +513,15 @@ type UpdateStrategy struct {
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
 	return &UpdateStrategy{
-		Stagger:          pointer.Of(30 * time.Second),
-		MaxParallel:      pointer.Of(1),
-		HealthCheck:      pointer.Of("checks"),
-		MinHealthyTime:   pointer.Of(10 * time.Second),
-		HealthyDeadline:  pointer.Of(5 * time.Minute),
-		ProgressDeadline: pointer.Of(10 * time.Minute),
-		AutoRevert:       pointer.Of(false),
-		Canary:           pointer.Of(0),
-		AutoPromote:      pointer.Of(false),
+		Stagger:          pointerOf(30 * time.Second),
+		MaxParallel:      pointerOf(1),
+		HealthCheck:      pointerOf("checks"),
+		MinHealthyTime:   pointerOf(10 * time.Second),
+		HealthyDeadline:  pointerOf(5 * time.Minute),
+		ProgressDeadline: pointerOf(10 * time.Minute),
+		AutoRevert:       pointerOf(false),
+		Canary:           pointerOf(0),
+		AutoPromote:      pointerOf(false),
 	}
 }
 
@@ -534,39 +533,39 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 	copy := new(UpdateStrategy)
 
 	if u.Stagger != nil {
-		copy.Stagger = pointer.Of(*u.Stagger)
+		copy.Stagger = pointerOf(*u.Stagger)
 	}
 
 	if u.MaxParallel != nil {
-		copy.MaxParallel = pointer.Of(*u.MaxParallel)
+		copy.MaxParallel = pointerOf(*u.MaxParallel)
 	}
 
 	if u.HealthCheck != nil {
-		copy.HealthCheck = pointer.Of(*u.HealthCheck)
+		copy.HealthCheck = pointerOf(*u.HealthCheck)
 	}
 
 	if u.MinHealthyTime != nil {
-		copy.MinHealthyTime = pointer.Of(*u.MinHealthyTime)
+		copy.MinHealthyTime = pointerOf(*u.MinHealthyTime)
 	}
 
 	if u.HealthyDeadline != nil {
-		copy.HealthyDeadline = pointer.Of(*u.HealthyDeadline)
+		copy.HealthyDeadline = pointerOf(*u.HealthyDeadline)
 	}
 
 	if u.ProgressDeadline != nil {
-		copy.ProgressDeadline = pointer.Of(*u.ProgressDeadline)
+		copy.ProgressDeadline = pointerOf(*u.ProgressDeadline)
 	}
 
 	if u.AutoRevert != nil {
-		copy.AutoRevert = pointer.Of(*u.AutoRevert)
+		copy.AutoRevert = pointerOf(*u.AutoRevert)
 	}
 
 	if u.Canary != nil {
-		copy.Canary = pointer.Of(*u.Canary)
+		copy.Canary = pointerOf(*u.Canary)
 	}
 
 	if u.AutoPromote != nil {
-		copy.AutoPromote = pointer.Of(*u.AutoPromote)
+		copy.AutoPromote = pointerOf(*u.AutoPromote)
 	}
 
 	return copy
@@ -578,39 +577,39 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 	}
 
 	if o.Stagger != nil {
-		u.Stagger = pointer.Of(*o.Stagger)
+		u.Stagger = pointerOf(*o.Stagger)
 	}
 
 	if o.MaxParallel != nil {
-		u.MaxParallel = pointer.Of(*o.MaxParallel)
+		u.MaxParallel = pointerOf(*o.MaxParallel)
 	}
 
 	if o.HealthCheck != nil {
-		u.HealthCheck = pointer.Of(*o.HealthCheck)
+		u.HealthCheck = pointerOf(*o.HealthCheck)
 	}
 
 	if o.MinHealthyTime != nil {
-		u.MinHealthyTime = pointer.Of(*o.MinHealthyTime)
+		u.MinHealthyTime = pointerOf(*o.MinHealthyTime)
 	}
 
 	if o.HealthyDeadline != nil {
-		u.HealthyDeadline = pointer.Of(*o.HealthyDeadline)
+		u.HealthyDeadline = pointerOf(*o.HealthyDeadline)
 	}
 
 	if o.ProgressDeadline != nil {
-		u.ProgressDeadline = pointer.Of(*o.ProgressDeadline)
+		u.ProgressDeadline = pointerOf(*o.ProgressDeadline)
 	}
 
 	if o.AutoRevert != nil {
-		u.AutoRevert = pointer.Of(*o.AutoRevert)
+		u.AutoRevert = pointerOf(*o.AutoRevert)
 	}
 
 	if o.Canary != nil {
-		u.Canary = pointer.Of(*o.Canary)
+		u.Canary = pointerOf(*o.Canary)
 	}
 
 	if o.AutoPromote != nil {
-		u.AutoPromote = pointer.Of(*o.AutoPromote)
+		u.AutoPromote = pointerOf(*o.AutoPromote)
 	}
 }
 
@@ -707,15 +706,15 @@ type Multiregion struct {
 func (m *Multiregion) Canonicalize() {
 	if m.Strategy == nil {
 		m.Strategy = &MultiregionStrategy{
-			MaxParallel: pointer.Of(0),
-			OnFailure:   pointer.Of(""),
+			MaxParallel: pointerOf(0),
+			OnFailure:   pointerOf(""),
 		}
 	} else {
 		if m.Strategy.MaxParallel == nil {
-			m.Strategy.MaxParallel = pointer.Of(0)
+			m.Strategy.MaxParallel = pointerOf(0)
 		}
 		if m.Strategy.OnFailure == nil {
-			m.Strategy.OnFailure = pointer.Of("")
+			m.Strategy.OnFailure = pointerOf("")
 		}
 	}
 	if m.Regions == nil {
@@ -723,7 +722,7 @@ func (m *Multiregion) Canonicalize() {
 	}
 	for _, region := range m.Regions {
 		if region.Count == nil {
-			region.Count = pointer.Of(1)
+			region.Count = pointerOf(1)
 		}
 		if region.Datacenters == nil {
 			region.Datacenters = []string{}
@@ -741,13 +740,13 @@ func (m *Multiregion) Copy() *Multiregion {
 	copy := new(Multiregion)
 	if m.Strategy != nil {
 		copy.Strategy = new(MultiregionStrategy)
-		copy.Strategy.MaxParallel = pointer.Of(*m.Strategy.MaxParallel)
-		copy.Strategy.OnFailure = pointer.Of(*m.Strategy.OnFailure)
+		copy.Strategy.MaxParallel = pointerOf(*m.Strategy.MaxParallel)
+		copy.Strategy.OnFailure = pointerOf(*m.Strategy.OnFailure)
 	}
 	for _, region := range m.Regions {
 		copyRegion := new(MultiregionRegion)
 		copyRegion.Name = region.Name
-		copyRegion.Count = pointer.Of(*region.Count)
+		copyRegion.Count = pointerOf(*region.Count)
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
@@ -780,19 +779,19 @@ type PeriodicConfig struct {
 
 func (p *PeriodicConfig) Canonicalize() {
 	if p.Enabled == nil {
-		p.Enabled = pointer.Of(true)
+		p.Enabled = pointerOf(true)
 	}
 	if p.Spec == nil {
-		p.Spec = pointer.Of("")
+		p.Spec = pointerOf("")
 	}
 	if p.SpecType == nil {
-		p.SpecType = pointer.Of(PeriodicSpecCron)
+		p.SpecType = pointerOf(PeriodicSpecCron)
 	}
 	if p.ProhibitOverlap == nil {
-		p.ProhibitOverlap = pointer.Of(false)
+		p.ProhibitOverlap = pointerOf(false)
 	}
 	if p.TimeZone == nil || *p.TimeZone == "" {
-		p.TimeZone = pointer.Of("UTC")
+		p.TimeZone = pointerOf("UTC")
 	}
 }
 
@@ -905,70 +904,70 @@ func (j *Job) IsMultiregion() bool {
 
 func (j *Job) Canonicalize() {
 	if j.ID == nil {
-		j.ID = pointer.Of("")
+		j.ID = pointerOf("")
 	}
 	if j.Name == nil {
-		j.Name = pointer.Of(*j.ID)
+		j.Name = pointerOf(*j.ID)
 	}
 	if j.ParentID == nil {
-		j.ParentID = pointer.Of("")
+		j.ParentID = pointerOf("")
 	}
 	if j.Namespace == nil {
-		j.Namespace = pointer.Of(DefaultNamespace)
+		j.Namespace = pointerOf(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = pointer.Of(50)
+		j.Priority = pointerOf(50)
 	}
 	if j.Stop == nil {
-		j.Stop = pointer.Of(false)
+		j.Stop = pointerOf(false)
 	}
 	if j.Region == nil {
-		j.Region = pointer.Of(GlobalRegion)
+		j.Region = pointerOf(GlobalRegion)
 	}
 	if j.Namespace == nil {
-		j.Namespace = pointer.Of("default")
+		j.Namespace = pointerOf("default")
 	}
 	if j.Type == nil {
-		j.Type = pointer.Of("service")
+		j.Type = pointerOf("service")
 	}
 	if j.AllAtOnce == nil {
-		j.AllAtOnce = pointer.Of(false)
+		j.AllAtOnce = pointerOf(false)
 	}
 	if j.ConsulToken == nil {
-		j.ConsulToken = pointer.Of("")
+		j.ConsulToken = pointerOf("")
 	}
 	if j.ConsulNamespace == nil {
-		j.ConsulNamespace = pointer.Of("")
+		j.ConsulNamespace = pointerOf("")
 	}
 	if j.VaultToken == nil {
-		j.VaultToken = pointer.Of("")
+		j.VaultToken = pointerOf("")
 	}
 	if j.VaultNamespace == nil {
-		j.VaultNamespace = pointer.Of("")
+		j.VaultNamespace = pointerOf("")
 	}
 	if j.NomadTokenID == nil {
-		j.NomadTokenID = pointer.Of("")
+		j.NomadTokenID = pointerOf("")
 	}
 	if j.Status == nil {
-		j.Status = pointer.Of("")
+		j.Status = pointerOf("")
 	}
 	if j.StatusDescription == nil {
-		j.StatusDescription = pointer.Of("")
+		j.StatusDescription = pointerOf("")
 	}
 	if j.Stable == nil {
-		j.Stable = pointer.Of(false)
+		j.Stable = pointerOf(false)
 	}
 	if j.Version == nil {
-		j.Version = pointer.Of(uint64(0))
+		j.Version = pointerOf(uint64(0))
 	}
 	if j.CreateIndex == nil {
-		j.CreateIndex = pointer.Of(uint64(0))
+		j.CreateIndex = pointerOf(uint64(0))
 	}
 	if j.ModifyIndex == nil {
-		j.ModifyIndex = pointer.Of(uint64(0))
+		j.ModifyIndex = pointerOf(uint64(0))
 	}
 	if j.JobModifyIndex == nil {
-		j.JobModifyIndex = pointer.Of(uint64(0))
+		j.JobModifyIndex = pointerOf(uint64(0))
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()

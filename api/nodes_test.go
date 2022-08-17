@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -670,15 +669,15 @@ func TestNodeStatValueFormatting(t *testing.T) {
 	}{
 		{
 			"true",
-			StatValue{BoolVal: pointer.Of(true)},
+			StatValue{BoolVal: pointerOf(true)},
 		},
 		{
 			"false",
-			StatValue{BoolVal: pointer.Of(false)},
+			StatValue{BoolVal: pointerOf(false)},
 		},
 		{
 			"myvalue",
-			StatValue{StringVal: pointer.Of("myvalue")},
+			StatValue{StringVal: pointerOf("myvalue")},
 		},
 		{
 			"2.718",
@@ -711,28 +710,28 @@ func TestNodeStatValueFormatting(t *testing.T) {
 		{
 			"2",
 			StatValue{
-				IntNumeratorVal: pointer.Of(int64(2)),
+				IntNumeratorVal: pointerOf(int64(2)),
 			},
 		},
 		{
 			"2 / 3",
 			StatValue{
-				IntNumeratorVal:   pointer.Of(int64(2)),
-				IntDenominatorVal: pointer.Of(int64(3)),
+				IntNumeratorVal:   pointerOf(int64(2)),
+				IntDenominatorVal: pointerOf(int64(3)),
 			},
 		},
 		{
 			"2 MHz",
 			StatValue{
-				IntNumeratorVal: pointer.Of(int64(2)),
+				IntNumeratorVal: pointerOf(int64(2)),
 				Unit:            "MHz",
 			},
 		},
 		{
 			"2 / 3 MHz",
 			StatValue{
-				IntNumeratorVal:   pointer.Of(int64(2)),
-				IntDenominatorVal: pointer.Of(int64(3)),
+				IntNumeratorVal:   pointerOf(int64(2)),
+				IntDenominatorVal: pointerOf(int64(3)),
 				Unit:              "MHz",
 			},
 		},

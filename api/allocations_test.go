@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -160,13 +159,13 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	testutil.Parallel(t)
 	// Create a job, task group and alloc
 	job := &Job{
-		Name:      pointer.Of("foo"),
-		Namespace: pointer.Of(DefaultNamespace),
-		ID:        pointer.Of("bar"),
-		ParentID:  pointer.Of("lol"),
+		Name:      pointerOf("foo"),
+		Namespace: pointerOf(DefaultNamespace),
+		ID:        pointerOf("bar"),
+		ParentID:  pointerOf("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointer.Of("bar"),
+				Name: pointerOf("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -206,8 +205,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "no reschedule events",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointer.Of(3),
-				Interval: pointer.Of(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			expAttempted: 0,
 			expTotal:     3,
@@ -215,8 +214,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "all reschedule events within interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointer.Of(3),
-				Interval: pointer.Of(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -232,8 +231,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "some reschedule events outside interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointer.Of(3),
-				Interval: pointer.Of(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -277,13 +276,13 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	a := c.Allocations()
 
 	job := &Job{
-		Name:      pointer.Of("foo"),
-		Namespace: pointer.Of(DefaultNamespace),
-		ID:        pointer.Of("bar"),
-		ParentID:  pointer.Of("lol"),
+		Name:      pointerOf("foo"),
+		Namespace: pointerOf(DefaultNamespace),
+		ID:        pointerOf("bar"),
+		ParentID:  pointerOf("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointer.Of("bar"),
+				Name: pointerOf("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -393,9 +392,9 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	testutil.Parallel(t)
-	require.True(t, DesiredTransition{Migrate: pointer.Of(true)}.ShouldMigrate())
+	require.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
-	require.False(t, DesiredTransition{Migrate: pointer.Of(false)}.ShouldMigrate())
+	require.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
 }
 
 func TestAllocations_Services(t *testing.T) {

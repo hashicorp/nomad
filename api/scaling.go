@@ -1,7 +1,5 @@
 package api
 
-import "github.com/hashicorp/nomad/helper/pointer"
-
 const (
 	// ScalingPolicyTypeHorizontal indicates a policy that does horizontal scaling.
 	ScalingPolicyTypeHorizontal = "horizontal"
@@ -37,7 +35,7 @@ func (s *Scaling) GetPolicy(id string, q *QueryOptions) (*ScalingPolicy, *QueryM
 
 func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 	if p.Enabled == nil {
-		p.Enabled = pointer.Of(true)
+		p.Enabled = pointerOf(true)
 	}
 	if p.Min == nil {
 		var m int64 = int64(taskGroupCount)
