@@ -1,6 +1,7 @@
 <div
   data-test-gutter-menu
   class="page-column is-left {{if this.isOpen "is-open"}}"
+  {{did-insert this.keyboard.registerNav type="main"}}
 >
   <div class="gutter {{if this.isOpen "is-open"}}">
     <header class="collapsed-menu {{if this.isOpen "is-open"}}">
@@ -36,7 +37,7 @@
         Workload
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "j") }}>
           <LinkTo
             @route="jobs"
             @activeClass="is-active"
@@ -46,7 +47,13 @@
           </LinkTo>
         </li>
         {{#if (can "accept recommendation")}}
-          <li>
+          <li
+            {{keyboard-shortcut
+              menuLevel=true
+              pattern=(array "g" "o")
+              action=(action this.transitionTo 'optimize')
+            }}
+          >
             <LinkTo
               @route="optimize"
               @activeClass="is-active"
@@ -56,12 +63,7 @@
             </LinkTo>
           </li>
         {{/if}}
-      </ul>
-      <p class="menu-label is-minor">
-        Integrations
-      </p>
-      <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "r") }}>
           <LinkTo
             @route="csi"
             @activeClass="is-active"
@@ -75,7 +77,7 @@
         Cluster
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "c") }}>
           <LinkTo
             @route="clients"
             @activeClass="is-active"
@@ -84,7 +86,7 @@
             Clients
           </LinkTo>
         </li>
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "s") }}>
           <LinkTo
             @route="servers"
             @activeClass="is-active"
@@ -93,7 +95,7 @@
             Servers
           </LinkTo>
         </li>
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "t") }}>
           <LinkTo
             @route="topology"
             @activeClass="is-active"
@@ -107,7 +109,7 @@
         Debugging
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "e") }}>
           <LinkTo
             @route="evaluations"
             @activeClass="is-active"

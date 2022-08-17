@@ -7,6 +7,7 @@ import classic from 'ember-classic-decorator';
 export default class GutterMenu extends Component {
   @service system;
   @service router;
+  @service keyboard;
 
   @computed('system.namespaces.@each.name')
   get sortedNamespaces() {
@@ -36,6 +37,11 @@ export default class GutterMenu extends Component {
   }
 
   onHamburgerClick() {}
+
+  // Seemingly redundant, but serves to ensure the action is passed to the keyboard service correctly
+  transitionTo(destination) {
+    return this.router.transitionTo(destination);
+  }
 
   gotoJobsForNamespace(namespace) {
     if (!namespace || !namespace.get('id')) return;

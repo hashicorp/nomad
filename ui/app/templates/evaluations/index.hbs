@@ -78,7 +78,12 @@
             {{on "click" (fn this.handleEvaluationClick row.model)}}
             {{on "keyup" (fn this.handleEvaluationClick row.model)}}
           >
-            <td data-test-id>
+            <td data-test-id
+                {{keyboard-shortcut 
+                  enumerated=true
+                  action=(fn this.handleEvaluationClick row.model)
+                }}
+            >
               {{row.model.shortId}}
             </td>
             <td data-test-id>
