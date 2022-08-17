@@ -159,6 +159,39 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 	out3, _, err := at.Update(out2, nil)
 	require.Error(t, err)
 	require.Nil(t, out3)
+
+	// Try adding a role link to our token, which should be possible. For this
+	// we need to create a policy and link to this from a role.
+	aclPolicy := ACLPolicy{
+		Name:  "acl-role-api-test",
+		Rules: `namespace "default" { policy = "read" }`,
+	}
+	writeMeta, err := c.ACLPolicies().Upsert(&aclPolicy, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Create an ACL role referencing the previously created
+	// policy.
+	role := ACLRole{
+		Name:     "acl-role-api-test",
+		Policies: []*ACLRolePolicyLink{{Name: aclPolicy.Name}},
+	}
+	aclRoleCreateResp, writeMeta, err := c.ACLRoles().Create(&role, nil)
+	require.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+	require.NotEmpty(t, aclRoleCreateResp.ID)
+	require.Equal(t, role.Name, aclRoleCreateResp.Name)
+
+	out2.Roles = []*ACLTokenRoleLink{{Name: aclRoleCreateResp.Name}}
+	out2.ExpirationTTL = 0
+
+	out3, writeMeta, err = at.Update(out2, nil)
+	require.NoError(t, err)
+	require.NotNil(t, out3)
+	require.Len(t, out3.Policies, 1)
+	require.Equal(t, out3.Policies[0], "foo1")
+	require.Len(t, out3.Roles, 1)
+	require.Equal(t, out3.Roles[0].Name, role.Name)
 }
 
 func TestACLTokens_Info(t *testing.T) {
@@ -219,6 +252,116 @@ func TestACLTokens_Info(t *testing.T) {
 				assertQueryMeta(t, qm)
 				require.Equal(t, out, out2)
 				require.NotNil(t, out2.ExpirationTime)
+			},
+		},
+		{
+			name: "token with role link",
+			testFn: func(client *Client) {
+
+				// Create an ACL policy that can be referenced within the ACL
+				// role.
+				aclPolicy := ACLPolicy{
+					Name:  "acl-role-api-test",
+					Rules: `namespace "default" { policy = "read" }`,
+				}
+				writeMeta, err := testClient.ACLPolicies().Upsert(&aclPolicy, nil)
+				require.NoError(t, err)
+				assertWriteMeta(t, writeMeta)
+
+				// Create an ACL role referencing the previously created
+				// policy.
+				role := ACLRole{
+					Name:     "acl-role-api-test",
+					Policies: []*ACLRolePolicyLink{{Name: aclPolicy.Name}},
+				}
+				aclRoleCreateResp, writeMeta, err := testClient.ACLRoles().Create(&role, nil)
+				require.NoError(t, err)
+				assertWriteMeta(t, writeMeta)
+				require.NotEmpty(t, aclRoleCreateResp.ID)
+				require.Equal(t, role.Name, aclRoleCreateResp.Name)
+
+				// Create a token with a role linking.
+				token := &ACLToken{
+					Name:  "token-with-role-link",
+					Type:  "client",
+					Roles: []*ACLTokenRoleLink{{Name: role.Name}},
+				}
+
+				out, wm, err := client.ACLTokens().Create(token, nil)
+				require.Nil(t, err)
+				assertWriteMeta(t, wm)
+				require.NotNil(t, out)
+
+				// Query the token and ensure it matches what was returned
+				// during the creation.
+				out2, qm, err := client.ACLTokens().Info(out.AccessorID, nil)
+				require.Nil(t, err)
+				assertQueryMeta(t, qm)
+				require.Equal(t, out, out2)
+				require.Len(t, out.Roles, 1)
+				require.Equal(t, out.Roles[0].Name, aclPolicy.Name)
+			},
+		},
+
+		{
+			name: "token with role and policy link",
+			testFn: func(client *Client) {
+
+				// Create an ACL policy that can be referenced within the ACL
+				// role.
+				aclPolicy1 := ACLPolicy{
+					Name:  "acl-role-api-test-1",
+					Rules: `namespace "default" { policy = "read" }`,
+				}
+				writeMeta, err := testClient.ACLPolicies().Upsert(&aclPolicy1, nil)
+				require.NoError(t, err)
+				assertWriteMeta(t, writeMeta)
+
+				// Create another that can be referenced within the ACL token
+				// directly.
+				aclPolicy2 := ACLPolicy{
+					Name:  "acl-role-api-test-2",
+					Rules: `namespace "fawlty" { policy = "read" }`,
+				}
+				writeMeta, err = testClient.ACLPolicies().Upsert(&aclPolicy2, nil)
+				require.NoError(t, err)
+				assertWriteMeta(t, writeMeta)
+
+				// Create an ACL role referencing the previously created
+				// policy.
+				role := ACLRole{
+					Name:     "acl-role-api-test",
+					Policies: []*ACLRolePolicyLink{{Name: aclPolicy1.Name}},
+				}
+				aclRoleCreateResp, writeMeta, err := testClient.ACLRoles().Create(&role, nil)
+				require.NoError(t, err)
+				assertWriteMeta(t, writeMeta)
+				require.NotEmpty(t, aclRoleCreateResp.ID)
+				require.Equal(t, role.Name, aclRoleCreateResp.Name)
+
+				// Create a token with a role linking.
+				token := &ACLToken{
+					Name:     "token-with-role-link",
+					Type:     "client",
+					Policies: []string{aclPolicy2.Name},
+					Roles:    []*ACLTokenRoleLink{{Name: role.Name}},
+				}
+
+				out, wm, err := client.ACLTokens().Create(token, nil)
+				require.Nil(t, err)
+				assertWriteMeta(t, wm)
+				require.NotNil(t, out)
+				require.Len(t, out.Policies, 1)
+				require.Equal(t, out.Policies[0], aclPolicy2.Name)
+				require.Len(t, out.Roles, 1)
+				require.Equal(t, out.Roles[0].Name, role.Name)
+
+				// Query the token and ensure it matches what was returned
+				// during the creation.
+				out2, qm, err := client.ACLTokens().Info(out.AccessorID, nil)
+				require.Nil(t, err)
+				assertQueryMeta(t, qm)
+				require.Equal(t, out, out2)
 			},
 		},
 	}
