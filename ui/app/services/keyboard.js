@@ -407,13 +407,6 @@ export default class KeyboardService extends Service {
             command.label === 'Hide Keyboard Shortcuts'
           ) {
             command.action();
-
-            // TODO: Temporary dev log
-            if (this.config.isDev) {
-              this.matchedCommands.forEach((command) =>
-                console.log('command run', command, command.action.toString())
-              );
-            }
           }
         });
         this.clearBuffer();
@@ -427,9 +420,6 @@ export default class KeyboardService extends Service {
   }
 
   get matchedCommands() {
-    // Ember Compare: returns 0 if there's no diff between arrays.
-    // TODO: do we think this is faster than a pure JS .join("") comparison?
-
     // Shiftless Buffer: handle the case where use is holding shift (to see shortcut hints) and typing a key command
     const shiftlessBuffer = this.buffer.map((key) =>
       key.replace('Shift+', '').toLowerCase()
@@ -441,6 +431,7 @@ export default class KeyboardService extends Service {
       `Shift+${this.buffer.map((key) => key.replace('Shift+', '')).join('')}`,
     ];
 
+    // Ember Compare: returns 0 if there's no diff between arrays.
     const matches = this.keyCommands.filter((command) => {
       return (
         command.action &&
