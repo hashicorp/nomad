@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -161,11 +161,11 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = helper.StringToPtr(vaultToken)
+		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	if vaultNamespace != "" {
-		job.VaultNamespace = helper.StringToPtr(vaultNamespace)
+		job.VaultNamespace = pointer.Of(vaultNamespace)
 	}
 
 	// Check that the job is valid

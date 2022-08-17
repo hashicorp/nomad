@@ -7,7 +7,7 @@ import (
 	"time"
 
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -58,7 +58,7 @@ func stringToPtrOrNil(s string) *string {
 	if s == "" {
 		return nil
 	}
-	return helper.StringToPtr(s)
+	return pointer.Of(s)
 }
 
 func Parse2(t *testing.T, jobFile string) (*api.Job, error) {
@@ -74,7 +74,7 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
-	job.ID = helper.StringToPtr(jobID)
+	job.ID = pointer.Of(jobID)
 
 	// Set a Consul "operator" token for the job, if provided.
 	job.ConsulToken = stringToPtrOrNil(cToken)

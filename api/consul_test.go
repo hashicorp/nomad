@@ -284,7 +284,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	gateway := &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  timeToPtr(3 * time.Second),
+			ConnectTimeout:                  pointer.Of(3 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2000},

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,7 +13,7 @@ func TestAuditConfig_Merge(t *testing.T) {
 	ci.Parallel(t)
 
 	c1 := &AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -71,7 +71,7 @@ func TestAuditConfig_Merge(t *testing.T) {
 	}
 
 	e := &AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*AuditSink{
 			{
 				DeliveryGuarantee: "best-effort",

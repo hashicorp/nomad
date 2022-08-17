@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -41,7 +42,7 @@ var (
 	// allocations to be force rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowForceRescheduleTransition = &structs.DesiredTransition{
-		ForceReschedule: helper.BoolToPtr(true),
+		ForceReschedule: pointer.Of(true),
 	}
 )
 

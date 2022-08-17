@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,12 +16,12 @@ func TestAttribute_Validate(t *testing.T) {
 	}{
 		{
 			Input: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 		},
 		{
 			Input: &Attribute{
-				String: helper.StringToPtr("foo"),
+				String: pointer.Of("foo"),
 			},
 		},
 		{
@@ -35,14 +36,14 @@ func TestAttribute_Validate(t *testing.T) {
 		},
 		{
 			Input: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 				Unit: "MB",
 			},
 			Fail: true,
 		},
 		{
 			Input: &Attribute{
-				String: helper.StringToPtr("foo"),
+				String: pointer.Of("foo"),
 				Unit:   "MB",
 			},
 			Fail: true,
@@ -91,34 +92,34 @@ func TestAttribute_Compare_Bool(t *testing.T) {
 	cases := []*compareTestCase{
 		{
 			A: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			B: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			Expected: 0,
 		},
 		{
 			A: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			B: &Attribute{
-				Bool: helper.BoolToPtr(false),
+				Bool: pointer.Of(false),
 			},
 			Expected: 1,
 		},
 		{
 			A: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("foo"),
+				String: pointer.Of("foo"),
 			},
 			NotComparable: true,
 		},
 		{
 			A: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			B: &Attribute{
 				Int: helper.Int64ToPtr(123),
@@ -127,7 +128,7 @@ func TestAttribute_Compare_Bool(t *testing.T) {
 		},
 		{
 			A: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			B: &Attribute{
 				Float: helper.Float64ToPtr(123.2),
@@ -142,43 +143,43 @@ func TestAttribute_Compare_String(t *testing.T) {
 	cases := []*compareTestCase{
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("a"),
+				String: pointer.Of("a"),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("b"),
+				String: pointer.Of("b"),
 			},
 			Expected: -1,
 		},
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			Expected: 0,
 		},
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("b"),
+				String: pointer.Of("b"),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("a"),
+				String: pointer.Of("a"),
 			},
 			Expected: 1,
 		},
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			B: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			NotComparable: true,
 		},
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			B: &Attribute{
 				Int: helper.Int64ToPtr(123),
@@ -187,7 +188,7 @@ func TestAttribute_Compare_String(t *testing.T) {
 		},
 		{
 			A: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			B: &Attribute{
 				Float: helper.Float64ToPtr(123.2),
@@ -232,7 +233,7 @@ func TestAttribute_Compare_Float(t *testing.T) {
 				Float: helper.Float64ToPtr(101.5),
 			},
 			B: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			NotComparable: true,
 		},
@@ -241,7 +242,7 @@ func TestAttribute_Compare_Float(t *testing.T) {
 				Float: helper.Float64ToPtr(101.5),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			NotComparable: true,
 		},
@@ -283,7 +284,7 @@ func TestAttribute_Compare_Int(t *testing.T) {
 				Int: helper.Int64ToPtr(10),
 			},
 			B: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 			NotComparable: true,
 		},
@@ -292,7 +293,7 @@ func TestAttribute_Compare_Int(t *testing.T) {
 				Int: helper.Int64ToPtr(10),
 			},
 			B: &Attribute{
-				String: helper.StringToPtr("hello"),
+				String: pointer.Of("hello"),
 			},
 			NotComparable: true,
 		},
@@ -549,13 +550,13 @@ func TestAttribute_ParseAndValidate(t *testing.T) {
 		{
 			Input: "true",
 			Expected: &Attribute{
-				Bool: helper.BoolToPtr(true),
+				Bool: pointer.Of(true),
 			},
 		},
 		{
 			Input: "false",
 			Expected: &Attribute{
-				Bool: helper.BoolToPtr(false),
+				Bool: pointer.Of(false),
 			},
 		},
 		{
@@ -603,13 +604,13 @@ func TestAttribute_ParseAndValidate(t *testing.T) {
 		{
 			Input: "foobar",
 			Expected: &Attribute{
-				String: helper.StringToPtr("foobar"),
+				String: pointer.Of("foobar"),
 			},
 		},
 		{
 			Input: "foo123bar",
 			Expected: &Attribute{
-				String: helper.StringToPtr("foo123bar"),
+				String: pointer.Of("foo123bar"),
 			},
 		},
 		{

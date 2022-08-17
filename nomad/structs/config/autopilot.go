@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 type AutopilotConfig struct {
@@ -60,7 +60,7 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 	result := a.Copy()
 
 	if b.CleanupDeadServers != nil {
-		result.CleanupDeadServers = helper.BoolToPtr(*b.CleanupDeadServers)
+		result.CleanupDeadServers = pointer.Of(*b.CleanupDeadServers)
 	}
 	if b.ServerStabilizationTime != 0 {
 		result.ServerStabilizationTime = b.ServerStabilizationTime
@@ -84,7 +84,7 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 		result.EnableRedundancyZones = b.EnableRedundancyZones
 	}
 	if b.DisableUpgradeMigration != nil {
-		result.DisableUpgradeMigration = helper.BoolToPtr(*b.DisableUpgradeMigration)
+		result.DisableUpgradeMigration = pointer.Of(*b.DisableUpgradeMigration)
 	}
 	if b.EnableCustomUpgrades != nil {
 		result.EnableCustomUpgrades = b.EnableCustomUpgrades
@@ -104,16 +104,16 @@ func (a *AutopilotConfig) Copy() *AutopilotConfig {
 
 	// Copy the bools
 	if a.CleanupDeadServers != nil {
-		nc.CleanupDeadServers = helper.BoolToPtr(*a.CleanupDeadServers)
+		nc.CleanupDeadServers = pointer.Of(*a.CleanupDeadServers)
 	}
 	if a.EnableRedundancyZones != nil {
-		nc.EnableRedundancyZones = helper.BoolToPtr(*a.EnableRedundancyZones)
+		nc.EnableRedundancyZones = pointer.Of(*a.EnableRedundancyZones)
 	}
 	if a.DisableUpgradeMigration != nil {
-		nc.DisableUpgradeMigration = helper.BoolToPtr(*a.DisableUpgradeMigration)
+		nc.DisableUpgradeMigration = pointer.Of(*a.DisableUpgradeMigration)
 	}
 	if a.EnableCustomUpgrades != nil {
-		nc.EnableCustomUpgrades = helper.BoolToPtr(*a.EnableCustomUpgrades)
+		nc.EnableCustomUpgrades = pointer.Of(*a.EnableCustomUpgrades)
 	}
 
 	return nc

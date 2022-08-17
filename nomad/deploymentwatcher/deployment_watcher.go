@@ -9,6 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +27,7 @@ var (
 	// allocations part of a deployment to be rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowRescheduleTransition = &structs.DesiredTransition{
-		Reschedule: helper.BoolToPtr(true),
+		Reschedule: pointer.Of(true),
 	}
 )
 

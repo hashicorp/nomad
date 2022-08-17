@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 const (
@@ -58,7 +59,7 @@ func (u *Unit) Comparable(o *Unit) bool {
 func ParseAttribute(input string) *Attribute {
 	ll := len(input)
 	if ll == 0 {
-		return &Attribute{String: helper.StringToPtr(input)}
+		return &Attribute{String: pointer.Of(input)}
 	}
 
 	// Check if the string is a number ending with potential units
@@ -94,10 +95,10 @@ func ParseAttribute(input string) *Attribute {
 	// Try to parse as a bool
 	b, err := strconv.ParseBool(input)
 	if err == nil {
-		return &Attribute{Bool: helper.BoolToPtr(b)}
+		return &Attribute{Bool: pointer.Of(b)}
 	}
 
-	return &Attribute{String: helper.StringToPtr(input)}
+	return &Attribute{String: pointer.Of(input)}
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -122,14 +123,14 @@ type Attribute struct {
 // NewStringAttribute returns a new string attribute.
 func NewStringAttribute(s string) *Attribute {
 	return &Attribute{
-		String: helper.StringToPtr(s),
+		String: pointer.Of(s),
 	}
 }
 
 // NewBoolAttribute returns a new boolean attribute.
 func NewBoolAttribute(b bool) *Attribute {
 	return &Attribute{
-		Bool: helper.BoolToPtr(b),
+		Bool: pointer.Of(b),
 	}
 }
 
@@ -208,10 +209,10 @@ func (a *Attribute) Copy() *Attribute {
 		ca.Int = helper.Int64ToPtr(*a.Int)
 	}
 	if a.Bool != nil {
-		ca.Bool = helper.BoolToPtr(*a.Bool)
+		ca.Bool = pointer.Of(*a.Bool)
 	}
 	if a.String != nil {
-		ca.String = helper.StringToPtr(*a.String)
+		ca.String = pointer.Of(*a.String)
 	}
 
 	return ca

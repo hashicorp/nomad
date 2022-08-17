@@ -10,6 +10,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -508,7 +509,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						StringVal: helper.StringToPtr("foo"),
+						StringVal: pointer.Of("foo"),
 						Unit:      "MB",
 						Desc:      "Unit test",
 					},
@@ -522,7 +523,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						BoolVal: helper.BoolToPtr(true),
+						BoolVal: pointer.Of(true),
 						Unit:    "MB",
 						Desc:    "Unit test",
 					},

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -7743,7 +7744,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a1.ClientStatus = structs.AllocClientStatusRunning
 	// healthy
 	a1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 	a2 := mock.Alloc()
 	a2.Job = jobV2
@@ -7752,7 +7753,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusPending
 	// unhealthy
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 	}
 	a3 := mock.Alloc()
 	a3.Job = jobV2
@@ -7761,7 +7762,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a3.ClientStatus = structs.AllocClientStatusRunning
 	// canary
 	a3.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 	// no health

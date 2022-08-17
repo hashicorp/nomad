@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -163,7 +164,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: helper.BoolToPtr(true),
+				Migrate: pointer.Of(true),
 			},
 		},
 		// Mark the 4th lost
@@ -340,7 +341,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: helper.BoolToPtr(true),
+				Migrate: pointer.Of(true),
 			},
 		},
 		// Mark as lost on a dead node
