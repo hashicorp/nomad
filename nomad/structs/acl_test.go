@@ -25,6 +25,7 @@ func TestACLToken_Canonicalize(t *testing.T) {
 					Name:        "my cool token " + uuid.Generate(),
 					Type:        "client",
 					Policies:    []string{"foo", "bar"},
+					Roles:       []*ACLTokenRoleLink{},
 					Global:      false,
 					CreateTime:  time.Now().UTC(),
 					CreateIndex: 10,
@@ -96,12 +97,12 @@ func TestACLTokenValidate(t *testing.T) {
 			expectedErrorContains: "client or management",
 		},
 		{
-			name: "missing policies",
+			name: "missing policies or roles",
 			inputACLToken: &ACLToken{
 				Type: ACLClientToken,
 			},
 			inputExistingACLToken: nil,
-			expectedErrorContains: "missing policies",
+			expectedErrorContains: "missing policies or roles",
 		},
 		{
 			name: "invalid policies",
@@ -110,7 +111,16 @@ func TestACLTokenValidate(t *testing.T) {
 				Policies: []string{"foo"},
 			},
 			inputExistingACLToken: nil,
-			expectedErrorContains: "associated with policies",
+			expectedErrorContains: "associated with policies or roles",
+		},
+		{
+			name: "invalid roles",
+			inputACLToken: &ACLToken{
+				Type:  ACLManagementToken,
+				Roles: []*ACLTokenRoleLink{{Name: "foo"}},
+			},
+			inputExistingACLToken: nil,
+			expectedErrorContains: "associated with policies or roles",
 		},
 		{
 			name: "name too long",

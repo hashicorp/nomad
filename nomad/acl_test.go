@@ -17,17 +17,17 @@ import (
 func TestResolveACLToken(t *testing.T) {
 	ci.Parallel(t)
 
-	testServer, _, testServerCleanup := TestACLServer(t, nil)
-	defer testServerCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
-
 	testCases := []struct {
 		name   string
-		testFn func(testServer *Server)
+		testFn func()
 	}{
 		{
 			name: "leader token",
-			testFn: func(testServer *Server) {
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Check the leader ACL token is correctly set.
 				leaderACL := testServer.getLeaderAcl()
@@ -42,7 +42,11 @@ func TestResolveACLToken(t *testing.T) {
 		},
 		{
 			name: "anonymous token",
-			testFn: func(testServer *Server) {
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Call the function with an empty input secret ID which is
 				// classed as representing anonymous access in clusters with
@@ -55,7 +59,11 @@ func TestResolveACLToken(t *testing.T) {
 		},
 		{
 			name: "token not found",
-			testFn: func(testServer *Server) {
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Call the function with randomly generated secret ID which
 				// does not exist within state.
@@ -66,7 +74,11 @@ func TestResolveACLToken(t *testing.T) {
 		},
 		{
 			name: "token expired",
-			testFn: func(testServer *Server) {
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Create a mock token with an expiration time long in the
 				// past, and upsert.
@@ -87,7 +99,11 @@ func TestResolveACLToken(t *testing.T) {
 		},
 		{
 			name: "management token",
-			testFn: func(testServer *Server) {
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Generate a management token and upsert this.
 				managementToken := mock.ACLToken()
@@ -108,8 +124,12 @@ func TestResolveACLToken(t *testing.T) {
 			},
 		},
 		{
-			name: "client token",
-			testFn: func(testServer *Server) {
+			name: "client token with policies only",
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Generate a client token with associated policies and upsert
 				// these.
@@ -155,11 +175,125 @@ func TestResolveACLToken(t *testing.T) {
 				require.NotEqual(t, aclResp2, aclResp3)
 			},
 		},
+		{
+			name: "client token with roles only",
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Create a client token that only has a link to a role.
+				policy1 := mock.ACLPolicy()
+				policy2 := mock.ACLPolicy()
+				err := testServer.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2})
+
+				aclRole := mock.ACLRole()
+				aclRole.Policies = []*structs.ACLRolePolicyLink{
+					{Name: policy1.Name},
+					{Name: policy2.Name},
+				}
+				err = testServer.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLRole{aclRole})
+				require.NoError(t, err)
+
+				clientToken := mock.ACLToken()
+				clientToken.Policies = []string{}
+				clientToken.Roles = []*structs.ACLTokenRoleLink{{ID: aclRole.ID}}
+				err = testServer.State().UpsertACLTokens(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLToken{clientToken})
+				require.NoError(t, err)
+
+				// Resolve the token and check that we received a client
+				// ACL with appropriate permissions.
+				aclResp, err := testServer.ResolveToken(clientToken.SecretID)
+				require.Nil(t, err)
+				require.NotNil(t, aclResp)
+				require.False(t, aclResp.IsManagement())
+
+				allowed := aclResp.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs)
+				require.True(t, allowed)
+				allowed = aclResp.AllowNamespaceOperation("other", acl.NamespaceCapabilityListJobs)
+				require.False(t, allowed)
+
+				// Remove the policies from the ACL role and ensure the resolution
+				// permissions are updated.
+				aclRole.Policies = []*structs.ACLRolePolicyLink{}
+				err = testServer.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 40, []*structs.ACLRole{aclRole})
+				require.NoError(t, err)
+
+				aclResp, err = testServer.ResolveToken(clientToken.SecretID)
+				require.Nil(t, err)
+				require.NotNil(t, aclResp)
+				require.False(t, aclResp.IsManagement())
+				require.False(t, aclResp.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs))
+			},
+		},
+		{
+			name: "client with roles and policies",
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, nil)
+				defer testServerCleanup()
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Generate two policies, each with a different namespace
+				// permission set.
+				policy1 := &structs.ACLPolicy{
+					Name:        "policy-" + uuid.Generate(),
+					Rules:       `namespace "platform" { policy = "write"}`,
+					CreateIndex: 10,
+					ModifyIndex: 10,
+				}
+				policy1.SetHash()
+				policy2 := &structs.ACLPolicy{
+					Name:        "policy-" + uuid.Generate(),
+					Rules:       `namespace "web" { policy = "write"}`,
+					CreateIndex: 10,
+					ModifyIndex: 10,
+				}
+				policy2.SetHash()
+
+				err := testServer.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2})
+				require.NoError(t, err)
+
+				// Create a role which references the policy that has access to
+				// the web namespace.
+				aclRole := mock.ACLRole()
+				aclRole.Policies = []*structs.ACLRolePolicyLink{{Name: policy2.Name}}
+				err = testServer.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole})
+				require.NoError(t, err)
+
+				// Create a token which references the policy and role.
+				clientToken := mock.ACLToken()
+				clientToken.Policies = []string{policy1.Name}
+				clientToken.Roles = []*structs.ACLTokenRoleLink{{ID: aclRole.ID}}
+				err = testServer.State().UpsertACLTokens(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLToken{clientToken})
+				require.NoError(t, err)
+
+				// Resolve the token and check that we received a client
+				// ACL with appropriate permissions.
+				aclResp, err := testServer.ResolveToken(clientToken.SecretID)
+				require.Nil(t, err)
+				require.NotNil(t, aclResp)
+				require.False(t, aclResp.IsManagement())
+
+				allowed := aclResp.AllowNamespaceOperation("platform", acl.NamespaceCapabilityListJobs)
+				require.True(t, allowed)
+				allowed = aclResp.AllowNamespaceOperation("web", acl.NamespaceCapabilityListJobs)
+				require.True(t, allowed)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.testFn(testServer)
+			tc.testFn()
 		})
 	}
 }

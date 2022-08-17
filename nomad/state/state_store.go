@@ -5660,10 +5660,20 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 	}
 	ws.Add(watchCh)
 
-	if existing != nil {
-		return existing.(*structs.ACLToken), nil
+	// If the existing token is nil, this indicates it does not exist in state.
+	if existing == nil {
+		return nil, nil
 	}
-	return nil, nil
+
+	// Assert the token type which allows us to perform additional work on the
+	// token that is needed before returning the call.
+	token := existing.(*structs.ACLToken)
+
+	// Handle potential staleness of ACL role links.
+	if token, err = s.fixTokenRoleLinks(txn, token); err != nil {
+		return nil, err
+	}
+	return token, nil
 }
 
 // ACLTokenBySecretID is used to lookup a token by secret ID

@@ -543,6 +543,54 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "token %d invalid: %v", idx, err)
 		}
 
+		var normalizedRoleLinks []*structs.ACLTokenRoleLink
+		uniqueRoleIDs := make(map[string]struct{})
+
+		// Iterate, check, and normalize the ACL role links that the token has.
+		for _, roleLink := range token.Roles {
+
+			var (
+				existing       *structs.ACLRole
+				roleIdentifier string
+				lookupErr      error
+			)
+
+			// In the event the caller specified the role name, we need to
+			// identify the immutable ID. In either case, we need to ensure the
+			// role exists.
+			switch roleLink.ID {
+			case "":
+				roleIdentifier = roleLink.Name
+				existing, lookupErr = stateSnapshot.GetACLRoleByName(nil, roleIdentifier)
+			default:
+				roleIdentifier = roleLink.ID
+				existing, lookupErr = stateSnapshot.GetACLRoleByID(nil, roleIdentifier)
+			}
+
+			// Handle any state lookup error or inability to locate the role
+			// within state.
+			if lookupErr != nil {
+				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "role lookup failed: %v", lookupErr)
+			}
+			if existing == nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find role %s", roleIdentifier)
+			}
+
+			// Ensure the role ID is written to the object and that the name is
+			// emptied as it is possible the role name is updated in the future.
+			roleLink.ID = existing.ID
+			roleLink.Name = ""
+
+			// Deduplicate role links by their ID.
+			if _, ok := uniqueRoleIDs[roleLink.ID]; !ok {
+				normalizedRoleLinks = append(normalizedRoleLinks, roleLink)
+				uniqueRoleIDs[roleLink.ID] = struct{}{}
+			}
+		}
+
+		// Write the normalized array of ACL role links back to the token.
+		token.Roles = normalizedRoleLinks
+
 		// Compute the token hash
 		token.SetHash()
 	}
