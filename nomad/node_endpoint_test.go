@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -3637,7 +3638,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Set allow unauthenticated (no operator token required)
-	s1.config.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(true)
+	s1.config.ConsulConfig.AllowUnauthenticated = pointer.Of(true)
 
 	// Create the node
 	node := mock.Node()
@@ -3689,7 +3690,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Set allow unauthenticated (no operator token required)
-	s1.config.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(true)
+	s1.config.ConsulConfig.AllowUnauthenticated = pointer.Of(true)
 
 	// Create the node
 	node := mock.Node()

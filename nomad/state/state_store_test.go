@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -5130,7 +5130,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(true),
+			Healthy:   pointer.Of(true),
 			Timestamp: healthy,
 		},
 	}
@@ -5175,7 +5175,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 			Canary:  false,
 		},
 	}
@@ -5646,10 +5646,10 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: helper.BoolToPtr(true),
+		Migrate: pointer.Of(true),
 	}
 	t2 := &structs.DesiredTransition{
-		Migrate: helper.BoolToPtr(false),
+		Migrate: pointer.Of(false),
 	}
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
@@ -7376,7 +7376,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c3.JobID = j.ID
 	c3.DeploymentID = d.ID
 	c3.DesiredStatus = structs.AllocDesiredStatusStop
-	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
@@ -7462,7 +7462,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -7470,7 +7470,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
@@ -7557,7 +7557,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 
@@ -7568,7 +7568,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 
@@ -7577,7 +7577,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c3.DeploymentID = d.ID
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 	c3.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 
@@ -7714,7 +7714,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))
@@ -7732,7 +7732,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	b.JobID = job.ID
 	b.DeploymentID = d1.ID
 	b.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  false,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{b}))
@@ -7753,7 +7753,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	c.JobID = job.ID
 	c.DeploymentID = d2.ID
 	c.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 6, []*structs.Allocation{c}))
@@ -7784,7 +7784,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  false,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))

@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad/api
 
-go 1.17
+go 1.18
 
 require (
 	github.com/docker/go-units v0.3.3
@@ -10,12 +10,14 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/kr/pretty v0.3.0
 	github.com/mitchellh/go-testing-interface v1.14.1
-	github.com/mitchellh/mapstructure v1.4.3
-	github.com/stretchr/testify v1.7.5
+	github.com/mitchellh/mapstructure v1.5.0
+	github.com/shoenig/test v0.3.0
+	github.com/stretchr/testify v1.8.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

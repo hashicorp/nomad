@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -334,7 +334,7 @@ func buildDisconnectedNodes(allocs []*structs.Allocation, count int) map[string]
 
 func buildResumableAllocations(count int, clientStatus, desiredStatus string, nodeScore float64) (*structs.Job, []*structs.Allocation) {
 	job := mock.Job()
-	job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Minute)
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Minute)
 	job.TaskGroups[0].Count = count
 
 	return job, buildAllocations(job, count, clientStatus, desiredStatus, nodeScore)
@@ -1059,7 +1059,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
-		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
+		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
 		tainted[n.ID] = n
 	}
 
@@ -1114,7 +1114,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
-		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
+		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
 		tainted[n.ID] = n
 	}
 
@@ -1170,7 +1170,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
-		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
+		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
 		tainted[n.ID] = n
 	}
 
@@ -2269,7 +2269,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary:  true,
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
 		allocs = append(allocs, alloc)
@@ -2360,7 +2360,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary:  true,
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
 		allocs = append(allocs, alloc)
@@ -2368,7 +2368,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 
 	// Mark the canaries as failed
 	allocs[5].ClientStatus = structs.AllocClientStatusFailed
-	allocs[5].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+	allocs[5].DesiredTransition.Reschedule = pointer.Of(true)
 
 	// Mark one of them as already rescheduled once
 	allocs[5].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
@@ -2382,7 +2382,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
 	allocs[6].ClientStatus = structs.AllocClientStatusFailed
-	allocs[6].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+	allocs[6].DesiredTransition.Reschedule = pointer.Of(true)
 
 	// Create 4 unhealthy canary allocations that have already been replaced
 	for i := 0; i < 4; i++ {
@@ -2395,7 +2395,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary:  true,
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
 		allocs = append(allocs, alloc)
@@ -2490,7 +2490,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary:  true,
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
 		allocs = append(allocs, alloc)
@@ -2498,7 +2498,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 
 	// Mark the canaries as failed
 	allocs[5].ClientStatus = structs.AllocClientStatusFailed
-	allocs[5].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+	allocs[5].DesiredTransition.Reschedule = pointer.Of(true)
 
 	// Mark one of them as already rescheduled once
 	allocs[5].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
@@ -2512,7 +2512,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
 	allocs[6].ClientStatus = structs.AllocClientStatusFailed
-	allocs[6].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+	allocs[6].DesiredTransition.Reschedule = pointer.Of(true)
 
 	// Create 4 unhealthy canary allocations that have already been replaced
 	for i := 0; i < 4; i++ {
@@ -2525,7 +2525,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary:  true,
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
 		allocs = append(allocs, alloc)
@@ -3255,7 +3255,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	tainted := make(map[string]*structs.Node, 1)
 	n := mock.DrainNode()
 	n.ID = allocs[11].NodeID
-	allocs[11].DesiredTransition.Migrate = helper.BoolToPtr(true)
+	allocs[11].DesiredTransition.Migrate = pointer.Of(true)
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
@@ -3816,7 +3816,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		canary.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, canary)
 		handled[canary.ID] = allocUpdateFnIgnore
@@ -3893,7 +3893,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
 		canary.DeploymentID = d.ID
 		canary.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, canary)
 		handled[canary.ID] = allocUpdateFnIgnore
@@ -3994,7 +3994,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 				new.DeploymentID = d.ID
 				if i < c.healthy {
 					new.DeploymentStatus = &structs.AllocDeploymentStatus{
-						Healthy: helper.BoolToPtr(true),
+						Healthy: pointer.Of(true),
 					}
 				}
 				allocs = append(allocs, new)
@@ -4065,7 +4065,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
 		new.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, new)
 		handled[new.ID] = allocUpdateFnIgnore
@@ -4080,7 +4080,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.DrainStrategy = mock.DrainNode().DrainStrategy
-			allocs[2+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
+			allocs[2+i].DesiredTransition.Migrate = pointer.Of(true)
 		}
 		tainted[n.ID] = n
 	}
@@ -4153,7 +4153,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
 		new.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, new)
 		handled[new.ID] = allocUpdateFnIgnore
@@ -4168,7 +4168,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.DrainStrategy = mock.DrainNode().DrainStrategy
-			allocs[6+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
+			allocs[6+i].DesiredTransition.Migrate = pointer.Of(true)
 		}
 		tainted[n.ID] = n
 	}
@@ -4228,7 +4228,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, alloc)
 	}
@@ -4281,11 +4281,11 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
 		if i < 10 {
 			alloc.ClientStatus = structs.AllocClientStatusRunning
-			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+			alloc.DeploymentStatus.Healthy = pointer.Of(true)
 		} else {
 			alloc.DesiredStatus = structs.AllocDesiredStatusStop
 			alloc.ClientStatus = structs.AllocClientStatusFailed
-			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(false)
+			alloc.DeploymentStatus.Healthy = pointer.Of(false)
 		}
 
 		allocs = append(allocs, alloc)
@@ -4367,7 +4367,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 			new.TaskGroup = job.TaskGroups[group].Name
 			new.DeploymentID = d.ID
 			new.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(true),
+				Healthy: pointer.Of(true),
 			}
 			allocs = append(allocs, new)
 			handled[new.ID] = allocUpdateFnIgnore
@@ -4452,7 +4452,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
 		new.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, new)
 	}
@@ -4512,7 +4512,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		allocs = append(allocs, alloc)
 	}
@@ -4801,7 +4801,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 
 	// Mark half of them as reschedulable
 	for i := 0; i < 5; i++ {
-		allocs[i].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+		allocs[i].DesiredTransition.Reschedule = pointer.Of(true)
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
@@ -4870,7 +4870,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
 		new.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		new.ClientStatus = structs.AllocClientStatusRunning
 		allocs = append(allocs, new)
@@ -4885,7 +4885,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = uuid.Generate()
 		new.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 		new.DesiredStatus = structs.AllocDesiredStatusStop
 		new.ClientStatus = structs.AllocClientStatusFailed
@@ -5022,7 +5022,7 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	}}
 
 	// Mark DesiredTransition ForceReschedule
-	allocs[0].DesiredTransition = structs.DesiredTransition{ForceReschedule: helper.BoolToPtr(true)}
+	allocs[0].DesiredTransition = structs.DesiredTransition{ForceReschedule: pointer.Of(true)}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
 		nil, allocs, nil, "", 50, true)
@@ -5488,7 +5488,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
-			maxDisconnect:                helper.TimeToPtr(2 * time.Second),
+			maxDisconnect:                pointer.Of(2 * time.Second),
 			expected: &resultExpectation{
 				stop: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
@@ -5926,7 +5926,7 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 						Canary: true,
 					}
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
-						alloc.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+						alloc.DeploymentStatus.Healthy = pointer.Of(true)
 					}
 					tc.deploymentState.PlacedCanaries = append(tc.deploymentState.PlacedCanaries, alloc.ID)
 					handled[alloc.ID] = allocUpdateFnIgnore

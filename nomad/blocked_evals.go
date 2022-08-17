@@ -290,7 +290,7 @@ func latestEvalIndex(eval *structs.Evaluation) uint64 {
 		return 0
 	}
 
-	return helper.Uint64Max(eval.CreateIndex, eval.SnapshotIndex)
+	return helper.Max(eval.CreateIndex, eval.SnapshotIndex)
 }
 
 // missedUnblock returns whether an evaluation missed an unblock while it was in

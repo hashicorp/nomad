@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -3488,7 +3488,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		// We got new health information from the client
 		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
 			// Updated deployment health and timestamp
-			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Healthy = pointer.Of(*alloc.DeploymentStatus.Healthy)
 			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
 			copyAlloc.DeploymentStatus.ModifyIndex = index
 		}
@@ -4564,7 +4564,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 			copy.ModifyIndex = index

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2696,7 +2696,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+									ConnectTimeout:                  pointer.Of(1 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: false,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -2790,7 +2790,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+									ConnectTimeout:                  pointer.Of(2 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -3736,10 +3736,10 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay edited",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+				ShutdownDelay: pointer.Of(5 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3756,7 +3756,7 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay removed",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{},
 			Expected: &TaskGroupDiff{
@@ -3775,7 +3775,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "TaskGroup shutdown_delay added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3943,7 +3943,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3962,11 +3962,11 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect updated",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3985,7 +3985,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect deleted",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
@@ -7047,8 +7047,8 @@ func TestTaskDiff(t *testing.T) {
 						Uid:          1001,
 						Gid:          21,
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(5 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(5 * time.Second),
 						},
 					},
 					{
@@ -7078,8 +7078,8 @@ func TestTaskDiff(t *testing.T) {
 						Uid:          1001,
 						Gid:          21,
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
 						},
 					},
 					{
@@ -7093,8 +7093,8 @@ func TestTaskDiff(t *testing.T) {
 						Uid:          1002,
 						Gid:          22,
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
 						},
 					},
 				},

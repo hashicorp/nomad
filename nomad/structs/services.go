@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
 )
 
@@ -1139,11 +1140,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+		nt.KillTimeout = pointer.Of(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
 
 	return nt
@@ -1669,7 +1670,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
