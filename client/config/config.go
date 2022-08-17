@@ -107,6 +107,8 @@ type Config struct {
 
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
+	//
+	// Deprecated since 0.12: https://www.nomadproject.io/docs/upgrade/upgrade-specific#nomad-0-12-0
 	NetworkSpeed int
 
 	// CpuCompute is the default total CPU compute if they can not be determined

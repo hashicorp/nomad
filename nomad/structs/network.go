@@ -802,3 +802,17 @@ func (p *ClientHostNetworkConfig) Copy() *ClientHostNetworkConfig {
 	*c = *p
 	return c
 }
+
+func (p *ClientHostNetworkConfig) Validate(results *helper.ValidationResults) {
+	if p == nil {
+		return
+	}
+
+	//TODO Validate CIDR
+	//TODO Validate Interface
+
+	if _, err := ParsePortRanges(p.ReservedPorts); err != nil {
+		results.AppendErrorf("host_network[%q].reserved_ports %q invalid: %w",
+			p.Name, p.ReservedPorts, err)
+	}
+}

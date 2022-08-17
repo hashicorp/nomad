@@ -110,7 +110,6 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 	}
 
 	return warnings, errs
-
 }
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
