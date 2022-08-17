@@ -1,13 +1,16 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
@@ -108,16 +111,33 @@ func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 	return job
 }
 
-// setEnv wraps os.Setenv(key, value) and restores the environment variable to initial value in test cleanup
-func setEnv(t *testing.T, key, value string) {
-	initial, ok := os.LookupEnv(key)
-	os.Setenv(key, value)
-
-	t.Cleanup(func() {
-		if ok {
-			os.Setenv(key, initial)
-		} else {
-			os.Unsetenv(key)
+func waitForNodes(t *testing.T, client *api.Client) {
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
 		}
+		for _, node := range nodes {
+			if _, ok := node.Drivers["mock_driver"]; ok &&
+				node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		must.NoError(t, err)
 	})
+}
+
+func stopTestAgent(a *agent.TestAgent) {
+	_ = a.Shutdown()
+}
+
+func getTempFile(t *testing.T, name string) (string, func()) {
+	f, err := os.CreateTemp("", name)
+	must.NoError(t, err)
+	must.NoError(t, f.Close())
+	return f.Name(), func() {
+		_ = os.Remove(f.Name())
+	}
 }
