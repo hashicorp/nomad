@@ -233,7 +233,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
 	if j != nil {
-		resp.RevertedJobVersion = pointer.Of(uint64(j.Version))
+		resp.RevertedJobVersion = pointer.Of(j.Version)
 	}
 	return nil
 }
@@ -394,7 +394,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
 	if rollbackJob != nil {
-		resp.RevertedJobVersion = pointer.Of(uint64(rollbackJob.Version))
+		resp.RevertedJobVersion = pointer.Of(rollbackJob.Version)
 	}
 	return nil
 }

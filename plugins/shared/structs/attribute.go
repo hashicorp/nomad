@@ -82,13 +82,13 @@ func ParseAttribute(input string) *Attribute {
 	// Try to parse as an int
 	i, err := strconv.ParseInt(numeric, 10, 64)
 	if err == nil {
-		return &Attribute{Int: pointer.Of(int64(i)), Unit: unit}
+		return &Attribute{Int: pointer.Of(i), Unit: unit}
 	}
 
 	// Try to parse as a float
 	f, err := strconv.ParseFloat(numeric, 64)
 	if err == nil {
-		return &Attribute{Float: pointer.Of(float64(f)), Unit: unit}
+		return &Attribute{Float: pointer.Of(f), Unit: unit}
 	}
 
 	// Try to parse as a bool
@@ -137,7 +137,7 @@ func NewBoolAttribute(b bool) *Attribute {
 // to be valid.
 func NewIntAttribute(i int64, unit string) *Attribute {
 	return &Attribute{
-		Int:  pointer.Of(int64(i)),
+		Int:  pointer.Of(i),
 		Unit: unit,
 	}
 }
@@ -146,7 +146,7 @@ func NewIntAttribute(i int64, unit string) *Attribute {
 // be valid.
 func NewFloatAttribute(f float64, unit string) *Attribute {
 	return &Attribute{
-		Float: pointer.Of(float64(f)),
+		Float: pointer.Of(f),
 		Unit:  unit,
 	}
 }
