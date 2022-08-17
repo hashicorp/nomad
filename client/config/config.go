@@ -573,7 +573,7 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 		return nil, err
 	}
 
-	result := &config.WaitConfig{Enabled: helper.BoolToPtr(true)}
+	result := &config.WaitConfig{Enabled: pointer.Of(true)}
 
 	if wc.Min != nil {
 		result.Min = wc.Min
@@ -716,7 +716,7 @@ func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
 		return nil, err
 	}
 
-	result := &config.RetryConfig{Enabled: helper.BoolToPtr(true)}
+	result := &config.RetryConfig{Enabled: pointer.Of(true)}
 
 	if rc.Attempts != nil {
 		result.Attempts = rc.Attempts

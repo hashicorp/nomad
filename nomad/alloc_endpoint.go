@@ -10,7 +10,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -330,8 +330,8 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		Evals: []*structs.Evaluation{eval},
 		Allocs: map[string]*structs.DesiredTransition{
 			args.AllocID: {
-				Migrate:         helper.BoolToPtr(true),
-				NoShutdownDelay: helper.BoolToPtr(args.NoShutdownDelay),
+				Migrate:         pointer.Of(true),
+				NoShutdownDelay: pointer.Of(args.NoShutdownDelay),
 			},
 		},
 	}

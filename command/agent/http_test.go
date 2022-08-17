@@ -23,7 +23,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -562,11 +562,11 @@ func TestParseBool(t *testing.T) {
 		},
 		{
 			Input:    "true",
-			Expected: helper.BoolToPtr(true),
+			Expected: pointer.Of(true),
 		},
 		{
 			Input:    "false",
-			Expected: helper.BoolToPtr(false),
+			Expected: pointer.Of(false),
 		},
 		{
 			Input: "1234",
@@ -609,11 +609,11 @@ func Test_parseInt(t *testing.T) {
 		},
 		{
 			Input:    "13",
-			Expected: helper.IntToPtr(13),
+			Expected: pointer.Of(13),
 		},
 		{
 			Input:    "99",
-			Expected: helper.IntToPtr(99),
+			Expected: pointer.Of(99),
 		},
 		{
 			Input: "ten",
@@ -948,13 +948,13 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		{
 			tls:         true,
 			timeout:     "5s",
-			limit:       helper.IntToPtr(-1),
+			limit:       pointer.Of(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 		{
 			tls:         false,
 			timeout:     "5s",
-			limit:       helper.IntToPtr(-1),
+			limit:       pointer.Of(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 	}
@@ -1051,28 +1051,28 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		{
 			tls:           false,
 			timeout:       "0",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "0",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           false,
 			timeout:       "5s",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "5s",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: true,
 			assertLimit:   true,
 		},

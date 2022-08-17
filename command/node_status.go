@@ -11,7 +11,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
@@ -864,9 +864,9 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	if res == nil {
 		res = &api.Resources{}
 	}
-	total.CPU = helper.IntToPtr(*r.CPU - *res.CPU)
-	total.MemoryMB = helper.IntToPtr(*r.MemoryMB - *res.MemoryMB)
-	total.DiskMB = helper.IntToPtr(*r.DiskMB - *res.DiskMB)
+	total.CPU = pointer.Of(*r.CPU - *res.CPU)
+	total.MemoryMB = pointer.Of(*r.MemoryMB - *res.MemoryMB)
+	total.DiskMB = pointer.Of(*r.DiskMB - *res.DiskMB)
 	return total
 }
 

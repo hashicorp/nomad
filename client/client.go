@@ -47,6 +47,8 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -2349,7 +2351,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 		stripped.DeploymentStatus = add.DeploymentStatus.Copy()
 	} else {
 		stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(false),
+			Healthy:   pointer.Of(false),
 			Timestamp: failTime,
 		}
 	}

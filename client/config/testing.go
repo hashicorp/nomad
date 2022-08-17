@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -52,7 +53,13 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	}
 	conf.StateDir = stateDir
 
-	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
+	// Use a minimal chroot environment
+	conf.ChrootEnv = ci.TinyChroot
+
+	// Helps make sure we are respecting configured parent
+	conf.CgroupParent = "testing.slice"
+
+	conf.VaultConfig.Enabled = pointer.Of(false)
 	conf.DevMode = true
 
 	// Loosen GC threshold

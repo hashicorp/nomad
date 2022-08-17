@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
@@ -378,7 +379,7 @@ func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGa
 
 	// set default connect timeout if not set
 	if proxy.ConnectTimeout == nil {
-		proxy.ConnectTimeout = helper.TimeToPtr(defaultConnectTimeout)
+		proxy.ConnectTimeout = pointer.Of(defaultConnectTimeout)
 	}
 
 	if mode == "bridge" {

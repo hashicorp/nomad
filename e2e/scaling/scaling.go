@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -74,7 +74,7 @@ func (tc *ScalingE2ETest) TestScalingBasic(f *framework.F) {
 	// Simple scaling action.
 	testMeta := map[string]interface{}{"scaling-e2e-test": "value"}
 	scaleResp, _, err := tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", helper.IntToPtr(3),
+		jobID, "horizontally_scalable", pointer.Of(3),
 		"Nomad e2e testing", false, testMeta, nil)
 	f.NoError(err)
 	f.NotEmpty(scaleResp.EvalID)
@@ -87,11 +87,11 @@ func (tc *ScalingE2ETest) TestScalingBasic(f *framework.F) {
 
 	// Attempt break break the policy min/max parameters.
 	_, _, err = tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", helper.IntToPtr(4),
+		jobID, "horizontally_scalable", pointer.Of(4),
 		"Nomad e2e testing", false, nil, nil)
 	f.Error(err)
 	_, _, err = tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", helper.IntToPtr(1),
+		jobID, "horizontally_scalable", pointer.Of(1),
 		"Nomad e2e testing", false, nil, nil)
 	f.Error(err)
 
@@ -143,22 +143,22 @@ func (tc *ScalingE2ETest) TestScalingNamespaces(f *framework.F) {
 
 	// We shouldn't be able to trigger scaling across the namespace boundary.
 	_, _, err = tc.Nomad().Jobs().Scale(
-		defaultJobID, "horizontally_scalable", helper.IntToPtr(3),
+		defaultJobID, "horizontally_scalable", pointer.Of(3),
 		"Nomad e2e testing", false, nil, &aWriteOpts)
 	f.Error(err)
 	_, _, err = tc.Nomad().Jobs().Scale(
-		aJobID, "horizontally_scalable", helper.IntToPtr(3),
+		aJobID, "horizontally_scalable", pointer.Of(3),
 		"Nomad e2e testing", false, nil, &defaultWriteOpts)
 	f.Error(err)
 
 	// We should be able to trigger scaling when using the correct namespace,
 	// duh.
 	_, _, err = tc.Nomad().Jobs().Scale(
-		defaultJobID, "horizontally_scalable", helper.IntToPtr(3),
+		defaultJobID, "horizontally_scalable", pointer.Of(3),
 		"Nomad e2e testing", false, nil, &defaultWriteOpts)
 	f.NoError(err)
 	_, _, err = tc.Nomad().Jobs().Scale(
-		aJobID, "horizontally_scalable", helper.IntToPtr(3),
+		aJobID, "horizontally_scalable", pointer.Of(3),
 		"Nomad e2e testing", false, nil, &aWriteOpts)
 	f.NoError(err)
 }

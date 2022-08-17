@@ -871,7 +871,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 		remove--
 		if remove == 0 {
-			return stop
+			return stop, reconnecting
 		}
 	}
 
@@ -983,7 +983,7 @@ func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedReschedule
 		emitRescheduleInfo(allocReschedInfo.alloc, eval)
 	}
 
-	a.result.desiredFollowupEvals[tgName] = evals
+	a.appendFollowupEvals(tgName, evals)
 
 	return allocIDToFollowupEvalID
 }

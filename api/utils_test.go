@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,4 +37,15 @@ func TestFormatRoundedFloat(t *testing.T) {
 	for _, c := range cases {
 		require.Equal(t, c.expected, formatFloat(c.input, 3))
 	}
+}
+
+func Test_PointerOf(t *testing.T) {
+	s := "hello"
+	sPtr := pointerOf(s)
+
+	must.Eq(t, s, *sPtr)
+
+	b := "bye"
+	sPtr = &b
+	must.NotEq(t, s, *sPtr)
 }

@@ -20,7 +20,7 @@ func (c *CheckRestart) Canonicalize() {
 	}
 
 	if c.Grace == nil {
-		c.Grace = timeToPtr(1 * time.Second)
+		c.Grace = pointerOf(1 * time.Second)
 	}
 }
 

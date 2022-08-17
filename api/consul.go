@@ -33,3 +33,5 @@ func (c *Consul) MergeNamespace(namespace *string) {
 		c.Namespace = *namespace
 	}
 }
+<<<<<<< HEAD
+=======

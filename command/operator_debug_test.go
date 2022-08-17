@@ -19,6 +19,7 @@ import (
 	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -839,7 +840,7 @@ func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
 		config.Server.Enabled = true
-		config.Server.NumSchedulers = helper.IntToPtr(0)
+		config.Server.NumSchedulers = pointer.Of(0)
 		config.Server.BootstrapExpect = 3
 
 		if cb != nil {

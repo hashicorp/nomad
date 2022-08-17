@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -484,7 +484,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway("s1", &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					ConnectTimeout:                  pointer.Of(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: false,
 					EnvoyGatewayBindAddresses:       nil,
 					EnvoyGatewayNoDefaultBind:       false,
@@ -514,7 +514,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway("s1", &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					ConnectTimeout:                  pointer.Of(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: true,
 					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 						"service1": {

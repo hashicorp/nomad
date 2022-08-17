@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -198,8 +198,8 @@ func TestCSIHook(t *testing.T) {
 			rpcer := mockRPCer{
 				alloc:            alloc,
 				callCounts:       callCounts,
-				hasExistingClaim: helper.BoolToPtr(tc.startsWithClaims),
-				schedulable:      helper.BoolToPtr(!tc.startsUnschedulable),
+				hasExistingClaim: pointer.Of(tc.startsWithClaims),
+				schedulable:      pointer.Of(!tc.startsUnschedulable),
 			}
 			ar := mockAllocRunner{
 				res: &cstructs.AllocHookResources{},
@@ -303,8 +303,8 @@ func TestCSIHook_claimVolumesFromAlloc_Validation(t *testing.T) {
 			rpcer := mockRPCer{
 				alloc:            alloc,
 				callCounts:       callCounts,
-				hasExistingClaim: helper.BoolToPtr(false),
-				schedulable:      helper.BoolToPtr(true),
+				hasExistingClaim: pointer.Of(false),
+				schedulable:      pointer.Of(true),
 			}
 
 			ar := mockAllocRunner{

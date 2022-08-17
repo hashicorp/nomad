@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,7 +43,7 @@ var (
 	// allocations to be force rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowForceRescheduleTransition = &structs.DesiredTransition{
-		ForceReschedule: helper.BoolToPtr(true),
+		ForceReschedule: pointer.Of(true),
 	}
 )
 
@@ -1390,7 +1391,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
+			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)

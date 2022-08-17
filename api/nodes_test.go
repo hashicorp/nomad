@@ -669,15 +669,15 @@ func TestNodeStatValueFormatting(t *testing.T) {
 	}{
 		{
 			"true",
-			StatValue{BoolVal: boolToPtr(true)},
+			StatValue{BoolVal: pointerOf(true)},
 		},
 		{
 			"false",
-			StatValue{BoolVal: boolToPtr(false)},
+			StatValue{BoolVal: pointerOf(false)},
 		},
 		{
 			"myvalue",
-			StatValue{StringVal: stringToPtr("myvalue")},
+			StatValue{StringVal: pointerOf("myvalue")},
 		},
 		{
 			"2.718",
@@ -710,28 +710,28 @@ func TestNodeStatValueFormatting(t *testing.T) {
 		{
 			"2",
 			StatValue{
-				IntNumeratorVal: int64ToPtr(2),
+				IntNumeratorVal: pointerOf(int64(2)),
 			},
 		},
 		{
 			"2 / 3",
 			StatValue{
-				IntNumeratorVal:   int64ToPtr(2),
-				IntDenominatorVal: int64ToPtr(3),
+				IntNumeratorVal:   pointerOf(int64(2)),
+				IntDenominatorVal: pointerOf(int64(3)),
 			},
 		},
 		{
 			"2 MHz",
 			StatValue{
-				IntNumeratorVal: int64ToPtr(2),
+				IntNumeratorVal: pointerOf(int64(2)),
 				Unit:            "MHz",
 			},
 		},
 		{
 			"2 / 3 MHz",
 			StatValue{
-				IntNumeratorVal:   int64ToPtr(2),
-				IntDenominatorVal: int64ToPtr(3),
+				IntNumeratorVal:   pointerOf(int64(2)),
+				IntDenominatorVal: pointerOf(int64(3)),
 				Unit:              "MHz",
 			},
 		},
