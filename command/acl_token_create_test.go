@@ -3,6 +3,7 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
@@ -49,4 +50,29 @@ func TestACLTokenCreateCommand(t *testing.T) {
 
 	out = ui.OutputWriter.String()
 	require.NotContains(t, out, "Expiry Time  = <never>")
+}
+
+func Test_generateACLTokenRoleLinks(t *testing.T) {
+	ci.Parallel(t)
+
+	inputRoleNames := []string{
+		"duplicate",
+		"policy1",
+		"policy2",
+		"duplicate",
+	}
+	inputRoleIDs := []string{
+		"77a780d8-2dee-7c7f-7822-6f5471c5cbb2",
+		"56850b06-a343-a772-1a5c-ad083fd8a50e",
+		"77a780d8-2dee-7c7f-7822-6f5471c5cbb2",
+		"77a780d8-2dee-7c7f-7822-6f5471c5cbb2",
+	}
+	expectedOutput := []*api.ACLTokenRoleLink{
+		{Name: "duplicate"},
+		{Name: "policy1"},
+		{Name: "policy2"},
+		{ID: "77a780d8-2dee-7c7f-7822-6f5471c5cbb2"},
+		{ID: "56850b06-a343-a772-1a5c-ad083fd8a50e"},
+	}
+	require.ElementsMatch(t, generateACLTokenRoleLinks(inputRoleNames, inputRoleIDs), expectedOutput)
 }

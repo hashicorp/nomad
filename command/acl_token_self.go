@@ -68,6 +68,6 @@ func (c *ACLTokenSelfCommand) Run(args []string) int {
 	}
 
 	// Format the output
-	c.Ui.Output(formatKVACLToken(token))
+	outputACLToken(c.Ui, token)
 	return 0
 }

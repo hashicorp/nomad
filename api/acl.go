@@ -317,6 +317,11 @@ type ACLToken struct {
 	Name       string
 	Type       string
 	Policies   []string
+
+	// Roles represents the ACL roles that this token is tied to. The token
+	// will inherit the permissions of all policies detailed within the role.
+	Roles []*ACLTokenRoleLink
+
 	Global     bool
 	CreateTime time.Time
 
@@ -335,11 +340,26 @@ type ACLToken struct {
 	ModifyIndex uint64
 }
 
+// ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
+// can therefore inherit all the ACL policy permissions that the ACL role
+// contains.
+type ACLTokenRoleLink struct {
+
+	// ID is the ACLRole.ID UUID. This field is immutable and represents the
+	// absolute truth for the link.
+	ID string
+
+	// Name is the human friendly identifier for the ACL role and is a
+	// convenience field for operators.
+	Name string
+}
+
 type ACLTokenListStub struct {
 	AccessorID string
 	Name       string
 	Type       string
 	Policies   []string
+	Roles      []*ACLTokenRoleLink
 	Global     bool
 	CreateTime time.Time
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // ACLTokensByExpired returns an array accessor IDs of expired ACL tokens.
@@ -189,6 +190,14 @@ func (s *StateStore) GetACLRoles(ws memdb.WatchSet) (memdb.ResultIterator, error
 // of the caller to check for this.
 func (s *StateStore) GetACLRoleByID(ws memdb.WatchSet, roleID string) (*structs.ACLRole, error) {
 	txn := s.db.ReadTxn()
+	return s.getACLRoleByIDTxn(txn, ws, roleID)
+}
+
+// getACLRoleByIDTxn allows callers to pass a read transaction in order to read
+// a single ACL role specified by the input ID. The role object will be nil, if
+// no matching entry was found; it is the responsibility of the caller to check
+// for this.
+func (s *StateStore) getACLRoleByIDTxn(txn ReadTxn, ws memdb.WatchSet, roleID string) (*structs.ACLRole, error) {
 
 	// Perform the ACL role lookup using the "id" index.
 	watchCh, existing, err := txn.FirstWatch(TableACLRoles, indexID, roleID)
@@ -234,4 +243,62 @@ func (s *StateStore) GetACLRoleByIDPrefix(ws memdb.WatchSet, idPrefix string) (m
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// fixTokenRoleLinks is a state helper that ensures the returned ACL token has
+// an accurate representation of ACL role links. The role links could have
+// become stale when a linked role was deleted or renamed. This will correct
+// them and generates a newly allocated token only when fixes are needed. If
+// the role links are still accurate, we just return the original token.
+func (s *StateStore) fixTokenRoleLinks(txn ReadTxn, original *structs.ACLToken) (*structs.ACLToken, error) {
+
+	// Track whether we have made an initial copy to ensure we are not
+	// operating on the token directly from state.
+	copied := false
+
+	token := original
+
+	// copyTokenFn is a helper function which copies the ACL token along with
+	// a certain number of ACL role links.
+	copyTokenFn := func(t *structs.ACLToken, numLinks int) *structs.ACLToken {
+		clone := t.Copy()
+		clone.Roles = slices.Clone(t.Roles[:numLinks])
+		return clone
+	}
+
+	for linkIndex, link := range original.Roles {
+
+		// This should never happen, but guard against it anyway, so we log an
+		// error rather than panic.
+		if link.ID == "" {
+			return nil, errors.New("detected corrupted token within the state store: missing role link ID")
+		}
+
+		role, err := s.getACLRoleByIDTxn(txn, nil, link.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if role == nil {
+			if !copied {
+				// clone the token as we cannot touch the original
+				token = copyTokenFn(original, linkIndex)
+				copied = true
+			}
+			// if already owned then we just don't append it.
+		} else if role.Name != link.Name {
+			if !copied {
+				token = copyTokenFn(original, linkIndex)
+				copied = true
+			}
+
+			// append the corrected policy
+			token.Roles = append(token.Roles, &structs.ACLTokenRoleLink{ID: link.ID, Name: role.Name})
+
+		} else if copied {
+			token.Roles = append(token.Roles, link)
+		}
+	}
+
+	return token, nil
 }

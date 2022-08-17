@@ -5,12 +5,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
 type ACLTokenCreateCommand struct {
 	Meta
+
+	roleNames []string
+	roleIDs   []string
 }
 
 func (c *ACLTokenCreateCommand) Help() string {
@@ -38,6 +43,12 @@ Create Options:
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
 
+  -role-id
+     ID of a role to use for this token. May be specified multiple times.
+
+  -role-name
+     Name of a role to use for this token. May be specified multiple times.
+
   -ttl
     Specifies the time-to-live of the created ACL token. This takes the form of
     a time duration such as "5m" and "1h". By default, tokens will be created
@@ -49,11 +60,13 @@ Create Options:
 func (c *ACLTokenCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"name":   complete.PredictAnything,
-			"type":   complete.PredictAnything,
-			"global": complete.PredictNothing,
-			"policy": complete.PredictAnything,
-			"ttl":    complete.PredictAnything,
+			"name":      complete.PredictAnything,
+			"type":      complete.PredictAnything,
+			"global":    complete.PredictNothing,
+			"policy":    complete.PredictAnything,
+			"role-id":   complete.PredictAnything,
+			"role-name": complete.PredictAnything,
+			"ttl":       complete.PredictAnything,
 		})
 }
 
@@ -81,6 +94,14 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		policies = append(policies, s)
 		return nil
 	}), "policy", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleNames = append(c.roleNames, s)
+		return nil
+	}), "role-name", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleIDs = append(c.roleIDs, s)
+		return nil
+	}), "role-id", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -93,11 +114,12 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Setup the token
+	// Set up the token.
 	tk := &api.ACLToken{
 		Name:     name,
 		Type:     tokenType,
 		Policies: policies,
+		Roles:    generateACLTokenRoleLinks(c.roleNames, c.roleIDs),
 		Global:   global,
 	}
 
@@ -127,6 +149,24 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	}
 
 	// Format the output
-	c.Ui.Output(formatKVACLToken(token))
+	outputACLToken(c.Ui, token)
 	return 0
+}
+
+// generateACLTokenRoleLinks takes the command input role links by ID and name
+// and coverts this to the relevant API object. It handles de-duplicating
+// entries to the best effort, so this doesn't need to be done on the leader.
+func generateACLTokenRoleLinks(roleNames, roleIDs []string) []*api.ACLTokenRoleLink {
+	var tokenLinks []*api.ACLTokenRoleLink
+
+	roleNameSet := set.From[string](roleNames).List()
+	roleNameFn := func(name string) *api.ACLTokenRoleLink { return &api.ACLTokenRoleLink{Name: name} }
+
+	roleIDsSet := set.From[string](roleIDs).List()
+	roleIDFn := func(id string) *api.ACLTokenRoleLink { return &api.ACLTokenRoleLink{ID: id} }
+
+	tokenLinks = append(tokenLinks, helper.ConvertSlice(roleNameSet, roleNameFn)...)
+	tokenLinks = append(tokenLinks, helper.ConvertSlice(roleIDsSet, roleIDFn)...)
+
+	return tokenLinks
 }

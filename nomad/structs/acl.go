@@ -88,6 +88,22 @@ var (
 	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
+// ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
+// can therefore inherit all the ACL policy permissions that the ACL role
+// contains.
+type ACLTokenRoleLink struct {
+
+	// ID is the ACLRole.ID UUID. This field is immutable and represents the
+	// absolute truth for the link.
+	ID string
+
+	// Name is the human friendly identifier for the ACL role and is a
+	// convenience field for operators. This field is always resolved to the
+	// ID and discarded before the token is stored in state. This is because
+	// operators can change the name of an ACL role.
+	Name string
+}
+
 // Canonicalize performs basic canonicalization on the ACL token object. It is
 // important for callers to understand certain fields such as AccessorID are
 // set if it is empty, so copies should be taken if needed before calling this
@@ -120,16 +136,16 @@ func (a *ACLToken) Validate(minTTL, maxTTL time.Duration, existing *ACLToken) er
 	}
 
 	// The type of an ACL token must be set. An ACL token of type client must
-	// have associated policies, whereas a management token cannot be
+	// have associated policies or roles, whereas a management token cannot be
 	// associated with policies.
 	switch a.Type {
 	case ACLClientToken:
-		if len(a.Policies) == 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("client token missing policies"))
+		if len(a.Policies) == 0 && len(a.Roles) == 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("client token missing policies or roles"))
 		}
 	case ACLManagementToken:
-		if len(a.Policies) != 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("management token cannot be associated with policies"))
+		if len(a.Policies) != 0 || len(a.Roles) != 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("management token cannot be associated with policies or roles"))
 		}
 	default:
 		mErr.Errors = append(mErr.Errors, errors.New("token type must be client or management"))

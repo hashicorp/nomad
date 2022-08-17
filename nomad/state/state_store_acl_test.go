@@ -488,3 +488,135 @@ func TestStateStore_GetACLRoleByIDPrefix(t *testing.T) {
 	}
 	require.Len(t, aclRoles, 2)
 }
+
+func TestStateStore_fixTokenRoleLinks(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func()
+	}{
+		{
+			name: "no fix needed",
+			testFn: func() {
+				testState := testStateStore(t)
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, testState.UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Generate a some mocked ACL roles for testing and upsert these straight
+				// into state.
+				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+
+				// Create an ACL token linking to the ACL role.
+				token1 := mock.ACLToken()
+				token1.Roles = []*structs.ACLTokenRoleLink{{ID: mockedACLRoles[0].ID}}
+				require.NoError(t, testState.UpsertACLTokens(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLToken{token1}))
+
+				// Perform the fix and check the returned token contains the
+				// correct roles.
+				readTxn := testState.db.ReadTxn()
+				outputToken, err := testState.fixTokenRoleLinks(readTxn, token1)
+				require.NoError(t, err)
+				require.Equal(t, outputToken.Roles, []*structs.ACLTokenRoleLink{{
+					Name: mockedACLRoles[0].Name, ID: mockedACLRoles[0].ID,
+				}})
+			},
+		},
+		{
+			name: "acl role from link deleted",
+			testFn: func() {
+				testState := testStateStore(t)
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, testState.UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Generate a some mocked ACL roles for testing and upsert these straight
+				// into state.
+				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+
+				// Create an ACL token linking to the ACL roles.
+				token1 := mock.ACLToken()
+				token1.Roles = []*structs.ACLTokenRoleLink{{ID: mockedACLRoles[0].ID}, {ID: mockedACLRoles[1].ID}}
+				require.NoError(t, testState.UpsertACLTokens(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLToken{token1}))
+
+				// Now delete one of the ACL roles from state.
+				require.NoError(t, testState.DeleteACLRolesByID(
+					structs.MsgTypeTestSetup, 40, []string{mockedACLRoles[0].ID}))
+
+				// Perform the fix and check the returned token contains the
+				// correct roles.
+				readTxn := testState.db.ReadTxn()
+				outputToken, err := testState.fixTokenRoleLinks(readTxn, token1)
+				require.NoError(t, err)
+				require.Len(t, outputToken.Roles, 1)
+				require.Equal(t, outputToken.Roles, []*structs.ACLTokenRoleLink{{
+					Name: mockedACLRoles[1].Name, ID: mockedACLRoles[1].ID,
+				}})
+			},
+		},
+		{
+			name: "acl role from link name changed",
+			testFn: func() {
+				testState := testStateStore(t)
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, testState.UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Generate a some mocked ACL roles for testing and upsert these straight
+				// into state.
+				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+
+				// Create an ACL token linking to the ACL roles.
+				token1 := mock.ACLToken()
+				token1.Roles = []*structs.ACLTokenRoleLink{{ID: mockedACLRoles[0].ID}, {ID: mockedACLRoles[1].ID}}
+				require.NoError(t, testState.UpsertACLTokens(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLToken{token1}))
+
+				// Now change the name of one of the ACL roles.
+				mockedACLRoles[0].Name = "badger-badger-badger"
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 40, mockedACLRoles))
+
+				// Perform the fix and check the returned token contains the
+				// correct roles.
+				readTxn := testState.db.ReadTxn()
+				outputToken, err := testState.fixTokenRoleLinks(readTxn, token1)
+				require.NoError(t, err)
+				require.Len(t, outputToken.Roles, 2)
+				require.ElementsMatch(t, outputToken.Roles, []*structs.ACLTokenRoleLink{
+					{Name: mockedACLRoles[0].Name, ID: mockedACLRoles[0].ID},
+					{Name: mockedACLRoles[1].Name, ID: mockedACLRoles[1].ID},
+				})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn()
+		})
+	}
+}

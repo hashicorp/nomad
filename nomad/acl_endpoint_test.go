@@ -1618,6 +1618,129 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 				require.Empty(t, tokenResp.Tokens)
 			},
 		},
+		{
+			name: "token with role links",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+
+				// Attempt to create a token with a link to a role that does
+				// not exist in state.
+				tokenReq1 := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name:  "my-lovely-token-" + uuid.Generate(),
+							Type:  structs.ACLClientToken,
+							Roles: []*structs.ACLTokenRoleLink{{Name: "cant-find-me"}},
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the expiration time is as
+				// expected.
+				var tokenResp1 structs.ACLTokenUpsertResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, tokenReq1, &tokenResp1)
+				require.ErrorContains(t, err, "cannot find role cant-find-me")
+				require.Empty(t, tokenResp1.Tokens)
+
+				// Create an ACL policy that will be linked from an ACL role
+				// and enter this into state.
+				policy1 := mock.ACLPolicy()
+
+				require.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1}))
+
+				// Create an ACL role that links to the above policy.
+				aclRole1 := mock.ACLRole()
+				aclRole1.Policies = []*structs.ACLRolePolicyLink{{Name: policy1.Name}}
+
+				require.NoError(t, testServer.fsm.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}))
+
+				// Create a token which references the created ACL role. This
+				// role reference is duplicated to ensure the handler
+				// de-duplicates this before putting it into state.
+				// not exist in state.
+				tokenReq2 := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name: "my-lovely-token-" + uuid.Generate(),
+							Type: structs.ACLClientToken,
+							Roles: []*structs.ACLTokenRoleLink{
+								{ID: aclRole1.ID},
+								{ID: aclRole1.ID},
+								{ID: aclRole1.ID},
+							},
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the returned token is as
+				// expected.
+				var tokenResp2 structs.ACLTokenUpsertResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, tokenReq2, &tokenResp2)
+				require.NoError(t, err)
+				require.Len(t, tokenResp2.Tokens, 1)
+				require.Len(t, tokenResp2.Tokens[0].Policies, 0)
+				require.Len(t, tokenResp2.Tokens[0].Roles, 1)
+				require.Equal(t, []*structs.ACLTokenRoleLink{{
+					ID: aclRole1.ID, Name: aclRole1.Name}}, tokenResp2.Tokens[0].Roles)
+			},
+		},
+		{
+			name: "token with role and policy links",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+
+				// Create two ACL policies that will be used for ACL role and
+				// policy linking.
+				policy1 := mock.ACLPolicy()
+				policy2 := mock.ACLPolicy()
+
+				require.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create an ACL role that links to one of the above policies.
+				aclRole1 := mock.ACLRole()
+				aclRole1.Policies = []*structs.ACLRolePolicyLink{{Name: policy1.Name}}
+
+				require.NoError(t, testServer.fsm.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}))
+
+				// Create an ACL token with both ACL role and policy links.
+				tokenReq1 := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{
+						{
+							Name:     "my-lovely-token-" + uuid.Generate(),
+							Type:     structs.ACLClientToken,
+							Policies: []string{policy2.Name},
+							Roles:    []*structs.ACLTokenRoleLink{{ID: aclRole1.ID}},
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+
+				// Send the RPC request and ensure the returned token has
+				// policy and ACL role links as expected.
+				var tokenResp1 structs.ACLTokenUpsertResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, tokenReq1, &tokenResp1)
+				require.NoError(t, err)
+				require.Len(t, tokenResp1.Tokens, 1)
+				require.Len(t, tokenResp1.Tokens[0].Policies, 1)
+				require.Len(t, tokenResp1.Tokens[0].Roles, 1)
+				require.Equal(t, policy2.Name, tokenResp1.Tokens[0].Policies[0])
+				require.Equal(t, []*structs.ACLTokenRoleLink{{
+					ID: aclRole1.ID, Name: aclRole1.Name}}, tokenResp1.Tokens[0].Roles)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

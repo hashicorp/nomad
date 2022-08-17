@@ -11908,7 +11908,12 @@ type ACLToken struct {
 	Name       string   // Human friendly name
 	Type       string   // Client or Management
 	Policies   []string // Policies this token ties to
-	Global     bool     // Global or Region local
+
+	// Roles represents the ACL roles that this token is tied to. The token
+	// will inherit the permissions of all policies detailed within the role.
+	Roles []*ACLTokenRoleLink
+
+	Global     bool // Global or Region local
 	Hash       []byte
 	CreateTime time.Time // Time of creation
 
@@ -11950,8 +11955,12 @@ func (a *ACLToken) Copy() *ACLToken {
 
 	c.Policies = make([]string, len(a.Policies))
 	copy(c.Policies, a.Policies)
+
 	c.Hash = make([]byte, len(a.Hash))
 	copy(c.Hash, a.Hash)
+
+	c.Roles = make([]*ACLTokenRoleLink, len(a.Roles))
+	copy(c.Roles, a.Roles)
 
 	return c
 }
@@ -11973,6 +11982,7 @@ type ACLTokenListStub struct {
 	Name           string
 	Type           string
 	Policies       []string
+	Roles          []*ACLTokenRoleLink
 	Global         bool
 	Hash           []byte
 	CreateTime     time.Time
@@ -12003,6 +12013,13 @@ func (a *ACLToken) SetHash() []byte {
 		_, _ = hash.Write([]byte("local"))
 	}
 
+	// Iterate the ACL role links and hash the ID. The ID is immutable and the
+	// canonical way to reference a role. The name can be modified by
+	// operators, but won't impact the ACL token resolution.
+	for _, roleLink := range a.Roles {
+		_, _ = hash.Write([]byte(roleLink.ID))
+	}
+
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
@@ -12017,6 +12034,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 		Name:           a.Name,
 		Type:           a.Type,
 		Policies:       a.Policies,
+		Roles:          a.Roles,
 		Global:         a.Global,
 		Hash:           a.Hash,
 		CreateTime:     a.CreateTime,
