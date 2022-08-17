@@ -13,7 +13,7 @@ export default class VariableAdapter extends ApplicationAdapter {
     let data = this.serialize(snapshot);
     let baseUrl = this.buildURL(type.modelName, data.ID);
     const checkAndSetValue = snapshot?.attr('modifyIndex') || 0;
-    return this.ajax(`${baseUrl}&cas=${checkAndSetValue}`, 'PUT', { data });
+    return this.ajax(`${baseUrl}?cas=${checkAndSetValue}`, 'PUT', { data });
   }
 
   urlForFindAll(modelName) {
