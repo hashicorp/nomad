@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
@@ -481,6 +482,468 @@ func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
 		t.Fatalf("error waiting for initial state:\n%v", err)
 	})
 
+}
+
+func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
+	ci.Parallel(t)
+
+	// test cases can use this default or override w/ taskDefs param
+	alloc := mock.LifecycleAllocFromTasks([]mock.LifecycleTaskDef{
+		{"main", "100s", 0, "", false},
+		{"prestart-oneshot", "1s", 0, "prestart", false},
+		{"prestart-sidecar", "100s", 0, "prestart", true},
+		{"poststart-oneshot", "1s", 0, "poststart", false},
+		{"poststart-sidecar", "100s", 0, "poststart", true},
+		{"poststop", "1s", 0, "poststop", false},
+	})
+	alloc.Job.Type = structs.JobTypeService
+	rp := &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    1 * time.Nanosecond,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	testCases := []struct {
+		name          string
+		taskDefs      []mock.LifecycleTaskDef
+		isBatch       bool
+		hasLeader     bool
+		action        func(*allocRunner, *structs.Allocation) error
+		expectedErr   string
+		expectedAfter map[string]structs.TaskState
+	}{
+		{
+			name: "restart entire allocation",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
+				return ar.RestartAll(ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "restart only running tasks",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartRunningSignal}
+				return ar.RestartRunning(ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "batch job restart entire allocation",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "100s", 1, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			isBatch: true,
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
+				return ar.RestartAll(ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "batch job restart only running tasks ",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "100s", 1, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			isBatch: true,
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartRunningSignal}
+				return ar.RestartRunning(ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name:      "restart entire allocation with leader",
+			hasLeader: true,
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
+				return ar.RestartAll(ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "stop from server",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				stopAlloc := alloc.Copy()
+				stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+				ar.Update(stopAlloc)
+				return nil
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "restart main task",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
+				return ar.RestartTask("main", ev)
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name:      "restart leader main task",
+			hasLeader: true,
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				return ar.RestartTask("main", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "main task fails and restarts once",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "2s", 1, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				time.Sleep(3 * time.Second) // make sure main task has exited
+				return nil
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "leader main task fails and restarts once",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "2s", 1, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			hasLeader: true,
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				time.Sleep(3 * time.Second) // make sure main task has exited
+				return nil
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "main stopped unexpectedly and restarts once",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "2s", 0, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				time.Sleep(3 * time.Second) // make sure main task has exited
+				return nil
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "leader main stopped unexpectedly and restarts once",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "2s", 0, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				time.Sleep(3 * time.Second) // make sure main task has exited
+				return nil
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "failed main task cannot be restarted",
+			taskDefs: []mock.LifecycleTaskDef{
+				{"main", "2s", 1, "", false},
+				{"prestart-oneshot", "1s", 0, "prestart", false},
+				{"prestart-sidecar", "100s", 0, "prestart", true},
+				{"poststart-oneshot", "1s", 0, "poststart", false},
+				{"poststart-sidecar", "100s", 0, "poststart", true},
+				{"poststop", "1s", 0, "poststop", false},
+			},
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				// make sure main task has had a chance to restart once on its
+				// own and fail again before we try to manually restart it
+				time.Sleep(5 * time.Second)
+				return ar.RestartTask("main", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+			},
+			expectedErr: "Task not running",
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "dead", Restarts: 1},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
+				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+			},
+		},
+		{
+			name: "restart prestart-sidecar task",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				return ar.RestartTask("prestart-sidecar", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 0},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+		{
+			name: "restart poststart-sidecar task",
+			action: func(ar *allocRunner, alloc *structs.Allocation) error {
+				return ar.RestartTask("poststart-sidecar", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+			},
+			expectedAfter: map[string]structs.TaskState{
+				"main":              structs.TaskState{State: "running", Restarts: 0},
+				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
+				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
+				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
+				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
+				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+
+			alloc := alloc.Copy()
+			alloc.Job.TaskGroups[0].RestartPolicy = rp
+			if tc.taskDefs != nil {
+				alloc = mock.LifecycleAllocFromTasks(tc.taskDefs)
+				alloc.Job.Type = structs.JobTypeService
+			}
+			for _, task := range alloc.Job.TaskGroups[0].Tasks {
+				task.RestartPolicy = rp // tasks inherit the group policy
+			}
+			if tc.hasLeader {
+				for _, task := range alloc.Job.TaskGroups[0].Tasks {
+					if task.Name == "main" {
+						task.Leader = true
+					}
+				}
+			}
+			if tc.isBatch {
+				alloc.Job.Type = structs.JobTypeBatch
+			}
+
+			conf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+			go ar.Run()
+
+			upd := conf.StateUpdater.(*MockStateUpdater)
+
+			// assert our "before" states:
+			// - all one-shot tasks should be dead but not failed
+			// - all main tasks and sidecars should be running
+			// - no tasks should have restarted
+			testutil.WaitForResult(func() (bool, error) {
+				last := upd.Last()
+				if last == nil {
+					return false, fmt.Errorf("no update")
+				}
+				if last.ClientStatus != structs.AllocClientStatusRunning {
+					return false, fmt.Errorf(
+						"expected alloc to be running not %s", last.ClientStatus)
+				}
+				var errs *multierror.Error
+
+				expectedBefore := map[string]string{
+					"main":              "running",
+					"prestart-oneshot":  "dead",
+					"prestart-sidecar":  "running",
+					"poststart-oneshot": "dead",
+					"poststart-sidecar": "running",
+					"poststop":          "pending",
+				}
+
+				for task, expected := range expectedBefore {
+					got, ok := last.TaskStates[task]
+					if !ok {
+						continue
+					}
+					if got.State != expected {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"expected initial state of task %q to be %q not %q",
+							task, expected, got.State))
+					}
+					if got.Restarts != 0 {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"expected no initial restarts of task %q, not %q",
+							task, got.Restarts))
+					}
+					if expected == "dead" && got.Failed {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"expected ephemeral task %q to be dead but not failed",
+							task))
+					}
+
+				}
+				if errs.ErrorOrNil() != nil {
+					return false, errs.ErrorOrNil()
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(t, err, "error waiting for initial state")
+			})
+
+			// perform the action
+			err = tc.action(ar, alloc.Copy())
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// assert our "after" states
+			testutil.WaitForResult(func() (bool, error) {
+				last := upd.Last()
+				if last == nil {
+					return false, fmt.Errorf("no update")
+				}
+				var errs *multierror.Error
+				for task, expected := range tc.expectedAfter {
+					got, ok := last.TaskStates[task]
+					if !ok {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"no final state found for task %q", task,
+						))
+					}
+					if got.State != expected.State {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"expected final state of task %q to be %q not %q",
+							task, expected.State, got.State))
+					}
+					if expected.State == "dead" {
+						if got.FinishedAt.IsZero() || got.StartedAt.IsZero() {
+							errs = multierror.Append(errs, fmt.Errorf(
+								"expected final state of task %q to have start and finish time", task))
+						}
+						if len(got.Events) < 2 {
+							errs = multierror.Append(errs, fmt.Errorf(
+								"expected final state of task %q to include at least 2 tasks", task))
+						}
+					}
+
+					if got.Restarts != expected.Restarts {
+						errs = multierror.Append(errs, fmt.Errorf(
+							"expected final restarts of task %q to be %v not %v",
+							task, expected.Restarts, got.Restarts))
+					}
+				}
+				if errs.ErrorOrNil() != nil {
+					return false, errs.ErrorOrNil()
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(t, err, "error waiting for final state")
+			})
+		})
+	}
 }
 
 func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {

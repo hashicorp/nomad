@@ -349,6 +349,60 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	assert.Equal(t, 1, started)
 }
 
+// TestTaskRunner_Restore_Dead asserts restoring a dead task will cause it to
+// block in alloc restart loop and it will be able to restart on request.
+func TestTaskRunner_Restore_Dead(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.TaskGroups[0].Count = 1
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	// use raw_exec because mock_driver restore doesn't behave as expected.
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "sleep",
+		"args":    []string{"2"},
+	}
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
+	defer cleanup()
+
+	// Run the first TaskRunner
+	origTR, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go origTR.Run()
+	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for it to be dead
+	testWaitForTaskToDie(t, origTR)
+
+	// Cause TR to exit without shutting down task
+	origTR.Shutdown()
+
+	// Start a new TaskRunner and make sure it does not rerun the task
+	newTR, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+
+	// Do the Restore
+	require.NoError(t, newTR.Restore())
+
+	go newTR.Run()
+	defer newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Verify that the TaskRunner is still active
+	select {
+	case <-newTR.WaitCh():
+		require.Fail(t, "WaitCh is not blocking")
+	default:
+	}
+
+	// Verify that we can restart task
+	ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
+	err = newTR.Restart(context.Background(), ev, false)
+	require.NoError(t, err)
+	testWaitForTaskToStart(t, newTR)
+}
+
 // setupRestoreFailureTest starts a service, shuts down the task runner, and
 // kills the task before restarting a new TaskRunner. The new TaskRunner is
 // returned once it is running and waiting in pending along with a cleanup

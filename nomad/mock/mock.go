@@ -700,6 +700,50 @@ func LifecycleAlloc() *structs.Allocation {
 	return alloc
 }
 
+type LifecycleTaskDef struct {
+	Name      string
+	RunFor    string
+	ExitCode  int
+	Hook      string
+	IsSidecar bool
+}
+
+// LifecycleAllocFromTasks generates an Allocation with mock tasks that have
+// the provided lifecycles.
+func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
+	alloc := LifecycleAlloc()
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{}
+	for _, task := range tasks {
+		var lc *structs.TaskLifecycleConfig
+		if task.Hook != "" {
+			// TODO: task coordinator doesn't treat nil and empty structs the same
+			lc = &structs.TaskLifecycleConfig{
+				Hook:    task.Hook,
+				Sidecar: task.IsSidecar,
+			}
+		}
+
+		alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks,
+			&structs.Task{
+				Name:   task.Name,
+				Driver: "mock_driver",
+				Config: map[string]interface{}{
+					"run_for":   task.RunFor,
+					"exit_code": task.ExitCode},
+				Lifecycle: lc,
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{CPU: 100, MemoryMB: 256},
+			},
+		)
+		alloc.TaskResources[task.Name] = &structs.Resources{CPU: 100, MemoryMB: 256}
+		alloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu:    structs.AllocatedCpuResources{CpuShares: 100},
+			Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+		}
+	}
+	return alloc
+}
+
 func LifecycleJobWithPoststopDeploy() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
