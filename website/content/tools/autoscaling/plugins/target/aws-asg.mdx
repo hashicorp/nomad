@@ -70,6 +70,11 @@ target "aws-asg" {
 - `aws_session_token` `(string: "")` - The AWS session token used to authenticate
   with the AWS API.
 
+- `aws_credential_provider` `(string: "")` - The source of AWS credentials when
+  `aws_access_key_id` and `aws_secret_access_key` are not defined. If empty,
+  the [standard credential chain][aws_sdk_creds] will be followed. If set to
+  "ec2_role" credentials will be retrieved from the EC2 instance role.
+
 ### Nomad ACL
 
 When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
