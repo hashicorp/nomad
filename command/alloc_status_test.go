@@ -12,10 +12,9 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +26,7 @@ func TestAllocStatusCommand_Implements(t *testing.T) {
 func TestAllocStatusCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -89,23 +88,9 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		require.NoError(t, err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -152,24 +137,9 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 func TestAllocStatusCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if _, ok := node.Drivers["mock_driver"]; ok &&
-				node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -249,28 +219,13 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test reschedule attempt info
-	require := require.New(t)
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
 	a.Metrics = &structs.AllocMetric{}
@@ -285,41 +240,27 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Replacement Alloc ID")
-	require.Regexp(regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
+	require.Contains(t, out, "Replacement Alloc ID")
+	require.Regexp(t, regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+
 	// Test node metrics
-	require := require.New(t)
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
 	mockNode1 := mock.Node()
@@ -342,27 +283,26 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Placement Metrics")
-	require.Contains(out, mockNode1.ID)
-	require.Contains(out, mockNode2.ID)
+	require.Contains(t, out, "Placement Metrics")
+	require.Contains(t, out, mockNode1.ID)
+	require.Contains(t, out, mockNode2.ID)
 
 	// assert we sort headers alphabetically
-	require.Contains(out, "binpack  node-affinity")
-	require.Contains(out, "final score")
+	require.Contains(t, out, "binpack  node-affinity")
+	require.Contains(t, out, "final score")
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -370,15 +310,15 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(a.ID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, a.ID, res[0])
 }
 
 func TestAllocStatusCommand_HostVolumes(t *testing.T) {
@@ -397,7 +337,8 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 			},
 		}
 	})
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
+
 	state := srv.Agent.Server().State()
 
 	// Upsert the job and alloc
@@ -448,7 +389,8 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
+
 	state := srv.Agent.Server().State()
 
 	// Upsert the node, plugin, and volume
