@@ -7,7 +7,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -327,7 +326,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 			Status:            structs.DeploymentStatusFailed,
 			StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
 		},
-		JobVersion: helper.Uint64ToPtr(0),
+		JobVersion: pointer.Of(uint64(0)),
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
 	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
@@ -1078,7 +1077,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
 		StatusDescription: structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedAllocations, 0),
-		JobVersion:        helper.Uint64ToPtr(0),
+		JobVersion:        pointer.Of(uint64(0)),
 		Eval:              true,
 	}
 	m2 := matchDeploymentStatusUpdateRequest(c)
@@ -1151,7 +1150,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
 		StatusDescription: structs.DeploymentStatusDescriptionRollback(structs.DeploymentStatusDescriptionFailedAllocations, 0),
-		JobVersion:        helper.Uint64ToPtr(2),
+		JobVersion:        pointer.Of(uint64(2)),
 		Eval:              true,
 	}
 	m3 := matchDeploymentStatusUpdateRequest(c2)

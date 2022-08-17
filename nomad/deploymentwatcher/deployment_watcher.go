@@ -8,7 +8,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -234,7 +233,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
 	if j != nil {
-		resp.RevertedJobVersion = helper.Uint64ToPtr(j.Version)
+		resp.RevertedJobVersion = pointer.Of(uint64(j.Version))
 	}
 	return nil
 }
@@ -395,7 +394,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
 	if rollbackJob != nil {
-		resp.RevertedJobVersion = helper.Uint64ToPtr(rollbackJob.Version)
+		resp.RevertedJobVersion = pointer.Of(uint64(rollbackJob.Version))
 	}
 	return nil
 }

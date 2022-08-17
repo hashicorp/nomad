@@ -2011,7 +2011,7 @@ func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, r
 	if err != nil {
 		return err
 	}
-	reply.Index = helper.Uint64Max(1, index)
+	reply.Index = helper.Max(1, index)
 
 	// Set the query response.
 	s.setQueryMeta(reply)

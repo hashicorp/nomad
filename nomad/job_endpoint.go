@@ -1390,7 +1390,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
+			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
