@@ -546,3 +546,27 @@ func Test_NewSafeTimer(t *testing.T) {
 		<-timer.C
 	})
 }
+
+func Test_ConvertSlice(t *testing.T) {
+	t.Run("string wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id string }
+		input := []string{"foo", "bar", "bad", "had"}
+		cFn := func(id string) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: "foo"}, {id: "bar"}, {id: "bad"}, {id: "had"}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+	})
+
+	t.Run("int wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id int }
+		input := []int{10, 13, 1987, 2020}
+		cFn := func(id int) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: 10}, {id: 13}, {id: 1987}, {id: 2020}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+	})
+}
