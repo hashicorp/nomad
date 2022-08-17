@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Update go toolchain to 1.18.5
+```
