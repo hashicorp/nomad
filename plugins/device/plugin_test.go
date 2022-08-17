@@ -9,7 +9,6 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -196,7 +195,7 @@ func TestDevicePlugin_Fingerprint(t *testing.T) {
 			Name:   "foo",
 			Attributes: map[string]*psstructs.Attribute{
 				"memory": {
-					Int:  helper.Int64ToPtr(4),
+					Int:  pointer.Of(int64(4)),
 					Unit: "GiB",
 				},
 			},
@@ -477,8 +476,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						IntNumeratorVal:   helper.Int64ToPtr(10),
-						IntDenominatorVal: helper.Int64ToPtr(20),
+						IntNumeratorVal:   pointer.Of(int64(10)),
+						IntDenominatorVal: pointer.Of(int64(20)),
 						Unit:              "MB",
 						Desc:              "Unit test",
 					},
@@ -494,8 +493,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						FloatNumeratorVal:   helper.Float64ToPtr(10.0),
-						FloatDenominatorVal: helper.Float64ToPtr(20.0),
+						FloatNumeratorVal:   pointer.Of(float64(10.0)),
+						FloatDenominatorVal: pointer.Of(float64(20.0)),
 						Unit:                "MB",
 						Desc:                "Unit test",
 					},

@@ -9,7 +9,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -2896,7 +2895,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				require.FailNow(t, "invalid jobType")
 			}
 
-			job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
+			job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
 
 			if !tc.required {
 				job.Stop = true

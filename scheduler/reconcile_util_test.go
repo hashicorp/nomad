@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -62,7 +61,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	}
 
 	testJob := mock.Job()
-	testJob.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
+	testJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
 	now := time.Now()
 
 	testJobNoMaxDisconnect := mock.Job()

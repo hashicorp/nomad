@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -335,7 +334,7 @@ func buildDisconnectedNodes(allocs []*structs.Allocation, count int) map[string]
 
 func buildResumableAllocations(count int, clientStatus, desiredStatus string, nodeScore float64) (*structs.Job, []*structs.Allocation) {
 	job := mock.Job()
-	job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Minute)
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Minute)
 	job.TaskGroups[0].Count = count
 
 	return job, buildAllocations(job, count, clientStatus, desiredStatus, nodeScore)
@@ -5489,7 +5488,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
-			maxDisconnect:                helper.TimeToPtr(2 * time.Second),
+			maxDisconnect:                pointer.Of(2 * time.Second),
 			expected: &resultExpectation{
 				stop: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{

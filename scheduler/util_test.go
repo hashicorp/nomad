@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -794,8 +793,8 @@ func TestTasksUpdated(t *testing.T) {
 	j22.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(5 * time.Second),
 			},
 		},
 	}
@@ -803,14 +802,14 @@ func TestTasksUpdated(t *testing.T) {
 	j23.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(5 * time.Second),
 			},
 		},
 	}
 	require.False(t, tasksUpdated(j22, j23, name))
 	// Compare changed Template wait configs
-	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = helper.TimeToPtr(10 * time.Second)
+	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = pointer.Of(10 * time.Second)
 	require.True(t, tasksUpdated(j22, j23, name))
 
 	// Add a volume
