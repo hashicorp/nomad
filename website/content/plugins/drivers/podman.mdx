@@ -178,6 +178,15 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
   }
   ```
 
+- `image_pull_timeout` - (Optional) Time duration for your pull timeout
+  (default to `"5m"`). Cannot be longer than the [`client_http_timeout`].
+
+  ```hcl
+  config {
+    image_pull_timeout = "5m"
+  }
+  ```
+
 - `init` - (Optional) Run an `init` inside the container that forwards signals
   and reaps processes.
 
@@ -310,6 +319,20 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
 - `ports` - (Optional) Forward and expose ports. Refer to
   [Docker driver configuration][nomad_driver_ports] for details.
 
+- `privileged` - (Optional) `true` or `false` (default). A privileged container
+  turns off the security features that isolate the container from the host.
+  Dropped Capabilities, limited devices, read-only mount points,
+  Apparmor/SELinux separation, and Seccomp filters are all disabled.
+
+- `readonly_rootfs` - (Optional) `true` or `false` (default). Mount the rootfs
+  as read-only.
+
+  ```hcl
+  config {
+    readonly_rootfs = true
+  }
+  ```
+
 - `sysctl` - (Optional) A key-value map of `sysctl` configurations to set to
   the containers on start.
 
@@ -344,8 +367,8 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
   }
   ```
 
-- `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Named volumes are not supported.
+- `volumes` - (Optional) A list of `host_path:container_path:options` strings
+  to bind host paths to container paths. Named volumes are not supported.
 
   ```hcl
   config {
@@ -476,6 +499,31 @@ configuration file.
   running as `root` or a cgroup V1 system, and
   `unix://run/user/<USER_ID>/podman/io.podman` for rootless cgroup V2 systems.
 
+- `disable_log_collection` `(bool: false)` - Setting this to `true` will
+  disable Nomad logs collection of Podman tasks. If you don't rely on Nomad log
+  capabilities and exclusively use host based log aggregation, you may consider
+  this option to disable Nomad log collection overhead. Beware to you also lose
+  automatic log rotation.
+
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      disable_log_collection = false
+    }
+  }
+  ```
+
+- `client_http_timeout` `(string: "60s")` - Default timeout used by
+  `http.Client` requests.
+
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      client_http_timeout = "60s"
+    }
+  }
+  ```
+
 - `volumes` stanza:
 
   - `enabled` - Defaults to `true`. Allows tasks to bind host paths (volumes)
@@ -523,3 +571,4 @@ configuration file.
 [downloaded]: https://releases.hashicorp.com/nomad-driver-podman
 [short-names]: https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md#short-name-aliasing
 [`command`]: #command
+[`client_http_timeout`]: #client_http_timeout
