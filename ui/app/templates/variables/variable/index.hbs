@@ -3,6 +3,11 @@
     <FlightIcon @name="file-text" />
     {{this.model.path}}
     <Toggle
+      {{keyboard-shortcut 
+        label="Toggle View (JSON/List)"
+        pattern=(array "j")
+        action=(action this.toggleView)
+      }}
       data-test-memory-toggle
       @isActive={{eq this.view "json"}}
       @onToggle={{action this.toggleView}}
@@ -14,6 +19,7 @@
       {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
       <div class="two-step-button">
         <LinkTo
+          {{autofocus}}
           data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
@@ -87,6 +93,12 @@
               class="show-hide-values button is-borderless is-compact"
               type="button"
               {{on "click" (action this.toggleRowVisibility row.model)}}
+              {{keyboard-shortcut 
+                label="Toggle Variable Visibility"
+                pattern=(array "v")
+                action=(action this.toggleRowVisibility row.model)
+              }}
+
             >
               <FlightIcon
                 @name={{if row.model.isVisible "eye" "eye-off"}}

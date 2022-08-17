@@ -13,7 +13,12 @@
   <tbody>
     {{#each this.folders as |folder|}}
       <tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
-        <td colspan="3">
+        <td colspan="3"
+          {{keyboard-shortcut 
+            enumerated=true
+            action=(fn this.handleFolderClick folder.data.absolutePath)
+          }}
+        >
           <span>
             <FlightIcon @name="folder" />
             <LinkTo @route="variables.path" @model={{folder.data.absolutePath}} @query={{hash namespace="*"}}>
@@ -29,6 +34,10 @@
         data-test-file-row
         {{on "click" (fn this.handleFileClick file)}}
         class={{if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace) "" "inaccessible"}}
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(fn this.handleFileClick file)
+        }}
       >
         <td>
           <FlightIcon @name="file-text" />
