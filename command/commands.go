@@ -936,13 +936,28 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"var list": func() (cli.Command, error) {
-			return &VarListCommand{
+		"var delete": func() (cli.Command, error) {
+			return &VarDeleteCommand{
 				Meta: meta,
 			}, nil
 		},
 		"var init": func() (cli.Command, error) {
 			return &VarInitCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var list": func() (cli.Command, error) {
+			return &VarListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var put": func() (cli.Command, error) {
+			return &VarPutCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var get": func() (cli.Command, error) {
+			return &VarGetCommand{
 				Meta: meta,
 			}, nil
 		},

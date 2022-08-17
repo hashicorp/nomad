@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -94,12 +96,12 @@ func (c *VarInitCommand) Run(args []string) int {
 
 	// Check if the file already exists
 	_, err := os.Stat(fileName)
-	if err != nil && !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("Failed to stat %q: %v", fileName, err))
+	if err == nil {
+		c.Ui.Error(fmt.Sprintf("File %q already exists", fileName))
 		return 1
 	}
-	if !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("File %q already exists", fileName))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		c.Ui.Error(fmt.Sprintf("Failed to stat %q: %v", fileName, err))
 		return 1
 	}
 
@@ -115,6 +117,14 @@ func (c *VarInitCommand) Run(args []string) int {
 		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
 		c.Ui.Output(fmt.Sprintf("Example variable specification written to %s", fileName))
 	}
+
+	// When the output is JSON, emit the reminder about dotted identifiers to
+	// the screen since JSON files can't contain comments to carry the
+	// admonition.
+	if jsonOutput {
+		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
+	}
+	c.Ui.Output(fmt.Sprintf("Example secure variable specification written to %s", fileName))
 	return 0
 }
 
@@ -171,7 +181,7 @@ func WrapString(input string, lineLen int) string {
 // prepend the provided prefix to every line. The total length of each returned
 // line will be at most len(input[line])+len(prefix)
 func WrapAndPrepend(input string, lineLen int, prefix string) string {
-	ss := strings.Split(wordwrap.String(input, lineLen), "\n")
+	ss := strings.Split(WrapString(input, lineLen), "\n")
 	prefixStringList(ss, prefix)
 	return strings.Join(ss, "\n")
 }
