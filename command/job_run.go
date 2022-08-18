@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -264,11 +264,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if consulToken != "" {
-		job.ConsulToken = helper.StringToPtr(consulToken)
+		job.ConsulToken = pointer.Of(consulToken)
 	}
 
 	if consulNamespace != "" {
-		job.ConsulNamespace = helper.StringToPtr(consulNamespace)
+		job.ConsulNamespace = pointer.Of(consulNamespace)
 	}
 
 	// Parse the Vault token
@@ -278,11 +278,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = helper.StringToPtr(vaultToken)
+		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	if vaultNamespace != "" {
-		job.VaultNamespace = helper.StringToPtr(vaultNamespace)
+		job.VaultNamespace = pointer.Of(vaultNamespace)
 	}
 
 	if output {

@@ -35,7 +35,7 @@ func (s *Scaling) GetPolicy(id string, q *QueryOptions) (*ScalingPolicy, *QueryM
 
 func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 	if p.Enabled == nil {
-		p.Enabled = boolToPtr(true)
+		p.Enabled = pointerOf(true)
 	}
 	if p.Min == nil {
 		var m int64 = int64(taskGroupCount)

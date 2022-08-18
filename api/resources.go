@@ -38,7 +38,7 @@ func (r *Resources) Canonicalize() {
 	// CPU will be set to the default if cores is nil above.
 	// If cpu is nil here then cores has been set and cpu should be 0
 	if r.CPU == nil {
-		r.CPU = intToPtr(0)
+		r.CPU = pointerOf(0)
 	}
 
 	if r.MemoryMB == nil {
@@ -55,9 +55,9 @@ func (r *Resources) Canonicalize() {
 // and should be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
-		CPU:      intToPtr(100),
-		Cores:    intToPtr(0),
-		MemoryMB: intToPtr(300),
+		CPU:      pointerOf(100),
+		Cores:    pointerOf(0),
+		MemoryMB: pointerOf(300),
 	}
 }
 
@@ -68,9 +68,9 @@ func DefaultResources() *Resources {
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      intToPtr(1),
-		Cores:    intToPtr(0),
-		MemoryMB: intToPtr(10),
+		CPU:      pointerOf(1),
+		Cores:    pointerOf(0),
+		MemoryMB: pointerOf(10),
 	}
 }
 
@@ -268,7 +268,7 @@ type RequestedDevice struct {
 
 func (d *RequestedDevice) Canonicalize() {
 	if d.Count == nil {
-		d.Count = uint64ToPtr(1)
+		d.Count = pointerOf(uint64(1))
 	}
 
 	for _, a := range d.Affinities {

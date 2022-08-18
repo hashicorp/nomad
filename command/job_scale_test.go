@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
@@ -83,17 +83,17 @@ func TestJobScaleCommand_MultiGroup(t *testing.T) {
 		SetConfig("run_for", "5s").
 		SetConfig("exit_code", 0).
 		Require(&api.Resources{
-			MemoryMB: helper.IntToPtr(256),
-			CPU:      helper.IntToPtr(100),
+			MemoryMB: pointer.Of(256),
+			CPU:      pointer.Of(100),
 		}).
 		SetLogConfig(&api.LogConfig{
-			MaxFiles:      helper.IntToPtr(1),
-			MaxFileSizeMB: helper.IntToPtr(2),
+			MaxFiles:      pointer.Of(1),
+			MaxFileSizeMB: pointer.Of(2),
 		})
 	group2 := api.NewTaskGroup("group2", 1).
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
-			SizeMB: helper.IntToPtr(20),
+			SizeMB: pointer.Of(20),
 		})
 	job.AddTaskGroup(group2)
 
