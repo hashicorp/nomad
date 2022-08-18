@@ -477,14 +477,14 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		a.markStop(rescheduleNow, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(rescheduleNow))
 
-		min := helper.IntMin(len(place), limit)
+		min := helper.Min(len(place), limit)
 		limit -= min
 	} else if !deploymentPlaceReady {
 		// We do not want to place additional allocations but in the case we
 		// have lost allocations or allocations that require rescheduling now,
 		// we do so regardless to avoid odd user experiences.
 		if len(lost) != 0 {
-			allowed := helper.IntMin(len(lost), len(place))
+			allowed := helper.Min(len(lost), len(place))
 			desiredChanges.Place += uint64(allowed)
 			a.result.place = append(a.result.place, place[:allowed]...)
 		}
@@ -511,7 +511,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	if deploymentPlaceReady {
 		// Do all destructive updates
-		min := helper.IntMin(len(destructive), limit)
+		min := helper.Min(len(destructive), limit)
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
 		for _, alloc := range destructive.nameOrder()[:min] {
@@ -581,7 +581,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
 		if dstate, ok := a.deployment.TaskGroups[group]; ok {
-			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+			if dstate.HealthyAllocs < helper.Max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 				deploymentComplete = false
 			}

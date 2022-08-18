@@ -11,7 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -683,7 +683,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		if err != nil {
 			return err
 		}
-		transition := &structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+		transition := &structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
 		for _, alloc := range allocs {
 			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
 			if err != nil {

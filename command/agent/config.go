@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -886,7 +886,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
+	conf.Consul.AutoAdvertise = pointer.Of(true)
 	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
@@ -939,7 +939,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
-			NoHostUUID:            helper.BoolToPtr(true),
+			NoHostUUID:            pointer.Of(true),
 			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -957,8 +957,9 @@ func DefaultConfig() *Config {
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
-			EnableEventBroker: helper.BoolToPtr(true),
-			EventBufferSize:   helper.IntToPtr(100),
+			EnableEventBroker: pointer.Of(true),
+			EventBufferSize:   pointer.Of(100),
+			RaftProtocol:      3,
 			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -987,7 +988,7 @@ func DefaultConfig() *Config {
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
 		Audit:              &config.AuditConfig{},
-		DisableUpdateCheck: helper.BoolToPtr(false),
+		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
 	}
 }
@@ -1073,7 +1074,7 @@ func (c *Config) Merge(b *Config) *Config {
 		result.SyslogFacility = b.SyslogFacility
 	}
 	if b.DisableUpdateCheck != nil {
-		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
+		result.DisableUpdateCheck = pointer.Of(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
@@ -1497,7 +1498,7 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.RaftMultiplier = &c
 	}
 	if b.NumSchedulers != nil {
-		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
+		result.NumSchedulers = pointer.Of(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold

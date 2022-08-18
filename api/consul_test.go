@@ -34,7 +34,7 @@ func TestConsul_Copy(t *testing.T) {
 func TestConsul_MergeNamespace(t *testing.T) {
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
-		ns := stringToPtr("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "foo", a.Namespace)
 		require.Equal(t, "bar", *ns)
@@ -42,7 +42,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 
 	t.Run("inherit", func(t *testing.T) {
 		a := &Consul{Namespace: ""}
-		ns := stringToPtr("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "bar", a.Namespace)
 		require.Equal(t, "bar", *ns)

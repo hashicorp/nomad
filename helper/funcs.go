@@ -11,6 +11,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"golang.org/x/exp/constraints"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -68,46 +69,6 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// BoolToPtr returns the pointer to a boolean.
-func BoolToPtr(b bool) *bool {
-	return &b
-}
-
-// IntToPtr returns the pointer to an int
-func IntToPtr(i int) *int {
-	return &i
-}
-
-// Int8ToPtr returns the pointer to an int8
-func Int8ToPtr(i int8) *int8 {
-	return &i
-}
-
-// Int64ToPtr returns the pointer to an int
-func Int64ToPtr(i int64) *int64 {
-	return &i
-}
-
-// Uint64ToPtr returns the pointer to an uint64
-func Uint64ToPtr(u uint64) *uint64 {
-	return &u
-}
-
-// UintToPtr returns the pointer to an uint
-func UintToPtr(u uint) *uint {
-	return &u
-}
-
-// StringToPtr returns the pointer to a string
-func StringToPtr(str string) *string {
-	return &str
-}
-
-// TimeToPtr returns the pointer to a time.Duration.
-func TimeToPtr(t time.Duration) *time.Duration {
-	return &t
-}
-
 // CompareTimePtrs return true if a is the same as b.
 func CompareTimePtrs(a, b *time.Duration) bool {
 	if a == nil || b == nil {
@@ -116,26 +77,16 @@ func CompareTimePtrs(a, b *time.Duration) bool {
 	return *a == *b
 }
 
-// Float64ToPtr returns the pointer to an float64
-func Float64ToPtr(f float64) *float64 {
-	return &f
-}
-
-func IntMin(a, b int) int {
+// Min returns the minimum of a and b.
+func Min[T constraints.Ordered](a, b T) T {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func IntMax(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func Uint64Max(a, b uint64) uint64 {
+// Max returns the maximum of a and b.
+func Max[T constraints.Ordered](a, b T) T {
 	if a > b {
 		return a
 	}
@@ -298,8 +249,24 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Below is helpers for copying generic structures.
+// CopyMap creates a copy of m. Struct values are not deep copies.
+//
+// If m is nil or contains no elements, the return value is nil.
+func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
+	if len(m) == 0 {
+		return nil
+	}
 
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+// CopyMapStringString creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {
@@ -313,6 +280,9 @@ func CopyMapStringString(m map[string]string) map[string]string {
 	return c
 }
 
+// CopyMapStringStruct creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	l := len(m)
 	if l == 0 {
@@ -326,6 +296,9 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	return c
 }
 
+// CopyMapStringInterface creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 	l := len(m)
 	if l == 0 {
@@ -352,6 +325,9 @@ func CopyMapStringInt(m map[string]int) map[string]int {
 	return c
 }
 
+// CopyMapStringFloat64 creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	l := len(m)
 	if l == 0 {
@@ -380,6 +356,9 @@ func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	return c
 }
 
+// CopySliceString creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceString(s []string) []string {
 	l := len(s)
 	if l == 0 {
@@ -391,6 +370,9 @@ func CopySliceString(s []string) []string {
 	return c
 }
 
+// CopySliceInt creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceInt(s []int) []int {
 	l := len(s)
 	if l == 0 {

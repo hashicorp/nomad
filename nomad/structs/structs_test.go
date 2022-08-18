@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 
 	"github.com/kr/pretty"
@@ -2611,8 +2611,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(10 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(10 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: true,
@@ -2626,8 +2626,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2638,8 +2638,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(10 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(10 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2676,12 +2676,12 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "all-fields",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 		{
@@ -2692,19 +2692,19 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "min-only",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 		},
 		{
 			name: "max-only",
 			config: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 	}

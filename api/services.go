@@ -20,7 +20,7 @@ func (c *CheckRestart) Canonicalize() {
 	}
 
 	if c.Grace == nil {
-		c.Grace = timeToPtr(1 * time.Second)
+		c.Grace = pointerOf(1 * time.Second)
 	}
 }
 
@@ -253,11 +253,11 @@ func (st *SidecarTask) Canonicalize() {
 	}
 
 	if st.KillTimeout == nil {
-		st.KillTimeout = timeToPtr(5 * time.Second)
+		st.KillTimeout = pointerOf(5 * time.Second)
 	}
 
 	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = timeToPtr(0)
+		st.ShutdownDelay = pointerOf(time.Duration(0))
 	}
 }
 
@@ -445,7 +445,7 @@ func (p *ConsulGatewayProxy) Canonicalize() {
 
 	if p.ConnectTimeout == nil {
 		// same as the default from consul
-		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
+		p.ConnectTimeout = pointerOf(defaultGatewayConnectTimeout)
 	}
 
 	if len(p.EnvoyGatewayBindAddresses) == 0 {
@@ -479,7 +479,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  timeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointerOf(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,

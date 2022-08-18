@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -491,8 +491,8 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 			// TLS config consumed by native application
 			ShareSSL:  shareSSL,
-			EnableSSL: helper.BoolToPtr(true),
-			VerifySSL: helper.BoolToPtr(true),
+			EnableSSL: pointer.Of(true),
+			VerifySSL: pointer.Of(true),
 			CAFile:    fakeCert,
 			CertFile:  fakeCert,
 			KeyFile:   fakeCert,
@@ -541,7 +541,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 	// so make sure an unset value turns the feature on.
 
 	t.Run("share_ssl is true", func(t *testing.T) {
-		try(t, helper.BoolToPtr(true))
+		try(t, pointer.Of(true))
 	})
 
 	t.Run("share_ssl is nil", func(t *testing.T) {
@@ -610,9 +610,9 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 		Addr: consulConfig.Address,
 
 		// TLS config consumed by native application
-		ShareSSL:  helper.BoolToPtr(true),
-		EnableSSL: helper.BoolToPtr(true),
-		VerifySSL: helper.BoolToPtr(true),
+		ShareSSL:  pointer.Of(true),
+		EnableSSL: pointer.Of(true),
+		VerifySSL: pointer.Of(true),
 		CAFile:    fakeCert,
 		CertFile:  fakeCert,
 		KeyFile:   fakeCert,

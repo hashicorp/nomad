@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
@@ -62,7 +62,7 @@ func TestJobScalingEventsCommand_Run(t *testing.T) {
 	// Perform a scaling action to generate an event.
 	_, _, err = client.Jobs().Scale(
 		"scale_events_test_job",
-		"group1", helper.IntToPtr(2),
+		"group1", pointer.Of(2),
 		"searchable custom test message", false, nil, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)

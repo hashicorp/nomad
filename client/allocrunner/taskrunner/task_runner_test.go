@@ -32,7 +32,7 @@ import (
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1023,7 +1023,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	maxTimeToFailDuration := time.Duration(testutil.TestMultiplier()) * time.Second
 
 	alloc := mock.Alloc()
-	alloc.DesiredTransition = structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+	alloc.DesiredTransition = structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Services[0].Tags = []string{"tag1"}
 	task.Services = task.Services[:1] // only need 1 for this test

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -66,7 +66,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		"migrating1": {
 			ID:                "migrating1",
 			ClientStatus:      structs.AllocClientStatusRunning,
-			DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+			DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 			Job:               batchJob,
 			NodeID:            "draining",
 		},
@@ -74,7 +74,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		"migrating2": {
 			ID:                "migrating2",
 			ClientStatus:      structs.AllocClientStatusRunning,
-			DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+			DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 			Job:               batchJob,
 			NodeID:            "nil",
 		},

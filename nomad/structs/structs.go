@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/cronexpr"
@@ -10351,7 +10352,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	*c = *a
 
 	if a.Healthy != nil {
-		c.Healthy = helper.BoolToPtr(*a.Healthy)
+		c.Healthy = pointer.Of(*a.Healthy)
 	}
 
 	return c

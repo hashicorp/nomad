@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -605,7 +605,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: helper.BoolToPtr(true),
+				Enabled: pointer.Of(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -711,7 +711,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: helper.BoolToPtr(true),
+				Enabled: pointer.Of(true),
 				Verify:  &verify,
 				Cert:    &cc.ConsulConfig.CertFile,
 				Key:     &cc.ConsulConfig.KeyFile,
@@ -726,7 +726,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  helper.BoolToPtr(true),
+				Enabled:  pointer.Of(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -755,7 +755,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = helper.BoolToPtr(false)
+	conf.Vault.RenewToken = pointer.Of(false)
 	conf.Vault.Token = &emptyStr
 	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &cc.VaultConfig.Addr
@@ -774,7 +774,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    helper.BoolToPtr(true),
+				Enabled:    pointer.Of(true),
 				Verify:     &verify,
 				Cert:       &cc.VaultConfig.TLSCertFile,
 				Key:        &cc.VaultConfig.TLSKeyFile,
@@ -784,8 +784,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    helper.BoolToPtr(false),
-				Verify:     helper.BoolToPtr(false),
+				Enabled:    pointer.Of(false),
+				Verify:     pointer.Of(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,

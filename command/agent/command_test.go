@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -407,7 +407,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					Artifact: &config.ArtifactConfig{
-						HTTPReadTimeout: helper.StringToPtr("-10m"),
+						HTTPReadTimeout: pointer.Of("-10m"),
 					},
 				},
 			},

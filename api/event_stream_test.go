@@ -240,8 +240,8 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				j, err := event.Job()
 				require.NoError(t, err)
 				require.Equal(t, &Job{
-					ID:        stringToPtr("some-id"),
-					Namespace: stringToPtr("some-namespace-id"),
+					ID:        pointerOf("some-id"),
+					Namespace: pointerOf("some-namespace-id"),
 				}, j)
 			},
 		},

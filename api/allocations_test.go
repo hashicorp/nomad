@@ -159,13 +159,13 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	t.Parallel()
 	// Create a job, task group and alloc
 	job := &Job{
-		Name:      stringToPtr("foo"),
-		Namespace: stringToPtr(DefaultNamespace),
-		ID:        stringToPtr("bar"),
-		ParentID:  stringToPtr("lol"),
+		Name:      pointerOf("foo"),
+		Namespace: pointerOf(DefaultNamespace),
+		ID:        pointerOf("bar"),
+		ParentID:  pointerOf("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: stringToPtr("bar"),
+				Name: pointerOf("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -205,8 +205,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "no reschedule events",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: intToPtr(3),
-				Interval: timeToPtr(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			expAttempted: 0,
 			expTotal:     3,
@@ -214,8 +214,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "all reschedule events within interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: intToPtr(3),
-				Interval: timeToPtr(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -231,8 +231,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "some reschedule events outside interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: intToPtr(3),
-				Interval: timeToPtr(15 * time.Minute),
+				Attempts: pointerOf(3),
+				Interval: pointerOf(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -276,13 +276,13 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	a := c.Allocations()
 
 	job := &Job{
-		Name:      stringToPtr("foo"),
-		Namespace: stringToPtr(DefaultNamespace),
-		ID:        stringToPtr("bar"),
-		ParentID:  stringToPtr("lol"),
+		Name:      pointerOf("foo"),
+		Namespace: pointerOf(DefaultNamespace),
+		ID:        pointerOf("bar"),
+		ParentID:  pointerOf("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: stringToPtr("bar"),
+				Name: pointerOf("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -392,7 +392,7 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	t.Parallel()
-	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())
+	require.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
-	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())
+	require.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
 }
