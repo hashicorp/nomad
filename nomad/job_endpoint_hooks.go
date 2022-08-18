@@ -50,12 +50,12 @@ type admissionController interface {
 	Name() string
 }
 
-type jobMutator interface {
+type JobMutator interface {
 	admissionController
 	Mutate(*structs.Job) (out *structs.Job, warnings []error, err error)
 }
 
-type jobValidator interface {
+type JobValidator interface {
 	admissionController
 	Validate(*structs.Job) (warnings []error, err error)
 }

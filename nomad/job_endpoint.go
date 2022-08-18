@@ -52,8 +52,8 @@ type Job struct {
 	logger hclog.Logger
 
 	// builtin admission controllers
-	mutators   []jobMutator
-	validators []jobValidator
+	mutators   []JobMutator
+	validators []JobValidator
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
@@ -61,13 +61,13 @@ func NewJobEndpoints(s *Server) *Job {
 	return &Job{
 		srv:    s,
 		logger: s.logger.Named("job"),
-		mutators: []jobMutator{
+		mutators: []JobMutator{
 			jobCanonicalizer{},
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobImpliedConstraints{},
 		},
-		validators: []jobValidator{
+		validators: []JobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobVaultHook{srv: s},
