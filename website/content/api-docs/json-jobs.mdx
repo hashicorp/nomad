@@ -1067,7 +1067,9 @@ README][ct].
   The `ChangeScriptConfig` object supports the following attributes:
 
   - `path` - Specifies the full path to a script that is to be executed on
-    template change. This option is required is the `change_mode` is `script`.
+    template change. Path is relative to the driver, e.g., if running with a
+    container driver the path must be existing in the container. This option is
+    required is the `change_mode` is `script`.
   
   - `args` - List of arguments that are passed to the script that is to be
     executed on template change. 
