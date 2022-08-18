@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
