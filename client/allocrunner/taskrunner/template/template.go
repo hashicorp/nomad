@@ -55,7 +55,8 @@ type TaskTemplateManager struct {
 	runner *manager.Runner
 
 	// handle is used to execute scripts
-	handle interfaces.ScriptExecutor
+	handle     interfaces.ScriptExecutor
+	handleLock sync.Mutex
 
 	// signals is a lookup map from the string representation of a signal to its
 	// actual signal
@@ -197,7 +198,9 @@ func (tm *TaskTemplateManager) Stop() {
 
 // SetDriverHandle sets the executor
 func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
+	tm.handleLock.Lock()
 	tm.handle = executor
+	tm.handleLock.Unlock()
 }
 
 // run is the long lived loop that handles errors and templates being rendered
