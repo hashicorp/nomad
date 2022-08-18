@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"golang.org/x/exp/slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
@@ -698,8 +699,11 @@ func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
 }
 
 func (c *Config) Copy() *Config {
-	nc := new(Config)
-	*nc = *c
+	if c == nil {
+		return nil
+	}
+
+	nc := *c
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
@@ -707,12 +711,9 @@ func (c *Config) Copy() *Config {
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.TemplateConfig = c.TemplateConfig.Copy()
-	if c.ReservableCores != nil {
-		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
-		copy(nc.ReservableCores, c.ReservableCores)
-	}
+	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
-	return nc
+	return &nc
 }
 
 // DefaultConfig returns the default configuration

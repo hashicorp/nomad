@@ -42,7 +42,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil && !a.c.config.EnableDebug {
+	if aclObj == nil && !a.c.GetConfig().EnableDebug {
 		return structs.ErrPermissionDenied
 	}
 
@@ -218,7 +218,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 		return err
 	}
 	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
-		(aclObj == nil && !a.c.config.EnableDebug) {
+		(aclObj == nil && !a.c.GetConfig().EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 
