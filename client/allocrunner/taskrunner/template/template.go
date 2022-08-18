@@ -530,7 +530,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			}
 		} else {
 			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
-				SetDisplayMessage("Template failed to run a script: task is lacking a driver"),
+				SetDisplayMessage("Template failed to run a change script because task driver doesn't support the exec operation"),
 			)
 			if script.FailOnError {
 				tm.config.Lifecycle.Kill(context.Background(),
