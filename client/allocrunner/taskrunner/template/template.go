@@ -514,33 +514,11 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		wg.Add(1)
 		go func(script *structs.ChangeScript) {
 			defer wg.Done()
-			if tm.handle != nil {
-				_, exitCode, err := tm.handle.Exec(script.Timeout, script.Path, script.Args)
-				if err != nil {
-					structs.NewTaskEvent(structs.TaskHookFailed).
-						SetDisplayMessage(
-							fmt.Sprintf(
-								"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
-							))
-					if script.FailOnError {
-						tm.config.Lifecycle.Kill(context.Background(),
-							structs.NewTaskEvent(structs.TaskKilling).
-								SetFailsTask().
-								SetDisplayMessage(
-									fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
-								))
-					}
-				} else {
-					tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
-						SetDisplayMessage(
-							fmt.Sprintf(
-								"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
-							)))
-				}
-			} else {
+			if tm.handle == nil {
 				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
-					SetDisplayMessage("Template failed to run a change script because task driver doesn't support the exec operation"),
-				)
+					SetDisplayMessage(
+						"Template failed to run a change script because task driver doesn't support the exec operation",
+					))
 				if script.FailOnError {
 					tm.config.Lifecycle.Kill(context.Background(),
 						structs.NewTaskEvent(structs.TaskKilling).
@@ -549,7 +527,30 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
 							))
 				}
+				return
 			}
+			_, exitCode, err := tm.handle.Exec(script.Timeout, script.Path, script.Args)
+			if err != nil {
+				structs.NewTaskEvent(structs.TaskHookFailed).
+					SetDisplayMessage(
+						fmt.Sprintf(
+							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+						))
+				if script.FailOnError {
+					tm.config.Lifecycle.Kill(context.Background(),
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(
+								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
+							))
+				}
+				return
+			}
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+				SetDisplayMessage(
+					fmt.Sprintf(
+						"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
+					)))
 		}(script)
 	}
 	wg.Wait()
