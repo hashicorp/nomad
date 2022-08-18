@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -390,7 +389,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 func TestTaskTemplateManager_HostPath(t *testing.T) {
 	ci.Parallel(t)
 	// Make a template that will render immediately and write it to a tmp file
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Bad: %v", err)
 	}
@@ -426,7 +425,7 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -503,7 +502,7 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -582,7 +581,7 @@ func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -607,7 +606,7 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 
 	// Write the contents
 	path := filepath.Join(harness.taskDir, file)
-	if err := ioutil.WriteFile(path, []byte(content), 0777); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0777); err != nil {
 		t.Fatalf("Failed to write data: %v", err)
 	}
 
@@ -623,7 +622,7 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 
 	// Check the file is there
 	path = filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -669,7 +668,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -719,7 +718,7 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -764,7 +763,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 
 	// Check that the static file has been rendered
 	path := filepath.Join(harness.taskDir, staticFile)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -785,7 +784,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 
 	// Check the consul file is there
 	path = filepath.Join(harness.taskDir, consulFile)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -837,7 +836,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	require.NoError(err, "Failed to read rendered template from %q", path)
 	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
 
@@ -931,7 +930,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -953,7 +952,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 	// Check the file has been updated
 	path = filepath.Join(harness.taskDir, file)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1043,7 +1042,7 @@ OUTER:
 
 	// Check the files have  been updated
 	path := filepath.Join(harness.taskDir, file1)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1053,7 +1052,7 @@ OUTER:
 	}
 
 	path = filepath.Join(harness.taskDir, file2)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1117,7 +1116,7 @@ OUTER:
 
 	// Check the files have  been updated
 	path := filepath.Join(harness.taskDir, file1)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1152,7 +1151,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 	// Check the file is there
 	actual := fmt.Sprintf("%s.tmpl", harness.node.ID)
 	path := filepath.Join(harness.taskDir, actual)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1412,7 +1411,7 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 
 	require.Equal(t, expected, string(raw))
@@ -1468,7 +1467,7 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1501,7 +1500,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1536,11 +1535,11 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the files so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file 1: %v", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
+	err = os.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file 2: %v", err)
 	}
@@ -2380,7 +2379,7 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 
 	// Check the file is not there
 	path := filepath.Join(harness.taskDir, file)
-	_, err := ioutil.ReadFile(path)
+	_, err := os.ReadFile(path)
 	require.Error(t, err)
 }
 
@@ -2433,13 +2432,13 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	// Check the templated file is there
 	path := filepath.Join(harness.taskDir, file)
-	r, err := ioutil.ReadFile(path)
+	r, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.True(t, bytes.HasSuffix(r, []byte("...done\n")), string(r))
 
 	// Check that writeToFile was allowed
 	path = filepath.Join(harness.taskDir, "writetofile.out")
-	r, err = ioutil.ReadFile(path)
+	r, err = os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "hello", string(r))
 }
