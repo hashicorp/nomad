@@ -171,7 +171,11 @@ jobs:
             mkdir -p $GOTESTSUM_PATH
       - install-golang:
           target_directory: "c:"
-      - run: go version
+      - run:
+          name: Show installed Go version
+          command: |
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
+            go version
       - install-vault:
           version: $VAULT_VERSION
       - run: vault version
