@@ -833,8 +833,10 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -857,24 +859,26 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
-				SupportsCreateDelete: true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+					SupportsCreateDelete: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -964,8 +968,10 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -988,23 +994,25 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1098,8 +1106,10 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -1120,24 +1130,26 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
-				SupportsListVolumes:  true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+					SupportsListVolumes:  true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1191,10 +1203,8 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1214,16 +1224,18 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsCreateDeleteSnapshot: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsCreateDeleteSnapshot: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1284,10 +1296,8 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1307,16 +1317,18 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsCreateDeleteSnapshot: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsCreateDeleteSnapshot: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1383,9 +1395,8 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1403,16 +1414,18 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsListSnapshots: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsListSnapshots: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 

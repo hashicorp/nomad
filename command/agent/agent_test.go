@@ -741,9 +741,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 	}
 
 	assert.Nil(agent.Reload(newConfig))
-	assert.Equal(agent.Config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
-	assert.Equal(agent.Config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
-	assert.Equal(agent.Config.TLSConfig.GetKeyLoader(), originalKeyloader)
+	assert.Equal(agent.Agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.Agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.Agent.config.TLSConfig.GetKeyLoader(), originalKeyloader)
 
 	// Assert is passed through on the server correctly
 	if assert.NotNil(agent.server.GetConfig().TLSConfig) {
@@ -983,7 +983,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 
-	assert.True(agentConfig.TLSConfig.IsEmpty())
+	assert.True(agent.config.TLSConfig.IsEmpty())
 }
 
 func TestServer_Reload_VaultConfig(t *testing.T) {
