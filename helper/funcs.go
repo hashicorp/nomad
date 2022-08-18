@@ -34,8 +34,6 @@ var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
 var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
 
 type Copyable[T any] interface {
-	any
-
 	Copy() T
 }
 
