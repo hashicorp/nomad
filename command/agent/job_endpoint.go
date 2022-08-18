@@ -1271,7 +1271,7 @@ func apiChangeScriptToStructsChangeScript(changeScript *api.ChangeScript) *struc
 	}
 
 	return &structs.ChangeScript{
-		Path:        *changeScript.Path,
+		Command:     *changeScript.Command,
 		Args:        changeScript.Args,
 		Timeout:     *changeScript.Timeout,
 		FailOnError: *changeScript.FailOnError,

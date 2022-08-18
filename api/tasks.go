@@ -792,15 +792,15 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 type ChangeScript struct {
-	Path        *string        `mapstructure:"path" hcl:"path"`
+	Command     *string        `mapstructure:"command" hcl:"command"`
 	Args        []string       `mapstructure:"args" hcl:"args,optional"`
 	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
 	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
 }
 
 func (ch *ChangeScript) Canonicalize() {
-	if ch.Path == nil {
-		ch.Path = pointerOf("")
+	if ch.Command == nil {
+		ch.Command = pointerOf("")
 	}
 	if ch.Args == nil {
 		ch.Args = []string{}

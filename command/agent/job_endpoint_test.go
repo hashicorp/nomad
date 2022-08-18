@@ -2732,7 +2732,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeMode:   pointer.Of("change"),
 								ChangeSignal: pointer.Of("signal"),
 								ChangeScript: &api.ChangeScript{
-									Path:        pointer.Of("/bin/foo"),
+									Command:     pointer.Of("/bin/foo"),
 									Args:        []string{"-h"},
 									Timeout:     pointer.Of(5 * time.Second),
 									FailOnError: pointer.Of(false),
@@ -3145,7 +3145,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								ChangeMode:   "change",
 								ChangeSignal: "SIGNAL",
 								ChangeScript: &structs.ChangeScript{
-									Path:        "/bin/foo",
+									Command:     "/bin/foo",
 									Args:        []string{"-h"},
 									Timeout:     5 * time.Second,
 									FailOnError: false,

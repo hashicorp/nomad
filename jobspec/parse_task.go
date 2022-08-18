@@ -499,7 +499,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			changeScriptBlock := o.Items[0]
 
 			// check for invalid fields
-			valid := []string{"path", "args", "timeout", "fail_on_error"}
+			valid := []string{"command", "args", "timeout", "fail_on_error"}
 			if err := checkHCLKeys(changeScriptBlock.Val, valid); err != nil {
 				return multierror.Prefix(err, "change_script ->")
 			}

@@ -389,7 +389,7 @@ func TestParse(t *testing.T) {
 										ChangeMode: stringToPtr(templateChangeModeScript),
 										ChangeScript: &api.ChangeScript{
 											Args:        []string{"-debug", "-verbose"},
-											Path:        stringToPtr("/bin/foo"),
+											Command:     stringToPtr("/bin/foo"),
 											Timeout:     timeToPtr(5 * time.Second),
 											FailOnError: boolToPtr(false),
 										},

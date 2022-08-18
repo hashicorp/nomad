@@ -524,24 +524,24 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 						structs.NewTaskEvent(structs.TaskKilling).
 							SetFailsTask().
 							SetDisplayMessage(
-								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
+								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
 							))
 				}
 				return
 			}
-			_, exitCode, err := tm.handle.Exec(script.Timeout, script.Path, script.Args)
+			_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
 			if err != nil {
 				structs.NewTaskEvent(structs.TaskHookFailed).
 					SetDisplayMessage(
 						fmt.Sprintf(
-							"Template failed to run script %v on change: %v Exit code: %v", script.Path, err, exitCode,
+							"Template failed to run script %v on change: %v Exit code: %v", script.Command, err, exitCode,
 						))
 				if script.FailOnError {
 					tm.config.Lifecycle.Kill(context.Background(),
 						structs.NewTaskEvent(structs.TaskKilling).
 							SetFailsTask().
 							SetDisplayMessage(
-								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Path),
+								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
 							))
 				}
 				return
@@ -549,7 +549,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 				SetDisplayMessage(
 					fmt.Sprintf(
-						"Template successfully ran a script from %v with exit code: %v", script.Path, exitCode,
+						"Template successfully ran a script from %v with exit code: %v", script.Command, exitCode,
 					)))
 		}(script)
 	}

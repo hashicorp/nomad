@@ -319,7 +319,7 @@ job "binstore-storagelocker" {
         destination = "bar"
         change_mode = "script"
         change_script {
-          path          = "/bin/foo"
+          command       = "/bin/foo"
           args          = ["-debug", "-verbose"]
           timeout       = "5s"
           fail_on_error = false

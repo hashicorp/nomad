@@ -1224,7 +1224,7 @@ FOO={{key "bam"}}
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Path:        "/bin/foo",
+			Command:     "/bin/foo",
 			Args:        []string{},
 			Timeout:     5 * time.Second,
 			FailOnError: false,
@@ -1238,7 +1238,7 @@ BAR={{key "bar"}}
 		DestPath:   "test2.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Path:        "/bin/foo",
+			Command:     "/bin/foo",
 			Args:        []string{},
 			Timeout:     5 * time.Second,
 			FailOnError: false,
@@ -1281,7 +1281,7 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			require.Fail(t, "restart not expected")
 		case ev := <-harness.mockHooks.EmitEventCh:
-			if strings.Contains(ev.DisplayMessage, t1.ChangeScript.Path) {
+			if strings.Contains(ev.DisplayMessage, t1.ChangeScript.Command) {
 				break OUTER
 			}
 		case <-harness.mockHooks.SignalCh:
@@ -1310,7 +1310,7 @@ FOO={{key "bam"}}
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Path:        "/bin/foo",
+			Command:     "/bin/foo",
 			Args:        []string{},
 			Timeout:     5 * time.Second,
 			FailOnError: true,
@@ -1324,7 +1324,7 @@ BAR={{key "bar"}}
 		DestPath:   "test2.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Path:        "/bin/foo",
+			Command:     "/bin/foo",
 			Args:        []string{},
 			Timeout:     5 * time.Second,
 			FailOnError: false,

@@ -7701,8 +7701,8 @@ var (
 // ChangeScript holds the configuration for the script that is executed if
 // change mode is set to script
 type ChangeScript struct {
-	// Path is the full path to the script
-	Path string
+	// Command is the full path to the script
+	Command string
 	// Args is a slice of arguments passed to the script
 	Args []string
 	// Timeout is the amount of seconds we wait for the script to finish
@@ -7834,7 +7834,7 @@ func (t *Template) Validate() error {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	case TemplateChangeModeScript:
-		if t.ChangeScript.Path == "" {
+		if t.ChangeScript.Command == "" {
 			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
 		}
 	default:

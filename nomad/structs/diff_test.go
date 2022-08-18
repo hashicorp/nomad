@@ -7043,7 +7043,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScript: &ChangeScript{
-							Path:        "/bin/foo",
+							Command:     "/bin/foo",
 							Args:        []string{"-debug"},
 							Timeout:     5,
 							FailOnError: false,
@@ -7064,7 +7064,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
 						ChangeScript: &ChangeScript{
-							Path:        "/bin/foo2",
+							Command:     "/bin/foo2",
 							Args:        []string{"-debugs"},
 							Timeout:     6,
 							FailOnError: false,
@@ -7086,7 +7086,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScript: &ChangeScript{
-							Path:        "/bin/foo",
+							Command:     "/bin/foo",
 							Args:        []string{"-debug"},
 							Timeout:     5,
 							FailOnError: false,
@@ -7107,7 +7107,7 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
 						ChangeScript: &ChangeScript{
-							Path:        "/bin/foo3",
+							Command:     "/bin/foo3",
 							Args:        []string{"-debugss"},
 							Timeout:     7,
 							FailOnError: false,
