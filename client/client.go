@@ -176,7 +176,10 @@ type Client struct {
 	// stateDB is used to efficiently store client state.
 	stateDB state.StateDB
 
-	// config must only be accessed with lock held. To update the config:
+	// config must only be accessed with lock held. To update the config, use the
+	// Client.UpdateConfig() helper. If you need more fine grained control use
+	// the following pattern:
+	//
 	// 	c.configLock.Lock()
 	// 	newConfig := c.config.Copy()
 	// 	// <mutate newConfig>
