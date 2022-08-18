@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
@@ -32,61 +30,61 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, commandErrorText(cmd))
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "foobar"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying allocation") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "foobar"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Error querying allocation")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on missing alloc
-	if code := cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
-		t.Fatalf("expected not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Fail on identifier with too few characters
-	if code := cmd.Run([]string{"-address=" + url, "2"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
-		t.Fatalf("expected too few characters error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "2"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "must contain at least two characters.")
+
 	ui.ErrorWriter.Reset()
 
 	// Identifiers with uneven length should produce a query result
-	if code := cmd.Run([]string{"-address=" + url, "123"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
-		t.Fatalf("expected not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "123"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Failed on both -json and -t options are specified
-	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
-		t.Fatalf("expected getting formatter error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Both json and template formatting are not allowed")
 }
 
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer stopTestAgent(srv)
 
@@ -122,16 +120,15 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		"prestart_sidecar": {State: "running"},
 	}
 
-	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
-	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, a.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-
-	require.Contains(t, out, `Task "init_task" (prestart) is "running"`)
-	require.Contains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
-	require.Contains(t, out, `Task "web" is "pending"`)
+	must.StrContains(t, out, `Task "init_task" (prestart) is "running"`)
+	must.StrContains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
+	must.StrContains(t, out, `Task "web" is "pending"`)
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
@@ -147,73 +144,56 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+
 	// get an alloc id
-	allocId1 := ""
+	allocID := ""
 	nodeName := ""
 	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
 		if len(allocs) > 0 {
-			allocId1 = allocs[0].ID
+			allocID = allocs[0].ID
 			nodeName = allocs[0].NodeName
 		}
 	}
-	if allocId1 == "" {
-		t.Fatal("unable to find an allocation")
-	}
+	must.NotEq(t, "", allocID)
 
-	if code := cmd.Run([]string{"-address=" + url, allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, allocID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
-
-	if !strings.Contains(out, "Modified") {
-		t.Fatalf("expected to have 'Modified' but saw: %s", out)
-	}
+	must.StrContains(t, out, "Created")
+	must.StrContains(t, out, "Modified")
 
 	nodeNameRegexpStr := fmt.Sprintf(`\nNode Name\s+= %s\n`, regexp.QuoteMeta(nodeName))
-	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
+	must.RegexMatch(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.OutputWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-verbose", allocID})
+	must.Zero(t, code)
+
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output")
-	}
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
+	must.StrContains(t, out, allocID)
+	must.StrContains(t, out, "Created")
+
 	ui.OutputWriter.Reset()
 
 	// Try the query with an even prefix that includes the hyphen
-	if code := cmd.Run([]string{"-address=" + url, allocId1[:13]}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, allocID[:13]})
+	must.Zero(t, code)
+
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
+	must.StrContains(t, out, "Created")
 	ui.OutputWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	out = ui.OutputWriter.String()
-	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output")
-	}
-	ui.OutputWriter.Reset()
+	code = cmd.Run([]string{"-address=" + url, "-verbose", allocID})
+	must.Zero(t, code)
 
+	out = ui.OutputWriter.String()
+	must.StrContains(t, out, allocID)
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
@@ -240,14 +220,14 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Replacement Alloc ID")
-	require.Regexp(t, regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
+	must.StrContains(t, out, "Replacement Alloc ID")
+	must.RegexMatch(t, regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
@@ -283,19 +263,19 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Placement Metrics")
-	require.Contains(t, out, mockNode1.ID)
-	require.Contains(t, out, mockNode2.ID)
+	must.StrContains(t, out, "Placement Metrics")
+	must.StrContains(t, out, mockNode1.ID)
+	must.StrContains(t, out, mockNode2.ID)
 
 	// assert we sort headers alphabetically
-	require.Contains(t, out, "binpack  node-affinity")
-	require.Contains(t, out, "final score")
+	must.StrContains(t, out, "binpack  node-affinity")
+	must.StrContains(t, out, "final score")
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
@@ -372,18 +352,18 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Host Volumes")
-	require.Contains(t, out, fmt.Sprintf("%s  true", vol0))
-	require.NotContains(t, out, "CSI Volumes")
+	must.StrContains(t, out, "Host Volumes")
+	must.StrContains(t, out, fmt.Sprintf("%s  true", vol0))
+	must.StrNotContains(t, out, "CSI Volumes")
 }
 
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
@@ -404,7 +384,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
 		ID:             vol0,
@@ -417,7 +397,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		}},
 	}}
 	err = state.UpsertCSIVolume(1002, vols)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Upsert the job and alloc
 	alloc := mock.Alloc()
@@ -448,8 +428,8 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -457,7 +437,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "CSI Volumes")
-	require.Contains(t, out, fmt.Sprintf("%s  minnie", vol0))
-	require.NotContains(t, out, "Host Volumes")
+	must.StrContains(t, out, "CSI Volumes")
+	must.StrContains(t, out, fmt.Sprintf("%s  minnie", vol0))
+	must.StrNotContains(t, out, "Host Volumes")
 }
