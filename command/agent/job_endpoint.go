@@ -1219,21 +1219,21 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			}
 			structsTask.Templates = append(structsTask.Templates,
 				&structs.Template{
-					SourcePath:         *template.SourcePath,
-					DestPath:           *template.DestPath,
-					EmbeddedTmpl:       *template.EmbeddedTmpl,
-					ChangeMode:         *template.ChangeMode,
-					ChangeSignal:       *template.ChangeSignal,
-					ChangeScriptConfig: apiChangeScriptConfigToStructsChangeScriptConfig(template.ChangeScriptConfig),
-					Splay:              *template.Splay,
-					Perms:              *template.Perms,
-					Uid:                uid,
-					Gid:                gid,
-					LeftDelim:          *template.LeftDelim,
-					RightDelim:         *template.RightDelim,
-					Envvars:            *template.Envvars,
-					VaultGrace:         *template.VaultGrace,
-					Wait:               apiWaitConfigToStructsWaitConfig(template.Wait),
+					SourcePath:   *template.SourcePath,
+					DestPath:     *template.DestPath,
+					EmbeddedTmpl: *template.EmbeddedTmpl,
+					ChangeMode:   *template.ChangeMode,
+					ChangeSignal: *template.ChangeSignal,
+					ChangeScript: apiChangeScriptToStructsChangeScript(template.ChangeScript),
+					Splay:        *template.Splay,
+					Perms:        *template.Perms,
+					Uid:          uid,
+					Gid:          gid,
+					LeftDelim:    *template.LeftDelim,
+					RightDelim:   *template.RightDelim,
+					Envvars:      *template.Envvars,
+					VaultGrace:   *template.VaultGrace,
+					Wait:         apiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1265,16 +1265,16 @@ func apiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitC
 	}
 }
 
-func apiChangeScriptConfigToStructsChangeScriptConfig(changeScriptConfig *api.ChangeScriptConfig) *structs.ChangeScriptConfig {
-	if changeScriptConfig == nil {
+func apiChangeScriptToStructsChangeScript(changeScript *api.ChangeScript) *structs.ChangeScript {
+	if changeScript == nil {
 		return nil
 	}
 
-	return &structs.ChangeScriptConfig{
-		Path:        *changeScriptConfig.Path,
-		Args:        changeScriptConfig.Args,
-		Timeout:     *changeScriptConfig.Timeout,
-		FailOnError: *changeScriptConfig.FailOnError,
+	return &structs.ChangeScript{
+		Path:        *changeScript.Path,
+		Args:        changeScript.Args,
+		Timeout:     *changeScript.Timeout,
+		FailOnError: *changeScript.FailOnError,
 	}
 }
 

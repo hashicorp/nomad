@@ -59,9 +59,9 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
   `change_mode` is `signal`.
 
-- `change_script_config` <code>([ChangeScriptConfig][]: nil)</code> - Configures
-  the script triggered on template change. This option is required if the
-  `change_mode` is `script`.
+- `change_script` <code>([ChangeScript][]: nil)</code> - Configures the script
+  triggered on template change. This option is required if the `change_mode` is
+  `script`.
 
 - `data` `(string: "")` - Specifies the raw template to execute. One of `source`
   or `data` must be specified, but not both. This is useful for smaller
@@ -565,7 +565,7 @@ options](/docs/configuration/client#options):
   files on the client host via the `file` function. By default templates can
   access files only within the [task working directory].
 
-[changescriptconfig]: /docs/job-specification/change_script_config 'Nomad change_script_config Job Specification'
+[changescript]: /docs/job-specification/change_script 'Nomad change_script Job Specification'
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [ct_api]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md 'Consul Template API by HashiCorp'
 [ct_api_connect]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#connect 'Consul Template API by HashiCorp - connect'

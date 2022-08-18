@@ -7042,7 +7042,7 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
-						ChangeScriptConfig: &ChangeScriptConfig{
+						ChangeScript: &ChangeScript{
 							Path:        "/bin/foo",
 							Args:        []string{"-debug"},
 							Timeout:     5,
@@ -7063,7 +7063,7 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz2",
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
-						ChangeScriptConfig: &ChangeScriptConfig{
+						ChangeScript: &ChangeScript{
 							Path:        "/bin/foo2",
 							Args:        []string{"-debugs"},
 							Timeout:     6,
@@ -7085,7 +7085,7 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz new",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
-						ChangeScriptConfig: &ChangeScriptConfig{
+						ChangeScript: &ChangeScript{
 							Path:        "/bin/foo",
 							Args:        []string{"-debug"},
 							Timeout:     5,
@@ -7106,7 +7106,7 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz3",
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
-						ChangeScriptConfig: &ChangeScriptConfig{
+						ChangeScript: &ChangeScript{
 							Path:        "/bin/foo3",
 							Args:        []string{"-debugss"},
 							Timeout:     7,
@@ -7244,7 +7244,7 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "ChangeScriptConfig",
+								Name: "ChangeScript",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
@@ -7356,7 +7356,7 @@ func TestTaskDiff(t *testing.T) {
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeDeleted,
-								Name: "ChangeScriptConfig",
+								Name: "ChangeScript",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,

@@ -7698,9 +7698,9 @@ var (
 	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, script, restart")
 )
 
-// ChangeScriptConfig holds the configuration for the script that is executed if
+// ChangeScript holds the configuration for the script that is executed if
 // change mode is set to script
-type ChangeScriptConfig struct {
+type ChangeScript struct {
 	// Path is the full path to the script
 	Path string
 	// Args is a slice of arguments passed to the script
@@ -7731,9 +7731,9 @@ type Template struct {
 	// requires it.
 	ChangeSignal string
 
-	// ChangeScriptConfig is the configuration of the script. It's required if
+	// ChangeScript is the configuration of the script. It's required if
 	// ChangeMode is set to script.
-	ChangeScriptConfig *ChangeScriptConfig
+	ChangeScript *ChangeScript
 
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
@@ -7834,7 +7834,7 @@ func (t *Template) Validate() error {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	case TemplateChangeModeScript:
-		if t.ChangeScriptConfig.Path == "" {
+		if t.ChangeScript.Path == "" {
 			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
 		}
 	default:

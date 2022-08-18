@@ -1359,8 +1359,8 @@
         "path": "job-specification/affinity"
       },
       {
-        "title": "change_script_config",
-        "path": "job-specification/change_script_config"
+        "title": "change_script",
+        "path": "job-specification/change_script"
       },
       {
         "title": "check",

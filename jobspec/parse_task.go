@@ -445,7 +445,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		valid := []string{
 			"change_mode",
 			"change_signal",
-			"change_script_config",
+			"change_script",
 			"data",
 			"destination",
 			"left_delimiter",
@@ -466,7 +466,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
-		delete(m, "change_script_config") // change_script_config is its own object
+		delete(m, "change_script") // change_script is its own object
 
 		templ := &api.Template{
 			ChangeMode: stringToPtr("restart"),
@@ -488,31 +488,31 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			return err
 		}
 
-		// If we have change_script_config, parse it
-		if o := listVal.Filter("change_script_config"); len(o.Items) > 0 {
+		// If we have change_script, parse it
+		if o := listVal.Filter("change_script"); len(o.Items) > 0 {
 			if len(o.Items) != 1 {
 				return fmt.Errorf(
-					"change_script_config -> expected single stanza, got %d", len(o.Items),
+					"change_script -> expected single stanza, got %d", len(o.Items),
 				)
 			}
 			var m map[string]interface{}
-			changeScriptConfigBlock := o.Items[0]
+			changeScriptBlock := o.Items[0]
 
 			// check for invalid fields
 			valid := []string{"path", "args", "timeout", "fail_on_error"}
-			if err := checkHCLKeys(changeScriptConfigBlock.Val, valid); err != nil {
-				return multierror.Prefix(err, "change_script_config ->")
+			if err := checkHCLKeys(changeScriptBlock.Val, valid); err != nil {
+				return multierror.Prefix(err, "change_script ->")
 			}
 
-			if err := hcl.DecodeObject(&m, changeScriptConfigBlock.Val); err != nil {
+			if err := hcl.DecodeObject(&m, changeScriptBlock.Val); err != nil {
 				return err
 			}
 
-			templ.ChangeScriptConfig = &api.ChangeScriptConfig{}
+			templ.ChangeScript = &api.ChangeScript{}
 			dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 				DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 				WeaklyTypedInput: true,
-				Result:           templ.ChangeScriptConfig,
+				Result:           templ.ChangeScript,
 			})
 			if err != nil {
 				return err

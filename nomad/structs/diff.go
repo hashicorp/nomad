@@ -1649,21 +1649,20 @@ func waitConfigDiff(old, new *WaitConfig, contextual bool) *ObjectDiff {
 	return diff
 }
 
-// changeScriptConfigDiff returns the diff of two ChangeScriptConfig objects. If
-// contextual diff is enabled, all fields will be returned, even if no diff
-// occurred.
-func changeScriptConfigDiff(old, new *ChangeScriptConfig, contextual bool) *ObjectDiff {
-	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ChangeScriptConfig"}
+// changeScriptDiff returns the diff of two ChangeScript objects. If contextual
+// diff is enabled, all fields will be returned, even if no diff occurred.
+func changeScriptDiff(old, new *ChangeScript, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ChangeScript"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if old == nil {
-		old = &ChangeScriptConfig{}
+		old = &ChangeScript{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	} else if new == nil {
-		new = &ChangeScriptConfig{}
+		new = &ChangeScript{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
 	} else {
@@ -1713,9 +1712,9 @@ func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, waitDiffs)
 	}
 
-	// ChangeScriptConfig diffs
-	if changeScriptDiffs := changeScriptConfigDiff(
-		old.ChangeScriptConfig, new.ChangeScriptConfig, contextual,
+	// ChangeScript diffs
+	if changeScriptDiffs := changeScriptDiff(
+		old.ChangeScript, new.ChangeScript, contextual,
 	); changeScriptDiffs != nil {
 		diff.Objects = append(diff.Objects, changeScriptDiffs)
 	}

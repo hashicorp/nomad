@@ -2731,19 +2731,19 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								EmbeddedTmpl: pointer.Of("embedded"),
 								ChangeMode:   pointer.Of("change"),
 								ChangeSignal: pointer.Of("signal"),
-                ChangeScriptConfig: &api.ChangeScriptConfig{
+								ChangeScript: &api.ChangeScript{
 									Path:        pointer.Of("/bin/foo"),
 									Args:        []string{"-h"},
 									Timeout:     pointer.Of(5 * time.Second),
 									FailOnError: pointer.Of(false),
 								},
-								Splay:        pointer.Of(1 * time.Minute),
-								Perms:        pointer.Of("666"),
-								Uid:          pointer.Of(1000),
-								Gid:          pointer.Of(1000),
-								LeftDelim:    pointer.Of("abc"),
-								RightDelim:   pointer.Of("def"),
-								Envvars:      pointer.Of(true),
+								Splay:      pointer.Of(1 * time.Minute),
+								Perms:      pointer.Of("666"),
+								Uid:        pointer.Of(1000),
+								Gid:        pointer.Of(1000),
+								LeftDelim:  pointer.Of("abc"),
+								RightDelim: pointer.Of("def"),
+								Envvars:    pointer.Of(true),
 								Wait: &api.WaitConfig{
 									Min: pointer.Of(5 * time.Second),
 									Max: pointer.Of(10 * time.Second),
@@ -3144,7 +3144,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								EmbeddedTmpl: "embedded",
 								ChangeMode:   "change",
 								ChangeSignal: "SIGNAL",
-								ChangeScriptConfig: &structs.ChangeScriptConfig{
+								ChangeScript: &structs.ChangeScript{
 									Path:        "/bin/foo",
 									Args:        []string{"-h"},
 									Timeout:     5 * time.Second,

@@ -318,7 +318,7 @@ job "binstore-storagelocker" {
         source      = "bar"
         destination = "bar"
         change_mode = "script"
-        change_script_config {
+        change_script {
           path          = "/bin/foo"
           args          = ["-debug", "-verbose"]
           timeout       = "5s"
