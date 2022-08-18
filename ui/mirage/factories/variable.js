@@ -25,14 +25,10 @@ export default Factory.extend({
   },
 
   afterCreate(variable, server) {
-    if (!variable.namespaceId) {
+    if (!variable.namespace) {
       const namespace = pickOne(server.db.jobs)?.namespace || 'default';
       variable.update({
         namespace,
-      });
-    } else {
-      variable.update({
-        namespace: variable.namespaceId,
       });
     }
   },

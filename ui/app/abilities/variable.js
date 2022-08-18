@@ -81,6 +81,7 @@ export default class Variable extends AbstractAbility {
   ) {
     const namespacesWithSecureVariableCapabilities = policies
       .toArray()
+      .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
       .map((namespace = {}) => {

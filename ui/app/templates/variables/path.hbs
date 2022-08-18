@@ -1,4 +1,4 @@
-{{page-title "Secure Variables: " this.model.absolutePath}}
+{{page-title "Secure Variables: " this.absolutePath}}
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
@@ -15,52 +15,55 @@
           />
         {{/if}}
         <div class="button-bar">
-        {{#if (can "write variable" path=this.model.absolutePath namespace=this.namespaceSelection)}}
-          <LinkTo
-            @route="variables.new"
-            @query={{hash path=(concat this.model.absolutePath "/")}}
-            class="button is-primary"
-          >
-            Create Secure Variable
-          </LinkTo>
-        {{else}}
-          <button
-            class="button is-primary is-disabled tooltip is-right-aligned"
-            aria-label="You don’t have sufficient permissions"
-            disabled
-            type="button"
-          >
-            Create Secure Variable
-          </button>
-        {{/if}}
-
+          {{#if (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)}}
+            <LinkTo
+              @route="variables.new"
+              @query={{hash path=(concat this.absolutePath "/")}}
+              class="button is-primary"
+            >
+              Create Secure Variable
+            </LinkTo>
+          {{else}}
+            <button
+              class="button is-primary is-disabled tooltip is-right-aligned"
+              aria-label="You don’t have sufficient permissions"
+              disabled
+              type="button"
+            >
+              Create Secure Variable
+            </button>
+          {{/if}}
         </div>
       </div>
     </div>
-{{#if this.model.treeAtPath}}
-  <VariablePaths
-    @branch={{this.model.treeAtPath}}
-  />
-{{else}}
-  <div class="empty-message">
-    {{#if (eq this.namespaceSelection "*")}}
-      <h3 data-test-empty-variables-list-headline class="empty-message-headline">
-        Path /{{this.model.absolutePath}} contains no variables
-      </h3>
-      <p class="empty-message-body">
-        To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.model.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
-      </p>
+    {{#if this.isForbidden}}
+      <ForbiddenMessage />
     {{else}}
-      <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
-        No Matches
-      </h3>
-      <p class="empty-message-body">
-        No paths or variables match the namespace 
-        <strong>
-          {{this.namespaceSelection}}
-        </strong>
-      </p>
+      {{#if this.model.treeAtPath}}
+        <VariablePaths
+          @branch={{this.model.treeAtPath}}
+        />
+      {{else}}
+        <div class="empty-message">
+          {{#if (eq this.namespaceSelection "*")}}
+            <h3 data-test-empty-variables-list-headline class="empty-message-headline">
+              Path /{{this.absolutePath}} contains no variables
+            </h3>
+            <p class="empty-message-body">
+              To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
+            </p>
+          {{else}}
+            <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
+              No Matches
+            </h3>
+            <p class="empty-message-body">
+              No paths or variables match the namespace 
+              <strong>
+                {{this.namespaceSelection}}
+              </strong>
+            </p>
+          {{/if}}
+        </div>
+      {{/if}}
     {{/if}}
-  </div>
-{{/if}}
   </section>

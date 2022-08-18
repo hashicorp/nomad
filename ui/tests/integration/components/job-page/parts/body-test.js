@@ -27,7 +27,6 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
         <div class="inner-content">Inner content</div>
       </JobPage::Parts::Body>
     `);
-
     assert.ok(find('[data-test-subnav="job"]'), 'Job subnav is rendered');
   });
 
@@ -36,7 +35,7 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
 
     const store = this.owner.lookup('service:store');
     const job = await store.createRecord('job', {
-      id: 'service-job',
+      id: '["service-job","default"]',
       type: 'service',
     });
 
@@ -51,7 +50,6 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
     const subnavLabels = findAll('[data-test-tab]').map((anchor) =>
       anchor.textContent.trim()
     );
-
     assert.ok(
       subnavLabels.some((label) => label === 'Definition'),
       'Definition link'
@@ -72,7 +70,7 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
   test('the subnav does not include the deployments link when the job is not a service', async function (assert) {
     const store = this.owner.lookup('service:store');
     const job = await store.createRecord('job', {
-      id: 'batch-job',
+      id: '["batch-job","default"]',
       type: 'batch',
     });
 

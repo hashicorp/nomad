@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/exp/slices"
 )
@@ -905,20 +906,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !helper.ElementsEquals(s.Checks, o.Checks) {
 		return false
 	}
 
@@ -1260,11 +1248,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+		nt.KillTimeout = pointer.Of(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
 
 	return nt
@@ -1457,21 +1445,13 @@ type ConsulMeshGateway struct {
 	Mode string
 }
 
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
+func (c *ConsulMeshGateway) Copy() ConsulMeshGateway {
+	return ConsulMeshGateway{
 		Mode: c.Mode,
 	}
 }
 
-func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
-	if c == nil || o == nil {
-		return c == o
-	}
-
+func (c *ConsulMeshGateway) Equals(o ConsulMeshGateway) bool {
 	return c.Mode == o.Mode
 }
 
@@ -1509,7 +1489,7 @@ type ConsulUpstream struct {
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
-	MeshGateway *ConsulMeshGateway
+	MeshGateway ConsulMeshGateway
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
@@ -1790,7 +1770,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,

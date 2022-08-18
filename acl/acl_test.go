@@ -586,6 +586,31 @@ func TestSecureVariablesMatching(t *testing.T) {
 			op:    "read",
 			allow: false,
 		},
+		{
+			name: "wildcard with more specific denied path",
+			policy: `namespace "ns" {
+					secure_variables {
+					path "*" { capabilities = ["list"] }
+					path "system/*" { capabilities = ["deny"] }}}`,
+			ns:    "ns",
+			path:  "system/not-allowed",
+			op:    "list",
+			allow: false,
+		},
+		{
+			name: "multiple namespace with overlapping paths",
+			policy: `namespace "ns" {
+						secure_variables {
+  						path "*" { capabilities = ["list"] }
+						path "system/*" { capabilities = ["deny"] }}}
+					namespace "prod" {
+						secure_variables {
+						path "*" { capabilities = ["list"]}}}`,
+			ns:    "prod",
+			path:  "system/is-allowed",
+			op:    "list",
+			allow: true,
+		},
 	}
 
 	for _, tc := range tests {

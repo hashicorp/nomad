@@ -9,6 +9,27 @@
     </div>
   {{/if}}
 
+  {{#if this.hasConflict}}
+    <div class="notification conflict is-danger">
+      <h3 class="title is-4">Heads up! Your Secure Variable has a conflict.</h3>
+      <p>This might be because someone else tried saving in the time since you've had it open.</p>
+      {{#if this.conflictingVariable.modifyTime}}
+        <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
+          {{moment-from-now this.conflictingVariable.modifyTime}}
+        </span>
+      {{/if}}
+      {{#if this.conflictingVariable.items}}
+        <pre><code>{{stringify-object this.conflictingVariable.items whitespace=2}}</code></pre>
+      {{else}}
+        <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
+      {{/if}}
+      <div class="options">
+        <button data-test-refresh-button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
+        <button data-test-overwrite-button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
+      </div>
+    </div>
+  {{/if}}
+
   <div class={{if this.namespaceOptions "path-namespace"}}>
     <label>
       <span>
@@ -16,18 +37,17 @@
       </span>
       <Input
         @type="text"
-        @value={{@model.path}}
+        @value={{this.path}}
         placeholder="nomad/jobs/my-job/my-group/my-task"
         class="input path-input {{if this.duplicatePathWarning "error"}}"
         disabled={{not @model.isNew}}
-        {{on "input" this.validatePath}}
         {{autofocus}}
         data-test-path-input
       />
       {{#if this.duplicatePathWarning}}
         <p class="duplicate-path-error help is-danger">
           There is already a Secure Variable located at
-          {{@model.path}}
+          {{this.path}}
           .
           <br />
           Please choose a different path, or

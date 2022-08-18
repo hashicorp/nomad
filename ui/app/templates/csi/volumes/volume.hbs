@@ -52,6 +52,10 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoAllocation" row.model)
+              }}
               @data-test-write-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
@@ -90,6 +94,10 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoAllocation" row.model)
+              }}
               @data-test-read-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"

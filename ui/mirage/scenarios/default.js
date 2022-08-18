@@ -80,17 +80,22 @@ function smallCluster(server) {
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: 'Auto-conflicting Variable',
+    namespace: 'default',
   });
 
   // #region evaluations
@@ -200,24 +205,41 @@ function variableTestCluster(server) {
     'w/x/y/foo9',
     'w/x/y/z/foo10',
     'w/x/y/z/bar11',
-    'just some arbitrary file',
-    'another arbitrary file',
-    'another arbitrary file again',
   ].forEach((path) => server.create('variable', { id: path }));
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
   });
 
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
-    namespaceId: variableLinkedJob.namespace,
+    namespace: variableLinkedJob.namespace,
+  });
+
+  server.create('variable', {
+    id: 'just some arbitrary file',
+    namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'another arbitrary file',
+    namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'another arbitrary file again',
+    namespace: 'namespace-2',
+  });
+
+  server.create('variable', {
+    id: 'Auto-conflicting Variable',
+    namespace: 'default',
   });
 }
 

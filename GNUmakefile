@@ -143,9 +143,9 @@ deps:  ## Install build and development dependencies
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.4
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.5
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -213,12 +213,12 @@ generate-all: generate-structs proto generate-examples ## Generate structs, prot
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
-	@echo "--> Running go generate..."
+	@echo "==> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: proto
 proto: ## Generate protobuf bindings
-	@echo "--> Generating proto bindings..."
+	@echo "==> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 .PHONY: generate-examples
@@ -235,7 +235,7 @@ changelog: ## Generate changelog from entries
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
 hclfmt: ## Format HCL files with hclfmt
-	@echo "--> Formatting HCL"
+	@echo "==> Formatting HCL"
 	@find . -name '.terraform' -prune \
 	        -o -name 'upstart.nomad' -prune \
 	        -o -name '.git' -prune \
@@ -248,10 +248,10 @@ hclfmt: ## Format HCL files with hclfmt
 
 .PHONY: tidy
 tidy: ## Tidy up the go mod files
-	@echo "--> Tidy up submodules"
+	@echo "==> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
-	@echo "--> Tidy nomad module"
+	@echo "==> Tidy nomad module"
 	@go mod tidy
 
 .PHONY: dev
@@ -360,24 +360,24 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
-	@echo "--> Generating static assets"
+	@echo "==> Generating static assets"
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
-	@echo "--> Installing JavaScript assets"
+	@echo "==> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
-	@echo "--> Running ember tests"
+	@echo "==> Running ember tests"
 	@cd ui && npm test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
-	@echo "--> Installing JavaScript assets"
+	@echo "==> Installing JavaScript assets"
 	@cd ui && yarn install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
-	@echo "--> Building Ember application"
+	@echo "==> Building Ember application"
 	@cd ui && npm run build
 
 .PHONY: dev-ui

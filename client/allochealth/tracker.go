@@ -258,8 +258,9 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 // returns true if health is propagated and no more health monitoring is needed
 //
 // todo: this is currently being shared by watchConsulEvents and watchNomadEvents,
-//  and must be split up if/when we support registering services (and thus checks)
-//  of different providers.
+//
+//	and must be split up if/when we support registering services (and thus checks)
+//	of different providers.
 func (t *Tracker) setCheckHealth(healthy bool) bool {
 	t.lock.Lock()
 	defer t.lock.Unlock()

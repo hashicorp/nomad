@@ -1236,6 +1236,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Debug("setting container mac address", "mac_address", config.MacAddress)
 	}
 
+	if driverConfig.Healthchecks.Disabled() {
+		// Override any image-supplied health-check with disable sentinel.
+		// https://github.com/docker/engine-api/blob/master/types/container/config.go#L16
+		config.Healthcheck = &docker.HealthConfig{Test: []string{"NONE"}}
+		logger.Debug("setting container healthchecks to be disabled")
+	}
+
 	return docker.CreateContainerOptions{
 		Name:             containerName,
 		Config:           config,

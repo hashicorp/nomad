@@ -128,6 +128,18 @@ config {
   are mutable. If image's tag is `latest` or omitted, the image will always be pulled
   regardless of this setting.
 
+- `healthchecks` - (Optional) A configuration block for controlling how the
+  docker driver manages HEALTHCHECK directives built into the container. Set
+  `healthchecks.disable` to disable any built-in healthcheck.
+
+  ```hcl
+  config {
+    healthchecks {
+      disable = true
+    }
+  }
+  ```
+
 - `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
   container the task starts will have the same hostname.

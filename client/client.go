@@ -47,6 +47,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -136,7 +137,7 @@ type ClientStatsReporter interface {
 }
 
 // AllocRunner is the interface implemented by the core alloc runner.
-//TODO Create via factory to allow testing Client with mock AllocRunners.
+// TODO Create via factory to allow testing Client with mock AllocRunners.
 type AllocRunner interface {
 	Alloc() *structs.Allocation
 	AllocState() *arstate.State
@@ -1252,8 +1253,8 @@ func (c *Client) restoreState() error {
 // wait until it gets allocs from server to launch them.
 //
 // See:
-//  * https://github.com/hashicorp/nomad/pull/6207
-//  * https://github.com/hashicorp/nomad/issues/5984
+//   - https://github.com/hashicorp/nomad/pull/6207
+//   - https://github.com/hashicorp/nomad/issues/5984
 //
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
 func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
@@ -2386,7 +2387,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 		stripped.DeploymentStatus = add.DeploymentStatus.Copy()
 	} else {
 		stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(false),
+			Healthy:   pointer.Of(false),
 			Timestamp: failTime,
 		}
 	}

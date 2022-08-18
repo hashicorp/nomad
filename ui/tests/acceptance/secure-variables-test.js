@@ -103,9 +103,8 @@ module('Acceptance | secure variables', function (hooks) {
     await percySnapshot(assert);
 
     await click(fooLink);
-    assert.equal(
-      currentURL(),
-      '/variables/var/a/b/c/foo0',
+    assert.ok(
+      currentURL().includes('/variables/var/a/b/c/foo0'),
       'correctly traverses to a deeply nested variable file'
     );
     const deleteButton = find('[data-test-delete-button] button');
@@ -173,9 +172,8 @@ module('Acceptance | secure variables', function (hooks) {
     assert.ok(nonJobLink, 'non-job file is present');
 
     await click(nonJobLink);
-    assert.equal(
-      currentURL(),
-      '/variables/var/just some arbitrary file',
+    assert.ok(
+      currentURL().includes('/variables/var/just some arbitrary file'),
       'correctly traverses to a non-job file'
     );
     let relatedEntitiesBox = find('.related-entities');
@@ -335,7 +333,10 @@ module('Acceptance | secure variables', function (hooks) {
     await click('button[type="submit"]');
 
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/variables/var/foo/bar');
+    assert.ok(
+      currentURL().includes('/variables/var/foo'),
+      'drops you back off to the parent page'
+    );
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -514,7 +515,6 @@ module('Acceptance | secure variables', function (hooks) {
       await typeIn('[data-test-var-key]', 'kiki');
       await typeIn('[data-test-var-value]', 'do you love me');
       await click('[data-test-submit-var]');
-
       assert.equal(
         currentRouteName(),
         'variables.variable.index',
@@ -549,6 +549,43 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-edit-button]')
         .doesNotExist('The edit button is hidden in the view.');
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+    test('handles conflicts on save', async function (assert) {
+      // Arrange Test Set-up
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      // End Test Set-up
+
+      await Variables.visitConflicting();
+      await click('button[type="submit"]');
+
+      assert
+        .dom('.notification.conflict')
+        .exists('Notification alerting user of conflict is present');
+
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-submit-var]');
+
+      await click('button[data-test-overwrite-button]');
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting Variable@default',
+        'Selecting overwrite forces a save and redirects'
+      );
+
+      assert
+        .dom('.flash-message.alert.alert-success')
+        .exists('Shows a success toast notification on edit.');
+
+      assert
+        .dom('[data-test-var=buddy]')
+        .exists('The edited variable key should appear in the list.');
 
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
@@ -626,8 +663,8 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-file-row]:not(.inaccessible)')
         .exists(
-          { count: 3 },
-          'Shows 3 variable files, none of which are inaccessible'
+          { count: 4 },
+          'Shows 4 variable files, none of which are inaccessible'
         );
 
       await click('[data-test-file-row]');
@@ -646,8 +683,8 @@ module('Acceptance | secure variables', function (hooks) {
       assert
         .dom('[data-test-file-row].inaccessible')
         .exists(
-          { count: 3 },
-          'Shows 3 variable files, all of which are inaccessible'
+          { count: 4 },
+          'Shows 4 variable files, all of which are inaccessible'
         );
 
       // Reset Token

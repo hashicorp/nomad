@@ -11,6 +11,7 @@ import EmberObject, { set } from '@ember/object';
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
+import notifyConflict from 'nomad-ui/utils/notify-conflict';
 
 const EMPTY_KV = {
   key: '',
@@ -23,17 +24,26 @@ export default class SecureVariableFormComponent extends Component {
   @service router;
   @service store;
 
+  @tracked variableNamespace = null;
+  @tracked namespaceOptions = null;
+  @tracked hasConflict = false;
+
   /**
-   * @typedef {Object} DuplicatePathWarning
-   * @property {string} path
+   * @typedef {Object} conflictingVariable
+   * @property {string} ModifyTime
+   * @property {Object} Items
    */
 
   /**
-   * @type {DuplicatePathWarning}
+   * @type {conflictingVariable}
    */
-  @tracked duplicatePathWarning = null;
-  @tracked variableNamespace = null;
-  @tracked namespaceOptions = null;
+  @tracked conflictingVariable = null;
+
+  @tracked path = '';
+  constructor() {
+    super(...arguments);
+    set(this, 'path', this.args.model.path);
+  }
 
   @action
   setNamespace(namespace) {
@@ -52,9 +62,8 @@ export default class SecureVariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.args.model?.path?.startsWith('nomad/') &&
-      !this.args.model?.path?.startsWith('nomad/jobs');
-    return !!this.JSONError || !this.args.model?.path || disallowedPath;
+      this.path?.startsWith('nomad/') && !this.path?.startsWith('nomad/jobs');
+    return !!this.JSONError || !this.path || disallowedPath;
   }
 
   /**
@@ -94,19 +103,28 @@ export default class SecureVariableFormComponent extends Component {
     ]);
   }
 
-  @action
-  validatePath(e) {
-    const value = trimPath([e.target.value]);
+  /**
+   * @typedef {Object} DuplicatePathWarning
+   * @property {string} path
+   */
+
+  /**
+   * @type {DuplicatePathWarning}
+   */
+  get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
+    const pathValue = trimPath([this.path]);
     let existingVariable = existingVariables
       .without(this.args.model)
-      .find((v) => v.path === value);
+      .find(
+        (v) => v.path === pathValue && v.namespace === this.variableNamespace
+      );
     if (existingVariable) {
-      this.duplicatePathWarning = {
+      return {
         path: existingVariable.path,
       };
     } else {
-      this.duplicatePathWarning = null;
+      return null;
     }
   }
 
@@ -139,12 +157,21 @@ export default class SecureVariableFormComponent extends Component {
     this.keyValues.removeObject(row);
   }
 
+  @action refresh() {
+    window.location.reload();
+  }
+
+  @action saveWithOverwrite(e) {
+    set(this, 'conflictingVariable', null);
+    this.save(e, true);
+  }
+
   @action
-  async save(e) {
+  async save(e, overwrite = false) {
     if (e.type === 'submit') {
       e.preventDefault();
     }
-    // TODO: temp, hacky way to force translation to tabular keyValues
+
     if (this.view === 'json') {
       this.translateAndValidateItems('table');
     }
@@ -168,25 +195,34 @@ export default class SecureVariableFormComponent extends Component {
       }
 
       this.args.model.set('keyValues', this.keyValues);
+      this.args.model.set('path', this.path);
       this.args.model.setAndTrimPath();
-      await this.args.model.save();
+      await this.args.model.save({ adapterOptions: { overwrite } });
 
       this.flashMessages.add({
         title: 'Secure Variable saved',
-        message: `${this.args.model.path} successfully saved`,
+        message: `${this.path} successfully saved`,
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
-      this.router.transitionTo('variables.variable', this.args.model.path);
+      this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
-      this.flashMessages.add({
-        title: `Error saving ${this.args.model.path}`,
-        message: error,
-        type: 'error',
-        destroyOnClick: false,
-        sticky: true,
-      });
+      notifyConflict(this)(error);
+      if (!this.hasConflict) {
+        this.flashMessages.add({
+          title: `Error saving ${this.path}`,
+          message: error,
+          type: 'error',
+          destroyOnClick: false,
+          sticky: true,
+        });
+      } else {
+        if (error.errors[0]?.detail) {
+          set(this, 'conflictingVariable', error.errors[0].detail);
+        }
+        window.scrollTo(0, 0); // because the k/v list may be long, ensure the user is snapped to top to read error
+      }
     }
   }
 

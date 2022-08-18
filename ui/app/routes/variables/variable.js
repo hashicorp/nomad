@@ -9,7 +9,7 @@ export default class VariablesVariableRoute extends Route.extend(
   @service store;
   model(params) {
     return this.store
-      .findRecord('variable', decodeURIComponent(params.path), {
+      .findRecord('variable', decodeURIComponent(params.id), {
         reload: true,
       })
       .catch(notifyForbidden(this));

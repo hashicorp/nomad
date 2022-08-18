@@ -23,7 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -166,32 +166,32 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&req); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
 	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
 	alloc, err := f.c.GetAlloc(req.AllocID)
 	if err != nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), helper.Int64ToPtr(404), encoder)
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
 		return
 	}
 
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
+		handleStreamResultError(err, pointer.Of(int64(403)), encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
-		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 		return
 	}
 
 	// Validate the arguments
 	if req.Path == "" {
-		handleStreamResultError(pathNotPresentErr, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(pathNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
 	switch req.Origin {
@@ -199,15 +199,15 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	case "":
 		req.Origin = "start"
 	default:
-		handleStreamResultError(invalidOrigin, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(invalidOrigin, pointer.Of(int64(400)), encoder)
 		return
 	}
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if structs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -217,13 +217,13 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	// Calculate the offset
 	fileInfo, err := fs.Stat(req.Path)
 	if err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(err, pointer.Of(int64(400)), encoder)
 		return
 	}
 	if fileInfo.IsDir {
 		handleStreamResultError(
 			fmt.Errorf("file %q is a directory", req.Path),
-			helper.Int64ToPtr(400), encoder)
+			pointer.Of(int64(400)), encoder)
 		return
 	}
 
@@ -325,7 +325,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 }
@@ -341,17 +341,17 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&req); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
 	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
 	alloc, err := f.c.GetAlloc(req.AllocID)
 	if err != nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), helper.Int64ToPtr(404), encoder)
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
 		return
 	}
 
@@ -370,13 +370,13 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	// Validate the arguments
 	if req.Task == "" {
-		handleStreamResultError(taskNotPresentErr, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(taskNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
 	switch req.LogType {
 	case "stdout", "stderr":
 	default:
-		handleStreamResultError(logTypeNotPresentErr, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(logTypeNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
 	switch req.Origin {
@@ -384,15 +384,15 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	case "":
 		req.Origin = "start"
 	default:
-		handleStreamResultError(invalidOrigin, helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(invalidOrigin, pointer.Of(int64(400)), encoder)
 		return
 	}
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if structs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -401,9 +401,9 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	allocState, err := f.c.GetAllocState(req.AllocID)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if structs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -415,7 +415,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	if taskState == nil {
 		handleStreamResultError(
 			fmt.Errorf("unknown task name %q", req.Task),
-			helper.Int64ToPtr(400),
+			pointer.Of(int64(400)),
 			encoder)
 		return
 	}
@@ -423,7 +423,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	if taskState.StartedAt.IsZero() {
 		handleStreamResultError(
 			fmt.Errorf("task %q not started yet. No logs available", req.Task),
-			helper.Int64ToPtr(404),
+			pointer.Of(int64(404)),
 			encoder)
 		return
 	}

@@ -6,6 +6,7 @@ import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
+import faker from 'nomad-ui/mirage/faker';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -852,18 +853,34 @@ export default function () {
 
   this.put('/var/:id', function (schema, request) {
     const { Path, Namespace, Items } = JSON.parse(request.requestBody);
-    return server.create('variable', {
-      Path,
-      Namespace,
-      Items,
-      id: Path,
-    });
+    if (request.url.includes('cas=') && Path === 'Auto-conflicting Variable') {
+      return new Response(
+        409,
+        {},
+        {
+          CreateIndex: 65,
+          CreateTime: faker.date.recent(14) * 1000000, // in the past couple weeks
+          Items: { edited_by: 'your_remote_pal' },
+          ModifyIndex: 2118,
+          ModifyTime: faker.date.recent(0.01) * 1000000, // a few minutes ago
+          Namespace: Namespace,
+          Path: Path,
+        }
+      );
+    } else {
+      return server.create('variable', {
+        path: Path,
+        namespace: Namespace,
+        items: Items,
+        id: Path,
+      });
+    }
   });
 
   this.delete('/var/:id', function (schema, request) {
     const { id } = request.params;
     server.db.variables.remove(id);
-    return okEmpty();
+    return '';
   });
 
   //#endregion Secure Variables

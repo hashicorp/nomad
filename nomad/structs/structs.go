@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
@@ -109,10 +110,9 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
-	SecureVariableUpsertRequestType              MessageType = 50
-	SecureVariableDeleteRequestType              MessageType = 51
-	RootKeyMetaUpsertRequestType                 MessageType = 52
-	RootKeyMetaDeleteRequestType                 MessageType = 53
+	SVApplyStateRequestType                      MessageType = 50
+	RootKeyMetaUpsertRequestType                 MessageType = 51
+	RootKeyMetaDeleteRequestType                 MessageType = 52
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -10854,7 +10854,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	*c = *a
 
 	if a.Healthy != nil {
-		c.Healthy = helper.BoolToPtr(*a.Healthy)
+		c.Healthy = pointer.Of(*a.Healthy)
 	}
 
 	return c

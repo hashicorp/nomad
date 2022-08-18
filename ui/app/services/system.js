@@ -1,6 +1,7 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import Ember from 'ember';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
@@ -16,64 +17,78 @@ export default class SystemService extends Service {
   @computed('activeRegion')
   get leader() {
     const token = this.token;
-
-    return PromiseObject.create({
-      promise: token
-        .authorizedRequest(`/${namespace}/status/leader`)
-        .then((res) => res.json())
-        .then((rpcAddr) => ({ rpcAddr }))
-        .then((leader) => {
-          // Dirty self so leader can be used as a dependent key
-          this.notifyPropertyChange('leader.rpcAddr');
-          return leader;
-        }),
-    });
+    if (token.secret || Ember.testing) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRequest(`/${namespace}/status/leader`)
+          .then((res) => res.json())
+          .then((rpcAddr) => ({ rpcAddr }))
+          .then((leader) => {
+            // Dirty self so leader can be used as a dependent key
+            this.notifyPropertyChange('leader.rpcAddr');
+            return leader;
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
   get agent() {
     const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/self`)
-        .then(jsonWithDefault({}))
-        .then((agent) => {
-          if (agent?.config?.Version) {
-            const { Version, VersionPrerelease, VersionMetadata } =
-              agent.config.Version;
-            agent.version = Version;
-            if (VersionPrerelease)
-              agent.version = `${agent.version}-${VersionPrerelease}`;
-            if (VersionMetadata)
-              agent.version = `${agent.version}+${VersionMetadata}`;
-          }
-          return agent;
-        }),
-    });
+
+    if (token.secret || Ember.testing) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/agent/self`)
+          .then(jsonWithDefault({}))
+          .then((agent) => {
+            if (agent?.config?.Version) {
+              const { Version, VersionPrerelease, VersionMetadata } =
+                agent.config.Version;
+              agent.version = Version;
+              if (VersionPrerelease)
+                agent.version = `${agent.version}-${VersionPrerelease}`;
+              if (VersionMetadata)
+                agent.version = `${agent.version}+${VersionMetadata}`;
+            }
+            return agent;
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
   get defaultRegion() {
     const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/members`)
-        .then(jsonWithDefault({}))
-        .then((json) => {
-          return { region: json.ServerRegion };
-        }),
-    });
+
+    if (token.secret || Ember.testing) {
+      return PromiseObject.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/agent/members`)
+          .then(jsonWithDefault({}))
+          .then((json) => {
+            return { region: json.ServerRegion };
+          }),
+      });
+    }
+    return null;
   }
 
   @computed
   get regions() {
     const token = this.token;
 
-    return PromiseArray.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/regions`)
-        .then(jsonWithDefault([])),
-    });
+    if (token.secret || Ember.testing) {
+      return PromiseArray.create({
+        promise: token
+          .authorizedRawRequest(`/${namespace}/regions`)
+          .then(jsonWithDefault([])),
+      });
+    }
+
+    return null;
   }
 
   @computed('regions.[]')

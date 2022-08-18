@@ -52,6 +52,10 @@
             @allocation={{row.model}}
             @context="job"
             @onClick={{action "gotoAllocation" row.model}}
+            {{keyboard-shortcut
+              enumerated=true
+              action=(action "gotoAllocation" row.model)
+            }}
           />
         </t.body>
       </ListTable>

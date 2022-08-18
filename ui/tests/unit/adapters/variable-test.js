@@ -12,7 +12,7 @@ module('Unit | Adapter | Variable', function (hooks) {
     // we're incorrectly passing an object with a `Model` interface
     // we should be passing a `Snapshot`
     // hacky fix to rectify the issue
-    newVariable.attr = () => 'default';
+    newVariable.attr = () => {};
 
     assert.equal(
       this.subject().urlForFindAll('variable'),

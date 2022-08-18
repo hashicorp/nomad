@@ -1,0 +1,127 @@
+.keyboard-shortcuts {
+  position: fixed;
+  background-color: white;
+  padding: 2rem;
+  margin-top: 20vh;
+  width: 40vw;
+  left: 30vw;
+  z-index: 499;
+  box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0.8);
+  animation-name: slideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+  max-height: 60vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+
+  header {
+    margin-bottom: 2rem;
+    h2 {
+      font-size: $size-3;
+      font-weight: $weight-semibold;
+    }
+
+    button.dismiss {
+      float: right;
+      font-size: 0.7rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+  ul.commands-list {
+    overflow: auto;
+    margin: 0 -2rem;
+    padding: 0 2rem;
+    li {
+      list-style-type: none;
+      padding: 0.5rem 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      &:not(:last-of-type) {
+        border-bottom: 1px solid #ccc;
+      }
+      strong {
+        padding: 0.25rem 0;
+      }
+      .keys {
+        text-align: right;
+        & > span.recording {
+          color: $red;
+          font-size: 0.75rem;
+        }
+        button {
+          border: none;
+          background: #eee;
+          cursor: pointer;
+
+          &:hover {
+            background: #ddd;
+          }
+
+          &[disabled],
+          &[disabled]:hover {
+            background: #eee;
+            color: black;
+            cursor: not-allowed;
+          }
+          span {
+            margin: 0.25rem;
+            display: inline-block;
+          }
+
+          &.reset-to-default {
+            background: white;
+            color: $red;
+            font-size: 0.75rem;
+          }
+        }
+      }
+    }
+  }
+
+  footer {
+    background: #eee;
+    padding: 1rem 2rem;
+    margin: 1rem -2rem -2rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+
+    .toggle {
+      text-align: right;
+    }
+  }
+}
+
+// Global keyboard hint style
+
+// .display-hints {
+[data-shortcut] {
+  background: lighten($nomad-green, 25%);
+  border: 1px solid $nomad-green-dark;
+  content: attr(data-shortcut);
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 0.75rem;
+  padding: 0 0.5rem;
+  text-transform: lowercase;
+  color: black;
+  font-weight: 300;
+  z-index: $z-popover;
+  &.menu-level {
+    z-index: $z-tooltip;
+  }
+}
+// }
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    top: 40px;
+  }
+  to {
+    opacity: 1;
+    top: 0px;
+  }
+}

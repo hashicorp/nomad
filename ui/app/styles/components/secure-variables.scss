@@ -98,6 +98,28 @@
       }
     }
   }
+
+  .notification.conflict {
+    color: $text;
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    pre {
+      background: black;
+      color: $white;
+      max-height: 500px;
+      overflow: auto;
+      code {
+        height: 100%;
+      }
+    }
+
+    .options {
+      margin: 1rem 0;
+    }
+  }
 }
 
 table.path-tree {

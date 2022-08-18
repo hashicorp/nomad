@@ -70,7 +70,7 @@ func TestWriter_BlockingWrite(t *testing.T) {
 
 func TestWriter_CloseClose(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	w := New(ioutil.Discard, 64)
 	require.NoError(w.Close())

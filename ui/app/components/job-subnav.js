@@ -3,6 +3,7 @@ import Component from '@glimmer/component';
 
 export default class JobSubnav extends Component {
   @service can;
+  @service keyboard;
 
   get shouldRenderClientsTab() {
     const { job } = this.args;

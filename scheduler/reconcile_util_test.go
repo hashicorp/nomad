@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	}
 
 	testJob := mock.Job()
-	testJob.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
+	testJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
 	now := time.Now()
 
 	testJobNoMaxDisconnect := mock.Job()
@@ -143,7 +143,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				"migrating1": {
 					ID:                "migrating1",
 					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 					Job:               testJob,
 					NodeID:            "draining",
 				},
@@ -151,7 +151,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				"migrating2": {
 					ID:                "migrating2",
 					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 					Job:               testJob,
 					NodeID:            "nil",
 				},
@@ -190,7 +190,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				"migrating1": {
 					ID:                "migrating1",
 					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 					Job:               testJob,
 					NodeID:            "draining",
 				},
@@ -198,7 +198,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				"migrating2": {
 					ID:                "migrating2",
 					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
+					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
 					Job:               testJob,
 					NodeID:            "nil",
 				},

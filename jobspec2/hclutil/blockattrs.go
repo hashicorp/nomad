@@ -14,17 +14,21 @@ import (
 // More concretely, it changes the following:
 //
 // ```
-// config {
-//   meta { ... }
-// }
+//
+//	config {
+//	  meta { ... }
+//	}
+//
 // ```
 //
 // to
 //
 // ```
-// config {
-//   meta = { ... } # <- attribute now
-// }
+//
+//	config {
+//	  meta = { ... } # <- attribute now
+//	}
+//
 // ```
 func BlocksAsAttrs(body hcl.Body) hcl.Body {
 	if hclb, ok := body.(*hcls.Body); ok {

@@ -25,7 +25,9 @@ import (
 var (
 	// ClientConnTimeout is the timeout applied when attempting to contact a
 	// client directly before switching to a connection through the Nomad
-	// server.
+	// server. For cluster topologies where API consumers don't have network
+	// access to Nomad clients, set this to a small value (ex 1ms) to avoid
+	// pausing on client APIs such as AllocFS.
 	ClientConnTimeout = 1 * time.Second
 )
 
@@ -1096,9 +1098,10 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 	}
 	if resp.StatusCode != 200 {
 		var buf bytes.Buffer
-		io.Copy(&buf, resp.Body)
-		resp.Body.Close()
-		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+		_, _ = io.Copy(&buf, resp.Body)
+		_ = resp.Body.Close()
+		body := strings.TrimSpace(buf.String())
+		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, body)
 	}
 	return d, resp, nil
 }
