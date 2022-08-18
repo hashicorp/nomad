@@ -1,6 +1,6 @@
 // playwright.config.js
 // @ts-check
-const { devices } = require('@playwright/test');
+import { devices } from '@playwright/test';
 
 /** @type {import('@playwright/test').PlaywrightTestConfig} */
 const config = {
@@ -10,7 +10,7 @@ const config = {
     trace: 'on-first-retry',
     ignoreHTTPSErrors: true,
   },
-  globalSetup: require.resolve('./global-setup'),
+  globalSetup: 'global-setup.js',
   projects: [
     {
       name: 'chromium',
@@ -31,4 +31,4 @@ const config = {
   ],
 };
 
-module.exports = config;
+export default config;

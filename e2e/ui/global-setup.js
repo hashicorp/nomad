@@ -1,7 +1,8 @@
-const { chromium } = require('@playwright/test');
+import { chromium } from '@playwright/test';
+import { execaSync } from 'execa';
 
-module.exports = async config => {
-
+async function globalSetup() {
+  
   var NOMAD_TOKEN = process.env.NOMAD_TOKEN;
   if (NOMAD_TOKEN === undefined || NOMAD_TOKEN === "") {
     return
@@ -22,3 +23,5 @@ module.exports = async config => {
   await page.context().storageState({ path: 'storageState.json' });
   await browser.close();
 };
+
+export default globalSetup;
