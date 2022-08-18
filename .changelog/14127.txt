@@ -1,0 +1,7 @@
+```release-note:improvement
+client: add option to restart all tasks of an allocation, even if the task already run, such as non-sidecar prestart and poststart tasks.
+```
+
+```release-note:improvement
+client: only start poststop tasks after poststart tasks are done.
+```
