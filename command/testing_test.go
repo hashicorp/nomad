@@ -129,6 +129,21 @@ func waitForNodes(t *testing.T, client *api.Client) {
 	})
 }
 
+func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, _, err := client.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+		if alloc.ClientStatus == api.AllocClientStatusRunning {
+			return true, nil
+		}
+		return false, fmt.Errorf("alloc status: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("timed out waiting for alloc to be running: %v", err)
+	})
+}
+
 func stopTestAgent(a *agent.TestAgent) {
 	_ = a.Shutdown()
 }
