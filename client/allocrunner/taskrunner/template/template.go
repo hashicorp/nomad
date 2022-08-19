@@ -533,45 +533,48 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	defer wg.Done()
 
 	if tm.handle == nil {
-		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
-			SetDisplayMessage(
-				"Template failed to run a change script because task driver doesn't support the exec operation",
-			))
-		tm.failOnError(
-			script,
-			fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
+		failure_msg := fmt.Sprintf(
+			"Template failed to run script %v with arguments %v because task driver doesn't support the exec operation",
+			script.Command,
+			script.Args,
 		)
+		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
+			SetDisplayMessage(failure_msg))
+		tm.failOnError(script, failure_msg+" Task is being killed.")
 		return
 	}
 	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
 	if err != nil {
-		structs.NewTaskEvent(structs.TaskHookFailed).
-			SetDisplayMessage(
-				fmt.Sprintf(
-					"Template failed to run script %v on change: %v Exit code: %v", script.Command, err, exitCode,
-				))
-		tm.failOnError(
-			script,
-			fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
+		failure_msg := fmt.Sprintf(
+			"Template failed to run script %v with arguments %v on change: %v Exit code: %v",
+			script.Command,
+			script.Args,
+			err,
+			exitCode,
 		)
+		structs.NewTaskEvent(structs.TaskHookFailed).SetDisplayMessage(failure_msg)
+		tm.failOnError(script, failure_msg+" Task is being killed. ")
 		return
 	}
 	if exitCode != 0 {
+		failure_msg := fmt.Sprintf(
+			"Template ran script %v with arguments %v on change but it exited with code code: %v",
+			script.Command,
+			script.Args,
+			exitCode,
+		)
 		structs.NewTaskEvent(structs.TaskHookFailed).
-			SetDisplayMessage(
-				fmt.Sprintf(
-					"Template ran script %v on change: %v Exit code: %v", script.Command, err, exitCode,
-				))
-		tm.failOnError(
-			script,
-			fmt.Sprintf("Template ran script %v but it exited with code %v and the task is being killed",
-				script.Command, exitCode))
+			SetDisplayMessage(failure_msg)
+		tm.failOnError(script, failure_msg+" Task is being killed. ")
 		return
 	}
 	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 		SetDisplayMessage(
 			fmt.Sprintf(
-				"Template successfully ran a script from %v with exit code: %v", script.Command, exitCode,
+				"Template successfully ran a script from %v with arguments: %v. Exit code: %v",
+				script.Command,
+				script.Args,
+				exitCode,
 			)))
 }
 
