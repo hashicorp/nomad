@@ -430,6 +430,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.RPCMaxConnsPerClient = limit
 	}
 
+	// Set safe default rate limits
+	conf.RPCLimits = &agentConfig.Limits
+
 	// Set deployment rate limit
 	if rate := agentConfig.Server.DeploymentQueryRateLimit; rate == 0 {
 		conf.DeploymentQueryRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
