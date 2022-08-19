@@ -48,3 +48,37 @@ job "docs" {
 - `fail_on_error` `(bool: false)` - If `true`, Nomad will kill the task if the
   script execution fails. If `false`, script failure will be logged but the task
   will continue uninterrupted. 
+
+### Template as a script example
+
+Below is an example of how a script can be embedded in a `data` block of another
+`template` stanza:
+
+```hcl
+job "docs" {
+  group "example" {
+    task "server" {
+      template {
+        data        = "{{key \"abc\"}}"
+        destination = "local/test"
+        change_mode = "script"
+
+        change_script {
+          path = "/local/script.sh"
+        }
+      }
+
+      template {
+        data        = <<EOF
+#!/usr/bin/env bash
+echo "Running change_mode script"
+sleep 10
+echo "Done"
+EOF
+        destination = "local/script.sh"
+        perms       = "777"
+      }
+    }
+  }
+}
+```
