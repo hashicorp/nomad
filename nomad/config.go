@@ -351,6 +351,10 @@ type Config struct {
 	// 0 means no timeout.
 	RPCHandshakeTimeout time.Duration
 
+	// RPCLimits map RPC endpoints to rate limit configurations
+	// for those endpoints, with safe default values
+	RPCLimits *config.Limits
+
 	// RPCMaxConnsPerClient is the maximum number of concurrent RPC
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
