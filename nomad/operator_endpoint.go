@@ -22,11 +22,19 @@ import (
 type Operator struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 func (op *Operator) register() {
 	op.srv.streamingRpcs.Register("Operator.SnapshotSave", op.snapshotSave)
 	op.srv.streamingRpcs.Register("Operator.SnapshotRestore", op.snapshotRestore)
+}
+
+func (op *Operator) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := op.srv.CheckRateLimit("Operator", forPolicy, rateLimitToken, op.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // RaftGetConfiguration is used to retrieve the current Raft configuration.

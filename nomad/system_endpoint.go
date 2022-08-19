@@ -12,6 +12,14 @@ import (
 type System struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *System) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("System", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GarbageCollect is used to trigger the system to immediately garbage collect nodes, evals

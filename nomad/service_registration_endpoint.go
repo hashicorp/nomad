@@ -26,7 +26,21 @@ type ServiceRegistration struct {
 
 	// ctx provides context regarding the underlying connection, so we can
 	// perform TLS certificate validation on internal only endpoints.
-	ctx *RPCContext
+	rpcCtx *RPCContext
+}
+
+func (s *ServiceRegistration) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("ServiceRegistration", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceRegistration) rpcNodeID(authToken string) string {
+	if s.rpcCtx != nil {
+		return s.rpcCtx.NodeID
+	}
+	return authToken
 }
 
 // Upsert creates or updates service registrations held within Nomad. This RPC
@@ -36,10 +50,9 @@ func (s *ServiceRegistration) Upsert(
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
 	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateTLSCertificateLevel(s.srv, s.ctx, tlsCertificateLevelClient); err != nil {
+	if err := validateTLSCertificateLevel(s.srv, s.rpcCtx, tlsCertificateLevelClient); err != nil {
 		return err
 	}
-
 	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
 		return err
 	}

@@ -22,9 +22,14 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func (a *Alloc) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("Alloc", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // List is used to list the allocations in the system
@@ -205,7 +210,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
 	// Ensure the connection was initiated by a client if TLS is used.
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	err := validateTLSCertificateLevel(a.srv, a.rpcCtx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}

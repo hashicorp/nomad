@@ -23,11 +23,19 @@ import (
 )
 
 type Agent struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
 }
 
 func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
+}
+
+func (a *Agent) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("Agent", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {

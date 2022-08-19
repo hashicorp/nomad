@@ -21,10 +21,18 @@ import (
 type ClientAllocations struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 func (a *ClientAllocations) register() {
 	a.srv.streamingRpcs.Register("Allocations.Exec", a.exec)
+}
+
+func (a *ClientAllocations) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("ClientAllocations", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GarbageCollectAll is used to garbage collect all allocations on a client.

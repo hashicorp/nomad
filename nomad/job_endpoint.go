@@ -54,10 +54,12 @@ type Job struct {
 	// builtin admission controllers
 	mutators   []jobMutator
 	validators []jobValidator
+
+	rpcCtx *RPCContext
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
-func NewJobEndpoints(s *Server) *Job {
+func NewJobEndpoints(s *Server, rpcCtx *RPCContext) *Job {
 	return &Job{
 		srv:    s,
 		logger: s.logger.Named("job"),
@@ -75,7 +77,15 @@ func NewJobEndpoints(s *Server) *Job {
 			jobValidate{},
 			&memoryOversubscriptionValidate{srv: s},
 		},
+		rpcCtx: rpcCtx,
 	}
+}
+
+func (j *Job) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := j.srv.CheckRateLimit("Job", forPolicy, rateLimitToken, j.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Register is used to upsert a job for scheduling

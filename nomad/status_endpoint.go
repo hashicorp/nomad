@@ -15,6 +15,23 @@ import (
 type Status struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	rpcCtx *RPCContext
+}
+
+func (s *Status) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("Status", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Status) rpcNodeID() string {
+	if s.rpcCtx != nil {
+		return s.rpcCtx.NodeID
+	}
+	return ""
 }
 
 // Ping is used to just check for connectivity

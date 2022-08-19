@@ -18,7 +18,14 @@ type Keyring struct {
 	srv       *Server
 	logger    hclog.Logger
 	encrypter *Encrypter
-	ctx       *RPCContext // context for connection, to check TLS role
+	rpcCtx    *RPCContext // context for connection, to check TLS role
+}
+
+func (k *Keyring) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := k.srv.CheckRateLimit("Keyring", forPolicy, rateLimitToken, k.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *structs.KeyringRotateRootKeyResponse) error {
@@ -99,7 +106,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 	// we need to allow both humans with management tokens and
 	// non-leader servers to list keys, in order to support
 	// replication
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(k.srv, k.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
 			return err
@@ -220,11 +227,10 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
 	// ensure that only another server can make this request
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(k.srv, k.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
 	}

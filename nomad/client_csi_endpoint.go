@@ -17,6 +17,18 @@ import (
 type ClientCSI struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (a *ClientCSI) checkRateLimit(forPolicy string) error {
+	// ClientCSI requests are always server-to-client and the RPC server is not
+	// exposed on the client, so there's no AuthToken available. We pass an
+	// empty rate limit token here so that we can still rate limit
+	// per-connection
+	if err := a.srv.CheckRateLimit("ClientCSI", forPolicy, "", a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {

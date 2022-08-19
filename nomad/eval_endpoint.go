@@ -27,9 +27,21 @@ const (
 type Eval struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func (e *Eval) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := e.srv.CheckRateLimit("Eval", forPolicy, rateLimitToken, e.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Eval) rpcNodeID() string {
+	if e.rpcCtx != nil {
+		return e.rpcCtx.NodeID
+	}
+	return ""
 }
 
 // GetEval is used to request information about a specific evaluation
@@ -106,7 +118,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
@@ -215,7 +227,7 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
@@ -237,7 +249,7 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
@@ -259,11 +271,10 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
 		return err
 	}
@@ -296,11 +307,10 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
 		return err
 	}
@@ -347,11 +357,10 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
 		return err
 	}
@@ -396,11 +405,10 @@ func (e *Eval) Reap(args *structs.EvalReapRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
 		return err
 	}

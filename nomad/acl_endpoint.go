@@ -35,6 +35,14 @@ const (
 type ACL struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext // provides context about the connection
+}
+
+func (a *ACL) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("ACL", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // UpsertPolicies is used to create or update a set of policies

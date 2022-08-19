@@ -44,6 +44,14 @@ var (
 type Search struct {
 	srv    *Server
 	logger hclog.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *Search) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("Search", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // getPrefixMatches extracts matches for an iterator, and returns a list of ids for

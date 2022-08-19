@@ -25,6 +25,14 @@ type SecureVariables struct {
 	srv       *Server
 	logger    hclog.Logger
 	encrypter *Encrypter
+	rpcCtx    *RPCContext
+}
+
+func (sv *SecureVariables) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := sv.srv.CheckRateLimit("SecureVariables", forPolicy, rateLimitToken, sv.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Apply is used to apply a SV update request to the data store.

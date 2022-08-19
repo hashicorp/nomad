@@ -23,11 +23,19 @@ import (
 type FileSystem struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)
+}
+
+func (f *FileSystem) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := f.srv.CheckRateLimit("FileSystem", forPolicy, rateLimitToken, f.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // handleStreamResultError is a helper for sending an error with a potential

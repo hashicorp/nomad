@@ -10,6 +10,7 @@ import (
 type Region struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 // List is used to list all of the known regions. No leader forwarding is

@@ -13,11 +13,19 @@ import (
 )
 
 type Event struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
 }
 
 func (e *Event) register() {
 	e.srv.streamingRpcs.Register("Event.Stream", e.stream)
+}
+
+func (e *Event) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := e.srv.CheckRateLimit("Event", forPolicy, rateLimitToken, e.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Event) stream(conn io.ReadWriteCloser) {

@@ -13,7 +13,15 @@ import (
 
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
+}
+
+func (n *Namespace) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := n.srv.CheckRateLimit("Namespace", forPolicy, rateLimitToken, n.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // UpsertNamespaces is used to upsert a set of namespaces

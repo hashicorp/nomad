@@ -21,6 +21,14 @@ import (
 type CSIVolume struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (v *CSIVolume) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := v.srv.CheckRateLimit("CSIVolume", forPolicy, rateLimitToken, v.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
@@ -1385,6 +1393,14 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 type CSIPlugin struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (v *CSIPlugin) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := v.srv.CheckRateLimit("CSIPlugin", forPolicy, rateLimitToken, v.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // List replies with CSIPlugins, filtered by ACL access

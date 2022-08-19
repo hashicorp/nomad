@@ -16,6 +16,7 @@ import (
 type Periodic struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 // Force is used to force a new instance of a periodic job

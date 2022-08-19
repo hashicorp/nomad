@@ -18,9 +18,14 @@ import (
 type Deployment struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func (d *Deployment) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := d.srv.CheckRateLimit("Deployment", forPolicy, rateLimitToken, d.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetDeployment is used to request information about a specific deployment
@@ -535,7 +540,7 @@ func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(d.srv, d.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(d.srv, d.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}

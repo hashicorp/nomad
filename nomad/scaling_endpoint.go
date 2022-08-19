@@ -18,6 +18,14 @@ import (
 type Scaling struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (p *Scaling) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := p.srv.CheckRateLimit("Scaling", forPolicy, rateLimitToken, p.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ListPolicies is used to list the policies

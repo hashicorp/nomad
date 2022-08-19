@@ -16,6 +16,14 @@ import (
 type ClientStats struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *ClientStats) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("ClientStats", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {
