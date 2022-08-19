@@ -1,0 +1,225 @@
+---
+layout: docs
+page_title: limit Block - Agent Configuration
+description: >-
+  The "limit" block configures the Nomad agent to limit connections and requests
+  at the agent.
+
+---
+
+# `limit` Block
+
+<Placement groups={['limit']} />
+
+The `limits` block is configures limits that are enforced by the agent. The
+following parameters are available:
+
+- `endpoint` `(<[EndpointLimits]>)` - Configures limits per RPC endpoint that
+  override the limits set by `rpc_default_read_rate`, `rpc_default_write_rate`,
+  and `rpc_default_list_rate`.
+
+- `https_handshake_timeout` `(string: "5s")` - Configures the limit for how
+  long the HTTPS server in both client and server agents will wait for a
+  client to complete a TLS handshake. This should be kept conservative as it
+  limits how many connections an unauthenticated attacker can open if
+  [`tls.http = true`][tls] is being used (strongly recommended in
+  production). Default value is `5s`. `0` disables HTTP handshake timeouts.
+
+- `http_max_conns_per_client` `(int: 100)` - Configures a limit of how many
+  concurrent TCP connections a single client IP address is allowed to open to
+  the agent's HTTP server. This affects the HTTP servers in both client and
+  server agents. Default value is `100`. `0` disables HTTP connection limits.
+
+- `rpc_default_write_rate` `(int: 0)` - Configures a default limit of how many
+  server RPC write operations can be made per RPC endpoint per requester per
+  minute. If unset, RPC requests will not be rate limited. See [Server RPC Rate
+  Limits] below.
+
+- `rpc_default_read_rate` `(int: 0)` - Configures a default limit of how many
+  server RPC read operations can be made per RPC endpoint per requester per
+  minute. If unset, RPC requests will not be rate limited. See [Server RPC Rate
+  Limits] below.
+
+- `rpc_default_list_rate` `(int: 0)` - Configures a default limit of how many
+  server RPC list operations can be made per RPC endpoint per requester per
+  minute. If unset, RPC requests will not be rate limited. See [Server RPC Rate
+  Limits] below.
+
+- `rpc_handshake_timeout` `(string: "5s")` - Configures the limit for how
+  long servers will wait after a client TCP connection is established before
+  they complete the connection handshake. When TLS is used, the same timeout
+  applies to the TLS handshake separately from the initial protocol
+  negotiation. All Nomad clients should perform this immediately on
+  establishing a new connection. This should be kept conservative as it
+  limits how many connections an unauthenticated attacker can open if
+  TLS is being using to authenticate clients (strongly recommended in
+  production). When `tls.rpc` is true on servers, this limits how long the
+  connection and associated goroutines will be held open before the client
+  successfully authenticates. Default value is `5s`. `0` disables RPC handshake
+  timeouts.
+
+- `rpc_max_conns_per_client` `(int: 100)` - Configures a limit of how
+  many concurrent TCP connections a single source IP address is allowed
+  to open to a single server. Client agents do not accept RPC TCP connections
+  directly and therefore are not affected. It affects both clients connections
+  and other server connections. Nomad clients multiplex many RPC calls over a
+  single TCP connection, except for streaming endpoints such as [log
+  streaming][log-api] which require their own connection when routed through
+  servers. A server needs at least 2 TCP connections (1 Raft, 1 RPC) per peer
+  server locally and in any federated region. Servers also need a TCP connection
+  per routed streaming endpoint concurrently in use. Only operators use streaming
+  endpoints; as of 0.10.3 Nomad client code does not. A reasonably low limit
+  significantly reduces the ability of an unauthenticated attacker to consume
+  unbounded resources by holding open many connections. You may need to
+  increase this if WAN federated servers connect via proxies or NAT gateways
+  or similar causing many legitimate connections from a single source IP.
+  Default value is `100` which is designed to support the majority of users.
+  `0` disables RPC connection limits. `26` is the minimum as `20` connections
+  are always reserved for non-streaming connections (Raft and RPC) to ensure
+  streaming RPCs do not prevent normal server operation. This minimum may be
+  lowered in the future when streaming RPCs no longer require their own TCP
+  connection.
+
+## Server RPC Rate Limits
+
+The `rpc_max_conns_per_client` field limits the number of connections that can
+be made to a server, but you may also want to limit the number of RPC messages
+that can be sent over connections. Client agents do not accept RPC requests
+directly and are therefore not affected.
+
+The RPC rate limits are tracked per requester per RPC endpoint operation per
+minute. A requester can be a specific ACL token, a client node, or by IP address
+for server-to-server RPCs or if a token is missing or invalid. A RPC endpoint is
+a collection of related RPCs under a single name. Read, write, and list
+operations are tracked separately per endpoint. See [Endpoint Limits] below for
+details on which RPC endpoints are protected.
+
+### Monitoring Rate Limits
+
+Nomad does not rate limit RPC requests by default, but the servers emit metrics
+showing the number of RPC requests for each endpoint and operation, labeled by
+requester.
+
+| Metric                                     | Description                                   |
+|--------------------------------------------|-----------------------------------------------|
+| `nomad.rpc.<endpoint>.<operation>`         | Counter of requests                           |
+| `nomad.rpc.<endpoint>.<operation>.used`    | Summary histogram of how many requests remain |
+| `nomad.rpc.<endpoint>.<operation>.limited` | Counter of requests that were rate-limited    |
+
+Before activating rate limiting, review your metrics while the cluster is under
+its heaviest expected load, and allow for growth when setting the limits.
+
+## Endpoint Limits
+
+The `endpoint` blocks allows you to configure a limit override for each RPC
+endpoint. Each endpoint block is labelled with the endpoint name. Each endpoint
+can be configured with the following options:
+
+- `write_rate` `(int: <from default>)` - Configures a limit of how many server
+  RPC write operations can be made for this RPC endpoint per requester per
+  minute. If unset, the limit will be the same as the
+  `rpc_default_write_rate`. If explicitly set to `0`, RPC write requests to this
+  endpoint will not be rate limited.
+
+- `read_rate` `(int: <from default>)` - Configures a limit of how many server
+  RPC read operations can be made for this RPC endpoint per requester per
+  minute. If unset, the limit will be the same as the
+  `rpc_default_read_rate`. If explicitly set to `0`, RPC read requests to this
+  endpoint will not be rate limited.
+
+- `list_rate` `(int: <from default>)` - Configures a limit of how many server
+  RPC list operations can be made for this RPC endpoint per requester per
+  minute. If unset, the limit will be the same as the
+  `rpc_default_list_rate`. If explicitly set to `0`, RPC list requests to this
+  endpoint will not be rate limited.
+
+For example, in the `limits` block below, the rate limit for the `job` endpoint
+is 10 write requests per requester per minute. The read rate is not explicitly
+set so it falls back to the default read rate of 1000 read requests per
+requester per minute. The list rate is not set at the `job` level or at the
+default, so list requests are not rate limited. The `eval` endpoint specifically
+overrides the default values so that no requests are rate limited.
+
+```hcl
+limits {
+  rpc_default_write_rate = 1000
+  rpc_default_read_rate  = 10000
+
+  endpoint "job" {
+    write_rate = 10
+  }
+
+  endpoint "eval" {
+    write_rate = 0
+    read_rate  = 0
+    list_rate  = 0
+  }
+}
+```
+
+Many RPC endpoints map directly to [HTTP API] equivalents, while other RPCs are
+internal. Below is a list of all the RPC endpoints and their uses.
+
+| Endpoint Label       | Uses                                                                  |
+|----------------------|-----------------------------------------------------------------------|
+| `acls`               | [ACL Tokens API], [ACL Policies API], and ACL replication.            |
+| `allocs`             | Client nodes getting allocation update from the server.               |
+| `client_agent`       | [Client API]                                                          |
+| `client_allocations` | [Allocations API]                                                     |
+| `client_csi`         | Used internally by the [Container Storage Interface (CSI)]            |
+| `client_filesystem`  | [Allocations API] for filesystem operations such as reading logs      |
+| `client_stats`       | [Agent API] for getting  client stats                                 |
+| `csi_plugin`         | [CSI Plugins API]                                                     |
+| `csi_volume`         | [CSI Volumes API] as well as clients making and freeing volume claims |
+| `deployments`        | [Deployments API]                                                     |
+| `evals`              | [Evaluations API] and used by the scheduler                           |
+| `events`             | [Events API]                                                          |
+| `jobs`               | [Jobs API]                                                            |
+| `keyring`            | [Keyring API] and keyring replication                                 |
+| `license`            | License RPCs (Nomad Enterprise only)                                  |
+| `namespaces`         | [Namespaces API]                                                      |
+| `nodes`              | [Nodes API] and client node registration and status updates           |
+| `operator`           | [Operator API]                                                        |
+| `periodic`           | [Periodic Jobs API]                                                   |
+| `plan`               | Used by the scheduler to submit plans                                 |
+| `quotas`             | [Quotas API] (Nomad Enterprise only)                                  |
+| `recommendations`    | [Recommendations API] (Nomad Enterprise only)                         |
+| `regions`            | [Regions API]                                                         |
+| `scaling`            | [Scaling Policies API]                                                |
+| `search`             | [Search API]                                                          |
+| `secure_variables`   | [Secure Variables API]                                                |
+| `sentinel`           | [Sentinel Policies API] (Nomad Enterprise only)                       |
+| `services`           | [Services API]                                                        |
+| `status`             | [Status API]                                                          |
+| `system`             | [System API]                                                          |
+
+
+[Endpoint Limits]: #endpoint-limits
+[Server RPC Rate Limits]: #server-rpc-rate-limits
+[Container Storage Interface (CSI)]: /docs/concepts/plugins/csi
+[ACL Policies API]: /api-docs/acl-policies
+[ACL Tokens API]: /api-docs/acl-tokens
+[Agent API]: /api-docs/agent
+[Allocations API]: /api-docs/allocations
+[CSI Plugins API]: /api-docs/plugins
+[CSI Volumes API]: /api-docs/volumes
+[Client API]: /api-docs/client
+[Deployments API]: /api-docs/deployment
+[Evaluations API]: /api-docs/evaluations
+[Events API]: /api-docs/events
+[Jobs API]: /api-docs/jobs
+[Keyring API]: /api-docs/keyring
+[Namespaces API]: /api-docs/namespaces
+[Nodes API]: /api-docs/nodes
+[Operator API]: /api-docs/operator
+[Periodic Jobs API]: /api-docs/jobs#force-new-periodic-instance
+[Regions API]: /api-docs/regions
+[Scaling Policies API]: /api-docs/scaling-policies
+[Search API]: /api-docs/search
+[Secure Variables API]: /api-docs/secure-variables
+[Services API]: /api-docs/services
+[Status API]: /api-docs/status
+[System API]: /api-docs/system
+[Quotas API]: /api-docs/quotas
+[Recommendations API]: /api-docs/recommendations
+[Sentinel Policies API]: /api-docs/sentinel-policies

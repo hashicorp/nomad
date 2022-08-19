@@ -181,6 +181,10 @@
         "path": "configuration/consul"
       },
       {
+        "title": "limits",
+        "path": "configuration/limits"
+      },
+      {
         "title": "plugin",
         "path": "configuration/plugin"
       },
