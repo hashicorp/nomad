@@ -514,8 +514,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Perms:        "777",
-		Uid:          503,
-		Gid:          20,
+		Uid:          pointer.Of(503),
+		Gid:          pointer.Of(20),
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
@@ -541,8 +541,8 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 	}
 
 	sys := fi.Sys()
-	uid := int(sys.(*syscall.Stat_t).Uid)
-	gid := int(sys.(*syscall.Stat_t).Gid)
+	uid := pointer.Of(int(sys.(*syscall.Stat_t).Uid))
+	gid := pointer.Of(int(sys.(*syscall.Stat_t).Gid))
 
 	must.Eq(t, template.Uid, uid)
 	must.Eq(t, template.Gid, gid)
