@@ -792,10 +792,11 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 type ChangeScript struct {
-	Command     *string        `mapstructure:"command" hcl:"command"`
-	Args        []string       `mapstructure:"args" hcl:"args,optional"`
-	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
-	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+	Command          *string        `mapstructure:"command" hcl:"command"`
+	Args             []string       `mapstructure:"args" hcl:"args,optional"`
+	Timeout          *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
+	FailOnError      *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+	AllowedExitCodes []int          `mapstructure:"allowed_exit_codes" hcl:"allowed_exit_codes"`
 }
 
 func (ch *ChangeScript) Canonicalize() {
@@ -810,6 +811,9 @@ func (ch *ChangeScript) Canonicalize() {
 	}
 	if ch.FailOnError == nil {
 		ch.FailOnError = pointerOf(false)
+	}
+	if ch.AllowedExitCodes == nil {
+		ch.AllowedExitCodes = []int{0}
 	}
 }
 

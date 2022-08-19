@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/flatmap"
@@ -1679,6 +1680,16 @@ func changeScriptDiff(old, new *ChangeScript, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, setDiff)
 	}
 
+	// AllowedExitCodes diffs
+	if setDiff := intSetDiff(
+		old.AllowedExitCodes,
+		new.AllowedExitCodes,
+		"AllowedExitCodes",
+		contextual,
+	); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
 	return diff
 }
 
@@ -2548,6 +2559,61 @@ func stringSetDiff(old, new []string, name string, contextual bool) *ObjectDiff 
 	for k := range newMap {
 		if _, ok := oldMap[k]; !ok {
 			diff.Fields = append(diff.Fields, fieldDiff("", k, name, contextual))
+			added = true
+		}
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
+
+	// Determine the type
+	if added && removed {
+		diff.Type = DiffTypeEdited
+	} else if added {
+		diff.Type = DiffTypeAdded
+	} else if removed {
+		diff.Type = DiffTypeDeleted
+	} else {
+		// Diff of an empty set
+		if len(diff.Fields) == 0 {
+			return nil
+		}
+
+		diff.Type = DiffTypeNone
+	}
+
+	return diff
+}
+
+// intSetDiff diffs two sets of ints with the given name.
+func intSetDiff(old, new []int, name string, contextual bool) *ObjectDiff {
+	oldMap := make(map[int]struct{}, len(old))
+	newMap := make(map[int]struct{}, len(new))
+	for _, o := range old {
+		oldMap[o] = struct{}{}
+	}
+	for _, n := range new {
+		newMap[n] = struct{}{}
+	}
+	if reflect.DeepEqual(oldMap, newMap) && !contextual {
+		return nil
+	}
+
+	diff := &ObjectDiff{Name: name}
+	var added, removed bool
+	for k := range oldMap {
+		kk := strconv.Itoa(k)
+		if _, ok := newMap[k]; !ok {
+			diff.Fields = append(diff.Fields, fieldDiff(kk, "", name, contextual))
+			removed = true
+		} else if contextual {
+			diff.Fields = append(diff.Fields, fieldDiff(kk, kk, name, contextual))
+		}
+	}
+
+	for k := range newMap {
+		kk := strconv.Itoa(k)
+		if _, ok := oldMap[k]; !ok {
+			diff.Fields = append(diff.Fields, fieldDiff("", kk, name, contextual))
 			added = true
 		}
 	}

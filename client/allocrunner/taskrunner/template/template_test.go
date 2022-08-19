@@ -1224,10 +1224,11 @@ FOO={{key "bam"}}
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Command:     "/bin/foo",
-			Args:        []string{},
-			Timeout:     5 * time.Second,
-			FailOnError: false,
+			Command:          "/bin/foo",
+			Args:             []string{},
+			Timeout:          5 * time.Second,
+			FailOnError:      false,
+			AllowedExitCodes: []int{0},
 		},
 		Envvars: true,
 	}
@@ -1238,10 +1239,11 @@ BAR={{key "bar"}}
 		DestPath:   "test2.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Command:     "/bin/foo",
-			Args:        []string{},
-			Timeout:     5 * time.Second,
-			FailOnError: false,
+			Command:          "/bin/foo",
+			Args:             []string{},
+			Timeout:          5 * time.Second,
+			FailOnError:      false,
+			AllowedExitCodes: []int{0},
 		},
 		Envvars: true,
 	}
@@ -1310,10 +1312,11 @@ FOO={{key "bam"}}
 		DestPath:   "test.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Command:     "/bin/foo",
-			Args:        []string{},
-			Timeout:     5 * time.Second,
-			FailOnError: true,
+			Command:          "/bin/foo",
+			Args:             []string{},
+			Timeout:          5 * time.Second,
+			FailOnError:      true,
+			AllowedExitCodes: []int{0},
 		},
 		Envvars: true,
 	}
@@ -1324,10 +1327,11 @@ BAR={{key "bar"}}
 		DestPath:   "test2.env",
 		ChangeMode: structs.TemplateChangeModeScript,
 		ChangeScript: &structs.ChangeScript{
-			Command:     "/bin/foo",
-			Args:        []string{},
-			Timeout:     5 * time.Second,
-			FailOnError: false,
+			Command:          "/bin/foo",
+			Args:             []string{},
+			Timeout:          5 * time.Second,
+			FailOnError:      false,
+			AllowedExitCodes: []int{0},
 		},
 		Envvars: true,
 	}
