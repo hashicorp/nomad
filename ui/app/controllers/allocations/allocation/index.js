@@ -52,11 +52,14 @@ export default class IndexController extends Controller.extend(Sortable) {
     return (this.get('model.taskGroup.services') || []).sortBy('name');
   }
 
-  @computed('model.states.@each.services.@each.name')
+  @computed('model.states.@each.services')
   get taskServices() {
-    const allTaskServicesFragments = this.get('model.states').mapBy('task.services').compact() || [];
-    const allTaskServices = allTaskServicesFragments.map(frag => frag.toArray()).flat();
-    return (allTaskServices).sortBy('name');
+    const allTaskServicesFragments =
+      this.get('model.states').mapBy('task.services').compact() || [];
+    const allTaskServices = allTaskServicesFragments
+      .map((frag) => frag.toArray())
+      .flat();
+    return allTaskServices.sortBy('name');
   }
 
   @union('taskServices', 'groupServices') services;
