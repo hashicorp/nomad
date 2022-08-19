@@ -31,6 +31,10 @@ func (d *Deployment) checkRateLimit(forPolicy, rateLimitToken string) error {
 // GetDeployment is used to request information about a specific deployment
 func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 	reply *structs.SingleDeploymentResponse) error {
+	if err := d.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.GetDeployment", args, args, reply); done {
 		return err
 	}
@@ -89,6 +93,10 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 
 // Fail is used to force fail a deployment
 func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Fail", args, args, reply); done {
 		return err
 	}
@@ -131,6 +139,10 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 
 // Pause is used to pause a deployment
 func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Pause", args, args, reply); done {
 		return err
 	}
@@ -177,6 +189,10 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 
 // Promote is used to promote canaries in a deployment
 func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Promote", args, args, reply); done {
 		return err
 	}
@@ -219,6 +235,10 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 
 // Run is used to start a pending deployment
 func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Run", args, args, reply); done {
 		return err
 	}
@@ -261,6 +281,10 @@ func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.Depl
 
 // Unblock is used to unblock a deployment
 func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Unblock", args, args, reply); done {
 		return err
 	}
@@ -303,6 +327,10 @@ func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *stru
 
 // Cancel is used to cancel a deployment
 func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Cancel", args, args, reply); done {
 		return err
 	}
@@ -346,6 +374,10 @@ func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *struct
 // SetAllocHealth is used to set the health of allocations that are part of the
 // deployment.
 func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, reply *structs.DeploymentUpdateResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.SetAllocHealth", args, args, reply); done {
 		return err
 	}
@@ -392,6 +424,10 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 
 // List returns the list of deployments in the system
 func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.DeploymentListResponse) error {
+	if err := d.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.List", args, args, reply); done {
 		return err
 	}
@@ -479,6 +515,10 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 
 // Allocations returns the list of allocations that are a part of the deployment
 func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply *structs.AllocListResponse) error {
+	if err := d.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Allocations", args, args, reply); done {
 		return err
 	}
@@ -538,6 +578,9 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 // Reap is used to cleanup terminal deployments
 func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	reply *structs.GenericResponse) error {
+	if err := d.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(d.srv, d.rpcCtx, tlsCertificateLevelServer)

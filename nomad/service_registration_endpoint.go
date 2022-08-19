@@ -49,6 +49,9 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
+	if err := s.checkRateLimit(acl.PolicyWrite, s.rpcNodeID(args.AuthToken)); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by a client if TLS is used.
 	if err := validateTLSCertificateLevel(s.srv, s.rpcCtx, tlsCertificateLevelClient); err != nil {
 		return err
@@ -108,6 +111,9 @@ func (s *ServiceRegistration) DeleteByID(
 	args *structs.ServiceRegistrationDeleteByIDRequest,
 	reply *structs.ServiceRegistrationDeleteByIDResponse) error {
 
+	if err := s.checkRateLimit(acl.PolicyWrite, s.rpcNodeID(args.AuthToken)); err != nil {
+		return err
+	}
 	if done, err := s.srv.forward(structs.ServiceRegistrationDeleteByIDRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -194,6 +200,9 @@ func (s *ServiceRegistration) List(
 	args *structs.ServiceRegistrationListRequest,
 	reply *structs.ServiceRegistrationListResponse) error {
 
+	if err := s.checkRateLimit(acl.PolicyList, s.rpcNodeID(args.AuthToken)); err != nil {
+		return err
+	}
 	if done, err := s.srv.forward(structs.ServiceRegistrationListRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -356,6 +365,9 @@ func (s *ServiceRegistration) GetService(
 	args *structs.ServiceRegistrationByNameRequest,
 	reply *structs.ServiceRegistrationByNameResponse) error {
 
+	if err := s.checkRateLimit(acl.PolicyRead, s.rpcNodeID(args.AuthToken)); err != nil {
+		return err
+	}
 	if done, err := s.srv.forward(structs.ServiceRegistrationGetServiceRPCMethod, args, args, reply); done {
 		return err
 	}

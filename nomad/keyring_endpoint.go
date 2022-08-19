@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,10 +30,13 @@ func (k *Keyring) checkRateLimit(forPolicy, rateLimitToken string) error {
 }
 
 func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *structs.KeyringRotateRootKeyResponse) error {
+
+	if err := k.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := k.srv.forward("Keyring.Rotate", args, args, reply); done {
 		return err
 	}
-
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "rotate"}, time.Now())
 
 	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
@@ -97,10 +101,13 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 }
 
 func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *structs.KeyringListRootKeyMetaResponse) error {
+
+	if err := k.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := k.srv.forward("Keyring.List", args, args, reply); done {
 		return err
 	}
-
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list"}, time.Now())
 
 	// we need to allow both humans with management tokens and
@@ -150,10 +157,13 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 // Update updates an existing key in the keyring, including both the
 // key material and metadata.
 func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *structs.KeyringUpdateRootKeyResponse) error {
+
+	if err := k.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := k.srv.forward("Keyring.Update", args, args, reply); done {
 		return err
 	}
-
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "update"}, time.Now())
 
 	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
@@ -226,6 +236,10 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
+
+	if err := k.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	// ensure that only another server can make this request
 	err := validateTLSCertificateLevel(k.srv, k.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -278,10 +292,13 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 }
 
 func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *structs.KeyringDeleteRootKeyResponse) error {
+
+	if err := k.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := k.srv.forward("Keyring.Delete", args, args, reply); done {
 		return err
 	}
-
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "delete"}, time.Now())
 
 	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {

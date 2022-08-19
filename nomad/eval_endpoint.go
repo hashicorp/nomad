@@ -47,6 +47,10 @@ func (e *Eval) rpcNodeID() string {
 // GetEval is used to request information about a specific evaluation
 func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	reply *structs.SingleEvalResponse) error {
+	if err := e.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.GetEval", args, args, reply); done {
 		return err
 	}
@@ -116,6 +120,10 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
+
+	if err := e.checkRateLimit(acl.PolicyRead, e.rpcNodeID()); err != nil {
+		return err
+	}
 
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
@@ -226,6 +234,10 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -248,6 +260,9 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -270,6 +285,9 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -306,6 +324,9 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -356,6 +377,10 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // Reblock is used to reinsert an existing blocked evaluation into the blocked
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -404,6 +429,9 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 func (e *Eval) Reap(args *structs.EvalReapRequest,
 	reply *structs.GenericResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, e.rpcNodeID()); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
@@ -432,6 +460,9 @@ func (e *Eval) Delete(
 	args *structs.EvalDeleteRequest,
 	reply *structs.EvalDeleteResponse) error {
 
+	if err := e.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := e.srv.forward(structs.EvalDeleteRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -571,6 +602,10 @@ func evalDeleteSafe(allocs []*structs.Allocation, job *structs.Job) bool {
 
 // List is used to get a list of the evaluations in the system
 func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
+
+	if err := e.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
 	}
@@ -691,6 +726,10 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 // Allocations is used to list the allocations for an evaluation
 func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	reply *structs.EvalAllocationsResponse) error {
+
+	if err := e.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := e.srv.forward("Eval.Allocations", args, args, reply); done {
 		return err
 	}

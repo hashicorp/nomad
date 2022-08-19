@@ -37,6 +37,11 @@ func (a *ClientAllocations) checkRateLimit(forPolicy, rateLimitToken string) err
 
 // GarbageCollectAll is used to garbage collect all allocations on a client.
 func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest, reply *structs.GenericResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
@@ -83,6 +88,11 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 
 // Signal is used to send a signal to an allocation on a client.
 func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *structs.GenericResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope
 	// in the forwarding chain.
@@ -135,6 +145,11 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 
 // GarbageCollect is used to garbage collect an allocation on a client.
 func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, reply *structs.GenericResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
@@ -187,6 +202,11 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
 func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *structs.GenericResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
@@ -234,6 +254,11 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 
 // Stats is used to collect allocation statistics
 func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.AllocStatsResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
@@ -291,6 +316,11 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 
 	if err := decoder.Decode(&args); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(429)), encoder)
 		return
 	}
 

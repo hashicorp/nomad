@@ -3,6 +3,7 @@ package nomad
 import (
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -17,6 +18,10 @@ type Region struct {
 // required for this endpoint because memberlist is used to populate the
 // peers list we read from.
 func (r *Region) List(args *structs.GenericRequest, reply *[]string) error {
+	if err := r.srv.CheckRateLimit("Regions", acl.PolicyList, args.AuthToken, r.rpcCtx); err != nil {
+		return err
+	}
+
 	*reply = r.srv.Regions()
 	return nil
 }

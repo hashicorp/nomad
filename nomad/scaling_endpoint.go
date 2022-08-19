@@ -31,6 +31,9 @@ func (p *Scaling) checkRateLimit(forPolicy, rateLimitToken string) error {
 // ListPolicies is used to list the policies
 func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
 
+	if err := p.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := p.srv.forward("Scaling.ListPolicies", args, args, reply); done {
 		return err
 	}
@@ -98,6 +101,9 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	reply *structs.SingleScalingPolicyResponse) error {
 
+	if err := p.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := p.srv.forward("Scaling.GetPolicy", args, args, reply); done {
 		return err
 	}

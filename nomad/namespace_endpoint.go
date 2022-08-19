@@ -7,6 +7,8 @@ import (
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -27,6 +29,10 @@ func (n *Namespace) checkRateLimit(forPolicy, rateLimitToken string) error {
 // UpsertNamespaces is used to upsert a set of namespaces
 func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
+	if err := n.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
@@ -72,6 +78,10 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 
 // DeleteNamespaces is used to delete a namespace
 func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
+	if err := n.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
@@ -221,6 +231,10 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 
 // ListNamespaces is used to list the namespaces
 func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *structs.NamespaceListResponse) error {
+	if err := n.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := n.srv.forward("Namespace.ListNamespaces", args, args, reply); done {
 		return err
 	}
@@ -282,6 +296,10 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 
 // GetNamespace is used to get a specific namespace
 func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *structs.SingleNamespaceResponse) error {
+	if err := n.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := n.srv.forward("Namespace.GetNamespace", args, args, reply); done {
 		return err
 	}
@@ -330,6 +348,10 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 
 // GetNamespaces is used to get a set of namespaces
 func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *structs.NamespaceSetResponse) error {
+	if err := n.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := n.srv.forward("Namespace.GetNamespaces", args, args, reply); done {
 		return err
 	}

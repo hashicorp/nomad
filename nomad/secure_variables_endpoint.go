@@ -37,6 +37,11 @@ func (sv *SecureVariables) checkRateLimit(forPolicy, rateLimitToken string) erro
 
 // Apply is used to apply a SV update request to the data store.
 func (sv *SecureVariables) Apply(args *structs.SecureVariablesApplyRequest, reply *structs.SecureVariablesApplyResponse) error {
+
+	if err := sv.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := sv.srv.forward(structs.SecureVariablesApplyRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -213,6 +218,10 @@ func (sv *SecureVariables) makeSecureVariablesApplyResponse(
 
 // Read is used to get a specific secure variable
 func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply *structs.SecureVariablesReadResponse) error {
+	if err := sv.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := sv.srv.forward(structs.SecureVariablesReadRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -257,6 +266,9 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 func (sv *SecureVariables) List(
 	args *structs.SecureVariablesListRequest,
 	reply *structs.SecureVariablesListResponse) error {
+	if err := sv.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := sv.srv.forward(structs.SecureVariablesListRPCMethod, args, args, reply); done {
 		return err
