@@ -39,7 +39,7 @@ func expiresIndexName(global bool) string {
 // It uses a single write transaction for efficiency, however, any error means
 // no entries will be committed.
 func (s *StateStore) UpsertACLRoles(
-	msgType structs.MessageType, index uint64, roles []*structs.ACLRole) error {
+	msgType structs.MessageType, index uint64, roles []*structs.ACLRole, allowMissingPolicies bool) error {
 
 	// Grab a write transaction.
 	txn := s.db.WriteTxnMsgT(msgType, index)
@@ -53,7 +53,7 @@ func (s *StateStore) UpsertACLRoles(
 	// fail via the txn.Abort() defer.
 	for _, role := range roles {
 
-		roleUpdated, err := s.upsertACLRoleTxn(index, txn, role)
+		roleUpdated, err := s.upsertACLRoleTxn(index, txn, role, allowMissingPolicies)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (s *StateStore) UpsertACLRoles(
 // provided write transaction. It is the responsibility of the caller to update
 // the index table.
 func (s *StateStore) upsertACLRoleTxn(
-	index uint64, txn *txn, role *structs.ACLRole) (bool, error) {
+	index uint64, txn *txn, role *structs.ACLRole, allowMissingPolicies bool) (bool, error) {
 
 	// Ensure the role hash is not zero to provide defense in depth. This
 	// should be done outside the state store, so we do not spend time here
@@ -92,8 +92,10 @@ func (s *StateStore) upsertACLRoleTxn(
 	// could mean that by the time the state call is invoked, another Raft
 	// update has deleted policies detailed in role. Therefore, check again
 	// while in our write txn.
-	if err := s.validateACLRolePolicyLinksTxn(txn, role); err != nil {
-		return false, err
+	if !allowMissingPolicies {
+		if err := s.validateACLRolePolicyLinksTxn(txn, role); err != nil {
+			return false, err
+		}
 	}
 
 	existing, err := txn.First(TableACLRoles, indexID, role.ID)

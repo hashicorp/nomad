@@ -1026,6 +1026,113 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	assert.Equal(t, []string{p3.AccessorID, p4.AccessorID}, update)
 }
 
+func TestServer_replicationBackoffContinue(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func()
+	}{
+		{
+			name: "leadership lost",
+			testFn: func() {
+
+				// Create a test server with a long enough backoff that we will
+				// be able to close the channel before it fires, but not too
+				// long that the test having problems means CI will hang
+				// forever.
+				testServer, testServerCleanup := TestServer(t, func(c *Config) {
+					c.ReplicationBackoff = 5 * time.Second
+				})
+				defer testServerCleanup()
+
+				// Create our stop channel which is used by the server to
+				// indicate leadership loss.
+				stopCh := make(chan struct{})
+
+				// The resultCh is used to block and collect the output from
+				// the test routine.
+				resultCh := make(chan bool, 1)
+
+				// Run a routine to collect the result and close the channel
+				// straight away.
+				go func() {
+					output := testServer.replicationBackoffContinue(stopCh)
+					resultCh <- output
+				}()
+
+				close(stopCh)
+
+				actualResult := <-resultCh
+				require.False(t, actualResult)
+			},
+		},
+		{
+			name: "backoff continue",
+			testFn: func() {
+
+				// Create a test server with a short backoff.
+				testServer, testServerCleanup := TestServer(t, func(c *Config) {
+					c.ReplicationBackoff = 10 * time.Nanosecond
+				})
+				defer testServerCleanup()
+
+				// Create our stop channel which is used by the server to
+				// indicate leadership loss.
+				stopCh := make(chan struct{})
+
+				// The resultCh is used to block and collect the output from
+				// the test routine.
+				resultCh := make(chan bool, 1)
+
+				// Run a routine to collect the result without closing stopCh.
+				go func() {
+					output := testServer.replicationBackoffContinue(stopCh)
+					resultCh <- output
+				}()
+
+				actualResult := <-resultCh
+				require.True(t, actualResult)
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn()
+		})
+	}
+}
+
+func Test_diffACLRoles(t *testing.T) {
+	ci.Parallel(t)
+
+	stateStore := state.TestStateStore(t)
+
+	// Build an initial baseline of ACL Roles.
+	aclRole0 := mock.ACLRole()
+	aclRole1 := mock.ACLRole()
+	aclRole2 := mock.ACLRole()
+	aclRole3 := mock.ACLRole()
+
+	// Upsert these into our local state. Use copies, so we can alter the roles
+	// directly and use within the diff func.
+	err := stateStore.UpsertACLRoles(structs.MsgTypeTestSetup, 50,
+		[]*structs.ACLRole{aclRole0.Copy(), aclRole1.Copy(), aclRole2.Copy(), aclRole3.Copy()}, true)
+	require.NoError(t, err)
+
+	// Modify the ACL roles to create a number of differences. These roles
+	// represent the state of the authoritative region.
+	aclRole2.ModifyIndex = 50
+	aclRole3.ModifyIndex = 200
+	aclRole3.Hash = []byte{0, 1, 2, 3}
+	aclRole4 := mock.ACLRole()
+
+	// Run the diff function and test the output.
+	toDelete, toUpdate := diffACLRoles(stateStore, 50, []*structs.ACLRole{aclRole2, aclRole3, aclRole4})
+	require.ElementsMatch(t, []string{aclRole0.ID, aclRole1.ID}, toDelete)
+	require.ElementsMatch(t, []string{aclRole3.ID, aclRole4.ID}, toUpdate)
+}
+
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	ci.Parallel(t)
 
