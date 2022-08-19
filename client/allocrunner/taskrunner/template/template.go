@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -557,7 +556,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 		)
 		return
 	}
-	if !slices.Contains(script.AllowedExitCodes, exitCode) {
+	if exitCode != 0 {
 		structs.NewTaskEvent(structs.TaskHookFailed).
 			SetDisplayMessage(
 				fmt.Sprintf(

@@ -137,8 +137,4 @@ func normalizeChangeScript(ch *api.ChangeScript) {
 	if ch.FailOnError == nil {
 		ch.FailOnError = pointer.Of(false)
 	}
-
-	if ch.AllowedExitCodes == nil {
-		ch.AllowedExitCodes = []int{0}
-	}
 }

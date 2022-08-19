@@ -7710,8 +7710,6 @@ type ChangeScript struct {
 	// FailOnError indicates whether a task should fail in case script execution
 	// fails or log script failure and don't interrupt the task
 	FailOnError bool
-	// AllowedExitCodes lists which script exit codes we consider as clean
-	AllowedExitCodes []int
 }
 
 // Template represents a template configuration to be rendered for a given task
@@ -7837,7 +7835,7 @@ func (t *Template) Validate() error {
 		}
 	case TemplateChangeModeScript:
 		if t.ChangeScript.Command == "" {
-			_ = multierror.Append(&mErr, fmt.Errorf("must specify command value when change mode is script"))
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)

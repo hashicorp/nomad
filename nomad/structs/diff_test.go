@@ -7043,11 +7043,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScript: &ChangeScript{
-							Command:          "/bin/foo",
-							Args:             []string{"-debug"},
-							Timeout:          5,
-							FailOnError:      false,
-							AllowedExitCodes: []int{0},
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
 						},
 						Splay: 1,
 						Perms: "0644",
@@ -7065,11 +7064,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
 						ChangeScript: &ChangeScript{
-							Command:          "/bin/foo2",
-							Args:             []string{"-debugs"},
-							Timeout:          6,
-							FailOnError:      false,
-							AllowedExitCodes: []int{0},
+							Command:     "/bin/foo2",
+							Args:        []string{"-debugs"},
+							Timeout:     6,
+							FailOnError: false,
 						},
 						Splay:   2,
 						Perms:   "0666",
@@ -7088,11 +7086,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						ChangeScript: &ChangeScript{
-							Command:          "/bin/foo",
-							Args:             []string{"-debug"},
-							Timeout:          5,
-							FailOnError:      false,
-							AllowedExitCodes: []int{0},
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
 						},
 						Splay: 1,
 						Perms: "0644",
@@ -7110,11 +7107,10 @@ func TestTaskDiff(t *testing.T) {
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
 						ChangeScript: &ChangeScript{
-							Command:          "/bin/foo3",
-							Args:             []string{"-debugss"},
-							Timeout:          7,
-							FailOnError:      false,
-							AllowedExitCodes: []int{0},
+							Command:     "/bin/foo3",
+							Args:        []string{"-debugss"},
+							Timeout:     7,
+							FailOnError: false,
 						},
 						Splay: 3,
 						Perms: "0776",
@@ -7272,18 +7268,6 @@ func TestTaskDiff(t *testing.T) {
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "AllowedExitCodes",
-										Fields: []*FieldDiff{
-											{
-												Type: DiffTypeAdded,
-												Name: "AllowedExitCodes",
-												Old:  "",
-												New:  "0",
-											},
-										},
-									},
-									{
-										Type: DiffTypeAdded,
 										Name: "Args",
 										Fields: []*FieldDiff{
 											{
@@ -7394,18 +7378,6 @@ func TestTaskDiff(t *testing.T) {
 									},
 								},
 								Objects: []*ObjectDiff{
-									{
-										Type: DiffTypeDeleted,
-										Name: "AllowedExitCodes",
-										Fields: []*FieldDiff{
-											{
-												Type: DiffTypeDeleted,
-												Name: "AllowedExitCodes",
-												Old:  "0",
-												New:  "",
-											},
-										},
-									},
 									{
 										Type: DiffTypeDeleted,
 										Name: "Args",

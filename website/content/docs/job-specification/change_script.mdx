@@ -21,11 +21,10 @@ job "docs" {
         destination = "local/redis.conf"
         change_mode = "script"
         change_script {
-          command            = "/bin/foo"
-          args               = ["-verbose", "-debug"]
-          timeout            = "5s"
-          fail_on_error      = false
-          allowed_exit_codes = [0, 2]
+          command       = "/bin/foo"
+          args          = ["-verbose", "-debug"]
+          timeout       = "5s"
+          fail_on_error = false
         }
       }
     }
@@ -50,10 +49,6 @@ job "docs" {
   script execution fails. If `false`, script failure will be logged but the task
   will continue uninterrupted. 
 
-- `allowed_exit_codes` `(array<int>: [0])` - List of exit codes that are
-  considered clean, i.e., if a script exits with one of the codes in that list and
-  `fail_on_error` is true, Nomad will not kill the task. 
-
 ### Template as a script example
 
 Below is an example of how a script can be embedded in a `data` block of another
@@ -69,7 +64,7 @@ job "docs" {
         change_mode = "script"
 
         change_script {
-          command = "/local/script.sh"
+          path = "/local/script.sh"
         }
       }
 
