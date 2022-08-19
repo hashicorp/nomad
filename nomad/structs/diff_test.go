@@ -7248,15 +7248,15 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
-										Name: "FailOnError",
+										Name: "Command",
 										Old:  "",
-										New:  "false",
+										New:  "/bin/foo3",
 									},
 									{
 										Type: DiffTypeAdded,
-										Name: "Path",
+										Name: "FailOnError",
 										Old:  "",
-										New:  "/bin/foo3",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeAdded,
@@ -7360,14 +7360,14 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeDeleted,
-										Name: "FailOnError",
-										Old:  "false",
+										Name: "Command",
+										Old:  "/bin/foo2",
 										New:  "",
 									},
 									{
 										Type: DiffTypeDeleted,
-										Name: "Path",
-										Old:  "/bin/foo2",
+										Name: "FailOnError",
+										Old:  "false",
 										New:  "",
 									},
 									{
