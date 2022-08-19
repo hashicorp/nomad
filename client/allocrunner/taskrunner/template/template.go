@@ -512,48 +512,50 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 	var wg sync.WaitGroup
 	for _, script := range scripts {
 		wg.Add(1)
-		go func(script *structs.ChangeScript) {
-			defer wg.Done()
-			if tm.handle == nil {
-				tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
-					SetDisplayMessage(
-						"Template failed to run a change script because task driver doesn't support the exec operation",
-					))
-				if script.FailOnError {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(
-								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
-							))
-				}
-				return
-			}
-			_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
-			if err != nil {
-				structs.NewTaskEvent(structs.TaskHookFailed).
-					SetDisplayMessage(
-						fmt.Sprintf(
-							"Template failed to run script %v on change: %v Exit code: %v", script.Command, err, exitCode,
-						))
-				if script.FailOnError {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(
-								fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
-							))
-				}
-				return
-			}
-			tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
-				SetDisplayMessage(
-					fmt.Sprintf(
-						"Template successfully ran a script from %v with exit code: %v", script.Command, exitCode,
-					)))
-		}(script)
+		go tm.processScript(script, &wg)
 	}
 	wg.Wait()
+}
+
+func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if tm.handle == nil {
+		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).
+			SetDisplayMessage(
+				"Template failed to run a change script because task driver doesn't support the exec operation",
+			))
+		if script.FailOnError {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(
+						fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
+					))
+		}
+		return
+	}
+	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
+	if err != nil {
+		structs.NewTaskEvent(structs.TaskHookFailed).
+			SetDisplayMessage(
+				fmt.Sprintf(
+					"Template failed to run script %v on change: %v Exit code: %v", script.Command, err, exitCode,
+				))
+		if script.FailOnError {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(
+						fmt.Sprintf("Template failed to run script %v and the task is being killed", script.Command),
+					))
+		}
+		return
+	}
+	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+		SetDisplayMessage(
+			fmt.Sprintf(
+				"Template successfully ran a script from %v with exit code: %v", script.Command, exitCode,
+			)))
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
