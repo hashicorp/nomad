@@ -62,18 +62,18 @@ func NewJobEndpoints(s *Server) *Job {
 		srv:    s,
 		logger: s.logger.Named("job"),
 		mutators: []JobMutator{
-			jobCanonicalizer{},
-			jobConnectHook{},
-			jobExposeCheckHook{},
-			jobImpliedConstraints{},
+			JobCanonicalizer{},
+			JobConnectHookController{},
+			JobCheckHookController{},
+			JobImpliedConstraintsMutator{},
 		},
 		validators: []JobValidator{
-			jobConnectHook{},
-			jobExposeCheckHook{},
-			jobVaultHook{srv: s},
-			jobNamespaceConstraintCheckHook{srv: s},
-			jobValidate{},
-			&memoryOversubscriptionValidate{srv: s},
+			JobConnectHookController{},
+			JobCheckHookController{},
+			JobVaultHookValidator{SRV: s},
+			JobNamespaceConstraintCheckHookValidator{SRV: s},
+			JobConfigValidator{},
+			&MemoryOversubscriptionValidator{SRV: s},
 		},
 	}
 }
@@ -129,7 +129,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			for _, vol := range tg.Volumes {
 				switch vol.Type {
 				case structs.VolumeTypeCSI:
-					if !allowCSIMount(aclObj, args.RequestNamespace()) {
+					if !AllowCSIMount(aclObj, args.RequestNamespace()) {
 						return structs.ErrPermissionDenied
 					}
 				case structs.VolumeTypeHost:

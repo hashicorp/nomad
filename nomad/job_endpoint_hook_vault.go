@@ -10,22 +10,22 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-// jobVaultHook is an job registration admission controller for Vault blocks.
-type jobVaultHook struct {
-	srv *Server
+// JobVaultHookValidator is an job registration admission controller for Vault blocks.
+type JobVaultHookValidator struct {
+	SRV *Server
 }
 
-func (jobVaultHook) Name() string {
+func (JobVaultHookValidator) Name() string {
 	return "vault"
 }
 
-func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
+func (h JobVaultHookValidator) Validate(job *structs.Job) ([]error, error) {
 	vaultBlocks := job.Vault()
 	if len(vaultBlocks) == 0 {
 		return nil, nil
 	}
 
-	vconf := h.srv.config.VaultConfig
+	vconf := h.SRV.config.VaultConfig
 	if !vconf.IsEnabled() {
 		return nil, fmt.Errorf("Vault not enabled but used in the job")
 	}
@@ -41,7 +41,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, fmt.Errorf("Vault used in the job but missing Vault token")
 	}
 
-	tokenSecret, err := h.srv.vault.LookupToken(context.Background(), job.VaultToken)
+	tokenSecret, err := h.SRV.vault.LookupToken(context.Background(), job.VaultToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup Vault token: %v", err)
 	}
@@ -63,7 +63,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 
 // validatePolicies returns an error if the job contains Vault blocks that
 // require policies that the request token is not allowed to access.
-func (jobVaultHook) validatePolicies(
+func (JobVaultHookValidator) validatePolicies(
 	blocks map[string]map[string]*structs.Vault,
 	token *vapi.Secret,
 ) error {

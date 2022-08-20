@@ -40,7 +40,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// Forward to different region if necessary
-	// this would typically be done in a.srv.forward() but since
+	// this would typically be done in a.SRV.forward() but since
 	// we are targeting a specific server, not just the leader
 	// we must manually handle region forwarding here.
 	region := args.RequestRegion()
@@ -405,7 +405,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	}
 
 	// Forward to different region if necessary
-	// this would typically be done in a.srv.forward() but since
+	// this would typically be done in a.SRV.forward() but since
 	// we are targeting a specific server, not just the leader
 	// we must manually handle region forwarding here.
 	region := args.RequestRegion()

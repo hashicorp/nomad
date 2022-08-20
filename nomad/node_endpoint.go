@@ -257,7 +257,7 @@ func equalDevices(n1, n2 *structs.Node) bool {
 	return reflect.DeepEqual(n1.NodeResources.Devices, n2.NodeResources.Devices)
 }
 
-// updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
+// updateNodeUpdateResponse assumes the n.SRV.peerLock is held for reading.
 func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
 

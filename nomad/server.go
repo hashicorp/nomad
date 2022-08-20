@@ -2082,6 +2082,33 @@ func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
 }
 
+func (s *Server) CheckConsulTokenPermissions(ctx context.Context, namespace, token string, usage *structs.ConsulUsage) error {
+	err := s.consulACLs.CheckPermissions(ctx, namespace, usage, token)
+	if err != nil {
+		return fmt.Errorf("job-submitter consul token denied: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Server) SetConsulIngressConfigEntry(ctx context.Context, namespace, serviceName string, entry *structs.ConsulIngressConfigEntry) error {
+	err := s.consulConfigEntries.SetIngressCE(ctx, namespace, serviceName, entry)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) SetConsulTerminatingConfigEntry(ctx context.Context, namespace, serviceName string, entry *structs.ConsulTerminatingConfigEntry) error {
+	err := s.consulConfigEntries.SetTerminatingCE(ctx, namespace, serviceName, entry)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.

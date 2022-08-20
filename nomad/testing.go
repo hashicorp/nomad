@@ -2,8 +2,10 @@ package nomad
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/helper/pool"
 	"math/rand"
 	"net"
+	"net/rpc"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -176,4 +178,14 @@ func TestJoin(t *testing.T, servers ...*Server) {
 			}
 		}
 	}
+}
+
+// TODO: Refactor to allow abstract injection
+func RPCClient(t *testing.T, s *Server) rpc.ClientCodec {
+	addr := s.config.RPCAddr
+	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
+	require.NoError(t, err)
+	// Write the Nomad RPC byte to set the mode
+	conn.Write([]byte{byte(pool.RpcNomad)})
+	return pool.NewClientCodec(conn)
 }

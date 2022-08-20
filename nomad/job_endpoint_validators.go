@@ -6,17 +6,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type jobNamespaceConstraintCheckHook struct {
-	srv *Server
+// TODO: Less entprisey name.
+type JobNamespaceConstraintCheckHookValidator struct {
+	SRV *Server
 }
 
-func (jobNamespaceConstraintCheckHook) Name() string {
+func (JobNamespaceConstraintCheckHookValidator) Name() string {
 	return "namespace-constraint-check"
 }
 
-func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []error, err error) {
+func (c JobNamespaceConstraintCheckHookValidator) Validate(job *structs.Job) (warnings []error, err error) {
 	// This was validated before and matches the WriteRequest namespace
-	ns, err := c.srv.State().NamespaceByName(nil, job.Namespace)
+	ns, err := c.SRV.State().NamespaceByName(nil, job.Namespace)
 	if err != nil {
 		return nil, err
 	}

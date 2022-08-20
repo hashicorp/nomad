@@ -22,6 +22,8 @@ func New[T Service](key string) (t *Service) {
 }
 
 type Service interface {
+	// TODO: Verify this doesn't force any casting
+	ValidateRequest(req interface{})
 	Init()
 	Copy() *Service
 }

@@ -13,7 +13,7 @@ import (
 
 // validateNamespaces returns an error if the job contains multiple Vault
 // namespaces.
-func (jobVaultHook) validateNamespaces(
+func (JobVaultHookValidator) validateNamespaces(
 	blocks map[string]map[string]*structs.Vault,
 	token *vapi.Secret,
 ) error {

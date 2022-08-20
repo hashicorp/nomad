@@ -13,7 +13,7 @@ import (
 func TestJobNamespaceConstraintCheckHook_Name(t *testing.T) {
 	ci.Parallel(t)
 
-	require.Equal(t, "namespace-constraint-check", new(jobNamespaceConstraintCheckHook).Name())
+	require.Equal(t, "namespace-constraint-check", new(JobNamespaceConstraintCheckHookValidator).Name())
 }
 
 func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
@@ -100,7 +100,7 @@ func TestJobNamespaceConstraintCheckHook_validate(t *testing.T) {
 	}
 	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
 
-	hook := jobNamespaceConstraintCheckHook{srv: s1}
+	hook := JobNamespaceConstraintCheckHookValidator{SRV: s1}
 	job := mock.LifecycleJob()
 	job.TaskGroups[0].Tasks[0].Driver = "docker"
 	job.TaskGroups[0].Tasks[1].Driver = "qemu"

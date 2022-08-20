@@ -3620,7 +3620,7 @@ func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
 }
 
 func mutateConnectJob(t *testing.T, job *structs.Job) {
-	var jch jobConnectHook
+	var jch JobConnectHookController
 	_, warnings, err := jch.Mutate(job)
 	require.Empty(t, warnings)
 	require.NoError(t, err)

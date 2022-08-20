@@ -709,7 +709,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			impl := jobImpliedConstraints{}
+			impl := JobImpliedConstraintsMutator{}
 			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
 			require.Equal(t, tc.expectedOutputJob, actualJob)
 			require.ElementsMatch(t, tc.expectedOutputWarnings, actualWarnings)

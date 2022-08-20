@@ -603,8 +603,8 @@ func (v *CSIVolume) volAndPluginLookup(namespace, volID string) (*structs.CSIPlu
 	return plug, vol, nil
 }
 
-// allowCSIMount is called on Job register to check mount permission
-func allowCSIMount(aclObj *acl.ACL, namespace string) bool {
+// AllowCSIMount is called on Job register to check mount permission
+func AllowCSIMount(aclObj *acl.ACL, namespace string) bool {
 	return aclObj.AllowPluginRead() &&
 		aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityCSIMountVolume)
 }

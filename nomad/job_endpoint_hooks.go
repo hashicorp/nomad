@@ -113,28 +113,28 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 }
 
-// jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
+// JobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct{}
+type JobCanonicalizer struct{}
 
-func (jobCanonicalizer) Name() string {
+func (JobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (JobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
 	return job, nil, nil
 }
 
-// jobImpliedConstraints adds constraints to a job implied by other job fields
+// JobImpliedConstraintsMutator adds constraints to a job implied by other job fields
 // and stanzas.
-type jobImpliedConstraints struct{}
+type JobImpliedConstraintsMutator struct{}
 
-func (jobImpliedConstraints) Name() string {
+func (JobImpliedConstraintsMutator) Name() string {
 	return "constraints"
 }
 
-func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, error) {
+func (JobImpliedConstraintsMutator) Mutate(j *structs.Job) (*structs.Job, []error, error) {
 	// Get the Vault blocks in the job
 	vaultBlocks := j.Vault()
 
@@ -234,16 +234,17 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	}
 }
 
-// jobValidate validates a Job and task drivers and returns an error if there is
+// JobConfigValidator validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-type jobValidate struct{}
+type JobConfigValidator struct{}
 
-func (jobValidate) Name() string {
+func (JobConfigValidator) Name() string {
+	// TODO: How is this used and does it need to change.
 	return "validate"
 }
 
-func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (JobConfigValidator) Validate(job *structs.Job) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -274,16 +275,16 @@ func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-type memoryOversubscriptionValidate struct {
-	srv *Server
+type MemoryOversubscriptionValidator struct {
+	SRV *Server
 }
 
-func (*memoryOversubscriptionValidate) Name() string {
+func (*MemoryOversubscriptionValidator) Name() string {
 	return "memory_oversubscription"
 }
 
-func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []error, err error) {
-	_, c, err := v.srv.State().SchedulerConfig()
+func (v *MemoryOversubscriptionValidator) Validate(job *structs.Job) (warnings []error, err error) {
+	_, c, err := v.SRV.State().SchedulerConfig()
 	if err != nil {
 		return nil, err
 	}

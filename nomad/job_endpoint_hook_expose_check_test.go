@@ -11,7 +11,7 @@ import (
 func TestJobExposeCheckHook_Name(t *testing.T) {
 	ci.Parallel(t)
 
-	require.Equal(t, "expose-check", new(jobExposeCheckHook).Name())
+	require.Equal(t, "expose-check", new(JobCheckHookController).Name())
 }
 
 func TestJobExposeCheckHook_tgUsesExposeCheck(t *testing.T) {
@@ -151,7 +151,7 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 	}
 
 	t.Run("double network", func(t *testing.T) {
-		warnings, err := new(jobExposeCheckHook).Validate(&structs.Job{
+		warnings, err := new(JobCheckHookController).Validate(&structs.Job{
 			TaskGroups: []*structs.TaskGroup{{
 				Name: "g1",
 				Networks: structs.Networks{{
@@ -167,7 +167,7 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 	})
 
 	t.Run("expose in service check", func(t *testing.T) {
-		warnings, err := new(jobExposeCheckHook).Validate(&structs.Job{
+		warnings, err := new(JobCheckHookController).Validate(&structs.Job{
 			TaskGroups: []*structs.TaskGroup{{
 				Name: "g1",
 				Networks: structs.Networks{{
@@ -191,7 +191,7 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		warnings, err := new(jobExposeCheckHook).Validate(&structs.Job{
+		warnings, err := new(JobCheckHookController).Validate(&structs.Job{
 			TaskGroups: []*structs.TaskGroup{{
 				Name: "g1",
 				Networks: structs.Networks{{
@@ -567,7 +567,7 @@ func TestJobExposeCheckHook_Mutate(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("typical", func(t *testing.T) {
-		result, warnings, err := new(jobExposeCheckHook).Mutate(&structs.Job{
+		result, warnings, err := new(JobCheckHookController).Mutate(&structs.Job{
 			TaskGroups: []*structs.TaskGroup{{
 				Name: "group0",
 				Networks: structs.Networks{{

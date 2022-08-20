@@ -8,16 +8,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type jobExposeCheckHook struct{}
+type JobCheckHookController struct{}
 
-func (jobExposeCheckHook) Name() string {
+func (JobCheckHookController) Name() string {
 	return "expose-check"
 }
 
 // Mutate will scan every task group for group-services which have checks defined
 // that have the Expose field configured, and generate expose path configurations
 // extrapolated from those check definitions.
-func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
+func (JobCheckHookController) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
 			for i, c := range s.Checks {
@@ -54,7 +54,7 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 //   - The job contains valid network configuration for each task group in which
 //     an expose path is configured. The network must be of type bridge mode.
 //   - The check Expose field is configured only for connect-enabled group-services.
-func (jobExposeCheckHook) Validate(job *structs.Job) (warnings []error, err error) {
+func (JobCheckHookController) Validate(job *structs.Job) (warnings []error, err error) {
 	for _, tg := range job.TaskGroups {
 		// Make sure any group that contains a group-service that enables expose
 		// is configured with one network that is in "bridge" mode. This check

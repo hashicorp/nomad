@@ -109,14 +109,14 @@ func connectListenerConstraint() *structs.Constraint {
 	}
 }
 
-// jobConnectHook implements a job Mutating and Validating admission controller
-type jobConnectHook struct{}
+// JobConnectHookController implements a job Mutating and Validating admission controller
+type JobConnectHookController struct{}
 
-func (jobConnectHook) Name() string {
+func (JobConnectHookController) Name() string {
 	return "connect"
 }
 
-func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (JobConnectHookController) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, g := range job.TaskGroups {
 		// TG isn't validated yet, but validation
 		// may depend on mutation results.
@@ -135,7 +135,7 @@ func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	return job, nil, nil
 }
 
-func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
+func (JobConnectHookController) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
