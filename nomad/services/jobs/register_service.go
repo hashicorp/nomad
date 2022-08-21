@@ -61,7 +61,7 @@ func (svc *RegisterService) Copy() *RegisterService {
 	return c
 }
 
-func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) (err error) {
+func (svc *RegisterService) Register(req *structs.JobRegisterRequest, resp *structs.JobRegisterResponse) (err error) {
 	defer svc.Options[Register].EmitMetrics()
 
 	// TODO: Request Validation belongs at the RPC layer and allows for templated codegen
@@ -77,7 +77,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 	}
 
 	// Set any warnings
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
+	resp.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Update with mutated job
 	req.Job = job
@@ -95,7 +95,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 		return err
 	}
 
-	err = svc.applyACLs(aclProvider, req)
+	err = svc.applyACLs(req, aclProvider)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 	}
 
 	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
-	if err = svc.checkConsulToken(req.Job.ConsulUsages(), req); err != nil {
+	if err = svc.checkConsulToken(req); err != nil {
 		return err
 	}
 
@@ -137,15 +137,9 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 		return err
 	}
 
-	// Enforce Sentinel policies. Pass a copy of the job to prevent
-	// sentinel from altering it.
-	policyWarnings, err := svc.enforceSubmitJob(req.PolicyOverride, req.Job.Copy())
+	err = svc.enforceSentinelPolicies(req, resp, warnings)
 	if err != nil {
 		return err
-	}
-	if policyWarnings != nil {
-		warnings = append(warnings, policyWarnings)
-		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 	}
 
 	// Clear the Vault token
@@ -155,25 +149,16 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 	req.Job.ConsulToken = ""
 
 	// Preserve the existing task group counts, if so requested
-	if existingJob != nil && req.PreserveCounts {
-		prevCounts := make(map[string]int)
-		for _, tg := range existingJob.TaskGroups {
-			prevCounts[tg.Name] = tg.Count
-		}
-		for _, tg := range req.Job.TaskGroups {
-			if count, ok := prevCounts[tg.Name]; ok {
-				tg.Count = count
-			}
-		}
-	}
+	svc.preserveJobCounts(req, existingJob)
 
+	LEFT OFF HERE
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.
 	var newVersion uint64
 	if existingJob != nil {
 		newVersion = existingJob.Version + 1
 	}
-	isRunner, err := svc.multiregionRegister(req, reply, newVersion)
+	isRunner, err := svc.multiregionRegister(req, resp, newVersion)
 	if err != nil {
 		return err
 	}
@@ -207,7 +192,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 			CreateTime:  now,
 			ModifyTime:  now,
 		}
-		reply.EvalID = eval.ID
+		resp.EvalID = eval.ID
 	}
 
 	// Check if the job has changed at all
@@ -215,41 +200,39 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 
 		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set req.Eval
 		// 0.12.1 introduced atomic eval job registration
-		if eval != nil && ServersMeetMinimumVersion(svc.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+		if eval != nil && nomad.ServersMeetMinimumVersion(svc.srv.Members(), nomad.MinJobRegisterAtomicEvalVersion, false) {
 			req.Eval = eval
 			submittedEval = true
 		}
 
 		// Commit this update via Raft
-		fsmErr, index, err := svc.srv.raftApply(structs.JobRegisterRequestType, req)
-		if err, ok := fsmErr.(error); ok && err != nil {
-			svc.logger.Error("registering job failed", "error", err, "fsm", true)
-			return err
-		}
+		var index uint64
+		var errType string
+		index, errType, err = svc.srv.RaftApply(structs.JobRegisterRequestType, req)
 		if err != nil {
-			svc.logger.Error("registering job failed", "error", err, "raft", true)
+			svc.logger.Error("registering job failed", "error", err, errType, true)
 			return err
 		}
 
-		// Populate the reply with job information
-		reply.JobModifyIndex = index
-		reply.Index = index
+		// Populate the resp with job information
+		resp.JobModifyIndex = index
+		resp.Index = index
 
 		if submittedEval {
-			reply.EvalCreateIndex = index
+			resp.EvalCreateIndex = index
 		}
 
 	} else {
-		reply.JobModifyIndex = existingJob.JobModifyIndex
+		resp.JobModifyIndex = existingJob.JobModifyIndex
 	}
 
 	// used for multiregion start
-	req.Job.JobModifyIndex = reply.JobModifyIndex
+	req.Job.JobModifyIndex = resp.JobModifyIndex
 
 	if eval == nil {
 		// For dispatch jobs we return early, so we need to drop regions
 		// here rather than after eval for deployments is kicked off
-		err = svc.multiregionDrop(req, reply)
+		err = svc.multiregionDrop(req, resp)
 		if err != nil {
 			return err
 		}
@@ -257,7 +240,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 	}
 
 	if eval != nil && !submittedEval {
-		eval.JobModifyIndex = reply.JobModifyIndex
+		eval.JobModifyIndex = resp.JobModifyIndex
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},
 			WriteRequest: structs.WriteRequest{Region: req.Region},
@@ -272,13 +255,13 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 			return err
 		}
 
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
+		resp.EvalCreateIndex = evalIndex
+		resp.Index = evalIndex
 	}
 
 	// Kick off a multiregion deployment (enterprise only).
 	if isRunner {
-		err = svc.multiregionStart(req, reply)
+		err = svc.multiregionStart(req, resp)
 		if err != nil {
 			return err
 		}
@@ -286,7 +269,7 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, reply *str
 		// been registered and we've kicked off the deployment. This keeps
 		// dropping regions close in semantics to dropping task groups in
 		// single-region deployments
-		err = svc.multiregionDrop(req, reply)
+		err = svc.multiregionDrop(req, resp)
 		if err != nil {
 			return err
 		}
@@ -375,7 +358,7 @@ func (svc *RegisterService) resolveNomadACLToken(req *structs.JobRegisterRequest
 	return nil
 }
 
-func (svc *RegisterService) applyACLs(aclProvider *acl.ACL, req *structs.JobRegisterRequest) error {
+func (svc *RegisterService) applyACLs(req *structs.JobRegisterRequest, aclProvider *acl.ACL) error {
 	if aclProvider == nil {
 		return nil
 	}
@@ -405,7 +388,7 @@ func (svc *RegisterService) applyACLs(aclProvider *acl.ACL, req *structs.JobRegi
 	return nil
 }
 
-func (svc *RegisterService) enforceVolumePermissions(aclProvider *acl.ACL, req *structs.JobRegisterRequest) error {
+func (svc *RegisterService) enforceVolumePermissions(req *structs.JobRegisterRequest, aclProvider *acl.ACL) error {
 	for _, tg := range req.Job.TaskGroups {
 		for _, vol := range tg.Volumes {
 			switch vol.Type {
@@ -452,7 +435,7 @@ func (svc *RegisterService) enforceVolumePermissions(aclProvider *acl.ACL, req *
 	return nil
 }
 
-func (svc *RegisterService) checkPolicyOverride(aclProvider *acl.ACL, req *structs.JobRegisterRequest) error {
+func (svc *RegisterService) checkPolicyOverride(req *structs.JobRegisterRequest, aclProvider *acl.ACL) error {
 	if req.PolicyOverride {
 		if !aclProvider.AllowNsOp(req.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
 			svc.logger.Warn("policy override attempted without permissions for job", "job", req.Job.ID)
@@ -577,7 +560,7 @@ func (svc *RegisterService) propagateScalingPolicyIDs(old, new *structs.Job) err
 //   - registering services into namespace of each group
 //   - reading kv store of each group
 //   - establishing consul connect services
-func (svc *RegisterService) checkConsulToken(usages map[string]*structs.ConsulUsage, req *structs.JobRegisterRequest) error {
+func (svc *RegisterService) checkConsulToken(req *structs.JobRegisterRequest) error {
 	if svc.srv.GetConfig().ConsulConfig.AllowsUnauthenticated() {
 		// if consul.allow_unauthenticated is enabled (which is the default)
 		// just let the job through without checking anything
@@ -585,7 +568,7 @@ func (svc *RegisterService) checkConsulToken(usages map[string]*structs.ConsulUs
 	}
 
 	ctx := context.Background()
-	for namespace, usage := range usages {
+	for namespace, usage := range req.Job.ConsulUsages() {
 		if err := svc.srv.CheckConsulTokenPermissions(ctx, namespace, req.Job.ConsulToken, usage); err != nil {
 			return fmt.Errorf("job-submitter consul token denied: %w", err)
 		}
@@ -621,4 +604,35 @@ func (svc *RegisterService) createOrUpdateConsulConfigEntries(req *structs.JobRe
 	}
 
 	return nil
+}
+
+func (svc *RegisterService) enforceSentinelPolicies(req *structs.JobRegisterRequest, resp *structs.JobRegisterResponse, warnings []error) error {
+	// Pass a copy of the job to prevent sentinel from altering it.
+	policyWarnings, err := svc.enforceSubmitJob(req.PolicyOverride, req.Job.Copy())
+	if err != nil {
+		return err
+	}
+
+	if policyWarnings != nil {
+		warnings = append(warnings, policyWarnings)
+		resp.Warnings = structs.MergeMultierrorWarnings(warnings...)
+	}
+
+	return nil
+}
+
+func (svc *RegisterService) preserveJobCounts(req *structs.JobRegisterRequest, existingJob *structs.Job) {
+	if !req.PreserveCounts || existingJob == nil {
+		return
+	}
+
+	prevCounts := make(map[string]int)
+	for _, tg := range existingJob.TaskGroups {
+		prevCounts[tg.Name] = tg.Count
+	}
+	for _, tg := range req.Job.TaskGroups {
+		if count, ok := prevCounts[tg.Name]; ok {
+			tg.Count = count
+		}
+	}
 }

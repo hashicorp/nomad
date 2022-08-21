@@ -2109,6 +2109,18 @@ func (s *Server) SetConsulTerminatingConfigEntry(ctx context.Context, namespace,
 	return nil
 }
 
+func (s *Server) RaftApply(messageType structs.MessageType, message interface{}) (uint64, string, error) {
+	fsmFuture, index, err := s.raftApply(messageType, message)
+	if fsmErr, ok := fsmFuture.(error); ok && fsmErr != nil {
+		return 0, "fsm", fsmErr
+	}
+	if err != nil {
+		return 0, "raft", err
+	}
+
+	return index, "", nil
+}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.
