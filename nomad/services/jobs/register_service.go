@@ -151,9 +151,9 @@ func (svc *RegisterService) Register(req *structs.JobRegisterRequest, resp *stru
 	// Preserve the existing task group counts, if so requested
 	svc.preserveJobCounts(req, existingJob)
 
-	LEFT OFF HERE
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.
+	// TODO: Pass existingJob to MultiRegionRegister and have it calculate version.
 	var newVersion uint64
 	if existingJob != nil {
 		newVersion = existingJob.Version + 1
