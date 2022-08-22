@@ -19,6 +19,7 @@ export default create({
 
   stop: twoStepButton('[data-test-stop]'),
   restart: twoStepButton('[data-test-restart]'),
+  restartAll: twoStepButton('[data-test-restart-all]'),
 
   execButton: {
     scope: '[data-test-exec-button]',
