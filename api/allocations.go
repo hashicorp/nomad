@@ -72,13 +72,13 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 // the task environment.
 //
 // The parameters are:
-// * ctx: context to set deadlines or timeout
-// * allocation: the allocation to execute command inside
-// * task: the task's name to execute command in
-// * tty: indicates whether to start a pseudo-tty for the command
-// * stdin, stdout, stderr: the std io to pass to command.
-//      If tty is true, then streams need to point to a tty that's alive for the whole process
-// * terminalSizeCh: A channel to send new tty terminal sizes
+//   - ctx: context to set deadlines or timeout
+//   - allocation: the allocation to execute command inside
+//   - task: the task's name to execute command in
+//   - tty: indicates whether to start a pseudo-tty for the command
+//   - stdin, stdout, stderr: the std io to pass to command.
+//     If tty is true, then streams need to point to a tty that's alive for the whole process
+//   - terminalSizeCh: A channel to send new tty terminal sizes
 //
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
 //
@@ -117,6 +117,17 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceU
 	var resp AllocResourceUsage
 	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, q)
 	return &resp, err
+}
+
+// Checks gets status information for nomad service checks that exist in the allocation.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
+func (a *Allocations) Checks(allocID string, q *QueryOptions) (AllocCheckStatuses, error) {
+	var resp AllocCheckStatuses
+	_, err := a.client.query("/v1/client/allocation/"+allocID+"/checks", &resp, q)
+	return resp, err
 }
 
 // GC forces a garbage collection of client state for an allocation.
@@ -506,12 +517,12 @@ type ExecStreamingInput struct {
 	TTYSize *TerminalSize             `json:"tty_size,omitempty"`
 }
 
-// ExecStreamingExitResults captures the exit code of just completed nomad exec command
+// ExecStreamingExitResult captures the exit code of just completed nomad exec command
 type ExecStreamingExitResult struct {
 	ExitCode int `json:"exit_code"`
 }
 
-// ExecStreamingInput represents an output streaming entity, e.g. stdout/stderr update or termination
+// ExecStreamingOutput represents an output streaming entity, e.g. stdout/stderr update or termination
 //
 // At most one of these fields should be set: `Stdout`, `Stderr`, or `Result`.
 // If `Exited` is true, then `Result` is non-nil, and other fields are nil.
