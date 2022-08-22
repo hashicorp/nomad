@@ -592,6 +592,22 @@ func LifecycleJob() *structs.Job {
 							MemoryMB: 256,
 						},
 					},
+					{
+						Name:   "poststart",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPoststart,
+							Sidecar: false,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
 				},
 			},
 		},
@@ -634,6 +650,10 @@ func LifecycleAlloc() *structs.Allocation {
 				CPU:      1000,
 				MemoryMB: 256,
 			},
+			"poststart": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
 		},
 
 		AllocatedResources: &structs.AllocatedResources{
@@ -655,6 +675,14 @@ func LifecycleAlloc() *structs.Allocation {
 					},
 				},
 				"side": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"poststart": {
 					Cpu: structs.AllocatedCpuResources{
 						CpuShares: 1000,
 					},
