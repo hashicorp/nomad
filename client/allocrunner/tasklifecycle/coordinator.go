@@ -35,7 +35,7 @@ func (s coordinatorState) String() string {
 	case coordinatorStatePoststop:
 		return "poststart"
 	}
-	return ""
+	panic(fmt.Sprintf("Unexpected task coordinator state %d", s))
 }
 
 // lifecycleStage represents a lifecycle configuration used for task
@@ -115,10 +115,7 @@ func (c *Coordinator) Restore(states map[string]*structs.TaskState) {
 	// Skip the "init" state when restoring since the tasks were likely already
 	// running, causing the Coordinator to be stuck waiting for them to be
 	// "pending".
-	c.currentStateLock.Lock()
 	c.enterStateLocked(coordinatorStatePrestart)
-	c.currentStateLock.Unlock()
-
 	c.TaskStateUpdated(states)
 }
 
@@ -191,8 +188,7 @@ func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coor
 
 	// If the code reaches here it's a programming error, since the switch
 	// statement should cover all possible states and return the next state.
-	c.logger.Warn(fmt.Sprintf("unexpected state %s", c.currentState))
-	return c.currentState
+	panic(fmt.Sprintf("unexpected state %s", c.currentState))
 }
 
 // enterStateLocked updates the current state of the Coordinator FSM and

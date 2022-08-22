@@ -40,6 +40,8 @@ func (g *Gate) WaitCh() <-chan struct{} {
 }
 
 // Open is used to allow listeners to proceed.
+// If the gate shutdownCh channel is closed, this method is a no-op so callers
+// should check its state.
 func (g *Gate) Open() {
 	select {
 	case <-g.shutdownCh:
@@ -48,6 +50,8 @@ func (g *Gate) Open() {
 }
 
 // Close is used to block listeners from proceeding.
+// if the gate shutdownch channel is closed, this method is a no-op so callers
+// should check its state.
 func (g *Gate) Close() {
 	select {
 	case <-g.shutdownCh:
