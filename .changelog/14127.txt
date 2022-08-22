@@ -1,5 +1,5 @@
 ```release-note:improvement
-client: add option to restart all tasks of an allocation, even if the task already run, such as non-sidecar prestart and poststart tasks.
+client: add option to restart all tasks of an allocation, regardless of lifecycle type or state.
 ```
 
 ```release-note:improvement

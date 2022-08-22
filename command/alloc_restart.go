@@ -36,7 +36,8 @@ Restart Specific Options:
 
   -all-tasks
     If set, all tasks in the allocation will be restarted, even the ones that
-    already ran. This option cannot be used if a task is defined.
+    already ran. This option cannot be used with '-task' or the '<task>'
+    argument.
 
   -task <task-name>
     Specify the individual task to restart. If task name is given with both an

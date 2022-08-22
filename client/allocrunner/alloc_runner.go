@@ -548,7 +548,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 
 		if len(liveRunners) > 0 {
 			// if all live runners are sidecars - kill alloc
-			if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
+			hasLiveSidecars := hasSidecars && !hasNonSidecarTasks(liveRunners)
+			if killEvent == nil && hasLiveSidecars {
 				killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 			}
 
@@ -573,11 +574,11 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				// Kill 'em all
 				states = ar.killTasks()
 
-				// Wait for TaskRunners to exit before continuing to
-				// prevent looping before TaskRunners have transitioned
-				// to Dead.
+				// Wait for TaskRunners to exit before continuing. This will
+				// prevent looping before TaskRunners have transitioned to
+				// Dead.
 				for _, tr := range liveRunners {
-					ar.logger.Info("killing task", "task", tr.Task().Name)
+					ar.logger.Info("waiting for task to exit", "task", tr.Task().Name)
 					select {
 					case <-tr.WaitCh():
 					case <-ar.waitCh:
@@ -1228,20 +1229,24 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 }
 
 // Restart satisfies the WorkloadRestarter interface and restarts all tasks
-// that are currently running. Only the TaskRestartRunningSignal event type may
-// be used.
+// that are currently running.
+//
+// The event type will be set to TaskRestartRunningSignal to comply with
+// internal restart logic requirements.
 func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	if event.Type != structs.TaskRestartRunningSignal {
-		return fmt.Errorf("Invalid event %s for alloc restart request", event.Type)
+		event.Type = structs.TaskRestartRunningSignal
 	}
 	return ar.restartTasks(ctx, event, failure)
 }
 
-// RestartTask restarts the provided task. Only TaskRestartSignal event type
-// may be used.
+// RestartTask restarts the provided task.
+//
+// The event type will be set to TaskRestartSignal to comply with internal
+// restart logic requirements.
 func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) error {
 	if event.Type != structs.TaskRestartSignal {
-		return fmt.Errorf("Invalid event %s for task restart request", event.Type)
+		event.Type = structs.TaskRestartSignal
 	}
 
 	tr, ok := ar.tasks[taskName]
@@ -1252,11 +1257,13 @@ func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) er
 	return tr.Restart(context.TODO(), event, false)
 }
 
-// RestartRunning restarts all tasks that are currently running. Only the
-// TaskRestartRunningSignal event type may be used.
+// RestartRunning restarts all tasks that are currently running.
+//
+// The event type will be set to TaskRestartRunningSignal to comply with
+// internal restart logic requirements.
 func (ar *allocRunner) RestartRunning(event *structs.TaskEvent) error {
 	if event.Type != structs.TaskRestartRunningSignal {
-		return fmt.Errorf("Invalid event %s for running tasks restart request", event.Type)
+		event.Type = structs.TaskRestartRunningSignal
 	}
 	return ar.restartTasks(context.TODO(), event, false)
 }
