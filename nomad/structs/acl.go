@@ -364,6 +364,54 @@ func (a *ACLRole) Copy() *ACLRole {
 	return c
 }
 
+// Stub converts the ACLRole object into a ACLRoleListStub object.
+func (a *ACLRole) Stub() *ACLRoleListStub {
+	return &ACLRoleListStub{
+		ID:          a.ID,
+		Name:        a.Name,
+		Description: a.Description,
+		Policies:    a.Policies,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// ACLRoleListStub is the stub object returned when performing a listing of ACL
+// roles. While it might not currently be different to the full response
+// object, it allows us to future-proof the RPC in the event the ACLRole object
+// grows over time.
+type ACLRoleListStub struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Name is unique across the entire set of federated clusters and is
+	// supplied by the operator on role creation. The name can be modified by
+	// updating the role and including the Nomad generated ID. This update will
+	// not affect tokens created and linked to this role. This is a required
+	// field.
+	Name string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the role. This is an operational field.
+	Description string
+
+	// Policies is an array of ACL policy links. Although currently policies
+	// can only be linked using their name, in the future we will want to add
+	// IDs also and thus allow operators to specify either a name, an ID, or
+	// both.
+	Policies []*ACLRolePolicyLink
+
+	// Hash is the hashed value of the role and is generated using all fields
+	// above this point.
+	Hash []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
 // ACLRolesUpsertRequest is the request object used to upsert one or more ACL
 // roles.
 type ACLRolesUpsertRequest struct {
@@ -405,7 +453,7 @@ type ACLRolesListRequest struct {
 // ACLRolesListResponse is the response object when performing ACL role
 // listings.
 type ACLRolesListResponse struct {
-	ACLRoles []*ACLRole
+	ACLRoles []*ACLRoleListStub
 	QueryMeta
 }
 

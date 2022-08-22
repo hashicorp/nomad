@@ -349,7 +349,7 @@ func (s *HTTPServer) ACLRoleListRequest(resp http.ResponseWriter, req *http.Requ
 	setMeta(resp, &reply.QueryMeta)
 
 	if reply.ACLRoles == nil {
-		reply.ACLRoles = make([]*structs.ACLRole, 0)
+		reply.ACLRoles = make([]*structs.ACLRoleListStub, 0)
 	}
 	return reply.ACLRoles, nil
 }

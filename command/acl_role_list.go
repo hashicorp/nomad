@@ -106,7 +106,7 @@ func (a *ACLRoleListCommand) Run(args []string) int {
 	return 0
 }
 
-func formatACLRoles(roles []*api.ACLRole) string {
+func formatACLRoles(roles []*api.ACLRoleListStub) string {
 	if len(roles) == 0 {
 		return "No ACL roles found"
 	}

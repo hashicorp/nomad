@@ -220,8 +220,8 @@ func (c *Client) ACLRoles() *ACLRoles {
 }
 
 // List is used to detail all the ACL roles currently stored within state.
-func (a *ACLRoles) List(q *QueryOptions) ([]*ACLRole, *QueryMeta, error) {
-	var resp []*ACLRole
+func (a *ACLRoles) List(q *QueryOptions) ([]*ACLRoleListStub, *QueryMeta, error) {
+	var resp []*ACLRoleListStub
 	qm, err := a.client.query("/v1/acl/roles", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -434,4 +434,35 @@ type ACLRolePolicyLink struct {
 
 	// Name is the ACLPolicy.Name value which will be linked to the ACL role.
 	Name string
+}
+
+// ACLRoleListStub is the stub object returned when performing a listing of ACL
+// roles. While it might not currently be different to the full response
+// object, it allows us to future-proof the RPC in the event the ACLRole object
+// grows over time.
+type ACLRoleListStub struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Name is unique across the entire set of federated clusters and is
+	// supplied by the operator on role creation. The name can be modified by
+	// updating the role and including the Nomad generated ID. This update will
+	// not affect tokens created and linked to this role. This is a required
+	// field.
+	Name string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the role. This is an operational field.
+	Description string
+
+	// Policies is an array of ACL policy links. Although currently policies
+	// can only be linked using their name, in the future we will want to add
+	// IDs also and thus allow operators to specify either a name, an ID, or
+	// both.
+	Policies []*ACLRolePolicyLink
+
+	CreateIndex uint64
+	ModifyIndex uint64
 }

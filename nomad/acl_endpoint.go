@@ -1300,11 +1300,9 @@ func (a *ACL) ListRoles(
 				return err
 			}
 
-			// Iterate all the results and add these to our reply object. There
-			// is no stub object for an ACL role and the hash is needed by the
-			// replication process.
+			// Iterate all the results and add these to our reply object.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				reply.ACLRoles = append(reply.ACLRoles, raw.(*structs.ACLRole))
+				reply.ACLRoles = append(reply.ACLRoles, raw.(*structs.ACLRole).Stub())
 			}
 
 			// Use the index table to populate the query meta as we have no way
