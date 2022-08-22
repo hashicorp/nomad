@@ -154,10 +154,9 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "raw_exec"
+	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"command": "sleep",
-		"args":    []string{"2"},
+		"run_for": "2ms",
 	}
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())

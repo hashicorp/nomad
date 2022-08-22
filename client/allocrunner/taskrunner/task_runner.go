@@ -514,23 +514,26 @@ func (tr *TaskRunner) Run() {
 	var result *drivers.ExitResult
 
 	tr.stateLock.RLock()
-	restoredDead := tr.state.State == structs.TaskStateDead
+	dead := tr.state.State == structs.TaskStateDead
+	runComplete := tr.localState.RunComplete
 	tr.stateLock.RUnlock()
 
 	// If restoring a dead task, ensure that task is cleared and all post hooks
 	// are called without additional state updates.
 	// If the alloc is not terminal we must proceed until the ALLOC_RESTART
 	// loop to allow the task to run again in case the alloc is restarted.
-	if restoredDead && tr.Alloc().TerminalStatus() {
+	if dead {
 		// do cleanup functions without emitting any additional events/work
 		// to handle cases where we restored a dead task where client terminated
 		// after task finished before completing post-run actions.
 		tr.clearDriverHandle()
 		tr.stateUpdater.TaskStateUpdated()
-		if err := tr.stop(); err != nil {
-			tr.logger.Error("stop failed on terminal task", "error", err)
+		if runComplete {
+			if err := tr.stop(); err != nil {
+				tr.logger.Error("stop failed on terminal task", "error", err)
+			}
+			return
 		}
-		return
 	}
 
 	// Updates are handled asynchronously with the other hooks but each
@@ -560,10 +563,7 @@ func (tr *TaskRunner) Run() {
 
 MAIN:
 	for !tr.shouldShutdown() {
-		if restoredDead {
-			// Break early when restoring a dead task and reset the flag so the
-			// loop runs again if the task is restarted.
-			restoredDead = false
+		if dead {
 			break
 		}
 
@@ -701,11 +701,21 @@ MAIN:
 				// Restart without delay since the task is not running anymore.
 				restart, _ := tr.shouldRestart()
 				if restart {
+					// Set runner as not dead to allow the MAIN loop to run.
+					dead = false
 					goto MAIN
 				}
 			}
 		}
 	}
+
+	tr.stateLock.Lock()
+	tr.localState.RunComplete = true
+	err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
+	if err != nil {
+		tr.logger.Warn("error persisting task state on run loop exit", "error", err)
+	}
+	tr.stateLock.Unlock()
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
@@ -1233,8 +1243,10 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
 
+	tr.logger.Trace("setting task state", "state", state)
+
 	if event != nil {
-		tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+		tr.logger.Trace("appending task event", "state", state, "event", event.Type)
 
 		// Append the event
 		tr.appendEvent(event)

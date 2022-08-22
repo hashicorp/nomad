@@ -18,6 +18,13 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 		return ErrTaskNotRunning
 	}
 
+	tr.stateLock.Lock()
+	localState := tr.localState.Copy()
+	tr.stateLock.Unlock()
+	if localState == nil {
+		return ErrTaskNotRunning
+	}
+
 	switch taskState.State {
 	case structs.TaskStatePending:
 		// Tasks that are "pending" are never allowed to restart.
@@ -25,8 +32,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	case structs.TaskStateDead:
 		// Tasks that are "dead" are only allowed to restart when restarting
 		// all tasks in the alloc, otherwise the taskCoordinator will prevent
-		// it from running again.
-		if event.Type != structs.TaskRestartAllSignal {
+		// it from running again, and if their Run method is still running.
+		if event.Type != structs.TaskRestartAllSignal || localState.RunComplete {
 			return ErrTaskNotRunning
 		}
 	}
