@@ -78,12 +78,16 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
 	policy := mock.ACLPolicy()
-	policy.Name = fmt.Sprintf("_:%s/%s/%s", ns, jobID, alloc1.TaskGroup)
 	policy.Rules = `namespace "nondefault-namespace" {
 		secure_variables {
-		    path "nomad/jobs/*" { capabilities = ["read"] }
+		    path "nomad/jobs/*" { capabilities = ["list"] }
 		    path "other/path" { capabilities = ["read"] }
 		}}`
+	policy.JobACL = &structs.JobACL{
+		Namespace: ns,
+		JobID:     jobID,
+		Group:     alloc1.TaskGroup,
+	}
 	policy.SetHash()
 	err = store.UpsertACLPolicies(structs.MsgTypeTestSetup, 1100, []*structs.ACLPolicy{policy})
 	must.NoError(t, err)
@@ -155,25 +159,32 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for implied policy",
+			name:        "valid claim for job-attached policy",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/path",
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for implied policy path denied",
+			name:        "valid claim for job-attached policy path denied",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/not-allowed",
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "valid claim for implied policy capability denied",
+			name:        "valid claim for job-attached policy capability denied",
 			token:       idToken,
 			cap:         acl.PolicyWrite,
 			path:        "other/path",
 			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "valid claim for job-attached policy capability with cross-job access",
+			token:       idToken,
+			cap:         acl.PolicyList,
+			path:        "nomad/jobs/some-other",
+			expectedErr: nil,
 		},
 		{
 			name:        "valid claim with no permissions denied by path",

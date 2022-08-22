@@ -215,8 +215,18 @@ type ACLPolicy struct {
 	Name        string
 	Description string
 	Rules       string
+	JobACL      *JobACL
+
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string
+	JobID     string
+	Group     string
+	Task      string
 }
 
 // ACLToken represents a client token which is used to Authenticate

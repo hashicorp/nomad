@@ -11718,9 +11718,19 @@ type ACLPolicy struct {
 	Description string      // Human readable
 	Rules       string      // HCL or JSON format
 	RulesJSON   *acl.Policy // Generated from Rules on read
+	JobACL      *JobACL
 	Hash        []byte
+
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string // namespace of the job
+	JobID     string // ID of the job
+	Group     string // ID of the group
+	Task      string // ID of the task
 }
 
 // SetHash is used to compute and set the hash of the ACL policy
@@ -11735,6 +11745,13 @@ func (a *ACLPolicy) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Description))
 	_, _ = hash.Write([]byte(a.Rules))
+
+	if a.JobACL != nil {
+		_, _ = hash.Write([]byte(a.JobACL.Namespace))
+		_, _ = hash.Write([]byte(a.JobACL.JobID))
+		_, _ = hash.Write([]byte(a.JobACL.Group))
+		_, _ = hash.Write([]byte(a.JobACL.Task))
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -11768,6 +11785,21 @@ func (a *ACLPolicy) Validate() error {
 		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
 	}
+	if a.JobACL != nil {
+		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
+			err := fmt.Errorf("namespace must be set to set job ID")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
+			err := fmt.Errorf("job ID must be set to set group")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Task != "" && a.JobACL.Group == "" {
+			err := fmt.Errorf("group must be set to set task")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
