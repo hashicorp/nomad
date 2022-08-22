@@ -155,7 +155,6 @@ module('Acceptance | regions (many)', function (hooks) {
     const newRegion = server.db.regions[1].id;
 
     await Allocation.visit({ id: server.db.allocations[0].id });
-    await this.pauseTest();
 
     await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
