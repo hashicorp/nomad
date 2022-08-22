@@ -56,6 +56,14 @@ const (
 	// Reply: ACLRolesListResponse
 	ACLListRolesRPCMethod = "ACL.ListRoles"
 
+	// ACLGetRolesByIDRPCMethod is the RPC method for detailing a number of ACL
+	// roles using their ID. This is an internal only RPC endpoint and used by
+	// the ACL Role replication process.
+	//
+	// Args: ACLRolesByIDRequest
+	// Reply: ACLRolesByIDResponse
+	ACLGetRolesByIDRPCMethod = "ACL.GetRolesByID"
+
 	// ACLGetRoleByIDRPCMethod is the RPC method for detailing an individual
 	// ACL role using its ID.
 	//
@@ -360,6 +368,12 @@ func (a *ACLRole) Copy() *ACLRole {
 // roles.
 type ACLRolesUpsertRequest struct {
 	ACLRoles []*ACLRole
+
+	// AllowMissingPolicies skips the ACL Role policy link verification and is
+	// used by the replication process. The replication cannot ensure policies
+	// are present before ACL Roles are replicated.
+	AllowMissingPolicies bool
+
 	WriteRequest
 }
 
@@ -392,6 +406,20 @@ type ACLRolesListRequest struct {
 // listings.
 type ACLRolesListResponse struct {
 	ACLRoles []*ACLRole
+	QueryMeta
+}
+
+// ACLRolesByIDRequest is the request object when performing a lookup of
+// multiple roles by the ID.
+type ACLRolesByIDRequest struct {
+	ACLRoleIDs []string
+	QueryOptions
+}
+
+// ACLRolesByIDResponse is the response object when performing a lookup of
+// multiple roles by their IDs.
+type ACLRolesByIDResponse struct {
+	ACLRoles map[string]*ACLRole
 	QueryMeta
 }
 

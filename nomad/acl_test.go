@@ -195,7 +195,7 @@ func TestResolveACLToken(t *testing.T) {
 					{Name: policy2.Name},
 				}
 				err = testServer.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 30, []*structs.ACLRole{aclRole})
+					structs.MsgTypeTestSetup, 30, []*structs.ACLRole{aclRole}, false)
 				require.NoError(t, err)
 
 				clientToken := mock.ACLToken()
@@ -221,7 +221,7 @@ func TestResolveACLToken(t *testing.T) {
 				// permissions are updated.
 				aclRole.Policies = []*structs.ACLRolePolicyLink{}
 				err = testServer.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 40, []*structs.ACLRole{aclRole})
+					structs.MsgTypeTestSetup, 40, []*structs.ACLRole{aclRole}, false)
 				require.NoError(t, err)
 
 				aclResp, err = testServer.ResolveToken(clientToken.SecretID)
@@ -265,7 +265,7 @@ func TestResolveACLToken(t *testing.T) {
 				aclRole := mock.ACLRole()
 				aclRole.Policies = []*structs.ACLRolePolicyLink{{Name: policy2.Name}}
 				err = testServer.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole})
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole}, false)
 				require.NoError(t, err)
 
 				// Create a token which references the policy and role.

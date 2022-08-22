@@ -682,6 +682,11 @@ func Test_ACLRolesListRequest(t *testing.T) {
 	require.True(t, req.IsRead())
 }
 
+func Test_ACLRolesByIDRequest(t *testing.T) {
+	req := ACLRolesByIDRequest{}
+	require.True(t, req.IsRead())
+}
+
 func Test_ACLRoleByIDRequest(t *testing.T) {
 	req := ACLRoleByIDRequest{}
 	require.True(t, req.IsRead())

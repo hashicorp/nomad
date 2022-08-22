@@ -2036,7 +2036,7 @@ func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLRoles(msgType, index, req.ACLRoles); err != nil {
+	if err := n.state.UpsertACLRoles(msgType, index, req.ACLRoles, req.AllowMissingPolicies); err != nil {
 		n.logger.Error("UpsertACLRoles failed", "error", err)
 		return err
 	}

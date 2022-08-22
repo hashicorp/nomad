@@ -1128,15 +1128,18 @@ func (a *ACL) UpsertRoles(
 		// as ensure the policies exist within state.
 		for _, policyLink := range role.Policies {
 
-			// Perform a state look up for the policy. An error or not being
-			// able to find the policy is terminal. We can include the name in
-			// the error message as it has previously been validated.
-			existing, err := stateSnapshot.ACLPolicyByName(nil, policyLink.Name)
-			if err != nil {
-				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "policy lookup failed: %v", err)
-			}
-			if existing == nil {
-				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find policy %s", policyLink.Name)
+			// If the RPC does not allow for missing policies, perform a state
+			// look up for the policy. An error or not being able to find the
+			// policy is terminal. We can include the name in the error message
+			// as it has previously been validated.
+			if !args.AllowMissingPolicies {
+				existing, err := stateSnapshot.ACLPolicyByName(nil, policyLink.Name)
+				if err != nil {
+					return structs.NewErrRPCCodedf(http.StatusInternalServerError, "policy lookup failed: %v", err)
+				}
+				if existing == nil {
+					return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find policy %s", policyLink.Name)
+				}
 			}
 
 			// If the policy name is not found within our map, this means we
@@ -1274,6 +1277,12 @@ func (a *ACL) ListRoles(
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
 
+			// The iteration below appends directly to the reply object, so in
+			// order for blocking queries to work properly we must ensure the
+			// ACLRoles are reset. This allows the blocking query run function
+			// to work as expected.
+			reply.ACLRoles = nil
+
 			var (
 				err  error
 				iter memdb.ResultIterator
@@ -1296,6 +1305,59 @@ func (a *ACL) ListRoles(
 			// replication process.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
 				reply.ACLRoles = append(reply.ACLRoles, raw.(*structs.ACLRole))
+			}
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableACLRoles, &reply.QueryMeta)
+		},
+	})
+}
+
+// GetRolesByID is used to get a set of ACL Roles as defined by their ID. This
+// endpoint is used by the replication process and uses a specific response in
+// order to make that process easier.
+func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACLRolesByIDResponse) error {
+
+	// This endpoint is only used by the replication process which is only
+	// running on ACL enabled clusters, so this check should never be
+	// triggered.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLGetRolesByIDRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_roles_id"}, time.Now())
+
+	// Check that the caller has a management token and that ACLs are enabled
+	// properly.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Instantiate the output map to the correct maximum length.
+			reply.ACLRoles = make(map[string]*structs.ACLRole, len(args.ACLRoleIDs))
+
+			// Look for the ACL role and add this to our mapping if we have
+			// found it.
+			for _, roleID := range args.ACLRoleIDs {
+				out, err := stateStore.GetACLRoleByID(ws, roleID)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.ACLRoles[out.ID] = out
+				}
 			}
 
 			// Use the index table to populate the query meta as we have no way

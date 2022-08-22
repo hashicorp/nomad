@@ -60,7 +60,7 @@ func TestACLRoleListCommand_Run(t *testing.T) {
 		Policies: []*structs.ACLRolePolicyLink{{Name: aclPolicy.Name}},
 	}
 	err = srv.Agent.Server().State().UpsertACLRoles(
-		structs.MsgTypeTestSetup, 20, []*structs.ACLRole{&aclRole})
+		structs.MsgTypeTestSetup, 20, []*structs.ACLRole{&aclRole}, false)
 	require.NoError(t, err)
 
 	// Perform a listing to get the created role.

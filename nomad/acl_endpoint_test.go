@@ -1657,7 +1657,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 				aclRole1.Policies = []*structs.ACLRolePolicyLink{{Name: policy1.Name}}
 
 				require.NoError(t, testServer.fsm.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}))
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}, false))
 
 				// Create a token which references the created ACL role. This
 				// role reference is duplicated to ensure the handler
@@ -1710,7 +1710,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 				aclRole1.Policies = []*structs.ACLRolePolicyLink{{Name: policy1.Name}}
 
 				require.NoError(t, testServer.fsm.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}))
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{aclRole1}, false))
 
 				// Create an ACL token with both ACL role and policy links.
 				tokenReq1 := &structs.ACLTokenUpsertRequest{
@@ -2019,7 +2019,7 @@ func TestACL_DeleteRolesByID(t *testing.T) {
 
 	// Create two ACL roles and put these directly into state.
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Attempt to delete an ACL role without setting an auth token. This should
 	// fail.
@@ -2094,7 +2094,7 @@ func TestACL_ListRoles(t *testing.T) {
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
 	aclRoles[0].ID = "prefix-" + uuid.Generate()
 	aclRoles[1].ID = "prefix-" + uuid.Generate()
-	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Try listing roles without a valid ACL token.
 	aclRoleReq1 := &structs.ACLRolesListRequest{
@@ -2145,6 +2145,133 @@ func TestACL_ListRoles(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
 	require.Len(t, aclRoleResp4.ACLRoles, 2)
+
+	// Now test a blocking query, where we wait for an update to the list which
+	// is triggered by a deletion.
+	type res struct {
+		err   error
+		reply *structs.ACLRolesListResponse
+	}
+	resultCh := make(chan *res)
+
+	go func(resultCh chan *res) {
+		aclRoleReq5 := &structs.ACLRolesListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:        DefaultRegion,
+				AuthToken:     aclRootToken.SecretID,
+				MinQueryIndex: aclRoleResp4.Index,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var aclRoleResp5 structs.ACLRolesListResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq5, &aclRoleResp5)
+		resultCh <- &res{err: err, reply: &aclRoleResp5}
+	}(resultCh)
+
+	// Delete an ACL role from state which should return the blocking query.
+	require.NoError(t, testServer.fsm.State().DeleteACLRolesByID(
+		structs.MsgTypeTestSetup, aclRoleResp4.Index+10, []string{aclRoles[0].ID}))
+
+	// Wait until the test within the routine is complete.
+	result := <-resultCh
+	require.NoError(t, result.err)
+	require.Len(t, result.reply.ACLRoles, 1)
+	require.NotEqual(t, result.reply.ACLRoles[0].ID, aclRoles[0].ID)
+}
+
+func TestACL_GetRolesByID(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Try reading a role without setting a correct auth token.
+	aclRoleReq1 := &structs.ACLRolesByIDRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: DefaultRegion,
+		},
+	}
+	var aclRoleResp1 structs.ACLRolesByIDResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq1, &aclRoleResp1)
+	require.ErrorContains(t, err, "Permission denied")
+	require.Empty(t, aclRoleResp1.ACLRoles)
+
+	// Try reading a role that doesn't exist.
+	aclRoleReq2 := &structs.ACLRolesByIDRequest{
+		ACLRoleIDs: []string{"nope"},
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclRoleResp2 structs.ACLRolesByIDResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq2, &aclRoleResp2)
+	require.NoError(t, err)
+	require.Empty(t, aclRoleResp2.ACLRoles)
+
+	// Create the policies our ACL roles wants to link to.
+	policy1 := mock.ACLPolicy()
+	policy1.Name = "mocked-test-policy-1"
+	policy2 := mock.ACLPolicy()
+	policy2.Name = "mocked-test-policy-2"
+
+	require.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+	// Create two ACL roles and put these directly into state.
+	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles, false))
+
+	// Try reading both roles that are within state.
+	aclRoleReq3 := &structs.ACLRolesByIDRequest{
+		ACLRoleIDs: []string{aclRoles[0].ID, aclRoles[1].ID},
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclRoleResp3 structs.ACLRolesByIDResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq3, &aclRoleResp3)
+	require.NoError(t, err)
+	require.Len(t, aclRoleResp3.ACLRoles, 2)
+	require.Contains(t, aclRoleResp3.ACLRoles, aclRoles[0].ID)
+	require.Contains(t, aclRoleResp3.ACLRoles, aclRoles[1].ID)
+
+	// Now test a blocking query, where we wait for an update to the set which
+	// is triggered by a deletion.
+	type res struct {
+		err   error
+		reply *structs.ACLRolesByIDResponse
+	}
+	resultCh := make(chan *res)
+
+	go func(resultCh chan *res) {
+		aclRoleReq4 := &structs.ACLRolesByIDRequest{
+			ACLRoleIDs: []string{aclRoles[0].ID, aclRoles[1].ID},
+			QueryOptions: structs.QueryOptions{
+				Region:        DefaultRegion,
+				AuthToken:     aclRootToken.SecretID,
+				MinQueryIndex: aclRoleResp3.Index,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var aclRoleResp4 structs.ACLRolesByIDResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq4, &aclRoleResp4)
+		resultCh <- &res{err: err, reply: &aclRoleResp4}
+	}(resultCh)
+
+	// Delete an ACL role from state which should return the blocking query.
+	require.NoError(t, testServer.fsm.State().DeleteACLRolesByID(
+		structs.MsgTypeTestSetup, aclRoleResp3.Index+10, []string{aclRoles[0].ID}))
+
+	// Wait for the result and then test it.
+	result := <-resultCh
+	require.NoError(t, result.err)
+	require.Len(t, result.reply.ACLRoles, 1)
+	_, ok := result.reply.ACLRoles[aclRoles[1].ID]
+	require.True(t, ok)
 }
 
 func TestACL_GetRoleByID(t *testing.T) {
@@ -2166,7 +2293,7 @@ func TestACL_GetRoleByID(t *testing.T) {
 
 	// Create two ACL roles and put these directly into state.
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Try reading a role without setting a correct auth token.
 	aclRoleReq1 := &structs.ACLRoleByIDRequest{
@@ -2236,7 +2363,7 @@ func TestACL_GetRoleByName(t *testing.T) {
 
 	// Create two ACL roles and put these directly into state.
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Try reading a role without setting a correct auth token.
 	aclRoleReq1 := &structs.ACLRoleByNameRequest{

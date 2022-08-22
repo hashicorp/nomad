@@ -159,7 +159,7 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 	// straight into state. It should fail because the ACL policies do not
 	// exist.
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole()}
-	err := testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles)
+	err := testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false)
 	require.ErrorContains(t, err, "policy not found")
 
 	// Create the policies our ACL roles wants to link to and then try the
@@ -171,7 +171,7 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 
 	require.NoError(t, testState.UpsertACLPolicies(
 		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles, false))
 
 	// Check that the index for the table was modified as expected.
 	initialIndex, err := testState.Index(TableACLRoles)
@@ -200,7 +200,7 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 
 	// Try writing the same ACL roles to state which should not result in an
 	// update to the table index.
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 30, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 30, mockedACLRoles, false))
 	reInsertActualIndex, err := testState.Index(TableACLRoles)
 	require.NoError(t, err)
 	must.Eq(t, 20, reInsertActualIndex)
@@ -211,7 +211,7 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 	updatedMockedACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: "mocked-test-policy-1"}}
 	updatedMockedACLRole.SetHash()
 	require.NoError(t, testState.UpsertACLRoles(
-		structs.MsgTypeTestSetup, 30, []*structs.ACLRole{updatedMockedACLRole}))
+		structs.MsgTypeTestSetup, 30, []*structs.ACLRole{updatedMockedACLRole}, false))
 
 	// Check that the index for the table was modified as expected.
 	updatedIndex, err := testState.Index(TableACLRoles)
@@ -235,6 +235,17 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 		must.Eq(t, 30, aclRole.ModifyIndex)
 	}
 	require.Equal(t, 1, count, "incorrect number of ACL roles found")
+
+	// Now try inserting an ACL role using the missing policies' argument to
+	// simulate replication.
+	replicatedACLRole := mock.ACLRole()
+	replicatedACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: "nope"}}
+	require.NoError(t, testState.UpsertACLRoles(
+		structs.MsgTypeTestSetup, 40, []*structs.ACLRole{replicatedACLRole}, true))
+
+	replicatedACLRoleResp, err := testState.GetACLRoleByName(ws, replicatedACLRole.Name)
+	require.NoError(t, err)
+	must.Eq(t, replicatedACLRole.Hash, replicatedACLRoleResp.Hash)
 }
 
 func TestStateStore_ValidateACLRolePolicyLinks(t *testing.T) {
@@ -245,7 +256,7 @@ func TestStateStore_ValidateACLRolePolicyLinks(t *testing.T) {
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole()}
 
 	// This should error as no policies exist within state.
-	err := testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles)
+	err := testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false)
 	require.ErrorContains(t, err, "ACL policy not found")
 
 	// Upsert one ACL policy and retry the role which should still fail.
@@ -253,7 +264,7 @@ func TestStateStore_ValidateACLRolePolicyLinks(t *testing.T) {
 	policy1.Name = "mocked-test-policy-1"
 
 	require.NoError(t, testState.UpsertACLPolicies(structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1}))
-	err = testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles)
+	err = testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles, false)
 	require.ErrorContains(t, err, "ACL policy not found")
 
 	// Upsert the second ACL policy. The ACL role should now upsert into state
@@ -262,7 +273,7 @@ func TestStateStore_ValidateACLRolePolicyLinks(t *testing.T) {
 	policy2.Name = "mocked-test-policy-2"
 
 	require.NoError(t, testState.UpsertACLPolicies(structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{policy2}))
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 30, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 30, mockedACLRoles, false))
 }
 
 func TestStateStore_DeleteACLRolesByID(t *testing.T) {
@@ -281,7 +292,7 @@ func TestStateStore_DeleteACLRolesByID(t *testing.T) {
 	// Generate a some mocked ACL roles for testing and upsert these straight
 	// into state.
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false))
 
 	// Try and delete a role using a name that doesn't exist. This should
 	// return an error and not change the index for the table.
@@ -353,7 +364,7 @@ func TestStateStore_GetACLRoles(t *testing.T) {
 	// Generate a some mocked ACL roles for testing and upsert these straight
 	// into state.
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false))
 
 	// List the ACL roles and ensure they are exactly as we expect.
 	ws := memdb.NewWatchSet()
@@ -391,7 +402,7 @@ func TestStateStore_GetACLRoleByID(t *testing.T) {
 	// Generate a some mocked ACL roles for testing and upsert these straight
 	// into state.
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false))
 
 	ws := memdb.NewWatchSet()
 
@@ -426,7 +437,7 @@ func TestStateStore_GetACLRoleByName(t *testing.T) {
 	// Generate a some mocked ACL roles for testing and upsert these straight
 	// into state.
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false))
 
 	ws := memdb.NewWatchSet()
 
@@ -464,7 +475,7 @@ func TestStateStore_GetACLRoleByIDPrefix(t *testing.T) {
 	mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
 	mockedACLRoles[0].ID = "test-prefix-" + uuid.Generate()
 	mockedACLRoles[1].ID = "test-prefix-" + uuid.Generate()
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, mockedACLRoles, false))
 
 	ws := memdb.NewWatchSet()
 
@@ -513,7 +524,7 @@ func TestStateStore_fixTokenRoleLinks(t *testing.T) {
 				// Generate a some mocked ACL roles for testing and upsert these straight
 				// into state.
 				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles, false))
 
 				// Create an ACL token linking to the ACL role.
 				token1 := mock.ACLToken()
@@ -548,7 +559,7 @@ func TestStateStore_fixTokenRoleLinks(t *testing.T) {
 				// Generate a some mocked ACL roles for testing and upsert these straight
 				// into state.
 				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles, false))
 
 				// Create an ACL token linking to the ACL roles.
 				token1 := mock.ACLToken()
@@ -588,7 +599,7 @@ func TestStateStore_fixTokenRoleLinks(t *testing.T) {
 				// Generate a some mocked ACL roles for testing and upsert these straight
 				// into state.
 				mockedACLRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles))
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 20, mockedACLRoles, false))
 
 				// Create an ACL token linking to the ACL roles.
 				token1 := mock.ACLToken()
@@ -598,7 +609,7 @@ func TestStateStore_fixTokenRoleLinks(t *testing.T) {
 
 				// Now change the name of one of the ACL roles.
 				mockedACLRoles[0].Name = "badger-badger-badger"
-				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 40, mockedACLRoles))
+				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 40, mockedACLRoles, false))
 
 				// Perform the fix and check the returned token contains the
 				// correct roles.

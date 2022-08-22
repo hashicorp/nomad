@@ -395,6 +395,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		default:
 			go s.replicateACLPolicies(stopCh)
 			go s.replicateACLTokens(stopCh)
+			go s.replicateACLRoles(stopCh)
 			go s.replicateNamespaces(stopCh)
 		}
 	}
@@ -1689,6 +1690,229 @@ func diffACLTokens(store *state.StateStore, minIndex uint64, remoteList []*struc
 	return
 }
 
+// replicateACLRoles is used to replicate ACL Roles from the authoritative
+// region to this region. The loop should only be run on the leader within the
+// federated region.
+func (s *Server) replicateACLRoles(stopCh chan struct{}) {
+
+	// Generate our request object. We only need to do this once and reuse it
+	// for every RPC request. The MinQueryIndex is updated after every
+	// successful replication loop, so the next query acts as a blocking query
+	// and only returns upon a change in the authoritative region.
+	req := structs.ACLRolesListRequest{
+		QueryOptions: structs.QueryOptions{
+			AllowStale: true,
+			Region:     s.config.AuthoritativeRegion,
+		},
+	}
+
+	// Create our replication rate limiter for ACL roles and log a lovely
+	// message to indicate the process is starting.
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting ACL Role replication from authoritative region",
+		"authoritative_region", req.Region)
+
+	// Enter the main ACL Role replication loop that will only exit when the
+	// stopCh is closed.
+	//
+	// Any error encountered will use the replicationBackoffContinue function
+	// which handles replication backoff and shutdown coordination in the event
+	// of an error inside the loop.
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+
+			// Rate limit how often we attempt replication. It is OK to ignore
+			// the error as the context will never be cancelled and the limit
+			// parameters are controlled internally.
+			_ = limiter.Wait(context.Background())
+
+			// Set the replication token on each replication iteration so that
+			// it is always current and can handle agent SIGHUP reloads.
+			req.AuthToken = s.ReplicationToken()
+
+			var resp structs.ACLRolesListResponse
+
+			// Make the list RPC request to the authoritative region, so we
+			// capture the latest ACL role listing.
+			err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLListRolesRPCMethod, &req, &resp)
+			if err != nil {
+				s.logger.Error("failed to fetch ACL Roles from authoritative region", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
+			// Perform a two-way diff on the ACL roles.
+			toDelete, toUpdate := diffACLRoles(s.State(), req.MinQueryIndex, resp.ACLRoles)
+
+			// A significant amount of time could pass between the last check
+			// on whether we should stop the replication process. Therefore, do
+			// a check here, before calling Raft.
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			// If we have ACL roles to delete, make this call directly to Raft.
+			if len(toDelete) > 0 {
+				args := structs.ACLRolesDeleteByIDRequest{ACLRoleIDs: toDelete}
+				_, _, err := s.raftApply(structs.ACLRolesDeleteByIDRequestType, &args)
+
+				// If the error was because we lost leadership while calling
+				// Raft, avoid logging as this can be confusing to operators.
+				if err != nil {
+					if err != raft.ErrLeadershipLost {
+						s.logger.Error("failed to delete ACL roles", "error", err)
+					}
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Fetch any outdated policies.
+			var fetched []*structs.ACLRole
+			if len(toUpdate) > 0 {
+				req := structs.ACLRolesByIDRequest{
+					ACLRoleIDs: toUpdate,
+					QueryOptions: structs.QueryOptions{
+						Region:        s.config.AuthoritativeRegion,
+						AuthToken:     s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
+					},
+				}
+				var reply structs.ACLRolesByIDResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLGetRolesByIDRPCMethod, &req, &reply); err != nil {
+					s.logger.Error("failed to fetch ACL Roles from authoritative region", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+				for _, aclRole := range reply.ACLRoles {
+					fetched = append(fetched, aclRole)
+				}
+			}
+
+			// Update local tokens
+			if len(fetched) > 0 {
+
+				// The replication of ACL roles and policies are independent,
+				// therefore we cannot ensure the policies linked within the
+				// role are present. We must set allow missing to true.
+				args := structs.ACLRolesUpsertRequest{
+					ACLRoles:             fetched,
+					AllowMissingPolicies: true,
+				}
+
+				// Perform the upsert directly via Raft.
+				_, _, err := s.raftApply(structs.ACLRolesUpsertRequestType, &args)
+				if err != nil {
+					s.logger.Error("failed to update ACL roles", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Update the minimum query index, blocks until there is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+}
+
+// replicationBackoffContinue should be used when a replication loop encounters
+// an error and wants to wait until either the backoff time has been met, or
+// the stopCh has been closed. The boolean indicates whether the replication
+// process should continue.
+//
+// Typical use:
+//
+//	  if s.replicationBackoffContinue(stopCh) {
+//		   continue
+//		 } else {
+//	    return
+//	  }
+func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
+
+	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
+	defer timerStopFn()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-stopCh:
+		return false
+	}
+}
+
+// diffACLRoles is used to perform a two-way diff between the local ACL Roles
+// and the remote Roles to determine which tokens need to be deleted or
+// updated. The returned array's contain ACL Role IDs.
+func diffACLRoles(
+	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLRole) (
+	delete []string, update []string) {
+
+	// The local ACL role tracking is keyed by the role ID and the value is the
+	// hash of the role.
+	local := make(map[string][]byte)
+
+	// The remote ACL role tracking is keyed by the role ID; the value is an
+	// empty struct as we already have the full object.
+	remote := make(map[string]struct{})
+
+	// Read all the ACL role currently held within our local state. This panic
+	// will only happen as a developer making a mistake with naming the index
+	// to use.
+	iter, err := store.GetACLRoles(nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to iterate local ACL roles: %v", err))
+	}
+
+	// Iterate the local ACL roles and add them to our tracking of local roles.
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclRole := raw.(*structs.ACLRole)
+		local[aclRole.ID] = aclRole.Hash
+	}
+
+	// Iterate over the remote ACL roles.
+	for _, remoteACLRole := range remoteList {
+		remote[remoteACLRole.ID] = struct{}{}
+
+		// Identify whether the ACL role is within the local state. If it is
+		// not, add this to our update list.
+		if localHash, ok := local[remoteACLRole.ID]; !ok {
+			update = append(update, remoteACLRole.ID)
+
+			// Check if ACL role is newer remotely and there is a hash
+			// mismatch.
+		} else if remoteACLRole.ModifyIndex > minIndex && !bytes.Equal(localHash, remoteACLRole.Hash) {
+			update = append(update, remoteACLRole.ID)
+		}
+	}
+
+	// If we have ACL roles within state which are no longer present in the
+	// authoritative region we should delete them.
+	for localACLRole := range local {
+		if _, ok := remote[localACLRole]; !ok {
+			delete = append(delete, localACLRole)
+		}
+	}
+	return
+}
+
 // getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
 func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	state := s.fsm.State()
@@ -1807,10 +2031,10 @@ func (s *Server) generateClusterID() (string, error) {
 //
 // The function checks the server is the leader and uses a mutex to avoid any
 // potential timings problems. Consider the following timings:
-//  - operator updates the configuration via the API
-//  - the RPC handler applies the change via Raft
-//  - leadership transitions with write barrier
-//  - the RPC handler call this function to enact the change
+//   - operator updates the configuration via the API
+//   - the RPC handler applies the change via Raft
+//   - leadership transitions with write barrier
+//   - the RPC handler call this function to enact the change
 //
 // The mutex also protects against a situation where leadership is revoked
 // while this function is being called. Ensuring the correct series of actions

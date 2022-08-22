@@ -2911,7 +2911,7 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 
 	// Generate and upsert some ACL roles.
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Perform a snapshot restore.
 	restoredFSM := testSnapshotRestore(t, fsm)
@@ -3497,7 +3497,7 @@ func TestFSM_ApplyACLRolesDeleteByID(t *testing.T) {
 
 	// Generate and upsert two ACL roles.
 	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-	require.NoError(t, fsm.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles))
+	require.NoError(t, fsm.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
 
 	// Build and apply our message.
 	req := structs.ACLRolesDeleteByIDRequest{ACLRoleIDs: []string{aclRoles[0].ID, aclRoles[1].ID}}

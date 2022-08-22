@@ -636,7 +636,7 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 
 				// Create two ACL roles and put these directly into state.
 				aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
-				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles))
+				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles, false))
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles", nil)
@@ -669,7 +669,7 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 				// using a custom prefix.
 				aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
 				aclRoles[1].ID = "badger-badger-badger-" + uuid.Generate()
-				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles))
+				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles, false))
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles?prefix=badger-badger-badger", nil)
@@ -901,7 +901,7 @@ func TestHTTPServer_ACLRoleSpecificRequest(t *testing.T) {
 				// Create a mock role and put directly into state.
 				mockACLRole := mock.ACLRole()
 				require.NoError(t, srv.server.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}))
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}, false))
 
 				url := fmt.Sprintf("/v1/acl/role/name/%s", mockACLRole.Name)
 
@@ -935,7 +935,7 @@ func TestHTTPServer_ACLRoleSpecificRequest(t *testing.T) {
 				// Create a mock role and put directly into state.
 				mockACLRole := mock.ACLRole()
 				require.NoError(t, srv.server.State().UpsertACLRoles(
-					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}))
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}, false))
 
 				url := fmt.Sprintf("/v1/acl/role/%s", mockACLRole.ID)
 
