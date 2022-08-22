@@ -153,8 +153,10 @@ export default class Allocation extends Model {
     return this.store.adapterFor('allocation').stop(this);
   }
 
-  restart(taskName) {
-    return this.store.adapterFor('allocation').restart(this, taskName);
+  restart(taskName, allTasks) {
+    return this.store
+      .adapterFor('allocation')
+      .restart(this, taskName, allTasks);
   }
 
   ls(path) {
