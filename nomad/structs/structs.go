@@ -11786,15 +11786,15 @@ func (a *ACLPolicy) Validate() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	if a.JobACL != nil {
-		if a.JobACL.Namespace == "" && a.JobACL.JobID != "" {
+		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
 			err := fmt.Errorf("namespace must be set to set job ID")
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		if a.JobACL.JobID == "" && a.JobACL.Group != "" {
+		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
 			err := fmt.Errorf("job ID must be set to set group")
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		if a.JobACL.Group == "" && a.JobACL.Task != "" {
+		if a.JobACL.Task != "" && a.JobACL.Group == "" {
 			err := fmt.Errorf("group must be set to set task")
 			mErr.Errors = append(mErr.Errors, err)
 		}

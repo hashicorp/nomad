@@ -74,9 +74,9 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 
-	flags.StringVar(&jobID, "job", "", "job to attach this policy to")
-	flags.StringVar(&group, "group", "", "group to attach this policy to")
-	flags.StringVar(&task, "task", "", "task to attach this policy to")
+	flags.StringVar(&jobID, "job", "", "attach policy to job")
+	flags.StringVar(&group, "group", "", "attach policy to group")
+	flags.StringVar(&task, "task", "", "attach policy to task")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -114,15 +114,15 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	f := flags.Lookup("namespace")
 	namespace := f.Value.String()
 
-	if namespace == "" && jobID != "" {
+	if jobID != "" && namespace == "" {
 		c.Ui.Error("-namespace is required if -job is set")
 		return 1
 	}
-	if jobID == "" && group != "" {
+	if group != "" && jobID == "" {
 		c.Ui.Error("-job is required if -group is set")
 		return 1
 	}
-	if group == "" && task != "" {
+	if task != "" && group == "" {
 		c.Ui.Error("-group is required if -task is set")
 		return 1
 	}
