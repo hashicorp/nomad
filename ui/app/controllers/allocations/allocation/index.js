@@ -47,19 +47,22 @@ export default class IndexController extends Controller.extend(Sortable) {
     return (this.get('model.allocatedResources.ports') || []).sortBy('label');
   }
 
+  @computed('model.states.@each.task')
+  get tasks() {
+    return this.get('model.states').mapBy('task') || [];
+  };
+
+  @computed('tasks.@each.services')
+  get taskServices() {
+    return this.get('tasks')
+      .map((t) => (t.get('services') || []).toArray())
+      .flat()
+      .compact();
+  }
+
   @computed('model.taskGroup.services.@each.name')
   get groupServices() {
     return (this.get('model.taskGroup.services') || []).sortBy('name');
-  }
-
-  @computed('model.states.@each.services')
-  get taskServices() {
-    const allTaskServicesFragments =
-      this.get('model.states').mapBy('task.services').compact() || [];
-    const allTaskServices = allTaskServicesFragments
-      .map((frag) => frag.toArray())
-      .flat();
-    return allTaskServices.sortBy('name');
   }
 
   @union('taskServices', 'groupServices') services;
