@@ -50,7 +50,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   @computed('model.states.@each.task')
   get tasks() {
     return this.get('model.states').mapBy('task') || [];
-  };
+  }
 
   @computed('tasks.@each.services')
   get taskServices() {
