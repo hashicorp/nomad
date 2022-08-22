@@ -35,6 +35,9 @@ func NewGate(shutdownCh <-chan struct{}) *Gate {
 
 // WaitCh returns a channel that the listener must block on before starting its
 // task.
+//
+// Callers must also check the state of the shutdownCh used to create the Gate
+// to avoid blocking indefinitely.
 func (g *Gate) WaitCh() <-chan struct{} {
 	return g.sendCh
 }
