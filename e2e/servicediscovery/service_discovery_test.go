@@ -20,6 +20,8 @@ const (
 	jobMultiProvider    = "./input/multi_provider.nomad"
 	jobSimpleLBReplicas = "./input/simple_lb_replicas.nomad"
 	jobSimpleLBClients  = "./input/simple_lb_clients.nomad"
+	jobChecksHappy      = "./input/checks_happy.nomad"
+	jobChecksSad        = "./input/checks_sad.nomad"
 )
 
 const (
@@ -41,6 +43,8 @@ func TestServiceDiscovery(t *testing.T) {
 	t.Run("TestServiceDiscovery_MultiProvider", testMultiProvider)
 	t.Run("TestServiceDiscovery_UpdateProvider", testUpdateProvider)
 	t.Run("TestServiceDiscovery_SimpleLoadBalancing", testSimpleLoadBalancing)
+	t.Run("TestServiceDiscovery_ChecksHappy", testChecksHappy)
+	t.Run("TestServiceDiscovery_ChecksSad", testChecksSad)
 }
 
 // testMultiProvider tests service discovery where multi providers are used
