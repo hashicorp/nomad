@@ -146,6 +146,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     );
 
     this.set('taskStates.4.finishedAt', new Date());
+    this.set('taskStates.4.state', 'dead');
     await settled();
 
     assert.ok(Chart.tasks[5].isFinished);
