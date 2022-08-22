@@ -129,13 +129,17 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 
 	// Construct the policy
 	ap := &api.ACLPolicy{
-		Name:         policyName,
-		Description:  description,
-		Rules:        string(rawPolicy),
-		JobNamespace: namespace,
-		JobID:        jobID,
-		Group:        group,
-		Task:         task,
+		Name:        policyName,
+		Description: description,
+		Rules:       string(rawPolicy),
+	}
+	if namespace != "" {
+		ap.JobACL = &api.JobACL{
+			Namespace: namespace,
+			JobID:     jobID,
+			Group:     group,
+			Task:      task,
+		}
 	}
 
 	// Get the HTTP client

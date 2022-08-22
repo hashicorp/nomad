@@ -141,12 +141,12 @@ func formatACLPolicy(policy *api.ACLPolicy) string {
 
 	formattedOut := formatKV(output)
 
-	if policy.JobNamespace != "" {
+	if policy.JobACL != nil {
 		output := []string{
-			fmt.Sprintf("Namespace|%v", policy.JobNamespace),
-			fmt.Sprintf("JobID|%v", policy.JobID),
-			fmt.Sprintf("Group|%v", policy.Group),
-			fmt.Sprintf("Task|%v", policy.Task),
+			fmt.Sprintf("Namespace|%v", policy.JobACL.Namespace),
+			fmt.Sprintf("JobID|%v", policy.JobACL.JobID),
+			fmt.Sprintf("Group|%v", policy.JobACL.Group),
+			fmt.Sprintf("Task|%v", policy.JobACL.Task),
 		}
 		formattedOut += "\n\n[bold]Associated Workload[reset]\n"
 		formattedOut += formatKV(output)

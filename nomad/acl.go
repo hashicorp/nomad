@@ -192,15 +192,18 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 			break
 		}
 		policy := raw.(*structs.ACLPolicy)
+		if policy.JobACL == nil {
+			continue
+		}
 
 		switch {
-		case policy.Group == "":
+		case policy.JobACL.Group == "":
 			policies = append(policies, policy)
-		case policy.Group != alloc.TaskGroup:
+		case policy.JobACL.Group != alloc.TaskGroup:
 			continue // don't bother checking task
-		case policy.Task == "":
+		case policy.JobACL.Task == "":
 			policies = append(policies, policy)
-		case policy.Task == claims.TaskName:
+		case policy.JobACL.Task == claims.TaskName:
 			policies = append(policies, policy)
 		}
 	}

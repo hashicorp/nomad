@@ -158,44 +158,58 @@ func TestResolveClaims(t *testing.T) {
 
 	// policy for job
 	policy1 := mock.ACLPolicy()
-	policy1.JobNamespace = claims.Namespace
-	policy1.JobID = claims.JobID
+	policy1.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     claims.JobID,
+	}
 
 	// policy for job and group
 	policy2 := mock.ACLPolicy()
-	policy2.JobNamespace = claims.Namespace
-	policy2.JobID = claims.JobID
-	policy2.Group = alloc.Job.TaskGroups[0].Name
+	policy2.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     claims.JobID,
+		Group:     alloc.Job.TaskGroups[0].Name,
+	}
 
 	// policy for job and group	and task
 	policy3 := mock.ACLPolicy()
-	policy3.JobNamespace = claims.Namespace
-	policy3.JobID = claims.JobID
-	policy3.Group = alloc.Job.TaskGroups[0].Name
-	policy3.Task = claims.TaskName
+	policy3.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     claims.JobID,
+		Group:     alloc.Job.TaskGroups[0].Name,
+		Task:      claims.TaskName,
+	}
 
 	// policy for job and group	but different task
 	policy4 := mock.ACLPolicy()
-	policy4.JobNamespace = claims.Namespace
-	policy4.JobID = claims.JobID
-	policy4.Group = alloc.Job.TaskGroups[0].Name
-	policy4.Task = "another"
+	policy4.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     claims.JobID,
+		Group:     alloc.Job.TaskGroups[0].Name,
+		Task:      "another",
+	}
 
 	// policy for job but different group
 	policy5 := mock.ACLPolicy()
-	policy5.JobNamespace = claims.Namespace
-	policy5.JobID = claims.JobID
-	policy5.Group = "another"
+	policy5.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     claims.JobID,
+		Group:     "another",
+	}
 
 	// policy for same namespace but different job
 	policy6 := mock.ACLPolicy()
-	policy6.JobNamespace = claims.Namespace
-	policy6.JobID = "another"
+	policy6.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+		JobID:     "another",
+	}
 
 	// policy for same job in different namespace
 	policy7 := mock.ACLPolicy()
-	policy7.JobNamespace = "another"
-	policy7.JobID = claims.JobID
+	policy7.JobACL = &structs.JobACL{
+		Namespace: "another",
+		JobID:     claims.JobID,
+	}
 
 	index++
 	err := store.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{

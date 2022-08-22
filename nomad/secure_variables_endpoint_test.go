@@ -81,9 +81,11 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 		    path "nomad/jobs/*" { capabilities = ["list"] }
 		    path "other/path" { capabilities = ["read"] }
 		}}`
-	policy.JobNamespace = ns
-	policy.JobID = jobID
-	policy.Group = alloc1.TaskGroup
+	policy.JobACL = &structs.JobACL{
+		Namespace: ns,
+		JobID:     jobID,
+		Group:     alloc1.TaskGroup,
+	}
 	policy.SetHash()
 	err = store.UpsertACLPolicies(structs.MsgTypeTestSetup, 1100, []*structs.ACLPolicy{policy})
 	must.NoError(t, err)
