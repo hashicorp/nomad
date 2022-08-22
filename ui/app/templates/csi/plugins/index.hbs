@@ -1,10 +1,5 @@
 {{page-title "CSI Plugins"}}
-<div class="tabs is-subnav">
-  <ul>
-    <li data-test-tab="volumes"><LinkTo @route="csi.volumes.index" @activeClass="is-active">Volumes</LinkTo></li>
-    <li data-test-tab="plugins"><LinkTo @route="csi.plugins.index" @activeClass="is-active">Plugins</LinkTo></li>
-  </ul>
-</div>
+<StorageSubnav />
 <section class="section">
   {{#if this.isForbidden}}
     <ForbiddenMessage />

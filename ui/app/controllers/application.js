@@ -9,12 +9,24 @@ import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
 import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
-
+// eslint-disable-next-line no-unused-vars
+import KeyboardService from '../services/keyboard';
 @classic
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
   @service token;
+
+  /**
+   * @type {KeyboardService}
+   */
+  @service keyboard;
+
+  // eslint-disable-next-line ember/classic-decorator-hooks
+  constructor() {
+    super(...arguments);
+    this.keyboard.listenForKeypress();
+  }
 
   queryParams = [
     {
