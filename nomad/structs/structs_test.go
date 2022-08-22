@@ -2580,6 +2580,64 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 }
 
+func TestTemplate_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	t1 := &Template{
+		SourcePath:   "/local/file.txt",
+		DestPath:     "/local/dest.txt",
+		EmbeddedTmpl: "tpl",
+		ChangeMode:   TemplateChangeModeSignal,
+		ChangeSignal: "SIGHUP",
+		Splay:        10 * time.Second,
+		Perms:        "777",
+		Uid:          pointer.Of(1000),
+		Gid:          pointer.Of(2000),
+		LeftDelim:    "[[",
+		RightDelim:   "]]",
+		Envvars:      true,
+		VaultGrace:   time.Minute,
+		Wait: &WaitConfig{
+			Min: pointer.Of(time.Second),
+			Max: pointer.Of(time.Minute),
+		},
+	}
+	t2 := t1.Copy()
+
+	t1.SourcePath = "/local/file2.txt"
+	t1.DestPath = "/local/dest2.txt"
+	t1.EmbeddedTmpl = "tpl2"
+	t1.ChangeMode = TemplateChangeModeRestart
+	t1.ChangeSignal = ""
+	t1.Splay = 5 * time.Second
+	t1.Perms = "700"
+	t1.Uid = pointer.Of(5000)
+	t1.Gid = pointer.Of(6000)
+	t1.LeftDelim = "(("
+	t1.RightDelim = "))"
+	t1.Envvars = false
+	t1.VaultGrace = 2 * time.Minute
+	t1.Wait.Min = pointer.Of(2 * time.Second)
+	t1.Wait.Max = pointer.Of(2 * time.Minute)
+
+	require.NotEqual(t, t1.SourcePath, t2.SourcePath)
+	require.NotEqual(t, t1.DestPath, t2.DestPath)
+	require.NotEqual(t, t1.EmbeddedTmpl, t2.EmbeddedTmpl)
+	require.NotEqual(t, t1.ChangeMode, t2.ChangeMode)
+	require.NotEqual(t, t1.ChangeSignal, t2.ChangeSignal)
+	require.NotEqual(t, t1.Splay, t2.Splay)
+	require.NotEqual(t, t1.Perms, t2.Perms)
+	require.NotEqual(t, t1.Uid, t2.Uid)
+	require.NotEqual(t, t1.Gid, t2.Gid)
+	require.NotEqual(t, t1.LeftDelim, t2.LeftDelim)
+	require.NotEqual(t, t1.RightDelim, t2.RightDelim)
+	require.NotEqual(t, t1.Envvars, t2.Envvars)
+	require.NotEqual(t, t1.VaultGrace, t2.VaultGrace)
+	require.NotEqual(t, t1.Wait.Min, t2.Wait.Min)
+	require.NotEqual(t, t1.Wait.Max, t2.Wait.Max)
+
+}
+
 func TestTemplate_Validate(t *testing.T) {
 	ci.Parallel(t)
 
