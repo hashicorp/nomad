@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
@@ -170,7 +171,9 @@ type allocRunner struct {
 	// restore.
 	serversContactedCh chan struct{}
 
-	taskHookCoordinator *taskHookCoordinator
+	// taskCoordinator is used to controlled when tasks are allowed to run
+	// depending on their lifecycle configuration.
+	taskCoordinator *tasklifecycle.Coordinator
 
 	shutdownDelayCtx      context.Context
 	shutdownDelayCancelFn context.CancelFunc
@@ -241,7 +244,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
 
-	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
+	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
@@ -264,27 +267,27 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:                ar.alloc,
-			ClientConfig:         ar.clientConfig,
-			Task:                 task,
-			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
-			Logger:               ar.logger,
-			StateDB:              ar.stateDB,
-			StateUpdater:         ar,
-			DynamicRegistry:      ar.dynamicRegistry,
-			Consul:               ar.consulClient,
-			ConsulProxies:        ar.consulProxiesClient,
-			ConsulSI:             ar.sidsClient,
-			Vault:                ar.vaultClient,
-			DeviceStatsReporter:  ar.deviceStatsReporter,
-			CSIManager:           ar.csiManager,
-			DeviceManager:        ar.devicemanager,
-			DriverManager:        ar.driverManager,
-			ServersContactedCh:   ar.serversContactedCh,
-			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
-			ShutdownDelayCtx:     ar.shutdownDelayCtx,
-			ServiceRegWrapper:    ar.serviceRegWrapper,
-			Getter:               ar.getter,
+			Alloc:               ar.alloc,
+			ClientConfig:        ar.clientConfig,
+			Task:                task,
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
+			Logger:              ar.logger,
+			StateDB:             ar.stateDB,
+			StateUpdater:        ar,
+			DynamicRegistry:     ar.dynamicRegistry,
+			Consul:              ar.consulClient,
+			ConsulProxies:       ar.consulProxiesClient,
+			ConsulSI:            ar.sidsClient,
+			Vault:               ar.vaultClient,
+			DeviceStatsReporter: ar.deviceStatsReporter,
+			CSIManager:          ar.csiManager,
+			DeviceManager:       ar.devicemanager,
+			DriverManager:       ar.driverManager,
+			ServersContactedCh:  ar.serversContactedCh,
+			StartConditionMetCh: ar.taskCoordinator.StartConditionForTask(task),
+			ShutdownDelayCtx:    ar.shutdownDelayCtx,
+			ServiceRegWrapper:   ar.serviceRegWrapper,
+			Getter:              ar.getter,
 		}
 
 		if ar.cpusetManager != nil {
@@ -382,26 +385,12 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
-	// Start all tasks
+	// Start and wait for all tasks.
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
-
-	// Block on all tasks except poststop tasks
 	for _, task := range ar.tasks {
-		if !task.IsPoststopTask() {
-			<-task.WaitCh()
-		}
-	}
-
-	// Signal poststop tasks to proceed to main runtime
-	ar.taskHookCoordinator.StartPoststopTasks()
-
-	// Wait for poststop tasks to finish before proceeding
-	for _, task := range ar.tasks {
-		if task.IsPoststopTask() {
-			<-task.WaitCh()
-		}
+		<-task.WaitCh()
 	}
 }
 
@@ -455,7 +444,7 @@ func (ar *allocRunner) Restore() error {
 		states[tr.Task().Name] = tr.TaskState()
 	}
 
-	ar.taskHookCoordinator.taskStateUpdated(states)
+	ar.taskCoordinator.Restore(states)
 
 	return nil
 }
@@ -590,7 +579,7 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		ar.taskHookCoordinator.taskStateUpdated(states)
+		ar.taskCoordinator.TaskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
@@ -601,6 +590,28 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// Broadcast client alloc to listeners
 		ar.allocBroadcaster.Send(calloc)
 	}
+}
+
+// hasNonSidecarTasks returns false if all the passed tasks are sidecar tasks
+func hasNonSidecarTasks(tasks []*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		if !tr.IsSidecarTask() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasSidecarTasks returns true if any of the passed tasks are sidecar tasks
+func hasSidecarTasks(tasks map[string]*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		if tr.IsSidecarTask() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // killTasks kills all task runners, leader (if there is one) first. Errors are

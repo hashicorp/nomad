@@ -228,8 +228,8 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
-	// startConditionMetCtx is done when TR should start the task
-	startConditionMetCtx <-chan struct{}
+	// startConditionMetCh signals the TaskRunner when it should start the task
+	startConditionMetCh <-chan struct{}
 
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
@@ -299,8 +299,8 @@ type Config struct {
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
 
-	// startConditionMetCtx is done when TR should start the task
-	StartConditionMetCtx <-chan struct{}
+	// StartConditionMetCh signals the TaskRunner when it should start the task
+	StartConditionMetCh <-chan struct{}
 
 	// ShutdownDelayCtx is a context from the alloc runner which will
 	// tell us to exit early from shutdown_delay
@@ -369,7 +369,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		driverManager:          config.DriverManager,
 		maxEvents:              defaultMaxEvents,
 		serversContactedCh:     config.ServersContactedCh,
-		startConditionMetCtx:   config.StartConditionMetCtx,
+		startConditionMetCh:    config.StartConditionMetCh,
 		shutdownDelayCtx:       config.ShutdownDelayCtx,
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
@@ -536,8 +536,11 @@ func (tr *TaskRunner) Run() {
 		}
 	}
 
+	// Set the initial task state.
+	tr.stateUpdater.TaskStateUpdated()
+
 	select {
-	case <-tr.startConditionMetCtx:
+	case <-tr.startConditionMetCh:
 		tr.logger.Debug("lifecycle start condition has been met, proceeding")
 		// yay proceed
 	case <-tr.killCtx.Done():
