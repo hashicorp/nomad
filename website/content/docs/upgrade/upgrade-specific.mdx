@@ -13,6 +13,19 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.3.3
+
+Environments that don't support the use of [`uid`][template_uid] and
+[`gid`][template_gid] in `template` blocks, such as Windows clients, may
+experience task failures with the following message after upgrading to Nomad
+1.3.3:
+
+```
+Template failed: error rendering "(dynamic)" => "...": failed looking up user: managing file ownership is not supported on Windows
+```
+
+It is recommended to avoid this version of Nomad in such environments.
+
 ## Nomad 1.3.2, 1.2.9, 1.1.15
 
 #### Client `max_kill_timeout` now enforced
@@ -1418,6 +1431,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [vault_grace]: /docs/job-specification/template
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
+[template_gid]: /docs/job-specification/template#gid
+[template_uid]: /docs/job-specification/template#uid
 [pki]: https://www.vaultproject.io/docs/secrets/pki
 [`volume create`]: /docs/commands/volume/create
 [`volume register`]: /docs/commands/volume/register

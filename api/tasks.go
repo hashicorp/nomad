@@ -837,12 +837,6 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Perms == nil {
 		tmpl.Perms = pointerOf("0644")
 	}
-	if tmpl.Uid == nil {
-		tmpl.Uid = pointerOf(-1)
-	}
-	if tmpl.Gid == nil {
-		tmpl.Gid = pointerOf(-1)
-	}
 	if tmpl.LeftDelim == nil {
 		tmpl.LeftDelim = pointerOf("{{")
 	}
