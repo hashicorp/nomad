@@ -12,15 +12,10 @@
 				<t.sort-by @prop="name">name</t.sort-by>
 				<t.sort-by @prop="client" class="is-200px is-truncatable">Client</t.sort-by>
 				<th>Tags</th>
-				<t.sort-by @prop="resource">Resources</t.sort-by>
 				<t.sort-by @prop="numAllocs">Number of Alocations</t.sort-by>
 			</t.head>
 			<t.body as |row|>
-				lol
-				{{!-- <JobClientStatusRow
-					@row={{row}}
-					@onClick={{this.gotoClient}}
-				/> --}}
+				<JobServiceRow @service={{row.model}} />
 			</t.body>
 		</ListTable>
   {{else}}

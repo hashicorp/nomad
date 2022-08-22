@@ -1,0 +1,16 @@
+<tr data-test-service={{@service.id}}>
+  <td>
+    {{@service.name}}
+  </td>
+  <td>
+    {{@service.node.name}}
+  </td>
+  <td>
+    {{#each @service.tags as |tag|}}
+			<span class="tag">{{tag}}</span>
+    {{/each}}
+  </td>
+	<td>
+		{{@service.allocations.length}} {{pluralize "allocation" @service.allocations.length}}
+	</td>
+</tr>
