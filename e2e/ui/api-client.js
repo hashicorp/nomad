@@ -29,5 +29,4 @@ export const client = async (path, parameters, {data, headers: customHeaders, ..
     }, reason => {
       throw new Error(reason)
     });
-
 }
