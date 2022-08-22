@@ -1,26 +1,25 @@
 import { chromium } from '@playwright/test';
-import { execaSync } from 'execa';
+import { client, NOMAD_TOKEN } from './api-client.js';
+import { PROD_NAMESPACE, DEV_NAMESPACE, OPERATOR_POLICY_JSON, DEV_POLICY_JSON, ANON_POLICY_JSON } from './utils/index.js';
 
 async function globalSetup() {
-    // Run Nomad Commands
-    execaSync('nomad namespace apply -description "Prod" prod')
-    execaSync('nomad namespace apply -description "Dev" dev')
-    execaSync('nomad acl policy apply -description "Operator" operator ./policies/operator.hcl')
-    execaSync('nomad acl policy apply -description "Power User" dev ./policies/developer.hcl')
-    execaSync('nomad acl policy apply -description "Anonymous" anon ./policies/anon.hcl')
-    execaSync('nomad acl token create -name="E2E Operator" -policy=operator -type=client | tee operator.token')
-    execaSync('nomad acl token create -name="E2E Power User" -policy=dev -type=client | tee dev.token')
-    execaSync('nomad acl token create -name="E2E Anonymous User" -policy=anon -type=client | tee anon.token')  
-  
-  var NOMAD_TOKEN = process.env.NOMAD_TOKEN;
   if (NOMAD_TOKEN === undefined || NOMAD_TOKEN === "") {
     return
   }
 
-  var NOMAD_ADDR = process.env.NOMAD_ADDR;
-  if (NOMAD_ADDR == undefined || NOMAD_ADDR == "") {
-    NOMAD_ADDR = 'http://localhost:4646';
-  }
+  try {
+      await client(`/namespace/prod`, {data: PROD_NAMESPACE});
+      await client(`/namespace/dev`, {data: DEV_NAMESPACE});
+      await client(`/acl/policy/operator`, {data: OPERATOR_POLICY_JSON});
+      await client(`/acl/policy/dev`, {data: DEV_POLICY_JSON});
+      await client(`/acl/policy/anon`, {data: ANON_POLICY_JSON});
+      await client(`/acl/token/operator`, {data: OPERATOR_POLICY_JSON});
+      await client(`/acl/token/dev`, {data: DEV_POLICY_JSON});
+      await client(`/acl/token/anon`, {data: ANON_POLICY_JSON});
+
+    } catch (e) {
+      console.error('ERROR:  ', e)
+    }  
 
   const browser = await chromium.launch();
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
