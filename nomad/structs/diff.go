@@ -1671,6 +1671,24 @@ func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	}
 
+	// Add the pointer primitive fields.
+	if old != nil {
+		if old.Uid != nil {
+			oldPrimitiveFlat["Uid"] = fmt.Sprintf("%v", *old.Uid)
+		}
+		if old.Gid != nil {
+			oldPrimitiveFlat["Gid"] = fmt.Sprintf("%v", *old.Gid)
+		}
+	}
+	if new != nil {
+		if new.Uid != nil {
+			newPrimitiveFlat["Uid"] = fmt.Sprintf("%v", *new.Uid)
+		}
+		if new.Gid != nil {
+			newPrimitiveFlat["Gid"] = fmt.Sprintf("%v", *new.Gid)
+		}
+	}
+
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
