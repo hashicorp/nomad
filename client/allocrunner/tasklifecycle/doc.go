@@ -86,5 +86,8 @@ the Gate for main tasks, allowing them to start.
                ┌──┴─▼─┐      ┌──┴─▼─┐
                │ GATE │      │ GATE │
                └──────┘      └──────┘
+
+Diagram source:
+https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsjI0MDTViVGqBDKNLA2ArJLUihIgJ0ZJAQYeTdmDB8XE5CGrVHD08fF3BjPRZYJC%2Ffxcg7DIEGk6VDWyUEhicbZCcUliSSp2hfgNR6BpxCmDmelcWlSUmlcCsdkKm62%2BiZmo7kEOCOK8jtVmrGZiMVchxDHYGzXEYSpIspVUpKAREOQaHOIYFKKpgGkvjcIDp8kk2t7zaEoDcWgCmsnO%2Fv5BLp5%2BjiH%2BQVhNbkKLjyY8LtNFAyDdCgoavo6efppQ0%2FDorkETrQGypxDtrxmkmEyiK8iJ24CiVGAeKyqBGgPNVWjmYk%2FrVE7X8LhBiwtEcQRSBcT%2B%2Bs4KyK5D4pOewlFMRglfuDy6vmkoLoaL1yDLwXUquDuGuCogq4aLYDd9CnbT0V2uVKtUCwCqNQgp)
 */
 package tasklifecycle

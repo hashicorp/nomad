@@ -1,19 +1,19 @@
 package tasklifecycle
 
 import (
-	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	testing "github.com/mitchellh/go-testing-interface"
 )
 
-func RequireTaskBlocked(t *testing.T, c *Coordinator, task *structs.Task) {
+func RequireTaskBlocked(t testing.T, c *Coordinator, task *structs.Task) {
 	ch := c.StartConditionForTask(task)
 	requireChannelBlocking(t, ch, task.Name)
 }
 
-func RequireTaskAllowed(t *testing.T, c *Coordinator, task *structs.Task) {
+func RequireTaskAllowed(t testing.T, c *Coordinator, task *structs.Task) {
 	ch := c.StartConditionForTask(task)
 	requireChannelPassing(t, ch, task.Name)
 }
@@ -30,7 +30,7 @@ func WaitNotInitUntil(c *Coordinator, until time.Duration, errorFunc func()) {
 		})
 }
 
-func requireChannelPassing(t *testing.T, ch <-chan struct{}, name string) {
+func requireChannelPassing(t testing.T, ch <-chan struct{}, name string) {
 	testutil.WaitForResult(func() (bool, error) {
 		return !isChannelBlocking(ch), nil
 	}, func(_ error) {
@@ -38,7 +38,7 @@ func requireChannelPassing(t *testing.T, ch <-chan struct{}, name string) {
 	})
 }
 
-func requireChannelBlocking(t *testing.T, ch <-chan struct{}, name string) {
+func requireChannelBlocking(t testing.T, ch <-chan struct{}, name string) {
 	testutil.WaitForResult(func() (bool, error) {
 		return isChannelBlocking(ch), nil
 	}, func(_ error) {
