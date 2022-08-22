@@ -618,7 +618,7 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLRoleListRequest(respW, req)
 				require.NoError(t, err)
-				require.Empty(t, obj.([]*structs.ACLRole))
+				require.Empty(t, obj.([]*structs.ACLRoleListStub))
 			},
 		},
 		{
@@ -649,7 +649,7 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLRoleListRequest(respW, req)
 				require.NoError(t, err)
-				require.Len(t, obj.([]*structs.ACLRole), 2)
+				require.Len(t, obj.([]*structs.ACLRoleListStub), 2)
 			},
 		},
 		{
@@ -682,8 +682,8 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLRoleListRequest(respW, req)
 				require.NoError(t, err)
-				require.Len(t, obj.([]*structs.ACLRole), 1)
-				require.Contains(t, obj.([]*structs.ACLRole)[0].ID, "badger-badger-badger")
+				require.Len(t, obj.([]*structs.ACLRoleListStub), 1)
+				require.Contains(t, obj.([]*structs.ACLRoleListStub)[0].ID, "badger-badger-badger")
 			},
 		},
 	}

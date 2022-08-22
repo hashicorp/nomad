@@ -1862,7 +1862,7 @@ func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
 // and the remote Roles to determine which tokens need to be deleted or
 // updated. The returned array's contain ACL Role IDs.
 func diffACLRoles(
-	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLRole) (
+	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLRoleListStub) (
 	delete []string, update []string) {
 
 	// The local ACL role tracking is keyed by the role ID and the value is the

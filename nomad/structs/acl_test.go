@@ -667,6 +667,72 @@ func TestACLRole_Copy(t *testing.T) {
 	}
 }
 
+func TestACLRole_Stub(t *testing.T) {
+	testCases := []struct {
+		name           string
+		inputACLRole   *ACLRole
+		expectedOutput *ACLRoleListStub
+	}{
+		{
+			name: "partially hydrated",
+			inputACLRole: &ACLRole{
+				ID:          "1d6332c8-02d7-325e-f675-a9bb4aff0c51",
+				Name:        "my-lovely-role",
+				Description: "",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "my-lovely-policy"},
+				},
+				Hash:        []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				CreateIndex: 24,
+				ModifyIndex: 24,
+			},
+			expectedOutput: &ACLRoleListStub{
+				ID:          "1d6332c8-02d7-325e-f675-a9bb4aff0c51",
+				Name:        "my-lovely-role",
+				Description: "",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "my-lovely-policy"},
+				},
+				Hash:        []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				CreateIndex: 24,
+				ModifyIndex: 24,
+			},
+		},
+		{
+			name: "hully hydrated",
+			inputACLRole: &ACLRole{
+				ID:          "1d6332c8-02d7-325e-f675-a9bb4aff0c51",
+				Name:        "my-lovely-role",
+				Description: "this-is-my-lovely-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "my-lovely-policy"},
+				},
+				Hash:        []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				CreateIndex: 24,
+				ModifyIndex: 24,
+			},
+			expectedOutput: &ACLRoleListStub{
+				ID:          "1d6332c8-02d7-325e-f675-a9bb4aff0c51",
+				Name:        "my-lovely-role",
+				Description: "this-is-my-lovely-role",
+				Policies: []*ACLRolePolicyLink{
+					{Name: "my-lovely-policy"},
+				},
+				Hash:        []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				CreateIndex: 24,
+				ModifyIndex: 24,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputACLRole.Stub()
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
 func Test_ACLRolesUpsertRequest(t *testing.T) {
 	req := ACLRolesUpsertRequest{}
 	require.False(t, req.IsRead())

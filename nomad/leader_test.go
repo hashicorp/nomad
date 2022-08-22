@@ -1128,7 +1128,8 @@ func Test_diffACLRoles(t *testing.T) {
 	aclRole4 := mock.ACLRole()
 
 	// Run the diff function and test the output.
-	toDelete, toUpdate := diffACLRoles(stateStore, 50, []*structs.ACLRole{aclRole2, aclRole3, aclRole4})
+	toDelete, toUpdate := diffACLRoles(stateStore, 50, []*structs.ACLRoleListStub{
+		aclRole2.Stub(), aclRole3.Stub(), aclRole4.Stub()})
 	require.ElementsMatch(t, []string{aclRole0.ID, aclRole1.ID}, toDelete)
 	require.ElementsMatch(t, []string{aclRole3.ID, aclRole4.ID}, toUpdate)
 }
