@@ -55,7 +55,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   @computed('tasks.@each.services')
   get taskServices() {
     return this.get('tasks')
-      .map((t) => (t.get('services') || []).toArray())
+      .map((t) => (t && t.get('services') || []).toArray())
       .flat()
       .compact();
   }
