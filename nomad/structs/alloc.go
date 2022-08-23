@@ -43,9 +43,9 @@ func (a *Allocation) ServiceProviderNamespace() string {
 		}
 	}
 
-	if len(tg.Tasks) > 0 {
-		if len(tg.Tasks[0].Services) > 0 {
-			switch tg.Tasks[0].Services[0].Provider {
+	for _, task := range tg.Tasks {
+		if len(task.Services) > 0 {
+			switch task.Services[0].Provider {
 			case ServiceProviderNomad:
 				return a.Job.Namespace
 			default:
