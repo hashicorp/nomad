@@ -7,8 +7,10 @@ export default class JobServiceRowComponent extends Component {
 
   @action
   gotoService(service) {
-		if (service.provider === 'nomad') {
-			this.router.transitionTo('jobs.job.services.service', service, {queryParams: {foo: "bar"}});
-		}
+    if (service.provider === 'nomad') {
+      this.router.transitionTo('jobs.job.services.service', service, {
+        queryParams: { foo: 'bar' },
+      });
+    }
   }
 }

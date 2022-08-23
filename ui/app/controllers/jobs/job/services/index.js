@@ -21,25 +21,37 @@ export default class JobsJobServicesIndexController extends Controller.extend(
       .map((t) => (t.services || []).toArray())
       .flat()
       .compact()
-      .map((service) => {service.level = 'task'; return service;});
+      .map((service) => {
+        service.level = 'task';
+        return service;
+      });
   }
 
-  @computed('model.taskGroup.services.@each.name')
+  @computed('model.taskGroup.services.@each.name', 'taskGroups')
   get groupServices() {
     return this.taskGroups
       .map((g) => (g.services || []).toArray())
       .flat()
       .compact()
-      .map((service) => {service.level = 'group'; return service;});
+      .map((service) => {
+        service.level = 'group';
+        return service;
+      });
   }
 
   @union('taskServices', 'groupServices') serviceFragments;
 
   // Services, grouped by name, with aggregatable allocations.
-  @computed('job.services.@each.{name,allocation}', 'job.services.length', 'serviceFragments')
+  @computed(
+    'job.services.@each.{name,allocation}',
+    'job.services.length',
+    'serviceFragments'
+  )
   get services() {
     return this.serviceFragments.map((fragment) => {
-      fragment.instances = this.job.services.filter(s => s.name === fragment.name && s.derivedLevel === fragment.level);
+      fragment.instances = this.job.services.filter(
+        (s) => s.name === fragment.name && s.derivedLevel === fragment.level
+      );
       return fragment;
     });
   }

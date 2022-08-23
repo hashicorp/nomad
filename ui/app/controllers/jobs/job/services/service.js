@@ -6,9 +6,8 @@ export default class JobsJobServicesServiceController extends Controller {
   @service router;
   queryParams = [];
 
-	@action
+  @action
   gotoAllocation(allocation) {
     this.router.transitionTo('allocations.allocation', allocation.get('id'));
   }
-
 }
