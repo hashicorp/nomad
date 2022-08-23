@@ -22,7 +22,8 @@
     "test": "npm-run-all lint test:*",
     "test:ember": "percy exec -- ember test",
     "local:qunitdom": "ember test --server --query=dockcontainer",
-    "local:exam": "ember exam --server --load-balance --parallel=4"
+    "local:exam": "ember exam --server --load-balance --parallel=4",
+    "seedless-test": "USE_PERCY=false ember test"
   },
   "husky": {
     "hooks": {
