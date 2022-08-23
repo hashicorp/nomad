@@ -16,7 +16,6 @@ async function globalSetup() {
       await client(`/acl/token/operator`, {data: {Name: "Operator", Type: "client", Policies: ["operator"]}});
       await client(`/acl/token/dev`, {data: {Name: "Developer", Type: "client", Policies: ["dev"]}});
       await client(`/acl/token/anon`, {data: {Name: "Anonymous", Type: "client", Policies: ["anon"]}});
-
     } catch (e) {
       console.error('ERROR:  ', e)
     }  
