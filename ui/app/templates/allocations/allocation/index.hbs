@@ -67,7 +67,7 @@
             this.stopAllocation.isRunning
             this.restartAllocation.isRunning
           }}
-          @onConfirm={{perform this.restartAllocation false}}
+          @onConfirm={{perform this.restartAllocation}}
         />
         <TwoStepButton
           data-test-restart-all
@@ -81,7 +81,7 @@
             this.stopAllocation.isRunning
             this.restartAllocation.isRunning
           }}
-          @onConfirm={{perform this.restartAllocation true}}
+          @onConfirm={{perform this.restartAll}}
         />
       {{/if}}
     </div>
@@ -198,7 +198,7 @@
           </t.head>
           <t.body as |row|>
             <TaskRow
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(action "taskClick" row.model.allocation row.model)
               }}

@@ -6,17 +6,18 @@ import classic from 'ember-classic-decorator';
 export default class AllocationAdapter extends Watchable {
   stop = adapterAction('/stop');
 
-  restart(allocation, taskName, allTasks) {
+  restart(allocation, taskName) {
     const prefix = `${this.host || '/'}${this.urlPrefix()}`;
     const url = `${prefix}/client/allocation/${allocation.id}/restart`;
-    let data = {};
-    if (taskName) {
-      data.TaskName = taskName;
-    }
-    if (allTasks) {
-      data.AllTasks = !!allTasks;
-    }
-    return this.ajax(url, 'PUT', { data });
+    return this.ajax(url, 'PUT', {
+      data: taskName && { TaskName: taskName },
+    });
+  }
+
+  restartAll(allocation) {
+    const prefix = `${this.host || '/'}${this.urlPrefix()}`;
+    const url = `${prefix}/client/allocation/${allocation.id}/restart`;
+    return this.ajax(url, 'PUT', { data: { AllTasks: true } });
   }
 
   ls(model, path) {
