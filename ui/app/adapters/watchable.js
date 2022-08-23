@@ -172,7 +172,7 @@ export default class Watchable extends ApplicationAdapter {
         signal: abortController && abortController.signal,
         data: params,
       }).then(
-        async (json) => {
+        (json) => {
           const store = this.store;
           const normalizeMethod =
             relationship.kind === 'belongsTo'

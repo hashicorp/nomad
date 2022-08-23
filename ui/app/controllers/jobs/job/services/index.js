@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { alias } from '@ember/object/computed';
-import { computed, get } from '@ember/object';
+import { computed } from '@ember/object';
 
 export default class JobsJobServicesIndexController extends Controller.extend(
   WithNamespaceResetting
@@ -9,7 +9,7 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   @alias('model') job;
 
   // Services, grouped by name, with aggregatable allocations.
-  @computed('job.services.@each.{name,allocation}', 'job.services.length', 'job.services')
+  @computed('job.services.@each.{name,allocation}', 'job.services.length')
   get services() {
     return this.job.services.reduce((m, n) => {
       n.allocations = [];
