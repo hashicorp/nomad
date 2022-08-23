@@ -7,12 +7,14 @@ if (NOMAD_ADDR == undefined || NOMAD_ADDR == "") {
   NOMAD_ADDR = 'http://localhost:4646';
 }
 
-export const client = async (path, parameters, {data, headers: customHeaders, ...customConfig} = {}) => {
+export const client = async (path, parameters, {data, method, headers: customHeaders, ...customConfig} = {}) => {
     const url = `${NOMAD_ADDR}/v1`.concat(path);
+
+    const method = !!method ? method : data ? 'post' : 'get';
 
     const config = {
       url: parameters ? url : url.concat(parameters),
-      method: data ? 'post' : 'get',
+      method,
       data: data ? data : undefined,
       headers: {
         'content-type': 'application/json; charset=UTF-8',
