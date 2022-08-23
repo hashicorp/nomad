@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.18
+go 1.19
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826
 replace (
@@ -17,7 +17,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.0
-	github.com/aws/aws-sdk-go v1.42.27
+	github.com/aws/aws-sdk-go v1.44.82
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v1.1.6
 	github.com/containernetworking/cni v1.1.2
