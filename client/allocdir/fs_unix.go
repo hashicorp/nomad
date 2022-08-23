@@ -10,7 +10,12 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
+)
+
+var (
+	LOG = netlog.New("alloc_dir")
 )
 
 var (
@@ -30,33 +35,47 @@ var (
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
 func dropDirPermissions(path string, desired os.FileMode) error {
+	LOG.Info("dropDirPermissions", "path", path, "desired", string(desired))
+
 	if err := os.Chmod(path, desired|0777); err != nil {
+		LOG.Error("Chmod failed", "error", err)
 		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
+	LOG.Info("Chmod ok")
 
 	// Can't change owner if not root.
 	if unix.Geteuid() != 0 {
+		LOG.Error("Geteuid failed")
 		return nil
 	}
+	LOG.Info("Geteuid ok")
 
 	u, err := user.Lookup("nobody")
 	if err != nil {
+		LOG.Error("Lookup nobody failed", "error", err)
 		return err
 	}
+	LOG.Info("Lookup ok")
 
 	uid, err := getUid(u)
 	if err != nil {
+		LOG.Error("getUid failed", "error", err)
 		return err
 	}
+	LOG.Info("getUid ok")
 
 	gid, err := getGid(u)
 	if err != nil {
+		LOG.Error("getGid failed", "error", err)
 		return err
 	}
+	LOG.Info("getGid ok")
 
 	if err := os.Chown(path, uid, gid); err != nil {
+		LOG.Error("Chown failed", "error", err)
 		return fmt.Errorf("Couldn't change owner/group of %v to (uid: %v, gid: %v): %v", path, uid, gid, err)
 	}
+	LOG.Info("Chown ok")
 
 	return nil
 }
