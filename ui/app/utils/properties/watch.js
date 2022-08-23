@@ -39,7 +39,7 @@ export function watchRecord(modelName) {
   }).drop();
 }
 
-export function watchRelationship(relationshipName) {
+export function watchRelationship(relationshipName, replace=false) {
   return task(function* (model, throttle = 2000) {
     assert(
       'To watch a relationship, the adapter of the model provided to the watchRelationship task MUST extend Watchable',
@@ -54,6 +54,7 @@ export function watchRelationship(relationshipName) {
             .reloadRelationship(model, relationshipName, {
               watch: true,
               abortController: controller,
+              replace
             }),
           wait(throttle),
         ]);

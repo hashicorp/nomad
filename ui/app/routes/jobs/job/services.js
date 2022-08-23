@@ -5,7 +5,6 @@ import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 
 export default class JobsJobServicesRoute extends Route.extend(WithWatchers) {
   model() {
-    console.log('services model refire');
     const job = this.modelFor('jobs.job');
     return job && job.get('services').then(() => job);
   }
@@ -16,7 +15,7 @@ export default class JobsJobServicesRoute extends Route.extend(WithWatchers) {
     }
   }
 
-  @watchRelationship('services') watchServices;
+  @watchRelationship('services', true) watchServices;
 
   @collect('watchServices') watchers;
 }

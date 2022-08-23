@@ -9,10 +9,10 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   @alias('model') job;
 
   // Services, grouped by name, with aggregatable allocations.
-  @computed('job.services.[]')
+  @computed('job.services.@each.{name,allocation}', 'job.services.length', 'job.services')
   get services() {
-    console.log('services refiring');
     return this.job.services.reduce((m, n) => {
+      n.allocations = [];
       let siblingServiceInstance = m.findBy('name', n.name);
       if (!siblingServiceInstance) {
         siblingServiceInstance = n;
