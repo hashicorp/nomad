@@ -132,11 +132,3 @@ func normalizeChangeScript(ch *api.ChangeScript) {
 		ch.FailOnError = pointer.Of(false)
 	}
 }
-
-func stringToPtr(v string) *string {
-	return &v
-}
-
-func durationToPtr(v time.Duration) *time.Duration {
-	return &v
-}
