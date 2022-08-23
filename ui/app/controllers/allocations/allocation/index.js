@@ -81,9 +81,9 @@ export default class IndexController extends Controller.extend(Sortable) {
   })
   stopAllocation;
 
-  @task(function* (allTasks) {
+  @task(function* () {
     try {
-      yield this.model.restart('', allTasks);
+      yield this.model.restart('');
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Allocation',
@@ -92,6 +92,19 @@ export default class IndexController extends Controller.extend(Sortable) {
     }
   })
   restartAllocation;
+
+  @task(function* () {
+    try {
+      yield this.model.restartAll();
+    } catch (err) {
+      this.set('error', {
+        title: 'Could Not Restart All Tasks',
+        description: messageForError(err, 'manage allocation lifecycle'),
+      });
+      console.error(err);
+    }
+  })
+  restartAll;
 
   @action
   gotoTask(allocation, task) {
