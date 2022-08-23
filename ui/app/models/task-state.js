@@ -1,5 +1,5 @@
 import { computed } from '@ember/object';
-import { alias, none, and } from '@ember/object/computed';
+import { alias, and } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
@@ -15,7 +15,6 @@ export default class TaskState extends Fragment {
   @attr('date') finishedAt;
   @attr('boolean') failed;
 
-  @none('finishedAt') isActive;
   @and('isActive', 'allocation.isRunning') isRunning;
 
   @computed('task.kind')
@@ -52,6 +51,11 @@ export default class TaskState extends Fragment {
     };
 
     return classMap[this.state] || 'is-dark';
+  }
+
+  @computed('state')
+  get isActive() {
+    return this.state === 'running';
   }
 
   restart() {
