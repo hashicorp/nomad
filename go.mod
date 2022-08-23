@@ -53,7 +53,7 @@ require (
 	// NOTE: update the version for github.com/hashicorp/go-discover in the
 	// `replace` block as well to prevent other dependencies from pulling older
 	// versions.
-	github.com/hashicorp/go-discover v0.0.0-20210818145131-c573d69da192
+	github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.6.1
 	github.com/hashicorp/go-hclog v1.2.0
