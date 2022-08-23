@@ -29,6 +29,7 @@ env:
   VAULT_VERSION: 1.9.3
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
+  ENABLE_RACE: 1
 jobs:
   checks:
     runs-on: ubuntu-22.04
