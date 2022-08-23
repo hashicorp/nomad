@@ -964,7 +964,11 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 		}
 
 		cpu += stats.ResourceUsage.CpuStats.TotalTicks
-		mem += stats.ResourceUsage.MemoryStats.RSS
+		if stats.ResourceUsage.MemoryStats.Usage > 0 {
+			mem += stats.ResourceUsage.MemoryStats.Usage
+		} else {
+			mem += stats.ResourceUsage.MemoryStats.RSS
+		}
 	}
 
 	resources := make([]string, 2)
