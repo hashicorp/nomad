@@ -1,9 +1,14 @@
-<tr data-test-service={{@service.id}}>
-  <td>
-    {{@service.name}}
+<tr {{on "click" (fn this.gotoService @service)}} class="is-interactive" data-test-service={{@service.id}}>
+  <td
+	  {{keyboard-shortcut 
+			enumerated=true
+			action=(action "gotoService" @service)
+		}}
+	>
+		<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}}>{{@service.name}}</LinkTo>
   </td>
   <td>
-    {{@service.node.name}}
+		<LinkTo @route="clients.client" @model={{@service.node.id}}>{{@service.node.name}}</LinkTo>
   </td>
   <td>
     {{#each @service.tags as |tag|}}
