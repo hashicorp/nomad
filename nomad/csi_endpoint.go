@@ -21,6 +21,14 @@ import (
 type CSIVolume struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (v *CSIVolume) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := v.srv.CheckRateLimit("CSIVolume", forPolicy, rateLimitToken, v.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
@@ -93,6 +101,10 @@ func (s *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
 
 // List replies with CSIVolumes, filtered by ACL access
 func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIVolumeListResponse) error {
+	if err := v.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.List", args, args, reply); done {
 		return err
 	}
@@ -205,6 +217,10 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 // Get fetches detailed information about a specific volume
 func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVolumeGetResponse) error {
+	if err := v.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Get", args, args, reply); done {
 		return err
 	}
@@ -303,6 +319,10 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 // again with the right settings. This lets us be as strict with
 // validation here as the CreateVolume CSI RPC is expected to be.
 func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *structs.CSIVolumeRegisterResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
 		return err
 	}
@@ -394,6 +414,10 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 // Deregister removes a set of volumes
 func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *structs.CSIVolumeDeregisterResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Deregister", args, args, reply); done {
 		return err
 	}
@@ -431,6 +455,10 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 
 // Claim submits a change to a volume claim
 func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CSIVolumeClaimResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Claim", args, args, reply); done {
 		return err
 	}
@@ -613,6 +641,10 @@ func allowCSIMount(aclObj *acl.ACL, namespace string) bool {
 // ControllerUnpublish RPCs to the client. It handles errors according to the
 // current claim state.
 func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *structs.CSIVolumeUnpublishResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Unpublish", args, args, reply); done {
 		return err
 	}
@@ -906,6 +938,9 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 }
 
 func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.CSIVolumeCreateResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := v.srv.forward("CSIVolume.Create", args, args, reply); done {
 		return err
@@ -1031,6 +1066,10 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 }
 
 func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIVolume.Delete", args, args, reply); done {
 		return err
 	}
@@ -1110,6 +1149,9 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 }
 
 func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
+	if err := v.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
 		return err
@@ -1170,6 +1212,9 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 }
 
 func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply *structs.CSISnapshotCreateResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := v.srv.forward("CSIVolume.CreateSnapshot", args, args, reply); done {
 		return err
@@ -1261,6 +1306,9 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 }
 
 func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply *structs.CSISnapshotDeleteResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := v.srv.forward("CSIVolume.DeleteSnapshot", args, args, reply); done {
 		return err
@@ -1321,6 +1369,9 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 }
 
 func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *structs.CSISnapshotListResponse) error {
+	if err := v.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := v.srv.forward("CSIVolume.ListSnapshots", args, args, reply); done {
 		return err
@@ -1385,10 +1436,22 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 type CSIPlugin struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (v *CSIPlugin) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := v.srv.CheckRateLimit("CSIPlugin", forPolicy, rateLimitToken, v.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // List replies with CSIPlugins, filtered by ACL access
 func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIPluginListResponse) error {
+	if err := v.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIPlugin.List", args, args, reply); done {
 		return err
 	}
@@ -1444,6 +1507,10 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 
 // Get fetches detailed information about a specific plugin
 func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPluginGetResponse) error {
+	if err := v.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIPlugin.Get", args, args, reply); done {
 		return err
 	}
@@ -1509,6 +1576,10 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 
 // Delete deletes a plugin if it is unused
 func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.CSIPluginDeleteResponse) error {
+	if err := v.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := v.srv.forward("CSIPlugin.Delete", args, args, reply); done {
 		return err
 	}

@@ -562,6 +562,9 @@ func errCodeFromHandler(err error) (int, string) {
 		} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
 			errMsg = structs.ErrJobRegistrationDisabled.Error()
 			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrTooManyRequests.Error()) {
+			errMsg = structs.ErrTooManyRequests.Error()
+			code = 429
 		}
 	}
 
@@ -604,6 +607,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 				} else if strings.HasSuffix(errMsg, structs.ErrIncompatibleFiltering.Error()) {
 					errMsg = structs.ErrIncompatibleFiltering.Error()
 					code = 400
+				} else if strings.HasSuffix(errMsg, structs.ErrTooManyRequests.Error()) {
+					errMsg = structs.ErrTooManyRequests.Error()
+					code = 429
 				}
 			}
 

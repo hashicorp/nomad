@@ -22,13 +22,22 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func (a *Alloc) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("Alloc", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // List is used to list the allocations in the system
 func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := a.srv.forward("Alloc.List", args, args, reply); done {
 		return err
 	}
@@ -134,6 +143,10 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 // GetAlloc is used to lookup a particular allocation
 func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	reply *structs.SingleAllocResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := a.srv.forward("Alloc.GetAlloc", args, args, reply); done {
 		return err
 	}
@@ -203,9 +216,12 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 // GetAllocs is used to lookup a set of allocations
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
-
+	// note: this AuthToken is set to the Node.SecretID
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	// Ensure the connection was initiated by a client if TLS is used.
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	err := validateTLSCertificateLevel(a.srv, a.rpcCtx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}
@@ -274,6 +290,10 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 
 // Stop is used to stop an allocation and migrate it to another node.
 func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := a.srv.forward("Alloc.Stop", args, args, reply); done {
 		return err
 	}
@@ -333,6 +353,10 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 // UpdateDesiredTransition is used to update the desired transitions of an
 // allocation.
 func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransitionRequest, reply *structs.GenericResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := a.srv.forward("Alloc.UpdateDesiredTransition", args, args, reply); done {
 		return err
 	}
@@ -368,6 +392,9 @@ func (a *Alloc) GetServiceRegistrations(
 	args *structs.AllocServiceRegistrationsRequest,
 	reply *structs.AllocServiceRegistrationsResponse) error {
 
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
 		return err
 	}

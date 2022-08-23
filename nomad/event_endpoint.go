@@ -7,17 +7,26 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type Event struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
 }
 
 func (e *Event) register() {
 	e.srv.streamingRpcs.Register("Event.Stream", e.stream)
+}
+
+func (e *Event) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := e.srv.CheckRateLimit("Event", forPolicy, rateLimitToken, e.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Event) stream(conn io.ReadWriteCloser) {
@@ -29,6 +38,11 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	if err := decoder.Decode(&args); err != nil {
 		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if err := e.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		handleJsonResultError(err, pointer.Of(int64(429)), encoder)
 		return
 	}
 

@@ -5,6 +5,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -12,11 +13,23 @@ import (
 type System struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *System) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("System", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GarbageCollect is used to trigger the system to immediately garbage collect nodes, evals
 // and jobs.
 func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.GenericResponse) error {
+	if err := s.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := s.srv.forward("System.GarbageCollect", args, args, reply); done {
 		return err
 	}
@@ -41,6 +54,10 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 // ReconcileJobSummaries reconciles the summaries of all the jobs in the state
 // store
 func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *structs.GenericResponse) error {
+	if err := s.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := s.srv.forward("System.ReconcileJobSummaries", args, args, reply); done {
 		return err
 	}

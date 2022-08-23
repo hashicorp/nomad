@@ -1812,8 +1812,11 @@ func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
 		nodeID: events,
 	}
 	req := structs.EmitNodeEventsRequest{
-		NodeEvents:   nodeEvents,
-		WriteRequest: structs.WriteRequest{Region: c.Region()},
+		NodeEvents: nodeEvents,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.Region(),
+			AuthToken: c.secretNodeID(),
+		},
 	}
 	var resp structs.EmitNodeEventsResponse
 	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
@@ -1927,7 +1930,7 @@ func (c *Client) updateNodeStatus() error {
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:       c.NodeID(),
 		Status:       structs.NodeStatusReady,
-		WriteRequest: structs.WriteRequest{Region: c.Region()},
+		WriteRequest: structs.WriteRequest{Region: c.Region(), AuthToken: c.secretNodeID()},
 	}
 	var resp structs.NodeUpdateResponse
 	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
@@ -2061,7 +2064,7 @@ func (c *Client) allocSync() {
 			// Send to server.
 			args := structs.AllocUpdateRequest{
 				Alloc:        sync,
-				WriteRequest: structs.WriteRequest{Region: c.Region()},
+				WriteRequest: structs.WriteRequest{Region: c.Region(), AuthToken: c.secretNodeID()},
 			}
 
 			var resp structs.GenericResponse

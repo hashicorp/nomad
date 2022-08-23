@@ -16,10 +16,15 @@ import (
 type Periodic struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 // Force is used to force a new instance of a periodic job
 func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.PeriodicForceResponse) error {
+	if err := p.srv.CheckRateLimit("Periodic", acl.PolicyWrite, args.AuthToken, p.rpcCtx); err != nil {
+		return err
+	}
+
 	if done, err := p.srv.forward("Periodic.Force", args, args, reply); done {
 		return err
 	}

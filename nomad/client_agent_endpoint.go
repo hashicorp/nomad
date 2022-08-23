@@ -11,6 +11,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/acl"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
@@ -23,14 +24,27 @@ import (
 )
 
 type Agent struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
 }
 
 func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
 }
 
+func (a *Agent) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := a.srv.CheckRateLimit("Agent", forPolicy, rateLimitToken, a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	// Check ACL for agent write
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {
@@ -122,6 +136,11 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	if err := decoder.Decode(&args); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(429)), encoder)
 		return
 	}
 
@@ -394,6 +413,10 @@ func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *str
 
 // Host returns data about the agent's host system for the `debug` command.
 func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {

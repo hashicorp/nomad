@@ -6,6 +6,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/acl"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/structs"
@@ -16,9 +17,21 @@ import (
 type ClientStats struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *ClientStats) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("ClientStats", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {
+	if err := s.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope
 	// in the forwarding chain.

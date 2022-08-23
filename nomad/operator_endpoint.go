@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,6 +23,7 @@ import (
 type Operator struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 func (op *Operator) register() {
@@ -29,8 +31,19 @@ func (op *Operator) register() {
 	op.srv.streamingRpcs.Register("Operator.SnapshotRestore", op.snapshotRestore)
 }
 
+func (op *Operator) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := op.srv.CheckRateLimit("Operator", forPolicy, rateLimitToken, op.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
 // RaftGetConfiguration is used to retrieve the current Raft configuration.
 func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *structs.RaftConfigurationResponse) error {
+
+	if err := op.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.RaftGetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -92,6 +105,10 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 // "IP:port". The reply argument is not used, but it required to fulfill the RPC
 // interface.
 func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressRequest, reply *struct{}) error {
+
+	if err := op.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.RaftRemovePeerByAddress", args, args, reply); done {
 		return err
 	}
@@ -144,6 +161,10 @@ REMOVE:
 // "IP:port". The reply argument is not used, but is required to fulfill the RPC
 // interface.
 func (op *Operator) RaftRemovePeerByID(args *structs.RaftPeerByIDRequest, reply *struct{}) error {
+
+	if err := op.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.RaftRemovePeerByID", args, args, reply); done {
 		return err
 	}
@@ -205,6 +226,10 @@ REMOVE:
 
 // AutopilotGetConfiguration is used to retrieve the current Autopilot configuration.
 func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, reply *structs.AutopilotConfig) error {
+
+	if err := op.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.AutopilotGetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -234,6 +259,10 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, repl
 
 // AutopilotSetConfiguration is used to set the current Autopilot configuration.
 func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRequest, reply *bool) error {
+
+	if err := op.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.AutopilotSetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -271,6 +300,10 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 
 // ServerHealth is used to get the current health of the servers.
 func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.OperatorHealthReply) error {
+
+	if err := op.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	// This must be sent to the leader, so we fix the args since we are
 	// re-using a structure where we don't support all the options.
 	args.AllowStale = false
@@ -303,6 +336,10 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.
 
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
 func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRequest, reply *structs.SchedulerSetConfigurationResponse) error {
+
+	if err := op.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.SchedulerSetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -352,6 +389,10 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 
 // SchedulerGetConfiguration is used to retrieve the current Scheduler configuration.
 func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, reply *structs.SchedulerConfigurationResponse) error {
+
+	if err := op.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 	if done, err := op.srv.forward("Operator.SchedulerGetConfiguration", args, args, reply); done {
 		return err
 	}

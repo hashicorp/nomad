@@ -442,6 +442,276 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.raft.state.leader`                            | Count of entering leader state                                                 | Integer              | Gauge   | host                                                    |
 | `nomad.raft.transition.heartbeat_timeout`            | Count of failing to heartbeat and starting election                            | Integer              | Gauge   | host                                                    |
 | `nomad.raft.transition.leader_lease_timeout`         | Count of stepping down as leader after losing quorum                           | Integer              | Gauge   | host                                                    |
+| `nomad.rpc.acls.list.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.acls.list.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.acls.list`                        | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.acls.read.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.acls.read.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.acls.read`                        | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.acls.write.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.acls.write.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.acls.write`                       | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.allocs.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.allocs.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.allocs.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.allocs.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.allocs.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.allocs.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.allocs.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.allocs.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.allocs.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.client_agent.list.limited`        | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_agent.list.used`           | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_agent.list`                | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_agent.read.limited`        | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_agent.read.used`           | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_agent.read`                | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_agent.write.limited`       | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_agent.write.used`          | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_agent.write`               | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.client_allocations.list.limited`  | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.list.used`     | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.list`          | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_allocations.read.limited`  | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.read.used`     | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.read`          | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_allocations.write.limited` | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.write.used`    | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_allocations.write`         | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.client_csi.list.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_csi.list.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_csi.list`                  | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_csi.read.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_csi.read.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_csi.read`                  | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_csi.write.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_csi.write.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_csi.write`                 | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.client_filesystem.list.limited`   | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.list.used`      | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.list`           | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_filesystem.read.limited`   | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.read.used`      | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.read`           | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_filesystem.write.limited`  | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.write.used`     | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_filesystem.write`          | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.client_stats.list.limited`        | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_stats.list.used`           | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_stats.list`                | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_stats.read.limited`        | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_stats.read.used`           | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_stats.read`                | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.client_stats.write.limited`       | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.client_stats.write.used`          | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.client_stats.write`               | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.csi_plugin.list.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.list.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.list`                  | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.csi_plugin.read.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.read.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.read`                  | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.csi_plugin.write.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.write.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_plugin.write`                 | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.csi_volume.list.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.list.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.list`                  | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.csi_volume.read.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.read.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.read`                  | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.csi_volume.write.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.write.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.csi_volume.write`                 | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.deployments.list.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.deployments.list.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.deployments.list`                 | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.deployments.read.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.deployments.read.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.deployments.read`                 | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.deployments.write.limited`        | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.deployments.write.used`           | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.deployments.write`                | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.evals.list.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.evals.list.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.evals.list`                       | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.evals.read.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.evals.read.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.evals.read`                       | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.evals.write.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.evals.write.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.evals.write`                      | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.events.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.events.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.events.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.events.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.events.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.events.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.events.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.events.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.events.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.jobs.list.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.jobs.list.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.jobs.list`                        | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.jobs.read.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.jobs.read.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.jobs.read`                        | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.jobs.write.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.jobs.write.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.jobs.write`                       | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.keyring.list.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.keyring.list.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.keyring.list`                     | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.keyring.read.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.keyring.read.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.keyring.read`                     | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.keyring.write.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.keyring.write.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.keyring.write`                    | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.license.list.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.license.list.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.license.list`                     | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.license.read.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.license.read.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.license.read`                     | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.license.write.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.license.write.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.license.write`                    | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.namespaces.list.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.namespaces.list.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.namespaces.list`                  | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.namespaces.read.limited`          | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.namespaces.read.used`             | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.namespaces.read`                  | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.namespaces.write.limited`         | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.namespaces.write.used`            | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.namespaces.write`                 | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.nodes.list.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.nodes.list.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.nodes.list`                       | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.nodes.read.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.nodes.read.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.nodes.read`                       | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.nodes.write.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.nodes.write.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.nodes.write`                      | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.operator.list.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.operator.list.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.operator.list`                    | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.operator.read.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.operator.read.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.operator.read`                    | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.operator.write.limited`           | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.operator.write.used`              | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.operator.write`                   | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.periodic.list.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.periodic.list.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.periodic.list`                    | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.periodic.read.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.periodic.read.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.periodic.read`                    | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.periodic.write.limited`           | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.periodic.write.used`              | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.periodic.write`                   | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.plan.list.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.plan.list.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.plan.list`                        | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.plan.read.limited`                | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.plan.read.used`                   | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.plan.read`                        | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.plan.write.limited`               | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.plan.write.used`                  | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.plan.write`                       | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.quotas.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.quotas.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.quotas.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.quotas.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.quotas.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.quotas.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.quotas.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.quotas.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.quotas.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.recommendations.list.limited`     | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.recommendations.list.used`        | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.recommendations.list`             | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.recommendations.read.limited`     | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.recommendations.read.used`        | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.recommendations.read`             | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.recommendations.write.limited`    | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.recommendations.write.used`       | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.recommendations.write`            | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.regions.list.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.regions.list.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.regions.list`                     | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.regions.read.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.regions.read.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.regions.read`                     | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.regions.write.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.regions.write.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.regions.write`                    | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.scaling.list.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.scaling.list.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.scaling.list`                     | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.scaling.read.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.scaling.read.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.scaling.read`                     | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.scaling.write.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.scaling.write.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.scaling.write`                    | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.search.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.search.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.search.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.search.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.search.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.search.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.search.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.search.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.search.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.secure_variables.list.limited`    | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.list.used`       | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.list`            | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.secure_variables.read.limited`    | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.read.used`       | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.read`            | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.secure_variables.write.limited`   | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.write.used`      | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.secure_variables.write`           | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.sentinel.list.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.sentinel.list.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.sentinel.list`                    | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.sentinel.read.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.sentinel.read.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.sentinel.read`                    | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.sentinel.write.limited`           | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.sentinel.write.used`              | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.sentinel.write`                   | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.services.list.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.services.list.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.services.list`                    | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.services.read.limited`            | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.services.read.used`               | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.services.read`                    | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.services.write.limited`           | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.services.write.used`              | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.services.write`                   | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.status.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.status.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.status.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.status.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.status.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.status.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.status.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.status.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.status.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
+| `nomad.rpc.system.list.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.system.list.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.system.list`                      | Count of total list RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.system.read.limited`              | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.system.read.used`                 | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.system.read`                      | Count of total read RPC operations           | Integer | Counter | requester |
+| `nomad.rpc.system.write.limited`             | Count of RPC requests that were rate limited | Integer | Summary | requester |
+| `nomad.rpc.system.write.used`                | Remaining requests on rate limit             | Integer | Summary | requester |
+| `nomad.rpc.system.write`                     | Count of total write RPC operations          | Integer | Counter | requester |
 | `nomad.runtime.free_count`                           | Count of objects freed from heap by go runtime GC                              | Integer              | Gauge   | host                                                    |
 | `nomad.runtime.gc_pause_ns`                          | Go runtime GC pause times                                                      | Nanoseconds          | Summary | host                                                    |
 | `nomad.runtime.sys_bytes`                            | Go runtime GC metadata size                                                    | # of bytes           | Gauge   | host                                                    |

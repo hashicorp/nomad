@@ -7,6 +7,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,14 +16,22 @@ type Plan struct {
 	srv    *Server
 	logger log.Logger
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+	// ctx provides context regarding the underlying connection.
+	rpcCtx *RPCContext
 }
 
 // Submit is used to submit a plan to the leader
 func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) error {
+	var checkToken string
+	if p.rpcCtx != nil {
+		checkToken = p.rpcCtx.NodeID
+	}
+	if err := p.srv.CheckRateLimit("Plan", acl.PolicyWrite, checkToken, p.rpcCtx); err != nil {
+		return err
+	}
+
 	// Ensure the connection was initiated by another server if TLS is used.
-	err := validateTLSCertificateLevel(p.srv, p.ctx, tlsCertificateLevelServer)
+	err := validateTLSCertificateLevel(p.srv, p.rpcCtx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}

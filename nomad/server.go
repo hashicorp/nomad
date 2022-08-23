@@ -25,6 +25,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/raft"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
+
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
@@ -38,10 +43,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
-	"github.com/hashicorp/serf/serf"
-	"go.etcd.io/bbolt"
 )
 
 const (
@@ -139,6 +140,9 @@ type Server struct {
 
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
+
+	// rpcRateLimiter maintains the state of RPC request rate limiting
+	rpcRateLimiter *RateLimiter
 
 	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
 	// to this server
@@ -1134,6 +1138,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	if err != nil {
 		return err
 	}
+	s.rpcRateLimiter = newRateLimiter(s.shutdownCtx, s.config.RPCLimits)
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -1197,47 +1202,48 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	// Add the static endpoints to the RPC server.
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
-		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
-		s.staticEndpoints.Job = NewJobEndpoints(s)
-		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
-		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
-		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
+		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl"), rpcCtx: ctx}
+		s.staticEndpoints.Job = NewJobEndpoints(s, ctx)
+		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume"), rpcCtx: ctx}
+		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin"), rpcCtx: ctx}
+		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator"), rpcCtx: ctx}
 		s.staticEndpoints.Operator.register()
 
-		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
-		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
-		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
-		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
-		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
-		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
-		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: s.encrypter}
-		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic"), rpcCtx: ctx}
+		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region"), rpcCtx: ctx}
+		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling"), rpcCtx: ctx}
+		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system"), rpcCtx: ctx}
+		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search"), rpcCtx: ctx}
+		s.staticEndpoints.Namespace = &Namespace{srv: s, rpcCtx: ctx}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: s.encrypter, rpcCtx: ctx}
+		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter, rpcCtx: ctx}
 
+		// TODO: add rpcCtx here too
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 		// These endpoints are dynamic because they need access to the
 		// RPCContext, but they also need to be called directly in some cases,
 		// so store them into staticEndpoints for later access, but don't
 		// register them as static.
-		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
-		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
-		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
+		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment"), rpcCtx: ctx}
+		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client"), rpcCtx: ctx}
+		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s, rpcCtx: ctx}
+		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status"), rpcCtx: ctx}
 
 		// Client endpoints
-		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
-		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
+		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats"), rpcCtx: ctx}
+		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs"), rpcCtx: ctx}
 		s.staticEndpoints.ClientAllocations.register()
-		s.staticEndpoints.ClientCSI = &ClientCSI{srv: s, logger: s.logger.Named("client_csi")}
+		s.staticEndpoints.ClientCSI = &ClientCSI{srv: s, logger: s.logger.Named("client_csi"), rpcCtx: ctx}
 
 		// Streaming endpoints
-		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
+		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs"), rpcCtx: ctx}
 		s.staticEndpoints.FileSystem.register()
 
-		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent = &Agent{srv: s, rpcCtx: ctx}
 		s.staticEndpoints.Agent.register()
 
-		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event = &Event{srv: s, rpcCtx: ctx}
 		s.staticEndpoints.Event.register()
 
 	}
@@ -1251,7 +1257,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(s.staticEndpoints.Periodic)
 	server.Register(s.staticEndpoints.Region)
 	server.Register(s.staticEndpoints.Scaling)
-	server.Register(s.staticEndpoints.Status)
 	server.Register(s.staticEndpoints.System)
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
@@ -1264,13 +1269,14 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(s.staticEndpoints.SecureVariables)
 
 	// Create new dynamic endpoints and add them to the RPC server.
-	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
-	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
-	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
-	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
-	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
-	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
-	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+	alloc := &Alloc{srv: s, rpcCtx: ctx, logger: s.logger.Named("alloc")}
+	deployment := &Deployment{srv: s, rpcCtx: ctx, logger: s.logger.Named("deployment")}
+	eval := &Eval{srv: s, rpcCtx: ctx, logger: s.logger.Named("eval")}
+	node := &Node{srv: s, rpcCtx: ctx, logger: s.logger.Named("client")}
+	plan := &Plan{srv: s, rpcCtx: ctx, logger: s.logger.Named("plan")}
+	serviceReg := &ServiceRegistration{srv: s, rpcCtx: ctx}
+	keyringReg := &Keyring{srv: s, rpcCtx: ctx, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+	status := &Status{srv: s, rpcCtx: ctx}
 
 	// Register the dynamic endpoints
 	server.Register(alloc)
@@ -1280,6 +1286,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(plan)
 	_ = server.Register(serviceReg)
 	_ = server.Register(keyringReg)
+	_ = server.Register(status)
 	return nil
 }
 

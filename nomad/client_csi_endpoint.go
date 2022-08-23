@@ -9,6 +9,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -17,9 +18,25 @@ import (
 type ClientCSI struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
+}
+
+func (a *ClientCSI) checkRateLimit(forPolicy string) error {
+	// ClientCSI requests are always server-to-client and the RPC server is not
+	// exposed on the client, so there's no AuthToken available. We pass an
+	// empty rate limit token here so that we can still rate limit
+	// per-connection
+	if err := a.srv.CheckRateLimit("ClientCSI", forPolicy, "", a.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -33,6 +50,10 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 }
 
 func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerValidateVolumeRequest, reply *cstructs.ClientCSIControllerValidateVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "validate_volume"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -46,6 +67,10 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 }
 
 func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "detach_volume"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -59,6 +84,10 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 }
 
 func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCreateVolumeRequest, reply *cstructs.ClientCSIControllerCreateVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_volume"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -72,6 +101,10 @@ func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCre
 }
 
 func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDeleteVolumeRequest, reply *cstructs.ClientCSIControllerDeleteVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_volume"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -85,6 +118,10 @@ func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDel
 }
 
 func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerListVolumesRequest, reply *cstructs.ClientCSIControllerListVolumesResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyList); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_volumes"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -98,6 +135,10 @@ func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerList
 }
 
 func (a *ClientCSI) ControllerCreateSnapshot(args *cstructs.ClientCSIControllerCreateSnapshotRequest, reply *cstructs.ClientCSIControllerCreateSnapshotResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_snapshot"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -111,6 +152,10 @@ func (a *ClientCSI) ControllerCreateSnapshot(args *cstructs.ClientCSIControllerC
 }
 
 func (a *ClientCSI) ControllerDeleteSnapshot(args *cstructs.ClientCSIControllerDeleteSnapshotRequest, reply *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_snapshot"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -124,6 +169,10 @@ func (a *ClientCSI) ControllerDeleteSnapshot(args *cstructs.ClientCSIControllerD
 }
 
 func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerListSnapshotsRequest, reply *cstructs.ClientCSIControllerListSnapshotsResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyList); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_snapshots"}, time.Now())
 
 	err := a.sendCSIControllerRPC(args.PluginID,
@@ -177,6 +226,10 @@ func (a *ClientCSI) isRetryable(err error) bool {
 }
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {
+
+	if err := a.checkRateLimit(acl.PolicyWrite); err != nil {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_node", "detach_volume"}, time.Now())
 
 	// Make sure Node is valid and new enough to support RPC

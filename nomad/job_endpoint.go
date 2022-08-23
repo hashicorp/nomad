@@ -54,10 +54,12 @@ type Job struct {
 	// builtin admission controllers
 	mutators   []jobMutator
 	validators []jobValidator
+
+	rpcCtx *RPCContext
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
-func NewJobEndpoints(s *Server) *Job {
+func NewJobEndpoints(s *Server, rpcCtx *RPCContext) *Job {
 	return &Job{
 		srv:    s,
 		logger: s.logger.Named("job"),
@@ -75,11 +77,23 @@ func NewJobEndpoints(s *Server) *Job {
 			jobValidate{},
 			&memoryOversubscriptionValidate{srv: s},
 		},
+		rpcCtx: rpcCtx,
 	}
+}
+
+func (j *Job) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := j.srv.CheckRateLimit("Job", forPolicy, rateLimitToken, j.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Register is used to upsert a job for scheduling
 func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}
@@ -470,7 +484,12 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 }
 
 // Summary retrieves the summary of a job.
-func (j *Job) Summary(args *structs.JobSummaryRequest, reply *structs.JobSummaryResponse) error {
+func (j *Job) Summary(args *structs.JobSummaryRequest,
+	reply *structs.JobSummaryResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
@@ -519,9 +538,15 @@ func (j *Job) Summary(args *structs.JobSummaryRequest, reply *structs.JobSummary
 // Must forward to the leader, because only the leader will have a live Vault
 // client with which to validate vault tokens.
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
+
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Validate", args, args, reply); done {
 		return err
 	}
+
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
@@ -566,6 +591,10 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 
 // Revert is used to revert the job to a prior version
 func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Revert", args, args, reply); done {
 		return err
 	}
@@ -634,6 +663,10 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 // Stable is used to mark the job version as stable
 func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabilityResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Stable", args, args, reply); done {
 		return err
 	}
@@ -680,6 +713,10 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 
 // Evaluate is used to force a job for re-evaluation
 func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Evaluate", args, args, reply); done {
 		return err
 	}
@@ -776,6 +813,10 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 // Deregister is used to remove a job the cluster.
 func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobDeregisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Deregister", args, args, reply); done {
 		return err
 	}
@@ -889,6 +930,10 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 // BatchDeregister is used to remove a set of jobs from the cluster.
 func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *structs.JobBatchDeregisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.BatchDeregister", args, args, reply); done {
 		return err
 	}
@@ -974,6 +1019,10 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 
 // Scale is used to modify one of the scaling targets in the job
 func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
 		return err
 	}
@@ -1156,6 +1205,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 // GetJob is used to request information about a specific job
 func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	reply *structs.SingleJobResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.GetJob", args, args, reply); done {
 		return err
 	}
@@ -1202,6 +1255,10 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 // GetJobVersions is used to retrieve all tracked versions of a job.
 func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	reply *structs.JobVersionsResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
 	}
@@ -1304,6 +1361,10 @@ func registrationsAreAllowed(aclObj *acl.ACL, state *state.StateStore) (bool, er
 
 // List is used to list the jobs registered in the system
 func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse) error {
+	if err := j.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.List", args, args, reply); done {
 		return err
 	}
@@ -1410,6 +1471,10 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 // Allocations is used to list the allocations for a job
 func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	reply *structs.JobAllocationsResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Allocations", args, args, reply); done {
 		return err
 	}
@@ -1465,6 +1530,10 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 // Evaluations is used to list the evaluations for a job
 func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	reply *structs.JobEvaluationsResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Evaluations", args, args, reply); done {
 		return err
 	}
@@ -1507,6 +1576,10 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 // Deployments is used to list the deployments for a job
 func (j *Job) Deployments(args *structs.JobSpecificRequest,
 	reply *structs.DeploymentListResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Deployments", args, args, reply); done {
 		return err
 	}
@@ -1549,6 +1622,10 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 // LatestDeployment is used to retrieve the latest deployment for a job
 func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	reply *structs.SingleDeploymentResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.LatestDeployment", args, args, reply); done {
 		return err
 	}
@@ -1596,6 +1673,10 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 // Plan is used to cause a dry-run evaluation of the Job and return the results
 // with a potential diff containing annotations.
 func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Plan", args, args, reply); done {
 		return err
 	}
@@ -1811,6 +1892,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 
 // Dispatch a parameterized job.
 func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispatchResponse) error {
+	if err := j.checkRateLimit(acl.PolicyWrite, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := j.srv.forward("Job.Dispatch", args, args, reply); done {
 		return err
 	}
@@ -2045,6 +2130,9 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 // ScaleStatus retrieves the scaling status for a job
 func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 	reply *structs.JobScaleStatusResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := j.srv.forward("Job.ScaleStatus", args, args, reply); done {
 		return err
@@ -2160,6 +2248,9 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 func (j *Job) GetServiceRegistrations(
 	args *structs.JobServiceRegistrationsRequest,
 	reply *structs.JobServiceRegistrationsResponse) error {
+	if err := j.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
 
 	if done, err := j.srv.forward(structs.JobServiceRegistrationsRPCMethod, args, args, reply); done {
 		return err

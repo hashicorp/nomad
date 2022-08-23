@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -74,7 +75,10 @@ func TestLimits_Merge(t *testing.T) {
 
 	// Use short struct initialization style so it fails to compile if
 	// fields are added
-	expected := Limits{"10s", pointer.Of(100), "5s", pointer.Of(100)}
+	expected := Limits{
+		"10s", pointer.Of(100), "5s", pointer.Of(100),
+		pointer.Of(math.MaxInt), pointer.Of(math.MaxInt), pointer.Of(math.MaxInt), nil,
+	}
 	require.Equal(t, expected, m2)
 
 	// Mergin in 0 values should not change anything

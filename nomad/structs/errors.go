@@ -21,6 +21,7 @@ const (
 	errMissingAllocID             = "Missing allocation ID"
 	errIncompatibleFiltering      = "Filter expression cannot be used with other filter parameters"
 	errMalformedChooseParameter   = "Parameter for choose must be in form '<number>|<key>'"
+	errTooManyRequests            = "Too many requests"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -57,8 +58,8 @@ var (
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
 	ErrIncompatibleFiltering      = errors.New(errIncompatibleFiltering)
 	ErrMalformedChooseParameter   = errors.New(errMalformedChooseParameter)
-
-	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
+	ErrUnknownNode                = errors.New(ErrUnknownNodePrefix)
+	ErrTooManyRequests            = errors.New(errTooManyRequests)
 
 	ErrDeploymentTerminalNoCancel    = errors.New(errDeploymentTerminalNoCancel)
 	ErrDeploymentTerminalNoFail      = errors.New(errDeploymentTerminalNoFail)

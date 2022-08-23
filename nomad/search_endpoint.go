@@ -44,6 +44,14 @@ var (
 type Search struct {
 	srv    *Server
 	logger hclog.Logger
+	rpcCtx *RPCContext
+}
+
+func (s *Search) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("Search", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // getPrefixMatches extracts matches for an iterator, and returns a list of ids for
@@ -544,6 +552,10 @@ func (*Search) silenceError(err error) bool {
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
+	if err := s.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
 		return err
 	}
@@ -672,6 +684,10 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 //
 // The results are in descending order starting with strongest match, per Context type.
 func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.FuzzySearchResponse) error {
+	if err := s.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if done, err := s.srv.forward("Search.FuzzySearch", args, args, reply); done {
 		return err
 	}

@@ -23,11 +23,19 @@ import (
 type FileSystem struct {
 	srv    *Server
 	logger log.Logger
+	rpcCtx *RPCContext
 }
 
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)
+}
+
+func (f *FileSystem) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := f.srv.CheckRateLimit("FileSystem", forPolicy, rateLimitToken, f.rpcCtx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // handleStreamResultError is a helper for sending an error with a potential
@@ -97,6 +105,11 @@ func forwardRegionStreamingRpc(fsrv *Server, conn io.ReadWriteCloser,
 
 // List is used to list the contents of an allocation's directory.
 func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListResponse) error {
+
+	if err := f.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope
 	// in the forwarding chain.
@@ -151,6 +164,10 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 
 // Stat is used to stat a file in the allocation's directory.
 func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatResponse) error {
+	if err := f.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope
 	// in the forwarding chain.
@@ -214,6 +231,11 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 
 	if err := decoder.Decode(&args); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if err := f.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(429)), encoder)
 		return
 	}
 
@@ -332,6 +354,11 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	if err := decoder.Decode(&args); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if err := f.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(429)), encoder)
 		return
 	}
 

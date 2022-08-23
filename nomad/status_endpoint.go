@@ -8,6 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,15 +16,40 @@ import (
 type Status struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	rpcCtx *RPCContext
+}
+
+func (s *Status) checkRateLimit(forPolicy, rateLimitToken string) error {
+	if err := s.srv.CheckRateLimit("Status", forPolicy, rateLimitToken, s.rpcCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Status) rpcNodeID() string {
+	if s.rpcCtx != nil {
+		return s.rpcCtx.NodeID
+	}
+	return ""
 }
 
 // Ping is used to just check for connectivity
 func (s *Status) Ping(args struct{}, reply *struct{}) error {
+	if err := s.checkRateLimit(acl.PolicyRead, s.rpcNodeID()); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Leader is used to get the address of the leader
 func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
+	if err := s.checkRateLimit(acl.PolicyRead, args.AuthToken); err != nil {
+		return err
+	}
+
 	if args.Region == "" {
 		args.Region = s.srv.config.Region
 	}
@@ -42,6 +68,10 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 
 // Peers is used to get all the Raft peers
 func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
+	if err := s.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	if args.Region == "" {
 		args.Region = s.srv.config.Region
 	}
@@ -63,6 +93,10 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
+	if err := s.checkRateLimit(acl.PolicyList, args.AuthToken); err != nil {
+		return err
+	}
+
 	// Check node read permissions
 	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -98,6 +132,10 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 
 // RaftStats is used by Autopilot to query the raft stats of the local server.
 func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
+	if err := s.checkRateLimit(acl.PolicyRead, s.rpcNodeID()); err != nil {
+		return err
+	}
+
 	stats := s.srv.raft.Stats()
 
 	var err error
@@ -117,6 +155,10 @@ func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
 // HasNodeConn returns whether the server has a connection to the requested
 // Node.
 func (s *Status) HasNodeConn(args *structs.NodeSpecificRequest, reply *structs.NodeConnQueryResponse) error {
+	if err := s.checkRateLimit(acl.PolicyRead, s.rpcNodeID()); err != nil {
+		return err
+	}
+
 	// Validate the args
 	if args.NodeID == "" {
 		return errors.New("Must provide the NodeID")
