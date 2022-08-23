@@ -1,0 +1,65 @@
+---
+layout: docs
+page_title: "Commands: var"
+description: |-
+  The "var" command groups subcommands for interacting with Vault's key/value
+  secret engine.
+---
+
+# Command: var
+
+The `var` command is used to interact with Nomad's secure variable storage.
+
+## Usage
+
+Usage: `nomad var <subcommand> [options] [args]`
+
+Run `nomad var <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`var init`][init] - Create a secure variable specification file
+- [`var list`][list] - List secure variables the user has access to
+- [`var get`][get] - Retrieve a secure variable
+- [`var put`][put] - Insert or update a secure variable
+- [`var purge`][purge] - Permanently delete a secure variable
+
+## Examples
+
+Create or update the variable stored at the path "secret/creds", which contains
+an item named `passcode` with the value `my-logn-passcode`.
+
+```shell-session
+$ nomad var put secret/creds passcode=my-long-passcode
+Successfully created secure variable "secret/creds"!
+
+Namespace   = default
+Path        = secret/creds
+Create Time = 2022-08-23 11:14:37.189939 -0400 EDT
+Check Index = 116
+
+Items
+passcode = my-long-passcode
+```
+
+Update a value:
+```shell-session
+$ nomad var get -format=json secret/creds | nomad var put - user=dba
+Reading whole JSON variable specification from stdin
+Successfully updated secure variable "secret/creds"!
+
+Namespace   = default
+Path        = secret/creds
+Create Time = 2022-08-23 11:14:37.189939 -0400 EDT
+Check Index = 116
+
+Items
+passcode = my-long-passcode
+user     = dba
+```
+
+
+[init]: /docs/commands/var/init
+[get]: /docs/commands/var/get
+[list]: /docs/commands/var/list
+[put]: /docs/commands/var/put
+[purge]: /docs/commands/var/purge

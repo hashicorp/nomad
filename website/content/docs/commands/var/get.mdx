@@ -1,0 +1,69 @@
+---
+layout: docs
+page_title: "Command: var get"
+description: |-
+  The "var get" command retrieves the secure variable at the given path from
+  Nomad. If no variable exists at that path, an error is returned.
+---
+
+# Command: var get
+
+The `var get` command retrieves the secure variable from Nomad. If the path
+does not exist the command will return a configurable exit code.
+
+## Usage
+
+```plaintext
+nomad var get [options] <path> [<item key>]
+```
+
+When ACLs are enabled, this command requires a token with the
+`secure-variable:read` capability for the variable's namespace and path.
+
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Output Options
+
+- `-field` `(string: "")`: Print only the field with the given name. Specifying
+  this option will take precedence over other formatting directives. The result
+  will not have a trailing newline making it ideal for piping to other processes.
+
+- `-of` `(enum: table|json|hcl|go-template)`: Output format to render the secure
+  variable data in. When this flag is set to `go-template`, provide the template
+  content using the `-template` option. Defaults to `table` when the output is
+  sent to standard output and `json` when the output is redirected.
+
+- `-template` `(string: "")`: Template to render output with. Valid only when
+  the output format is set to `go-template`.
+
+- `-q`: Silence all non-error output
+
+## Command Options
+
+- `-exit-code-not-found` `(int: 1)`: Exit code to set if the secure variable is
+   not found. Defaults to 1.
+
+## Examples
+
+Retrieve the variable stored at path "secret/creds":
+
+```shell-session
+$ nomad var get secret/creds
+Namespace   = default
+Path        = secret/creds
+Create Time = 2022-08-23 11:14:37.189939 -0400 EDT
+Check Index = 116
+
+Items
+passcode = my-long-passcode
+```
+
+Return only the "passcode" item from the variable stored at "secret/creds":
+
+```shell-session
+$ nomad var get -field=passcode secret/creds
+my-long-passcode
+```

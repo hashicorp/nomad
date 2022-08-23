@@ -1,0 +1,77 @@
+---
+layout: docs
+page_title: "Command: var put"
+description: |-
+  The "var put" command writes a secure variable to the given path in Nomad.
+---
+
+# Command: var put
+
+The `var put` command writes the secure variable to the given path in Nomad.
+Items to be stored in the variable can be provided as key-value pairs after the
+path or using one of the file input options—standard input or @-prefixed
+filenames.
+
+## Usage
+
+```plaintext
+nomad var put [options] <path> [<key>=value]...
+```
+
+If ACLs are enabled, this command requires a management ACL token or a token
+that has a capability associated with the namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Output Options
+
+- `-field` `(string: "")`: Print only the field with the given name. Specifying
+  this option will take precedence over other formatting directives. The result
+  will not have a trailing newline making it ideal for piping to other
+  processes.
+
+- `-of` `(string: varies)`: Print the output in the given format. Valid
+  formats are `none`, `table`, `json`, `hcl`, or `go-template`. Defaults to
+  `none` when the output is a terminal; defaults to `json` when the output is
+  redirected.
+
+- `-q` - Silence all non-error output. This flag overrides any value set using
+  the `-of` option.
+
+## Command Options
+
+- `-check-index` `(int: varies)`: If set, the secure variable is only updated if
+  the provided index matches the server side version's modify index. If a
+  check-index value of zero is set, the secure variable is only inserted if it
+  does not yet exist. This value defaults to the value provided in the variable
+  specification or to zero when a specification is not provided.
+
+- `-if` `(string: "json")`: Specify the format of data read from standard input
+  and from files without the format-specifying extensions, ".hcl" or ".json".
+  Valid formats are `json` or `hcl`.
+
+- `-y`: Answer yes to all confirmation prompts.
+
+## Examples
+
+Writes the data to the path "secret/creds":
+
+```shell-session
+$ nomad var put secret/creds passcode=my-long-passcode
+```
+
+The data can also be consumed from a file on disk by prefixing with the "@"
+symbol. For example, you can store a variable using a specification created
+with the `nomad var init` command.
+
+```shell-session
+$ nomad var put secret/foo @spec.nsv.json
+```
+
+Or it can be read from standard input using the "-" symbol:
+
+```shell-session
+$ echo "abcd1234" | vault var put secret/foo bar=-
+```
