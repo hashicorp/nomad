@@ -775,8 +775,78 @@ func aclPolicyTableSchema() *memdb.TableSchema {
 					Field: "Name",
 				},
 			},
+			"job": {
+				Name:         "job",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer:      &ACLPolicyJobACLFieldIndex{},
+			},
 		},
 	}
+}
+
+// ACLPolicyJobACLFieldIndex is used to extract the policy's JobACL field and
+// build an index on it.
+type ACLPolicyJobACLFieldIndex struct{}
+
+// FromObject is used to extract an index value from an
+// object or to indicate that the index value is missing.
+func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	policy, ok := obj.(*structs.ACLPolicy)
+	if !ok {
+		return false, nil, fmt.Errorf("object %#v is not an ACLPolicy", obj)
+	}
+
+	if policy.JobACL == nil {
+		return false, nil, nil
+	}
+
+	ns := policy.JobACL.Namespace
+	if ns == "" {
+		return false, nil, nil
+	}
+	jobID := policy.JobACL.JobID
+	if jobID == "" {
+		return false, nil, fmt.Errorf(
+			"object %#v is not a valid ACLPolicy: JobACL.JobID without Namespace", obj)
+	}
+
+	val := ns + "\x00" + jobID + "\x00"
+	return true, []byte(val), nil
+}
+
+// FromArgs is used to build an exact index lookup based on arguments
+func (a *ACLPolicyJobACLFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("must provide two arguments")
+	}
+	arg0, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	arg1, ok := args[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+
+	// Add the null character as a terminator
+	arg0 += "\x00" + arg1 + "\x00"
+	return []byte(arg0), nil
+}
+
+// PrefixFromArgs returns a prefix that should be used for scanning based on the arguments
+func (a *ACLPolicyJobACLFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := a.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
 }
 
 // aclTokenTableSchema returns the MemDB schema for the tokens table.

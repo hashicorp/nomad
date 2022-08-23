@@ -177,6 +177,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc checks": func() (cli.Command, error) {
+			return &AllocChecksCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc status": func() (cli.Command, error) {
 			return &AllocStatusCommand{
 				Meta: meta,

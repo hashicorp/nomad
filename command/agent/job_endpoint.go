@@ -1209,14 +1209,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	if len(apiTask.Templates) > 0 {
 		structsTask.Templates = []*structs.Template{}
 		for _, template := range apiTask.Templates {
-			uid := -1
-			if template.Uid != nil {
-				uid = *template.Uid
-			}
-			gid := -1
-			if template.Gid != nil {
-				gid = *template.Gid
-			}
 			structsTask.Templates = append(structsTask.Templates,
 				&structs.Template{
 					SourcePath:   *template.SourcePath,
@@ -1227,8 +1219,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					ChangeScript: apiChangeScriptToStructsChangeScript(template.ChangeScript),
 					Splay:        *template.Splay,
 					Perms:        *template.Perms,
-					Uid:          uid,
-					Gid:          gid,
+					Uid:          template.Uid,
+					Gid:          template.Gid,
 					LeftDelim:    *template.LeftDelim,
 					RightDelim:   *template.RightDelim,
 					Envvars:      *template.Envvars,

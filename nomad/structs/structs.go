@@ -2059,9 +2059,8 @@ func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil
 	}
-	nn := new(Node)
-	*nn = *n
-	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+	nn := *n
+	nn.Attributes = helper.CopyMap(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
@@ -2069,87 +2068,14 @@ func (n *Node) Copy() *Node {
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
-	nn.Events = copyNodeEvents(n.Events)
-	nn.Drivers = copyNodeDrivers(n.Drivers)
-	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
-	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
-	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
-	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
+	nn.Events = helper.CopySlice(n.Events)
+	nn.Drivers = helper.DeepCopyMap(n.Drivers)
+	nn.CSIControllerPlugins = helper.DeepCopyMap(nn.CSIControllerPlugins)
+	nn.CSINodePlugins = helper.DeepCopyMap(nn.CSINodePlugins)
+	nn.HostVolumes = helper.DeepCopyMap(n.HostVolumes)
+	nn.HostNetworks = helper.DeepCopyMap(n.HostNetworks)
 	nn.LastDrain = nn.LastDrain.Copy()
-	return nn
-}
-
-// copyNodeEvents is a helper to copy a list of NodeEvent's
-func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
-	l := len(events)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]*NodeEvent, l)
-	for i, event := range events {
-		c[i] = event.Copy()
-	}
-	return c
-}
-
-// copyNodeCSI is a helper to copy a map of CSIInfo
-func copyNodeCSI(plugins map[string]*CSIInfo) map[string]*CSIInfo {
-	l := len(plugins)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*CSIInfo, l)
-	for plugin, info := range plugins {
-		c[plugin] = info.Copy()
-	}
-
-	return c
-}
-
-// copyNodeDrivers is a helper to copy a map of DriverInfo
-func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
-	l := len(drivers)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*DriverInfo, l)
-	for driver, info := range drivers {
-		c[driver] = info.Copy()
-	}
-	return c
-}
-
-// copyNodeHostVolumes is a helper to copy a map of string to Volume
-func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
-	l := len(volumes)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*ClientHostVolumeConfig, l)
-	for volume, v := range volumes {
-		c[volume] = v.Copy()
-	}
-
-	return c
-}
-
-// copyNodeHostVolumes is a helper to copy a map of string to HostNetwork
-func copyNodeHostNetworks(networks map[string]*ClientHostNetworkConfig) map[string]*ClientHostNetworkConfig {
-	l := len(networks)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*ClientHostNetworkConfig, l)
-	for network, v := range networks {
-		c[network] = v.Copy()
-	}
-
-	return c
+	return &nn
 }
 
 // TerminalStatus returns if the current status is terminal and
@@ -7114,6 +7040,25 @@ func (t *Task) UsesConnectSidecar() bool {
 	return t.Kind.IsConnectProxy() || t.Kind.IsAnyConnectGateway()
 }
 
+func (t *Task) IsPrestart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPrestart
+}
+
+func (t *Task) IsMain() bool {
+	return t != nil && (t.Lifecycle == nil || t.Lifecycle.Hook == "")
+}
+
+func (t *Task) IsPoststart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststart
+}
+
+func (t *Task) IsPoststop() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststop
+}
+
 func (t *Task) Copy() *Task {
 	if t == nil {
 		return nil
@@ -7743,8 +7688,8 @@ type Template struct {
 	// Perms is the permission the file should be written out with.
 	Perms string
 	// User and group that should own the file.
-	Uid int
-	Gid int
+	Uid *int
+	Gid *int
 
 	// LeftDelim and RightDelim are optional configurations to control what
 	// delimiter is utilized when parsing the template.
@@ -11822,9 +11767,19 @@ type ACLPolicy struct {
 	Description string      // Human readable
 	Rules       string      // HCL or JSON format
 	RulesJSON   *acl.Policy // Generated from Rules on read
+	JobACL      *JobACL
 	Hash        []byte
+
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string // namespace of the job
+	JobID     string // ID of the job
+	Group     string // ID of the group
+	Task      string // ID of the task
 }
 
 // SetHash is used to compute and set the hash of the ACL policy
@@ -11839,6 +11794,13 @@ func (a *ACLPolicy) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Description))
 	_, _ = hash.Write([]byte(a.Rules))
+
+	if a.JobACL != nil {
+		_, _ = hash.Write([]byte(a.JobACL.Namespace))
+		_, _ = hash.Write([]byte(a.JobACL.JobID))
+		_, _ = hash.Write([]byte(a.JobACL.Group))
+		_, _ = hash.Write([]byte(a.JobACL.Task))
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -11872,6 +11834,21 @@ func (a *ACLPolicy) Validate() error {
 		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
 	}
+	if a.JobACL != nil {
+		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
+			err := fmt.Errorf("namespace must be set to set job ID")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
+			err := fmt.Errorf("job ID must be set to set group")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Task != "" && a.JobACL.Group == "" {
+			err := fmt.Errorf("group must be set to set task")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 

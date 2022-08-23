@@ -48,6 +48,7 @@ export default class Task extends Fragment {
   @attr('number') reservedCPU;
   @attr('number') reservedDisk;
   @attr('number') reservedEphemeralDisk;
+  @fragmentArray('service') services;
 
   @fragmentArray('volume-mount', { defaultValue: () => [] }) volumeMounts;
 

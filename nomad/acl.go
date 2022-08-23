@@ -180,27 +180,33 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 		return nil, fmt.Errorf("allocation does not exist")
 	}
 
-	// Find any implicit policies associated with this task
-	policies := []*structs.ACLPolicy{}
-	implicitPolicyNames := []string{
-		fmt.Sprintf("_:%s/%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup, claims.TaskName),
-		fmt.Sprintf("_:%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup),
-		fmt.Sprintf("_:%s/%s", alloc.Namespace, alloc.Job.ID),
-		fmt.Sprintf("_:%s", alloc.Namespace),
+	// Find any policies attached to the job
+	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, alloc.Job.ID)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, policyName := range implicitPolicyNames {
-		policy, err := snap.ACLPolicyByName(nil, policyName)
-		if err != nil {
-			return nil, err
+	policies := []*structs.ACLPolicy{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
 		}
-		if policy == nil {
-			// Ignore policies that don't exist, since they don't
-			// grant any more privilege
+		policy := raw.(*structs.ACLPolicy)
+		if policy.JobACL == nil {
 			continue
 		}
 
-		policies = append(policies, policy)
+		switch {
+		case policy.JobACL.Group == "":
+			policies = append(policies, policy)
+		case policy.JobACL.Group != alloc.TaskGroup:
+			continue // don't bother checking task
+		case policy.JobACL.Task == "":
+			policies = append(policies, policy)
+		case policy.JobACL.Task == claims.TaskName:
+			policies = append(policies, policy)
+		}
 	}
+
 	return policies, nil
 }

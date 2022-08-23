@@ -16,7 +16,6 @@ Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, 
 * Website: https://nomadproject.io
 * Tutorials: [HashiCorp Learn](https://learn.hashicorp.com/nomad)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
-* Gitter: [hashicorp-nomad](https://gitter.im/hashicorp-nomad/Lobby)
 
 Nomad provides several key features:
 

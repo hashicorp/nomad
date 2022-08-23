@@ -99,10 +99,11 @@ func (s *StateStore) GetSecureVariable(
 	txn := s.db.ReadTxn()
 
 	// Try to fetch the secure variable.
-	raw, err := txn.First(TableSecureVariables, indexID, namespace, path)
+	watchCh, raw, err := txn.FirstWatch(TableSecureVariables, indexID, namespace, path)
 	if err != nil { // error during fetch
 		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
 	}
+	ws.Add(watchCh)
 	if raw == nil { // not found
 		return nil, nil
 	}
@@ -111,7 +112,7 @@ func (s *StateStore) GetSecureVariable(
 	return sv, nil
 }
 
-// SVESet is used to store a secure variable pair.
+// SVESet is used to store a secure variable object.
 func (s *StateStore) SVESet(idx uint64, sv *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
@@ -130,8 +131,7 @@ func (s *StateStore) SVESet(idx uint64, sv *structs.SVApplyStateRequest) *struct
 
 // SVESetCAS is used to do a check-and-set operation on a secure
 // variable. The ModifyIndex in the provided entry is used to determine if
-// we should write the entry to the state store or not. Returns a bool
-// indicating whether or not a write happened and any error that occurred.
+// we should write the entry to the state store or not.
 func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()

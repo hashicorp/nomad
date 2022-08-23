@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,11 +11,9 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
@@ -27,85 +24,71 @@ func TestAllocStatusCommand_Implements(t *testing.T) {
 func TestAllocStatusCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, commandErrorText(cmd))
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "foobar"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying allocation") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "foobar"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Error querying allocation")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on missing alloc
-	if code := cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
-		t.Fatalf("expected not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Fail on identifier with too few characters
-	if code := cmd.Run([]string{"-address=" + url, "2"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
-		t.Fatalf("expected too few characters error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "2"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "must contain at least two characters.")
+
 	ui.ErrorWriter.Reset()
 
 	// Identifiers with uneven length should produce a query result
-	if code := cmd.Run([]string{"-address=" + url, "123"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No allocation(s) with prefix or id") {
-		t.Fatalf("expected not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "123"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Failed on both -json and -t options are specified
-	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
-		t.Fatalf("expected getting formatter error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Both json and template formatting are not allowed")
 }
 
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	ci.Parallel(t)
-	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		require.NoError(t, err)
-	})
+	srv, client, url := testServer(t, true, nil)
+	defer stopTestAgent(srv)
+
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -137,39 +120,23 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		"prestart_sidecar": {State: "running"},
 	}
 
-	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
-	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, a.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-
-	require.Contains(t, out, `Task "init_task" (prestart) is "running"`)
-	require.Contains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
-	require.Contains(t, out, `Task "web" is "pending"`)
+	must.StrContains(t, out, `Task "init_task" (prestart) is "running"`)
+	must.StrContains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
+	must.StrContains(t, out, `Task "web" is "pending"`)
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if _, ok := node.Drivers["mock_driver"]; ok &&
-				node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -177,100 +144,71 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	jobID := "job1_sfx"
 	job1 := testJob(jobID)
 	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+
 	// get an alloc id
-	allocId1 := ""
+	allocID := ""
 	nodeName := ""
 	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
 		if len(allocs) > 0 {
-			allocId1 = allocs[0].ID
+			allocID = allocs[0].ID
 			nodeName = allocs[0].NodeName
 		}
 	}
-	if allocId1 == "" {
-		t.Fatal("unable to find an allocation")
-	}
+	must.NotEq(t, "", allocID)
 
-	if code := cmd.Run([]string{"-address=" + url, allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, allocID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
-
-	if !strings.Contains(out, "Modified") {
-		t.Fatalf("expected to have 'Modified' but saw: %s", out)
-	}
+	must.StrContains(t, out, "Created")
+	must.StrContains(t, out, "Modified")
 
 	nodeNameRegexpStr := fmt.Sprintf(`\nNode Name\s+= %s\n`, regexp.QuoteMeta(nodeName))
-	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
+	must.RegexMatch(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.OutputWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-verbose", allocID})
+	must.Zero(t, code)
+
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output")
-	}
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
+	must.StrContains(t, out, allocID)
+	must.StrContains(t, out, "Created")
+
 	ui.OutputWriter.Reset()
 
 	// Try the query with an even prefix that includes the hyphen
-	if code := cmd.Run([]string{"-address=" + url, allocId1[:13]}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, allocID[:13]})
+	must.Zero(t, code)
+
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "Created") {
-		t.Fatalf("expected to have 'Created' but saw: %s", out)
-	}
+	must.StrContains(t, out, "Created")
 	ui.OutputWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	out = ui.OutputWriter.String()
-	if !strings.Contains(out, allocId1) {
-		t.Fatal("expected to find alloc id in output")
-	}
-	ui.OutputWriter.Reset()
+	code = cmd.Run([]string{"-address=" + url, "-verbose", allocID})
+	must.Zero(t, code)
 
+	out = ui.OutputWriter.String()
+	must.StrContains(t, out, allocID)
+
+	// make sure nsd checks status output is elided if none exist
+	must.StrNotContains(t, out, `Nomad Service Checks:`)
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test reschedule attempt info
-	require := require.New(t)
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
 	a.Metrics = &structs.AllocMetric{}
@@ -285,41 +223,27 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Replacement Alloc ID")
-	require.Regexp(regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
+	must.StrContains(t, out, "Replacement Alloc ID")
+	must.RegexMatch(t, regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
-	// Wait for a node to be ready
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
-				return true, nil
-			}
-		}
-		return false, fmt.Errorf("no ready nodes")
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	waitForNodes(t, client)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+
 	// Test node metrics
-	require := require.New(t)
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
 	mockNode1 := mock.Node()
@@ -342,27 +266,26 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Placement Metrics")
-	require.Contains(out, mockNode1.ID)
-	require.Contains(out, mockNode2.ID)
+	must.StrContains(t, out, "Placement Metrics")
+	must.StrContains(t, out, mockNode1.ID)
+	must.StrContains(t, out, mockNode2.ID)
 
 	// assert we sort headers alphabetically
-	require.Contains(out, "binpack  node-affinity")
-	require.Contains(out, "final score")
+	must.StrContains(t, out, "binpack  node-affinity")
+	must.StrContains(t, out, "final score")
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -370,15 +293,15 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(a.ID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, a.ID, res[0])
 }
 
 func TestAllocStatusCommand_HostVolumes(t *testing.T) {
@@ -397,7 +320,8 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 			},
 		}
 	})
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
+
 	state := srv.Agent.Server().State()
 
 	// Upsert the job and alloc
@@ -431,24 +355,25 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID})
+	must.Zero(t, code)
+
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Host Volumes")
-	require.Contains(t, out, fmt.Sprintf("%s  true", vol0))
-	require.NotContains(t, out, "CSI Volumes")
+	must.StrContains(t, out, "Host Volumes")
+	must.StrContains(t, out, fmt.Sprintf("%s  true", vol0))
+	must.StrNotContains(t, out, "CSI Volumes")
 }
 
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
+
 	state := srv.Agent.Server().State()
 
 	// Upsert the node, plugin, and volume
@@ -462,7 +387,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
 		ID:             vol0,
@@ -475,7 +400,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		}},
 	}}
 	err = state.UpsertCSIVolume(1002, vols)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Upsert the job and alloc
 	alloc := mock.Alloc()
@@ -506,8 +431,8 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -515,7 +440,44 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "CSI Volumes")
-	require.Contains(t, out, fmt.Sprintf("%s  minnie", vol0))
-	require.NotContains(t, out, "Host Volumes")
+	must.StrContains(t, out, "CSI Volumes")
+	must.StrContains(t, out, fmt.Sprintf("%s  minnie", vol0))
+	must.StrNotContains(t, out, "Host Volumes")
+}
+
+func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
+	ci.Parallel(t)
+	srv, client, url := testServer(t, true, nil)
+	defer stopTestAgent(srv)
+
+	// wait for nodes
+	waitForNodes(t, client)
+
+	jobID := "job1_checks"
+	job1 := testNomadServiceJob(jobID)
+
+	resp, _, err := client.Jobs().Register(job1, nil)
+	must.NoError(t, err)
+
+	// wait for registration success
+	ui := cli.NewMockUi()
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+
+	// Get an alloc id
+	allocID := getAllocFromJob(t, client, jobID)
+
+	// do not wait for alloc running - it will stay pending because the
+	// health-check will never pass
+
+	// Run command
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	code = cmd.Run([]string{"-address=" + url, allocID})
+	must.Zero(t, code)
+
+	// check output
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, `Nomad Service Checks:`)
+	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status`), out)
+	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)`), out)
 }

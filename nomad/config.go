@@ -8,9 +8,11 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -371,6 +373,36 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
+}
+
+func (c *Config) Copy() *Config {
+	if c == nil {
+		return nil
+	}
+
+	nc := *c
+
+	// Can't deep copy interfaces
+	// LogOutput io.Writer
+	// Logger log.InterceptLogger
+	// PluginLoader loader.PluginCatalog
+	// PluginSingletonLoader loader.PluginCatalog
+
+	nc.RPCAddr = pointer.Copy(c.RPCAddr)
+	nc.ClientRPCAdvertise = pointer.Copy(c.ClientRPCAdvertise)
+	nc.ServerRPCAdvertise = pointer.Copy(c.ServerRPCAdvertise)
+	nc.RaftConfig = pointer.Copy(c.RaftConfig)
+	nc.SerfConfig = pointer.Copy(c.SerfConfig)
+	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
+	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TLSConfig = c.TLSConfig.Copy()
+	nc.SentinelConfig = c.SentinelConfig.Copy()
+	nc.AutopilotConfig = c.AutopilotConfig.Copy()
+	nc.LicenseConfig = c.LicenseConfig.Copy()
+	nc.SearchConfig = c.SearchConfig.Copy()
+
+	return &nc
 }
 
 // DefaultConfig returns the default configuration. Only used as the basis for

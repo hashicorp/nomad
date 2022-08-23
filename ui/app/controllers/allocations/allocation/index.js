@@ -11,6 +11,7 @@ import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
+import { union } from '@ember/object/computed';
 
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
@@ -46,10 +47,25 @@ export default class IndexController extends Controller.extend(Sortable) {
     return (this.get('model.allocatedResources.ports') || []).sortBy('label');
   }
 
+  @computed('model.states.@each.task')
+  get tasks() {
+    return this.get('model.states').mapBy('task') || [];
+  }
+
+  @computed('tasks.@each.services')
+  get taskServices() {
+    return this.get('tasks')
+      .map((t) => ((t && t.get('services')) || []).toArray())
+      .flat()
+      .compact();
+  }
+
   @computed('model.taskGroup.services.@each.name')
-  get services() {
+  get groupServices() {
     return (this.get('model.taskGroup.services') || []).sortBy('name');
   }
+
+  @union('taskServices', 'groupServices') services;
 
   onDismiss() {
     this.set('error', null);

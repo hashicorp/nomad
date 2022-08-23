@@ -1,13 +1,17 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
@@ -19,7 +23,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 			cb(config)
 		}
 	})
-	t.Cleanup(func() { a.Shutdown() })
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	return a, c, a.HTTPAddr()
@@ -34,7 +38,7 @@ func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestA
 			cb(config)
 		}
 	})
-	t.Cleanup(func() { a.Shutdown() })
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	t.Logf("Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
@@ -68,6 +72,25 @@ func testJob(jobID string) *api.Job {
 		AddTaskGroup(group)
 
 	return job
+}
+
+func testNomadServiceJob(jobID string) *api.Job {
+	j := testJob(jobID)
+	j.TaskGroups[0].Services = []*api.Service{{
+		Name:        "service1",
+		PortLabel:   "1000",
+		AddressMode: "",
+		Address:     "127.0.0.1",
+		Checks: []api.ServiceCheck{{
+			Name:     "check1",
+			Type:     "http",
+			Path:     "/",
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Second,
+		}},
+		Provider: "nomad",
+	}}
+	return j
 }
 
 func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
@@ -108,16 +131,59 @@ func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 	return job
 }
 
-// setEnv wraps os.Setenv(key, value) and restores the environment variable to initial value in test cleanup
-func setEnv(t *testing.T, key, value string) {
-	initial, ok := os.LookupEnv(key)
-	os.Setenv(key, value)
-
-	t.Cleanup(func() {
-		if ok {
-			os.Setenv(key, initial)
-		} else {
-			os.Unsetenv(key)
+func waitForNodes(t *testing.T, client *api.Client) {
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
 		}
+		for _, node := range nodes {
+			if _, ok := node.Drivers["mock_driver"]; ok &&
+				node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		must.NoError(t, err)
 	})
+}
+
+func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, _, err := client.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+		if alloc.ClientStatus == api.AllocClientStatusRunning {
+			return true, nil
+		}
+		return false, fmt.Errorf("alloc status: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("timed out waiting for alloc to be running: %v", err)
+	})
+}
+
+func getAllocFromJob(t *testing.T, client *api.Client, jobID string) string {
+	var allocID string
+	if allocations, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if len(allocations) > 0 {
+			allocID = allocations[0].ID
+		}
+	}
+	must.NotEq(t, "", allocID, must.Sprint("expected to find an evaluation after running job", jobID))
+	return allocID
+}
+
+func stopTestAgent(a *agent.TestAgent) {
+	_ = a.Shutdown()
+}
+
+func getTempFile(t *testing.T, name string) (string, func()) {
+	f, err := os.CreateTemp("", name)
+	must.NoError(t, err)
+	must.NoError(t, f.Close())
+	return f.Name(), func() {
+		_ = os.Remove(f.Name())
+	}
 }

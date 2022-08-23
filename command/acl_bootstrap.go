@@ -130,16 +130,33 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	return 0
 }
 
-// formatKVPolicy returns a K/V formatted policy
-func formatKVPolicy(policy *api.ACLPolicy) string {
+// formatACLPolicy returns formatted policy
+func formatACLPolicy(policy *api.ACLPolicy) string {
 	output := []string{
 		fmt.Sprintf("Name|%s", policy.Name),
 		fmt.Sprintf("Description|%s", policy.Description),
-		fmt.Sprintf("Rules|%s", policy.Rules),
 		fmt.Sprintf("CreateIndex|%v", policy.CreateIndex),
 		fmt.Sprintf("ModifyIndex|%v", policy.ModifyIndex),
 	}
-	return formatKV(output)
+
+	formattedOut := formatKV(output)
+
+	if policy.JobACL != nil {
+		output := []string{
+			fmt.Sprintf("Namespace|%v", policy.JobACL.Namespace),
+			fmt.Sprintf("JobID|%v", policy.JobACL.JobID),
+			fmt.Sprintf("Group|%v", policy.JobACL.Group),
+			fmt.Sprintf("Task|%v", policy.JobACL.Task),
+		}
+		formattedOut += "\n\n[bold]Associated Workload[reset]\n"
+		formattedOut += formatKV(output)
+	}
+
+	// these are potentially large blobs so leave till the end
+	formattedOut += "\n\n[bold]Rules[reset]\n\n"
+	formattedOut += policy.Rules
+
+	return formattedOut
 }
 
 // formatKVACLToken returns a K/V formatted ACL token

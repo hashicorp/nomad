@@ -1150,15 +1150,17 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
-	updatedLogging := newConfig != nil && (newConfig.LogLevel != a.config.LogLevel)
+	current := a.config.Copy()
+
+	updatedLogging := newConfig != nil && (newConfig.LogLevel != current.LogLevel)
 
 	if newConfig == nil || newConfig.TLSConfig == nil && !updatedLogging {
 		return fmt.Errorf("cannot reload agent with nil configuration")
 	}
 
 	if updatedLogging {
-		a.config.LogLevel = newConfig.LogLevel
-		a.logger.SetLevel(log.LevelFromString(newConfig.LogLevel))
+		current.LogLevel = newConfig.LogLevel
+		a.logger.SetLevel(log.LevelFromString(current.LogLevel))
 	}
 
 	// Update eventer config
@@ -1178,10 +1180,10 @@ func (a *Agent) Reload(newConfig *Config) error {
 		// Completely reload the agent's TLS configuration (moving from non-TLS to
 		// TLS, or vice versa)
 		// This does not handle errors in loading the new TLS configuration
-		a.config.TLSConfig = newConfig.TLSConfig.Copy()
+		current.TLSConfig = newConfig.TLSConfig.Copy()
 	}
 
-	if !a.config.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
+	if !current.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
 		// This is just a TLS configuration reload, we don't need to refresh
 		// existing network connections
 
@@ -1190,26 +1192,31 @@ func (a *Agent) Reload(newConfig *Config) error {
 		// as this allows us to dynamically reload configurations not only
 		// on the Agent but on the Server and Client too (they are
 		// referencing the same keyloader).
-		keyloader := a.config.TLSConfig.GetKeyLoader()
+		keyloader := current.TLSConfig.GetKeyLoader()
 		_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
 		if err != nil {
 			return err
 		}
-		a.config.TLSConfig = newConfig.TLSConfig
-		a.config.TLSConfig.KeyLoader = keyloader
+
+		current.TLSConfig = newConfig.TLSConfig
+		current.TLSConfig.KeyLoader = keyloader
+		a.config = current
 		return nil
-	} else if newConfig.TLSConfig.IsEmpty() && !a.config.TLSConfig.IsEmpty() {
+	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 		fullUpdateTLSConfig()
-	} else if !newConfig.TLSConfig.IsEmpty() && a.config.TLSConfig.IsEmpty() {
+	} else if !newConfig.TLSConfig.IsEmpty() && current.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
 		fullUpdateTLSConfig()
 	}
 
+	// Set agent config to the updated config
+	a.config = current
 	return nil
 }
 
-// GetConfig creates a locked reference to the agent's config
+// GetConfig returns the current agent configuration. The Config should *not*
+// be mutated directly. First call Config.Copy.
 func (a *Agent) GetConfig() *Config {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()

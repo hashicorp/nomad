@@ -1,10 +1,12 @@
 package nomad
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test"
@@ -76,12 +78,16 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
 	policy := mock.ACLPolicy()
-	policy.Name = fmt.Sprintf("_:%s/%s/%s", ns, jobID, alloc1.TaskGroup)
 	policy.Rules = `namespace "nondefault-namespace" {
 		secure_variables {
-		    path "nomad/jobs/*" { capabilities = ["read"] }
+		    path "nomad/jobs/*" { capabilities = ["list"] }
 		    path "other/path" { capabilities = ["read"] }
 		}}`
+	policy.JobACL = &structs.JobACL{
+		Namespace: ns,
+		JobID:     jobID,
+		Group:     alloc1.TaskGroup,
+	}
 	policy.SetHash()
 	err = store.UpsertACLPolicies(structs.MsgTypeTestSetup, 1100, []*structs.ACLPolicy{policy})
 	must.NoError(t, err)
@@ -153,25 +159,32 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for implied policy",
+			name:        "valid claim for job-attached policy",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/path",
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for implied policy path denied",
+			name:        "valid claim for job-attached policy path denied",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/not-allowed",
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "valid claim for implied policy capability denied",
+			name:        "valid claim for job-attached policy capability denied",
 			token:       idToken,
 			cap:         acl.PolicyWrite,
 			path:        "other/path",
 			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "valid claim for job-attached policy capability with cross-job access",
+			token:       idToken,
+			cap:         acl.PolicyList,
+			path:        "nomad/jobs/some-other",
+			expectedErr: nil,
 		},
 		{
 			name:        "valid claim with no permissions denied by path",
@@ -559,4 +572,137 @@ namespace "*" {}
 	testListPrefix("*", "project", 2, nil)
 	testListPrefix("*", "", 6, nil)
 
+}
+
+func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// First create an unrelated variable.
+	delay := 100 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		writeVar(t, s1, 100, "default", "aaa")
+	})
+
+	// Upsert the variable we are watching later
+	delay = 200 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		writeVar(t, s1, 200, "default", "bbb")
+	})
+
+	// Lookup the variable
+	req := &structs.SecureVariablesReadRequest{
+		Path: "bbb",
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+			MaxQueryTime:  500 * time.Millisecond,
+		},
+	}
+	var resp structs.SecureVariablesReadResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed := time.Since(start)
+
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if elapsed > req.MaxQueryTime {
+		t.Fatalf("blocking query timed out %#v", resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if resp.Data == nil || resp.Data.Path != "bbb" {
+		t.Fatalf("bad: %#v", resp.Data)
+	}
+
+	// Variable update triggers watches
+	delay = 100 * time.Millisecond
+
+	time.AfterFunc(delay, func() {
+		writeVar(t, s1, 300, "default", "bbb")
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.SecureVariablesReadResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed = time.Since(start)
+
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if elapsed > req.MaxQueryTime {
+		t.Fatal("blocking query timed out")
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Data == nil || resp2.Data.Path != "bbb" {
+		t.Fatalf("bad: %#v", resp2.Data)
+	}
+
+	// Variable delete triggers watches
+	delay = 100 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		sv := mock.SecureVariableEncrypted()
+		sv.Path = "bbb"
+		if resp := state.SVEDelete(400, &structs.SVApplyStateRequest{Op: structs.SVOpDelete, Var: sv}); !resp.IsOk() {
+			t.Fatalf("err: %v", resp.Error)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 350
+	var resp3 structs.SecureVariablesReadResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed = time.Since(start)
+
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if elapsed > req.MaxQueryTime {
+		t.Fatal("blocking query timed out")
+	}
+	if resp3.Index != 400 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 400)
+	}
+	if resp3.Data != nil {
+		t.Fatalf("bad: %#v", resp3.Data)
+	}
+}
+
+func writeVar(t *testing.T, s *Server, idx uint64, ns, path string) {
+	store := s.fsm.State()
+	sv := mock.SecureVariable()
+	sv.Namespace = ns
+	sv.Path = path
+	bPlain, err := json.Marshal(sv.Items)
+	must.NoError(t, err)
+	bEnc, kID, err := s.encrypter.Encrypt(bPlain)
+	must.NoError(t, err)
+	sve := &structs.SecureVariableEncrypted{
+		SecureVariableMetadata: sv.SecureVariableMetadata,
+		SecureVariableData: structs.SecureVariableData{
+			Data:  bEnc,
+			KeyID: kID,
+		},
+	}
+	resp := store.SVESet(idx, &structs.SVApplyStateRequest{
+		Op:  structs.SVOpSet,
+		Var: sve,
+	})
+	must.NoError(t, resp.Error)
 }

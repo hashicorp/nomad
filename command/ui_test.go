@@ -43,38 +43,38 @@ func TestCommand_Ui(t *testing.T) {
 		{
 			Name: "set namespace via env var",
 			SetupFn: func(t *testing.T) {
-				setEnv(t, "NOMAD_NAMESPACE", "dev")
+				t.Setenv("NOMAD_NAMESPACE", "dev")
 			},
 			ExpectedURL: "http://127.0.0.1:4646?namespace=dev",
 		},
 		{
 			Name: "set region via env var",
 			SetupFn: func(t *testing.T) {
-				setEnv(t, "NOMAD_REGION", "earth")
+				t.Setenv("NOMAD_REGION", "earth")
 			},
 			ExpectedURL: "http://127.0.0.1:4646?region=earth",
 		},
 		{
 			Name: "set region and namespace via env var",
 			SetupFn: func(t *testing.T) {
-				setEnv(t, "NOMAD_REGION", "earth")
-				setEnv(t, "NOMAD_NAMESPACE", "dev")
+				t.Setenv("NOMAD_REGION", "earth")
+				t.Setenv("NOMAD_NAMESPACE", "dev")
 			},
 			ExpectedURL: "http://127.0.0.1:4646?namespace=dev&region=earth",
 		},
 		{
 			Name: "set region and namespace via env var",
 			SetupFn: func(t *testing.T) {
-				setEnv(t, "NOMAD_REGION", "earth")
-				setEnv(t, "NOMAD_NAMESPACE", "dev")
+				t.Setenv("NOMAD_REGION", "earth")
+				t.Setenv("NOMAD_NAMESPACE", "dev")
 			},
 			ExpectedURL: "http://127.0.0.1:4646?namespace=dev&region=earth",
 		},
 		{
 			Name: "flags have higher precedence",
 			SetupFn: func(t *testing.T) {
-				setEnv(t, "NOMAD_REGION", "earth")
-				setEnv(t, "NOMAD_NAMESPACE", "dev")
+				t.Setenv("NOMAD_REGION", "earth")
+				t.Setenv("NOMAD_NAMESPACE", "dev")
 			},
 			Args: []string{
 				"-region=mars",
@@ -87,8 +87,8 @@ func TestCommand_Ui(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Make sure environment variables are clean.
-			setEnv(t, "NOMAD_NAMESPACE", "")
-			setEnv(t, "NOMAD_REGION", "")
+			t.Setenv("NOMAD_NAMESPACE", "")
+			t.Setenv("NOMAD_REGION", "")
 
 			// Setup fake CLI UI and test case
 			ui := cli.NewMockUi()
