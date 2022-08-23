@@ -25,67 +25,66 @@ Close() methods of the Gates.
 In this state, the Coordinator is allowing prestart tasks to run, while
 blocking the main tasks.
 
-                     ┌────────┐
-                     │ ALLOC  │
-                     │ RUNNER │
-                     └───┬────┘
-                         │
-                     Task state
-                         │
-            ┌────────────▼────────────┐
-            │Current state:           │
-            │Prestart                 │         ┌─────────────┐
-            │                         │         │ TASK RUNNER │
-            │     ┌───────────────────┼─────────┤ (Prestart)  │
-            │     │                   │         └─────────────┘
-            │     │                   │
-            │     │                   │         ┌─────────────┐
-            │     │ COORDINATOR       │         │ TASK RUNNER │
-            │     │             ┌─ ─ ─┼─ ─ ─ ─┬╶┤   (Main)    │
-            │     │             ╷     │       ╷ └─────────────┘
-            │     │             ╷     │       ╷
-            │     │             ╷     │       ╷ ┌─────────────┐
-            │   Prestart       Main   │       ╷ │ TASK RUNNER │
-            └─────┬─┬───────────┬─┬───┘       └╶┤   (Main)    │
-                  │ │Open/      ╷ │Open/        └─────────────┘
-                  │ │Close      ╷ │Close
-               ┌──┴─▼─┐      ┌──┴─▼─┐
-               │ GATE │      │ GATE │
-               └──────┘      └──────┘
-
+	         ┌────────┐
+	         │ ALLOC  │
+	         │ RUNNER │
+	         └───┬────┘
+	             │
+	         Task state
+	             │
+	┌────────────▼────────────┐
+	│Current state:           │
+	│Prestart                 │         ┌─────────────┐
+	│                         │         │ TASK RUNNER │
+	│     ┌───────────────────┼─────────┤ (Prestart)  │
+	│     │                   │         └─────────────┘
+	│     │                   │
+	│     │                   │         ┌─────────────┐
+	│     │ COORDINATOR       │         │ TASK RUNNER │
+	│     │             ┌─ ─ ─┼─ ─ ─ ─┬╶┤   (Main)    │
+	│     │             ╷     │       ╷ └─────────────┘
+	│     │             ╷     │       ╷
+	│     │             ╷     │       ╷ ┌─────────────┐
+	│   Prestart       Main   │       ╷ │ TASK RUNNER │
+	└─────┬─┬───────────┬─┬───┘       └╶┤   (Main)    │
+	      │ │Open/      ╷ │Open/        └─────────────┘
+	      │ │Close      ╷ │Close
+	   ┌──┴─▼─┐      ┌──┴─▼─┐
+	   │ GATE │      │ GATE │
+	   └──────┘      └──────┘
 
 When the prestart task completes, the allocRunner will send a new batch of task
 states to the Coordinator that will cause it to transition to a state where it
 will close the Gate for prestart tasks, blocking their execution, and will open
 the Gate for main tasks, allowing them to start.
 
-                     ┌────────┐
-                     │ ALLOC  │
-                     │ RUNNER │
-                     └───┬────┘
-                         │
-                     Task state
-                         │
-            ┌────────────▼────────────┐
-            │Current state:           │
-            │Main                     │         ┌─────────────┐
-            │                         │         │ TASK RUNNER │
-            │     ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼─ ─ ─ ─ ─┤ (Prestart)  │
-            │     ╷                   │         └─────────────┘
-            │     ╷                   │
-            │     ╷                   │         ┌─────────────┐
-            │     ╷ COORDINATOR       │         │ TASK RUNNER │
-            │     ╷             ┌─────┼───────┬─┤   (Main)    │
-            │     ╷             │     │       │ └─────────────┘
-            │     ╷             │     │       │
-            │     ╷             │     │       │ ┌─────────────┐
-            │   Prestart       Main   │       │ │ TASK RUNNER │
-            └─────┼─┬───────────┬─┬───┘       └─┤   (Main)    │
-                  ╷ │Open/      │ │Open/        └─────────────┘
-                  ╷ │Close      │ │Close
-               ┌──┴─▼─┐      ┌──┴─▼─┐
-               │ GATE │      │ GATE │
-               └──────┘      └──────┘
+	         ┌────────┐
+	         │ ALLOC  │
+	         │ RUNNER │
+	         └───┬────┘
+	             │
+	         Task state
+	             │
+	┌────────────▼────────────┐
+	│Current state:           │
+	│Main                     │         ┌─────────────┐
+	│                         │         │ TASK RUNNER │
+	│     ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼─ ─ ─ ─ ─┤ (Prestart)  │
+	│     ╷                   │         └─────────────┘
+	│     ╷                   │
+	│     ╷                   │         ┌─────────────┐
+	│     ╷ COORDINATOR       │         │ TASK RUNNER │
+	│     ╷             ┌─────┼───────┬─┤   (Main)    │
+	│     ╷             │     │       │ └─────────────┘
+	│     ╷             │     │       │
+	│     ╷             │     │       │ ┌─────────────┐
+	│   Prestart       Main   │       │ │ TASK RUNNER │
+	└─────┼─┬───────────┬─┬───┘       └─┤   (Main)    │
+	      ╷ │Open/      │ │Open/        └─────────────┘
+	      ╷ │Close      │ │Close
+	   ┌──┴─▼─┐      ┌──┴─▼─┐
+	   │ GATE │      │ GATE │
+	   └──────┘      └──────┘
 
 Diagram source:
 https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsjI0MDTViVGqBDKNLA2ArJLUihIgJ0ZJAQYeTdmDB8XE5CGrVHD08fF3BjPRZYJC%2Ffxcg7DIEGk6VDWyUEhicbZCcUliSSp2hfgNR6BpxCmDmelcWlSUmlcCsdkKm62%2BiZmo7kEOCOK8jtVmrGZiMVchxDHYGzXEYSpIspVUpKAREOQaHOIYFKKpgGkvjcIDp8kk2t7zaEoDcWgCmsnO%2Fv5BLp5%2BjiH%2BQVhNbkKLjyY8LtNFAyDdCgoavo6efppQ0%2FDorkETrQGypxDtrxmkmEyiK8iJ24CiVGAeKyqBGgPNVWjmYk%2FrVE7X8LhBiwtEcQRSBcT%2B%2Bs4KyK5D4pOewlFMRglfuDy6vmkoLoaL1yDLwXUquDuGuCogq4aLYDd9CnbT0V2uVKtUCwCqNQgp)
