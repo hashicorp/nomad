@@ -141,7 +141,7 @@ job "example" {
   level `services` only. Inherits the [`service.task`][service_task] value if not
   set. May only be set for script or gRPC checks.
 
-- `timeout` `(string: <required>)` - Specifies how long to will for a health check
+- `timeout` `(string: <required>)` - Specifies how long to wait for a health check
   query to succeed. This is specified using a label suffix like "30s" or "1h". This
   must be greater than or equal to "1s"
 
