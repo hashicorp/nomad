@@ -587,6 +587,18 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Write complete list of server members to file
 	c.writeJSON(clusterDir, "members.json", c.members, err)
 
+	// Get leader and write to file; there's no option for AllowStale
+	// on this API and a stale result wouldn't even be meaningful, so
+	// only warn if we fail so that we don't stop the rest of the
+	// debugging
+	leader, err := client.Status().Leader()
+	if err != nil {
+		c.Ui.Warn(fmt.Sprintf("Failed to retrieve leader; err: %v", err))
+	}
+	if len(leader) > 0 {
+		c.writeJSON(clusterDir, "leader.json", leader, err)
+	}
+
 	// Filter for servers matching criteria
 	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
 	if err != nil {
