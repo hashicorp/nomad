@@ -744,13 +744,13 @@ func DefaultConfig() *Config {
 				Max: pointer.Of(4 * time.Minute),
 			},
 			ConsulRetry: &RetryConfig{
-				Attempts: pointer.Of[int](0), // unlimited
+				Attempts: pointer.Of(0), // unlimited
 			},
 			VaultRetry: &RetryConfig{
-				Attempts: pointer.Of[int](0), // unlimited
+				Attempts: pointer.Of(0), // unlimited
 			},
 			NomadRetry: &RetryConfig{
-				Attempts: pointer.Of[int](0), // unlimited
+				Attempts: pointer.Of(0), // unlimited
 			},
 		},
 		RPCHoldTimeout:     5 * time.Second,
