@@ -5,23 +5,12 @@ package nomad
 
 import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"golang.org/x/exp/slices"
 )
 
 // LicenseConfig allows for tunable licensing config
 // primarily used for enterprise testing
 type LicenseConfig struct {
 	AdditionalPubKeys []string
-}
-
-func (c *LicenseConfig) Copy() *LicenseConfig {
-	if c == nil {
-		return nil
-	}
-
-	nc := *c
-	nc.AdditionalPubKeys = slices.Clone(c.AdditionalPubKeys)
-	return &nc
 }
 
 type EnterpriseState struct{}
