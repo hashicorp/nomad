@@ -50,6 +50,8 @@ export default create({
     time: text('[data-test-time]'),
     volumes: text('[data-test-volumes]'),
 
+    hasCpuMetrics: isPresent('[data-test-cpu] .inline-chart progress'),
+    hasMemoryMetrics: isPresent('[data-test-mem] .inline-chart progress'),
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
     hasProxyTag: isPresent('[data-test-proxy-tag]'),
 
