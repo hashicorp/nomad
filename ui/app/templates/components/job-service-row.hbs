@@ -5,7 +5,7 @@
 			action=(action "gotoService" @service)
 		}}
 	>
-		<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}}>{{@service.name}}</LinkTo>
+		<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service.name}}>{{@service.name}}</LinkTo>
   </td>
   <td>
 		<LinkTo @route="clients.client" @model={{@service.node.id}}>{{@service.node.name}}</LinkTo>

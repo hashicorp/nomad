@@ -1,2 +1,34 @@
-{{page-title "Service"}}
-{{outlet}}
+<section class="section service-list">
+	<h1 class="title">
+		<LinkTo class="back-link" @route="jobs.job.services">
+			<FlightIcon
+				@name="chevron-left"
+				@title="Back to services"
+				@size="24"
+				/>
+		</LinkTo>
+		{{this.model.0.name}}
+	</h1>
+
+	<ListTable
+		@source={{this.model}}
+		{{!-- @sortProperty={{this.sortProperty}}
+		@sortDescending={{this.sortDescending}} --}}
+		as |t|
+	>
+		<t.head>
+			<t.sort-by @prop="allocation">Allocation</t.sort-by>
+			<t.sort-by @prop="address">IP Address &amp; Port</t.sort-by>
+		</t.head>
+		<t.body as |row|>
+			<tr>
+				<td>
+					<LinkTo @route="allocations.allocation" @model={{row.model.allocation}}>{{row.model.allocation.shortId}}</LinkTo>
+				</td>
+				<td>
+					{{row.model.address}}:{{row.model.port}}
+				</td>
+			</tr>
+		</t.body>
+	</ListTable>
+</section>
