@@ -11,7 +11,7 @@ import (
 )
 
 // enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
-func (j *Job) enforceSubmitJob(override bool, job *structs.Job, nomadACLToken *structs.ACLToken, ns *structs.Namespace) (error, error) {
+func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 	return nil, nil
 }
 

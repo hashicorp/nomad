@@ -102,12 +102,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
-	nomadACLToken, err := j.srv.ResolveSecretToken(args.AuthToken)
+	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
-	if nomadACLToken != nil {
-		args.Job.NomadTokenID = nomadACLToken.AccessorID
+	if tokenID != nil {
+		args.Job.NomadTokenID = tokenID.AccessorID
 	}
 
 	// Set the warning message
@@ -309,11 +309,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
-	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
-	if err != nil {
-		return err
-	}
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(), nomadACLToken, ns)
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())
 	if err != nil {
 		return err
 	}
@@ -1694,28 +1690,20 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		}
 	}
 
-	// Acquire a snapshot of the state
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
 	// Enforce Sentinel policies
-	nomadACLToken, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
-	if err != nil && !strings.Contains(err.Error(), "missing secret id") {
-		return err
-	}
-	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
-	if err != nil {
-		return err
-	}
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, nomadACLToken, ns)
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
 	if err != nil {
 		return err
 	}
 	if policyWarnings != nil {
 		warnings = append(warnings, policyWarnings)
 		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
+	}
+
+	// Acquire a snapshot of the state
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
 	}
 
 	// Interpolate the job for this region
