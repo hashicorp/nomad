@@ -18,10 +18,9 @@ const (
 
 // CpusetManager is used to setup cpuset cgroups for each task.
 type CpusetManager interface {
-	// Init should be called with the initial set of reservable cores before any
-	// allocations are managed. Ensures the parent cgroup exists and proper permissions
-	// are available for managing cgroups.
-	Init([]uint16) error
+	// Init should be called before the client starts running allocations. This
+	// is where the cpuset manager should start doing background operations.
+	Init()
 
 	// AddAlloc adds an allocation to the manager
 	AddAlloc(alloc *structs.Allocation)
@@ -36,8 +35,7 @@ type CpusetManager interface {
 
 type NoopCpusetManager struct{}
 
-func (n NoopCpusetManager) Init([]uint16) error {
-	return nil
+func (n NoopCpusetManager) Init() {
 }
 
 func (n NoopCpusetManager) AddAlloc(alloc *structs.Allocation) {
