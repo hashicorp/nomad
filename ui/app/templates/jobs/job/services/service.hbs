@@ -22,7 +22,12 @@
 		</t.head>
 		<t.body as |row|>
 			<tr>
-				<td>
+				<td
+					{{keyboard-shortcut 
+						enumerated=true
+						action=(action "gotoAllocation" row.model.allocation)
+					}}
+				>
 					<LinkTo @route="allocations.allocation" @model={{row.model.allocation}}>{{row.model.allocation.shortId}}</LinkTo>
 				</td>
 				<td>
