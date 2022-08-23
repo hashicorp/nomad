@@ -1368,7 +1368,7 @@ BAR={{key "bar"}}
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to run script")
+	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "task is being killed")
 }
 
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
