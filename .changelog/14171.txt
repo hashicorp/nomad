@@ -1,3 +1,0 @@
-```release-note:improvement
-sentinel: add the ability to reference the namespace and Nomad acl token in policies
-```
