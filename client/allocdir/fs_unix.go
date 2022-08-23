@@ -35,47 +35,48 @@ var (
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
 func dropDirPermissions(path string, desired os.FileMode) error {
-	LOG.Info("dropDirPermissions", "path", path, "desired", string(desired))
+	LOG.Info("dropDirPermissions", "path", path, "desired", fmt.Sprintf("%x", desired))
 
 	if err := os.Chmod(path, desired|0777); err != nil {
-		LOG.Error("Chmod failed", "error", err)
+		LOG.Error("Chmod failed", "path", path, "error", err)
 		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
-	LOG.Info("Chmod ok")
+	LOG.Info("Chmod ok", "path", path, "path", path)
 
 	// Can't change owner if not root.
 	if unix.Geteuid() != 0 {
-		LOG.Error("Geteuid failed")
+		LOG.Error("Geteuid failed", "path", path)
 		return nil
 	}
-	LOG.Info("Geteuid ok")
+	LOG.Info("Geteuid ok", "path", path)
 
+	LOG.Trace("enter lookup", "path", path)
 	u, err := user.Lookup("nobody")
 	if err != nil {
-		LOG.Error("Lookup nobody failed", "error", err)
+		LOG.Error("Lookup nobody failed", "path", path, "error", err)
 		return err
 	}
-	LOG.Info("Lookup ok")
+	LOG.Info("Lookup ok", "path", path)
 
 	uid, err := getUid(u)
 	if err != nil {
-		LOG.Error("getUid failed", "error", err)
+		LOG.Error("getUid failed", "path", path, "error", err)
 		return err
 	}
-	LOG.Info("getUid ok")
+	LOG.Info("getUid ok", "path", path)
 
 	gid, err := getGid(u)
 	if err != nil {
-		LOG.Error("getGid failed", "error", err)
+		LOG.Error("getGid failed", "path", path, "error", err)
 		return err
 	}
-	LOG.Info("getGid ok")
+	LOG.Info("getGid ok", "path", path)
 
 	if err := os.Chown(path, uid, gid); err != nil {
-		LOG.Error("Chown failed", "error", err)
+		LOG.Error("Chown failed", "path", path, "error", err)
 		return fmt.Errorf("Couldn't change owner/group of %v to (uid: %v, gid: %v): %v", path, uid, gid, err)
 	}
-	LOG.Info("Chown ok")
+	LOG.Info("Chown ok", "path", path)
 
 	return nil
 }
