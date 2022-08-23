@@ -35,15 +35,15 @@ job "docs" {
 ## `change_script` Parameters
 
 - `command` `(string: "")` - Specifies the full path to a script or executable
-  that is to be executed on template change. Path is relative to the driver, e.g.,
+  that is to be executed on template change. The command must return exit code 0 to be considered successful. Path is relative to the driver, e.g.,
   if running with a container driver the path must be existing in the container.
-  This option is required is the `change_mode` is `script`.
+  This option is required if `change_mode` is `script`.
 
 - `args` `(array<string>: [])` - List of arguments that are passed to the script
   that is to be executed on template change. 
 
 - `timeout` `(string: "5s")` - Timeout for script execution specified using a
-  label suffix like "30s" or "1h". 
+  label suffix like `"30s"` or `"1h"`. 
 
 - `fail_on_error` `(bool: false)` - If `true`, Nomad will kill the task if the
   script execution fails. If `false`, script failure will be logged but the task
@@ -59,7 +59,7 @@ job "docs" {
   group "example" {
     task "server" {
       template {
-        data        = "{{key \"abc\"}}"
+        data        = "{{key \"my_key\"}}"
         destination = "local/test"
         change_mode = "script"
 

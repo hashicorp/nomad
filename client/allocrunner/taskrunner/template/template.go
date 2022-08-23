@@ -199,8 +199,9 @@ func (tm *TaskTemplateManager) Stop() {
 // SetDriverHandle sets the executor
 func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
 	tm.handleLock.Lock()
+	defer tm.handleLock.Unlock()
 	tm.handle = executor
-	tm.handleLock.Unlock()
+
 }
 
 // run is the long lived loop that handles errors and templates being rendered
@@ -545,7 +546,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	}
 	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
 	if err != nil {
-		failure_msg := fmt.Sprintf(
+		failureMsg := fmt.Sprintf(
 			"Template failed to run script %v with arguments %v on change: %v Exit code: %v",
 			script.Command,
 			script.Args,
@@ -571,7 +572,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 		SetDisplayMessage(
 			fmt.Sprintf(
-				"Template successfully ran a script from %v with arguments: %v. Exit code: %v",
+				"Template successfully ran script %v with arguments: %v. Exit code: %v",
 				script.Command,
 				script.Args,
 				exitCode,
