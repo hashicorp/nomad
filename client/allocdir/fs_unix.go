@@ -32,6 +32,18 @@ var (
 	TaskSecretsContainerPath = filepath.Join("/", TaskSecrets)
 )
 
+var (
+	nobodyUser *user.User
+)
+
+func init() {
+	u, err := user.Lookup("nobody")
+	if err != nil {
+		panic("failed to lookup the nobody user")
+	}
+	nobodyUser = u
+}
+
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
 func dropDirPermissions(path string, desired os.FileMode) error {
@@ -50,22 +62,22 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 	}
 	LOG.Info("Geteuid ok", "path", path)
 
-	LOG.Trace("enter lookup", "path", path)
-	u, err := user.Lookup("nobody")
-	if err != nil {
-		LOG.Error("Lookup nobody failed", "path", path, "error", err)
-		return err
-	}
-	LOG.Info("Lookup ok", "path", path)
+	//LOG.Trace("enter lookup", "path", path)
+	//u, err := user.Lookup("nobody")
+	//if err != nil {
+	//	LOG.Error("Lookup nobody failed", "path", path, "error", err)
+	//	return err
+	//}
+	// LOG.Info("Lookup ok", "path", path)
 
-	uid, err := getUid(u)
+	uid, err := getUid(nobodyUser)
 	if err != nil {
 		LOG.Error("getUid failed", "path", path, "error", err)
 		return err
 	}
 	LOG.Info("getUid ok", "path", path)
 
-	gid, err := getGid(u)
+	gid, err := getGid(nobodyUser)
 	if err != nil {
 		LOG.Error("getGid failed", "path", path, "error", err)
 		return err
