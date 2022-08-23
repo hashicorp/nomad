@@ -18,4 +18,16 @@ export default class Service extends Model {
   @attr() tags;
 
   @alias('serviceName') name;
+
+  // Services can exist at either Group or Task level.
+  // While our endpoints to get them do not explicitly tell us this,
+  // we can infer it from the service's ID:
+  get derivedLevel() {
+    const idWithoutServiceName = this.id.replace(this.serviceName, '');
+    if (idWithoutServiceName.includes('group-')) {
+      return 'group';
+    } else {
+      return 'task';
+    }
+  }
 }

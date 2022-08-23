@@ -4,10 +4,10 @@ import { inject as service } from '@ember/service';
 
 export default class JobsJobServicesServiceController extends Controller {
   @service router;
+  queryParams = [];
 
 	@action
   gotoAllocation(allocation) {
-		console.log('alloc', allocation);
     this.router.transitionTo('allocations.allocation', allocation.get('id'));
   }
 
