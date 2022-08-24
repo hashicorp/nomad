@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -123,6 +122,16 @@ func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 
 func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 
+// mockExecutor implements script executor interface
+type mockExecutor struct {
+	DesiredExit int
+	DesiredErr  error
+}
+
+func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	return []byte{}, m.DesiredExit, m.DesiredErr
+}
+
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
@@ -213,7 +222,6 @@ func (h *testHarness) startWithErr() error {
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
 	})
-
 	return err
 }
 
@@ -381,7 +389,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 func TestTaskTemplateManager_HostPath(t *testing.T) {
 	ci.Parallel(t)
 	// Make a template that will render immediately and write it to a tmp file
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Bad: %v", err)
 	}
@@ -417,7 +425,7 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -494,7 +502,7 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -573,7 +581,7 @@ func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -598,7 +606,7 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 
 	// Write the contents
 	path := filepath.Join(harness.taskDir, file)
-	if err := ioutil.WriteFile(path, []byte(content), 0777); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0777); err != nil {
 		t.Fatalf("Failed to write data: %v", err)
 	}
 
@@ -614,7 +622,7 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 
 	// Check the file is there
 	path = filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -660,7 +668,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -710,7 +718,7 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -755,7 +763,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 
 	// Check that the static file has been rendered
 	path := filepath.Join(harness.taskDir, staticFile)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -776,7 +784,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 
 	// Check the consul file is there
 	path = filepath.Join(harness.taskDir, consulFile)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -828,7 +836,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	require.NoError(err, "Failed to read rendered template from %q", path)
 	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
 
@@ -922,7 +930,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -944,7 +952,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 	// Check the file has been updated
 	path = filepath.Join(harness.taskDir, file)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1034,7 +1042,7 @@ OUTER:
 
 	// Check the files have  been updated
 	path := filepath.Join(harness.taskDir, file1)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1044,7 +1052,7 @@ OUTER:
 	}
 
 	path = filepath.Join(harness.taskDir, file2)
-	raw, err = ioutil.ReadFile(path)
+	raw, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1108,7 +1116,7 @@ OUTER:
 
 	// Check the files have  been updated
 	path := filepath.Join(harness.taskDir, file1)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1143,7 +1151,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 	// Check the file is there
 	actual := fmt.Sprintf("%s.tmpl", harness.node.ID)
 	path := filepath.Join(harness.taskDir, actual)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
 	}
@@ -1201,6 +1209,168 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
 }
 
+func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
+	ci.Parallel(t)
+
+	// Make a template that renders based on a key in Consul and triggers script
+	key1 := "bam"
+	key2 := "bar"
+	content1_1 := "cat"
+	content1_2 := "dog"
+	t1 := &structs.Template{
+		EmbeddedTmpl: `
+FOO={{key "bam"}}
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScript: &structs.ChangeScript{
+			Command:     "/bin/foo",
+			Args:        []string{},
+			Timeout:     5 * time.Second,
+			FailOnError: false,
+		},
+		Envvars: true,
+	}
+	t2 := &structs.Template{
+		EmbeddedTmpl: `
+BAR={{key "bar"}}
+`,
+		DestPath:   "test2.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScript: &structs.ChangeScript{
+			Command:     "/bin/foo",
+			Args:        []string{},
+			Timeout:     5 * time.Second,
+			FailOnError: false,
+		},
+		Envvars: true,
+	}
+
+	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
+	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.start(t)
+	harness.manager.SetDriverHandle(&me)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		require.Fail(t, "Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail(t, "Task unblock should have been called")
+	}
+
+	// Update the keys in Consul
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+
+	// Wait for restart
+	timeout := time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			require.Fail(t, "restart not expected")
+		case ev := <-harness.mockHooks.EmitEventCh:
+			if strings.Contains(ev.DisplayMessage, t1.ChangeScript.Command) {
+				break OUTER
+			}
+		case <-harness.mockHooks.SignalCh:
+			require.Fail(t, "signal not expected")
+		case <-timeout:
+			require.Fail(t, "should have received an event")
+		}
+	}
+}
+
+// TestTaskTemplateManager_ScriptExecutionFailTask tests whether we fail the
+// task upon script execution failure if that's how it's configured.
+func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	// Make a template that renders based on a key in Consul and triggers script
+	key1 := "bam"
+	key2 := "bar"
+	content1_1 := "cat"
+	content1_2 := "dog"
+	t1 := &structs.Template{
+		EmbeddedTmpl: `
+FOO={{key "bam"}}
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScript: &structs.ChangeScript{
+			Command:     "/bin/foo",
+			Args:        []string{},
+			Timeout:     5 * time.Second,
+			FailOnError: true,
+		},
+		Envvars: true,
+	}
+	t2 := &structs.Template{
+		EmbeddedTmpl: `
+BAR={{key "bar"}}
+`,
+		DestPath:   "test2.env",
+		ChangeMode: structs.TemplateChangeModeScript,
+		ChangeScript: &structs.ChangeScript{
+			Command:     "/bin/foo",
+			Args:        []string{},
+			Timeout:     5 * time.Second,
+			FailOnError: false,
+		},
+		Envvars: true,
+	}
+
+	me := mockExecutor{DesiredExit: 1, DesiredErr: fmt.Errorf("Script failed")}
+	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.start(t)
+	harness.manager.SetDriverHandle(&me)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		require.Fail("Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail("Task unblock should have been called")
+	}
+
+	// Update the keys in Consul
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+
+	// Wait for kill channel
+	select {
+	case <-harness.mockHooks.KillCh:
+		break
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		require.Fail("Should have received a signals: %+v", harness.mockHooks)
+	}
+
+	require.NotNil(harness.mockHooks.KillEvent)
+	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "task is being killed")
+}
+
 // TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
 // environment variables found in task env-vars and not read the nomad host
 // process environment variables.  nomad host process environment variables
@@ -1241,7 +1411,7 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 
 	require.Equal(t, expected, string(raw))
@@ -1297,7 +1467,7 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1330,7 +1500,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1365,11 +1535,11 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	d := t.TempDir()
 
 	// Fake writing the files so we don't have to run the whole template manager
-	err := ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
+	err := os.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file 1: %v", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
+	err = os.WriteFile(filepath.Join(d, "aaa.env"), []byte("BAR=foo\nSHARED=yup\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file 2: %v", err)
 	}
@@ -2209,7 +2379,7 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 
 	// Check the file is not there
 	path := filepath.Join(harness.taskDir, file)
-	_, err := ioutil.ReadFile(path)
+	_, err := os.ReadFile(path)
 	require.Error(t, err)
 }
 
@@ -2262,13 +2432,13 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	// Check the templated file is there
 	path := filepath.Join(harness.taskDir, file)
-	r, err := ioutil.ReadFile(path)
+	r, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.True(t, bytes.HasSuffix(r, []byte("...done\n")), string(r))
 
 	// Check that writeToFile was allowed
 	path = filepath.Join(harness.taskDir, "writetofile.out")
-	r, err = ioutil.ReadFile(path)
+	r, err = os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "hello", string(r))
 }

@@ -1055,10 +1055,31 @@ README][ct].
   - `"noop"` - take no action (continue running the task)
   - `"restart"` - restart the task
   - `"signal"` - send a configurable signal to the task
+  - `"script"` - run a script
 
 - `ChangeSignal` - Specifies the signal to send to the task as a string like
   "SIGUSR1" or "SIGINT". This option is required if the `ChangeMode` is
   `signal`.
+
+- `ChangeScript` - Configures the script triggered on template change.  This
+  option is required if the `ChangeMode` is `script`.
+
+  The `ChangeScript` object supports the following attributes:
+
+  - `Command` - Specifies the full path to a script or executable that is to be
+    executed on template change. Path is relative to the driver, e.g., if running
+    with a container driver the path must be existing in the container. This
+    option is required is the `change_mode` is `script`.
+  
+  - `Args` - List of arguments that are passed to the script that is to be
+    executed on template change. 
+  
+  - `Timeout` - Timeout for script execution specified using a label suffix like
+    "30s" or "1h". Default value is `"5s"`.
+  
+  - `FailOnError` - If `true`, Nomad will kill the task if the script execution
+    fails. If `false`, script failure will be logged but the task will continue
+    uninterrupted. Default value is `false`.
 
 - `DestPath` - Specifies the location where the resulting template should be
   rendered, relative to the task directory.
@@ -1080,14 +1101,14 @@ README][ct].
 - `Uid` - Specifies the rendered template owner's user ID.
  
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
-  containerized drivers, suck as `docker` or `podman`, as groups and users
+  containerized drivers, such as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
   feature will also **not** work with Docker Desktop. 
 
 - `Gid` - Specifies the rendered template owner's group ID.
   
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
-  containerized drivers, suck as `docker` or `podman`, as groups and users
+  containerized drivers, such as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
   feature will also **not** work with Docker Desktop. 
 

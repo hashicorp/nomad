@@ -111,6 +111,19 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
+func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
+	if req.DriverExec != nil {
+		h.templateManager.SetDriverHandle(req.DriverExec)
+	} else {
+		for _, template := range h.config.templates {
+			if template.ChangeMode == structs.TemplateChangeModeScript {
+				return fmt.Errorf("template has change mode set to 'script' but the driver it uses does not provide exec capability")
+			}
+		}
+	}
+	return nil
+}
+
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
