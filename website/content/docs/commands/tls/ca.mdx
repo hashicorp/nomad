@@ -1,0 +1,45 @@
+---
+layout: docs
+page_title: 'Commands: TLS CA Create'
+---
+
+# Nomad TLS CA Create
+
+Command: `nomad tls ca create`
+
+This command create a self signed CA to be used for Nomad TLS setup.
+
+## Example
+
+Create CA:
+
+```shell-session
+$ nomad tls ca create
+==> Saved nomad-ca.pem
+==> Saved nomad-ca-key.pem
+```
+
+## Usage
+
+Usage: `nomad tls ca create [filename-prefix] [options]`
+
+#### Command Options
+
+- `-additional-name-constraint=<value>` - Add name constraints for the CA.
+  Results in rejecting certificates for other DNS than specified. Can be used
+  multiple times. Only used in combination with `-name-constraint`.
+
+- `common-name` - Common Name of CA. Defaults to Nomad Agent CA.
+
+- `-days=<int>` - Provide number of days the CA is valid for from now on, defaults to 5 years.
+
+- `-domain=<string>` - Domain of nomad cluster. Only used in combination with
+  `-name-constraint`. Defaults to `nomad`.
+
+- `-name-constraint` - Add name constraints for the CA. Results in rejecting
+  certificates for other DNS than specified. If turned on localhost and -domain
+  will be added to the allowed DNS. If the UI is going to be served over HTTPS
+  its DNS has to be added with `-additional-constraint`. It is not possible to
+  add that after the fact! Defaults to false.
+
+
