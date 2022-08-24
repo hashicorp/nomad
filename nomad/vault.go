@@ -111,6 +111,10 @@ type VaultClient interface {
 	// SetConfig updates the config used by the Vault client
 	SetConfig(config *config.VaultConfig) error
 
+	// GetConfig returns a copy of the config used by the Vault client, for
+	// testing
+	GetConfig() *config.VaultConfig
+
 	// CreateToken takes an allocation and task and returns an appropriate Vault
 	// Secret
 	CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error)
@@ -350,6 +354,13 @@ func (v *vaultClient) flush() {
 	v.tomb = &tomb.Tomb{}
 }
 
+// GetConfig returns a copy of this vault client's configuration, for testing.
+func (v *vaultClient) GetConfig() *config.VaultConfig {
+	v.setConfigLock.Lock()
+	defer v.setConfigLock.Unlock()
+	return v.config.Copy()
+}
+
 // SetConfig is used to update the Vault config being used. A temporary outage
 // may occur after calling as it re-establishes a connection to Vault
 func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
@@ -363,7 +374,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	defer v.l.Unlock()
 
 	// If reloading the same config, no-op
-	if v.config.IsEqual(config) {
+	if v.config.Equals(config) {
 		return nil
 	}
 

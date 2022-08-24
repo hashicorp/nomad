@@ -142,6 +142,7 @@ func (v *TestVaultClient) MarkForRevocation(accessors []*structs.VaultAccessor) 
 
 func (v *TestVaultClient) Stop()                                                  {}
 func (v *TestVaultClient) SetActive(enabled bool)                                 {}
+func (v *TestVaultClient) GetConfig() *config.VaultConfig                         { return nil }
 func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error             { return nil }
 func (v *TestVaultClient) Running() bool                                          { return true }
 func (v *TestVaultClient) Stats() map[string]string                               { return map[string]string{} }
