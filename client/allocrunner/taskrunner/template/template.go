@@ -554,7 +554,6 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 			err,
 			exitCode,
 		)
-		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).SetDisplayMessage(failureMsg))
 		tm.handleScriptError(script, failureMsg)
 		return
 	}
@@ -565,7 +564,6 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 			script.Args,
 			exitCode,
 		)
-		tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookFailed).SetDisplayMessage(failureMsg))
 		tm.handleScriptError(script, failureMsg)
 		return
 	}
