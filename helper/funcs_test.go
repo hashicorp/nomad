@@ -547,3 +547,70 @@ func Test_NewSafeTimer(t *testing.T) {
 		<-timer.C
 	})
 }
+
+func Test_IsMethodHTTP(t *testing.T) {
+	t.Run("is method", func(t *testing.T) {
+		cases := []string{
+			"GET", "Get", "get",
+			"HEAD", "Head", "head",
+			"POST", "Post", "post",
+			"PUT", "Put", "put",
+			"PATCH", "Patch", "patch",
+			"DELETE", "Delete", "delete",
+			"CONNECT", "Connect", "connect",
+			"OPTIONS", "Options", "options",
+			"TRACE", "Trace", "trace",
+		}
+		for _, tc := range cases {
+			result := IsMethodHTTP(tc)
+			must.True(t, result)
+		}
+	})
+
+	t.Run("is not method", func(t *testing.T) {
+		not := []string{"GETTER", "!GET", ""}
+		for _, tc := range not {
+			result := IsMethodHTTP(tc)
+			must.False(t, result)
+		}
+	})
+}
+
+type employee struct {
+	id   int
+	name string
+}
+
+func (e *employee) Equals(o *employee) bool {
+	return e.id == o.id // name can be different
+}
+
+func Test_ElementsEquals(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := []*employee(nil)
+		var b []*employee
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different sizes", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "mitchell"}, {2, "armon"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
+	})
+
+	t.Run("equal", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
+	})
+}

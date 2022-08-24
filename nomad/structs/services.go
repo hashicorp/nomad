@@ -789,20 +789,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !helper.ElementsEquals(s.Checks, o.Checks) {
 		return false
 	}
 
