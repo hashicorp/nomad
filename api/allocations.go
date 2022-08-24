@@ -141,7 +141,9 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 	return err
 }
 
-// Restart restarts an allocation.
+// Restart restarts the tasks that are currently running or a specific task if
+// taskName is provided. An error is returned if the task to be restarted is
+// not running.
 //
 // Note: for cluster topologies where API consumers don't have network access to
 // Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
@@ -149,6 +151,22 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		TaskName: taskName,
+	}
+
+	var resp struct{}
+	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/restart", &req, &resp, q)
+	return err
+}
+
+// RestartAllTasks restarts all tasks in the allocation, regardless of
+// lifecycle type or state. Tasks will restart following their lifecycle order.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
+func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error {
+	req := AllocationRestartRequest{
+		AllTasks: true,
 	}
 
 	var resp struct{}
@@ -447,6 +465,7 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 
 type AllocationRestartRequest struct {
 	TaskName string
+	AllTasks bool
 }
 
 type AllocSignalRequest struct {

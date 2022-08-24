@@ -18,11 +18,15 @@ nomad alloc restart [options] <allocation> <task>
 
 This command accepts a single allocation ID and a task name. The task name must
 be part of the allocation and the task must be currently running. The task name
-is optional and if omitted every task in the allocation will be restarted.
+is optional and if omitted all tasks that are currently running will be
+restarted.
 
-Task name may also be specified using the `-task` option rather than a command 
-argument. If task name is given with both an argument and the `-task` option, 
+Task name may also be specified using the `-task` option rather than a command
+argument. If task name is given with both an argument and the `-task` option,
 preference is given to the `-task` option.
+
+Use the option `-all-tasks` to restart tasks that have already run, such as
+non-sidecar prestart and poststart tasks.
 
 When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
@@ -34,7 +38,12 @@ allocation's namespace.
 
 ## Restart Options
 
-- `-task`: Specify the individual task to restart.
+- `-all-tasks`: If set, all tasks in the allocation will be restarted, even the
+  ones that already ran. This option cannot be used with `-task` or the
+  `<task>` argument.
+
+- `-task`: Specify the individual task to restart. This option cannot be used
+  with `-all-tasks`.
 
 - `-verbose`: Display verbose output.
 

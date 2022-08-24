@@ -28,7 +28,6 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -547,40 +546,64 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		// if all live runners are sidecars - kill alloc
-		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
-			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
-		}
-
-		// If there's a kill event set and live runners, kill them
-		if killEvent != nil && len(liveRunners) > 0 {
-
-			// Log kill reason
-			switch killEvent.Type {
-			case structs.TaskLeaderDead:
-				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			case structs.TaskMainDead:
-				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
-			default:
-				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+		if len(liveRunners) > 0 {
+			// if all live runners are sidecars - kill alloc
+			onlySidecarsRemaining := hasSidecars && !hasNonSidecarTasks(liveRunners)
+			if killEvent == nil && onlySidecarsRemaining {
+				killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 			}
 
-			// Emit kill event for live runners
-			for _, tr := range liveRunners {
-				tr.EmitEvent(killEvent)
+			// If there's a kill event set and live runners, kill them
+			if killEvent != nil {
+
+				// Log kill reason
+				switch killEvent.Type {
+				case structs.TaskLeaderDead:
+					ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
+				case structs.TaskMainDead:
+					ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+				default:
+					ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+				}
+
+				// Emit kill event for live runners
+				for _, tr := range liveRunners {
+					tr.EmitEvent(killEvent)
+				}
+
+				// Kill 'em all
+				states = ar.killTasks()
+
+				// Wait for TaskRunners to exit before continuing. This will
+				// prevent looping before TaskRunners have transitioned to
+				// Dead.
+				for _, tr := range liveRunners {
+					ar.logger.Info("waiting for task to exit", "task", tr.Task().Name)
+					select {
+					case <-tr.WaitCh():
+					case <-ar.waitCh:
+					}
+				}
 			}
+		} else {
+			// If there are no live runners left kill all non-poststop task
+			// runners to unblock them from the alloc restart loop.
+			for _, tr := range ar.tasks {
+				if tr.IsPoststopTask() {
+					continue
+				}
 
-			// Kill 'em all
-			states = ar.killTasks()
-
-			// Wait for TaskRunners to exit before continuing to
-			// prevent looping before TaskRunners have transitioned
-			// to Dead.
-			for _, tr := range liveRunners {
-				ar.logger.Info("killing task", "task", tr.Task().Name)
 				select {
 				case <-tr.WaitCh():
 				case <-ar.waitCh:
+				default:
+					// Kill task runner without setting an event because the
+					// task is already dead, it's just waiting in the alloc
+					// restart loop.
+					err := tr.Kill(context.TODO(), nil)
+					if err != nil {
+						ar.logger.Warn("failed to kill task", "task", tr.Task().Name, "error", err)
+					}
 				}
 			}
 		}
@@ -648,7 +671,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		break
 	}
 
-	// Kill the rest non-sidecar or poststop tasks concurrently
+	// Kill the rest non-sidecar and non-poststop tasks concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
 		// Filter out poststop and sidecar tasks so that they stop after all the other tasks are killed
@@ -1205,19 +1228,37 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 	return nil
 }
 
-// RestartTask signalls the task runner for the  provided task to restart.
-func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent) error {
+// Restart satisfies the WorkloadRestarter interface and restarts all tasks
+// that are currently running.
+func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	return ar.restartTasks(ctx, event, failure, false)
+}
+
+// RestartTask restarts the provided task.
+func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) error {
 	tr, ok := ar.tasks[taskName]
 	if !ok {
 		return fmt.Errorf("Could not find task runner for task: %s", taskName)
 	}
 
-	return tr.Restart(context.TODO(), taskEvent, false)
+	return tr.Restart(context.TODO(), event, false)
 }
 
-// Restart satisfies the WorkloadRestarter interface restarts all task runners
-// concurrently
-func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+// RestartRunning restarts all tasks that are currently running.
+func (ar *allocRunner) RestartRunning(event *structs.TaskEvent) error {
+	return ar.restartTasks(context.TODO(), event, false, false)
+}
+
+// RestartAll restarts all tasks in the allocation, including dead ones. They
+// will restart following their lifecycle order.
+func (ar *allocRunner) RestartAll(event *structs.TaskEvent) error {
+	// Restart the taskCoordinator to allow dead tasks to run again.
+	ar.taskCoordinator.Restart()
+	return ar.restartTasks(context.TODO(), event, false, true)
+}
+
+// restartTasks restarts all task runners concurrently.
+func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool, force bool) error {
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
@@ -1230,10 +1271,19 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 		defer close(waitCh)
 		for tn, tr := range ar.tasks {
 			wg.Add(1)
-			go func(taskName string, r agentconsul.WorkloadRestarter) {
+			go func(taskName string, taskRunner *taskrunner.TaskRunner) {
 				defer wg.Done()
-				e := r.Restart(ctx, event, failure)
-				if e != nil {
+
+				var e error
+				if force {
+					e = taskRunner.ForceRestart(ctx, event.Copy(), failure)
+				} else {
+					e = taskRunner.Restart(ctx, event.Copy(), failure)
+				}
+
+				// Ignore ErrTaskNotRunning errors since tasks that are not
+				// running are expected to not be restarted.
+				if e != nil && e != taskrunner.ErrTaskNotRunning {
 					errMutex.Lock()
 					defer errMutex.Unlock()
 					err = multierror.Append(err, fmt.Errorf("failed to restart task %s: %v", taskName, e))
@@ -1246,25 +1296,6 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 	select {
 	case <-waitCh:
 	case <-ctx.Done():
-	}
-
-	return err.ErrorOrNil()
-}
-
-// RestartAll signalls all task runners in the allocation to restart and passes
-// a copy of the task event to each restart event.
-// Returns any errors in a concatenated form.
-func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
-	var err *multierror.Error
-
-	// run alloc task restart hooks
-	ar.taskRestartHooks()
-
-	for tn := range ar.tasks {
-		rerr := ar.RestartTask(tn, taskEvent.Copy())
-		if rerr != nil {
-			err = multierror.Append(err, rerr)
-		}
 	}
 
 	return err.ErrorOrNil()

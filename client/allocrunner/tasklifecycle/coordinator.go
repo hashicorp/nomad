@@ -16,7 +16,7 @@ const (
 	coordinatorStatePrestart
 	coordinatorStateMain
 	coordinatorStatePoststart
-	coordinatorStateWaitMain
+	coordinatorStateWaitAlloc
 	coordinatorStatePoststop
 )
 
@@ -30,8 +30,8 @@ func (s coordinatorState) String() string {
 		return "main"
 	case coordinatorStatePoststart:
 		return "poststart"
-	case coordinatorStateWaitMain:
-		return "wait_main"
+	case coordinatorStateWaitAlloc:
+		return "wait_alloc"
 	case coordinatorStatePoststop:
 		return "poststart"
 	}
@@ -109,6 +109,15 @@ func NewCoordinator(logger hclog.Logger, tasks []*structs.Task, shutdownCh <-cha
 	return c
 }
 
+// Restart sets the Coordinator state back to "init" and is used to coordinate
+// a full alloc restart. Since all tasks will run again they need to be pending
+// before they are allowed to proceed.
+func (c *Coordinator) Restart() {
+	c.currentStateLock.Lock()
+	defer c.currentStateLock.Unlock()
+	c.enterStateLocked(coordinatorStateInit)
+}
+
 // Restore is used to set the Coordinator FSM to the correct state when an
 // alloc is restored. Must be called before the allocrunner is running.
 func (c *Coordinator) Restore(states map[string]*structs.TaskState) {
@@ -151,6 +160,13 @@ func (c *Coordinator) TaskStateUpdated(states map[string]*structs.TaskState) {
 // current internal state and the received states of the tasks.
 // The currentStateLock must be held before calling this method.
 func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coordinatorState {
+
+	// coordinatorStatePoststop is the terminal state of the FSM, and can be
+	// reached at any time.
+	if c.isAllocDone(states) {
+		return coordinatorStatePoststop
+	}
+
 	switch c.currentState {
 	case coordinatorStateInit:
 		if !c.isInitDone(states) {
@@ -174,11 +190,11 @@ func (c *Coordinator) nextStateLocked(states map[string]*structs.TaskState) coor
 		if !c.isPoststartDone(states) {
 			return coordinatorStatePoststart
 		}
-		return coordinatorStateWaitMain
+		return coordinatorStateWaitAlloc
 
-	case coordinatorStateWaitMain:
-		if !c.isWaitMainDone(states) {
-			return coordinatorStateWaitMain
+	case coordinatorStateWaitAlloc:
+		if !c.isAllocDone(states) {
+			return coordinatorStateWaitAlloc
 		}
 		return coordinatorStatePoststop
 
@@ -233,7 +249,7 @@ func (c *Coordinator) enterStateLocked(state coordinatorState) {
 		c.allow(lifecycleStagePoststartEphemeral)
 		c.allow(lifecycleStagePoststartSidecar)
 
-	case coordinatorStateWaitMain:
+	case coordinatorStateWaitAlloc:
 		c.block(lifecycleStagePrestartEphemeral)
 		c.block(lifecycleStagePoststartEphemeral)
 		c.block(lifecycleStagePoststop)
@@ -268,7 +284,7 @@ func (c *Coordinator) isInitDone(states map[string]*structs.TaskState) bool {
 
 // isPrestartDone returns true when the following conditions are met:
 //   - there is at least one prestart task
-//   - all ephemeral prestart tasks are in the "dead" state.
+//   - all ephemeral prestart tasks are successful.
 //   - no ephemeral prestart task has failed.
 //   - all prestart sidecar tasks are running.
 func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool {
@@ -277,7 +293,7 @@ func (c *Coordinator) isPrestartDone(states map[string]*structs.TaskState) bool 
 	}
 
 	for _, task := range c.tasksByLifecycle[lifecycleStagePrestartEphemeral] {
-		if states[task].State != structs.TaskStateDead || states[task].Failed {
+		if !states[task].Successful() {
 			return false
 		}
 	}
@@ -321,9 +337,9 @@ func (c *Coordinator) isPoststartDone(states map[string]*structs.TaskState) bool
 	return true
 }
 
-// isWaitMainDone returns true when the following conditions are met:
-//   - all tasks that are not poststop are in the "dead" state.
-func (c *Coordinator) isWaitMainDone(states map[string]*structs.TaskState) bool {
+// isAllocDone returns true when the following conditions are met:
+//   - all non-poststop tasks are in the "dead" state.
+func (c *Coordinator) isAllocDone(states map[string]*structs.TaskState) bool {
 	for lifecycle, tasks := range c.tasksByLifecycle {
 		if lifecycle == lifecycleStagePoststop {
 			continue

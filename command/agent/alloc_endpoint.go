@@ -283,6 +283,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	// Explicitly parse the body separately to disallow overriding AllocID in req Body.
 	var reqBody struct {
 		TaskName string
+		AllTasks bool
 	}
 	err := json.NewDecoder(req.Body).Decode(&reqBody)
 	if err != nil && err != io.EOF {
@@ -290,6 +291,9 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	}
 	if reqBody.TaskName != "" {
 		args.TaskName = reqBody.TaskName
+	}
+	if reqBody.AllTasks {
+		args.AllTasks = reqBody.AllTasks
 	}
 
 	// Determine the handler to use

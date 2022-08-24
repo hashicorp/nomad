@@ -731,6 +731,13 @@ The table below shows this endpoint's support for
   must be the full UUID, not the short 8-character one. This is specified as
   part of the path.
 
+- `TaskName` `(string: "")` - Specifies the individual task to restart. Cannot
+  be used with `AllTasks` set to `true`.
+
+- `AllTasks` `(bool: false)` -  If set to `true` all tasks in the allocation
+  will be restarted, even the ones that already ran. Cannot be set to `true` if
+  `TaskName` is defined.
+
 ### Sample Payload
 
 ```json
