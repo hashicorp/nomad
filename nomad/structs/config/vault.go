@@ -106,14 +106,20 @@ func (c *VaultConfig) AllowsUnauthenticated() bool {
 func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *c
 
+	if b.Enabled != nil {
+		result.Enabled = b.Enabled
+	}
 	if b.Token != "" {
 		result.Token = b.Token
+	}
+	if b.Role != "" {
+		result.Role = b.Role
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
 	}
-	if b.Role != "" {
-		result.Role = b.Role
+	if b.AllowUnauthenticated != nil {
+		result.AllowUnauthenticated = b.AllowUnauthenticated
 	}
 	if b.TaskTokenTTL != "" {
 		result.TaskTokenTTL = b.TaskTokenTTL
@@ -136,17 +142,11 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSKeyFile != "" {
 		result.TLSKeyFile = b.TLSKeyFile
 	}
-	if b.TLSServerName != "" {
-		result.TLSServerName = b.TLSServerName
-	}
-	if b.AllowUnauthenticated != nil {
-		result.AllowUnauthenticated = b.AllowUnauthenticated
-	}
 	if b.TLSSkipVerify != nil {
 		result.TLSSkipVerify = b.TLSSkipVerify
 	}
-	if b.Enabled != nil {
-		result.Enabled = b.Enabled
+	if b.TLSServerName != "" {
+		result.TLSServerName = b.TLSServerName
 	}
 
 	return &result
@@ -188,13 +188,21 @@ func (c *VaultConfig) Copy() *VaultConfig {
 	return nc
 }
 
-// IsEqual compares two Vault configurations and returns a boolean indicating
+// Equals compares two Vault configurations and returns a boolean indicating
 // if they are equal.
-func (c *VaultConfig) IsEqual(b *VaultConfig) bool {
+func (c *VaultConfig) Equals(b *VaultConfig) bool {
 	if c == nil && b != nil {
 		return false
 	}
 	if c != nil && b == nil {
+		return false
+	}
+
+	if c.Enabled == nil || b.Enabled == nil {
+		if c.Enabled != b.Enabled {
+			return false
+		}
+	} else if *c.Enabled != *b.Enabled {
 		return false
 	}
 
@@ -204,6 +212,18 @@ func (c *VaultConfig) IsEqual(b *VaultConfig) bool {
 	if c.Role != b.Role {
 		return false
 	}
+	if c.Namespace != b.Namespace {
+		return false
+	}
+
+	if c.AllowUnauthenticated == nil || b.AllowUnauthenticated == nil {
+		if c.AllowUnauthenticated != b.AllowUnauthenticated {
+			return false
+		}
+	} else if *c.AllowUnauthenticated != *b.AllowUnauthenticated {
+		return false
+	}
+
 	if c.TaskTokenTTL != b.TaskTokenTTL {
 		return false
 	}
@@ -225,17 +245,18 @@ func (c *VaultConfig) IsEqual(b *VaultConfig) bool {
 	if c.TLSKeyFile != b.TLSKeyFile {
 		return false
 	}
+
+	if c.TLSSkipVerify == nil || b.TLSSkipVerify == nil {
+		if c.TLSSkipVerify != b.TLSSkipVerify {
+			return false
+		}
+	} else if *c.TLSSkipVerify != *b.TLSSkipVerify {
+		return false
+	}
+
 	if c.TLSServerName != b.TLSServerName {
 		return false
 	}
-	if c.AllowUnauthenticated != b.AllowUnauthenticated {
-		return false
-	}
-	if c.TLSSkipVerify != b.TLSSkipVerify {
-		return false
-	}
-	if c.Enabled != b.Enabled {
-		return false
-	}
+
 	return true
 }
