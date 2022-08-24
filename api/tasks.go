@@ -791,11 +791,34 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return nwc
 }
 
+type ChangeScript struct {
+	Command     *string        `mapstructure:"command" hcl:"command"`
+	Args        []string       `mapstructure:"args" hcl:"args,optional"`
+	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
+	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+}
+
+func (ch *ChangeScript) Canonicalize() {
+	if ch.Command == nil {
+		ch.Command = pointerOf("")
+	}
+	if ch.Args == nil {
+		ch.Args = []string{}
+	}
+	if ch.Timeout == nil {
+		ch.Timeout = pointerOf(5 * time.Second)
+	}
+	if ch.FailOnError == nil {
+		ch.FailOnError = pointerOf(false)
+	}
+}
+
 type Template struct {
 	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
 	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
 	EmbeddedTmpl *string        `mapstructure:"data" hcl:"data,optional"`
 	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeScript *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
 	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
 	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
@@ -830,6 +853,9 @@ func (tmpl *Template) Canonicalize() {
 	} else {
 		sig := *tmpl.ChangeSignal
 		tmpl.ChangeSignal = pointerOf(strings.ToUpper(sig))
+	}
+	if tmpl.ChangeScript != nil {
+		tmpl.ChangeScript.Canonicalize()
 	}
 	if tmpl.Splay == nil {
 		tmpl.Splay = pointerOf(5 * time.Second)
