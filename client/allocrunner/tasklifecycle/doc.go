@@ -1,4 +1,3 @@
-//nolint
 /*
 Package tasklifecycle manages the execution order of tasks based on their
 lifecycle configuration. Its main structs are the Coordinator and the Gate.
