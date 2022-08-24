@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
@@ -330,7 +331,7 @@ func (t *TaskEnv) replaceEnvClient(arg string) string {
 // directory path fields of this TaskEnv
 func (t *TaskEnv) checkEscape(testPath string) bool {
 	for _, p := range []string{t.clientTaskDir, t.clientSharedAllocDir} {
-		if p != "" && !helper.PathEscapesSandbox(p, testPath) {
+		if p != "" && !escapingfs.PathEscapesSandbox(p, testPath) {
 			return false
 		}
 	}

@@ -97,3 +97,25 @@ func PathEscapesAllocDir(base, prefix, path string) (bool, error) {
 
 	return false, nil
 }
+
+// PathEscapesSandbox returns whether previously cleaned path inside the
+// sandbox directory (typically this will be the allocation directory)
+// escapes.
+func PathEscapesSandbox(sandboxDir, path string) bool {
+	rel, err := filepath.Rel(sandboxDir, path)
+	if err != nil {
+		return true
+	}
+	if strings.HasPrefix(rel, "..") {
+		return true
+	}
+	return false
+}
+
+// EnsurePath is used to make sure a path exists
+func EnsurePath(path string, dir bool) error {
+	if !dir {
+		path = filepath.Dir(path)
+	}
+	return os.MkdirAll(path, 0755)
+}
