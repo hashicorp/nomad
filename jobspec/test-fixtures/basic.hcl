@@ -315,8 +315,15 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source          = "bar"
-        destination     = "bar"
+        source      = "bar"
+        destination = "bar"
+        change_mode = "script"
+        change_script {
+          command       = "/bin/foo"
+          args          = ["-debug", "-verbose"]
+          timeout       = "5s"
+          fail_on_error = false
+        }
         perms           = "777"
         uid             = 1001
         gid             = 20

@@ -22,6 +22,10 @@ const (
 
 	// templateChangeModeRestart marks that the task should be restarted if the
 	templateChangeModeRestart = "restart"
+
+	// templateChangeModeScript marks that ac script should be executed on
+	// template re-render
+	templateChangeModeScript = "script"
 )
 
 // Helper functions below are only used by this test suite
@@ -380,7 +384,13 @@ func TestParse(t *testing.T) {
 									{
 										SourcePath: stringToPtr("bar"),
 										DestPath:   stringToPtr("bar"),
-										ChangeMode: stringToPtr(templateChangeModeRestart),
+										ChangeMode: stringToPtr(templateChangeModeScript),
+										ChangeScript: &api.ChangeScript{
+											Args:        []string{"-debug", "-verbose"},
+											Command:     stringToPtr("/bin/foo"),
+											Timeout:     timeToPtr(5 * time.Second),
+											FailOnError: boolToPtr(false),
+										},
 										Splay:      timeToPtr(5 * time.Second),
 										Perms:      stringToPtr("777"),
 										Uid:        intToPtr(1001),

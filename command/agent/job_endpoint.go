@@ -1216,6 +1216,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					EmbeddedTmpl: *template.EmbeddedTmpl,
 					ChangeMode:   *template.ChangeMode,
 					ChangeSignal: *template.ChangeSignal,
+					ChangeScript: apiChangeScriptToStructsChangeScript(template.ChangeScript),
 					Splay:        *template.Splay,
 					Perms:        *template.Perms,
 					Uid:          template.Uid,
@@ -1224,7 +1225,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					RightDelim:   *template.RightDelim,
 					Envvars:      *template.Envvars,
 					VaultGrace:   *template.VaultGrace,
-					Wait:         ApiWaitConfigToStructsWaitConfig(template.Wait),
+					Wait:         apiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1243,16 +1244,29 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	}
 }
 
-// ApiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
+// apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
 // representation of a WaitConfig from a struct representation of a WaitConfig.
-func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
+func apiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
 	if waitConfig == nil {
 		return nil
 	}
 
 	return &structs.WaitConfig{
-		Min: &*waitConfig.Min,
-		Max: &*waitConfig.Max,
+		Min: waitConfig.Min,
+		Max: waitConfig.Max,
+	}
+}
+
+func apiChangeScriptToStructsChangeScript(changeScript *api.ChangeScript) *structs.ChangeScript {
+	if changeScript == nil {
+		return nil
+	}
+
+	return &structs.ChangeScript{
+		Command:     *changeScript.Command,
+		Args:        changeScript.Args,
+		Timeout:     *changeScript.Timeout,
+		FailOnError: *changeScript.FailOnError,
 	}
 }
 

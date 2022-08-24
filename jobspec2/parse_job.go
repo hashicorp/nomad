@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func normalizeJob(jc *jobConfig) {
@@ -59,10 +60,10 @@ func normalizeVault(v *api.Vault) {
 	}
 
 	if v.Env == nil {
-		v.Env = boolToPtr(true)
+		v.Env = pointer.Of(true)
 	}
 	if v.ChangeMode == nil {
-		v.ChangeMode = stringToPtr("restart")
+		v.ChangeMode = pointer.Of("restart")
 	}
 }
 
@@ -102,29 +103,32 @@ func normalizeTemplates(templates []*api.Template) {
 
 	for _, t := range templates {
 		if t.ChangeMode == nil {
-			t.ChangeMode = stringToPtr("restart")
+			t.ChangeMode = pointer.Of("restart")
 		}
 		if t.Perms == nil {
-			t.Perms = stringToPtr("0644")
+			t.Perms = pointer.Of("0644")
 		}
 		if t.Splay == nil {
-			t.Splay = durationToPtr(5 * time.Second)
+			t.Splay = pointer.Of(5 * time.Second)
 		}
+		normalizeChangeScript(t.ChangeScript)
 	}
 }
 
-func int8ToPtr(v int8) *int8 {
-	return &v
-}
+func normalizeChangeScript(ch *api.ChangeScript) {
+	if ch == nil {
+		return
+	}
 
-func boolToPtr(v bool) *bool {
-	return &v
-}
+	if ch.Args == nil {
+		ch.Args = []string{}
+	}
 
-func stringToPtr(v string) *string {
-	return &v
-}
+	if ch.Timeout == nil {
+		ch.Timeout = pointer.Of(5 * time.Second)
+	}
 
-func durationToPtr(v time.Duration) *time.Duration {
-	return &v
+	if ch.FailOnError == nil {
+		ch.FailOnError = pointer.Of(false)
+	}
 }
