@@ -2099,12 +2099,13 @@ func TestACL_ListRoles(t *testing.T) {
 	// Try listing roles without a valid ACL token.
 	aclRoleReq1 := &structs.ACLRolesListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: DefaultRegion,
+			Region:    DefaultRegion,
+			AuthToken: uuid.Generate(),
 		},
 	}
 	var aclRoleResp1 structs.ACLRolesListResponse
 	err := msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq1, &aclRoleResp1)
-	require.ErrorContains(t, err, "Permission denied")
+	require.ErrorContains(t, err, "ACL token not found")
 
 	// Try listing roles with a valid ACL token.
 	aclRoleReq2 := &structs.ACLRolesListRequest{
@@ -2146,6 +2147,28 @@ func TestACL_ListRoles(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, aclRoleResp4.ACLRoles, 2)
 
+	// Generate and upsert an ACL Token which links to only one of the two
+	// roles within state.
+	aclToken := mock.ACLToken()
+	aclToken.Policies = nil
+	aclToken.Roles = []*structs.ACLTokenRoleLink{{ID: aclRoles[1].ID}}
+
+	err = testServer.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{aclToken})
+	require.NoError(t, err)
+
+	aclRoleReq5 := &structs.ACLRolesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	var aclRoleResp5 structs.ACLRolesListResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq5, &aclRoleResp5)
+	require.NoError(t, err)
+	require.Len(t, aclRoleResp5.ACLRoles, 1)
+	require.Equal(t, aclRoleResp5.ACLRoles[0].ID, aclRoles[1].ID)
+	require.Equal(t, aclRoleResp5.ACLRoles[0].Name, aclRoles[1].Name)
+
 	// Now test a blocking query, where we wait for an update to the list which
 	// is triggered by a deletion.
 	type res struct {
@@ -2155,7 +2178,7 @@ func TestACL_ListRoles(t *testing.T) {
 	resultCh := make(chan *res)
 
 	go func(resultCh chan *res) {
-		aclRoleReq5 := &structs.ACLRolesListRequest{
+		aclRoleReq6 := &structs.ACLRolesListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:        DefaultRegion,
 				AuthToken:     aclRootToken.SecretID,
@@ -2163,9 +2186,9 @@ func TestACL_ListRoles(t *testing.T) {
 				MaxQueryTime:  10 * time.Second,
 			},
 		}
-		var aclRoleResp5 structs.ACLRolesListResponse
-		err = msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq5, &aclRoleResp5)
-		resultCh <- &res{err: err, reply: &aclRoleResp5}
+		var aclRoleResp6 structs.ACLRolesListResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq6, &aclRoleResp6)
+		resultCh <- &res{err: err, reply: &aclRoleResp6}
 	}(resultCh)
 
 	// Delete an ACL role from state which should return the blocking query.
@@ -2248,7 +2271,7 @@ func TestACL_GetRolesByID(t *testing.T) {
 	resultCh := make(chan *res)
 
 	go func(resultCh chan *res) {
-		aclRoleReq4 := &structs.ACLRolesByIDRequest{
+		aclRoleReq5 := &structs.ACLRolesByIDRequest{
 			ACLRoleIDs: []string{aclRoles[0].ID, aclRoles[1].ID},
 			QueryOptions: structs.QueryOptions{
 				Region:        DefaultRegion,
@@ -2257,9 +2280,9 @@ func TestACL_GetRolesByID(t *testing.T) {
 				MaxQueryTime:  10 * time.Second,
 			},
 		}
-		var aclRoleResp4 structs.ACLRolesByIDResponse
-		err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq4, &aclRoleResp4)
-		resultCh <- &res{err: err, reply: &aclRoleResp4}
+		var aclRoleResp5 structs.ACLRolesByIDResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRolesByIDRPCMethod, aclRoleReq5, &aclRoleResp5)
+		resultCh <- &res{err: err, reply: &aclRoleResp5}
 	}(resultCh)
 
 	// Delete an ACL role from state which should return the blocking query.
@@ -2342,6 +2365,41 @@ func TestACL_GetRoleByID(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByIDRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
 	require.True(t, aclRoleResp4.ACLRole.Equals(aclRoles[1]))
+
+	// Generate and upsert an ACL Token which links to only one of the two
+	// roles within state.
+	aclToken := mock.ACLToken()
+	aclToken.Policies = nil
+	aclToken.Roles = []*structs.ACLTokenRoleLink{{ID: aclRoles[1].ID}}
+
+	err = testServer.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{aclToken})
+	require.NoError(t, err)
+
+	// Try detailing the role that is tried to our ACL token.
+	aclRoleReq5 := &structs.ACLRoleByIDRequest{
+		RoleID: aclRoles[1].ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	var aclRoleResp5 structs.ACLRoleByIDResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByIDRPCMethod, aclRoleReq5, &aclRoleResp5)
+	require.NoError(t, err)
+	require.NotNil(t, aclRoleResp5.ACLRole)
+	require.Equal(t, aclRoleResp5.ACLRole.ID, aclRoles[1].ID)
+
+	// Try detailing the role that is NOT tried to our ACL token.
+	aclRoleReq6 := &structs.ACLRoleByIDRequest{
+		RoleID: aclRoles[0].ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	var aclRoleResp6 structs.ACLRoleByIDResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByIDRPCMethod, aclRoleReq6, &aclRoleResp6)
+	require.ErrorContains(t, err, "Permission denied")
 }
 
 func TestACL_GetRoleByName(t *testing.T) {
@@ -2412,4 +2470,40 @@ func TestACL_GetRoleByName(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
 	require.True(t, aclRoleResp4.ACLRole.Equals(aclRoles[1]))
+
+	// Generate and upsert an ACL Token which links to only one of the two
+	// roles within state.
+	aclToken := mock.ACLToken()
+	aclToken.Policies = nil
+	aclToken.Roles = []*structs.ACLTokenRoleLink{{ID: aclRoles[1].ID}}
+
+	err = testServer.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{aclToken})
+	require.NoError(t, err)
+
+	// Try detailing the role that is tried to our ACL token.
+	aclRoleReq5 := &structs.ACLRoleByNameRequest{
+		RoleName: aclRoles[1].Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	var aclRoleResp5 structs.ACLRoleByNameResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq5, &aclRoleResp5)
+	require.NoError(t, err)
+	require.NotNil(t, aclRoleResp5.ACLRole)
+	require.Equal(t, aclRoleResp5.ACLRole.ID, aclRoles[1].ID)
+	require.Equal(t, aclRoleResp5.ACLRole.Name, aclRoles[1].Name)
+
+	// Try detailing the role that is NOT tried to our ACL token.
+	aclRoleReq6 := &structs.ACLRoleByNameRequest{
+		RoleName: aclRoles[0].Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	var aclRoleResp6 structs.ACLRoleByNameResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq6, &aclRoleResp6)
+	require.ErrorContains(t, err, "Permission denied")
 }
