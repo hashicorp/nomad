@@ -8022,14 +8022,6 @@ const (
 	// restarted
 	TaskRestartSignal = "Restart Signaled"
 
-	// TaskRestartRunningSignal indicates that all tasks in the allocation that
-	// are currently running have been signaled to be restarted.
-	TaskRestartRunningSignal = "Restart Running Signaled"
-
-	// TaskRestartAllSignal indicates that all tasks in the allocation have
-	// been signaled to be restarted, even the ones that have already run.
-	TaskRestartAllSignal = "Restart All Signaled"
-
 	// TaskSignaling indicates that the task is being signalled.
 	TaskSignaling = "Signaling"
 
@@ -8286,18 +8278,6 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 			desc = e.RestartReason
 		} else {
 			desc = "Task signaled to restart"
-		}
-	case TaskRestartRunningSignal:
-		if e.RestartReason != "" {
-			desc = e.RestartReason
-		} else {
-			desc = "Running tasks signaled to restart"
-		}
-	case TaskRestartAllSignal:
-		if e.RestartReason != "" {
-			desc = e.RestartReason
-		} else {
-			desc = "All tasks signaled to restart"
 		}
 	case TaskDriverMessage:
 		desc = e.DriverMessage

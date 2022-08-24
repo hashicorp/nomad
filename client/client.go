@@ -943,12 +943,12 @@ func (c *Client) RestartAllocation(allocID, taskName string, allTasks bool) erro
 	}
 
 	if allTasks {
-		event := structs.NewTaskEvent(structs.TaskRestartAllSignal).
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).
 			SetRestartReason("User requested all tasks to restart")
 		return ar.RestartAll(event)
 	}
 
-	event := structs.NewTaskEvent(structs.TaskRestartRunningSignal).
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).
 		SetRestartReason("User requested running tasks to restart")
 	return ar.RestartRunning(event)
 }

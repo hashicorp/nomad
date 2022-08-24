@@ -6,13 +6,34 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Restart a task. Returns immediately if no task is running. Blocks until
-// existing task exits or passed-in context is canceled.
+// Restart restarts a task that is already running. Returns an error if the
+// task is not running. Blocks until existing task exits or passed-in context
+// is canceled.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	tr.logger.Trace("Restart requested", "failure", failure, "event", event.GoString())
 
-	// Check if the task is able to restart based on its state and the type of
-	// restart event that was triggered.
+	taskState := tr.TaskState()
+	if taskState == nil {
+		return ErrTaskNotRunning
+	}
+
+	switch taskState.State {
+	case structs.TaskStatePending, structs.TaskStateDead:
+		return ErrTaskNotRunning
+	}
+
+	return tr.restartImpl(ctx, event, failure)
+}
+
+// ForceRestart restarts a task that is already running or reruns it if dead.
+// Returns an error if the task is not able to rerun. Blocks until existing
+// task exits or passed-in context is canceled.
+//
+// Callers must restart the AllocRuner taskCoordinator beforehand to make sure
+// the task will be able to run again.
+func (tr *TaskRunner) ForceRestart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	tr.logger.Trace("Force restart requested", "failure", failure, "event", event.GoString())
+
 	taskState := tr.TaskState()
 	if taskState == nil {
 		return ErrTaskNotRunning
@@ -21,21 +42,37 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	tr.stateLock.Lock()
 	localState := tr.localState.Copy()
 	tr.stateLock.Unlock()
+
 	if localState == nil {
 		return ErrTaskNotRunning
 	}
 
 	switch taskState.State {
 	case structs.TaskStatePending:
-		// Tasks that are "pending" are never allowed to restart.
 		return ErrTaskNotRunning
+
 	case structs.TaskStateDead:
-		// Tasks that are "dead" are only allowed to restart when restarting
-		// all tasks in the alloc, otherwise the taskCoordinator will prevent
-		// it from running again, and if their Run method is still running.
-		if event.Type != structs.TaskRestartAllSignal || localState.RunComplete {
+		// Tasks that are in the "dead" state are only allowed to restart if
+		// their Run() method is still active.
+		if localState.RunComplete {
 			return ErrTaskNotRunning
 		}
+	}
+
+	return tr.restartImpl(ctx, event, failure)
+}
+
+// restartImpl implements to task restart process.
+//
+// It should never be called directly as it doesn't verify if the task state
+// allows for a restart.
+func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+
+	// Check if the task is able to restart based on its state and the type of
+	// restart event that was triggered.
+	taskState := tr.TaskState()
+	if taskState == nil {
+		return ErrTaskNotRunning
 	}
 
 	// Emit the event since it may take a long time to kill

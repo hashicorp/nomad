@@ -397,8 +397,8 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 	// Verify that we can restart task.
 	// Retry a few times as the newTR.Run() may not have started yet.
 	testutil.WaitForResult(func() (bool, error) {
-		ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
-		err = newTR.Restart(context.Background(), ev, false)
+		ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
+		err = newTR.Rerun(context.Background(), ev, false)
 		return err == nil, err
 	}, func(err error) {
 		require.NoError(t, err)
@@ -425,8 +425,8 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 	go newTR2.Run()
 	defer newTR2.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
-	err = newTR2.Restart(context.Background(), ev, false)
+	ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
+	err = newTR2.Rerun(context.Background(), ev, false)
 	require.Equal(t, err, ErrTaskNotRunning)
 }
 

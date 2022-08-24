@@ -504,6 +504,8 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		Mode:     structs.RestartPolicyModeFail,
 	}
 
+	ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
+
 	testCases := []struct {
 		name          string
 		taskDefs      []mock.LifecycleTaskDef
@@ -516,7 +518,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "restart entire allocation",
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -531,7 +532,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "restart only running tasks",
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartRunningSignal}
 				return ar.RestartRunning(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -555,7 +555,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 			},
 			isBatch: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -579,7 +578,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 			},
 			isBatch: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartRunningSignal}
 				return ar.RestartRunning(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -595,7 +593,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 			name:      "restart entire allocation with leader",
 			hasLeader: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartAllSignal}
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -627,7 +624,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "restart main task",
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
 				return ar.RestartTask("main", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
@@ -643,7 +639,7 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 			name:      "restart leader main task",
 			hasLeader: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				return ar.RestartTask("main", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+				return ar.RestartTask("main", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
 				"main":              structs.TaskState{State: "running", Restarts: 1},
@@ -761,7 +757,7 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				// make sure main task has had a chance to restart once on its
 				// own and fail again before we try to manually restart it
 				time.Sleep(5 * time.Second)
-				return ar.RestartTask("main", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+				return ar.RestartTask("main", ev)
 			},
 			expectedErr: "Task not running",
 			expectedAfter: map[string]structs.TaskState{
@@ -776,7 +772,7 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "restart prestart-sidecar task",
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				return ar.RestartTask("prestart-sidecar", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+				return ar.RestartTask("prestart-sidecar", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
 				"main":              structs.TaskState{State: "running", Restarts: 0},
@@ -790,7 +786,7 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "restart poststart-sidecar task",
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
-				return ar.RestartTask("poststart-sidecar", &structs.TaskEvent{Type: structs.TaskRestartSignal})
+				return ar.RestartTask("poststart-sidecar", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
 				"main":              structs.TaskState{State: "running", Restarts: 0},

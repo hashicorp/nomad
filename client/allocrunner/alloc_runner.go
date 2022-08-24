@@ -1230,25 +1230,12 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 
 // Restart satisfies the WorkloadRestarter interface and restarts all tasks
 // that are currently running.
-//
-// The event type will be set to TaskRestartRunningSignal to comply with
-// internal restart logic requirements.
 func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	if event.Type != structs.TaskRestartRunningSignal {
-		event.Type = structs.TaskRestartRunningSignal
-	}
-	return ar.restartTasks(ctx, event, failure)
+	return ar.restartTasks(ctx, event, failure, false)
 }
 
 // RestartTask restarts the provided task.
-//
-// The event type will be set to TaskRestartSignal to comply with internal
-// restart logic requirements.
 func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) error {
-	if event.Type != structs.TaskRestartSignal {
-		event.Type = structs.TaskRestartSignal
-	}
-
 	tr, ok := ar.tasks[taskName]
 	if !ok {
 		return fmt.Errorf("Could not find task runner for task: %s", taskName)
@@ -1258,31 +1245,20 @@ func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) er
 }
 
 // RestartRunning restarts all tasks that are currently running.
-//
-// The event type will be set to TaskRestartRunningSignal to comply with
-// internal restart logic requirements.
 func (ar *allocRunner) RestartRunning(event *structs.TaskEvent) error {
-	if event.Type != structs.TaskRestartRunningSignal {
-		event.Type = structs.TaskRestartRunningSignal
-	}
-	return ar.restartTasks(context.TODO(), event, false)
+	return ar.restartTasks(context.TODO(), event, false, false)
 }
 
 // RestartAll restarts all tasks in the allocation, including dead ones. They
-// will restart following their lifecycle order. Only the TaskRestartAllSignal
-// event type may be used.
+// will restart following their lifecycle order.
 func (ar *allocRunner) RestartAll(event *structs.TaskEvent) error {
-	if event.Type != structs.TaskRestartAllSignal {
-		return fmt.Errorf("Invalid event %s for all tasks restart request", event.Type)
-	}
-
 	// Restart the taskCoordinator to allow dead tasks to run again.
 	ar.taskCoordinator.Restart()
-	return ar.restartTasks(context.TODO(), event, false)
+	return ar.restartTasks(context.TODO(), event, false, true)
 }
 
 // restartTasks restarts all task runners concurrently.
-func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool, force bool) error {
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
@@ -1297,7 +1273,14 @@ func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEven
 			wg.Add(1)
 			go func(taskName string, taskRunner *taskrunner.TaskRunner) {
 				defer wg.Done()
-				e := taskRunner.Restart(ctx, event.Copy(), failure)
+
+				var e error
+				if force {
+					e = taskRunner.ForceRestart(ctx, event.Copy(), failure)
+				} else {
+					e = taskRunner.Restart(ctx, event.Copy(), failure)
+				}
+
 				// Ignore ErrTaskNotRunning errors since tasks that are not
 				// running are expected to not be restarted.
 				if e != nil && e != taskrunner.ErrTaskNotRunning {
