@@ -198,7 +198,7 @@ func outputACLToken(ui cli.Ui, token *api.ACLToken) {
 
 func expiryTimeString(t *time.Time) string {
 	if t == nil || t.IsZero() {
-		return "<never>"
+		return "<none>"
 	}
 	return t.String()
 }
