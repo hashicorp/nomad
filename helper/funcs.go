@@ -74,14 +74,6 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// CompareTimePtrs return true if a is the same as b.
-func CompareTimePtrs(a, b *time.Duration) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
-}
-
 // Min returns the minimum of a and b.
 func Min[T constraints.Ordered](a, b T) T {
 	if a < b {
