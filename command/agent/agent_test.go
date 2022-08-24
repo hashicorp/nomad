@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -994,7 +995,7 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	})
 	defer agent.Shutdown()
 
-	newConfig := agent.GetConfig().Copy()
+	newConfig := agent.GetConfig()
 	newConfig.Vault = &config.VaultConfig{
 		Enabled:   pointer.Of(true),
 		Token:     "vault-token",
