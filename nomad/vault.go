@@ -363,7 +363,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	defer v.l.Unlock()
 
 	// If reloading the same config, no-op
-	if v.config.IsEqual(config) {
+	if v.config.Equals(config) {
 		return nil
 	}
 
