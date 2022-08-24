@@ -47,7 +47,7 @@ func TestACLRoleCreateCommand_Run(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	require.Equal(t, 1, cmd.Run([]string{"-address=" + url, `-name="foobar"`}))
-	require.Contains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy-name flag")
+	require.Contains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy flag")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -67,7 +67,7 @@ func TestACLRoleCreateCommand_Run(t *testing.T) {
 	// Create an ACL role.
 	args := []string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-name=acl-role-cli-test",
-		"-policy-name=acl-role-cli-test-policy", "-description=acl-role-all-the-things",
+		"-policy=acl-role-cli-test-policy", "-description=acl-role-all-the-things",
 	}
 	require.Equal(t, 0, cmd.Run(args))
 	s := ui.OutputWriter.String()
