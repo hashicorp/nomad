@@ -99,7 +99,7 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @task(function* () {
     try {
-      yield this.model.restart('');
+      yield this.model.restart();
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Allocation',
