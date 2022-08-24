@@ -159,6 +159,7 @@ type AllocRunner interface {
 	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
+	RestartRunning(taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
 	Reconnect(update *structs.Allocation) error
 
@@ -888,20 +889,31 @@ func (c *Client) CollectAllAllocs() {
 	c.garbageCollector.CollectAll()
 }
 
-func (c *Client) RestartAllocation(allocID, taskName string) error {
+func (c *Client) RestartAllocation(allocID, taskName string, allTasks bool) error {
+	if allTasks && taskName != "" {
+		return fmt.Errorf("task name cannot be set when restarting all tasks")
+	}
+
 	ar, err := c.getAllocRunner(allocID)
 	if err != nil {
 		return err
 	}
 
-	event := structs.NewTaskEvent(structs.TaskRestartSignal).
-		SetRestartReason("User requested restart")
-
 	if taskName != "" {
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).
+			SetRestartReason("User requested task to restart")
 		return ar.RestartTask(taskName, event)
 	}
 
-	return ar.RestartAll(event)
+	if allTasks {
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).
+			SetRestartReason("User requested all tasks to restart")
+		return ar.RestartAll(event)
+	}
+
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).
+		SetRestartReason("User requested running tasks to restart")
+	return ar.RestartRunning(event)
 }
 
 // Node returns the locally registered node

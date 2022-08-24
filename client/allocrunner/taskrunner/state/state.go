@@ -16,6 +16,11 @@ type LocalState struct {
 
 	// TaskHandle is the handle used to reattach to the task during recovery
 	TaskHandle *drivers.TaskHandle
+
+	// RunComplete is set to true when the TaskRunner.Run() method finishes.
+	// It is used to distinguish between a dead task that could be restarted
+	// and one that will never run again.
+	RunComplete bool
 }
 
 func NewLocalState() *LocalState {
@@ -52,6 +57,7 @@ func (s *LocalState) Copy() *LocalState {
 		Hooks:         make(map[string]*HookState, len(s.Hooks)),
 		DriverNetwork: s.DriverNetwork.Copy(),
 		TaskHandle:    s.TaskHandle.Copy(),
+		RunComplete:   s.RunComplete,
 	}
 
 	// Copy the hook state

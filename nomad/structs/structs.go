@@ -1024,6 +1024,7 @@ type AllocsGetRequest struct {
 type AllocRestartRequest struct {
 	AllocID  string
 	TaskName string
+	AllTasks bool
 
 	QueryOptions
 }
@@ -8085,7 +8086,7 @@ const (
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Not Restarting"
 
-	// TaskRestartSignal indicates that the task has been signalled to be
+	// TaskRestartSignal indicates that the task has been signaled to be
 	// restarted
 	TaskRestartSignal = "Restart Signaled"
 
@@ -8366,6 +8367,9 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 }
 
 func (e *TaskEvent) GoString() string {
+	if e == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 

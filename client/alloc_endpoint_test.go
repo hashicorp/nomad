@@ -67,6 +67,45 @@ func TestAllocations_Restart(t *testing.T) {
 	})
 }
 
+func TestAllocations_RestartAllTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	require := require.New(t)
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	alloc := mock.LifecycleAlloc()
+	require.Nil(client.addAlloc(alloc, ""))
+
+	// Can't restart all tasks while specifying a task name.
+	req := &nstructs.AllocRestartRequest{
+		AllocID:  alloc.ID,
+		AllTasks: true,
+		TaskName: "web",
+	}
+	var resp nstructs.GenericResponse
+	err := client.ClientRPC("Allocations.Restart", &req, &resp)
+	require.Error(err)
+
+	// Good request.
+	req = &nstructs.AllocRestartRequest{
+		AllocID:  alloc.ID,
+		AllTasks: true,
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		var resp2 nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp2)
+		if err != nil && strings.Contains(err.Error(), "not running") {
+			return false, err
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestAllocations_Restart_ACL(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
