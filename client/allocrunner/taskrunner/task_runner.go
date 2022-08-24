@@ -518,10 +518,10 @@ func (tr *TaskRunner) Run() {
 	runComplete := tr.localState.RunComplete
 	tr.stateLock.RUnlock()
 
-	// If restoring a dead task, ensure that task is cleared and all post hooks
-	// are called without additional state updates.
-	// If the alloc is not terminal we must proceed until the ALLOC_RESTART
-	// loop to allow the task to run again in case the alloc is restarted.
+	// If restoring a dead task, ensure the task is cleared and, if the local
+	// state indicates that the previous Run() call is complete, execute all
+	// post stop hooks and exit early, otherwise proceed until the
+	// ALLOC_RESTART loop skipping MAIN since the task is dead.
 	if dead {
 		// do cleanup functions without emitting any additional events/work
 		// to handle cases where we restored a dead task where client terminated
@@ -686,7 +686,7 @@ MAIN:
 	tr.UpdateState(structs.TaskStateDead, nil)
 
 	// Wait here in case the allocation is restarted. Poststop tasks will never
-	// run again so, skip them to avoid blocking forever.
+	// run again so skip them to avoid blocking forever.
 	if !tr.Task().IsPoststop() {
 	ALLOC_RESTART:
 		// Run in a loop to handle cases where restartCh is triggered but the
