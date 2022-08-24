@@ -3,6 +3,7 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -580,4 +581,46 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	}
 
 	return t, cancel
+}
+
+// IsMethodHTTP returns whether s is a known HTTP method, ignoring case.
+func IsMethodHTTP(s string) bool {
+	switch strings.ToUpper(s) {
+	case http.MethodGet:
+	case http.MethodHead:
+	case http.MethodPost:
+	case http.MethodPut:
+	case http.MethodPatch:
+	case http.MethodDelete:
+	case http.MethodConnect:
+	case http.MethodOptions:
+	case http.MethodTrace:
+	default:
+		return false
+	}
+	return true
+}
+
+// EqualsFunc represents a type implementing the Equals method.
+type EqualsFunc[A any] interface {
+	Equals(A) bool
+}
+
+// ElementsEquals returns true if slices a and b contain the same elements (in
+// no particular order) using the Equals function defined on their type for
+// comparison.
+func ElementsEquals[T EqualsFunc[T]](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item.Equals(other) {
+				continue OUTER
+			}
+		}
+		return false
+	}
+	return true
 }
