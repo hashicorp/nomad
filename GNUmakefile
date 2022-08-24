@@ -21,7 +21,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS ?=
+GO_TAGS ?= osusergo
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
