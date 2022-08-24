@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad/api
 
-go 1.18
+go 1.19
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
