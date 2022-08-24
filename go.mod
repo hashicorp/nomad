@@ -5,7 +5,7 @@ go 1.19
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
-	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20210818145131-c573d69da192
+	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
@@ -17,7 +17,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.0
-	github.com/aws/aws-sdk-go v1.42.27
+	github.com/aws/aws-sdk-go v1.44.83
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v1.1.6
 	github.com/containernetworking/cni v1.1.2
