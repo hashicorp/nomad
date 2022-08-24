@@ -928,7 +928,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 		}
 
 		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
