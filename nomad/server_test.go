@@ -227,6 +227,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	config := DefaultConfig()
 	config.VaultConfig.Enabled = &tr
 	config.VaultConfig.Token = uuid.Generate()
+	config.VaultConfig.Namespace = "nondefault"
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)

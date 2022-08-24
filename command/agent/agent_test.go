@@ -985,6 +985,39 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	assert.True(agentConfig.TLSConfig.IsEmpty())
 }
 
+func TestServer_Reload_VaultConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+
+	agentConfig := &Config{
+		TLSConfig: &config.TLSConfig{},
+		Vault: &config.VaultConfig{
+			Enabled:   pointer.Of(true),
+			Token:     "vault-token",
+			Namespace: "vault-namespace",
+		},
+	}
+
+	agent := &Agent{
+		auditor: &noOpAuditor{},
+		logger:  logger,
+		config:  agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &config.TLSConfig{},
+		Vault: &config.VaultConfig{
+			Enabled:   pointer.Of(true),
+			Token:     "vault-token",
+			Namespace: "vault-namespace",
+		},
+	}
+
+	must.NoError(t, agent.Reload(newConfig))
+	must.Equals(t, agent.config.Vault, newConfig.Vault)
+}
+
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)

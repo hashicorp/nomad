@@ -3,35 +3,37 @@ package config
 import (
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func TestVaultConfig_Merge(t *testing.T) {
 	ci.Parallel(t)
 
-	trueValue, falseValue := true, false
 	c1 := &VaultConfig{
-		Enabled:              &falseValue,
+		Enabled:              pointer.Of(false),
 		Token:                "1",
 		Role:                 "1",
-		AllowUnauthenticated: &trueValue,
+		AllowUnauthenticated: pointer.Of(true),
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
 		TLSCaFile:            "1",
 		TLSCaPath:            "1",
 		TLSCertFile:          "1",
 		TLSKeyFile:           "1",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 	}
 
 	c2 := &VaultConfig{
-		Enabled:              &trueValue,
+		Enabled:              pointer.Of(true),
 		Token:                "2",
 		Role:                 "2",
-		AllowUnauthenticated: &falseValue,
+		AllowUnauthenticated: pointer.Of(false),
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
 		TLSCaFile:            "2",
@@ -43,17 +45,17 @@ func TestVaultConfig_Merge(t *testing.T) {
 	}
 
 	e := &VaultConfig{
-		Enabled:              &trueValue,
+		Enabled:              pointer.Of(true),
 		Token:                "2",
 		Role:                 "2",
-		AllowUnauthenticated: &falseValue,
+		AllowUnauthenticated: pointer.Of(false),
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
 		TLSCaFile:            "2",
 		TLSCaPath:            "2",
 		TLSCertFile:          "2",
 		TLSKeyFile:           "2",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
 	}
 
@@ -66,69 +68,77 @@ func TestVaultConfig_Merge(t *testing.T) {
 func TestVaultConfig_IsEqual(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
-	trueValue, falseValue := true, false
 	c1 := &VaultConfig{
-		Enabled:              &falseValue,
+		Enabled:              pointer.Of(false),
 		Token:                "1",
 		Role:                 "1",
-		AllowUnauthenticated: &trueValue,
+		Namespace:            "1",
+		AllowUnauthenticated: pointer.Of(true),
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
+		ConnectionRetryIntv:  time.Second,
 		TLSCaFile:            "1",
 		TLSCaPath:            "1",
 		TLSCertFile:          "1",
 		TLSKeyFile:           "1",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 	}
 
 	c2 := &VaultConfig{
-		Enabled:              &falseValue,
+		Enabled:              pointer.Of(false),
 		Token:                "1",
 		Role:                 "1",
-		AllowUnauthenticated: &trueValue,
+		Namespace:            "1",
+		AllowUnauthenticated: pointer.Of(true),
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
+		ConnectionRetryIntv:  time.Second,
 		TLSCaFile:            "1",
 		TLSCaPath:            "1",
 		TLSCertFile:          "1",
 		TLSKeyFile:           "1",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 	}
 
-	require.True(c1.IsEqual(c2))
+	// TODO: must.Equals(t, c, c2) should work here?
+	require.True(t, c.Equals(c2))
 
 	c3 := &VaultConfig{
-		Enabled:              &trueValue,
+		Enabled:              pointer.Of(true),
 		Token:                "1",
 		Role:                 "1",
-		AllowUnauthenticated: &trueValue,
+		Namespace:            "1",
+		AllowUnauthenticated: pointer.Of(true),
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
+		ConnectionRetryIntv:  time.Second,
 		TLSCaFile:            "1",
 		TLSCaPath:            "1",
 		TLSCertFile:          "1",
 		TLSKeyFile:           "1",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 	}
 
 	c4 := &VaultConfig{
-		Enabled:              &falseValue,
+		Enabled:              pointer.Of(false),
 		Token:                "1",
 		Role:                 "1",
-		AllowUnauthenticated: &trueValue,
+		Namespace:            "1",
+		AllowUnauthenticated: pointer.Of(true),
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
+		ConnectionRetryIntv:  time.Second,
 		TLSCaFile:            "1",
 		TLSCaPath:            "1",
 		TLSCertFile:          "1",
 		TLSKeyFile:           "1",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 	}
-	require.False(c3.IsEqual(c4))
+
+	// TODO: must.NotEquals(t, c3, c4) should work here?
+	require.False(t, c3.Equals(c4))
 }
