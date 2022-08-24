@@ -4,6 +4,7 @@
 package allocrunner
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -99,4 +101,14 @@ func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) (*allocRu
 	}
 
 	return ar, cleanup
+}
+
+func WaitForClientState(t *testing.T, ar *allocRunner, state string) {
+	testutil.WaitForResult(func() (bool, error) {
+		got := ar.AllocState().ClientStatus
+		return got == state,
+			fmt.Errorf("expected alloc runner to be in state %s, got %s", state, got)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }

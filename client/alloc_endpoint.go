@@ -103,7 +103,7 @@ func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstruct
 		return nstructs.ErrPermissionDenied
 	}
 
-	return a.c.RestartAllocation(args.AllocID, args.TaskName)
+	return a.c.RestartAllocation(args.AllocID, args.TaskName, args.AllTasks)
 }
 
 // Stats is used to collect allocation statistics

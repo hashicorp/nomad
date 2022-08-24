@@ -58,6 +58,9 @@ func TestCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 	sideTask := tasks[1]
 	initTask := tasks[2]
 
+	// Only use the tasks that we care about.
+	tasks = []*structs.Task{mainTask, sideTask, initTask}
+
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
 	coord := NewCoordinator(logger, tasks, shutdownCh)
@@ -161,6 +164,9 @@ func TestCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 	init1Task := tasks[1]
 	init2Task := tasks[2]
 
+	// Only use the tasks that we care about.
+	tasks = []*structs.Task{mainTask, init1Task, init2Task}
+
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
 	coord := NewCoordinator(logger, tasks, shutdownCh)
@@ -227,6 +233,9 @@ func TestCoordinator_FailedInitTask(t *testing.T) {
 	init1Task := tasks[1]
 	init2Task := tasks[2]
 
+	// Only use the tasks that we care about.
+	tasks = []*structs.Task{mainTask, init1Task, init2Task}
+
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
 	coord := NewCoordinator(logger, tasks, shutdownCh)
@@ -292,6 +301,9 @@ func TestCoordinator_SidecarNeverStarts(t *testing.T) {
 	sideTask := tasks[1]
 	initTask := tasks[2]
 
+	// Only use the tasks that we care about.
+	tasks = []*structs.Task{mainTask, sideTask, initTask}
+
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
 	coord := NewCoordinator(logger, tasks, shutdownCh)
@@ -355,6 +367,9 @@ func TestCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	mainTask := tasks[0]
 	sideTask := tasks[1]
 	postTask := tasks[2]
+
+	// Only use the tasks that we care about.
+	tasks = []*structs.Task{mainTask, sideTask, postTask}
 
 	// Make the the third task is a poststart hook
 	postTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
