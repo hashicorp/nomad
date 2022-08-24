@@ -579,9 +579,8 @@ func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
 
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLRoleListRequest(respW, req)
-				require.Error(t, err)
-				require.ErrorContains(t, err, "Permission denied")
-				require.Nil(t, obj)
+				require.NoError(t, err)
+				require.Empty(t, obj)
 			},
 		},
 		{

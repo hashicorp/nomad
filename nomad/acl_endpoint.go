@@ -12,6 +12,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set"
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1264,11 +1265,33 @@ func (a *ACL) ListRoles(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_roles"}, time.Now())
 
-	// TODO (jrasell) allow callers to list role associated to their token.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If the token is a management token, they can list all tokens. If not,
+	// the role set tracks which role links the token has and therefore which
+	// ones the caller can list.
+	isManagement := acl.IsManagement()
+	roleSet := &set.Set[string]{}
+
+	// If the token is not a management token, we determine which roles are
+	// linked to the token and therefore can be listed by the caller.
+	if !isManagement {
+		token, err := a.requestACLToken(args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		// Generate a set of Role IDs from the token role links.
+		roleSet = set.FromFunc(token.Roles, func(roleLink *structs.ACLTokenRoleLink) string { return roleLink.ID })
 	}
 
 	// Set up and return the blocking query.
@@ -1300,9 +1323,16 @@ func (a *ACL) ListRoles(
 				return err
 			}
 
-			// Iterate all the results and add these to our reply object.
+			// Iterate all the results and add these to our reply object. Check
+			// before appending to the reply that the caller is allowed to view
+			// the role.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				reply.ACLRoles = append(reply.ACLRoles, raw.(*structs.ACLRole).Stub())
+
+				role := raw.(*structs.ACLRole)
+
+				if roleSet.Contains(role.ID) || isManagement {
+					reply.ACLRoles = append(reply.ACLRoles, role.Stub())
+				}
 			}
 
 			// Use the index table to populate the query meta as we have no way
@@ -1380,11 +1410,41 @@ func (a *ACL) GetRoleByID(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_id"}, time.Now())
 
-	// TODO (jrasell) allow callers to detail a role associated to their token.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If the token is a management token, they can detail any token they so
+	// desire.
+	isManagement := acl.IsManagement()
+
+	// If the token is not a management token, we determine if the caller wants
+	// to detail a role linked to their token.
+	if !isManagement {
+		aclToken, err := a.requestACLToken(args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if aclToken == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		found := false
+
+		for _, roleLink := range aclToken.Roles {
+			if roleLink.ID == args.RoleID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Set up and return the blocking query.
@@ -1435,11 +1495,41 @@ func (a *ACL) GetRoleByName(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_name"}, time.Now())
 
-	// TODO (jrasell) allow callers to detail a role associated to their token.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If the token is a management token, they can detail any token they so
+	// desire.
+	isManagement := acl.IsManagement()
+
+	// If the token is not a management token, we determine if the caller wants
+	// to detail a role linked to their token.
+	if !isManagement {
+		aclToken, err := a.requestACLToken(args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if aclToken == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		found := false
+
+		for _, roleLink := range aclToken.Roles {
+			if roleLink.Name == args.RoleName {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Set up and return the blocking query.
