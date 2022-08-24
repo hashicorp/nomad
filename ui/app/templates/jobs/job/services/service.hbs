@@ -7,11 +7,11 @@
 				@size="24"
 				/>
 		</LinkTo>
-		{{this.model.0.name}}
+		{{this.model.name}}
 	</h1>
 
 	<ListTable
-		@source={{this.model}}
+		@source={{this.model.instances}}
 		{{!-- @sortProperty={{this.sortProperty}}
 		@sortDescending={{this.sortDescending}} --}}
 		as |t|
