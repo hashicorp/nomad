@@ -6,9 +6,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -130,25 +128,6 @@ func TestStringHasPrefixInSlice(t *testing.T) {
 	require.False(t, StringHasPrefixInSlice("def", prefixes))
 	require.False(t, StringHasPrefixInSlice("delta", prefixes))
 
-}
-
-func TestCompareTimePtrs(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		a := (*time.Duration)(nil)
-		b := (*time.Duration)(nil)
-		require.True(t, CompareTimePtrs(a, b))
-		c := pointer.Of(3 * time.Second)
-		require.False(t, CompareTimePtrs(a, c))
-		require.False(t, CompareTimePtrs(c, a))
-	})
-
-	t.Run("not nil", func(t *testing.T) {
-		a := pointer.Of(1 * time.Second)
-		b := pointer.Of(1 * time.Second)
-		c := pointer.Of(2 * time.Second)
-		require.True(t, CompareTimePtrs(a, b))
-		require.False(t, CompareTimePtrs(a, c))
-	})
 }
 
 func TestCompareSliceSetString(t *testing.T) {
