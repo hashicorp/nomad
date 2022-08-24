@@ -78,6 +78,15 @@ func TestDriver_parseJavaVersionOutput(t *testing.T) {
 			`OpenJDK Runtime Environment 18.9 (build 11.0.11+9-LTS)`,
 			`OpenJDK 64-Bit Server VM 18.9 (build 11.0.11+9-LTS, mixed mode, sharing)`,
 		},
+		{
+			"Corretto 17 on Ubuntu 22.04",
+			`openjdk version "17.0.4.1" 2022-08-12 LTS
+			OpenJDK Runtime Environment Corretto-17.0.4.9.1 (build 17.0.4.1+9-LTS)
+			OpenJDK 64-Bit Server VM Corretto-17.0.4.9.1 (build 17.0.4.1+9-LTS, mixed mode, sharing)`,
+			`17.0.4.1`,
+			`OpenJDK Runtime Environment Corretto-17.0.4.9.1 (build 17.0.4.1+9-LTS)`,
+			`OpenJDK 64-Bit Server VM Corretto-17.0.4.9.1 (build 17.0.4.1+9-LTS, mixed mode, sharing)`,
+		},
 	}
 
 	for _, c := range cases {
