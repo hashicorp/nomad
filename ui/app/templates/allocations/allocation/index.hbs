@@ -61,13 +61,27 @@
           @idleText="Restart Alloc"
           @cancelText="Cancel Restart"
           @confirmText="Yes, Restart Alloc"
-          @confirmationMessage="Are you sure? This will restart the allocation in-place."
+          @confirmationMessage="Are you sure? This will restart the tasks that are currently running in-place."
           @awaitingConfirmation={{this.restartAllocation.isRunning}}
           @disabled={{or
             this.stopAllocation.isRunning
             this.restartAllocation.isRunning
           }}
           @onConfirm={{perform this.restartAllocation}}
+        />
+        <TwoStepButton
+          data-test-restart-all
+          @alignRight={{true}}
+          @idleText="Restart All Tasks"
+          @cancelText="Cancel Restart"
+          @confirmText="Yes, Restart All Tasks"
+          @confirmationMessage="Are you sure? This will restart all tasks in-place."
+          @awaitingConfirmation={{this.restartAllocation.isRunning}}
+          @disabled={{or
+            this.stopAllocation.isRunning
+            this.restartAllocation.isRunning
+          }}
+          @onConfirm={{perform this.restartAll}}
         />
       {{/if}}
     </div>
@@ -184,7 +198,7 @@
           </t.head>
           <t.body as |row|>
             <TaskRow
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(action "taskClick" row.model.allocation row.model)
               }}

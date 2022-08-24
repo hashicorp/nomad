@@ -380,6 +380,7 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('allocation can be restarted', async function (assert) {
+    await Allocation.restartAll.idle();
     await Allocation.restart.idle();
     await Allocation.restart.confirm();
 
@@ -387,6 +388,18 @@ module('Acceptance | allocation detail', function (hooks) {
       server.pretender.handledRequests.findBy('method', 'PUT').url,
       `/v1/client/allocation/${allocation.id}/restart`,
       'Restart request is made for the allocation'
+    );
+
+    await Allocation.restart.idle();
+    await Allocation.restartAll.idle();
+    await Allocation.restartAll.confirm();
+
+    assert.ok(
+      server.pretender.handledRequests.filterBy(
+        'requestBody',
+        JSON.stringify({ AllTasks: true })
+      ),
+      'Restart all tasks request is made for the allocation'
     );
   });
 
@@ -398,6 +411,7 @@ module('Acceptance | allocation detail', function (hooks) {
     run.later(() => {
       assert.ok(Allocation.stop.isRunning, 'Stop is loading');
       assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
+      assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
       server.pretender.resolve(server.pretender.requestReferences[0].request);
     }, 500);
 
@@ -478,6 +492,7 @@ module('Acceptance | allocation detail (not running)', function (hooks) {
     assert.notOk(Allocation.execButton.isPresent);
     assert.notOk(Allocation.stop.isPresent);
     assert.notOk(Allocation.restart.isPresent);
+    assert.notOk(Allocation.restartAll.isPresent);
   });
 });
 
