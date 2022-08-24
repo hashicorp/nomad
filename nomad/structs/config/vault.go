@@ -245,9 +245,15 @@ func (c *VaultConfig) Equals(b *VaultConfig) bool {
 	if c.TLSKeyFile != b.TLSKeyFile {
 		return false
 	}
-	if c.TLSSkipVerify != b.TLSSkipVerify {
+
+	if c.TLSSkipVerify == nil || b.TLSSkipVerify == nil {
+		if c.TLSSkipVerify != b.TLSSkipVerify {
+			return false
+		}
+	} else if *c.TLSSkipVerify != *b.TLSSkipVerify {
 		return false
 	}
+
 	if c.TLSServerName != b.TLSServerName {
 		return false
 	}

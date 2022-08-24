@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/shoenig/test/must"
 )
 
 func TestVaultConfig_Merge(t *testing.T) {
@@ -102,8 +101,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSServerName:        "1",
 	}
 
-	// TODO: must.Equals(t, c, c2) should work here?
-	require.True(t, c.Equals(c2))
+	must.Equals(t, c1, c2)
 
 	c3 := &VaultConfig{
 		Enabled:              pointer.Of(true),
@@ -139,6 +137,5 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSServerName:        "1",
 	}
 
-	// TODO: must.NotEquals(t, c3, c4) should work here?
-	require.False(t, c3.Equals(c4))
+	must.NotEquals(t, c3, c4)
 }
