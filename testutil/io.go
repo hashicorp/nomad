@@ -18,7 +18,7 @@ func TempDir(t testing.TB, name string) string {
 		panic("argument t must be non-nil")
 	}
 	name = t.Name() + "-" + name
-	name = strings.Replace(name, "/", "_", -1)
+	name = strings.ReplaceAll(name, "/", "_")
 	d, err := ioutil.TempDir("", name)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -44,7 +44,7 @@ func TempFile(t testing.TB, name string) *os.File {
 		panic("argument t must be non-nil")
 	}
 	name = t.Name() + "-" + name
-	name = strings.Replace(name, "/", "_", -1)
+	name = strings.ReplaceAll(name, "/", "_")
 	f, err := ioutil.TempFile("", name)
 	if err != nil {
 		t.Fatalf("err: %s", err)

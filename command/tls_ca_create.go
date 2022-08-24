@@ -125,7 +125,8 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 
 	constraints := []string{}
 	if constraint {
-		constraints = append(additionalNameConstraint, []string{domain, "localhost"}...)
+		constraints = []string{domain, "localhost"}
+		constraints = append(constraints, additionalNameConstraint...)
 	}
 
 	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Name: commonName, Days: days, Domain: domain, PermittedDNSDomains: constraints})
