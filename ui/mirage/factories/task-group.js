@@ -132,13 +132,17 @@ export default Factory.extend({
     }
 
     if (group.withServices) {
-      Array(faker.random.number({ min: 1, max: 3 }))
+      const services = Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)
-        .forEach(() => {
-          server.create('service', {
-            taskGroup: group,
+        .map(() => {
+          return server.create('service-fragment', {
+            taskGroupId: group.id,
           });
         });
+
+      group.update({
+        services,
+      });
     }
   },
 });

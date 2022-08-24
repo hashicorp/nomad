@@ -2,13 +2,17 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { dasherize } from '@ember/string';
-
-const ON_UPDATE = ['default', 'ignore', 'ignore_warnings'];
+import { DATACENTERS } from '../common';
+import { pickOne } from '../utils';
 
 export default Factory.extend({
-  name: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
-  portLabel: () => dasherize(faker.hacker.noun()),
-  onUpdate: faker.helpers.randomize(ON_UPDATE),
+  id: () => faker.random.uuid(),
+  serviceName: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
+  serviceName: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
+  datacenter: faker.helpers.randomize(DATACENTERS),
+  port: faker.random.number({ min: 5000, max: 60000 }),
+  jobId: (id) => `${dasherize(faker.hacker.noun())}-${id}`,
+  //   allocId: (id) => `${dasherize(faker.hacker.noun())}-${id}`,
   tags: () => {
     if (!faker.random.boolean()) {
       return provide(
@@ -19,16 +23,13 @@ export default Factory.extend({
       return null;
     }
   },
-  Connect: {
-    SidecarService: {
-      Proxy: {
-        Upstreams: [
-          {
-            DestinationName: dasherize(faker.hacker.noun()),
-            LocalBindPort: faker.random.number({ min: 5000, max: 60000 }),
-          },
-        ],
-      },
-    },
+
+  afterCreate(service, server) {
+    if (!service.namespace) {
+      const namespace = pickOne(server.db.jobs)?.namespace || 'default';
+      service.update({
+        namespace,
+      });
+    }
   },
 });
