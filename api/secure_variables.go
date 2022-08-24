@@ -5,10 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
+	"github.com/ryanuber/columnize"
 )
 
 const (
@@ -27,28 +33,30 @@ func (c *Client) SecureVariables() *SecureVariables {
 }
 
 // Create is used to create a secure variable.
-func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
-	return wm, nil
+	return &out, wm, nil
 }
 
 // CheckedCreate is used to create a secure variable if it doesn't exist
 // already. If it does, it will return a ErrCASConflict that can be unwrapped
 // for more details.
-func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas=0", v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas=0", v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
 
-	return wm, nil
+	return &out, wm, nil
 }
 
 // Read is used to query a single secure variable by path. This will error
@@ -81,28 +89,31 @@ func (sv *SecureVariables) Peek(path string, qo *QueryOptions) (*SecureVariable,
 }
 
 // Update is used to update a secure variable.
-func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, nil, qo)
+	var out SecureVariable
+
+	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
-	return wm, nil
+	return &out, wm, nil
 }
 
 // CheckedUpdate is used to updated a secure variable if the modify index
 // matches the one on the server.  If it does not, it will return an
 // ErrCASConflict that can be unwrapped for more details.
-func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas="+fmt.Sprint(v.ModifyIndex), v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas="+fmt.Sprint(v.ModifyIndex), v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
 
-	return wm, nil
+	return &out, wm, nil
 }
 
 // Delete is used to delete a secure variable
@@ -280,6 +291,7 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	wm := &WriteMeta{RequestTime: rtt}
 	parseWriteMeta(resp, wm)
@@ -293,6 +305,11 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 		return nil, ErrCASConflict{
 			Conflict:   conflict,
 			CheckIndex: in.ModifyIndex,
+		}
+	}
+	if out != nil {
+		if err := decodeBody(resp, &out); err != nil {
+			return nil, err
 		}
 	}
 	return wm, nil
@@ -444,4 +461,84 @@ func generateUnexpectedResponseCodeError(resp *http.Response) error {
 	io.Copy(&buf, resp.Body)
 	resp.Body.Close()
 	return fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+}
+
+type VarUI interface {
+	GetConcurrentUI() cli.ConcurrentUi
+	Colorize() *colorstring.Colorize
+}
+
+// RenderSVAsUiTable prints a secure variable as a table. It needs access to the
+// command to get access to colorize and the UI itself. Commands that call it
+// need to implement the VarUI interface.
+func (sv SecureVariable) RenderSVAsUiTable(c VarUI) {
+	meta := []string{
+		fmt.Sprintf("Namespace|%s", sv.Namespace),
+		fmt.Sprintf("Path|%s", sv.Path),
+		fmt.Sprintf("Create Time|%v", time.Unix(0, sv.ModifyTime)),
+	}
+	if sv.CreateTime != sv.ModifyTime {
+		meta = append(meta, fmt.Sprintf("Modify Time|%v", time.Unix(0, sv.ModifyTime)))
+	}
+	meta = append(meta, fmt.Sprintf("Check Index|%v", sv.ModifyIndex))
+	ui := c.GetConcurrentUI()
+	ui.Output(formatKV(meta))
+	ui.Output(c.Colorize().Color("\n[bold]Items[reset]"))
+	items := make([]string, 0, len(sv.Items))
+
+	keys := make([]string, 0, len(sv.Items))
+	for k := range sv.Items {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		items = append(items, fmt.Sprintf("%s|%s", k, sv.Items[k]))
+	}
+	ui.Output(formatKV(items))
+}
+
+func (sv SecureVariable) AsHCL() string {
+	const tpl = `
+namespace    = "{{.Namespace}}"
+path         = "{{.Path}}"
+create_index = {{.CreateIndex}}  # Set by server
+modify_index = {{.ModifyIndex}}  # Set by server; consulted for check-and-set
+create_time  = {{.CreateTime}}   # Set by server
+modify_time  = {{.ModifyTime}}   # Set by server
+
+items = {
+{{- $PAD := 0 -}}{{- range $k,$v := .Items}}{{if gt (len $k) $PAD}}{{$PAD = (len $k)}}{{end}}{{end -}}
+{{- $FMT := printf "  %%%vs = %%q\n" $PAD}}
+{{range $k,$v := .Items}}{{printf $FMT $k $v}}{{ end -}}
+}
+`
+	out, err := sv.RenderWithGoTemplate(tpl)
+	if err != nil {
+		// Any errors in this should be caught as test panics.
+		// If we ship with one, the worst case is that it panics a single
+		// run of the CLI and only for output of secure variables in HCL.
+		panic(err)
+	}
+	return out
+}
+
+func (sv SecureVariable) RenderWithGoTemplate(tpl string) (string, error) {
+	t := template.Must(template.New("var").Parse(tpl))
+	var out bytes.Buffer
+	if err := t.Execute(&out, sv); err != nil {
+		return "", err
+	}
+
+	result := out.String()
+	return result, nil
+}
+
+// formatKV takes a set of strings and formats them into properly
+// aligned k = v pairs using the columnize library.
+func formatKV(in []string) string {
+	columnConf := columnize.DefaultConfig()
+	columnConf.Empty = "<none>"
+	columnConf.Glue = " = "
+	return columnize.Format(in, columnConf)
 }

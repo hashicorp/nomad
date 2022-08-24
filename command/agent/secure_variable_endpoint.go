@@ -121,7 +121,7 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 
 	// Finally, we know that this is a success response, send it to the caller
 	setIndex(resp, out.WriteMeta.Index)
-	return nil, nil
+	return out.Output, nil
 }
 
 func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Request,
@@ -182,8 +182,4 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 		return true, ci, nil
 	}
 	return false, 0, nil
-}
-
-type CheckIndexSetter interface {
-	SetCheckIndex(uint64)
 }
