@@ -223,6 +223,10 @@ func TestServer_Reload_Vault(t *testing.T) {
 	if !s1.vault.Running() {
 		t.Fatalf("Vault client should be running")
 	}
+
+	if s1.vault.GetConfig().Namespace != "nondefault" {
+		t.Fatalf("Vault client did not get new namespace")
+	}
 }
 
 func connectionReset(msg string) bool {

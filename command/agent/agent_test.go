@@ -1060,34 +1060,34 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 func TestServer_Reload_VaultConfig(t *testing.T) {
 	ci.Parallel(t)
 
-	logger := testlog.HCLogger(t)
-
-	agentConfig := &Config{
-		TLSConfig: &config.TLSConfig{},
-		Vault: &config.VaultConfig{
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Server.NumSchedulers = pointer.Of(0)
+		c.Vault = &config.VaultConfig{
 			Enabled:   pointer.Of(true),
 			Token:     "vault-token",
 			Namespace: "vault-namespace",
-		},
+			Addr:      "https://vault.consul:8200",
+		}
+	})
+	defer agent.Shutdown()
+
+	newConfig := agent.GetConfig().Copy()
+	newConfig.Vault = &config.VaultConfig{
+		Enabled:   pointer.Of(true),
+		Token:     "vault-token",
+		Namespace: "another-namespace",
+		Addr:      "https://vault.consul:8200",
 	}
 
-	agent := &Agent{
-		auditor: &noOpAuditor{},
-		logger:  logger,
-		config:  agentConfig,
-	}
+	sconf, err := convertServerConfig(newConfig)
+	must.NoError(t, err)
+	agent.finalizeServerConfig(sconf)
 
-	newConfig := &Config{
-		TLSConfig: &config.TLSConfig{},
-		Vault: &config.VaultConfig{
-			Enabled:   pointer.Of(true),
-			Token:     "vault-token",
-			Namespace: "vault-namespace",
-		},
-	}
-
-	must.NoError(t, agent.Reload(newConfig))
-	must.Equals(t, agent.config.Vault, newConfig.Vault)
+	// TODO: the vault client isn't accessible here, and we don't actually
+	// overwrite the agent's server config on reload. We probably should? See
+	// tests in nomad/server_test.go for verification of this code path's
+	// behavior on the VaultClient
+	must.NoError(t, agent.server.Reload(sconf))
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
