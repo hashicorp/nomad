@@ -37,15 +37,18 @@ func TestConnect_newConnect(t *testing.T) {
 	service := "redis"
 	redisID := uuid.Generate()
 	allocID := uuid.Generate()
+	info := structs.AllocInfo{
+		AllocID: allocID,
+	}
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("", "", "", nil, nil, nil)
+		asr, err := newConnect("", structs.AllocInfo{}, "", nil, nil, nil)
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
 
 	t.Run("native", func(t *testing.T) {
-		asr, err := newConnect(redisID, allocID, service, &structs.ConsulConnect{
+		asr, err := newConnect(redisID, info, service, &structs.ConsulConnect{
 			Native: true,
 		}, nil, nil)
 		require.NoError(t, err)
@@ -54,7 +57,7 @@ func TestConnect_newConnect(t *testing.T) {
 	})
 
 	t.Run("with sidecar", func(t *testing.T) {
-		asr, err := newConnect(redisID, allocID, service, &structs.ConsulConnect{
+		asr, err := newConnect(redisID, info, service, &structs.ConsulConnect{
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
@@ -88,7 +91,7 @@ func TestConnect_newConnect(t *testing.T) {
 	})
 
 	t.Run("with sidecar without TCP checks", func(t *testing.T) {
-		asr, err := newConnect(redisID, allocID, service, &structs.ConsulConnect{
+		asr, err := newConnect(redisID, info, service, &structs.ConsulConnect{
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags:                   []string{"foo", "bar"},
@@ -123,22 +126,25 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 
 	redisID := uuid.Generate()
 	allocID := uuid.Generate()
+	info := structs.AllocInfo{
+		AllocID: allocID,
+	}
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration(redisID, allocID, nil, testConnectNetwork, testConnectPorts)
+		sidecarReg, err := connectSidecarRegistration(redisID, info, nil, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
 
 	t.Run("no service port", func(t *testing.T) {
-		_, err := connectSidecarRegistration("unknown-id", allocID, &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("unknown-id", info, &structs.ConsulSidecarService{
 			Port: "unknown-label",
 		}, testConnectNetwork, testConnectPorts)
 		require.EqualError(t, err, `No port of label "unknown-label" defined`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectSidecarRegistration(redisID, allocID, &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration(redisID, info, &structs.ConsulSidecarService{
 			Port: "connect-proxy-redis",
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
@@ -152,7 +158,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectSidecarRegistration(redisID, allocID, &structs.ConsulSidecarService{
+		proxy, err := connectSidecarRegistration(redisID, info, &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
 			Port: "connect-proxy-redis",
 		}, testConnectNetwork, testConnectPorts)
@@ -187,11 +193,14 @@ func TestConnect_connectProxy(t *testing.T) {
 	ci.Parallel(t)
 
 	allocID := uuid.Generate()
+	info := structs.AllocInfo{
+		AllocID: allocID,
+	}
 
 	// If the input proxy is nil, we expect the output to be a proxy with its
 	// config set to default values.
 	t.Run("nil proxy", func(t *testing.T) {
-		proxy, err := connectSidecarProxy(allocID, nil, 2000, testConnectNetwork)
+		proxy, err := connectSidecarProxy(info, nil, 2000, testConnectNetwork)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			LocalServiceAddress: "",
@@ -207,7 +216,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectSidecarProxy(allocID, &structs.ConsulProxy{
+		_, err := connectSidecarProxy(info, &structs.ConsulProxy{
 			LocalServiceAddress: "0.0.0.0",
 			LocalServicePort:    2000,
 			Upstreams:           nil,
@@ -222,7 +231,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectSidecarProxy(allocID, &structs.ConsulProxy{
+		proxy, err := connectSidecarProxy(info, &structs.ConsulProxy{
 			LocalServiceAddress: "0.0.0.0",
 			LocalServicePort:    2000,
 			Upstreams:           nil,
@@ -388,7 +397,7 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"bind_address":     "0.0.0.0",
 			"bind_port":        42,
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1"},
-		}, connectProxyConfig(nil, 42, "test_alloc1"))
+		}, connectProxyConfig(nil, 42, structs.AllocInfo{AllocID: "test_alloc1"}))
 	})
 
 	t.Run("pre-existing map", func(t *testing.T) {
@@ -399,7 +408,7 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc2"},
 		}, connectProxyConfig(map[string]interface{}{
 			"foo": "bar",
-		}, 42, "test_alloc2"))
+		}, 42, structs.AllocInfo{AllocID: "test_alloc2"}))
 	})
 }
 
@@ -594,19 +603,34 @@ func Test_connectMeshGateway(t *testing.T) {
 	})
 }
 
-func Test_injectAllocID(t *testing.T) {
+func Test_injectNomadInfo(t *testing.T) {
 	ci.Parallel(t)
 
-	id := "abc123"
+	info1 := func() map[string]string {
+		return map[string]string{
+			"nomad.alloc_id=": "abc123",
+		}
+	}
+	info2 := func() map[string]string {
+		return map[string]string{
+			"nomad.alloc_id=":  "abc123",
+			"nomad.namespace=": "testns",
+		}
+	}
 
-	try := func(allocID string, cfg, exp map[string]interface{}) {
-		injectAllocID(cfg, allocID)
+	try := func(defaultTags map[string]string, cfg, exp map[string]interface{}) {
+		// TODO: defaultTags get modified over the execution
+		injectNomadInfo(cfg, defaultTags)
+		cfgTags, expTags := cfg["envoy_stats_tags"], exp["envoy_stats_tags"]
+		delete(cfg, "envoy_stats_tags")
+		delete(exp, "envoy_stats_tags")
 		require.Equal(t, exp, cfg)
+		require.ElementsMatch(t, expTags, cfgTags, "")
 	}
 
 	// empty
 	try(
-		id,
+		info1(),
 		make(map[string]interface{}),
 		map[string]interface{}{
 			"envoy_stats_tags": []string{"nomad.alloc_id=abc123"},
@@ -615,7 +639,7 @@ func Test_injectAllocID(t *testing.T) {
 
 	// merge fresh
 	try(
-		id,
+		info1(),
 		map[string]interface{}{"foo": "bar"},
 		map[string]interface{}{
 			"foo":              "bar",
@@ -625,7 +649,7 @@ func Test_injectAllocID(t *testing.T) {
 
 	// merge append
 	try(
-		id,
+		info1(),
 		map[string]interface{}{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2"},
@@ -638,25 +662,25 @@ func Test_injectAllocID(t *testing.T) {
 
 	// merge exists
 	try(
-		id,
+		info2(),
 		map[string]interface{}{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=xyz789"},
 		},
 		map[string]interface{}{
 			"foo":              "bar",
-			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=xyz789"},
+			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=xyz789", "nomad.namespace=testns"},
 		},
 	)
 
 	// merge wrong type
 	try(
-		id,
+		info1(),
 		map[string]interface{}{
 			"envoy_stats_tags": "not a slice of string",
 		},
 		map[string]interface{}{
-			"envoy_stats_tags": "not a slice of string",
+			"envoy_stats_tags": []string{"nomad.alloc_id=abc123"},
 		},
 	)
 }

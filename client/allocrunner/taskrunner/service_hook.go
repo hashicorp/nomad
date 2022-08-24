@@ -31,7 +31,7 @@ type serviceHookConfig struct {
 
 	// namespace is the Nomad or Consul namespace in which service
 	// registrations will be made.
-	namespace string
+	providerNamespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
@@ -48,6 +48,7 @@ type serviceHook struct {
 	jobID     string
 	groupName string
 	taskName  string
+	namespace string
 	restarter serviceregistration.WorkloadRestarter
 	logger    log.Logger
 
@@ -60,9 +61,9 @@ type serviceHook struct {
 	ports      structs.AllocatedPorts
 	taskEnv    *taskenv.TaskEnv
 
-	// namespace is the Nomad or Consul namespace in which service
+	// providerNamespace is the Nomad or Consul namespace in which service
 	// registrations will be made. This field may be updated.
-	namespace string
+	providerNamespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
@@ -87,7 +88,8 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		jobID:             c.alloc.JobID,
 		groupName:         c.alloc.TaskGroup,
 		taskName:          c.task.Name,
-		namespace:         c.namespace,
+		namespace:         c.alloc.Namespace,
+		providerNamespace: c.providerNamespace,
 		serviceRegWrapper: c.serviceRegWrapper,
 		services:          c.task.Services,
 		restarter:         c.restarter,
@@ -176,7 +178,7 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
-	h.namespace = req.Alloc.ServiceProviderNamespace()
+	h.providerNamespace = req.Alloc.ServiceProviderNamespace()
 
 	return nil
 }
@@ -219,19 +221,23 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
+	info := structs.AllocInfo{
+		AllocID:   h.allocID,
+		JobID:     h.jobID,
+		Task:      h.taskName,
+		Namespace: h.namespace,
+	}
+
 	// Create task services struct with request's driver metadata
 	return &serviceregistration.WorkloadServices{
-		AllocID:       h.allocID,
-		JobID:         h.jobID,
-		Group:         h.groupName,
-		Task:          h.taskName,
-		Namespace:     h.namespace,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		DriverExec:    h.driverExec,
-		DriverNetwork: h.driverNet,
-		Networks:      h.networks,
-		Canary:        h.canary,
-		Ports:         h.ports,
+		AllocInfo:         info,
+		ProviderNamespace: h.providerNamespace,
+		Restarter:         h.restarter,
+		Services:          interpolatedServices,
+		DriverExec:        h.driverExec,
+		DriverNetwork:     h.driverNet,
+		Networks:          h.networks,
+		Canary:            h.canary,
+		Ports:             h.ports,
 	}
 }

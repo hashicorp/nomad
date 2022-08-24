@@ -416,8 +416,10 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 
 	allocID := uuid.Generate()
 	ws := &serviceregistration.WorkloadServices{
-		AllocID:   allocID,
-		Task:      "taskname",
+		AllocInfo: structs.AllocInfo{
+			AllocID: allocID,
+			Task:    "taskname",
+		},
 		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{

@@ -965,7 +965,7 @@ func (c *ServiceClient) serviceRegs(
 	*serviceregistration.ServiceRegistration, error) {
 
 	// Get the services ID
-	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+	id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), service)
 	sreg := &serviceregistration.ServiceRegistration{
 		ServiceID:     id,
 		CheckIDs:      make(map[string]struct{}, len(service.Checks)),
@@ -996,7 +996,7 @@ func (c *ServiceClient) serviceRegs(
 	}
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
-	connect, err := newConnect(id, workload.AllocID, service.Name, service.Connect, workload.Networks, workload.Ports)
+	connect, err := newConnect(id, workload.AllocInfo, service.Name, service.Connect, workload.Networks, workload.Ports)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
@@ -1069,7 +1069,7 @@ func (c *ServiceClient) serviceRegs(
 		Kind:              kind,
 		ID:                id,
 		Name:              service.Name,
-		Namespace:         workload.Namespace,
+		Namespace:         workload.ProviderNamespace,
 		Tags:              tags,
 		EnableTagOverride: service.EnableTagOverride,
 		Address:           ip,
@@ -1130,7 +1130,7 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 		}
 
 		checkID := MakeCheckID(serviceID, check)
-		registration, err := createCheckReg(serviceID, checkID, check, ip, port, workload.Namespace)
+		registration, err := createCheckReg(serviceID, checkID, check, ip, port, workload.ProviderNamespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
@@ -1167,18 +1167,18 @@ func (c *ServiceClient) RegisterWorkload(workload *serviceregistration.WorkloadS
 	}
 
 	// Add the workload to the allocation's registration
-	c.addRegistrations(workload.AllocID, workload.Name(), t)
+	c.addRegistrations(workload.AllocInfo.AllocID, workload.Name(), t)
 
 	c.commit(ops)
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range workload.Services {
-		serviceID := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+		serviceID := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(workload.AllocID, workload.Name(), checkID, check, workload.Restarter)
+				c.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
 			}
 		}
 	}
@@ -1196,12 +1196,12 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 
 	newIDs := make(map[string]*structs.Service, len(newWorkload.Services))
 	for _, s := range newWorkload.Services {
-		newIDs[serviceregistration.MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), s)] = s
+		newIDs[serviceregistration.MakeAllocServiceID(newWorkload.AllocInfo.AllocID, newWorkload.Name(), s)] = s
 	}
 
 	// Loop over existing Services to see if they have been removed
 	for _, existingSvc := range old.Services {
-		existingID := serviceregistration.MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
+		existingID := serviceregistration.MakeAllocServiceID(old.AllocInfo.AllocID, old.Name(), existingSvc)
 		newSvc, ok := newIDs[existingID]
 
 		if !ok {
@@ -1219,8 +1219,8 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 			continue
 		}
 
-		oldHash := existingSvc.Hash(old.AllocID, old.Name(), old.Canary)
-		newHash := newSvc.Hash(newWorkload.AllocID, newWorkload.Name(), newWorkload.Canary)
+		oldHash := existingSvc.Hash(old.AllocInfo.AllocID, old.Name(), old.Canary)
+		newHash := newSvc.Hash(newWorkload.AllocInfo.AllocID, newWorkload.Name(), newWorkload.Canary)
 		if oldHash == newHash {
 			// Service exists and hasn't changed, don't re-add it later
 			delete(newIDs, existingID)
@@ -1265,7 +1265,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
 			if check.TriggersRestarts() {
-				c.checkWatcher.Watch(newWorkload.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
+				c.checkWatcher.Watch(newWorkload.AllocInfo.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
 			}
 		}
 
@@ -1291,7 +1291,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 	}
 
 	// Add the task to the allocation's registration
-	c.addRegistrations(newWorkload.AllocID, newWorkload.Name(), regs)
+	c.addRegistrations(newWorkload.AllocInfo.AllocID, newWorkload.Name(), regs)
 
 	c.commit(ops)
 
@@ -1301,7 +1301,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(newWorkload.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
+				c.checkWatcher.Watch(newWorkload.AllocInfo.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
 			}
 		}
 	}
@@ -1316,7 +1316,7 @@ func (c *ServiceClient) RemoveWorkload(workload *serviceregistration.WorkloadSer
 	ops := operations{}
 
 	for _, service := range workload.Services {
-		id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+		id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), service)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1330,7 +1330,7 @@ func (c *ServiceClient) RemoveWorkload(workload *serviceregistration.WorkloadSer
 	}
 
 	// Remove the workload from the alloc's registrations
-	c.removeRegistration(workload.AllocID, workload.Name())
+	c.removeRegistration(workload.AllocInfo.AllocID, workload.Name())
 
 	// Now add them to the deregistration fields; main Run loop will update
 	c.commit(&ops)

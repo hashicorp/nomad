@@ -24,15 +24,16 @@ type groupServiceHook struct {
 	allocID          string
 	jobID            string
 	group            string
+	namespace        string
 	restarter        serviceregistration.WorkloadRestarter
 	prerun           bool
 	deregistered     bool
 	networkStatus    structs.NetworkStatus
 	shutdownDelayCtx context.Context
 
-	// namespace is the Nomad or Consul namespace in which service
+	// providerNamespace is the Nomad or Consul namespace in which service
 	// registrations will be made. This field may be updated.
-	namespace string
+	providerNamespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
@@ -61,9 +62,9 @@ type groupServiceHookConfig struct {
 	shutdownDelayCtx context.Context
 	logger           log.Logger
 
-	// namespace is the Nomad or Consul namespace in which service
+	// providerNamespace is the Nomad or Consul namespace in which service
 	// registrations will be made.
-	namespace string
+	providerNamespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
@@ -82,8 +83,9 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		allocID:           cfg.alloc.ID,
 		jobID:             cfg.alloc.JobID,
 		group:             cfg.alloc.TaskGroup,
+		namespace:         cfg.alloc.Namespace,
 		restarter:         cfg.restarter,
-		namespace:         cfg.namespace,
+		providerNamespace: cfg.providerNamespace,
 		taskEnvBuilder:    cfg.taskEnvBuilder,
 		delay:             shutdownDelay,
 		networkStatus:     cfg.networkStatus,
@@ -161,7 +163,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
-	h.namespace = req.Alloc.ServiceProviderNamespace()
+	h.providerNamespace = req.Alloc.ServiceProviderNamespace()
 
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
@@ -244,17 +246,22 @@ func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadSe
 		netStatus = h.networkStatus.NetworkStatus()
 	}
 
+	info := structs.AllocInfo{
+		AllocID:   h.allocID,
+		JobID:     h.jobID,
+		Group:     h.group,
+		Namespace: h.namespace,
+	}
+
 	// Create task services struct with request's driver metadata
 	return &serviceregistration.WorkloadServices{
-		AllocID:       h.allocID,
-		JobID:         h.jobID,
-		Group:         h.group,
-		Namespace:     h.namespace,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		Networks:      h.networks,
-		NetworkStatus: netStatus,
-		Ports:         h.ports,
-		Canary:        h.canary,
+		AllocInfo:         info,
+		ProviderNamespace: h.providerNamespace,
+		Restarter:         h.restarter,
+		Services:          interpolatedServices,
+		Networks:          h.networks,
+		NetworkStatus:     netStatus,
+		Ports:             h.ports,
+		Canary:            h.canary,
 	}
 }

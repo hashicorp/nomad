@@ -28,8 +28,10 @@ const (
 
 func testWorkload() *serviceregistration.WorkloadServices {
 	return &serviceregistration.WorkloadServices{
-		AllocID:   uuid.Generate(),
-		Task:      "taskname",
+		AllocInfo: structs.AllocInfo{
+			AllocID: uuid.Generate(),
+			Task:    "taskname",
+		},
 		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{
@@ -131,7 +133,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1, "Unexpected nil alloc registration")
 	r.Equal(1, reg1.NumServices())
@@ -171,7 +173,7 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services))
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1)
 	r.Equal(1, reg1.NumServices())
@@ -1082,7 +1084,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1105,7 +1107,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1130,7 +1132,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
@@ -1192,7 +1194,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1215,7 +1217,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1240,7 +1242,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
