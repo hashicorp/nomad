@@ -1997,11 +1997,11 @@ func TestJobs_NewSysbatchJob(t *testing.T) {
 	testutil.Parallel(t)
 	job := NewSysbatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   stringToPtr("global"),
-		ID:       stringToPtr("job1"),
-		Name:     stringToPtr("myjob"),
-		Type:     stringToPtr(JobTypeSysbatch),
-		Priority: intToPtr(5),
+		Region:   pointerOf("global"),
+		ID:       pointerOf("job1"),
+		Name:     pointerOf("myjob"),
+		Type:     pointerOf(JobTypeSysbatch),
+		Priority: pointerOf(5),
 	}
 	require.Equal(t, expect, job)
 }
