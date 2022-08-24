@@ -544,7 +544,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	// because any node could potentially be feasible.
 	numEscaped := len(b.escaped)
 	numQuotaLimit := 0
-	unblocked := make(map[*structs.Evaluation]string, helper.MaxInt(numEscaped, 4))
+	unblocked := make(map[*structs.Evaluation]string, helper.Max(numEscaped, 4))
 
 	if numEscaped != 0 && computedClass != "" {
 		for id, wrapped := range b.escaped {
