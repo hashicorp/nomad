@@ -23,6 +23,13 @@ to version 3, and in Nomad 1.4.0 Nomad requires the use of raft protocol version
 3. If [`raft_protocol`] version is explicitly set, it must now be set to `3`.
 For more information see the [Upgrading to Raft Protocol 3] guide.
 
+#### Audit logs filtering logic changed
+
+Audit Log filtering in previous versions of Nomad handled `stages` and
+`operations` filters as `OR` filters. If _either_ condition was met, the logs
+would be filtered. As of 1.4.0, `stages` and `operations` are treated as `AND
+filters`. Logs will only be filtered if all filter conditions match.
+
 ## Nomad 1.3.3
 
 Environments that don't support the use of [`uid`][template_uid] and
