@@ -489,12 +489,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 
 	// test cases can use this default or override w/ taskDefs param
 	alloc := mock.LifecycleAllocFromTasks([]mock.LifecycleTaskDef{
-		{"main", "100s", 0, "", false},
-		{"prestart-oneshot", "1s", 0, "prestart", false},
-		{"prestart-sidecar", "100s", 0, "prestart", true},
-		{"poststart-oneshot", "1s", 0, "poststart", false},
-		{"poststart-sidecar", "100s", 0, "poststart", true},
-		{"poststop", "1s", 0, "poststop", false},
+		{Name: "main", RunFor: "100s", ExitCode: 0, Hook: "", IsSidecar: false},
+		{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+		{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+		{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+		{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+		{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 	})
 	alloc.Job.Type = structs.JobTypeService
 	rp := &structs.RestartPolicy{
@@ -546,12 +546,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "batch job restart entire allocation",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "100s", 1, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "100s", ExitCode: 1, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			isBatch: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
@@ -570,12 +570,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "batch job restart only running tasks ",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "100s", 1, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "100s", ExitCode: 1, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			isBatch: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
@@ -657,12 +657,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "main task fails and restarts once",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "2s", 1, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "2s", ExitCode: 1, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
 				time.Sleep(3 * time.Second) // make sure main task has exited
@@ -680,12 +680,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "leader main task fails and restarts once",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "2s", 1, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "2s", ExitCode: 1, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			hasLeader: true,
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
@@ -704,12 +704,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "main stopped unexpectedly and restarts once",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "2s", 0, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "2s", ExitCode: 0, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
 				time.Sleep(3 * time.Second) // make sure main task has exited
@@ -727,12 +727,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "leader main stopped unexpectedly and restarts once",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "2s", 0, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "2s", ExitCode: 0, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
 				time.Sleep(3 * time.Second) // make sure main task has exited
@@ -750,12 +750,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 		{
 			name: "failed main task cannot be restarted",
 			taskDefs: []mock.LifecycleTaskDef{
-				{"main", "2s", 1, "", false},
-				{"prestart-oneshot", "1s", 0, "prestart", false},
-				{"prestart-sidecar", "100s", 0, "prestart", true},
-				{"poststart-oneshot", "1s", 0, "poststart", false},
-				{"poststart-sidecar", "100s", 0, "poststart", true},
-				{"poststop", "1s", 0, "poststop", false},
+				{Name: "main", RunFor: "2s", ExitCode: 1, Hook: "", IsSidecar: false},
+				{Name: "prestart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "prestart", IsSidecar: false},
+				{Name: "prestart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "prestart", IsSidecar: true},
+				{Name: "poststart-oneshot", RunFor: "1s", ExitCode: 0, Hook: "poststart", IsSidecar: false},
+				{Name: "poststart-sidecar", RunFor: "100s", ExitCode: 0, Hook: "poststart", IsSidecar: true},
+				{Name: "poststop", RunFor: "1s", ExitCode: 0, Hook: "poststop", IsSidecar: false},
 			},
 			action: func(ar *allocRunner, alloc *structs.Allocation) error {
 				// make sure main task has had a chance to restart once on its

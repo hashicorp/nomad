@@ -2613,7 +2613,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
 		ts := tr.TaskState()
-		return ts.State == structs.TaskStateRunning, fmt.Errorf("expected task to be runnig, got %v", ts.State)
+		return ts.State == structs.TaskStateRunning, fmt.Errorf("expected task to be running, got %v", ts.State)
 	}, func(err error) {
 		require.NoError(t, err)
 	})

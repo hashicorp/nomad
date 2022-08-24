@@ -548,8 +548,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 
 		if len(liveRunners) > 0 {
 			// if all live runners are sidecars - kill alloc
-			hasLiveSidecars := hasSidecars && !hasNonSidecarTasks(liveRunners)
-			if killEvent == nil && hasLiveSidecars {
+			onlySidecarsRemaining := hasSidecars && !hasNonSidecarTasks(liveRunners)
+			if killEvent == nil && onlySidecarsRemaining {
 				killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 			}
 
