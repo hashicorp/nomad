@@ -136,14 +136,10 @@ export default Factory.extend({
     }
 
     if (group.withServices) {
-      const services = Array(faker.random.number({ min: 3, max: 5 }))
-        .fill(null)
-        .map(() => {
-          return server.create('service-fragment', {
-            taskGroupId: group.id,
-            provider: 'nomad',
-          });
-        });
+      const services = server.createList('service-fragment', 5, {
+        taskGroupId: group.id,
+        provider: 'nomad',
+      });
 
       services.push(
         server.create('service-fragment', {
@@ -154,11 +150,18 @@ export default Factory.extend({
 
       services.forEach((fragment) => {
         server.create('service', {
-          serviceName: fragment.name, // TODO: Thursday morning: job 404ing
+          serviceName: fragment.name,
+          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+        });
+        server.create('service', {
+          serviceName: fragment.name,
+          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+        });
+        server.create('service', {
+          serviceName: fragment.name,
+          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
         });
       });
-
-      console.log('group services', server.db.services);
 
       group.update({
         services,

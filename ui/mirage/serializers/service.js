@@ -17,5 +17,5 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeService(service) {
-  service.JobID = JSON.stringify([service.JobID, service.Namespace]);
+  // service.JobID = JSON.stringify([service.JobID, service.Namespace]);
 }

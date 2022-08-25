@@ -4,5 +4,5 @@ export default Model.extend({
   taskGroups: hasMany('task-group'),
   jobSummary: belongsTo('job-summary'),
   jobScale: belongsTo('job-scale'),
-  // services: hasMany('service'),
+  services: hasMany('service'),
 });

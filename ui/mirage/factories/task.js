@@ -72,13 +72,9 @@ export default Factory.extend({
     }
 
     if (task.withServices) {
-      const services = Array(faker.random.number({ min: 1, max: 3 }))
-        .fill(null)
-        .map(() => {
-          return server.create('service-fragment', {
-            provider: 'nomad',
-          });
-        });
+      const services = server.createList('service-fragment', 1, {
+        provider: 'nomad',
+      });
 
       services.push(
         server.create('service-fragment', {
@@ -87,7 +83,7 @@ export default Factory.extend({
       );
 
       services.forEach((fragment) => {
-        server.create('service', {
+        server.createList('service', 5, {
           serviceName: fragment.name,
         });
       });

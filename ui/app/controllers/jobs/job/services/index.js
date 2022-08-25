@@ -48,18 +48,12 @@ export default class JobsJobServicesIndexController extends Controller.extend(
     'serviceFragments'
   )
   get services() {
-    console.log(
-      'calc services; do i have a job?',
-      this.job,
-      this.job.services.mapBy('name')
-    );
-    return this.serviceFragments.map((fragment) => {
-      // console.log("======== fragment", fragment.name);
+    const services = this.serviceFragments.map((fragment) => {
       fragment.instances = this.job.services.filter((s) => {
-        // console.log('checking for service', s.name);
         return s.name === fragment.name && s.derivedLevel === fragment.level;
       });
       return fragment;
     });
+    return services;
   }
 }
