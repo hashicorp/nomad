@@ -11,7 +11,7 @@ type TLSCommand struct {
 	Meta
 }
 
-func FileDoesNotExist(file string) bool {
+func fileDoesNotExist(file string) bool {
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return true
 	}
@@ -57,6 +57,6 @@ func (c *TLSCommand) Synopsis() string {
 
 func (c *TLSCommand) Name() string { return "tls" }
 
-func (c *TLSCommand) Run(args []string) int {
+func (c *TLSCommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }

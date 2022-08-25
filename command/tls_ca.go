@@ -41,11 +41,11 @@ func (c *TLSCACommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCACommand) Synopsis() string {
-	return "Helpers for managing CAs"
+	return "Helpers for creating CAs"
 }
 
 func (c *TLSCACommand) Name() string { return "tls ca" }
 
-func (c *TLSCACommand) Run(args []string) int {
+func (c *TLSCACommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }

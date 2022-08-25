@@ -52,6 +52,6 @@ func (c *TLSCertCommand) Synopsis() string {
 
 func (c *TLSCertCommand) Name() string { return "tls cert" }
 
-func (c *TLSCertCommand) Run(args []string) int {
+func (c *TLSCertCommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }

@@ -3,8 +3,8 @@ package command
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/flags"
@@ -220,7 +220,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	for i := 0; i <= max; i++ {
 		tmpCert := fmt.Sprintf("%s-%d.pem", prefix, i)
 		tmpPk := fmt.Sprintf("%s-%d-key.pem", prefix, i)
-		if FileDoesNotExist(tmpCert) && FileDoesNotExist(tmpPk) {
+		if fileDoesNotExist(tmpCert) && fileDoesNotExist(tmpPk) {
 			certFileName = tmpCert
 			pkFileName = tmpPk
 			break
@@ -233,12 +233,12 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 
 	caFile := strings.Replace(ca, "#DOMAIN#", domain, 1)
 	keyFile := strings.Replace(key, "#DOMAIN#", domain, 1)
-	cert, err := ioutil.ReadFile(caFile)
+	cert, err := os.ReadFile(caFile)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error reading CA: %s", err))
 		return 1
 	}
-	caKey, err := ioutil.ReadFile(keyFile)
+	caKey, err := os.ReadFile(keyFile)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error reading CA key: %s", err))
 		return 1
