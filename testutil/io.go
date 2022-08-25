@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-var noCleanup = strings.ToLower(os.Getenv("TEST_NOCLEANUP")) == "true"
-
 // TempDir creates a temporary directory within tmpdir with the name 'testname-name'.
 // If the directory cannot be created t.Fatal is called.
 // The directory will be removed when the test ends. Set TEST_NOCLEANUP env var
@@ -23,10 +21,6 @@ func TempDir(t testing.TB, name string) string {
 		t.Fatalf("err: %s", err)
 	}
 	t.Cleanup(func() {
-		if noCleanup {
-			t.Logf("skipping cleanup because TEST_NOCLEANUP was enabled")
-			return
-		}
 		os.RemoveAll(d)
 	})
 	return d
@@ -49,10 +43,6 @@ func TempFile(t testing.TB, name string) *os.File {
 		t.Fatalf("err: %s", err)
 	}
 	t.Cleanup(func() {
-		if noCleanup {
-			t.Logf("skipping cleanup because TEST_NOCLEANUP was enabled")
-			return
-		}
 		os.Remove(f.Name())
 	})
 	return f
