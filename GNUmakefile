@@ -15,7 +15,7 @@ ifneq (MSYS_NT,$(THIS_OS))
 GOPATH=$(shell go env GOPATH | cut -d: -f1)
 endif
 
-GO_TAGS ?= osusergo
+GO_TAGS ?=
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
