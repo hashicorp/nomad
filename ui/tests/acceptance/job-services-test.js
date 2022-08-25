@@ -11,7 +11,7 @@ module('Acceptance | job services', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {
-    allScenarios.smallCluster(server);
+    allScenarios.servicesTestCluster(server);
     await Services.visit({ id: 'service-haver@default' });
   });
 
