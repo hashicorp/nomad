@@ -8,7 +8,6 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -395,7 +394,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
 		getter:               getter.NewGetter(cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
@@ -689,25 +688,8 @@ func (c *Client) init() error {
 		"reserved", reserved,
 	)
 
-	// Ensure cgroups are created on linux platform
-	if runtime.GOOS == "linux" && c.cpusetManager != nil {
-		// use the client configuration for reservable_cores if set
-		cores := conf.ReservableCores
-		if len(cores) == 0 {
-			// otherwise lookup the effective cores from the parent cgroup
-			cores, err = cgutil.GetCPUsFromCgroup(conf.CgroupParent)
-			if err != nil {
-				c.logger.Warn("failed to lookup cpuset from cgroup parent, and not set as reservable_cores", "parent", conf.CgroupParent)
-				// will continue with a disabled cpuset manager
-			}
-		}
-		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
-			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
-			// will be disabled. this is common when running in dev mode under a non-root user for example.
-			c.logger.Warn("failed to initialize cpuset cgroup subsystem, cpuset management disabled", "error", cpuErr)
-			c.cpusetManager = new(cgutil.NoopCpusetManager)
-		}
-	}
+	// startup the CPUSet manager
+	c.cpusetManager.Init()
 
 	// setup the check store
 	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
