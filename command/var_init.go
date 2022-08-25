@@ -115,16 +115,8 @@ func (c *VarInitCommand) Run(args []string) int {
 	// Success
 	if !quiet {
 		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
-		c.Ui.Output(fmt.Sprintf("Example variable specification written to %s", fileName))
+		c.Ui.Output(fmt.Sprintf("Example secure variable specification written to %s", fileName))
 	}
-
-	// When the output is JSON, emit the reminder about dotted identifiers to
-	// the screen since JSON files can't contain comments to carry the
-	// admonition.
-	if jsonOutput {
-		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
-	}
-	c.Ui.Output(fmt.Sprintf("Example secure variable specification written to %s", fileName))
 	return 0
 }
 
