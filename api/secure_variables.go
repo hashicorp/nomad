@@ -27,28 +27,30 @@ func (c *Client) SecureVariables() *SecureVariables {
 }
 
 // Create is used to create a secure variable.
-func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
-	return wm, nil
+	return &out, wm, nil
 }
 
 // CheckedCreate is used to create a secure variable if it doesn't exist
 // already. If it does, it will return a ErrCASConflict that can be unwrapped
 // for more details.
-func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas=0", v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas=0", v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
 
-	return wm, nil
+	return &out, wm, nil
 }
 
 // Read is used to query a single secure variable by path. This will error
@@ -81,28 +83,31 @@ func (sv *SecureVariables) Peek(path string, qo *QueryOptions) (*SecureVariable,
 }
 
 // Update is used to update a secure variable.
-func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, nil, qo)
+	var out SecureVariable
+
+	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
-	return wm, nil
+	return &out, wm, nil
 }
 
 // CheckedUpdate is used to updated a secure variable if the modify index
 // matches the one on the server.  If it does not, it will return an
 // ErrCASConflict that can be unwrapped for more details.
-func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas="+fmt.Sprint(v.ModifyIndex), v, nil, qo)
+	var out SecureVariable
+	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas="+fmt.Sprint(v.ModifyIndex), v, &out, qo)
 	if err != nil {
-		return nil, err
+		return nil, wm, err
 	}
 
-	return wm, nil
+	return &out, wm, nil
 }
 
 // Delete is used to delete a secure variable
@@ -280,6 +285,7 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	wm := &WriteMeta{RequestTime: rtt}
 	parseWriteMeta(resp, wm)
@@ -293,6 +299,11 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 		return nil, ErrCASConflict{
 			Conflict:   conflict,
 			CheckIndex: in.ModifyIndex,
+		}
+	}
+	if out != nil {
+		if err := decodeBody(resp, &out); err != nil {
+			return nil, err
 		}
 	}
 	return wm, nil

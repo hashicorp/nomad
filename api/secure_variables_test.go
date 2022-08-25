@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,66 +27,49 @@ func TestSecureVariables_SimpleCRUD(t *testing.T) {
 
 	t.Run("1 fail create when no items", func(t *testing.T) {
 
-		_, err := nsv.Create(&SecureVariable{Path: "bad/var"}, nil)
+		_, _, err := nsv.Create(&SecureVariable{Path: "bad/var"}, nil)
 		require.Error(t, err)
 		require.EqualError(t, err, "Unexpected response code: 400 (secure variable missing required Items object)")
 	})
 
 	t.Run("2 create sv1", func(t *testing.T) {
 
-		_, err := nsv.Create(sv1, nil)
-		// TODO: until create and update return secure variables from the server
-		// sid we have to pull the object to check it.
-		assert.NoError(t, err)
-
-		get, _, err := nsv.Read(sv1.Path, nil)
+		get, _, err := nsv.Create(sv1, nil)
 		require.NoError(t, err)
 		require.NotNil(t, get)
-
+		require.NotZero(t, get.CreateIndex)
+		require.NotZero(t, get.CreateTime)
+		require.NotZero(t, get.ModifyIndex)
+		require.NotZero(t, get.ModifyTime)
 		require.Equal(t, sv1.Items, get.Items)
 		*sv1 = *get
 	})
 
 	t.Run("2 create sv2", func(t *testing.T) {
 
-		_, err := nsv.Create(sv2, nil)
-		// TODO: until create and update return secure variables from the server
-		// sid we have to pull the object to check it.
-		// require.NoError(t, err)
-		get, _, err := nsv.Read(sv2.Path, nil)
+		var err error
+		sv2, _, err = nsv.Create(sv2, nil)
 		require.NoError(t, err)
-		require.NotNil(t, get)
-
-		require.Equal(t, sv2.Items, get.Items)
-		*sv2 = *get
 	})
 
-	t.Run("3 update sv1 no change", func(t *testing.T) {
+	// TODO: Need to prevent no-op modifications from happening server-side
+	// t.Run("3 update sv1 no change", func(t *testing.T) {
 
-		// TODO: Need to prevent no-op modifications from happening server-side
-
-		// _, err := nsv.Update(sv1, nil)
-		// assert.NoError(t, err)
-		// get, _, err := nsv.Read(sv1.Path, nil)
-		// require.NotNil(t, get)
-		// require.Equal(t, sv1.ModifyIndex, get.ModifyIndex, "ModifyIndex should not change")
-		// require.Equal(t, sv1.Items, get.Items)
-		// *sv1 = *get
-	})
+	// 	get, _, err := nsv.Update(sv1, nil)
+	// 	require.NoError(t, err)
+	// 	require.NotNil(t, get)
+	// 	require.Equal(t, sv1.ModifyIndex, get.ModifyIndex, "ModifyIndex should not change")
+	// 	require.Equal(t, sv1.Items, get.Items)
+	// 	*sv1 = *get
+	// })
 
 	t.Run("4 update sv1", func(t *testing.T) {
 
 		sv1.Items["new-hotness"] = "yeah!"
-
-		_, err := nsv.Update(sv1, nil)
-		// TODO: until create and update return secure variables from the server
-		// sid we have to pull the object to check it.
-		// require.NoError(t, err)
-		_ = err
-		get, _, err := nsv.Read(sv1.Path, nil)
+		get, _, err := nsv.Update(sv1, nil)
+		require.NoError(t, err)
 		require.NotNil(t, get)
 		require.NotEqual(t, sv1.ModifyIndex, get.ModifyIndex, "ModifyIndex should change")
-
 		require.Equal(t, sv1.Items, get.Items)
 		*sv1 = *get
 	})
@@ -151,11 +133,13 @@ func TestSecureVariables_CRUDWithCAS(t *testing.T) {
 	}
 
 	// Create sv1: should pass without issue
-	_, err := nsv.Create(sv1, nil)
-	require.NoError(t, err)
-	get, _, err := nsv.Read(sv1.Path, nil)
+	get, _, err := nsv.Create(sv1, nil)
 	require.NoError(t, err)
 	require.NotNil(t, get)
+	require.NotZero(t, get.CreateIndex)
+	require.NotZero(t, get.CreateTime)
+	require.NotZero(t, get.ModifyIndex)
+	require.NotZero(t, get.ModifyTime)
 	require.Equal(t, sv1.Items, get.Items)
 
 	// Update sv1 with CAS:
@@ -163,15 +147,11 @@ func TestSecureVariables_CRUDWithCAS(t *testing.T) {
 	// - perform out of band upsert
 	oobUpdate := sv1.Copy()
 	oobUpdate.Items["new-hotness"] = "yeah!"
-	_, err = nsv.Update(oobUpdate, nil)
-	require.NoError(t, err)
-
-	// - fetch the updated value to get the current ModifyIndex
-	nowVal, _, err := nsv.Read(sv1.Path, nil)
+	nowVal, _, err := nsv.Update(oobUpdate, nil)
 	require.NoError(t, err)
 
 	// - try to do an update with sv1's old state; should fail
-	_, err = nsv.CheckedUpdate(sv1, nil)
+	_, _, err = nsv.CheckedUpdate(sv1, nil)
 	require.Error(t, err)
 
 	// - expect the error to be an ErrCASConflict, so we can cast
@@ -188,7 +168,7 @@ func TestSecureVariables_CRUDWithCAS(t *testing.T) {
 	require.Equal(t, nowVal, conflictErr.Conflict)
 
 	// Delete CAS: delete at the current index; should succeed.
-	_, err = nsv.CheckedDelete(nowVal.Path, nowVal.ModifyIndex, nil)
+	_, err = nsv.CheckedDelete(sv1.Path, nowVal.ModifyIndex, nil)
 	require.NoError(t, err)
 
 }
@@ -252,10 +232,23 @@ func TestSecureVariables_Read(t *testing.T) {
 }
 
 func writeTestVariable(t *testing.T, c *Client, sv *SecureVariable) {
-	_, err := c.write("/v1/var/"+sv.Path, sv, nil, nil)
+	_, err := c.write("/v1/var/"+sv.Path, sv, sv, nil)
 	require.NoError(t, err, "Error writing test variable")
-	get := new(SecureVariable)
-	_, err = c.query("/v1/var/"+sv.Path, &get, nil)
 	require.NoError(t, err, "Error writing test variable")
-	*sv = *get
+}
+
+func TestSecureVariable_CreateReturnsContent(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	nsv := c.SecureVariables()
+	sv1 := NewSecureVariable("my/first/variable")
+	sv1.Namespace = "default"
+	sv1.Items["k1"] = "v1"
+	sv1.Items["k2"] = "v2"
+
+	sv1n, _, err := nsv.Create(sv1, nil)
+	require.NoError(t, err)
+	require.NotNil(t, sv1n)
+	require.Equal(t, sv1.Items, sv1n.Items)
 }
