@@ -8,6 +8,8 @@ const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 export default Factory.extend({
   createRecommendations: false,
 
+  withServices: false,
+
   // Hidden property used to compute the Summary hash
   groupNames: [],
 
@@ -67,6 +69,30 @@ export default Factory.extend({
       }
 
       task.save({ recommendationIds: recommendations.mapBy('id') });
+    }
+
+    if (task.withServices) {
+      const services = Array(faker.random.number({ min: 1, max: 3 }))
+        .fill(null)
+        .map(() => {
+          return server.create('service-fragment', {
+            provider: 'nomad',
+          });
+        });
+
+      services.push(
+        server.create('service-fragment', {
+          provider: 'consul',
+        })
+      );
+
+      services.forEach((fragment) => {
+        server.create('service', {
+          serviceName: fragment.name,
+        });
+      });
+
+      task.update({ services });
     }
   },
 });

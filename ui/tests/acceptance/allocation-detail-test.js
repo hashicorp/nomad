@@ -81,7 +81,6 @@ module('Acceptance | allocation detail', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
-    await this.pauseTest();
 
     await Allocation.details.visitClient();
     assert.equal(

@@ -50,9 +50,10 @@ function smallCluster(server) {
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,
+    withTaskServices: true,
     name: 'Service-haver',
     id: 'service-haver',
-  }); // TODO: temp?
+  });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
@@ -101,20 +102,6 @@ function smallCluster(server) {
   server.create('variable', {
     id: 'Auto-conflicting Variable',
     namespace: 'default',
-  });
-
-  const servicedJob = server.db.jobs.findBy({ id: 'service-haver' });
-  server.create('service', {
-    jobId: servicedJob.id,
-    namespace: servicedJob.namespace,
-  });
-  server.create('service', {
-    jobId: servicedJob.id,
-    namespace: servicedJob.namespace,
-  });
-  server.create('service', {
-    jobId: servicedJob.id,
-    namespace: servicedJob.namespace,
   });
 
   // #region evaluations

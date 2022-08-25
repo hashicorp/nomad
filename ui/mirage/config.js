@@ -887,8 +887,15 @@ export default function () {
 
   //#region Services
 
-  this.get('/job/:id/services', function ({ services }, { params }) {
+  this.get('/job/:id/services', function (schema, { params }) {
+    const { services } = schema;
+    console.log(
+      'about to return',
+      params,
+      this.serialize(services.where({ jobId: params.id }))
+    );
     return this.serialize(services.where({ jobId: params.id }));
+    // return schema.services.all();
   });
 
   //#endregion Services

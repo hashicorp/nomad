@@ -35,6 +35,9 @@ export default Factory.extend({
   // Directive used to control whether the task group should have services.
   withServices: false,
 
+  // Whether the tasks themselves should have services.
+  withTaskServices: false,
+
   // Directive used to control whether dynamic application sizing recommendations
   // should be created.
   createRecommendations: false,
@@ -90,6 +93,7 @@ export default Factory.extend({
         return server.create('task', {
           taskGroup: group,
           ...maybeResources,
+          withServices: group.withTaskServices,
           volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
@@ -132,13 +136,29 @@ export default Factory.extend({
     }
 
     if (group.withServices) {
-      const services = Array(faker.random.number({ min: 1, max: 3 }))
+      const services = Array(faker.random.number({ min: 3, max: 5 }))
         .fill(null)
         .map(() => {
           return server.create('service-fragment', {
             taskGroupId: group.id,
+            provider: 'nomad',
           });
         });
+
+      services.push(
+        server.create('service-fragment', {
+          taskGroupId: group.id,
+          provider: 'consul',
+        })
+      );
+
+      services.forEach((fragment) => {
+        server.create('service', {
+          serviceName: fragment.name, // TODO: Thursday morning: job 404ing
+        });
+      });
+
+      console.log('group services', server.db.services);
 
       group.update({
         services,

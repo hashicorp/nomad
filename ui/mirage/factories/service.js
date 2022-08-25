@@ -7,11 +7,12 @@ import { pickOne } from '../utils';
 
 export default Factory.extend({
   id: () => faker.random.uuid(),
-  serviceName: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
+  name: () => faker.random.uuid(),
   serviceName: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
   datacenter: faker.helpers.randomize(DATACENTERS),
   port: faker.random.number({ min: 5000, max: 60000 }),
-  jobId: (id) => `${dasherize(faker.hacker.noun())}-${id}`,
+  // jobId: (id) => `${dasherize(faker.hacker.noun())}-${id}`,
+  jobId: 'service-haver',
   //   allocId: (id) => `${dasherize(faker.hacker.noun())}-${id}`,
   tags: () => {
     if (!faker.random.boolean()) {
@@ -25,6 +26,7 @@ export default Factory.extend({
   },
 
   afterCreate(service, server) {
+    console.log('after creating a service', service);
     if (!service.namespace) {
       const namespace = pickOne(server.db.jobs)?.namespace || 'default';
       service.update({
