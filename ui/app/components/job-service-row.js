@@ -10,7 +10,7 @@ export default class JobServiceRowComponent extends Component {
     if (service.provider === 'nomad') {
       this.router.transitionTo('jobs.job.services.service', service.name, {
         queryParams: { level: service.level },
-				instances: service.instances,
+        instances: service.instances,
       });
     }
   }
