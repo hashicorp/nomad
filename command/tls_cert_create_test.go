@@ -3,21 +3,12 @@ package command
 import (
 	"crypto/x509"
 	"net"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
-
-func TestValidateTLSCertCreateCommand_HasTabs(t *testing.T) {
-	t.Parallel()
-	ui := cli.NewMockUi()
-	cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
-	code := cmd.Help()
-	require.False(t, strings.ContainsRune(code, '\t'))
-}
 
 func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 	t.Parallel()

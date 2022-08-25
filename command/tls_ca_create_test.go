@@ -12,14 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateTLSCACreateCommand_HasTabs(t *testing.T) {
-	t.Parallel()
-	ui := cli.NewMockUi()
-	cmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
-	code := cmd.Help()
-	require.False(t, strings.ContainsRune(code, '\t'))
-}
-
 func TestCACreateCommand(t *testing.T) {
 	testDir := testutil.TempDir(t, "ca-create")
 
