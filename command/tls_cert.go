@@ -23,14 +23,14 @@ in the subcommands or the documentation.
 Create a certificate
 
   $ nomad tls cert create -server
-  ==> Server Certificate saved to: dc1-server-nomad.pem
-  ==> Server Certificate key saved to: dc1-server-nomad-key.pem
+  ==> Server Certificate saved to: global-server-nomad.pem
+  ==> Server Certificate key saved to: global-server-nomad-key.pem
 
 Create a certificate with your own CA:
 
   $ nomad tls cert create -server -ca my-ca.pem -key my-ca-key.pem
-  ==> Server Certificate saved to: dc1-server-nomad.pem
-  ==> Server Certificate key saved to: dc1-server-nomad-key.pem
+  ==> Server Certificate saved to: global-server-nomad.pem
+  ==> Server Certificate key saved to: global-server-nomad-key.pem
 
 For more examples, ask for subcommand help or view the documentation.
 

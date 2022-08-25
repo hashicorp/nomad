@@ -45,11 +45,7 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ui := cli.NewMockUi()
-			cmd := &TLSCertCreateCommand{
-				Meta: Meta{
-					Ui: ui,
-				},
-			}
+			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
 			require.NotEqual(t, 0, cmd.Run(tc.args))
 			got := ui.ErrorWriter.String()
 			if tc.expectErr == "" {
@@ -67,11 +63,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 	defer testutil.SwitchToTempDir(t, testDir)()
 
 	ui := cli.NewMockUi()
-	caCmd := &TLSCACreateCommand{
-		Meta: Meta{
-			Ui: ui,
-		},
-	}
+	caCmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
 
 	// Setup CA keys
 	caCmd.Run([]string{"nomad"})
@@ -92,11 +84,11 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"server0",
 			"server",
 			[]string{"-server"},
-			"dc1-server-nomad-0.pem",
-			"dc1-server-nomad-0-key.pem",
-			"server.dc1.nomad",
+			"global-server-nomad-0.pem",
+			"global-server-nomad-0-key.pem",
+			"server.global.nomad",
 			[]string{
-				"server.dc1.nomad",
+				"server.global.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -104,24 +96,24 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"server1-with-node",
 			"server",
 			[]string{"-server", "-node", "mysrv"},
-			"dc1-server-nomad-1.pem",
-			"dc1-server-nomad-1-key.pem",
-			"server.dc1.nomad",
+			"global-server-nomad-1.pem",
+			"global-server-nomad-1-key.pem",
+			"server.global.nomad",
 			[]string{
-				"mysrv.server.dc1.nomad",
-				"server.dc1.nomad",
+				"mysrv.server.global.nomad",
+				"server.global.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
 		},
-		{"server0-dc2-altdomain",
+		{"server0-region2-altdomain",
 			"server",
-			[]string{"-server", "-dc", "dc2", "-domain", "nomad"},
-			"dc2-server-nomad-0.pem",
-			"dc2-server-nomad-0-key.pem",
-			"server.dc2.nomad",
+			[]string{"-server", "-cluster-region", "region2", "-domain", "nomad"},
+			"region2-server-nomad-0.pem",
+			"region2-server-nomad-0-key.pem",
+			"server.region2.nomad",
 			[]string{
-				"server.dc2.nomad",
+				"server.region2.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -129,11 +121,11 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"client0",
 			"client",
 			[]string{"-client"},
-			"dc1-client-nomad-0.pem",
-			"dc1-client-nomad-0-key.pem",
-			"client.dc1.nomad",
+			"global-client-nomad-0.pem",
+			"global-client-nomad-0-key.pem",
+			"client.global.nomad",
 			[]string{
-				"client.dc1.nomad",
+				"client.global.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -141,23 +133,23 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"client1",
 			"client",
 			[]string{"-client"},
-			"dc1-client-nomad-1.pem",
-			"dc1-client-nomad-1-key.pem",
-			"client.dc1.nomad",
+			"global-client-nomad-1.pem",
+			"global-client-nomad-1-key.pem",
+			"client.global.nomad",
 			[]string{
-				"client.dc1.nomad",
+				"client.global.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
 		},
-		{"client0-dc2-altdomain",
+		{"client0-region2-altdomain",
 			"client",
-			[]string{"-client", "-dc", "dc2", "-domain", "nomad"},
-			"dc2-client-nomad-0.pem",
-			"dc2-client-nomad-0-key.pem",
-			"client.dc2.nomad",
+			[]string{"-client", "-cluster-region", "region2", "-domain", "nomad"},
+			"region2-client-nomad-0.pem",
+			"region2-client-nomad-0-key.pem",
+			"client.region2.nomad",
 			[]string{
-				"client.dc2.nomad",
+				"client.region2.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -165,11 +157,11 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"cli0",
 			"cli",
 			[]string{"-cli"},
-			"dc1-cli-nomad-0.pem",
-			"dc1-cli-nomad-0-key.pem",
-			"cli.dc1.nomad",
+			"global-cli-nomad-0.pem",
+			"global-cli-nomad-0-key.pem",
+			"cli.global.nomad",
 			[]string{
-				"cli.dc1.nomad",
+				"cli.global.nomad",
 				"localhost",
 			},
 			nil,
@@ -177,23 +169,23 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		{"cli1",
 			"cli",
 			[]string{"-cli"},
-			"dc1-cli-nomad-1.pem",
-			"dc1-cli-nomad-1-key.pem",
-			"cli.dc1.nomad",
+			"global-cli-nomad-1.pem",
+			"global-cli-nomad-1-key.pem",
+			"cli.global.nomad",
 			[]string{
-				"cli.dc1.nomad",
+				"cli.global.nomad",
 				"localhost",
 			},
 			nil,
 		},
-		{"cli0-dc2-altdomain",
+		{"cli0-region2-altdomain",
 			"cli",
-			[]string{"-cli", "-dc", "dc2", "-domain", "nomad"},
-			"dc2-cli-nomad-0.pem",
-			"dc2-cli-nomad-0-key.pem",
-			"cli.dc2.nomad",
+			[]string{"-cli", "-cluster-region", "region2", "-domain", "nomad"},
+			"region2-cli-nomad-0.pem",
+			"region2-cli-nomad-0-key.pem",
+			"cli.region2.nomad",
 			[]string{
-				"cli.dc2.nomad",
+				"cli.region2.nomad",
 				"localhost",
 			},
 			nil,
@@ -204,11 +196,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		tc := tc
 		require.True(t, t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			cmd := &TLSCertCreateCommand{
-				Meta: Meta{
-					Ui: ui,
-				},
-			}
+			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
 			require.Equal(t, 0, cmd.Run(tc.args))
 			require.Equal(t, "", ui.ErrorWriter.String())
 

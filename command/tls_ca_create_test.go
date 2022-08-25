@@ -14,7 +14,6 @@ import (
 
 func TestCACreateCommand(t *testing.T) {
 	testDir := testutil.TempDir(t, "ca-create")
-
 	defer testutil.SwitchToTempDir(t, testDir)()
 
 	type testcase struct {
@@ -75,11 +74,7 @@ func TestCACreateCommand(t *testing.T) {
 		tc := tc
 		require.True(t, t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
-			cmd := &TLSCACreateCommand{
-				Meta: Meta{
-					Ui: ui,
-				},
-			}
+			cmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
 			require.Equal(t, 0, cmd.Run(tc.args), ui.ErrorWriter.String())
 			require.Equal(t, "", ui.ErrorWriter.String())
 
