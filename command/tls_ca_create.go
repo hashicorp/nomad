@@ -45,18 +45,18 @@ CA Create Options:
 
   -days
     Provide number of days the CA is valid for from now on.
-    Defaults to 5 years or 1825 days..
+    Defaults to 5 years or 1825 days.
 
   -domain
     Domain of nomad cluster. Only used in combination with -name-constraint. 
-    Defaults to nomad..
+    Defaults to nomad.
 
   -name-constraint
     Add name constraints for the CA. Results in rejecting
     certificates for other DNS than specified. If turned on localhost and 
-    -domain will be added to the allowed DNS. If the Ui is going to be served 
+    -domain will be added to the allowed DNS. If the UI is going to be served 
     over HTTPS its DNS has to be added with -additional-constraint. It is not
-    possible to add that after the fact! Defaults to false..
+    possible to add that after the fact! Defaults to false.
 
 `
 	return strings.TrimSpace(helpText)
@@ -78,7 +78,7 @@ func (c *TLSCACreateCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCACreateCommand) Synopsis() string {
-	return "Create Certificate Authority for Nomad"
+	return "Create a Certificate Authority for Nomad"
 }
 
 func (c *TLSCACreateCommand) Name() string { return "tls ca create" }
@@ -114,12 +114,12 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	certFileName := fmt.Sprintf("%s-agent-ca.pem", domain)
 	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", domain)
 
-	if !(FileDoesNotExist(certFileName)) {
-		c.Ui.Error(certFileName + " already exists.")
+	if !(fileDoesNotExist(certFileName)) {
+		c.Ui.Error(fmt.Sprintf("File '%s' already exists", certFileName))
 		return 1
 	}
-	if !(FileDoesNotExist(pkFileName)) {
-		c.Ui.Error(pkFileName + " already exists.")
+	if !(fileDoesNotExist(pkFileName)) {
+		c.Ui.Error(fmt.Sprintf("File '%s' already exists", pkFileName))
 		return 1
 	}
 

@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
-	// caCreate "github.com/hashicorp/nomad/command/tls/ca/create"
 )
 
 func TestValidateTLSCertCreateCommand_noTabs(t *testing.T) {
@@ -244,53 +243,3 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		}))
 	}
 }
-
-// func expectFiles(t *testing.T, certPath, keyPath string) (*x509.Certificate, crypto.Signer) {
-// 	t.Helper()
-
-// 	require.FileExists(t, certPath)
-// 	require.FileExists(t, keyPath)
-
-// 	fi, err := os.Stat(keyPath)
-// 	if err != nil {
-// 		t.Fatal("should not happen", err)
-// 	}
-// 	if want, have := fs.FileMode(0600), fi.Mode().Perm(); want != have {
-// 		t.Fatalf("private key file %s: permissions: want: %o; have: %o", keyPath, want, have)
-// 	}
-
-// 	certData, err := ioutil.ReadFile(certPath)
-// 	require.NoError(t, err)
-// 	keyData, err := ioutil.ReadFile(keyPath)
-// 	require.NoError(t, err)
-
-// 	cert, err := tlsutil.ParseCert(string(certData))
-// 	require.NoError(t, err)
-// 	require.NotNil(t, cert)
-
-// 	signer, err := tlsutil.ParseSigner(string(keyData))
-// 	require.NoError(t, err)
-// 	require.NotNil(t, signer)
-
-// 	return cert, signer
-// }
-
-// func createCA(t *testing.T, domain string) {
-// 	t.Helper()
-
-// 	ui := cli.NewMockUi()
-// 	caCmd := &TLSCACreateCommand{
-// 		Meta: Meta{
-// 			Ui: ui,
-// 		},
-// 	}
-
-// 	args := []string{
-// 		"-domain=" + domain,
-// 	}
-
-// 	require.Equal(t, 0, caCmd.Run(args))
-// 	require.Equal(t, "", ui.ErrorWriter.String())
-
-// 	require.FileExists(t, "nomad-agent-ca.pem")
-// }
