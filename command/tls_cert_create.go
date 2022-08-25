@@ -17,10 +17,6 @@ type TLSCertCreateCommand struct {
 	Meta
 }
 
-func NewCertCreate() *TLSCertCreateCommand {
-	return &TLSCertCreateCommand{}
-}
-
 func (c *TLSCertCreateCommand) Help() string {
 	helpText := `
 Usage: nomad tls cert create [options]
@@ -33,8 +29,8 @@ $ nomad tls cert create -server
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.
 ==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
-==> Saved dc1-server-nomad-0.pem
-==> Saved dc1-server-nomad-0-key.pem
+==> Server Certificate saved to: dc1-server-nomad.pem
+==> Server Certificate key saved to: dc1-server-nomad-key.pem
 $ nomad tls cert create -client
 ==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
 ==> Saved dc1-client-nomad-0.pem
@@ -251,7 +247,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.`)
 	}
-	c.Ui.Info("==> Using " + caFile + " and " + keyFile)
+	c.Ui.Info("==> Using CA file " + caFile + " and CA key " + keyFile)
 
 	signer, err := tlsutil.ParseSigner(string(caKey))
 	if err != nil {
@@ -277,13 +273,26 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> Saved " + certFileName)
+
+	if server {
+		c.Ui.Output("==> Server Certificate saved to " + certFileName)
+	} else if client {
+		c.Ui.Output("==> Client Certificate saved to " + certFileName)
+	} else if cli {
+		c.Ui.Output("==> Cli Certificate saved to " + certFileName)
+	}
 
 	if err := file.WriteAtomicWithPerms(pkFileName, []byte(priv), 0755, 0600); err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> Saved " + pkFileName)
+	if server {
+		c.Ui.Output("==> Server Certificate key saved to " + pkFileName)
+	} else if client {
+		c.Ui.Output("==> Client Certificate key saved to " + pkFileName)
+	} else if cli {
+		c.Ui.Output("==> Cli Certificate key saved to " + pkFileName)
+	}
 
 	return 0
 }

@@ -14,13 +14,9 @@ type TLSCACreateCommand struct {
 	Meta
 }
 
-func NewCACreate() *TLSCACreateCommand {
-	return &TLSCACreateCommand{}
-}
-
 func (c *TLSCACreateCommand) Help() string {
 	helpText := `
-Usage: nomad tls ca create [options] filename-prefix
+Usage: nomad tls ca create [options]
 
 This command has subcommands for interacting with Certificate Authorities.
 
@@ -30,8 +26,8 @@ in the subcommands or the documentation.
 Create a new Nomad CA
 
   $ nomad tls ca create
-  ==> saved nomad-agent-ca.pem
-  ==> saved nomad-agent-ca-key.pem
+  ==> CA Certificate saved to: nomad-agent-ca.pem
+  ==> CA Certificate key saved to: nomad-agent-ca-key.pem
 
 
 CA Create Options:
@@ -115,11 +111,11 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", domain)
 
 	if !(fileDoesNotExist(certFileName)) {
-		c.Ui.Error(fmt.Sprintf("File '%s' already exists", certFileName))
+		c.Ui.Error(fmt.Sprintf("CA Certificate File '%s' already exists", certFileName))
 		return 1
 	}
 	if !(fileDoesNotExist(pkFileName)) {
-		c.Ui.Error(fmt.Sprintf("File '%s' already exists", pkFileName))
+		c.Ui.Error(fmt.Sprintf("CA Key File '%s' already exists", pkFileName))
 		return 1
 	}
 
@@ -139,13 +135,13 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> Saved " + certFileName)
+	c.Ui.Output("==> CA Certificate saved to: " + certFileName)
 
 	if err := file.WriteAtomicWithPerms(pkFileName, []byte(pk), 0755, 0600); err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> Saved " + pkFileName)
+	c.Ui.Output("==> CA Certificate key saved to: " + pkFileName)
 
 	return 0
 }

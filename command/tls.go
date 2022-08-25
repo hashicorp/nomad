@@ -18,10 +18,6 @@ func fileDoesNotExist(file string) bool {
 	return false
 }
 
-func NewTLS() *TLSCommand {
-	return &TLSCommand{}
-}
-
 func (c *TLSCommand) Help() string {
 	helpText := `
 Usage: nomad tls <subcommand> <subcommand> [options]

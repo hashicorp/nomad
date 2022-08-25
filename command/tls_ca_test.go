@@ -3,11 +3,15 @@ package command
 import (
 	"strings"
 	"testing"
+
+	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
-func TestValidateTLSCACommand_noTabs(t *testing.T) {
+func TestValidateTLSCACommand_HasTabs(t *testing.T) {
 	t.Parallel()
-	if strings.ContainsRune(NewCA().Help(), '\t') {
-		t.Fatal("help has tabs")
-	}
+	ui := cli.NewMockUi()
+	cmd := &TLSCACommand{Meta: Meta{Ui: ui}}
+	code := cmd.Help()
+	require.False(t, strings.ContainsRune(code, '\t'))
 }
