@@ -11,13 +11,9 @@ type TLSCACommand struct {
 	Meta
 }
 
-func NewCA() *TLSCACommand {
-	return &TLSCACommand{}
-}
-
 func (c *TLSCACommand) Help() string {
 	helpText := `
-Usage: nomad tls ca <subcommand> [options] filename-prefix
+Usage: nomad tls ca <subcommand> [options]
 
 This command has subcommands for interacting with Certificate Authorities.
 
@@ -27,8 +23,8 @@ in the subcommands or the documentation.
 Create a CA
 
   $ nomad tls ca create
-  ==> saved nomad-agent-ca.pem
-  ==> saved nomad-agent-ca-key.pem
+  ==> CA Certificate saved to: nomad-agent-ca.pem
+  ==> CA Certificate key saved to: nomad-agent-ca-key.pem
 
 For more examples, ask for subcommand help or view the documentation.
 

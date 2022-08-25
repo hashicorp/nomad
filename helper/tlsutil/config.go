@@ -6,8 +6,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -188,7 +188,7 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	}
 
 	// Read the file
-	data, err := ioutil.ReadFile(c.CAFile)
+	data, err := os.ReadFile(c.CAFile)
 	if err != nil {
 		return fmt.Errorf("Failed to read CA file: %v", err)
 	}

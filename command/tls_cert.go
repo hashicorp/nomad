@@ -11,10 +11,6 @@ type TLSCertCommand struct {
 	Meta
 }
 
-func NewCert() *TLSCertCommand {
-	return &TLSCertCommand{}
-}
-
 func (c *TLSCertCommand) Help() string {
 	helpText := `
 Usage: nomad tls cert <subcommand> [options] [filename-prefix]
@@ -27,14 +23,14 @@ in the subcommands or the documentation.
 Create a certificate
 
   $ nomad tls cert create -server
-  ==> saved dc1-server-nomad.pem
-  ==> saved dc1-server-nomad-key.pem
+  ==> Server Certificate saved to: dc1-server-nomad.pem
+  ==> Server Certificate key saved to: dc1-server-nomad-key.pem
 
 Create a certificate with your own CA:
 
   $ nomad tls cert create -server -ca my-ca.pem -key my-ca-key.pem
-  ==> saved dc1-server-nomad.pem
-  ==> saved dc1-server-nomad-key.pem
+  ==> Server Certificate saved to: dc1-server-nomad.pem
+  ==> Server Certificate key saved to: dc1-server-nomad-key.pem
 
 For more examples, ask for subcommand help or view the documentation.
 

@@ -11,11 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateTLSCertCreateCommand_noTabs(t *testing.T) {
+func TestValidateTLSCertCreateCommand_HasTabs(t *testing.T) {
 	t.Parallel()
-	if strings.ContainsRune(NewCertCreate().Help(), '\t') {
-		t.Fatal("help has tabs")
-	}
+	ui := cli.NewMockUi()
+	cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
+	code := cmd.Help()
+	require.False(t, strings.ContainsRune(code, '\t'))
 }
 
 func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
@@ -42,7 +43,6 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 			"Please provide either -server, -client, or -cli"},
 		"client+cli": {[]string{"-client", "-cli"},
 			"Please provide either -server, -client, or -cli"},
-
 		"client+node": {[]string{"-client", "-node", "foo"},
 			"-node requires -server"},
 		"cli+node": {[]string{"-cli", "-node", "foo"},
