@@ -1998,6 +1998,22 @@ func TestACL_UpsertRoles(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertRolesRPCMethod, aclRoleReq5, &aclRoleResp5)
 	require.Error(t, err)
 	require.NotContains(t, err, "Permission denied")
+
+	// Try and create a role with a name that already exists within state.
+	aclRole3 := mock.ACLRole()
+	aclRole3.ID = ""
+	aclRole3.Name = aclRole1.Name
+
+	aclRoleReq6 := &structs.ACLRolesUpsertRequest{
+		ACLRoles: []*structs.ACLRole{aclRole3},
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclRoleResp6 structs.ACLRolesUpsertResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertRolesRPCMethod, aclRoleReq6, &aclRoleResp6)
+	require.ErrorContains(t, err, fmt.Sprintf("role with name %s already exists", aclRole1.Name))
 }
 
 func TestACL_DeleteRolesByID(t *testing.T) {

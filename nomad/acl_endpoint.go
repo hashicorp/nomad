@@ -1122,6 +1122,28 @@ func (a *ACL) UpsertRoles(
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "role %d invalid: %v", idx, err)
 		}
 
+		// If the caller has passed a role ID, this call is considered an
+		// update to an existing role. We should therefore ensure it is found
+		// within state. Otherwise, the call is considered a new creation, and
+		// we must ensure a role of the same name does not exist.
+		if role.ID == "" {
+			existingRole, err := stateSnapshot.GetACLRoleByName(nil, role.Name)
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "role lookup failed: %v", err)
+			}
+			if existingRole != nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "role with name %s already exists", role.Name)
+			}
+		} else {
+			existingRole, err := stateSnapshot.GetACLRoleByID(nil, role.ID)
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "role lookup failed: %v", err)
+			}
+			if existingRole == nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find role %s", role.ID)
+			}
+		}
+
 		policyNames := make(map[string]struct{})
 		var policiesLinks []*structs.ACLRolePolicyLink
 
@@ -1155,19 +1177,6 @@ func (a *ACL) UpsertRoles(
 
 		// Stored the potentially updated policy links within our role.
 		role.Policies = policiesLinks
-
-		// If the caller has passed a role ID, this call is considered an
-		// update to an existing role. We should therefore ensure it is found
-		// within state.
-		if role.ID != "" {
-			out, err := stateSnapshot.GetACLRoleByID(nil, role.ID)
-			if err != nil {
-				return structs.NewErrRPCCodedf(http.StatusBadRequest, "role lookup failed: %v", err)
-			}
-			if out == nil {
-				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find role %s", role.ID)
-			}
-		}
 
 		role.Canonicalize()
 		role.SetHash()

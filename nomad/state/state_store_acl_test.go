@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -246,6 +247,15 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 	replicatedACLRoleResp, err := testState.GetACLRoleByName(ws, replicatedACLRole.Name)
 	require.NoError(t, err)
 	must.Eq(t, replicatedACLRole.Hash, replicatedACLRoleResp.Hash)
+
+	// Try adding a new ACL role, which has a name clash with an existing
+	// entry.
+	dupRoleName := mock.ACLRole()
+	dupRoleName.Name = mockedACLRoles[0].Name
+
+	err = testState.UpsertACLRoles(structs.MsgTypeTestSetup, 50,
+		[]*structs.ACLRole{dupRoleName}, false)
+	require.ErrorContains(t, err, fmt.Sprintf("ACL role with name %s already exists", dupRoleName.Name))
 }
 
 func TestStateStore_ValidateACLRolePolicyLinks(t *testing.T) {

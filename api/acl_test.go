@@ -330,7 +330,7 @@ func TestACLTokens_Info(t *testing.T) {
 				// Create an ACL role referencing the previously created
 				// policy.
 				role := ACLRole{
-					Name:     "acl-role-api-test",
+					Name:     "acl-role-api-test-role-and-policy",
 					Policies: []*ACLRolePolicyLink{{Name: aclPolicy1.Name}},
 				}
 				aclRoleCreateResp, writeMeta, err := testClient.ACLRoles().Create(&role, nil)
@@ -341,7 +341,7 @@ func TestACLTokens_Info(t *testing.T) {
 
 				// Create a token with a role linking.
 				token := &ACLToken{
-					Name:     "token-with-role-link",
+					Name:     "token-with-role-and-policy-link",
 					Type:     "client",
 					Policies: []string{aclPolicy2.Name},
 					Roles:    []*ACLTokenRoleLink{{Name: role.Name}},
