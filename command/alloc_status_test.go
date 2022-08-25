@@ -467,8 +467,8 @@ func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
 	// Get an alloc id
 	allocID := getAllocFromJob(t, client, jobID)
 
-	// do not wait for alloc running - it will stay pending because the
-	// health-check will never pass
+	// wait for the check to be marked failure
+	waitForCheckStatus(t, client, allocID, "failure")
 
 	// Run command
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
