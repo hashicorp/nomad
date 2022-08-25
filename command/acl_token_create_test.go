@@ -39,7 +39,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	// Check the output
 	out := ui.OutputWriter.String()
 	require.Contains(t, out, "[foo]")
-	require.Contains(t, out, "Expiry Time  = <never>")
+	require.Contains(t, out, "Expiry Time  = <none>")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -49,7 +49,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	require.Equal(t, 0, code)
 
 	out = ui.OutputWriter.String()
-	require.NotContains(t, out, "Expiry Time  = <never>")
+	require.NotContains(t, out, "Expiry Time  = <none>")
 }
 
 func Test_generateACLTokenRoleLinks(t *testing.T) {

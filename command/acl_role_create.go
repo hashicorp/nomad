@@ -44,7 +44,7 @@ ACL Create Options:
     A free form text description of the role that must not exceed 256
     characters.
 
-  -policy-name
+  -policy
     Specifies a policy to associate with the role identified by their name. This
     flag can be specified multiple times and must be specified at least once.
 
@@ -62,7 +62,7 @@ func (a *ACLRoleCreateCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-name":        complete.PredictAnything,
 			"-description": complete.PredictAnything,
-			"-policy-name": complete.PredictAnything,
+			"-policy":      complete.PredictAnything,
 			"-json":        complete.PredictNothing,
 			"-t":           complete.PredictAnything,
 		})
@@ -86,7 +86,7 @@ func (a *ACLRoleCreateCommand) Run(args []string) int {
 	flags.Var((funcVar)(func(s string) error {
 		a.policyNames = append(a.policyNames, s)
 		return nil
-	}), "policy-name", "")
+	}), "policy", "")
 	flags.BoolVar(&a.json, "json", false, "")
 	flags.StringVar(&a.tmpl, "t", "", "")
 	if err := flags.Parse(args); err != nil {
@@ -107,7 +107,7 @@ func (a *ACLRoleCreateCommand) Run(args []string) int {
 		return 1
 	}
 	if len(a.policyNames) < 1 {
-		a.Ui.Error("At least one policy name must be specified using the -policy-name flag")
+		a.Ui.Error("At least one policy name must be specified using the -policy flag")
 		return 1
 	}
 

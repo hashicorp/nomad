@@ -98,18 +98,52 @@ func (s *StateStore) upsertACLRoleTxn(
 		}
 	}
 
-	existing, err := txn.First(TableACLRoles, indexID, role.ID)
+	// This validation also happens within the RPC handler, but Raft latency
+	// could mean that by the time the state call is invoked, another Raft
+	// update has already written a role with the same name. We therefore need
+	// to check we are not trying to create a role with an existing name.
+	existingRaw, err := txn.First(TableACLRoles, indexName, role.Name)
 	if err != nil {
 		return false, fmt.Errorf("ACL role lookup failed: %v", err)
 	}
 
-	// Set up the indexes correctly to ensure existing indexes are maintained.
+	// Track our type asserted role, so we only need to do this once.
+	var existing *structs.ACLRole
+
+	// If we did not find an ACL Role within state with the same name, we need
+	// to check using the ID index as the operator might be performing an
+	// update on the role name.
+	//
+	// If we found an entry using the name index, we need to check that the ID
+	// matches the object within the request.
+	if existingRaw == nil {
+		existingRaw, err = txn.First(TableACLRoles, indexID, role.ID)
+		if err != nil {
+			return false, fmt.Errorf("ACL role lookup failed: %v", err)
+		}
+		if existingRaw != nil {
+			existing = existingRaw.(*structs.ACLRole)
+		}
+	} else {
+		existing = existingRaw.(*structs.ACLRole)
+		if existing.ID != role.ID {
+			return false, fmt.Errorf("ACL role with name %s already exists", role.Name)
+		}
+	}
+
+	// Depending on whether this is an initial create, or an update, we need to
+	// check and set certain parameters. The most important is to ensure any
+	// create index is carried over.
 	if existing != nil {
-		exist := existing.(*structs.ACLRole)
-		if exist.Equals(role) {
+
+		// If the role already exists, check whether the update contains any
+		// difference. If it doesn't, we can avoid a state update as wel as
+		// updates to any blocking queries.
+		if existing.Equals(role) {
 			return false, nil
 		}
-		role.CreateIndex = exist.CreateIndex
+
+		role.CreateIndex = existing.CreateIndex
 		role.ModifyIndex = index
 	} else {
 		role.CreateIndex = index

@@ -106,12 +106,12 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", "-name=update-role-name", aclRole.ID})
 	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy-name flag")
+	require.Contains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy flag")
 
 	// Update the role using no-merge with all required flags set.
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", "-name=update-role-name",
-		"-description=updated-description", "-policy-name=acl-role-cli-test-policy", aclRole.ID})
+		"-description=updated-description", "-policy=acl-role-cli-test-policy", aclRole.ID})
 	require.Equal(t, 0, code)
 	s = ui.OutputWriter.String()
 	require.Contains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
