@@ -15,6 +15,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -744,8 +745,9 @@ func TestClient_Init(t *testing.T) {
 	config.Node = mock.Node()
 
 	client := &Client{
-		config: config,
-		logger: testlog.HCLogger(t),
+		config:        config,
+		logger:        testlog.HCLogger(t),
+		cpusetManager: new(cgutil.NoopCpusetManager),
 	}
 
 	if err := client.init(); err != nil {

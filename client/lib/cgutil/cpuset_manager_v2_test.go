@@ -32,8 +32,8 @@ func TestCpusetManager_V2_AddAlloc(t *testing.T) {
 	cleanup(t, parent)
 
 	// setup the cpuset manager
-	manager := NewCpusetManagerV2(parent, logger)
-	require.NoError(t, manager.Init(systemCores))
+	manager := NewCpusetManagerV2(parent, systemCores, logger)
+	manager.Init()
 
 	// add our first alloc, isolating 1 core
 	t.Run("first", func(t *testing.T) {
@@ -72,8 +72,8 @@ func TestCpusetManager_V2_RemoveAlloc(t *testing.T) {
 	cleanup(t, parent)
 
 	// setup the cpuset manager
-	manager := NewCpusetManagerV2(parent, logger)
-	require.NoError(t, manager.Init(systemCores))
+	manager := NewCpusetManagerV2(parent, systemCores, logger)
+	manager.Init()
 
 	// alloc1 gets core 0
 	alloc1 := mock.Alloc()

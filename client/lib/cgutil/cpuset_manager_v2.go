@@ -56,24 +56,35 @@ type cpusetManagerV2 struct {
 	isolating map[identity]cpuset.CPUSet // isolating tasks using cores from the pool + reserved cores
 }
 
-func NewCpusetManagerV2(parent string, logger hclog.Logger) CpusetManager {
+func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger) CpusetManager {
+	parentAbs := filepath.Join(CgroupRoot, parent)
+	if err := os.MkdirAll(parentAbs, 0o755); err != nil {
+		logger.Warn("failed to ensure nomad parent cgroup exists; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	if len(reservable) == 0 {
+		// read from group
+		if cpus, err := GetCPUsFromCgroup(parent); err != nil {
+			logger.Warn("failed to lookup cpus from parent cgroup; disable cpuset management", "error", err)
+			return new(NoopCpusetManager)
+		} else {
+			reservable = cpus
+		}
+	}
+
 	return &cpusetManagerV2{
+		initial:   cpuset.New(reservable...),
 		parent:    parent,
-		parentAbs: filepath.Join(CgroupRoot, parent),
+		parentAbs: parentAbs,
 		logger:    logger,
 		sharing:   make(map[identity]nothing),
 		isolating: make(map[identity]cpuset.CPUSet),
 	}
 }
 
-func (c *cpusetManagerV2) Init(cores []uint16) error {
-	c.logger.Debug("initializing with", "cores", cores)
-	if err := c.ensureParent(); err != nil {
-		c.logger.Error("failed to init cpuset manager", "err", err)
-		return err
-	}
-	c.initial = cpuset.New(cores...)
-	return nil
+func (c *cpusetManagerV2) Init() {
+	c.logger.Debug("initializing with", "cores", c.initial)
 }
 
 func (c *cpusetManagerV2) AddAlloc(alloc *structs.Allocation) {
@@ -285,22 +296,6 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 	}
 }
 
-// ensureParentCgroup will create parent cgroup for the manager if it does not
-// exist yet. No PIDs are added to any cgroup yet.
-func (c *cpusetManagerV2) ensureParent() error {
-	mgr, err := fs2.NewManager(nil, c.parentAbs, rootless)
-	if err != nil {
-		return err
-	}
-
-	if err = mgr.Apply(CreationPID); err != nil {
-		return err
-	}
-
-	c.logger.Trace("establish cgroup hierarchy", "parent", c.parent)
-	return nil
-}
-
 // fromRoot returns the joined filepath of group on the CgroupRoot
 func fromRoot(group string) string {
 	return filepath.Join(CgroupRoot, group)
@@ -319,13 +314,4 @@ func getCPUsFromCgroupV2(group string) ([]uint16, error) {
 		return nil, err
 	}
 	return set.ToSlice(), nil
-}
-
-// getParentV2 returns parent if set, otherwise the default name of Nomad's
-// parent cgroup (i.e. nomad.slice).
-func getParentV2(parent string) string {
-	if parent == "" {
-		return DefaultCgroupParentV2
-	}
-	return parent
 }
