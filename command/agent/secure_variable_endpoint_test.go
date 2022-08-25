@@ -70,7 +70,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			svs := svMap.List()
 			svs[3].Path = svs[0].Path + "/child"
 			for _, sv := range svs {
-				require.NoError(t, rpcWriteSV(s, sv))
+				require.NoError(t, rpcWriteSV(s, sv, nil))
 			}
 
 			// Make the HTTP request
@@ -87,7 +87,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"))
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
-			// Check the output (the 3 we register )
+			// Check the output (the 4 we register )
 			require.Len(t, obj.([]*structs.SecureVariableMetadata), 4)
 
 			// test prefix query
@@ -146,8 +146,9 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		t.Run("query", func(t *testing.T) {
 			// Use RPC to make a test variable
+			out := new(structs.SecureVariableDecrypted)
 			sv1 := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv1))
+			require.NoError(t, rpcWriteSV(s, sv1, out))
 
 			// Query a variable
 			req, err := http.NewRequest("GET", "/v1/var/"+sv1.Path, nil)
@@ -162,7 +163,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
 			// Check the output
-			require.Equal(t, sv1.Path, obj.(*structs.SecureVariableDecrypted).Path)
+			require.Equal(t, out, obj.(*structs.SecureVariableDecrypted))
 		})
 		rpcResetSV(s)
 
@@ -203,20 +204,21 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
 			require.NoError(t, err)
-			require.Nil(t, obj)
+
+			// Test the returned object and rehydrate to a SecureVariableDecrypted
+			require.NotNil(t, obj)
+			sv1, ok := obj.(*structs.SecureVariableDecrypted)
+			require.True(t, ok, "Unable to convert obj to SecureVariableDecrypted")
 
 			// Check for the index
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, fmt.Sprint(sv1.ModifyIndex), respW.HeaderMap.Get("X-Nomad-Index"))
 
-			// Check the variable was put
+			// Check the variable was put and that the returned item matched the
+			// fetched value
 			out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
 			require.NoError(t, err)
 			require.NotNil(t, out)
-
-			// fixup times and indexes so the equality check is less gross
-			sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
-			sv1.CreateTime, sv1.ModifyTime = out.CreateTime, out.ModifyTime
-			require.Equal(t, sv1.Path, out.Path)
 			require.Equal(t, sv1, out)
 		})
 		rpcResetSV(s)
@@ -257,9 +259,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		t.Run("update", func(t *testing.T) {
 			sv := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv))
-			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
-			require.NoError(t, err)
+			require.NoError(t, rpcWriteSV(s, sv, sv))
 
 			svU := sv.Copy()
 			svU.Items["new"] = "new"
@@ -272,34 +272,30 @@ func TestHTTP_SecureVariables(t *testing.T) {
 			// Make the request
 			obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
 			require.NoError(t, err)
-			require.Nil(t, obj)
+
+			// Test the returned object and rehydrate to a SecureVariableDecrypted
+			require.NotNil(t, obj)
+			out, ok := obj.(*structs.SecureVariableDecrypted)
+			require.True(t, ok, "Unable to convert obj to SecureVariableDecrypted")
 
 			// Check for the index
 			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, fmt.Sprint(out.ModifyIndex), respW.HeaderMap.Get("X-Nomad-Index"))
 
 			{
-				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
-				require.NoError(t, err)
-				require.NotNil(t, out)
-
 				// Check that written varible does not equal the input to rule out input mutation
-				require.NotEqual(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
+				require.NotEqual(t, &svU.SecureVariableMetadata, out.SecureVariableMetadata)
 
 				// Update the input token with the updated metadata so that we
 				// can use a simple equality check
-				svU.CreateIndex, svU.ModifyIndex = out.CreateIndex, out.ModifyIndex
-				svU.CreateTime, svU.ModifyTime = out.CreateTime, out.ModifyTime
-				require.Equal(t, svU.SecureVariableMetadata, out.SecureVariableMetadata)
-
-				// fmt writes sorted output of maps for testability.
-				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
+				svU.ModifyIndex = out.ModifyIndex
+				svU.ModifyTime = out.ModifyTime
+				require.Equal(t, &svU, out)
 			}
 		})
 		t.Run("update-cas", func(t *testing.T) {
 			sv := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv))
-			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
-			require.NoError(t, err)
+			require.NoError(t, rpcWriteSV(s, sv, sv))
 
 			svU := sv.Copy()
 			svU.Items["new"] = "new"
@@ -320,7 +316,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 				require.NotNil(t, obj)
 				conflict, ok := obj.(*structs.SecureVariableDecrypted)
 				require.True(t, ok, "Expected *structs.SecureVariableDecrypted, got %T", obj)
-				require.True(t, sv.Equals(*conflict))
+				require.Equal(t, conflict, sv)
 
 				// Check for the index
 				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
@@ -341,10 +337,23 @@ func TestHTTP_SecureVariables(t *testing.T) {
 				// Make the request
 				obj, err := s.Server.SecureVariableSpecificRequest(respW, req)
 				require.NoError(t, err)
-				require.Nil(t, obj)
+
+				// Test the returned object and rehydrate to a SecureVariableDecrypted
+				require.NotNil(t, obj)
+				sv1, ok := obj.(*structs.SecureVariableDecrypted)
+				require.True(t, ok, "Unable to convert obj to SecureVariableDecrypted")
 
 				// Check for the index
 				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+				require.Equal(t, fmt.Sprint(sv1.ModifyIndex), respW.HeaderMap.Get("X-Nomad-Index"))
+
+				// Check the variable was put and that the returned item matched the
+				// fetched value
+				out, err := rpcReadSV(s, sv.Namespace, sv.Path)
+				require.NoError(t, err)
+				require.NotNil(t, out)
+				require.Equal(t, sv1, out)
+
 			}
 			// Check the variable was created correctly
 			{
@@ -369,7 +378,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 
 		t.Run("error_rpc_delete", func(t *testing.T) {
 			sv1 := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv1))
+			require.NoError(t, rpcWriteSV(s, sv1, nil))
 
 			// Make the HTTP request
 			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path+"?region=bad", nil)
@@ -383,7 +392,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		t.Run("delete-cas", func(t *testing.T) {
 			sv := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv))
+			require.NoError(t, rpcWriteSV(s, sv, nil))
 			sv, err := rpcReadSV(s, sv.Namespace, sv.Path)
 			require.NoError(t, err)
 
@@ -435,7 +444,7 @@ func TestHTTP_SecureVariables(t *testing.T) {
 		})
 		t.Run("delete", func(t *testing.T) {
 			sv1 := mock.SecureVariable()
-			require.NoError(t, rpcWriteSV(s, sv1))
+			require.NoError(t, rpcWriteSV(s, sv1, nil))
 
 			// Make the HTTP request
 			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path, nil)
@@ -479,7 +488,7 @@ func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariableDecrypted, er
 }
 
 // rpcWriteSV lets this test write a secure variable using the RPC endpoint
-func rpcWriteSV(s *TestAgent, sv *structs.SecureVariableDecrypted) error {
+func rpcWriteSV(s *TestAgent, sv, out *structs.SecureVariableDecrypted) error {
 
 	args := structs.SecureVariablesApplyRequest{
 		Op:           structs.SVOpSet,
@@ -492,14 +501,9 @@ func rpcWriteSV(s *TestAgent, sv *structs.SecureVariableDecrypted) error {
 	if err != nil {
 		return err
 	}
-	nv, err := rpcReadSV(s, sv.Namespace, sv.Path)
-	if err != nil {
-		return err
+	if out != nil {
+		*out = *resp.Output
 	}
-	sv.CreateIndex = nv.CreateIndex
-	sv.CreateTime = nv.CreateTime
-	sv.ModifyIndex = nv.ModifyIndex
-	sv.ModifyTime = nv.ModifyTime
 	return nil
 }
 
