@@ -89,19 +89,19 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		additionalNameConstraint flags.StringFlag
 	)
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.IntVar(&days, "days", 1825, "")
-	flags.BoolVar(&constraint, "name-constraint", false, "")
-	flags.StringVar(&domain, "domain", "nomad", "")
-	flags.StringVar(&commonName, "common-name", "", "")
-	flags.Var(&additionalNameConstraint, "additional-name-constraint", "")
-	if err := flags.Parse(args); err != nil {
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.IntVar(&days, "days", 1825, "")
+	flagSet.BoolVar(&constraint, "name-constraint", false, "")
+	flagSet.StringVar(&domain, "domain", "nomad", "")
+	flagSet.StringVar(&commonName, "common-name", "", "")
+	flagSet.Var(&additionalNameConstraint, "additional-name-constraint", "")
+	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got no arguments
-	args = flags.Args()
+	args = flagSet.Args()
 	if l := len(args); l < 0 || l > 1 {
 		c.Ui.Error("This command takes up to one argument")
 		c.Ui.Error(commandErrorText(c))

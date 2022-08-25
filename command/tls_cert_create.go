@@ -121,25 +121,25 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		server      bool
 	)
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.Var(&dnsnames, "additional-dnsname", "")
-	flags.Var(&ipaddresses, "additional-ipaddress", "")
-	flags.StringVar(&ca, "ca", "#DOMAIN#-agent-ca.pem", "")
-	flags.BoolVar(&cli, "cli", false, "")
-	flags.BoolVar(&client, "client", false, "")
-	flags.StringVar(&key, "key", "#DOMAIN#-agent-ca-key.pem", "")
-	flags.IntVar(&days, "days", 365, "")
-	flags.StringVar(&dc, "dc", "dc1", "")
-	flags.StringVar(&domain, "domain", "nomad", "")
-	flags.StringVar(&node, "node", "", "")
-	flags.BoolVar(&server, "server", false, "")
-	if err := flags.Parse(args); err != nil {
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.Var(&dnsnames, "additional-dnsname", "")
+	flagSet.Var(&ipaddresses, "additional-ipaddress", "")
+	flagSet.StringVar(&ca, "ca", "#DOMAIN#-agent-ca.pem", "")
+	flagSet.BoolVar(&cli, "cli", false, "")
+	flagSet.BoolVar(&client, "client", false, "")
+	flagSet.StringVar(&key, "key", "#DOMAIN#-agent-ca-key.pem", "")
+	flagSet.IntVar(&days, "days", 365, "")
+	flagSet.StringVar(&dc, "dc", "dc1", "")
+	flagSet.StringVar(&domain, "domain", "nomad", "")
+	flagSet.StringVar(&node, "node", "", "")
+	flagSet.BoolVar(&server, "server", false, "")
+	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got no arguments
-	args = flags.Args()
+	args = flagSet.Args()
 	if l := len(args); l < 0 || l > 1 {
 		c.Ui.Error("This command takes up to one argument")
 		c.Ui.Error(commandErrorText(c))
