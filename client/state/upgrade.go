@@ -82,15 +82,14 @@ func backupDB(bdb *bbolt.DB, dst string) error {
 
 // UpgradeAllocs upgrades the boltdb schema. Example 0.8 schema:
 //
-//	* allocations
-//	  * 15d83e8a-74a2-b4da-3f17-ed5c12895ea8
-//	    * echo
-//	       - simple-all (342 bytes)
-//	     - alloc (2827 bytes)
-//	     - alloc-dir (166 bytes)
-//	     - immutable (15 bytes)
-//	     - mutable (1294 bytes)
-//
+//	allocations
+//	  15d83e8a-74a2-b4da-3f17-ed5c12895ea8
+//	    echo
+//	      simple-all (342 bytes)
+//	    alloc (2827 bytes)
+//	    alloc-dir (166 bytes)
+//	    immutable (15 bytes)
+//	    mutable (1294 bytes)
 func UpgradeAllocs(logger hclog.Logger, tx *boltdd.Tx) error {
 	btx := tx.BoltTx()
 	allocationsBucket := btx.Bucket(allocationsBucketName)

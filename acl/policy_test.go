@@ -200,6 +200,17 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			namespace "dev" {
+			  secure_variables "*" {
+			      capabilities = ["read", "write"]
+			  }
+			}
+			`,
+			"Invalid secure variable policy: no secure variable paths in namespace dev",
+			nil,
+		},
+		{
+			`
 			namespace "default" {
 				capabilities = ["deny", "foo"]
 			}

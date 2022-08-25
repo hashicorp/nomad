@@ -8,8 +8,8 @@ import (
 	"time"
 
 	fake "github.com/brianvoe/gofakeit/v6"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -592,6 +592,22 @@ func LifecycleJob() *structs.Job {
 							MemoryMB: 256,
 						},
 					},
+					{
+						Name:   "poststart",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPoststart,
+							Sidecar: false,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
 				},
 			},
 		},
@@ -634,6 +650,10 @@ func LifecycleAlloc() *structs.Allocation {
 				CPU:      1000,
 				MemoryMB: 256,
 			},
+			"poststart": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
 		},
 
 		AllocatedResources: &structs.AllocatedResources{
@@ -662,6 +682,14 @@ func LifecycleAlloc() *structs.Allocation {
 						MemoryMB: 256,
 					},
 				},
+				"poststart": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
 			},
 		},
 		Job:           LifecycleJob(),
@@ -669,6 +697,50 @@ func LifecycleAlloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+type LifecycleTaskDef struct {
+	Name      string
+	RunFor    string
+	ExitCode  int
+	Hook      string
+	IsSidecar bool
+}
+
+// LifecycleAllocFromTasks generates an Allocation with mock tasks that have
+// the provided lifecycles.
+func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
+	alloc := LifecycleAlloc()
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{}
+	for _, task := range tasks {
+		var lc *structs.TaskLifecycleConfig
+		if task.Hook != "" {
+			// TODO: task coordinator doesn't treat nil and empty structs the same
+			lc = &structs.TaskLifecycleConfig{
+				Hook:    task.Hook,
+				Sidecar: task.IsSidecar,
+			}
+		}
+
+		alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks,
+			&structs.Task{
+				Name:   task.Name,
+				Driver: "mock_driver",
+				Config: map[string]interface{}{
+					"run_for":   task.RunFor,
+					"exit_code": task.ExitCode},
+				Lifecycle: lc,
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{CPU: 100, MemoryMB: 256},
+			},
+		)
+		alloc.TaskResources[task.Name] = &structs.Resources{CPU: 100, MemoryMB: 256}
+		alloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu:    structs.AllocatedCpuResources{CpuShares: 100},
+			Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+		}
+	}
 	return alloc
 }
 
@@ -1198,7 +1270,7 @@ func ConnectIngressGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Ingress: &structs.ConsulIngressConfigEntry{
@@ -1249,7 +1321,7 @@ func ConnectTerminatingGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Terminating: &structs.ConsulTerminatingConfigEntry{
@@ -1300,7 +1372,7 @@ func ConnectMeshGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Mesh: &structs.ConsulMeshConfigEntry{

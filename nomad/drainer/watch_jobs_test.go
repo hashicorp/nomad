@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -138,7 +138,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		for i := 0; i < count; i++ {
 			a := newAlloc(drainingNode, job)
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(true),
+				Healthy: pointer.Of(true),
 			}
 			allocs = append(allocs, a)
 		}
@@ -160,7 +160,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// the old ones
 	drainedAllocs := make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
-		a.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		a.DesiredTransition.Migrate = pointer.Of(true)
 
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
@@ -203,7 +203,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	for _, a := range replacements {
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
@@ -217,7 +217,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// Fake migrations once more to finish the drain
 	drainedAllocs = make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
-		a.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		a.DesiredTransition.Migrate = pointer.Of(true)
 
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
@@ -246,7 +246,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	for _, a := range replacements {
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
@@ -260,7 +260,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// Fake migrations once more to finish the drain
 	drainedAllocs = make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
-		a.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		a.DesiredTransition.Migrate = pointer.Of(true)
 
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
@@ -289,7 +289,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	for _, a := range replacements {
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
@@ -382,7 +382,7 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 			ExpectedDone:     false,
 			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
 				if i == 0 {
-					a.DesiredTransition.Migrate = helper.BoolToPtr(true)
+					a.DesiredTransition.Migrate = pointer.Of(true)
 					return
 				}
 				a.NodeID = runningID
@@ -549,7 +549,7 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 
 func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -583,7 +583,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 		// Default to being healthy on the draining node
 		a.NodeID = drainingNode.ID
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 		}
 		if tc.AddAlloc != nil {
 			tc.AddAlloc(i, a, drainingNode.ID, runningNode.ID)
@@ -630,7 +630,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 		a.TaskGroup = job.TaskGroups[0].Name
 		a.NodeID = n.ID
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 
 		if i%2 == 0 {
@@ -699,7 +699,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 		a.TaskGroup = job.TaskGroups[0].Name
 		a.NodeID = n.ID
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(false),
+			Healthy: pointer.Of(false),
 		}
 
 		if i%2 == 0 {

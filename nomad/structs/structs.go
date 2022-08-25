@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
@@ -109,12 +110,11 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
-	SecureVariableUpsertRequestType              MessageType = 50
-	SecureVariableDeleteRequestType              MessageType = 51
-	RootKeyMetaUpsertRequestType                 MessageType = 52
-	RootKeyMetaDeleteRequestType                 MessageType = 53
-	ACLRolesUpsertRequestType                    MessageType = 54
-	ACLRolesDeleteByIDRequestType                MessageType = 55
+	SVApplyStateRequestType                      MessageType = 50
+	RootKeyMetaUpsertRequestType                 MessageType = 51
+	RootKeyMetaDeleteRequestType                 MessageType = 52
+	ACLRolesUpsertRequestType                    MessageType = 53
+	ACLRolesDeleteByIDRequestType                MessageType = 54
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -1030,6 +1030,7 @@ type AllocsGetRequest struct {
 type AllocRestartRequest struct {
 	AllocID  string
 	TaskName string
+	AllTasks bool
 
 	QueryOptions
 }
@@ -2061,9 +2062,8 @@ func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil
 	}
-	nn := new(Node)
-	*nn = *n
-	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+	nn := *n
+	nn.Attributes = helper.CopyMap(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
@@ -2071,87 +2071,14 @@ func (n *Node) Copy() *Node {
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
-	nn.Events = copyNodeEvents(n.Events)
-	nn.Drivers = copyNodeDrivers(n.Drivers)
-	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
-	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
-	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
-	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
+	nn.Events = helper.CopySlice(n.Events)
+	nn.Drivers = helper.DeepCopyMap(n.Drivers)
+	nn.CSIControllerPlugins = helper.DeepCopyMap(nn.CSIControllerPlugins)
+	nn.CSINodePlugins = helper.DeepCopyMap(nn.CSINodePlugins)
+	nn.HostVolumes = helper.DeepCopyMap(n.HostVolumes)
+	nn.HostNetworks = helper.DeepCopyMap(n.HostNetworks)
 	nn.LastDrain = nn.LastDrain.Copy()
-	return nn
-}
-
-// copyNodeEvents is a helper to copy a list of NodeEvent's
-func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
-	l := len(events)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]*NodeEvent, l)
-	for i, event := range events {
-		c[i] = event.Copy()
-	}
-	return c
-}
-
-// copyNodeCSI is a helper to copy a map of CSIInfo
-func copyNodeCSI(plugins map[string]*CSIInfo) map[string]*CSIInfo {
-	l := len(plugins)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*CSIInfo, l)
-	for plugin, info := range plugins {
-		c[plugin] = info.Copy()
-	}
-
-	return c
-}
-
-// copyNodeDrivers is a helper to copy a map of DriverInfo
-func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
-	l := len(drivers)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*DriverInfo, l)
-	for driver, info := range drivers {
-		c[driver] = info.Copy()
-	}
-	return c
-}
-
-// copyNodeHostVolumes is a helper to copy a map of string to Volume
-func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
-	l := len(volumes)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*ClientHostVolumeConfig, l)
-	for volume, v := range volumes {
-		c[volume] = v.Copy()
-	}
-
-	return c
-}
-
-// copyNodeHostVolumes is a helper to copy a map of string to HostNetwork
-func copyNodeHostNetworks(networks map[string]*ClientHostNetworkConfig) map[string]*ClientHostNetworkConfig {
-	l := len(networks)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]*ClientHostNetworkConfig, l)
-	for network, v := range networks {
-		c[network] = v.Copy()
-	}
-
-	return c
+	return &nn
 }
 
 // TerminalStatus returns if the current status is terminal and
@@ -6677,10 +6604,19 @@ func (tg *TaskGroup) validateServices() error {
 
 		for _, service := range task.Services {
 
-			// Ensure no task-level checks specify a task
+			// Ensure no task-level service can only specify the task it belongs to.
+			if service.TaskName != "" && service.TaskName != task.Name {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("Service %s is invalid: may only specify task the service belongs to, got %q", service.Name, service.TaskName),
+				)
+			}
+
+			// Ensure no task-level checks can only specify the task they belong to.
 			for _, check := range service.Checks {
-				if check.TaskName != "" {
-					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
+				if check.TaskName != "" && check.TaskName != task.Name {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Check %s is invalid: may only specify task the check belongs to, got %q", check.Name, check.TaskName),
+					)
 				}
 			}
 
@@ -7105,6 +7041,25 @@ func (t *Task) UsesConnect() bool {
 
 func (t *Task) UsesConnectSidecar() bool {
 	return t.Kind.IsConnectProxy() || t.Kind.IsAnyConnectGateway()
+}
+
+func (t *Task) IsPrestart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPrestart
+}
+
+func (t *Task) IsMain() bool {
+	return t != nil && (t.Lifecycle == nil || t.Lifecycle.Hook == "")
+}
+
+func (t *Task) IsPoststart() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststart
+}
+
+func (t *Task) IsPoststop() bool {
+	return t != nil && t.Lifecycle != nil &&
+		t.Lifecycle.Hook == TaskLifecycleHookPoststop
 }
 
 func (t *Task) Copy() *Task {
@@ -7679,13 +7634,31 @@ const (
 	// TemplateChangeModeRestart marks that the task should be restarted if the
 	// template is re-rendered
 	TemplateChangeModeRestart = "restart"
+
+	// TemplateChangeModeScript marks that the task should trigger a script if
+	// the template is re-rendered
+	TemplateChangeModeScript = "script"
 )
 
 var (
 	// TemplateChangeModeInvalidError is the error for when an invalid change
 	// mode is given
-	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, restart")
+	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, script, restart")
 )
+
+// ChangeScript holds the configuration for the script that is executed if
+// change mode is set to script
+type ChangeScript struct {
+	// Command is the full path to the script
+	Command string
+	// Args is a slice of arguments passed to the script
+	Args []string
+	// Timeout is the amount of seconds we wait for the script to finish
+	Timeout time.Duration
+	// FailOnError indicates whether a task should fail in case script execution
+	// fails or log script failure and don't interrupt the task
+	FailOnError bool
+}
 
 // Template represents a template configuration to be rendered for a given task
 type Template struct {
@@ -7706,6 +7679,10 @@ type Template struct {
 	// requires it.
 	ChangeSignal string
 
+	// ChangeScript is the configuration of the script. It's required if
+	// ChangeMode is set to script.
+	ChangeScript *ChangeScript
+
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
@@ -7713,6 +7690,9 @@ type Template struct {
 
 	// Perms is the permission the file should be written out with.
 	Perms string
+	// User and group that should own the file.
+	Uid *int
+	Gid *int
 
 	// LeftDelim and RightDelim are optional configurations to control what
 	// delimiter is utilized when parsing the template.
@@ -7800,6 +7780,10 @@ func (t *Template) Validate() error {
 		}
 		if t.Envvars {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
+		}
+	case TemplateChangeModeScript:
+		if t.ChangeScript.Command == "" {
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)
@@ -7923,7 +7907,7 @@ type AllocState struct {
 // they are assigned to is down, their state is migrated to the replacement
 // allocation.
 //
-//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+// Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
 type TaskHandle struct {
 	// Version of driver state. Used by the driver to gracefully handle
 	// plugin upgrades.
@@ -8062,7 +8046,7 @@ const (
 	// restarted because it has exceeded its restart policy.
 	TaskNotRestarting = "Not Restarting"
 
-	// TaskRestartSignal indicates that the task has been signalled to be
+	// TaskRestartSignal indicates that the task has been signaled to be
 	// restarted
 	TaskRestartSignal = "Restart Signaled"
 
@@ -8105,6 +8089,10 @@ const (
 
 	// TaskHookFailed indicates that one of the hooks for a task failed.
 	TaskHookFailed = "Task hook failed"
+
+	// TaskHookMessage indicates that one of the hooks for a task emitted a
+	// message.
+	TaskHookMessage = "Task hook message"
 
 	// TaskRestoreFailed indicates Nomad was unable to reattach to a
 	// restored task.
@@ -8339,6 +8327,9 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 }
 
 func (e *TaskEvent) GoString() string {
+	if e == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 
@@ -10814,7 +10805,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	*c = *a
 
 	if a.Healthy != nil {
-		c.Healthy = helper.BoolToPtr(*a.Healthy)
+		c.Healthy = pointer.Of(*a.Healthy)
 	}
 
 	return c
@@ -11792,9 +11783,19 @@ type ACLPolicy struct {
 	Description string      // Human readable
 	Rules       string      // HCL or JSON format
 	RulesJSON   *acl.Policy // Generated from Rules on read
+	JobACL      *JobACL
 	Hash        []byte
+
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string // namespace of the job
+	JobID     string // ID of the job
+	Group     string // ID of the group
+	Task      string // ID of the task
 }
 
 // SetHash is used to compute and set the hash of the ACL policy
@@ -11809,6 +11810,13 @@ func (a *ACLPolicy) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Description))
 	_, _ = hash.Write([]byte(a.Rules))
+
+	if a.JobACL != nil {
+		_, _ = hash.Write([]byte(a.JobACL.Namespace))
+		_, _ = hash.Write([]byte(a.JobACL.JobID))
+		_, _ = hash.Write([]byte(a.JobACL.Group))
+		_, _ = hash.Write([]byte(a.JobACL.Task))
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -11842,6 +11850,21 @@ func (a *ACLPolicy) Validate() error {
 		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
 	}
+	if a.JobACL != nil {
+		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
+			err := fmt.Errorf("namespace must be set to set job ID")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
+			err := fmt.Errorf("job ID must be set to set group")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Task != "" && a.JobACL.Group == "" {
+			err := fmt.Errorf("group must be set to set task")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 

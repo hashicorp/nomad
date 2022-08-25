@@ -1,12 +1,13 @@
 package command
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 )
 
 func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
@@ -18,9 +19,7 @@ func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
 	args := []string{fh}
 
 	code := cmd.Run(args)
-	if code != 1 {
-		t.Fatalf("expected exit 1, actual: %d", code)
-	}
+	must.One(t, code)
 }
 
 func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
@@ -28,22 +27,18 @@ func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
 	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err := ioutil.WriteFile(fp, []byte(`data_dir="/"
+	err := os.WriteFile(fp, []byte(`data_dir="/"
 	client {
 		enabled = true
 	}`), 0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	ui := cli.NewMockUi()
 	cmd := &ConfigValidateCommand{Meta: Meta{Ui: ui}}
 	args := []string{fh}
 
 	code := cmd.Run(args)
-	if code != 0 {
-		t.Fatalf("expected exit 0, actual: %d", code)
-	}
+	must.Zero(t, code)
 }
 
 func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
@@ -51,19 +46,15 @@ func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
 	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err := ioutil.WriteFile(fp, []byte(`a: b`), 0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	err := os.WriteFile(fp, []byte(`a: b`), 0644)
+	must.NoError(t, err)
 
 	ui := cli.NewMockUi()
 	cmd := &ConfigValidateCommand{Meta: Meta{Ui: ui}}
 	args := []string{fh}
 
 	code := cmd.Run(args)
-	if code != 1 {
-		t.Fatalf("expected exit 1, actual: %d", code)
-	}
+	must.One(t, code)
 }
 
 func TestConfigValidateCommand_FailOnValidateParsableConfigFile(t *testing.T) {
@@ -71,20 +62,16 @@ func TestConfigValidateCommand_FailOnValidateParsableConfigFile(t *testing.T) {
 	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err := ioutil.WriteFile(fp, []byte(`data_dir="../"
+	err := os.WriteFile(fp, []byte(`data_dir="../" 
 	client {
-		enabled = true
+		enabled = true 
 	}`), 0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	ui := cli.NewMockUi()
 	cmd := &ConfigValidateCommand{Meta: Meta{Ui: ui}}
 	args := []string{fh}
 
 	code := cmd.Run(args)
-	if code != 1 {
-		t.Fatalf("expected exit 1, actual: %d", code)
-	}
+	must.One(t, code)
 }

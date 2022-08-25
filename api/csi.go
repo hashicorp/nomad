@@ -229,6 +229,11 @@ const (
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
 
+const (
+	CSIVolumeTypeHost = "host"
+	CSIVolumeTypeCSI  = "csi"
+)
+
 // CSIMountOptions contain optional additional configuration that can be used
 // when specifying that a Volume should be used with VolumeAccessTypeMount.
 type CSIMountOptions struct {
@@ -242,6 +247,18 @@ type CSIMountOptions struct {
 	MountFlags []string `hcl:"mount_flags,optional"`
 
 	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"` // report unexpected keys
+}
+
+func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
+	if p == nil {
+		return
+	}
+	if p.FSType != "" {
+		o.FSType = p.FSType
+	}
+	if p.MountFlags != nil {
+		o.MountFlags = p.MountFlags
+	}
 }
 
 // CSISecrets contain optional additional credentials that may be needed by

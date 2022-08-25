@@ -14,8 +14,8 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flatmap"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
@@ -229,18 +229,18 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          helper.StringToPtr("job1"),
-		Name:        helper.StringToPtr("job1"),
-		Type:        helper.StringToPtr("service"),
+		ID:          pointer.Of("job1"),
+		Name:        pointer.Of("job1"),
+		Type:        pointer.Of("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  helper.StringToPtr("group1"),
-				Count: helper.IntToPtr(1),
+				Name:  pointer.Of("group1"),
+				Count: pointer.Of(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts: helper.IntToPtr(10),
-					Interval: helper.TimeToPtr(15 * time.Second),
-					Mode:     helper.StringToPtr("delay"),
+					Attempts: pointer.Of(10),
+					Interval: pointer.Of(15 * time.Second),
+					Mode:     pointer.Of("delay"),
 				},
 
 				Tasks: []*api.Task{
@@ -347,7 +347,7 @@ job "example" {
 }
 `
 
-	setEnv(t, "NOMAD_VAR_var4", "from-envvar")
+	t.Setenv("NOMAD_VAR_var4", "from-envvar")
 
 	cliArgs := []string{`var2=from-cli`}
 	fileVars := `var3 = "from-varfile"`

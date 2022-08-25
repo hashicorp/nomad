@@ -347,6 +347,31 @@ chroot as doing so would cause infinite recursion.
   }
   ```
 
+- `nomad_retry` `(map: { attempts = 0 backoff = "250ms" max_backoff = "1m" })` -
+  This controls the retry behavior when an error is returned from Nomad. Consul
+  Template is highly fault tolerant, meaning it does not exit in the face of failure.
+  Instead, it uses exponential back-off and retry functions to wait for the cluster
+  to become available, as is customary in distributed systems.
+
+  ```hcl
+  nomad_retry {
+    # This specifies the number of attempts to make before giving up. Each
+    # attempt adds the exponential backoff sleep time. Setting this to
+    # zero will implement an unlimited number of retries.
+    attempts = 0
+    # This is the base amount of time to sleep between retry attempts. Each
+    # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
+    # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.
+    backoff = "250ms"
+    # This is the maximum amount of time to sleep between retry attempts.
+    # When max_backoff is set to zero, there is no upper limit to the
+    # exponential sleep between retry attempts.
+    # If max_backoff is set to 10s and backoff is set to 1s, sleep times
+    # would be: 1s, 2s, 4s, 8s, 10s, 10s, ...
+    max_backoff = "1m"
+  }
+  ```
+
 ### `host_volume` Stanza
 
 The `host_volume` stanza is used to make volumes available to jobs.

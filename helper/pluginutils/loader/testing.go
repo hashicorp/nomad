@@ -6,7 +6,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -51,7 +51,7 @@ func (m *MockInstance) ApiVersion() string                             { return 
 // passed inst as the plugin
 func MockBasicExternalPlugin(inst interface{}, apiVersion string) *MockInstance {
 	var killedLock sync.Mutex
-	killed := helper.BoolToPtr(false)
+	killed := pointer.Of(false)
 	return &MockInstance{
 		InternalPlugin: false,
 		KillF: func() {

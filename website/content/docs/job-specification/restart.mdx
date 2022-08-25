@@ -13,7 +13,7 @@ description: The "restart" stanza configures a group's behavior on task failure.
   ]}
 />
 
-The `restart` stanza configures a tasks's behavior on task failure. Restarts
+The `restart` stanza configures a task's behavior on task failure. Restarts
 happen on the client that is running the task.
 
 ```hcl
@@ -151,7 +151,7 @@ restart {
 }
 ```
 
-With the following `restart` block, a task that that fails after 1
+With the following `restart` block, a task that fails after 1
 minute, after 2 minutes, and after 3 minutes will be restarted each
 time. If it fails again before 10 minutes, the entire allocation will
 be marked as failed and the scheduler will follow the group's

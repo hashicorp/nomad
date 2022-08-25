@@ -158,24 +158,47 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('each task row should list high-level information for the task', async function (assert) {
-    const task = server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')[0];
-    const events = server.db.taskEvents.where({ taskStateId: task.id });
-    const event = events[events.length - 1];
+    const job = server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 3,
+      withGroupServices: true,
+      createAllocations: false,
+    });
+
+    const allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+      jobId: job.id,
+    });
 
     const taskGroup = server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
     }).models[0];
 
-    const jobTask = taskGroup.tasks.models.find((m) => m.name === task.name);
-    const volumes = jobTask.volumeMounts.map((volume) => ({
-      name: volume.Volume,
-      source: taskGroup.volumes[volume.Volume].Source,
-    }));
+    // Set the expected task states.
+    const states = ['running', 'pending', 'dead'];
+    server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .sortBy('name')
+      .forEach((task, i) => {
+        server.db.taskStates.update(task.id, { state: states[i] });
+      });
 
-    Allocation.tasks[0].as((taskRow) => {
+    await Allocation.visit({ id: allocation.id });
+
+    Allocation.tasks.forEach((taskRow, i) => {
+      const task = server.db.taskStates
+        .where({ allocationId: allocation.id })
+        .sortBy('name')[i];
+      const events = server.db.taskEvents.where({ taskStateId: task.id });
+      const event = events[events.length - 1];
+
+      const jobTask = taskGroup.tasks.models.find((m) => m.name === task.name);
+      const volumes = jobTask.volumeMounts.map((volume) => ({
+        name: volume.Volume,
+        source: taskGroup.volumes[volume.Volume].Source,
+      }));
+
       assert.equal(taskRow.name, task.name, 'Name');
       assert.equal(taskRow.state, task.state, 'State');
       assert.equal(taskRow.message, event.displayMessage, 'Event Message');
@@ -184,6 +207,10 @@ module('Acceptance | allocation detail', function (hooks) {
         moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
         'Event Time'
       );
+
+      const expectStats = task.state === 'running';
+      assert.equal(taskRow.hasCpuMetrics, expectStats, 'CPU metrics');
+      assert.equal(taskRow.hasMemoryMetrics, expectStats, 'Memory metrics');
 
       const volumesText = taskRow.volumes;
       volumes.forEach((volume) => {
@@ -353,6 +380,7 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('allocation can be restarted', async function (assert) {
+    await Allocation.restartAll.idle();
     await Allocation.restart.idle();
     await Allocation.restart.confirm();
 
@@ -360,6 +388,18 @@ module('Acceptance | allocation detail', function (hooks) {
       server.pretender.handledRequests.findBy('method', 'PUT').url,
       `/v1/client/allocation/${allocation.id}/restart`,
       'Restart request is made for the allocation'
+    );
+
+    await Allocation.restart.idle();
+    await Allocation.restartAll.idle();
+    await Allocation.restartAll.confirm();
+
+    assert.ok(
+      server.pretender.handledRequests.filterBy(
+        'requestBody',
+        JSON.stringify({ AllTasks: true })
+      ),
+      'Restart all tasks request is made for the allocation'
     );
   });
 
@@ -371,6 +411,7 @@ module('Acceptance | allocation detail', function (hooks) {
     run.later(() => {
       assert.ok(Allocation.stop.isRunning, 'Stop is loading');
       assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
+      assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
       server.pretender.resolve(server.pretender.requestReferences[0].request);
     }, 500);
 
@@ -451,6 +492,7 @@ module('Acceptance | allocation detail (not running)', function (hooks) {
     assert.notOk(Allocation.execButton.isPresent);
     assert.notOk(Allocation.stop.isPresent);
     assert.notOk(Allocation.restart.isPresent);
+    assert.notOk(Allocation.restartAll.isPresent);
   });
 });
 

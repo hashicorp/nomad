@@ -1,8 +1,10 @@
 package checks
 
 import (
+	"net/http"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,9 +20,11 @@ func GetCheckQuery(c *structs.ServiceCheck) *Query {
 		Timeout:     c.Timeout,
 		AddressMode: c.AddressMode,
 		PortLabel:   c.PortLabel,
+		Protocol:    protocol,
 		Path:        c.Path,
 		Method:      c.Method,
-		Protocol:    protocol,
+		Headers:     helper.CopyMap(c.Header),
+		Body:        c.Body,
 	}
 }
 
@@ -35,9 +39,11 @@ type Query struct {
 	AddressMode string // host, driver, or alloc
 	PortLabel   string // label or value
 
-	Protocol string // http checks only (http or https)
-	Path     string // http checks only
-	Method   string // http checks only
+	Protocol string      // http checks only (http or https)
+	Path     string      // http checks only
+	Method   string      // http checks only
+	Headers  http.Header // http checks only
+	Body     string      // http checks only
 }
 
 // A QueryContext contains allocation and service parameters necessary for

@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -455,7 +455,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 func TestAgent_PprofRequest_Permissions(t *testing.T) {
 	ci.Parallel(t)
 
-	trueP, falseP := helper.BoolToPtr(true), helper.BoolToPtr(false)
+	trueP, falseP := pointer.Of(true), pointer.Of(false)
 	cases := []struct {
 		acl   *bool
 		debug *bool
@@ -463,7 +463,7 @@ func TestAgent_PprofRequest_Permissions(t *testing.T) {
 	}{
 		// manually set to false because test helpers
 		// enable to true by default
-		// enableDebug:       helper.BoolToPtr(false),
+		// enableDebug:       pointer.Of(false),
 		{debug: nil, ok: false},
 		{debug: trueP, ok: true},
 		{debug: falseP, ok: false},

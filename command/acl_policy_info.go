@@ -74,6 +74,6 @@ func (c *ACLPolicyInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(formatKVPolicy(policy))
+	c.Ui.Output(c.Colorize().Color(formatACLPolicy(policy)))
 	return 0
 }

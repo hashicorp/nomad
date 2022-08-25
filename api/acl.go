@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -29,7 +28,7 @@ func (a *ACLPolicies) List(q *QueryOptions) ([]*ACLPolicyListStub, *QueryMeta, e
 // Upsert is used to create or update a policy
 func (a *ACLPolicies) Upsert(policy *ACLPolicy, q *WriteOptions) (*WriteMeta, error) {
 	if policy == nil || policy.Name == "" {
-		return nil, fmt.Errorf("missing policy name")
+		return nil, errors.New("missing policy name")
 	}
 	wm, err := a.client.write("/v1/acl/policy/"+policy.Name, policy, nil, q)
 	if err != nil {
@@ -41,7 +40,7 @@ func (a *ACLPolicies) Upsert(policy *ACLPolicy, q *WriteOptions) (*WriteMeta, er
 // Delete is used to delete a policy
 func (a *ACLPolicies) Delete(policyName string, q *WriteOptions) (*WriteMeta, error) {
 	if policyName == "" {
-		return nil, fmt.Errorf("missing policy name")
+		return nil, errors.New("missing policy name")
 	}
 	wm, err := a.client.delete("/v1/acl/policy/"+policyName, nil, nil, q)
 	if err != nil {
@@ -53,7 +52,7 @@ func (a *ACLPolicies) Delete(policyName string, q *WriteOptions) (*WriteMeta, er
 // Info is used to query a specific policy
 func (a *ACLPolicies) Info(policyName string, q *QueryOptions) (*ACLPolicy, *QueryMeta, error) {
 	if policyName == "" {
-		return nil, nil, fmt.Errorf("missing policy name")
+		return nil, nil, errors.New("missing policy name")
 	}
 	var resp ACLPolicy
 	wm, err := a.client.query("/v1/acl/policy/"+policyName, &resp, q)
@@ -114,7 +113,7 @@ func (a *ACLTokens) List(q *QueryOptions) ([]*ACLTokenListStub, *QueryMeta, erro
 // Create is used to create a token
 func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if token.AccessorID != "" {
-		return nil, nil, fmt.Errorf("cannot specify Accessor ID")
+		return nil, nil, errors.New("cannot specify Accessor ID")
 	}
 	var resp ACLToken
 	wm, err := a.client.write("/v1/acl/token", token, &resp, q)
@@ -127,7 +126,7 @@ func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 // Update is used to update an existing token
 func (a *ACLTokens) Update(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if token.AccessorID == "" {
-		return nil, nil, fmt.Errorf("missing accessor ID")
+		return nil, nil, errors.New("missing accessor ID")
 	}
 	var resp ACLToken
 	wm, err := a.client.write("/v1/acl/token/"+token.AccessorID,
@@ -141,7 +140,7 @@ func (a *ACLTokens) Update(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 // Delete is used to delete a token
 func (a *ACLTokens) Delete(accessorID string, q *WriteOptions) (*WriteMeta, error) {
 	if accessorID == "" {
-		return nil, fmt.Errorf("missing accessor ID")
+		return nil, errors.New("missing accessor ID")
 	}
 	wm, err := a.client.delete("/v1/acl/token/"+accessorID, nil, nil, q)
 	if err != nil {
@@ -153,7 +152,7 @@ func (a *ACLTokens) Delete(accessorID string, q *WriteOptions) (*WriteMeta, erro
 // Info is used to query a token
 func (a *ACLTokens) Info(accessorID string, q *QueryOptions) (*ACLToken, *QueryMeta, error) {
 	if accessorID == "" {
-		return nil, nil, fmt.Errorf("missing accessor ID")
+		return nil, nil, errors.New("missing accessor ID")
 	}
 	var resp ACLToken
 	wm, err := a.client.query("/v1/acl/token/"+accessorID, &resp, q)
@@ -181,7 +180,7 @@ func (a *ACLTokens) UpsertOneTimeToken(q *WriteOptions) (*OneTimeToken, *WriteMe
 		return nil, nil, err
 	}
 	if resp == nil {
-		return nil, nil, fmt.Errorf("no one-time token returned")
+		return nil, nil, errors.New("no one-time token returned")
 	}
 	return resp.OneTimeToken, wm, nil
 }
@@ -189,7 +188,7 @@ func (a *ACLTokens) UpsertOneTimeToken(q *WriteOptions) (*OneTimeToken, *WriteMe
 // ExchangeOneTimeToken is used to create a one-time token
 func (a *ACLTokens) ExchangeOneTimeToken(secret string, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if secret == "" {
-		return nil, nil, fmt.Errorf("missing secret ID")
+		return nil, nil, errors.New("missing secret ID")
 	}
 	req := &OneTimeTokenExchangeRequest{OneTimeSecretID: secret}
 	var resp *OneTimeTokenExchangeResponse
@@ -198,7 +197,7 @@ func (a *ACLTokens) ExchangeOneTimeToken(secret string, q *WriteOptions) (*ACLTo
 		return nil, nil, err
 	}
 	if resp == nil {
-		return nil, nil, fmt.Errorf("no ACL token returned")
+		return nil, nil, errors.New("no ACL token returned")
 	}
 	return resp.Token, wm, nil
 }
@@ -306,8 +305,18 @@ type ACLPolicy struct {
 	Name        string
 	Description string
 	Rules       string
+	JobACL      *JobACL
+
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string
+	JobID     string
+	Group     string
+	Task      string
 }
 
 // ACLToken represents a client token which is used to Authenticate

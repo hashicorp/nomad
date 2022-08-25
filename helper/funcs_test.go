@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +69,7 @@ func Test_CopyMap(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		m := make(map[string]int, 10)
 		result := CopyMap(m)
-		must.Nil(t, result)
+		must.MapEq(t, map[string]int{}, result)
 	})
 
 	t.Run("elements", func(t *testing.T) {
@@ -136,15 +137,15 @@ func TestCompareTimePtrs(t *testing.T) {
 		a := (*time.Duration)(nil)
 		b := (*time.Duration)(nil)
 		require.True(t, CompareTimePtrs(a, b))
-		c := TimeToPtr(3 * time.Second)
+		c := pointer.Of(3 * time.Second)
 		require.False(t, CompareTimePtrs(a, c))
 		require.False(t, CompareTimePtrs(c, a))
 	})
 
 	t.Run("not nil", func(t *testing.T) {
-		a := TimeToPtr(1 * time.Second)
-		b := TimeToPtr(1 * time.Second)
-		c := TimeToPtr(2 * time.Second)
+		a := pointer.Of(1 * time.Second)
+		b := pointer.Of(1 * time.Second)
+		c := pointer.Of(2 * time.Second)
 		require.True(t, CompareTimePtrs(a, b))
 		require.False(t, CompareTimePtrs(a, c))
 	})
@@ -568,5 +569,73 @@ func Test_ConvertSlice(t *testing.T) {
 		expectedOutput := []*wrapper{{id: 10}, {id: 13}, {id: 1987}, {id: 2020}}
 		actualOutput := ConvertSlice(input, cFn)
 		require.ElementsMatch(t, expectedOutput, actualOutput)
+
+	})
+}
+
+func Test_IsMethodHTTP(t *testing.T) {
+	t.Run("is method", func(t *testing.T) {
+		cases := []string{
+			"GET", "Get", "get",
+			"HEAD", "Head", "head",
+			"POST", "Post", "post",
+			"PUT", "Put", "put",
+			"PATCH", "Patch", "patch",
+			"DELETE", "Delete", "delete",
+			"CONNECT", "Connect", "connect",
+			"OPTIONS", "Options", "options",
+			"TRACE", "Trace", "trace",
+		}
+		for _, tc := range cases {
+			result := IsMethodHTTP(tc)
+			must.True(t, result)
+		}
+	})
+
+	t.Run("is not method", func(t *testing.T) {
+		not := []string{"GETTER", "!GET", ""}
+		for _, tc := range not {
+			result := IsMethodHTTP(tc)
+			must.False(t, result)
+		}
+	})
+}
+
+type employee struct {
+	id   int
+	name string
+}
+
+func (e *employee) Equals(o *employee) bool {
+	return e.id == o.id // name can be different
+}
+
+func Test_ElementsEquals(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := []*employee(nil)
+		var b []*employee
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different sizes", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "mitchell"}, {2, "armon"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
+	})
+
+	t.Run("equal", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
 	})
 }

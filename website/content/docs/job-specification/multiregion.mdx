@@ -13,9 +13,9 @@ description: |-
 <EnterpriseAlert />
 
 The `multiregion` stanza specifies that a job will be deployed to multiple
-[federated regions]. If omitted, the job will be deployed to a single region
-— the one specified by the `region` field or the `-region` command line
-flag to `nomad job run`.
+[federated regions]. If omitted, the job will be deployed to a single region—the
+one specified by the `region` field or the `-region` command line flag to
+`nomad job run`.
 
 Federated Nomad clusters are members of the same gossip cluster but not the
 same raft cluster; they don't share their data stores. Each region in a
@@ -113,7 +113,7 @@ multiregion deployments are considered GA.
     that led to the failure and resubmit the job.
 
 ~> For `system` jobs, only [`max_parallel`](#max_parallel) is enforced. The
-`system` scheduler will be updated to support `on_failure` when the the
+`system` scheduler will be updated to support `on_failure` when the
 [`update` stanza] is fully supported for system jobs in a future release.
 
 ### `region` Parameters

@@ -34,8 +34,7 @@ func TestStaticIterator_Reset(t *testing.T) {
 
 		out := collectFeasible(static)
 		if len(out) != len(nodes) {
-			t.Fatalf("out: %#v", out)
-			t.Fatalf("missing nodes %d %#v", i, static)
+			t.Fatalf("out: %#v missing nodes %d %#v", out, i, static)
 		}
 
 		ids := make(map[string]struct{})

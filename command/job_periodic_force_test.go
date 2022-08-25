@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -136,10 +136,10 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 	// Register a job
 	j := testJob("job1_is_periodic")
 	j.Periodic = &api.PeriodicConfig{
-		SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
-		Spec:            helper.StringToPtr("*/15 * * * * *"),
-		ProhibitOverlap: helper.BoolToPtr(true),
-		TimeZone:        helper.StringToPtr("Europe/Minsk"),
+		SpecType:        pointer.Of(api.PeriodicSpecCron),
+		Spec:            pointer.Of("*/15 * * * * *"),
+		ProhibitOverlap: pointer.Of(true),
+		TimeZone:        pointer.Of("Europe/Minsk"),
 	}
 
 	ui := cli.NewMockUi()
@@ -178,10 +178,10 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 	// Register a job
 	j := testJob("job2_is_periodic")
 	j.Periodic = &api.PeriodicConfig{
-		SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
-		Spec:            helper.StringToPtr("*/15 * * * * *"),
-		ProhibitOverlap: helper.BoolToPtr(true),
-		TimeZone:        helper.StringToPtr("Europe/Minsk"),
+		SpecType:        pointer.Of(api.PeriodicSpecCron),
+		Spec:            pointer.Of("*/15 * * * * *"),
+		ProhibitOverlap: pointer.Of(true),
+		TimeZone:        pointer.Of("Europe/Minsk"),
 	}
 
 	ui := cli.NewMockUi()

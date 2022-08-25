@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/exp/slices"
 )
@@ -193,13 +194,14 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	return true
 }
 
-func (sc *ServiceCheck) Canonicalize(serviceName string) {
+func (sc *ServiceCheck) Canonicalize(serviceName, taskName string) {
 	// Ensure empty maps/slices are treated as null to avoid scheduling
 	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
 		sc.Args = nil
 	}
 
+	// Ensure empty slices are nil
 	if len(sc.Header) == 0 {
 		sc.Header = nil
 	} else {
@@ -210,10 +212,17 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 		}
 	}
 
+	// Ensure a default name for the check
 	if sc.Name == "" {
 		sc.Name = fmt.Sprintf("service: %q check", serviceName)
 	}
 
+	// Set task name if not already set
+	if sc.TaskName == "" && taskName != "group" {
+		sc.TaskName = taskName
+	}
+
+	// Ensure OnUpdate defaults to require_healthy (i.e. healthiness check)
 	if sc.OnUpdate == "" {
 		sc.OnUpdate = OnUpdateRequireHealthy
 	}
@@ -344,17 +353,8 @@ func (sc *ServiceCheck) validateNomad() error {
 	}
 
 	if sc.Type == "http" {
-		if sc.Method != "" && sc.Method != "GET" {
-			// unset turns into GET
-			return fmt.Errorf("http checks may only use GET method in Nomad services")
-		}
-
-		if len(sc.Header) > 0 {
-			return fmt.Errorf("http checks may not set headers in Nomad services")
-		}
-
-		if len(sc.Body) > 0 {
-			return fmt.Errorf("http checks may not set Body in Nomad services")
+		if sc.Method != "" && !helper.IsMethodHTTP(sc.Method) {
+			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
 		}
 	}
 
@@ -534,9 +534,10 @@ type Service struct {
 	Name string
 
 	// Name of the Task associated with this service.
-	//
-	// Currently only used to identify the implementing task of a Consul
-	// Connect Native enabled service.
+	// Group services do not have a task name, unless they are a connect native
+	// service specifying the task implementing the service.
+	// Task-level services automatically have the task name plumbed through
+	// down to checks for convenience.
 	TaskName string
 
 	// PortLabel is either the numeric port number or the `host:port`.
@@ -632,6 +633,11 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 		s.TaggedAddresses = nil
 	}
 
+	// Set the task name if not already set
+	if s.TaskName == "" && task != "group" {
+		s.TaskName = task
+	}
+
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -640,7 +646,7 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	})
 
 	for _, check := range s.Checks {
-		check.Canonicalize(s.Name)
+		check.Canonicalize(s.Name, s.TaskName)
 	}
 
 	// Set the provider to its default value. The value of consul ensures this
@@ -900,20 +906,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !helper.ElementsEquals(s.Checks, o.Checks) {
 		return false
 	}
 
@@ -1255,11 +1248,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+		nt.KillTimeout = pointer.Of(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
 
 	return nt
@@ -1452,21 +1445,13 @@ type ConsulMeshGateway struct {
 	Mode string
 }
 
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
+func (c *ConsulMeshGateway) Copy() ConsulMeshGateway {
+	return ConsulMeshGateway{
 		Mode: c.Mode,
 	}
 }
 
-func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
-	if c == nil || o == nil {
-		return c == o
-	}
-
+func (c *ConsulMeshGateway) Equals(o ConsulMeshGateway) bool {
 	return c.Mode == o.Mode
 }
 
@@ -1504,7 +1489,7 @@ type ConsulUpstream struct {
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
-	MeshGateway *ConsulMeshGateway
+	MeshGateway ConsulMeshGateway
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
@@ -1785,7 +1770,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,

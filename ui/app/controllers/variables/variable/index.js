@@ -1,7 +1,6 @@
 import Controller from '@ember/controller';
 import { set, action } from '@ember/object';
 import { task } from 'ember-concurrency';
-import messageForError from '../../../utils/message-from-adapter-error';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
@@ -18,9 +17,6 @@ export default class VariablesVariableIndexController extends Controller {
     const sorted = this.model.keyValues.sortBy(this.sortProperty);
     return this.sortDescending ? sorted : sorted.reverse();
   }
-
-  @tracked
-  error = null;
 
   @tracked isDeleting = false;
 
@@ -43,19 +39,24 @@ export default class VariablesVariableIndexController extends Controller {
       } else {
         this.router.transitionTo('variables');
       }
-      // TODO: alert the user that the variable was successfully deleted
+      this.flashMessages.add({
+        title: 'Secure Variable deleted',
+        message: `${this.model.path} successfully deleted`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
     } catch (err) {
-      this.error = {
-        title: 'Could Not Delete Variable',
-        description: messageForError(err, 'delete secure variables'),
-      };
+      this.flashMessages.add({
+        title: `Error deleting ${this.model.path}`,
+        message: err,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
     }
   })
   deleteVariableFile;
-
-  onDismissError() {
-    this.error = null;
-  }
 
   //#region Code View
   /**

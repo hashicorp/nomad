@@ -139,11 +139,11 @@ func (r *RestartTracker) GetCount() int {
 
 // GetState returns the tasks next state given the set exit code and start
 // error. One of the following states are returned:
-// * TaskRestarting - Task should be restarted
-// * TaskNotRestarting - Task should not be restarted and has exceeded its
-//   restart policy.
-// * TaskTerminated - Task has terminated successfully and does not need a
-//   restart.
+//   - TaskRestarting - Task should be restarted
+//   - TaskNotRestarting - Task should not be restarted and has exceeded its
+//     restart policy.
+//   - TaskTerminated - Task has terminated successfully and does not need a
+//     restart.
 //
 // If TaskRestarting is returned, the duration is how long to wait until
 // starting the task again.

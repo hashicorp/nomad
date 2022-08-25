@@ -51,7 +51,10 @@ func (c *Client) AllocFS() *AllocFS {
 	return &AllocFS{client: c}
 }
 
-// List is used to list the files at a given path of an allocation directory
+// List is used to list the files at a given path of an allocation directory.
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*AllocFileInfo, *QueryMeta, error) {
 	if q == nil {
 		q = &QueryOptions{}
@@ -70,7 +73,10 @@ func (a *AllocFS) List(alloc *Allocation, path string, q *QueryOptions) ([]*Allo
 	return resp, qm, nil
 }
 
-// Stat is used to stat a file at a given path of an allocation directory
+// Stat is used to stat a file at a given path of an allocation directory.
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocFileInfo, *QueryMeta, error) {
 	if q == nil {
 		q = &QueryOptions{}
@@ -91,6 +97,9 @@ func (a *AllocFS) Stat(alloc *Allocation, path string, q *QueryOptions) (*AllocF
 
 // ReadAt is used to read bytes at a given offset until limit at the given path
 // in an allocation directory. If limit is <= 0, there is no limit.
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int64, q *QueryOptions) (io.ReadCloser, error) {
 	reqPath := fmt.Sprintf("/v1/client/fs/readat/%s", alloc.ID)
 
@@ -103,7 +112,10 @@ func (a *AllocFS) ReadAt(alloc *Allocation, path string, offset int64, limit int
 }
 
 // Cat is used to read contents of a file at the given path in an allocation
-// directory
+// directory.
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadCloser, error) {
 	reqPath := fmt.Sprintf("/v1/client/fs/cat/%s", alloc.ID)
 	return queryClientNode(a.client, alloc, reqPath, q,
@@ -120,6 +132,10 @@ func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadC
 // * cancel: A channel that when closed, streaming will end.
 //
 // The return value is a channel that will emit StreamFrames as they are read.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 
@@ -224,6 +240,10 @@ func queryClientNode(c *Client, alloc *Allocation, reqPath string, q *QueryOptio
 // reached.
 //
 // Unexpected (non-EOF) errors will be sent on the error chan.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
 func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin string,
 	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 

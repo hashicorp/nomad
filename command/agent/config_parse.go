@@ -41,6 +41,7 @@ func ParseConfigFile(path string) (*Config, error) {
 				WaitBounds:  &client.WaitConfig{},
 				ConsulRetry: &client.RetryConfig{},
 				VaultRetry:  &client.RetryConfig{},
+				NomadRetry:  &client.RetryConfig{},
 			},
 		},
 		Server: &ServerConfig{
@@ -125,6 +126,16 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"client.template.vault_retry.max_backoff", nil, &c.Client.TemplateConfig.VaultRetry.MaxBackoffHCL,
 			func(d *time.Duration) {
 				c.Client.TemplateConfig.VaultRetry.MaxBackoff = d
+			},
+		},
+		{"client.template.nomad_retry.backoff", nil, &c.Client.TemplateConfig.NomadRetry.BackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.NomadRetry.Backoff = d
+			},
+		},
+		{"client.template.nomad_retry.max_backoff", nil, &c.Client.TemplateConfig.NomadRetry.MaxBackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
 	}
@@ -264,6 +275,10 @@ func finalizeClientTemplateConfig(config *Config) {
 
 	if config.Client.TemplateConfig.VaultRetry.IsEmpty() {
 		config.Client.TemplateConfig.VaultRetry = nil
+	}
+
+	if config.Client.TemplateConfig.NomadRetry.IsEmpty() {
+		config.Client.TemplateConfig.NomadRetry = nil
 	}
 
 	if config.Client.TemplateConfig.IsEmpty() {

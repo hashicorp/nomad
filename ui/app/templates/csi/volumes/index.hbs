@@ -1,18 +1,5 @@
 {{page-title "CSI Volumes"}}
-<div class="tabs is-subnav">
-  <ul>
-    <li data-test-tab="volumes">
-      <LinkTo @route="csi.volumes.index" @activeClass="is-active">
-        Volumes
-      </LinkTo>
-    </li>
-    <li data-test-tab="plugins">
-      <LinkTo @route="csi.plugins.index" @activeClass="is-active">
-        Plugins
-      </LinkTo>
-    </li>
-  </ul>
-</div>
+<StorageSubnav />
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item">
@@ -51,7 +38,7 @@
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot {{if this.keyboard.displayHints "display-hints"}}" as |t|
       >
         <t.head>
           <t.sort-by @prop="name">
@@ -84,7 +71,12 @@
             data-test-volume-row
             {{on "click" (action "gotoVolume" row.model)}}
           >
-            <td data-test-volume-name>
+            <td data-test-volume-name
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoVolume" row.model)
+              }}
+            >
               <LinkTo
                 @route="csi.volumes.volume"
                 @model={{row.model.idWithNamespace}}

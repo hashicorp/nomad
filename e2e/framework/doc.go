@@ -5,7 +5,7 @@ include conditions under which the suite will run and a list of TestCase
 implementations to run. TestCases can be implemented with methods that run
 before/after each and all tests.
 
-Writing Tests
+# Writing Tests
 
 Tests follow a similar patterns as go tests. They are functions that must start
 with 'Test' and instead of a *testing.T argument, a *framework.F is passed and
@@ -78,7 +78,7 @@ As demonstrated in the previous example, TC also exposes functions that return
 configured api clients including Nomad, Consul and Vault. If Consul or Vault
 are not provisioned their respective getter functions will return nil.
 
-Testify Integration
+# Testify Integration
 
 Test cases expose a T() function to fetch the current *testing.T context.
 While this means the author is able to most other testing libraries,
@@ -93,7 +93,7 @@ yields a testify Require if that flavor is desired.
 		// Or tc.Require().NoError(err)
 	}
 
-Parallelism
+# Parallelism
 
 The test framework honors go test's parallel feature under certain conditions.
 A TestSuite can be created with the Parallel field set to true to enable
@@ -119,6 +119,5 @@ each test case. The framework.F struct exposes an ID() function that will return
 string that is unique with in a test. Therefore, multiple tests with in the case
 can reliably create unique IDs between tests and setup/teardown. The string
 returned is 8 alpha numeric characters.
-
 */
 package framework

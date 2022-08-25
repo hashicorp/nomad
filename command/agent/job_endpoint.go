@@ -1216,13 +1216,16 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					EmbeddedTmpl: *template.EmbeddedTmpl,
 					ChangeMode:   *template.ChangeMode,
 					ChangeSignal: *template.ChangeSignal,
+					ChangeScript: apiChangeScriptToStructsChangeScript(template.ChangeScript),
 					Splay:        *template.Splay,
 					Perms:        *template.Perms,
+					Uid:          template.Uid,
+					Gid:          template.Gid,
 					LeftDelim:    *template.LeftDelim,
 					RightDelim:   *template.RightDelim,
 					Envvars:      *template.Envvars,
 					VaultGrace:   *template.VaultGrace,
-					Wait:         ApiWaitConfigToStructsWaitConfig(template.Wait),
+					Wait:         apiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1241,16 +1244,29 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	}
 }
 
-// ApiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
+// apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
 // representation of a WaitConfig from a struct representation of a WaitConfig.
-func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
+func apiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
 	if waitConfig == nil {
 		return nil
 	}
 
 	return &structs.WaitConfig{
-		Min: &*waitConfig.Min,
-		Max: &*waitConfig.Max,
+		Min: waitConfig.Min,
+		Max: waitConfig.Max,
+	}
+}
+
+func apiChangeScriptToStructsChangeScript(changeScript *api.ChangeScript) *structs.ChangeScript {
+	if changeScript == nil {
+		return nil
+	}
+
+	return &structs.ChangeScript{
+		Command:     *changeScript.Command,
+		Args:        changeScript.Args,
+		Timeout:     *changeScript.Timeout,
+		FailOnError: *changeScript.FailOnError,
 	}
 }
 
@@ -1263,6 +1279,7 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	sc.ID = apiConfig.ID
 	sc.Type = structs.CSIPluginType(apiConfig.Type)
 	sc.MountDir = apiConfig.MountDir
+	sc.StagePublishBaseDir = apiConfig.StagePublishBaseDir
 	sc.HealthTimeout = apiConfig.HealthTimeout
 	return sc
 }
@@ -1644,13 +1661,12 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 	return upstreams
 }
 
-func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) *structs.ConsulMeshGateway {
-	if in == nil {
-		return nil
+func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) structs.ConsulMeshGateway {
+	var gw structs.ConsulMeshGateway
+	if in != nil {
+		gw.Mode = in.Mode
 	}
-	return &structs.ConsulMeshGateway{
-		Mode: in.Mode,
-	}
+	return gw
 }
 
 func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {

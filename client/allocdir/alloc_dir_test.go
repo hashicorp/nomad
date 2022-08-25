@@ -82,8 +82,9 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 }
 
 // HACK: This function is copy/pasted from client.testutil to prevent a test
-//       import cycle, due to testutil transitively importing allocdir. This
-//       should be fixed after DriverManager is implemented.
+//
+//	import cycle, due to testutil transitively importing allocdir. This
+//	should be fixed after DriverManager is implemented.
 func MountCompatible(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support mount")

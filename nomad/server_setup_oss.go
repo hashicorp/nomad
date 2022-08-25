@@ -7,12 +7,6 @@ import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 )
 
-// LicenseConfig allows for tunable licensing config
-// primarily used for enterprise testing
-type LicenseConfig struct {
-	AdditionalPubKeys []string
-}
-
 type EnterpriseState struct{}
 
 func (es *EnterpriseState) Features() uint64 {

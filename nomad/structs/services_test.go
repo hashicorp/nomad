@@ -7,9 +7,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,6 +53,41 @@ func TestServiceCheck_Hash(t *testing.T) {
 
 	t.Run("failures_before_critical", func(t *testing.T) {
 		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+}
+
+func TestServiceCheck_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("defaults", func(t *testing.T) {
+		sc := &ServiceCheck{
+			Args:     []string{},
+			Header:   make(map[string][]string),
+			Method:   "",
+			OnUpdate: "",
+		}
+		sc.Canonicalize("MyService", "task1")
+		must.Nil(t, sc.Args)
+		must.Nil(t, sc.Header)
+		must.Eq(t, `service: "MyService" check`, sc.Name)
+		must.Eq(t, "", sc.Method)
+		must.Eq(t, OnUpdateRequireHealthy, sc.OnUpdate)
+	})
+
+	t.Run("check name set", func(t *testing.T) {
+		sc := &ServiceCheck{
+			Name: "Some Check",
+		}
+		sc.Canonicalize("MyService", "task1")
+		must.Eq(t, "Some Check", sc.Name)
+	})
+
+	t.Run("on_update is set", func(t *testing.T) {
+		sc := &ServiceCheck{
+			OnUpdate: OnUpdateIgnore,
+		}
+		sc.Canonicalize("MyService", "task1")
+		must.Eq(t, OnUpdateIgnore, sc.OnUpdate)
 	})
 }
 
@@ -268,7 +302,17 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Path:     "/health",
 				Method:   "HEAD",
 			},
-			exp: `http checks may only use GET method in Nomad services`,
+		},
+		{
+			name: "http unknown method type",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Method:   "Invalid",
+			},
+			exp: `method type "Invalid" not supported in Nomad http check`,
 		},
 		{
 			name: "http with headers",
@@ -278,9 +322,11 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Method:   "GET",
-				Header:   map[string][]string{"foo": {"bar"}},
+				Header: map[string][]string{
+					"foo": {"bar"},
+					"baz": nil,
+				},
 			},
-			exp: `http checks may not set headers in Nomad services`,
 		},
 		{
 			name: "http with body",
@@ -289,10 +335,9 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Interval: 3 * time.Second,
 				Timeout:  1 * time.Second,
 				Path:     "/health",
-				Method:   "GET",
-				Body:     "blah",
+				Method:   "POST",
+				Body:     "this is a request payload!",
 			},
-			exp: `http checks may not set Body in Nomad services`,
 		},
 	}
 
@@ -486,7 +531,7 @@ func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
 	ci.Parallel(t)
 
 	c := &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+		ConnectTimeout:                  pointer.Of(1 * time.Second),
 		EnvoyGatewayBindTaggedAddresses: false,
 		EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress),
 	}
@@ -520,11 +565,11 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 		Meta: map[string]string{
 			"abc": "123",
 		},
-		KillTimeout: helper.TimeToPtr(15 * time.Second),
+		KillTimeout: pointer.Of(15 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles: 3,
 		},
-		ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+		ShutdownDelay: pointer.Of(5 * time.Second),
 		KillSignal:    "SIGABRT",
 	}
 
@@ -566,12 +611,12 @@ func TestSidecarTask_Equals(t *testing.T) {
 		Env:         map[string]string{"color": "blue"},
 		Resources:   &Resources{MemoryMB: 300},
 		Meta:        map[string]string{"index": "1"},
-		KillTimeout: helper.TimeToPtr(2 * time.Second),
+		KillTimeout: pointer.Of(2 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      2,
 			MaxFileSizeMB: 300,
 		},
-		ShutdownDelay: helper.TimeToPtr(10 * time.Second),
+		ShutdownDelay: pointer.Of(10 * time.Second),
 		KillSignal:    "SIGTERM",
 	}
 
@@ -618,7 +663,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 
 	t.Run("mod kill timeout", func(t *testing.T) {
-		try(t, func(s *st) { s.KillTimeout = helper.TimeToPtr(3 * time.Second) })
+		try(t, func(s *st) { s.KillTimeout = pointer.Of(3 * time.Second) })
 	})
 
 	t.Run("mod log config", func(t *testing.T) {
@@ -626,7 +671,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 
 	t.Run("mod shutdown delay", func(t *testing.T) {
-		try(t, func(s *st) { s.ShutdownDelay = helper.TimeToPtr(20 * time.Second) })
+		try(t, func(s *st) { s.ShutdownDelay = pointer.Of(20 * time.Second) })
 	})
 
 	t.Run("mod kill signal", func(t *testing.T) {
@@ -667,8 +712,8 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	})
 
 	t.Run("different mesh_gateway", func(t *testing.T) {
-		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "local"}}}
-		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "remote"}}}
+		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "local"}}}
+		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "remote"}}}
 		require.False(t, upstreamsEquals(a, b))
 	})
 
@@ -779,7 +824,7 @@ func TestConsulSidecarService_Copy(t *testing.T) {
 var (
 	consulIngressGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:                  pointer.Of(1 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2001},
@@ -816,7 +861,7 @@ var (
 
 	consulTerminatingGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:            helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:            pointer.Of(1 * time.Second),
 			EnvoyDNSDiscoveryType:     "STRICT_DNS",
 			EnvoyGatewayBindAddresses: nil,
 		},
@@ -835,7 +880,7 @@ var (
 
 	consulMeshGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 		},
 		Mesh: &ConsulMeshConfigEntry{
 			// nothing
@@ -940,7 +985,7 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 	// proxy stanza equality checks
 
 	t.Run("mod gateway timeout", func(t *testing.T) {
-		try(t, func(g *cg) { g.Proxy.ConnectTimeout = helper.TimeToPtr(9 * time.Second) })
+		try(t, func(g *cg) { g.Proxy.ConnectTimeout = pointer.Of(9 * time.Second) })
 	})
 
 	t.Run("mod gateway envoy_gateway_bind_tagged_addresses", func(t *testing.T) {
@@ -1222,7 +1267,7 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("invalid bind address", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"service1": {
 					Address: "10.0.0.1",
@@ -1234,7 +1279,7 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("invalid dns discovery type", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:        pointer.Of(1 * time.Second),
 			EnvoyDNSDiscoveryType: "RANDOM_DNS",
 		}).Validate()
 		require.EqualError(t, err, "Consul Gateway Proxy Envoy DNS Discovery type must be STRICT_DNS or LOGICAL_DNS")
@@ -1242,14 +1287,14 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("ok with nothing set", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 		}).Validate()
 		require.NoError(t, err)
 	})
 
 	t.Run("ok with everything set", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"service1": {
 					Address: "10.0.0.1",
@@ -1592,11 +1637,11 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 func TestConsulMeshGateway_Equals(t *testing.T) {
 	ci.Parallel(t)
 
-	c := &ConsulMeshGateway{Mode: "local"}
-	require.False(t, c.Equals(nil))
+	c := ConsulMeshGateway{Mode: "local"}
+	require.False(t, c.Equals(ConsulMeshGateway{}))
 	require.True(t, c.Equals(c))
 
-	o := &ConsulMeshGateway{Mode: "remote"}
+	o := ConsulMeshGateway{Mode: "remote"}
 	require.False(t, c.Equals(o))
 }
 
@@ -1629,24 +1674,24 @@ func TestService_Validate(t *testing.T) {
 		name      string
 	}{
 		{
+			name: "base service",
 			input: &Service{
 				Name: "testservice",
 			},
 			expErr: false,
-			name:   "base service",
 		},
 		{
+			name: "Native Connect without task name",
 			input: &Service{
 				Name: "testservice",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
 			},
-			expErr:    true,
-			expErrStr: "Connect Native and requires setting the task",
-			name:      "Native Connect without task name",
+			expErr: false, // gets set automatically
 		},
 		{
+			name: "Native Connect with task name",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1655,9 +1700,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "Native Connect with task name",
 		},
 		{
+			name: "Native Connect with Sidecar",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1668,9 +1713,9 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Consul Connect must be exclusively native",
-			name:      "Native Connect with Sidecar",
 		},
 		{
+			name: "provider nomad with checks",
 			input: &Service{
 				Name:      "testservice",
 				Provider:  "nomad",
@@ -1692,9 +1737,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "provider nomad with checks",
 		},
 		{
+			name: "provider nomad with invalid check type",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1706,9 +1751,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: true,
-			name:   "provider nomad with invalid check type",
 		},
 		{
+			name: "provider nomad with connect",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1718,15 +1763,14 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Service with provider nomad cannot include Connect blocks",
-			name:      "provider nomad with connect",
 		},
 		{
+			name: "provider nomad valid",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
 			},
 			expErr: false,
-			name:   "provider nomad valid",
 		},
 	}
 
@@ -1735,10 +1779,10 @@ func TestService_Validate(t *testing.T) {
 			tc.input.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
 			err := tc.input.Validate()
 			if tc.expErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expErrStr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expErrStr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

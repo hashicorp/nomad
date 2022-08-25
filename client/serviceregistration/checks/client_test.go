@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -19,6 +20,13 @@ import (
 	"github.com/shoenig/test/must"
 	"oss.indeed.com/go/libtime/libtimetest"
 )
+
+func splitURL(u string) (string, string) {
+	// get the address and port for http server
+	tokens := strings.Split(u, ":")
+	addr, port := strings.TrimPrefix(tokens[1], "//"), tokens[2]
+	return addr, port
+}
 
 func TestChecker_Do_HTTP(t *testing.T) {
 	ci.Parallel(t)
@@ -49,8 +57,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 	defer ts.Close()
 
 	// get the address and port for http server
-	tokens := strings.Split(ts.URL, ":")
-	addr, port := strings.TrimPrefix(tokens[1], "//"), tokens[2]
+	addr, port := splitURL(ts.URL)
 
 	// create a mock clock so we can assert time is set
 	now := time.Date(2022, 1, 2, 3, 4, 5, 6, time.UTC)
@@ -200,6 +207,119 @@ func bigResponse() (string, string) {
 	return s, s[:outputSizeLimit]
 }
 
+func TestChecker_Do_HTTP_extras(t *testing.T) {
+	ci.Parallel(t)
+
+	// record the method, body, and headers of the request
+	var (
+		method  string
+		body    []byte
+		headers map[string][]string
+	)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		body, _ = io.ReadAll(r.Body)
+		headers = helper.CopyMap(r.Header)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	// get the address and port for http server
+	addr, port := splitURL(ts.URL)
+
+	// make headers from key-value pairs
+	makeHeaders := func(more ...[2]string) http.Header {
+		h := make(http.Header)
+		for _, extra := range more {
+			h.Set(extra[0], extra[1])
+		}
+		return h
+	}
+
+	encoding := [2]string{"Accept-Encoding", "gzip"}
+	agent := [2]string{"User-Agent", "Go-http-client/1.1"}
+
+	cases := []struct {
+		name    string
+		method  string
+		body    string
+		headers map[string][]string
+	}{
+		{
+			name:    "method GET",
+			method:  "GET",
+			headers: makeHeaders(encoding, agent),
+		},
+		{
+			name:    "method Get",
+			method:  "Get",
+			headers: makeHeaders(encoding, agent),
+		},
+		{
+			name:    "method HEAD",
+			method:  "HEAD",
+			headers: makeHeaders(agent),
+		},
+		{
+			name:   "extra headers",
+			method: "GET",
+			headers: makeHeaders(encoding, agent,
+				[2]string{"X-My-Header", "hello"},
+				[2]string{"Authorization", "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
+			),
+		},
+		{
+			name:    "with body",
+			method:  "POST",
+			headers: makeHeaders(encoding, agent),
+			body:    "some payload",
+		},
+	}
+
+	for _, tc := range cases {
+		qc := &QueryContext{
+			ID:               "abc123",
+			CustomAddress:    addr,
+			ServicePortLabel: port,
+			Networks:         nil,
+			NetworkStatus:    mock.NewNetworkStatus(addr),
+			Ports:            nil,
+			Group:            "group",
+			Task:             "task",
+			Service:          "service",
+			Check:            "check",
+		}
+
+		q := &Query{
+			Mode:        structs.Healthiness,
+			Type:        "http",
+			Timeout:     1 * time.Second,
+			AddressMode: "auto",
+			PortLabel:   port,
+			Protocol:    "http",
+			Path:        "/",
+			Method:      tc.method,
+			Headers:     tc.headers,
+			Body:        tc.body,
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testlog.HCLogger(t)
+			c := New(logger)
+			ctx := context.Background()
+			result := c.Do(ctx, qc, q)
+			must.Eq(t, http.StatusOK, result.StatusCode,
+				must.Sprintf("test.URL: %s", ts.URL),
+				must.Sprintf("headers: %v", tc.headers),
+			)
+			must.Eq(t, tc.method, method)
+			must.Eq(t, tc.body, string(body))
+			must.Eq(t, tc.headers, headers)
+		})
+	}
+}
+
 func TestChecker_Do_TCP(t *testing.T) {
 	ci.Parallel(t)
 
@@ -311,7 +431,7 @@ func TestChecker_Do_TCP(t *testing.T) {
 			switch tc.tcpMode {
 			case "ok":
 				// simulate tcp server by listening
-				go tcpServer(ctx, tc.tcpPort)
+				tcpServer(t, ctx, tc.tcpPort)
 			case "hang":
 				// simulate tcp hang by setting an already expired context
 				timeout, stop := context.WithDeadline(ctx, now.Add(-1*time.Second))
@@ -327,16 +447,25 @@ func TestChecker_Do_TCP(t *testing.T) {
 	}
 }
 
-func tcpServer(ctx context.Context, port int) {
+// tcpServer will start a tcp listener that accepts connections and closes them.
+// The caller can close the listener by cancelling ctx.
+func tcpServer(t *testing.T, ctx context.Context, port int) {
 	var lc net.ListenConfig
-	l, _ := lc.Listen(ctx, "tcp", net.JoinHostPort(
+	l, err := lc.Listen(ctx, "tcp", net.JoinHostPort(
 		"localhost", fmt.Sprintf("%d", port),
 	))
-	defer func() {
+	must.NoError(t, err, must.Sprint("port", port))
+	t.Cleanup(func() {
 		_ = l.Close()
-	}()
-	con, _ := l.Accept()
-	defer func() {
-		_ = con.Close()
+	})
+
+	go func() {
+		// caller can stop us by cancelling ctx
+		for {
+			_, acceptErr := l.Accept()
+			if acceptErr != nil {
+				return
+			}
+		}
 	}()
 }

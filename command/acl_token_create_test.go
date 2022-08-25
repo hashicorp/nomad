@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,18 +19,18 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// Bootstrap an initial ACL token
 	token := srv.RootToken
-	require.NotNil(t, token, "failed to bootstrap ACL token")
+	must.NotNil(t, token)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Request to create a new token without providing a valid management token
 	code := cmd.Run([]string{"-address=" + url, "-token=foo", "-policy=foo", "-type=client"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 
 	// Request to create a new token with a valid management token that does
 	// not have an expiry set.

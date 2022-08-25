@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -40,14 +40,14 @@ func (d *Driver) setDetected(detected bool) {
 // setFingerprintSuccess marks the driver as having fingerprinted successfully
 func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = helper.BoolToPtr(true)
+	d.fingerprintSuccess = pointer.Of(true)
 	d.fingerprintLock.Unlock()
 }
 
 // setFingerprintFailure marks the driver as having failed fingerprinting
 func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = helper.BoolToPtr(false)
+	d.fingerprintSuccess = pointer.Of(false)
 	d.fingerprintLock.Unlock()
 }
 
