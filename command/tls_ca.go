@@ -17,7 +17,7 @@ Usage: nomad tls ca <subcommand> [options]
 
 This command has subcommands for interacting with Certificate Authorities.
 
-Here are some simple examples, and more detailed examples are available
+Here is a simple example, and more detailed examples are available
 in the subcommands or the documentation.
 
 Create a CA

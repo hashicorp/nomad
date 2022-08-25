@@ -29,12 +29,12 @@ $ nomad tls cert create -server
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.
 ==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
-==> Server Certificate saved to: dc1-server-nomad.pem
-==> Server Certificate key saved to: dc1-server-nomad-key.pem
+==> Server Certificate saved to: global-server-nomad.pem
+==> Server Certificate key saved to: global-server-nomad-key.pem
 $ nomad tls cert create -client
 ==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
-==> Saved dc1-client-nomad-0.pem
-==> Saved dc1-client-nomad-0-key.pem
+==> Saved blobal-client-nomad-0.pem
+==> Saved global-client-nomad-0-key.pem
 
 Certificate Create Options:
   -additional-dnsname
@@ -58,9 +58,9 @@ Certificate Create Options:
     Provide number of days the certificate is valid for from now on. 
     Defaults to 1 year.
 
-  -dc
+  -cluster-region
     Provide the datacenter. Matters only for -server certificates. 
-    Defaults to dc1.
+    Defaults to global.
 
   -domain
     Provide the domain. Matters only for -server certificates.
@@ -69,7 +69,7 @@ Certificate Create Options:
     Provide path to the key. Defaults to #DOMAIN#-agent-ca-key.pem.
 
   -node
-    When generating a server cert and this is set an additional dns name is 
+    When generating a server cert and this is set, an additional dns name is 
     included of the form <node>.server.<datacenter>.<domain>.
 
   - server
@@ -87,7 +87,7 @@ func (c *TLSCertCreateCommand) AutocompleteFlags() complete.Flags {
 			"-cli":                  complete.PredictNothing,
 			"-client":               complete.PredictNothing,
 			"-days":                 complete.PredictAnything,
-			"-dc":                   complete.PredictAnything,
+			"-cluster-region":       complete.PredictAnything,
 			"-domain":               complete.PredictAnything,
 			"-key":                  complete.PredictAnything,
 			"-node":                 complete.PredictAnything,
@@ -108,17 +108,17 @@ func (c *TLSCertCreateCommand) Name() string { return "tls cert create" }
 func (c *TLSCertCreateCommand) Run(args []string) int {
 
 	var (
-		dnsnames    flags.StringFlag
-		ipaddresses flags.StringFlag
-		ca          string
-		cli         bool
-		client      bool
-		key         string
-		days        int
-		dc          string
-		domain      string
-		node        string
-		server      bool
+		dnsnames       flags.StringFlag
+		ipaddresses    flags.StringFlag
+		ca             string
+		cli            bool
+		client         bool
+		key            string
+		days           int
+		cluster_region string
+		domain         string
+		node           string
+		server         bool
 	)
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -130,7 +130,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	flagSet.BoolVar(&client, "client", false, "")
 	flagSet.StringVar(&key, "key", "#DOMAIN#-agent-ca-key.pem", "")
 	flagSet.IntVar(&days, "days", 365, "")
-	flagSet.StringVar(&dc, "dc", "dc1", "")
+	flagSet.StringVar(&cluster_region, "cluster-region", "global", "")
 	flagSet.StringVar(&domain, "domain", "nomad", "")
 	flagSet.StringVar(&node, "node", "", "")
 	flagSet.BoolVar(&server, "server", false, "")
@@ -183,10 +183,10 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 
 	if server {
-		name = fmt.Sprintf("server.%s.%s", dc, domain)
+		name = fmt.Sprintf("server.%s.%s", cluster_region, domain)
 
 		if node != "" {
-			nodeName := fmt.Sprintf("%s.server.%s.%s", node, dc, domain)
+			nodeName := fmt.Sprintf("%s.server.%s.%s", node, cluster_region, domain)
 			DNSNames = append(DNSNames, nodeName)
 		}
 		DNSNames = append(DNSNames, name)
@@ -194,18 +194,18 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		prefix = fmt.Sprintf("%s-server-%s", dc, domain)
+		prefix = fmt.Sprintf("%s-server-%s", cluster_region, domain)
 
 	} else if client {
-		name = fmt.Sprintf("client.%s.%s", dc, domain)
+		name = fmt.Sprintf("client.%s.%s", cluster_region, domain)
 		DNSNames = append(DNSNames, []string{name, "localhost"}...)
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
-		prefix = fmt.Sprintf("%s-client-%s", dc, domain)
+		prefix = fmt.Sprintf("%s-client-%s", cluster_region, domain)
 	} else if cli {
-		name = fmt.Sprintf("cli.%s.%s", dc, domain)
+		name = fmt.Sprintf("cli.%s.%s", cluster_region, domain)
 		DNSNames = []string{name, "localhost"}
-		prefix = fmt.Sprintf("%s-cli-%s", dc, domain)
+		prefix = fmt.Sprintf("%s-cli-%s", cluster_region, domain)
 	} else {
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1

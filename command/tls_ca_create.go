@@ -18,16 +18,22 @@ func (c *TLSCACreateCommand) Help() string {
 	helpText := `
 Usage: nomad tls ca create [options]
 
-This command has subcommands for interacting with Certificate Authorities.
+Create a new Certificate Authority.
 
-Here are some simple examples, and more detailed examples are available
-in the subcommands or the documentation.
+Here are some simple examples, more details can be found below or in 
+the documentation.
 
 Create a new Nomad CA
 
   $ nomad tls ca create
   ==> CA Certificate saved to: nomad-agent-ca.pem
   ==> CA Certificate key saved to: nomad-agent-ca-key.pem
+
+  Create a new Nomad CA with a Custiom Domain
+
+  $ nomad tls ca create -domain foo
+  ==> CA Certificate saved to: foo-agent-ca.pem
+  ==> CA Certificate key saved to: foo-agent-ca-key.pem
 
 
 CA Create Options:
