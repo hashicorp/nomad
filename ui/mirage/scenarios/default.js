@@ -53,6 +53,7 @@ function smallCluster(server) {
     withTaskServices: true,
     name: 'Service-haver',
     id: 'service-haver',
+    namespaceId: 'default',
   });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });

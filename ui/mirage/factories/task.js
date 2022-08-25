@@ -2,6 +2,7 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
 import { dasherize } from '@ember/string';
+import { pickOne } from '../utils';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
@@ -81,13 +82,11 @@ export default Factory.extend({
           provider: 'consul',
         })
       );
-
       services.forEach((fragment) => {
         server.createList('service', 5, {
           serviceName: fragment.name,
         });
       });
-
       task.update({ services });
     }
   },

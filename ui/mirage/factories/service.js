@@ -34,19 +34,29 @@ export default Factory.extend({
         namespace,
       });
     }
-    if (!service.jobId) {
+
+    if (!service.node) {
+      const node = pickOne(server.db.nodes);
       service.update({
-        jobId: 'service-haver',
+        nodeId: node.id,
       });
     }
-    if (!service.allocId) {
-      const servicedAlloc = pickOne(
-        server.db.allocations.filter((a) => a.jobId === 'service-haver') || []
-      );
-      if (servicedAlloc) {
+
+    if (server.db.jobs.findBy({ id: 'service-haver' })) {
+      if (!service.jobId) {
         service.update({
-          allocId: servicedAlloc.id,
+          jobId: 'service-haver',
         });
+      }
+      if (!service.allocId) {
+        const servicedAlloc = pickOne(
+          server.db.allocations.filter((a) => a.jobId === 'service-haver') || []
+        );
+        if (servicedAlloc) {
+          service.update({
+            allocId: servicedAlloc.id,
+          });
+        }
       }
     }
   },
