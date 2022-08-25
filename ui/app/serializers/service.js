@@ -1,5 +1,7 @@
+import classic from 'ember-classic-decorator';
 import ApplicationSerializer from './application';
 
+@classic
 export default class ServiceSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.AllocationID = hash.AllocID; // TODO: keyForRelationship maybe?
