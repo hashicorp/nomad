@@ -66,6 +66,9 @@ horizontal application scaling or horizontal cluster scaling.
 
 - `query_window` - Defines how far back to query the APM for metrics. It should
   be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
+  
+- `group` - Groups checks together that query that same data so that there can be 
+  non-overlapping threshold checks
 
 - `on_error` - Defines how to handle errors during the `check` evaluation.
   Possible values are `"fail"` or `"ignore"`. If set to `"fail"` the policy
