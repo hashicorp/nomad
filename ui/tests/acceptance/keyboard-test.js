@@ -14,7 +14,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Acceptance | keyboard', function (hooks) {
+module.skip('Acceptance | keyboard', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
