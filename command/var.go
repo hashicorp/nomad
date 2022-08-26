@@ -85,10 +85,10 @@ type VarUI interface {
 	Colorize() *colorstring.Colorize
 }
 
-// RenderSVAsUiTable prints a secure variable as a table. It needs access to the
+// renderSVAsUiTable prints a secure variable as a table. It needs access to the
 // command to get access to colorize and the UI itself. Commands that call it
 // need to implement the VarUI interface.
-func RenderSVAsUiTable(sv *api.SecureVariable, c VarUI) {
+func renderSVAsUiTable(sv *api.SecureVariable, c VarUI) {
 	meta := []string{
 		fmt.Sprintf("Namespace|%s", sv.Namespace),
 		fmt.Sprintf("Path|%s", sv.Path),

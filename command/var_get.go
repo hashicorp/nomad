@@ -1,19 +1,20 @@
 package command
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
-	"sort"
+	"os"
 	"strings"
-	"text/template"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
 type VarGetCommand struct {
 	Meta
+	outFmt string
+	tmpl   string
 }
 
 func (c *VarGetCommand) Help() string {
@@ -32,13 +33,14 @@ General Options:
 
 Read Options:
 
-  -format (table|json|hcl|go-template)
+  -output ( go-template | hcl | json | table )
      Format to render the secure variable in. When using "go-template",
      provide the template content with the "-template" option. Defaults
-     to "table"
+     to "table" when stdout is a terminal and to "json" when stdout is
+	 redirected.
 
   -template
-     Template to render output with. Required when format is "go-template".
+     Template to render output with. Required when output is "go-template".
 
   -exit-code-not-found
      Exit code to use when the secure variable is not found. Defaults to
@@ -68,14 +70,17 @@ func (c *VarGetCommand) Synopsis() string {
 func (c *VarGetCommand) Name() string { return "var read" }
 
 func (c *VarGetCommand) Run(args []string) int {
-	var format, tmpl string
 	var exitCodeNotFound int
 	var out string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&format, "format", "table", "")
-	flags.StringVar(&tmpl, "template", "", "")
+	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
+		flags.StringVar(&c.outFmt, "output", "table", "")
+	} else {
+		flags.StringVar(&c.outFmt, "output", "json", "")
+	}
+	flags.StringVar(&c.tmpl, "template", "", "")
 	flags.IntVar(&exitCodeNotFound, "exit-code-not-found", 1, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -89,13 +94,8 @@ func (c *VarGetCommand) Run(args []string) int {
 		return 1
 	}
 
-	if format == "go-template" && tmpl == "" {
-		c.Ui.Error("A template must be supplied using '-template' when using go-template formatting")
-		return 1
-	}
-
-	if format != "go-template" && tmpl != "" {
-		c.Ui.Error("The '-template' flag is only valid when using 'go-template' formatting")
+	if err := c.validateOutputFlag(); err != nil {
+		c.Ui.Error(err.Error())
 		return 1
 	}
 
@@ -122,78 +122,44 @@ func (c *VarGetCommand) Run(args []string) int {
 		return 1
 	}
 
-	switch format {
+	switch c.outFmt {
 	case "json":
 		out = sv.AsJSON()
 	case "hcl":
-		out, err = c.renderAsHCL(sv)
+		out = renderAsHCL(sv)
 	case "go-template":
-		out, err = c.renderGoTemplate(sv, tmpl)
+		if out, err = renderWithGoTemplate(sv, c.tmpl); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 	default:
-		c.renderTable(sv)
-		// the renderTable func writes directly to the ui
-		// and doesn't error.
+		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
+		renderSVAsUiTable(sv, c)
 		return 0
 	}
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+
 	c.Ui.Output(out)
 	return 0
 }
 
-func (c *VarGetCommand) renderTable(sv *api.SecureVariable) {
-	meta := []string{
-		fmt.Sprintf("Namespace|%s", sv.Namespace),
-		fmt.Sprintf("Path|%s", sv.Path),
-		fmt.Sprintf("Create Time|%v", time.Unix(0, sv.ModifyTime)),
+func (c *VarGetCommand) validateOutputFlag() error {
+	switch c.outFmt {
+	case "none": // noop
+	case "json": // noop
+	case "hcl": //noop
+	case "go-template": //noop
+	default:
+		return errors.New(`Invalid value for "-output"; valid values are [go-template, hcl, json, none]`)
 	}
-	if sv.CreateTime != sv.ModifyTime {
-		meta = append(meta, fmt.Sprintf("Modify Time|%v", time.Unix(0, sv.ModifyTime)))
+	if c.outFmt == "go-template" && c.tmpl == "" {
+		return errors.New(`A template must be supplied using '-template' when using go-template formatting`)
 	}
-	meta = append(meta, fmt.Sprintf("Check Index|%v", sv.ModifyIndex))
-	c.Ui.Output(formatKV(meta))
-	c.Ui.Output(c.Colorize().Color("\n[bold]Items[reset]"))
-	items := make([]string, 0, len(sv.Items))
-
-	keys := make([]string, 0, len(sv.Items))
-	for k := range sv.Items {
-		keys = append(keys, k)
+	if c.outFmt != "go-template" && c.tmpl != "" {
+		return errors.New(`The '-template' flag is only valid when using 'go-template' formatting`)
 	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		items = append(items, fmt.Sprintf("%s|%s", k, sv.Items[k]))
-	}
-	c.Ui.Output(formatKV(items))
+	return nil
 }
 
-func (c *VarGetCommand) renderAsHCL(sv *api.SecureVariable) (string, error) {
-	const tpl = `
-namespace    = "{{.Namespace}}"
-path         = "{{.Path}}"
-create_index = {{.CreateIndex}}  # Set by server
-modify_index = {{.ModifyIndex}}  # Set by server; consulted for check-and-set
-create_time  = {{.CreateTime}}   # Set by server
-modify_time  = {{.ModifyTime}}   # Set by server
-
-items = {
-{{- $PAD := 0 -}}{{- range $k,$v := .Items}}{{if gt (len $k) $PAD}}{{$PAD = (len $k)}}{{end}}{{end -}}
-{{- $FMT := printf "  %%%vs = %%q\n" $PAD}}
-{{range $k,$v := .Items}}{{printf $FMT $k $v}}{{ end -}}
-}
-`
-	return c.renderGoTemplate(sv, tpl)
-}
-
-func (c *VarGetCommand) renderGoTemplate(sv *api.SecureVariable, tpl string) (string, error) {
-	t := template.Must(template.New("var").Parse(tpl))
-	var out bytes.Buffer
-	if err := t.Execute(&out, sv); err != nil {
-		return "", err
-	}
-
-	result := out.String()
-	return result, nil
+func (c *VarGetCommand) GetConcurrentUI() cli.ConcurrentUi {
+	return c.GetConcurrentUI()
 }

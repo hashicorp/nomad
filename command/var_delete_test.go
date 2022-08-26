@@ -48,7 +48,7 @@ func TestVarDeleteCommand_Good(t *testing.T) {
 
 	// Create a var to delete
 	sv := testSecureVariable()
-	_, err := client.SecureVariables().Create(sv, nil)
+	_, _, err := client.SecureVariables().Create(sv, nil)
 	require.NoError(t, err)
 
 	// Delete a namespace
@@ -70,7 +70,7 @@ func TestVarDeleteCommand_AutocompleteArgs(t *testing.T) {
 
 	// Create a var
 	sv := testSecureVariable()
-	_, err := client.SecureVariables().Create(sv, nil)
+	_, _, err := client.SecureVariables().Create(sv, nil)
 	require.NoError(t, err)
 
 	args := complete.Args{Last: "t"}
