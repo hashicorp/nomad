@@ -68,6 +68,27 @@ export function watchRelationship(relationshipName, replace = false) {
   }).drop();
 }
 
+export function watchNonStoreRecords(modelName) {
+  return task(function* (model, asyncCallbackName, throttle = 5000) {
+    assert(
+      'To watch a non-store records, the adapter of the model provided to the watchNonStoreRecords task MUST extend Watchable',
+      this.store.adapterFor(modelName) instanceof Watchable
+    );
+    while (isEnabled && !Ember.testing) {
+      const controller = new AbortController();
+      try {
+        yield model[asyncCallbackName]();
+        yield wait(throttle);
+      } catch (e) {
+        yield e;
+        break;
+      } finally {
+        controller.abort();
+      }
+    }
+  }).drop();
+}
+
 export function watchAll(modelName) {
   return task(function* (throttle = 2000) {
     assert(

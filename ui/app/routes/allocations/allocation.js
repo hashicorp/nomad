@@ -1,7 +1,10 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import { collect } from '@ember/object/computed';
-import { watchRecord } from 'nomad-ui/utils/properties/watch';
+import {
+  watchRecord,
+  watchNonStoreRecords,
+} from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
 export default class AllocationRoute extends Route.extend(WithWatchers) {
@@ -10,6 +13,10 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
   startWatchers(controller, model) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
+      controller.set(
+        'watchHealthChecks',
+        this.watchHealthChecks.perform(model, 'getServiceHealth')
+      );
     }
   }
 
@@ -28,6 +35,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
   }
 
   @watchRecord('allocation') watch;
+  @watchNonStoreRecords('allocation') watchHealthChecks;
 
   @collect('watch') watchers;
 }
