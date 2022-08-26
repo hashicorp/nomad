@@ -884,6 +884,15 @@ export default function () {
   });
 
   //#endregion Variables
+
+  //#region Services
+
+  this.get('/job/:id/services', function (schema, { params }) {
+    const { services } = schema;
+    return this.serialize(services.where({ jobId: params.id }));
+  });
+
+  //#endregion Services
 }
 
 function filterKeys(object, ...keys) {

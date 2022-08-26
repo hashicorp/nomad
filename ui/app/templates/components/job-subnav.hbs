@@ -68,5 +68,14 @@
         </LinkTo>
       </li>
     {{/if}}
+    <li data-test-tab="services">
+      <LinkTo
+        @route="jobs.job.services"
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Services
+      </LinkTo>
+    </li>
   </ul>
 </div>
