@@ -196,3 +196,53 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 	require.Contains(t, out, "Monitoring evaluation")
 	require.Contains(t, out, "finished with status \"complete\"")
 }
+
+func TestJobPeriodicForceCommand_SuccessfulIfJobIDEqualsPrefix(t *testing.T) {
+	ci.Parallel(t)
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	j1 := testJob("periodic-prefix")
+	j1.Periodic = &api.PeriodicConfig{
+		SpecType:        pointer.Of(api.PeriodicSpecCron),
+		Spec:            pointer.Of("*/15 * * * * *"),
+		ProhibitOverlap: pointer.Of(true),
+		TimeZone:        pointer.Of("Europe/Minsk"),
+	}
+	j2 := testJob("periodic-prefix-another-job")
+	j2.Periodic = &api.PeriodicConfig{
+		SpecType:        pointer.Of(api.PeriodicSpecCron),
+		Spec:            pointer.Of("*/15 * * * * *"),
+		ProhibitOverlap: pointer.Of(true),
+		TimeZone:        pointer.Of("Europe/Minsk"),
+	}
+
+	ui := cli.NewMockUi()
+	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	_, _, err := client.Jobs().Register(j1, nil)
+	require.NoError(t, err)
+	_, _, err = client.Jobs().Register(j2, nil)
+	require.NoError(t, err)
+
+	code := cmd.Run([]string{"-address=" + url, "periodic-prefix"})
+	require.Equal(t, 0, code, "expected no error code")
+	out := ui.OutputWriter.String()
+	require.Contains(t, out, "Monitoring evaluation")
+	require.Contains(t, out, "finished with status \"complete\"")
+}
