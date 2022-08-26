@@ -21,8 +21,8 @@ require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
 	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
-	github.com/armon/go-metrics v0.3.4
-	github.com/aws/aws-sdk-go v1.38.20
+	github.com/armon/go-metrics v0.4.0
+	github.com/aws/aws-sdk-go v1.44.84
 	github.com/boltdb/bolt v1.3.1
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v0.0.0-20190904155053-d20b7eebc7ee
@@ -126,7 +126,7 @@ require (
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
-	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
