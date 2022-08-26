@@ -12,11 +12,8 @@ async function globalSetup() {
       await client(`/namespace/dev`, {data: DEV_NAMESPACE});
       await client(`/acl/policy/operator`, {data: OPERATOR_POLICY_JSON});
       await client(`/acl/policy/dev`, {data: DEV_POLICY_JSON});
-      await client(`/acl/policy/anon`, {data: ANON_POLICY_JSON});
       await client(`/acl/token/operator`, {data: {Name: "Operator", Type: "client", Policies: ["operator"]}});
       await client(`/acl/token/dev`, {data: {Name: "Developer", Type: "client", Policies: ["dev"]}});
-      await client(`/acl/token/anon`, {data: {Name: "Anonymous", Type: "client", Policies: ["anon"]}});
-
     } catch (e) {
       console.error('ERROR:  ', e)
     }  

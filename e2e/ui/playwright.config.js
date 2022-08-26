@@ -11,6 +11,7 @@ const config = {
     ignoreHTTPSErrors: true,
   },
   globalSetup: 'global-setup.js',
+  globalTeardown: 'global-teardown.js',
   projects: [
     {
       name: 'chromium',
