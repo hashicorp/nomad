@@ -41,7 +41,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1
-	github.com/fatih/color v1.9.0
+	github.com/fatih/color v1.13.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/golang/protobuf v1.5.0
@@ -62,8 +62,8 @@ require (
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.6.1
-	github.com/hashicorp/go-hclog v0.14.1
-	github.com/hashicorp/go-immutable-radix v1.3.0
+	github.com/hashicorp/go-hclog v1.2.2
+	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-memdb v1.3.2
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/go-multierror v1.1.1
@@ -92,7 +92,7 @@ require (
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
 	github.com/likexian/gokit v0.25.6
-	github.com/mattn/go-colorable v0.1.7
+	github.com/mattn/go-colorable v0.1.12
 	github.com/miekg/dns v1.1.26
 	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
@@ -120,7 +120,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.21.6-0.20210619153009-7ea8062810b6
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.2
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/zclconf/go-cty v1.8.0
 	github.com/zclconf/go-cty-yaml v1.0.2
