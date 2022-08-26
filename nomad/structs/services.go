@@ -1089,7 +1089,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.KillTimeout, o.KillTimeout) {
+	if !pointer.Eq(t.KillTimeout, o.KillTimeout) {
 		return false
 	}
 
@@ -1097,7 +1097,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.ShutdownDelay, o.ShutdownDelay) {
+	if !pointer.Eq(t.ShutdownDelay, o.ShutdownDelay) {
 		return false
 	}
 
@@ -1698,7 +1698,7 @@ func (p *ConsulGatewayProxy) Equals(o *ConsulGatewayProxy) bool {
 		return p == o
 	}
 
-	if !helper.CompareTimePtrs(p.ConnectTimeout, o.ConnectTimeout) {
+	if !pointer.Eq(p.ConnectTimeout, o.ConnectTimeout) {
 		return false
 	}
 
