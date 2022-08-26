@@ -35,7 +35,7 @@ export default class TaskGroup extends Fragment {
 
   @fragmentArray('task') tasks;
 
-  @fragmentArray('service') services;
+  @fragmentArray('service-fragment') services;
 
   @fragmentArray('volume-definition') volumes;
 
