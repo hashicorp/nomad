@@ -121,7 +121,7 @@ limit {
     memory     = 1000
     memory_max = 1000
   }
-  secure_variables_limit = 1000
+  variables_limit = 1000
 }
 `)
 
@@ -137,7 +137,7 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 				"MemoryMB": 1000,
 				"MemoryMaxMB": 1000
 			},
-			"SecureVariablesLimit": 1000
+			"VariablesLimit": 1000
 		}
 	]
 }

@@ -8,15 +8,15 @@ import (
 	"github.com/posener/complete"
 )
 
-// OperatorSecureVariablesKeyringRotateCommand is a Command
-// implementation that rotates the secure variables encryption key.
-type OperatorSecureVariablesKeyringRotateCommand struct {
+// OperatorRootKeyringRotateCommand is a Command
+// implementation that rotates the variables encryption key.
+type OperatorRootKeyringRotateCommand struct {
 	Meta
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) Help() string {
+func (c *OperatorRootKeyringRotateCommand) Help() string {
 	helpText := `
-Usage: nomad operator secure-variables keyring rotate [options]
+Usage: nomad operator root keyring rotate [options]
 
   Generate a new encryption key for all future variables.
 
@@ -40,11 +40,11 @@ Keyring Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) Synopsis() string {
-	return "Rotates the secure variables encryption key"
+func (c *OperatorRootKeyringRotateCommand) Synopsis() string {
+	return "Rotates the root encryption key"
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorRootKeyringRotateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-full":    complete.PredictNothing,
@@ -52,18 +52,18 @@ func (c *OperatorSecureVariablesKeyringRotateCommand) AutocompleteFlags() comple
 		})
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorRootKeyringRotateCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) Name() string {
-	return "secure-variables keyring rotate"
+func (c *OperatorRootKeyringRotateCommand) Name() string {
+	return "root keyring rotate"
 }
 
-func (c *OperatorSecureVariablesKeyringRotateCommand) Run(args []string) int {
+func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
 	var rotateFull, verbose bool
 
-	flags := c.Meta.FlagSet("secure-variables keyring rotate", FlagSetClient)
+	flags := c.Meta.FlagSet("root keyring rotate", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&rotateFull, "full", false, "full key rotation")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -91,6 +91,6 @@ func (c *OperatorSecureVariablesKeyringRotateCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("error: %s", err))
 		return 1
 	}
-	c.Ui.Output(renderSecureVariablesKeysResponse([]*api.RootKeyMeta{resp}, verbose))
+	c.Ui.Output(renderVariablesKeysResponse([]*api.RootKeyMeta{resp}, verbose))
 	return 0
 }

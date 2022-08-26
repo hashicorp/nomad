@@ -215,11 +215,12 @@ type Server struct {
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
 
-	// keyringReplicator is used to replicate encryption keys for
-	// secure variables from the leader
+	// keyringReplicator is used to replicate root encryption keys from the
+	// leader
 	keyringReplicator *KeyringReplicator
 
-	// encrypter is the keyring for secure variables
+	// encrypter is the root keyring for encrypting variables and signing
+	// workload identities
 	encrypter *Encrypter
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
@@ -297,7 +298,7 @@ type endpoints struct {
 	Enterprise          *EnterpriseEndpoints
 	Event               *Event
 	Namespace           *Namespace
-	SecureVariables     *SecureVariables
+	Variables           *Variables
 	Keyring             *Keyring
 	ServiceRegistration *ServiceRegistration
 
@@ -1211,7 +1212,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: s.encrypter}
+		s.staticEndpoints.Variables = &Variables{srv: s, logger: s.logger.Named("variables"), encrypter: s.encrypter}
 		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
 
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
@@ -1261,7 +1262,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
 	server.Register(s.staticEndpoints.Namespace)
-	server.Register(s.staticEndpoints.SecureVariables)
+	server.Register(s.staticEndpoints.Variables)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}

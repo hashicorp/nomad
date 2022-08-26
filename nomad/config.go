@@ -205,9 +205,9 @@ type Config struct {
 	// before it's rotated
 	RootKeyRotationThreshold time.Duration
 
-	// SecureVariablesRekeyInterval is how often we dispatch a job to
+	// VariablesRekeyInterval is how often we dispatch a job to
 	// rekey any variables associated with a key in the Rekeying state
-	SecureVariablesRekeyInterval time.Duration
+	VariablesRekeyInterval time.Duration
 
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
@@ -442,7 +442,7 @@ func DefaultConfig() *Config {
 		RootKeyGCInterval:                10 * time.Minute,
 		RootKeyGCThreshold:               1 * time.Hour,
 		RootKeyRotationThreshold:         720 * time.Hour, // 30 days
-		SecureVariablesRekeyInterval:     10 * time.Minute,
+		VariablesRekeyInterval:           10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,

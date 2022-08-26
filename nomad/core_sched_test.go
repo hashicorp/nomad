@@ -2480,11 +2480,11 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	key2.SetInactive()
 	require.NoError(t, store.UpsertRootKeyMeta(600, key2, false))
 
-	variable := mock.SecureVariableEncrypted()
+	variable := mock.VariableEncrypted()
 	variable.KeyID = key2.KeyID
 
-	setResp := store.SVESet(601, &structs.SVApplyStateRequest{
-		Op:  structs.SVOpSet,
+	setResp := store.VarSet(601, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
 		Var: variable,
 	})
 	require.NoError(t, setResp.Error)
@@ -2539,8 +2539,8 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NotNil(t, key, "new key should not have been GCd")
 }
 
-// TestCoreScheduler_SecureVariablesRekey exercises secure variables rekeying
-func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
+// TestCoreScheduler_VariablesRekey exercises variables rekeying
+func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanup := TestServer(t, nil)
@@ -2553,13 +2553,13 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		req := &structs.SecureVariablesApplyRequest{
-			Op:           structs.SVOpSet,
-			Var:          mock.SecureVariable(),
+		req := &structs.VariablesApplyRequest{
+			Op:           structs.VarOpSet,
+			Var:          mock.Variable(),
 			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
 		}
-		resp := &structs.SecureVariablesApplyResponse{}
-		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
+		resp := &structs.VariablesApplyResponse{}
+		require.NoError(t, srv.RPC("Variables.Apply", req, resp))
 	}
 
 	rotateReq := &structs.KeyringRotateRootKeyRequest{
@@ -2571,13 +2571,13 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	require.NoError(t, srv.RPC("Keyring.Rotate", rotateReq, &rotateResp))
 
 	for i := 0; i < 3; i++ {
-		req := &structs.SecureVariablesApplyRequest{
-			Op:           structs.SVOpSet,
-			Var:          mock.SecureVariable(),
+		req := &structs.VariablesApplyRequest{
+			Op:           structs.VarOpSet,
+			Var:          mock.Variable(),
 			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
 		}
-		resp := &structs.SecureVariablesApplyResponse{}
-		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
+		resp := &structs.VariablesApplyResponse{}
+		require.NoError(t, srv.RPC("Variables.Apply", req, resp))
 	}
 
 	rotateReq.Full = true
@@ -2586,21 +2586,21 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		ws := memdb.NewWatchSet()
-		iter, err := store.SecureVariables(ws)
+		iter, err := store.Variables(ws)
 		require.NoError(t, err)
 		for {
 			raw := iter.Next()
 			if raw == nil {
 				break
 			}
-			variable := raw.(*structs.SecureVariableEncrypted)
+			variable := raw.(*structs.VariableEncrypted)
 			if variable.KeyID != newKeyID {
 				return false
 			}
 		}
 		return true
 	}, time.Second*5, 100*time.Millisecond,
-		"secure variable rekey should be complete")
+		"variable rekey should be complete")
 
 	iter, err := store.RootKeyMetas(memdb.NewWatchSet())
 	require.NoError(t, err)

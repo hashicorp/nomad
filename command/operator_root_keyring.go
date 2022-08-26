@@ -10,67 +10,67 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-// OperatorSecureVariablesKeyringCommand is a Command implementation
-// that handles querying, installing, and removing secure variables
+// OperatorRootKeyringCommand is a Command implementation
+// that handles querying, installing, and removing root
 // encryption keys from a keyring.
-type OperatorSecureVariablesKeyringCommand struct {
+type OperatorRootKeyringCommand struct {
 	Meta
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) Help() string {
+func (c *OperatorRootKeyringCommand) Help() string {
 	helpText := `
-Usage: nomad operator secure-variables keyring [options]
+Usage: nomad operator root keyring [options]
 
-  Manages encryption keys used for storing secure variables. This command may be
-  used to examine active encryption keys in the cluster, rotate keys, add new
-  keys from backups, or remove unused keys.
+  Manages encryption keys used for storing variables and signing workload
+  identities. This command may be used to examine active encryption keys
+  in the cluster, rotate keys, add new keys from backups, or remove unused keys.
 
   If ACLs are enabled, all subcommands requires a management token.
 
   Rotate the encryption key:
 
-      $ nomad operator secure-variables keyring rotate
+      $ nomad operator root keyring rotate
 
   List all encryption key metadata:
 
-      $ nomad operator secure-variables keyring list
+      $ nomad operator root keyring list
 
   Remove an encryption key from the keyring:
 
-      $ nomad operator secure-variables keyring remove <key ID>
+      $ nomad operator root keyring remove <key ID>
 
   Install an encryption key from backup:
 
-      $ nomad operator secure-variables keyring install <path to .json file>
+      $ nomad operator root keyring install <path to .json file>
 
   Please see individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) Synopsis() string {
-	return "Manages secure variables encryption keys"
+func (c *OperatorRootKeyringCommand) Synopsis() string {
+	return "Manages root encryption keys"
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorRootKeyringCommand) AutocompleteFlags() complete.Flags {
 	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorRootKeyringCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) Name() string {
-	return "secure-variables keyring"
+func (c *OperatorRootKeyringCommand) Name() string {
+	return "root keyring"
 }
 
-func (c *OperatorSecureVariablesKeyringCommand) Run(args []string) int {
+func (c *OperatorRootKeyringCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
 
-// renderSecureVariablesKeysResponse is a helper for formatting the
+// renderVariablesKeysResponse is a helper for formatting the
 // keyring API responses
-func renderSecureVariablesKeysResponse(keys []*api.RootKeyMeta, verbose bool) string {
+func renderVariablesKeysResponse(keys []*api.RootKeyMeta, verbose bool) string {
 	length := fullId
 	if !verbose {
 		length = 8

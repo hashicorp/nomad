@@ -61,8 +61,8 @@ type ACL struct {
 	// We use an iradix for the purposes of ordered iteration.
 	wildcardHostVolumes *iradix.Tree
 
-	secureVariables         *iradix.Tree
-	wildcardSecureVariables *iradix.Tree
+	variables         *iradix.Tree
+	wildcardVariables *iradix.Tree
 
 	agent    string
 	node     string
@@ -131,8 +131,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 				}
 			}
 
-			if ns.SecureVariables != nil {
-				for _, pathPolicy := range ns.SecureVariables.Paths {
+			if ns.Variables != nil {
+				for _, pathPolicy := range ns.Variables.Paths {
 					key := []byte(ns.Name + "\x00" + pathPolicy.PathSpec)
 					var svCapabilities capabilitySet
 					if globDefinition || strings.Contains(pathPolicy.PathSpec, "*") {
@@ -241,8 +241,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl.wildcardNamespaces = wnsTxn.Commit()
 	acl.hostVolumes = hvTxn.Commit()
 	acl.wildcardHostVolumes = whvTxn.Commit()
-	acl.secureVariables = svTxn.Commit()
-	acl.wildcardSecureVariables = wsvTxn.Commit()
+	acl.variables = svTxn.Commit()
+	acl.wildcardVariables = wsvTxn.Commit()
 
 	return acl, nil
 }
@@ -358,13 +358,13 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
-func (a *ACL) AllowSecureVariableOperation(ns, path, op string) bool {
+func (a *ACL) AllowVariableOperation(ns, path, op string) bool {
 	if a.management {
 		return true
 	}
 
 	// Check for a matching capability set
-	capabilities, ok := a.matchingSecureVariablesCapabilitySet(ns, path)
+	capabilities, ok := a.matchingVariablesCapabilitySet(ns, path)
 	if !ok {
 		return false
 	}
@@ -372,22 +372,21 @@ func (a *ACL) AllowSecureVariableOperation(ns, path, op string) bool {
 	return capabilities.Check(op)
 }
 
-// AllowSecureVariableSearch is a very loose check that the token has
-// *any* access to a secure variables path for the namespace, with an
-// expectation that the actual search result will be filtered by
-// specific paths
-func (a *ACL) AllowSecureVariableSearch(ns string) bool {
+// AllowVariableSearch is a very loose check that the token has *any* access to
+// a variables path for the namespace, with an expectation that the actual
+// search result will be filtered by specific paths
+func (a *ACL) AllowVariableSearch(ns string) bool {
 	if a.management {
 		return true
 	}
-	iter := a.secureVariables.Root().Iterator()
+	iter := a.variables.Root().Iterator()
 	iter.SeekPrefix([]byte(ns))
 	_, _, ok := iter.Next()
 	if ok {
 		return true
 	}
 
-	iter = a.wildcardSecureVariables.Root().Iterator()
+	iter = a.wildcardVariables.Root().Iterator()
 	iter.SeekPrefix([]byte(ns))
 	_, _, ok = iter.Next()
 	return ok
@@ -461,20 +460,20 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 	return a.findClosestMatchingGlob(a.wildcardHostVolumes, name)
 }
 
-// matchingSecureVariablesCapabilitySet looks for a capabilitySet that matches the namespace and path,
+// matchingVariablesCapabilitySet looks for a capabilitySet that matches the namespace and path,
 // if no concrete definitions are found, then we return the closest matching
 // glob.
 // The closest matching glob is the one that has the smallest character
 // difference between the namespace and the glob.
-func (a *ACL) matchingSecureVariablesCapabilitySet(ns, path string) (capabilitySet, bool) {
+func (a *ACL) matchingVariablesCapabilitySet(ns, path string) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
-	raw, ok := a.secureVariables.Get([]byte(ns + "\x00" + path))
+	raw, ok := a.variables.Get([]byte(ns + "\x00" + path))
 	if ok {
 		return raw.(capabilitySet), true
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
-	return a.findClosestMatchingGlob(a.wildcardSecureVariables, ns+"\x00"+path)
+	return a.findClosestMatchingGlob(a.wildcardVariables, ns+"\x00"+path)
 }
 
 type matchingGlob struct {

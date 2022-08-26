@@ -21,7 +21,7 @@ const (
 	DefaultJsonVarInitName = "spec.nsv.json"
 )
 
-// VarInitCommand generates a new secure variable specification
+// VarInitCommand generates a new variable specification
 type VarInitCommand struct {
 	Meta
 }
@@ -30,14 +30,14 @@ func (c *VarInitCommand) Help() string {
 	helpText := `
 Usage: nomad var init <filename>
 
-  Creates an example secure variable specification file that can be used as a
+  Creates an example variable specification file that can be used as a
   starting point to customize further. If no filename is given, the default of
   "spec.nsv.hcl" or "spec.nsv.json" will be used.
 
 Init Options:
 
   -json
-    Create an example JSON secure variable specification.
+    Create an example JSON variable specification.
 
   -q
     Suppress non-error output
@@ -46,7 +46,7 @@ Init Options:
 }
 
 func (c *VarInitCommand) Synopsis() string {
-	return "Create an example secure variable specification file"
+	return "Create an example variable specification file"
 }
 
 func (c *VarInitCommand) AutocompleteFlags() complete.Flags {
@@ -113,7 +113,7 @@ func (c *VarInitCommand) Run(args []string) int {
 	// Success
 	if !quiet {
 		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
-		c.Ui.Output(fmt.Sprintf("Example secure variable specification written to %s", fileName))
+		c.Ui.Output(fmt.Sprintf("Example variable specification written to %s", fileName))
 	}
 	return 0
 }
@@ -126,17 +126,17 @@ const (
 )
 
 var defaultHclVarSpec = strings.TrimSpace(`
-# A secure variable path can be specified in the specification file
+# A variable path can be specified in the specification file
 # and will be used when writing the variable without specifying a
 # path in the command or when writing JSON directly to the `+"`/var/`"+`
 # HTTP API endpoint
-# path = "path/to/variable" 
+# path = "path/to/variable"
 
 # The Namespace to write the variable can be included in the specification
 # and is the highest precedence way to set the namespace value.
 # namespace = "default"
 
-# The items map is the only strictly required part of a secure variable
+# The items map is the only strictly required part of a variable
 # specification, since path and namespace can be set via other means. It
 # contains the sensitive material to encrypt and store as a Nomad secure
 # variable. The entire items map is encrypted and decrypted as a single unit.

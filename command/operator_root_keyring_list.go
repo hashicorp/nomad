@@ -7,15 +7,15 @@ import (
 	"github.com/posener/complete"
 )
 
-// OperatorSecureVariablesKeyringListCommand is a Command
-// implementation that lists the secure variables encryption keys.
-type OperatorSecureVariablesKeyringListCommand struct {
+// OperatorRootKeyringListCommand is a Command
+// implementation that lists the variables encryption keys.
+type OperatorRootKeyringListCommand struct {
 	Meta
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) Help() string {
+func (c *OperatorRootKeyringListCommand) Help() string {
 	helpText := `
-Usage: nomad operator secure-variables keyring list [options]
+Usage: nomad operator root keyring list [options]
 
   List the currently installed keys. This list returns key metadata and not
   sensitive key material.
@@ -35,29 +35,29 @@ Keyring Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) Synopsis() string {
-	return "Lists the secure variables encryption keys"
+func (c *OperatorRootKeyringListCommand) Synopsis() string {
+	return "Lists the root encryption keys"
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorRootKeyringListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 		})
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorRootKeyringListCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) Name() string {
-	return "secure-variables keyring list"
+func (c *OperatorRootKeyringListCommand) Name() string {
+	return "root keyring list"
 }
 
-func (c *OperatorSecureVariablesKeyringListCommand) Run(args []string) int {
+func (c *OperatorRootKeyringListCommand) Run(args []string) int {
 	var verbose bool
 
-	flags := c.Meta.FlagSet("secure-variables keyring list", FlagSetClient)
+	flags := c.Meta.FlagSet("root keyring list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 
@@ -83,6 +83,6 @@ func (c *OperatorSecureVariablesKeyringListCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("error: %s", err))
 		return 1
 	}
-	c.Ui.Output(renderSecureVariablesKeysResponse(resp, verbose))
+	c.Ui.Output(renderVariablesKeysResponse(resp, verbose))
 	return 0
 }

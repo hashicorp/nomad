@@ -40,7 +40,7 @@ func NamespacePolicy(namespace string, policy string, capabilities []string) str
 
 // NamespacePolicy is a helper for generating the policy hcl for a given
 // namespace. Either policy or capabilities may be nil but not both.
-func NamespacePolicyWithSecureVariables(namespace string, policy string, capabilities []string, svars map[string][]string) string {
+func NamespacePolicyWithVariables(namespace string, policy string, capabilities []string, svars map[string][]string) string {
 	policyHCL := fmt.Sprintf("namespace %q {", namespace)
 	if policy != "" {
 		policyHCL += fmt.Sprintf("\n\tpolicy = %q", policy)
@@ -54,17 +54,17 @@ func NamespacePolicyWithSecureVariables(namespace string, policy string, capabil
 		policyHCL += fmt.Sprintf("\n\tcapabilities = [%v]", strings.Join(capabilities, ","))
 	}
 
-	policyHCL += SecureVariablePolicy(svars)
+	policyHCL += VariablePolicy(svars)
 	policyHCL += "\n}"
 	return policyHCL
 }
 
-// SecureVariablePolicy is a helper for generating the policy hcl for a given
-// secure_variable block inside of a namespace.
-func SecureVariablePolicy(svars map[string][]string) string {
+// VariablePolicy is a helper for generating the policy hcl for a given
+// variable block inside of a namespace.
+func VariablePolicy(svars map[string][]string) string {
 	policyHCL := ""
 	if len(svars) > 0 {
-		policyHCL = "\n\n\tsecure_variables {"
+		policyHCL = "\n\n\tvariables {"
 		for p, c := range svars {
 			for i, s := range c {
 				if !strings.HasPrefix(s, "\"") {

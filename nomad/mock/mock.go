@@ -2372,21 +2372,21 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 	}
 }
 
-type MockSecureVariables map[string]*structs.SecureVariableDecrypted
+type MockVariables map[string]*structs.VariableDecrypted
 
-func SecureVariable() *structs.SecureVariableDecrypted {
-	return &structs.SecureVariableDecrypted{
-		SecureVariableMetadata: mockSecureVariableMetadata(),
-		Items: structs.SecureVariableItems{
+func Variable() *structs.VariableDecrypted {
+	return &structs.VariableDecrypted{
+		VariableMetadata: mockVariableMetadata(),
+		Items: structs.VariableItems{
 			"key1": "value1",
 			"key2": "value2",
 		},
 	}
 }
 
-// SecureVariables returns a random number of secure variables between min
+// Variables returns a random number of variables between min
 // and max inclusive.
-func SecureVariables(minU, maxU uint8) MockSecureVariables {
+func Variables(minU, maxU uint8) MockVariables {
 	// the unsignedness of the args is to prevent goofy parameters, they're
 	// easier to work with as ints in this code.
 	min := int(minU)
@@ -2396,12 +2396,12 @@ func SecureVariables(minU, maxU uint8) MockSecureVariables {
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	svs := make([]*structs.SecureVariableDecrypted, vc)
-	paths := make(map[string]*structs.SecureVariableDecrypted, vc)
+	svs := make([]*structs.VariableDecrypted, vc)
+	paths := make(map[string]*structs.VariableDecrypted, vc)
 	for i := 0; i < vc; i++ {
-		nv := SecureVariable()
+		nv := Variable()
 		// There is an extremely rare chance of path collision because the mock
-		// secure variables generate their paths randomly. This check will add
+		// variables generate their paths randomly. This check will add
 		// an extra component on conflict to (ideally) disambiguate them.
 		if _, found := paths[nv.Path]; found {
 			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
@@ -2412,7 +2412,7 @@ func SecureVariables(minU, maxU uint8) MockSecureVariables {
 	return paths
 }
 
-func (svs MockSecureVariables) ListPaths() []string {
+func (svs MockVariables) ListPaths() []string {
 	out := make([]string, 0, len(svs))
 	for _, sv := range svs {
 		out = append(out, sv.Path)
@@ -2421,8 +2421,8 @@ func (svs MockSecureVariables) ListPaths() []string {
 	return out
 }
 
-func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
-	out := make([]*structs.SecureVariableDecrypted, 0, len(svs))
+func (svs MockVariables) List() []*structs.VariableDecrypted {
+	out := make([]*structs.VariableDecrypted, 0, len(svs))
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
@@ -2430,21 +2430,21 @@ func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
 	return out
 }
 
-type MockSecureVariablesEncrypted map[string]*structs.SecureVariableEncrypted
+type MockVariablesEncrypted map[string]*structs.VariableEncrypted
 
-func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
-	return &structs.SecureVariableEncrypted{
-		SecureVariableMetadata: mockSecureVariableMetadata(),
-		SecureVariableData: structs.SecureVariableData{
+func VariableEncrypted() *structs.VariableEncrypted {
+	return &structs.VariableEncrypted{
+		VariableMetadata: mockVariableMetadata(),
+		VariableData: structs.VariableData{
 			KeyID: "foo",
 			Data:  []byte("foo"),
 		},
 	}
 }
 
-// SecureVariables returns a random number of secure variables between min
+// Variables returns a random number of variables between min
 // and max inclusive.
-func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
+func VariablesEncrypted(minU, maxU uint8) MockVariablesEncrypted {
 	// the unsignedness of the args is to prevent goofy parameters, they're
 	// easier to work with as ints in this code.
 	min := int(minU)
@@ -2454,12 +2454,12 @@ func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	svs := make([]*structs.SecureVariableEncrypted, vc)
-	paths := make(map[string]*structs.SecureVariableEncrypted, vc)
+	svs := make([]*structs.VariableEncrypted, vc)
+	paths := make(map[string]*structs.VariableEncrypted, vc)
 	for i := 0; i < vc; i++ {
-		nv := SecureVariableEncrypted()
+		nv := VariableEncrypted()
 		// There is an extremely rare chance of path collision because the mock
-		// secure variables generate their paths randomly. This check will add
+		// variables generate their paths randomly. This check will add
 		// an extra component on conflict to (ideally) disambiguate them.
 		if _, found := paths[nv.Path]; found {
 			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
@@ -2470,7 +2470,7 @@ func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
 	return paths
 }
 
-func (svs MockSecureVariablesEncrypted) ListPaths() []string {
+func (svs MockVariablesEncrypted) ListPaths() []string {
 	out := make([]string, 0, len(svs))
 	for _, sv := range svs {
 		out = append(out, sv.Path)
@@ -2479,8 +2479,8 @@ func (svs MockSecureVariablesEncrypted) ListPaths() []string {
 	return out
 }
 
-func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypted {
-	out := make([]*structs.SecureVariableEncrypted, 0, len(svs))
+func (svs MockVariablesEncrypted) List() []*structs.VariableEncrypted {
+	out := make([]*structs.VariableEncrypted, 0, len(svs))
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
@@ -2488,13 +2488,13 @@ func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypte
 	return out
 }
 
-func mockSecureVariableMetadata() structs.SecureVariableMetadata {
+func mockVariableMetadata() structs.VariableMetadata {
 	envs := []string{"dev", "test", "prod"}
 	envIdx := rand.Intn(3)
 	env := envs[envIdx]
 	domain := fake.DomainName()
 
-	out := structs.SecureVariableMetadata{
+	out := structs.VariableMetadata{
 		Namespace:   "default",
 		Path:        strings.ReplaceAll(env+"."+domain, ".", "/"),
 		CreateIndex: uint64(rand.Intn(100) + 100),

@@ -12,18 +12,18 @@ import (
 	"github.com/posener/complete"
 )
 
-// OperatorSecureVariablesKeyringInstallCommand is a Command
-// implementation that handles installing secure variables encryption
+// OperatorRootKeyringInstallCommand is a Command
+// implementation that handles installing variables encryption
 // keys from a keyring.
-type OperatorSecureVariablesKeyringInstallCommand struct {
+type OperatorRootKeyringInstallCommand struct {
 	Meta
 }
 
-func (c *OperatorSecureVariablesKeyringInstallCommand) Help() string {
+func (c *OperatorRootKeyringInstallCommand) Help() string {
 	helpText := `
-Usage: nomad operator secure-variables keyring install [options] <filepath>
+Usage: nomad operator root keyring install [options] <filepath>
 
-  Install a new encryption key used for storing secure variables and workload
+  Install a new encryption key used for storing variables and workload
   identity signing. The key file must be a JSON file previously written by Nomad
   to the keystore. The key file will be read from stdin by specifying "-",
   otherwise a path to the file is expected.
@@ -37,26 +37,26 @@ General Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorSecureVariablesKeyringInstallCommand) Synopsis() string {
-	return "Installs a secure variables encryption key"
+func (c *OperatorRootKeyringInstallCommand) Synopsis() string {
+	return "Installs a root encryption key"
 }
 
-func (c *OperatorSecureVariablesKeyringInstallCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorRootKeyringInstallCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 		})
 }
-func (c *OperatorSecureVariablesKeyringInstallCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorRootKeyringInstallCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFiles("*.json")
 }
 
-func (c *OperatorSecureVariablesKeyringInstallCommand) Name() string {
-	return "secure-variables keyring install"
+func (c *OperatorRootKeyringInstallCommand) Name() string {
+	return "root keyring install"
 }
 
-func (c *OperatorSecureVariablesKeyringInstallCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("secure-variables keyring install", FlagSetClient)
+func (c *OperatorRootKeyringInstallCommand) Run(args []string) int {
+	flags := c.Meta.FlagSet("root keyring install", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {

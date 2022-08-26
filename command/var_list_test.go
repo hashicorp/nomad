@@ -152,7 +152,7 @@ func TestVarListCommand_Online(t *testing.T) {
 		{
 			name:         "plaintext/not found",
 			args:         []string{"does/not/exist"},
-			expectStdOut: msgSecureVariableNotFound,
+			expectStdOut: msgVariableNotFound,
 		},
 		{
 			name: "plaintext/single variable",
@@ -178,7 +178,7 @@ func TestVarListCommand_Online(t *testing.T) {
 		},
 		{
 			name:               "plaintext/quiet/filter",
-			args:               []string{"-q", "-filter", "SecureVariableMetadata.Path == \"a/b/c\""},
+			args:               []string{"-q", "-filter", "VariableMetadata.Path == \"a/b/c\""},
 			expectStdOut:       "a/b/c",
 			expectStdErrPrefix: msgWarnFilterPerformance,
 		},
@@ -278,7 +278,7 @@ func TestVarListCommand_Online(t *testing.T) {
 		},
 		{
 			name:               "template/filter",
-			args:               []string{"-t", testTmpl, "-filter", "SecureVariableMetadata.Path == \"a/b/c\""},
+			args:               []string{"-t", testTmpl, "-filter", "VariableMetadata.Path == \"a/b/c\""},
 			expectStdOut:       "default\ta/b/c",
 			expectStdErrPrefix: msgWarnFilterPerformance,
 		},
@@ -387,9 +387,9 @@ func setupTestVariables(c *api.Client, nsList, pathList []string) SVMSlice {
 }
 
 func setupTestVariable(c *api.Client, ns, p string, out *SVMSlice) {
-	testVar := &api.SecureVariable{Items: map[string]string{"k": "v"}}
+	testVar := &api.Variable{Items: map[string]string{"k": "v"}}
 	c.Raw().Write("/v1/var/"+p, testVar, nil, &api.WriteOptions{Namespace: ns})
-	v, _, _ := c.SecureVariables().Read(p, &api.QueryOptions{Namespace: ns})
+	v, _, _ := c.Variables().Read(p, &api.QueryOptions{Namespace: ns})
 	*out = append(*out, *v.Metadata())
 }
 
@@ -405,7 +405,7 @@ func (ps testSVNamespacePaths) NSPaths() testSVNamespacePaths {
 	return ps
 }
 
-type SVMSlice []api.SecureVariableMetadata
+type SVMSlice []api.VariableMetadata
 
 func (s SVMSlice) Len() int { return len(s) }
 func (s SVMSlice) NSPaths() testSVNamespacePaths {

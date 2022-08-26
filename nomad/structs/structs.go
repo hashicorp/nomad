@@ -110,7 +110,7 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
-	SVApplyStateRequestType                      MessageType = 50
+	VarApplyStateRequestType                     MessageType = 50
 	RootKeyMetaUpsertRequestType                 MessageType = 51
 	RootKeyMetaDeleteRequestType                 MessageType = 52
 
@@ -10878,10 +10878,10 @@ const (
 	// garbage collection of unused encryption keys.
 	CoreJobRootKeyRotateOrGC = "root-key-rotate-gc"
 
-	// CoreJobSecureVariablesRekey is used to fully rotate the
-	// encryption keys for secure variables by decrypting all secure
-	// variables and re-encrypting them with the active key
-	CoreJobSecureVariablesRekey = "secure-variables-rekey"
+	// CoreJobVariablesRekey is used to fully rotate the encryption keys for
+	// variables by decrypting all variables and re-encrypting them with the
+	// active key
+	CoreJobVariablesRekey = "variables-rekey"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"

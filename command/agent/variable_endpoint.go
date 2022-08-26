@@ -9,83 +9,83 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
-	args := structs.SecureVariablesListRequest{}
+	args := structs.VariablesListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
-	var out structs.SecureVariablesListResponse
-	if err := s.agent.RPC(structs.SecureVariablesListRPCMethod, &args, &out); err != nil {
+	var out structs.VariablesListResponse
+	if err := s.agent.RPC(structs.VariablesListRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
 
 	if out.Data == nil {
-		out.Data = make([]*structs.SecureVariableMetadata, 0)
+		out.Data = make([]*structs.VariableMetadata, 0)
 	}
 	return out.Data, nil
 }
 
-func (s *HTTPServer) SecureVariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/var/")
 	if len(path) == 0 {
-		return nil, CodedError(http.StatusBadRequest, "missing secure variable path")
+		return nil, CodedError(http.StatusBadRequest, "missing variable path")
 	}
 	switch req.Method {
 	case http.MethodGet:
-		return s.secureVariableQuery(resp, req, path)
+		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
-		return s.secureVariableUpsert(resp, req, path)
+		return s.variableUpsert(resp, req, path)
 	case http.MethodDelete:
-		return s.secureVariableDelete(resp, req, path)
+		return s.variableDelete(resp, req, path)
 	default:
 		return nil, CodedError(http.StatusBadRequest, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Request,
+func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
 	path string) (interface{}, error) {
-	args := structs.SecureVariablesReadRequest{
+	args := structs.VariablesReadRequest{
 		Path: path,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
-	var out structs.SecureVariablesReadResponse
-	if err := s.agent.RPC(structs.SecureVariablesReadRPCMethod, &args, &out); err != nil {
+	var out structs.VariablesReadResponse
+	if err := s.agent.RPC(structs.VariablesReadRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
 
 	if out.Data == nil {
-		return nil, CodedError(http.StatusNotFound, "secure variable not found")
+		return nil, CodedError(http.StatusNotFound, "variable not found")
 	}
 	return out.Data, nil
 }
 
-func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Request,
+func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
 	path string) (interface{}, error) {
-	// Parse the SecureVariable
-	var SecureVariable structs.SecureVariableDecrypted
-	if err := decodeBody(req, &SecureVariable); err != nil {
+	// Parse the Variable
+	var Variable structs.VariableDecrypted
+	if err := decodeBody(req, &Variable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
-	if len(SecureVariable.Items) == 0 {
-		return nil, CodedError(http.StatusBadRequest, "secure variable missing required Items object")
+	if len(Variable.Items) == 0 {
+		return nil, CodedError(http.StatusBadRequest, "variable missing required Items object")
 	}
 
-	SecureVariable.Path = path
+	Variable.Path = path
 
-	args := structs.SecureVariablesApplyRequest{
-		Op:  structs.SVOpSet,
-		Var: &SecureVariable,
+	args := structs.VariablesApplyRequest{
+		Op:  structs.VarOpSet,
+		Var: &Variable,
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
@@ -93,12 +93,12 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	if isCas, checkIndex, err := parseCAS(req); err != nil {
 		return nil, err
 	} else if isCas {
-		args.Op = structs.SVOpCAS
+		args.Op = structs.VarOpCAS
 		args.Var.ModifyIndex = checkIndex
 	}
 
-	var out structs.SecureVariablesApplyResponse
-	if err := s.agent.RPC(structs.SecureVariablesApplyRPCMethod, &args, &out); err != nil {
+	var out structs.VariablesApplyResponse
+	if err := s.agent.RPC(structs.VariablesApplyRPCMethod, &args, &out); err != nil {
 
 		// This handles the cases where there is an error in the CAS checking
 		// function that renders it unable to return the conflicting variable
@@ -124,13 +124,13 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	return out.Output, nil
 }
 
-func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Request,
+func (s *HTTPServer) variableDelete(resp http.ResponseWriter, req *http.Request,
 	path string) (interface{}, error) {
 
-	args := structs.SecureVariablesApplyRequest{
-		Op: structs.SVOpDelete,
-		Var: &structs.SecureVariableDecrypted{
-			SecureVariableMetadata: structs.SecureVariableMetadata{
+	args := structs.VariablesApplyRequest{
+		Op: structs.VarOpDelete,
+		Var: &structs.VariableDecrypted{
+			VariableMetadata: structs.VariableMetadata{
 				Path: path,
 			},
 		},
@@ -141,12 +141,12 @@ func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Re
 	if isCas, checkIndex, err := parseCAS(req); err != nil {
 		return nil, err
 	} else if isCas {
-		args.Op = structs.SVOpDeleteCAS
+		args.Op = structs.VarOpDeleteCAS
 		args.Var.ModifyIndex = checkIndex
 	}
 
-	var out structs.SecureVariablesApplyResponse
-	if err := s.agent.RPC(structs.SecureVariablesApplyRPCMethod, &args, &out); err != nil {
+	var out structs.VariablesApplyResponse
+	if err := s.agent.RPC(structs.VariablesApplyRPCMethod, &args, &out); err != nil {
 
 		// This handles the cases where there is an error in the CAS checking
 		// function that renders it unable to return the conflicting variable

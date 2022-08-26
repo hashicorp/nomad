@@ -448,7 +448,7 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 	}
 }
 
-func TestSecureVariablesMatching(t *testing.T) {
+func TestVariablesMatching(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
@@ -462,7 +462,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with concrete path matches",
 			policy: `namespace "ns" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+					variables { path "foo/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -471,7 +471,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with concrete path matches for expanded caps",
 			policy: `namespace "ns" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+					variables { path "foo/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "list",
@@ -480,7 +480,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with wildcard path matches",
 			policy: `namespace "ns" {
-					secure_variables { path "foo/*" { capabilities = ["read"] }}}`,
+					variables { path "foo/*" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -489,7 +489,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with non-prefix wildcard path matches",
 			policy: `namespace "ns" {
-					secure_variables { path "*/bar" { capabilities = ["read"] }}}`,
+					variables { path "*/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -498,7 +498,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with overlapping wildcard path prefix over suffix matches",
 			policy: `namespace "ns" {
-					secure_variables {
+					variables {
 						path "*/bar" { capabilities = ["list"] }
 						path "foo/*" { capabilities = ["write"] }
 					}}`,
@@ -510,7 +510,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with overlapping wildcard path prefix over suffix denied",
 			policy: `namespace "ns" {
-					secure_variables {
+					variables {
 						path "*/bar" { capabilities = ["list"] }
 						path "foo/*" { capabilities = ["write"] }
 					}}`,
@@ -522,7 +522,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with wildcard path matches most specific only",
 			policy: `namespace "ns" {
-					secure_variables {
+					variables {
 						path "*" { capabilities = ["read"] }
 						path "foo/*" { capabilities = ["read"] }
 						path "foo/bar" { capabilities = ["list"] }
@@ -535,7 +535,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with invalid concrete path fails",
 			policy: `namespace "ns" {
-					secure_variables { path "bar" { capabilities = ["read"] }}}`,
+					variables { path "bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -544,7 +544,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "concrete namespace with invalid wildcard path fails",
 			policy: `namespace "ns" {
-					secure_variables { path "*/foo" { capabilities = ["read"] }}}`,
+					variables { path "*/foo" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -553,7 +553,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "wildcard namespace with concrete path matches",
 			policy: `namespace "*" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+					variables { path "foo/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -562,7 +562,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "wildcard namespace with invalid concrete path fails",
 			policy: `namespace "*" {
-					secure_variables { path "bar" { capabilities = ["read"] }}}`,
+					variables { path "bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "foo/bar",
 			op:    "read",
@@ -571,7 +571,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "wildcard in user provided path fails",
 			policy: `namespace "ns" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+					variables { path "foo/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns",
 			path:  "*",
 			op:    "read",
@@ -580,7 +580,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "wildcard attempt to bypass delimiter null byte fails",
 			policy: `namespace "ns" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`,
+					variables { path "foo/bar" { capabilities = ["read"] }}}`,
 			ns:    "ns*",
 			path:  "bar",
 			op:    "read",
@@ -589,7 +589,7 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "wildcard with more specific denied path",
 			policy: `namespace "ns" {
-					secure_variables {
+					variables {
 					path "*" { capabilities = ["list"] }
 					path "system/*" { capabilities = ["deny"] }}}`,
 			ns:    "ns",
@@ -600,11 +600,11 @@ func TestSecureVariablesMatching(t *testing.T) {
 		{
 			name: "multiple namespace with overlapping paths",
 			policy: `namespace "ns" {
-						secure_variables {
+						variables {
   						path "*" { capabilities = ["list"] }
 						path "system/*" { capabilities = ["deny"] }}}
 					namespace "prod" {
-						secure_variables {
+						variables {
 						path "*" { capabilities = ["list"]}}}`,
 			ns:    "prod",
 			path:  "system/is-allowed",
@@ -618,24 +618,24 @@ func TestSecureVariablesMatching(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			policy, err := Parse(tc.policy)
 			require.NoError(t, err)
-			require.NotNil(t, policy.Namespaces[0].SecureVariables)
+			require.NotNil(t, policy.Namespaces[0].Variables)
 
 			acl, err := NewACL(false, []*Policy{policy})
 			require.NoError(t, err)
-			require.Equal(t, tc.allow, acl.AllowSecureVariableOperation(tc.ns, tc.path, tc.op))
+			require.Equal(t, tc.allow, acl.AllowVariableOperation(tc.ns, tc.path, tc.op))
 		})
 	}
 
 	t.Run("search over namespace", func(t *testing.T) {
 		policy, err := Parse(`namespace "ns" {
-					secure_variables { path "foo/bar" { capabilities = ["read"] }}}`)
+					variables { path "foo/bar" { capabilities = ["read"] }}}`)
 		require.NoError(t, err)
-		require.NotNil(t, policy.Namespaces[0].SecureVariables)
+		require.NotNil(t, policy.Namespaces[0].Variables)
 
 		acl, err := NewACL(false, []*Policy{policy})
 		require.NoError(t, err)
-		require.True(t, acl.AllowSecureVariableSearch("ns"))
-		require.False(t, acl.AllowSecureVariableSearch("no-access"))
+		require.True(t, acl.AllowVariableSearch("ns"))
+		require.False(t, acl.AllowVariableSearch("no-access"))
 	})
 
 }

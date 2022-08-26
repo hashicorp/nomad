@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSecureVariables_SimpleCRUD(t *testing.T) {
+func TestVariables_SimpleCRUD(t *testing.T) {
 	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	nsv := c.SecureVariables()
-	sv1 := NewSecureVariable("my/first/variable")
+	nsv := c.Variables()
+	sv1 := NewVariable("my/first/variable")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -27,9 +27,9 @@ func TestSecureVariables_SimpleCRUD(t *testing.T) {
 
 	t.Run("1 fail create when no items", func(t *testing.T) {
 
-		_, _, err := nsv.Create(&SecureVariable{Path: "bad/var"}, nil)
+		_, _, err := nsv.Create(&Variable{Path: "bad/var"}, nil)
 		require.Error(t, err)
-		require.EqualError(t, err, "Unexpected response code: 400 (secure variable missing required Items object)")
+		require.EqualError(t, err, "Unexpected response code: 400 (variable missing required Items object)")
 	})
 
 	t.Run("2 create sv1", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestSecureVariables_SimpleCRUD(t *testing.T) {
 		l, _, err := nsv.List(nil)
 		require.NoError(t, err)
 		require.Len(t, l, 2)
-		require.ElementsMatch(t, []*SecureVariableMetadata{sv1.Metadata(), sv2.Metadata()}, l)
+		require.ElementsMatch(t, []*VariableMetadata{sv1.Metadata(), sv2.Metadata()}, l)
 	})
 
 	t.Run("5a list vars opts", func(t *testing.T) {
@@ -118,13 +118,13 @@ func TestSecureVariables_SimpleCRUD(t *testing.T) {
 	})
 }
 
-func TestSecureVariables_CRUDWithCAS(t *testing.T) {
+func TestVariables_CRUDWithCAS(t *testing.T) {
 	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	nsv := c.SecureVariables()
-	sv1 := &SecureVariable{
+	nsv := c.Variables()
+	sv1 := &Variable{
 		Path: "cas/variable/a",
 		Items: map[string]string{
 			"key1": "value1",
@@ -173,14 +173,14 @@ func TestSecureVariables_CRUDWithCAS(t *testing.T) {
 
 }
 
-func TestSecureVariables_Read(t *testing.T) {
+func TestVariables_Read(t *testing.T) {
 	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	nsv := c.SecureVariables()
+	nsv := c.Variables()
 	tID := fmt.Sprint(time.Now().UTC().UnixNano())
-	sv1 := SecureVariable{
+	sv1 := Variable{
 		Namespace: "default",
 		Path:      tID + "/sv1",
 		Items: map[string]string{
@@ -195,7 +195,7 @@ func TestSecureVariables_Read(t *testing.T) {
 		path          string
 		expectedError string
 		checkValue    bool
-		expectedValue *SecureVariable
+		expectedValue *Variable
 	}{
 		{
 			name:          "not found",
@@ -231,18 +231,18 @@ func TestSecureVariables_Read(t *testing.T) {
 	}
 }
 
-func writeTestVariable(t *testing.T, c *Client, sv *SecureVariable) {
+func writeTestVariable(t *testing.T, c *Client, sv *Variable) {
 	_, err := c.write("/v1/var/"+sv.Path, sv, sv, nil)
 	require.NoError(t, err, "Error writing test variable")
 	require.NoError(t, err, "Error writing test variable")
 }
 
-func TestSecureVariable_CreateReturnsContent(t *testing.T) {
+func TestVariable_CreateReturnsContent(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	nsv := c.SecureVariables()
-	sv1 := NewSecureVariable("my/first/variable")
+	nsv := c.Variables()
+	sv1 := NewVariable("my/first/variable")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"

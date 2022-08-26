@@ -623,24 +623,24 @@ func TestHTTP_FuzzySearch_AllContext(t *testing.T) {
 	})
 }
 
-func TestHTTP_PrefixSearch_SecureVariables(t *testing.T) {
+func TestHTTP_PrefixSearch_Variables(t *testing.T) {
 	ci.Parallel(t)
 
 	testPath := "alpha/beta/charlie"
 	testPathPrefix := "alpha/beta"
 
 	httpTest(t, nil, func(s *TestAgent) {
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 
 		state := s.Agent.server.State()
 		sv.Path = testPath
-		setResp := state.SVESet(8000, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		})
 		require.NoError(t, setResp.Error)
 
-		data := structs.SearchRequest{Prefix: testPathPrefix, Context: structs.SecureVariables}
+		data := structs.SearchRequest{Prefix: testPathPrefix, Context: structs.Variables}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
@@ -650,14 +650,14 @@ func TestHTTP_PrefixSearch_SecureVariables(t *testing.T) {
 		require.NoError(t, err)
 
 		res := resp.(structs.SearchResponse)
-		matchedVars := res.Matches[structs.SecureVariables]
+		matchedVars := res.Matches[structs.Variables]
 		require.Len(t, matchedVars, 1)
 		require.Equal(t, testPath, matchedVars[0])
 		require.Equal(t, "8000", header(respW, "X-Nomad-Index"))
 	})
 }
 
-func TestHTTP_FuzzySearch_SecureVariables(t *testing.T) {
+func TestHTTP_FuzzySearch_Variables(t *testing.T) {
 	ci.Parallel(t)
 
 	testPath := "alpha/beta/charlie"
@@ -665,15 +665,15 @@ func TestHTTP_FuzzySearch_SecureVariables(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 		sv.Path = testPath
-		setResp := state.SVESet(8000, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		})
 		require.NoError(t, setResp.Error)
 
-		data := structs.FuzzySearchRequest{Text: testPathText, Context: structs.SecureVariables}
+		data := structs.FuzzySearchRequest{Text: testPathText, Context: structs.Variables}
 		req, err := http.NewRequest("POST", "/v1/search/", encodeReq(data))
 		require.NoError(t, err)
 
@@ -683,7 +683,7 @@ func TestHTTP_FuzzySearch_SecureVariables(t *testing.T) {
 		require.NoError(t, err)
 
 		res := resp.(structs.FuzzySearchResponse)
-		matchedVars := res.Matches[structs.SecureVariables]
+		matchedVars := res.Matches[structs.Variables]
 		require.Len(t, matchedVars, 1)
 		require.Equal(t, testPath, matchedVars[0].ID)
 		require.Equal(t, []string{
@@ -693,7 +693,7 @@ func TestHTTP_FuzzySearch_SecureVariables(t *testing.T) {
 	})
 }
 
-func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
+func TestHTTP_PrefixSearch_Variables_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	testPath := "alpha/beta/charlie"
@@ -702,19 +702,19 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		ns := mock.Namespace()
-		sv1 := mock.SecureVariableEncrypted()
+		sv1 := mock.VariableEncrypted()
 		sv1.Path = testPath
 		sv2 := sv1.Copy()
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.SVESet(8000, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.SVESet(8001, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
 		require.NoError(t, setResp.Error)
@@ -722,12 +722,12 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 		rootToken := s.RootToken
 
 		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default",
-			mock.NamespacePolicyWithSecureVariables(
+			mock.NamespacePolicyWithVariables(
 				"default", "read", []string{},
 				map[string][]string{"*": []string{"read", "list"}}))
 
 		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name,
-			mock.NamespacePolicyWithSecureVariables(
+			mock.NamespacePolicyWithVariables(
 				ns.Name, "read", []string{},
 				map[string][]string{"*": []string{"read", "list"}}))
 
@@ -776,7 +776,7 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 				tC := tC
 				data := structs.SearchRequest{
 					Prefix:  testPathPrefix,
-					Context: structs.SecureVariables,
+					Context: structs.Variables,
 					QueryOptions: structs.QueryOptions{
 						AuthToken: tC.token.SecretID,
 						Namespace: tC.namespace,
@@ -796,7 +796,7 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 				}
 				require.NoError(t, err)
 				res := resp.(structs.SearchResponse)
-				matchedVars := res.Matches[structs.SecureVariables]
+				matchedVars := res.Matches[structs.Variables]
 				require.Len(t, matchedVars, tC.expectedCount)
 				for _, mv := range matchedVars {
 					require.Equal(t, testPath, mv)
@@ -807,7 +807,7 @@ func TestHTTP_PrefixSearch_SecureVariables_ACL(t *testing.T) {
 	})
 }
 
-func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
+func TestHTTP_FuzzySearch_Variables_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	testPath := "alpha/beta/charlie"
@@ -816,19 +816,19 @@ func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		ns := mock.Namespace()
-		sv1 := mock.SecureVariableEncrypted()
+		sv1 := mock.VariableEncrypted()
 		sv1.Path = testPath
 		sv2 := sv1.Copy()
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.SVESet(8000, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.SVESet(8001, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
 		require.NoError(t, setResp.Error)
@@ -891,7 +891,7 @@ func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
 			t.Run(tC.desc, func(t *testing.T) {
 				data := structs.FuzzySearchRequest{
 					Text:    testPathText,
-					Context: structs.SecureVariables,
+					Context: structs.Variables,
 					QueryOptions: structs.QueryOptions{
 						AuthToken: tC.token.SecretID,
 						Namespace: tcNS(tC),
@@ -911,7 +911,7 @@ func TestHTTP_FuzzySearch_SecureVariables_ACL(t *testing.T) {
 				}
 
 				res := resp.(structs.FuzzySearchResponse)
-				matchedVars := res.Matches[structs.SecureVariables]
+				matchedVars := res.Matches[structs.Variables]
 				require.Len(t, matchedVars, tC.expectedCount)
 				for _, mv := range matchedVars {
 					require.Equal(t, testPath, mv.ID)

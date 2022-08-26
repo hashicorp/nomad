@@ -10,12 +10,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// SecureVariables queries all the variables and is used only for
+// Variables queries all the variables and is used only for
 // snapshot/restore and key rotation
-func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableSecureVariables, indexID)
+	iter, err := txn.Get(TableVariables, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -24,101 +24,101 @@ func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
-// GetSecureVariablesByNamespace returns an iterator that contains all
+// GetVariablesByNamespace returns an iterator that contains all
 // variables belonging to the provided namespace.
-func (s *StateStore) GetSecureVariablesByNamespace(
+func (s *StateStore) GetVariablesByNamespace(
 	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
-	return s.getSecureVariablesByNamespaceImpl(txn, ws, namespace)
+	return s.getVariablesByNamespaceImpl(txn, ws, namespace)
 }
 
-func (s *StateStore) getSecureVariablesByNamespaceImpl(
+func (s *StateStore) getVariablesByNamespaceImpl(
 	txn *txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table.
-	iter, err := txn.Get(TableSecureVariables, indexID+"_prefix", namespace, "")
+	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, "")
 	if err != nil {
-		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
 
-// GetSecureVariablesByNamespaceAndPrefix returns an iterator that contains all
+// GetVariablesByNamespaceAndPrefix returns an iterator that contains all
 // variables belonging to the provided namespace that match the prefix.
-func (s *StateStore) GetSecureVariablesByNamespaceAndPrefix(
+func (s *StateStore) GetVariablesByNamespaceAndPrefix(
 	ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire table.
-	iter, err := txn.Get(TableSecureVariables, indexID+"_prefix", namespace, prefix)
+	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, prefix)
 	if err != nil {
-		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
 
-// GetSecureVariablesByPrefix returns an iterator that contains all variables that
+// GetVariablesByPrefix returns an iterator that contains all variables that
 // match the prefix in any namespace. Namespace filtering is the responsibility
 // of the caller.
-func (s *StateStore) GetSecureVariablesByPrefix(
+func (s *StateStore) GetVariablesByPrefix(
 	ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire table.
-	iter, err := txn.Get(TableSecureVariables, indexPath+"_prefix", prefix)
+	iter, err := txn.Get(TableVariables, indexPath+"_prefix", prefix)
 	if err != nil {
-		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
 
-// GetSecureVariablesByKeyID returns an iterator that contains all
+// GetVariablesByKeyID returns an iterator that contains all
 // variables that were encrypted with a particular key
-func (s *StateStore) GetSecureVariablesByKeyID(
+func (s *StateStore) GetVariablesByKeyID(
 	ws memdb.WatchSet, keyID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableSecureVariables, indexKeyID, keyID)
+	iter, err := txn.Get(TableVariables, indexKeyID, keyID)
 	if err != nil {
-		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
 
-// GetSecureVariable returns a single secure variable at a given namespace and
+// GetVariable returns a single variable at a given namespace and
 // path.
-func (s *StateStore) GetSecureVariable(
-	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariableEncrypted, error) {
+func (s *StateStore) GetVariable(
+	ws memdb.WatchSet, namespace, path string) (*structs.VariableEncrypted, error) {
 	txn := s.db.ReadTxn()
 
-	// Try to fetch the secure variable.
-	watchCh, raw, err := txn.FirstWatch(TableSecureVariables, indexID, namespace, path)
+	// Try to fetch the variable.
+	watchCh, raw, err := txn.FirstWatch(TableVariables, indexID, namespace, path)
 	if err != nil { // error during fetch
-		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 	if raw == nil { // not found
 		return nil, nil
 	}
 
-	sv := raw.(*structs.SecureVariableEncrypted)
+	sv := raw.(*structs.VariableEncrypted)
 	return sv, nil
 }
 
-// SVESet is used to store a secure variable object.
-func (s *StateStore) SVESet(idx uint64, sv *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+// VarSet is used to store a variable object.
+func (s *StateStore) VarSet(idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
 
 	// Perform the actual set.
-	resp := s.svSetTxn(tx, idx, sv)
+	resp := s.varSetTxn(tx, idx, sv)
 	if resp.IsError() {
 		return resp
 	}
@@ -129,14 +129,14 @@ func (s *StateStore) SVESet(idx uint64, sv *structs.SVApplyStateRequest) *struct
 	return resp
 }
 
-// SVESetCAS is used to do a check-and-set operation on a secure
+// VarSetCAS is used to do a check-and-set operation on a
 // variable. The ModifyIndex in the provided entry is used to determine if
 // we should write the entry to the state store or not.
-func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) VarSetCAS(idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
 
-	resp := s.svSetCASTxn(tx, idx, sv)
+	resp := s.varSetCASTxn(tx, idx, sv)
 	if resp.IsError() || resp.IsConflict() {
 		return resp
 	}
@@ -147,15 +147,15 @@ func (s *StateStore) SVESetCAS(idx uint64, sv *structs.SVApplyStateRequest) *str
 	return resp
 }
 
-// svSetCASTxn is the inner method used to do a CAS inside an existing
+// varSetCASTxn is the inner method used to do a CAS inside an existing
 // transaction.
-func (s *StateStore) svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) varSetCASTxn(tx WriteTxn, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	sv := req.Var
-	raw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	raw, err := tx.First(TableVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
+		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
 	}
-	svEx, ok := raw.(*structs.SecureVariableEncrypted)
+	svEx, ok := raw.(*structs.VariableEncrypted)
 
 	// ModifyIndex of 0 means that we are doing a set-if-not-exists.
 	if sv.ModifyIndex == 0 && raw != nil {
@@ -165,8 +165,8 @@ func (s *StateStore) svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplySt
 	// If the ModifyIndex is set but the variable doesn't exist, return a
 	// plausible zero value as the conflict
 	if sv.ModifyIndex != 0 && raw == nil {
-		zeroVal := &structs.SecureVariableEncrypted{
-			SecureVariableMetadata: structs.SecureVariableMetadata{
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
 				Namespace: sv.Namespace,
 				Path:      sv.Path,
 			},
@@ -181,22 +181,22 @@ func (s *StateStore) svSetCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplySt
 	}
 
 	// If we made it this far, we should perform the set.
-	return s.svSetTxn(tx, idx, req)
+	return s.varSetTxn(tx, idx, req)
 }
 
-// svSetTxn is used to insert or update a secure variable in the state
+// varSetTxn is used to insert or update a variable in the state
 // store. It is the inner method used and handles only the actual storage.
-func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	sv := req.Var
-	existingRaw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	existingRaw, err := tx.First(TableVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
 	}
-	existing, _ := existingRaw.(*structs.SecureVariableEncrypted)
+	existing, _ := existingRaw.(*structs.VariableEncrypted)
 
-	existingQuota, err := tx.First(TableSecureVariablesQuotas, indexID, sv.Namespace)
+	existingQuota, err := tx.First(TableVariablesQuotas, indexID, sv.Namespace)
 	if err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("secure variable quota lookup failed: %v", err))
+		return req.ErrorResponse(idx, fmt.Errorf("variable quota lookup failed: %v", err))
 	}
 
 	var quotaChange int64
@@ -222,17 +222,17 @@ func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyState
 		quotaChange = int64(len(sv.Data))
 	}
 
-	if err := tx.Insert(TableSecureVariables, sv); err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed inserting secure variable: %s", err))
+	if err := tx.Insert(TableVariables, sv); err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed inserting variable: %s", err))
 	}
 
 	// Track quota usage
-	var quotaUsed *structs.SecureVariablesQuota
+	var quotaUsed *structs.VariablesQuota
 	if existingQuota != nil {
-		quotaUsed = existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed = existingQuota.(*structs.VariablesQuota)
 		quotaUsed = quotaUsed.Copy()
 	} else {
-		quotaUsed = &structs.SecureVariablesQuota{
+		quotaUsed = &structs.VariablesQuota{
 			Namespace:   sv.Namespace,
 			CreateIndex: idx,
 		}
@@ -242,7 +242,7 @@ func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyState
 		// this limit is actually shared across all namespaces in the region's
 		// quota (if there is one), but we need this check here to prevent
 		// overflow as well
-		return req.ErrorResponse(idx, fmt.Errorf("secure variables can store a maximum of %d bytes of encrypted data per namespace", math.MaxInt))
+		return req.ErrorResponse(idx, fmt.Errorf("variables can store a maximum of %d bytes of encrypted data per namespace", math.MaxInt))
 	}
 
 	if quotaChange > 0 {
@@ -251,7 +251,7 @@ func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyState
 		quotaUsed.Size -= helper.Min(quotaUsed.Size, -quotaChange)
 	}
 
-	err = s.enforceSecureVariablesQuota(idx, tx, sv.Namespace, quotaChange)
+	err = s.enforceVariablesQuota(idx, tx, sv.Namespace, quotaChange)
 	if err != nil {
 		return req.ErrorResponse(idx, err)
 	}
@@ -261,49 +261,49 @@ func (s *StateStore) svSetTxn(tx WriteTxn, idx uint64, req *structs.SVApplyState
 	// only update the table if this namespace has changed
 	if quotaChange != 0 {
 		quotaUsed.ModifyIndex = idx
-		if err := tx.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
-			return req.ErrorResponse(idx, fmt.Errorf("secure variable quota insert failed: %v", err))
+		if err := tx.Insert(TableVariablesQuotas, quotaUsed); err != nil {
+			return req.ErrorResponse(idx, fmt.Errorf("variable quota insert failed: %v", err))
 		}
 	}
 
 	if err := tx.Insert(tableIndex,
-		&IndexEntry{TableSecureVariables, idx}); err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed updating secure variable index: %s", err))
+		&IndexEntry{TableVariables, idx}); err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed updating variable index: %s", err))
 	}
 
-	return req.SuccessResponse(idx, &sv.SecureVariableMetadata)
+	return req.SuccessResponse(idx, &sv.VariableMetadata)
 }
 
-// SVEGet is used to retrieve a key/value pair from the state store.
-func (s *StateStore) SVEGet(ws memdb.WatchSet, namespace, path string) (uint64, *structs.SecureVariableEncrypted, error) {
+// VarGet is used to retrieve a key/value pair from the state store.
+func (s *StateStore) VarGet(ws memdb.WatchSet, namespace, path string) (uint64, *structs.VariableEncrypted, error) {
 	tx := s.db.ReadTxn()
 	defer tx.Abort()
 
 	return svGetTxn(tx, ws, namespace, path)
 }
 
-// svGetTxn is the inner method that gets a secure variable inside an existing
+// svGetTxn is the inner method that gets a variable inside an existing
 // transaction.
 func svGetTxn(tx ReadTxn,
-	ws memdb.WatchSet, namespace, path string) (uint64, *structs.SecureVariableEncrypted, error) {
+	ws memdb.WatchSet, namespace, path string) (uint64, *structs.VariableEncrypted, error) {
 
 	// Get the table index.
 	idx := svMaxIndex(tx)
 
-	watchCh, entry, err := tx.FirstWatch(TableSecureVariables, indexID, namespace, path)
+	watchCh, entry, err := tx.FirstWatch(TableVariables, indexID, namespace, path)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed secure variable lookup: %s", err)
+		return 0, nil, fmt.Errorf("failed variable lookup: %s", err)
 	}
 	ws.Add(watchCh)
 	if entry != nil {
-		return idx, entry.(*structs.SecureVariableEncrypted), nil
+		return idx, entry.(*structs.VariableEncrypted), nil
 	}
 	return idx, nil, nil
 }
 
-// SVEDelete is used to delete a single secure variable in the
+// VarDelete is used to delete a single variable in the
 // the state store.
-func (s *StateStore) SVEDelete(idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) VarDelete(idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
 
@@ -321,12 +321,11 @@ func (s *StateStore) SVEDelete(idx uint64, req *structs.SVApplyStateRequest) *st
 	return resp
 }
 
-// SVEDeleteCAS is used to conditionally delete a secure
-// variable if and only if it has a given modify index. If the CAS
-// index (cidx) specified is not equal to the last observed index for
-// the given variable, then the call is a noop, otherwise a normal
-// delete is invoked.
-func (s *StateStore) SVEDeleteCAS(idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+// VarDeleteCAS is used to conditionally delete a variable if and only if it has
+// a given modify index. If the CAS index (cidx) specified is not equal to the
+// last observed index for the given variable, then the call is a noop,
+// otherwise a normal delete is invoked.
+func (s *StateStore) VarDeleteCAS(idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
 	defer tx.Abort()
 
@@ -344,16 +343,16 @@ func (s *StateStore) SVEDeleteCAS(idx uint64, req *structs.SVApplyStateRequest) 
 }
 
 // svDeleteCASTxn is an inner method used to check the existing value
-// of a secure variable within an existing transaction as part of a
+// of a variable within an existing transaction as part of a
 // conditional delete.
-func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	sv := req.Var
-	raw, err := tx.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	raw, err := tx.First(TableVariables, indexID, sv.Namespace, sv.Path)
 	if err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed secure variable lookup: %s", err))
+		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
 	}
 
-	svEx, ok := raw.(*structs.SecureVariableEncrypted)
+	svEx, ok := raw.(*structs.VariableEncrypted)
 
 	// ModifyIndex of 0 means that we are doing a delete-if-not-exists.
 	if sv.ModifyIndex == 0 && raw != nil {
@@ -363,8 +362,8 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.SVAppl
 	// If the ModifyIndex is set but the variable doesn't exist, return a
 	// plausible zero value as the conflict
 	if sv.ModifyIndex != 0 && raw == nil {
-		zeroVal := &structs.SecureVariableEncrypted{
-			SecureVariableMetadata: structs.SecureVariableMetadata{
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
 				Namespace: sv.Namespace,
 				Path:      sv.Path,
 			},
@@ -383,43 +382,43 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.SVAppl
 }
 
 // svDeleteTxn is the inner method used to perform the actual deletion
-// of a secure variable within an existing transaction.
-func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.SVApplyStateRequest) *structs.SVApplyStateResponse {
+// of a variable within an existing transaction.
+func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 
 	// Look up the entry in the state store.
-	existingRaw, err := tx.First(TableSecureVariables, indexID, req.Var.Namespace, req.Var.Path)
+	existingRaw, err := tx.First(TableVariables, indexID, req.Var.Namespace, req.Var.Path)
 	if err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed secure variable lookup: %s", err))
+		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
 	}
 	if existingRaw == nil {
 		return req.SuccessResponse(idx, nil)
 	}
 
-	existingQuota, err := tx.First(TableSecureVariablesQuotas, indexID, req.Var.Namespace)
+	existingQuota, err := tx.First(TableVariablesQuotas, indexID, req.Var.Namespace)
 	if err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("secure variable quota lookup failed: %v", err))
+		return req.ErrorResponse(idx, fmt.Errorf("variable quota lookup failed: %v", err))
 	}
 
-	sv := existingRaw.(*structs.SecureVariableEncrypted)
+	sv := existingRaw.(*structs.VariableEncrypted)
 
 	// Track quota usage
 	if existingQuota != nil {
-		quotaUsed := existingQuota.(*structs.SecureVariablesQuota)
+		quotaUsed := existingQuota.(*structs.VariablesQuota)
 		quotaUsed = quotaUsed.Copy()
 		quotaUsed.Size -= helper.Min(quotaUsed.Size, int64(len(sv.Data)))
 		quotaUsed.ModifyIndex = idx
-		if err := tx.Insert(TableSecureVariablesQuotas, quotaUsed); err != nil {
-			return req.ErrorResponse(idx, fmt.Errorf("secure variable quota insert failed: %v", err))
+		if err := tx.Insert(TableVariablesQuotas, quotaUsed); err != nil {
+			return req.ErrorResponse(idx, fmt.Errorf("variable quota insert failed: %v", err))
 		}
 	}
 
-	// Delete the secure variable and update the index table.
-	if err := tx.Delete(TableSecureVariables, sv); err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed deleting secure variable entry: %s", err))
+	// Delete the variable and update the index table.
+	if err := tx.Delete(TableVariables, sv); err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed deleting variable entry: %s", err))
 	}
 
-	if err := tx.Insert(tableIndex, &IndexEntry{TableSecureVariables, idx}); err != nil {
-		return req.ErrorResponse(idx, fmt.Errorf("failed updating secure variable index: %s", err))
+	if err := tx.Insert(tableIndex, &IndexEntry{TableVariables, idx}); err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed updating variable index: %s", err))
 	}
 
 	return req.SuccessResponse(idx, nil)
@@ -427,7 +426,7 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.SVApplySt
 
 // This extra indirection is to facilitate the tombstone case if it matters.
 func svMaxIndex(tx ReadTxn) uint64 {
-	return maxIndexTxn(tx, TableSecureVariables)
+	return maxIndexTxn(tx, TableVariables)
 }
 
 // WriteTxn is implemented by memdb.Txn to perform write operations.
@@ -469,12 +468,12 @@ func maxIndexWatchTxn(tx ReadTxn, ws memdb.WatchSet, tables ...string) uint64 {
 	return lindex
 }
 
-// SecureVariablesQuotas queries all the quotas and is used only for
+// VariablesQuotas queries all the quotas and is used only for
 // snapshot/restore and key rotation
-func (s *StateStore) SecureVariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) VariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableSecureVariablesQuotas, indexID)
+	iter, err := txn.Get(TableVariablesQuotas, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -483,18 +482,18 @@ func (s *StateStore) SecureVariablesQuotas(ws memdb.WatchSet) (memdb.ResultItera
 	return iter, nil
 }
 
-// SecureVariablesQuotaByNamespace queries for quotas for a particular namespace
-func (s *StateStore) SecureVariablesQuotaByNamespace(ws memdb.WatchSet, namespace string) (*structs.SecureVariablesQuota, error) {
+// VariablesQuotaByNamespace queries for quotas for a particular namespace
+func (s *StateStore) VariablesQuotaByNamespace(ws memdb.WatchSet, namespace string) (*structs.VariablesQuota, error) {
 	txn := s.db.ReadTxn()
-	watchCh, raw, err := txn.FirstWatch(TableSecureVariablesQuotas, indexID, namespace)
+	watchCh, raw, err := txn.FirstWatch(TableVariablesQuotas, indexID, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("secure variable quota lookup failed: %v", err)
+		return nil, fmt.Errorf("variable quota lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if raw == nil {
 		return nil, nil
 	}
-	quotaUsed := raw.(*structs.SecureVariablesQuota)
+	quotaUsed := raw.(*structs.VariablesQuota)
 	return quotaUsed, nil
 }
