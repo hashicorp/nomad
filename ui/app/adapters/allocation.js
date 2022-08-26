@@ -35,6 +35,14 @@ export default class AllocationAdapter extends Watchable {
       )
       .then(handleFSResponse);
   }
+
+  async check(model) {
+    const res = await this.token.authorizedRequest(
+      `/v1/client/allocation/${model.id}/checks`
+    );
+    const data = await res.json();
+    return data;
+  }
 }
 
 async function handleFSResponse(response) {
