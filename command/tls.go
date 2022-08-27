@@ -22,7 +22,7 @@ func (c *TLSCommand) Help() string {
 	helpText := `
 Usage: nomad tls <subcommand> <subcommand> [options]
 
-This command groups subcommands for interacting with Nomad TLS. 
+This command groups subcommands for creating certificates for Nomad TLS configuration. 
 The TLS command allows operators to generate self signed certificates to use
 when securing your Nomad cluster.
 

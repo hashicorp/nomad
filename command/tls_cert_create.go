@@ -32,9 +32,9 @@ $ nomad tls cert create -server
 ==> Server Certificate saved to: global-server-nomad.pem
 ==> Server Certificate key saved to: global-server-nomad-key.pem
 $ nomad tls cert create -client
-==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
-==> Saved blobal-client-nomad-0.pem
-==> Saved global-client-nomad-0-key.pem
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Client Certificate saved to global-client-nomad-0.pem
+==> Client Certificate key saved to global-client-nomad-0-key.pem
 
 Certificate Create Options:
   -additional-dnsname

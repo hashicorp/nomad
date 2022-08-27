@@ -23,14 +23,24 @@ in the subcommands or the documentation.
 Create a certificate
 
   $ nomad tls cert create -server
-  ==> Server Certificate saved to: global-server-nomad.pem
-  ==> Server Certificate key saved to: global-server-nomad-key.pem
+  ==> WARNING: Server Certificates grants authority to become a
+    server and access all state in the cluster including root keys
+    and all ACL tokens. Do not distribute them to production hosts
+    that are not server nodes. Store them as securely as CA keys.
+  ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+  ==> Server Certificate saved to global-server-nomad-0.pem
+  ==> Server Certificate key saved to global-server-nomad-0-key.pem
 
 Create a certificate with your own CA:
 
   $ nomad tls cert create -server -ca my-ca.pem -key my-ca-key.pem
-  ==> Server Certificate saved to: global-server-nomad.pem
-  ==> Server Certificate key saved to: global-server-nomad-key.pem
+  ==> WARNING: Server Certificates grants authority to become a
+    server and access all state in the cluster including root keys
+    and all ACL tokens. Do not distribute them to production hosts
+    that are not server nodes. Store them as securely as CA keys.
+  ==> Using CA file my-ca.pem and CA key my-ca-key.pem
+  ==> Server Certificate saved to global-server-nomad-1.pem
+  ==> Server Certificate key saved to global-server-nomad-1-key.pem
 
 For more examples, ask for subcommand help or view the documentation.
 
