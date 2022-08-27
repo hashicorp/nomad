@@ -7,8 +7,10 @@ page_title: 'Commands: TLS Cert Create'
 
 Command: `nomad tls cert create`
 
-The `tls cert create` command is used to create certificates for your Nomad TLS
-setup.
+The `tls cert create` command is used to create certificates to be used in 
+for your Nomad cluster for TLS setup. You can then copy these to your server
+as part fo the configurstion. This command will not automatically update the 
+settings in the agents.
 
 ## Examples
 
@@ -20,32 +22,32 @@ $ nomad tls cert create -server
     server and access all state in the cluster including root keys
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.
-==> Using nomad-ca.pem and nomad-ca-key.pem
-==> Saved dc1-server-nomad-0.pem
-==> Saved dc1-server-nomad-0-key.pem
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Server Certificate saved to global-server-nomad-0.pem
+==> Server Certificate key saved to global-server-nomad-0-key.pem
 ```
 
 Create a certificate for clients:
 
 ```shell-session
 $ nomad tls cert create -client
-==> Using nomad-ca.pem and nomad-ca-key.pem
-==> Saved nomad-client-0.pem
-==> Saved nomad-client-0-key.pem
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Client Certificate saved to global-client-nomad-0.pem
+==> Client Certificate key saved to global-client-nomad-0-key.pem
 ```
 
 Create a certificate for cli:
 
 ```shell-session
 $ nomad tls cert create -cli
-==> Using nomad-ca.pem and nomad-ca-key.pem
-==> Saved nomad-cli-0.pem
-==> Saved nomad-cli-0-key.pem
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Cli Certificate saved to global-cli-nomad-0.pem
+==> Cli Certificate key saved to global-cli-nomad-0-key.pem
 ```
 
 ## Usage
 
-Usage: `nomad tls cert create [filename-prefix] [options]`
+Usage: `nomad tls cert create [options]`
 
 #### Command Options
 
@@ -75,7 +77,7 @@ Usage: `nomad tls cert create [filename-prefix] [options]`
 - `-key=<string>` - Provide path to the key. Defaults to
   `#DOMAIN#-agent-ca-key.pem`.
 
-- `-node=<string>` - When generating a server cert and this is set an
+- `-node=<string>` - When generating a server cert and this server is set an
   additional dns name is included of the form
   `<node>.server.<datacenter>.<domain>`.
 
