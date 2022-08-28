@@ -12,6 +12,23 @@ import (
 
 type TLSCACreateCommand struct {
 	Meta
+
+	// days is the number of days the CA will be valid for
+	days int
+
+	// constraint provides a spoecific name constraint to the CA which will then
+	// reject any domains other than this.
+	constraint bool
+
+	// domain is used to provide a custom domain for the CA
+	domain string
+
+	// commonName is used to set a common name for the CA
+	commonName string
+
+	// additioanlNameConstraint provides a list of name constraints to the CA which will then
+	// reject any domains other than these.
+	additionalNameConstraint flags.StringFlag
 }
 
 func (c *TLSCACreateCommand) Help() string {
@@ -87,21 +104,13 @@ func (c *TLSCACreateCommand) Name() string { return "tls ca create" }
 
 func (c *TLSCACreateCommand) Run(args []string) int {
 
-	var (
-		days                     int
-		constraint               bool
-		domain                   string
-		commonName               string
-		additionalNameConstraint flags.StringFlag
-	)
-
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
-	flagSet.IntVar(&days, "days", 1825, "")
-	flagSet.BoolVar(&constraint, "name-constraint", false, "")
-	flagSet.StringVar(&domain, "domain", "nomad", "")
-	flagSet.StringVar(&commonName, "common-name", "", "")
-	flagSet.Var(&additionalNameConstraint, "additional-name-constraint", "")
+	flagSet.IntVar(&c.days, "days", 1825, "")
+	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
+	flagSet.StringVar(&c.domain, "domain", "nomad", "")
+	flagSet.StringVar(&c.commonName, "common-name", "", "")
+	flagSet.Var(&c.additionalNameConstraint, "additional-name-constraint", "")
 	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
@@ -113,8 +122,8 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	certFileName := fmt.Sprintf("%s-agent-ca.pem", domain)
-	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", domain)
+	certFileName := fmt.Sprintf("%s-agent-ca.pem", c.domain)
+	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", c.domain)
 
 	if !(fileDoesNotExist(certFileName)) {
 		c.Ui.Error(fmt.Sprintf("CA Certificate File '%s' already exists", certFileName))
@@ -126,12 +135,12 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	}
 
 	constraints := []string{}
-	if constraint {
-		constraints = []string{domain, "localhost"}
-		constraints = append(constraints, additionalNameConstraint...)
+	if c.constraint {
+		constraints = []string{c.domain, "localhost"}
+		constraints = append(constraints, c.additionalNameConstraint...)
 	}
 
-	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Name: commonName, Days: days, Domain: domain, PermittedDNSDomains: constraints})
+	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Name: c.commonName, Days: c.days, Domain: c.domain, PermittedDNSDomains: constraints})
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
