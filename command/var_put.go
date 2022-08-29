@@ -31,7 +31,7 @@ func (c *VarPutCommand) Help() string {
 	helpText := `
 Usage: nomad var put [options] <path> [<key>=<value>]...
 
-  The 'var put' command is used to create or update an existing secure variable.
+  The 'var put' command is used to create or update an existing variable.
 
   If ACLs are enabled, this command requires a token with the 'var:write'
   capability.
@@ -70,11 +70,11 @@ func (c *VarPutCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *VarPutCommand) AutocompleteArgs() complete.Predictor {
-	return SecureVariablePathPredictor(c.Meta.Client)
+	return VariablePathPredictor(c.Meta.Client)
 }
 
 func (c *VarPutCommand) Synopsis() string {
-	return "Create or update a secure variable"
+	return "Create or update a variable"
 }
 
 func (c *VarPutCommand) Name() string { return "var put" }
@@ -207,7 +207,7 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	sv, err := c.makeVariable(path)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to parse secure variable data: %s", err))
+		c.Ui.Error(fmt.Sprintf("Failed to parse variable data: %s", err))
 		return 1
 	}
 
@@ -240,18 +240,18 @@ func (c *VarPutCommand) Run(args []string) int {
 	}
 	fmt.Println(sv)
 
-	var createFn func(*api.SecureVariable, *api.WriteOptions) (*api.SecureVariable, *api.WriteMeta, error)
-	createFn = client.SecureVariables().CheckedUpdate
+	var createFn func(*api.Variable, *api.WriteOptions) (*api.Variable, *api.WriteMeta, error)
+	createFn = client.Variables().CheckedUpdate
 	if forceOverwrite {
-		createFn = client.SecureVariables().Update
+		createFn = client.Variables().Update
 	}
 	_, _, err = createFn(sv, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error creating secure variable: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error creating variable: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully created secure variable %q!", sv.Path))
+	c.Ui.Output(fmt.Sprintf("Successfully created variable %q!", sv.Path))
 
 	var out string
 	switch c.outFmt {
@@ -276,9 +276,9 @@ func (c *VarPutCommand) Run(args []string) int {
 
 // makeVariable creates a variable based on whether or not there is data in
 // content and the format is set
-func (c *VarPutCommand) makeVariable(path string) (*api.SecureVariable, error) {
+func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 	var err error
-	out := new(api.SecureVariable)
+	out := new(api.Variable)
 	if len(c.contents) == 0 {
 		out.Path = path
 		out.Namespace = c.Meta.namespace
@@ -292,7 +292,7 @@ func (c *VarPutCommand) makeVariable(path string) (*api.SecureVariable, error) {
 			return nil, fmt.Errorf("error unmarshaling json: %w", err)
 		}
 	case "hcl":
-		out, err = parseSecureVariableSpec(c.contents)
+		out, err = parseVariableSpec(c.contents)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing hcl: %w", err)
 		}
@@ -317,9 +317,9 @@ func (c *VarPutCommand) makeVariable(path string) (*api.SecureVariable, error) {
 	return out, nil
 }
 
-// parseSecureVariableSpec is used to parse the secure variable specification
+// parseVariableSpec is used to parse the variable specification
 // from HCL
-func parseSecureVariableSpec(input []byte) (*api.SecureVariable, error) {
+func parseVariableSpec(input []byte) (*api.Variable, error) {
 	root, err := hcl.ParseBytes(input)
 	if err != nil {
 		return nil, err
@@ -331,16 +331,16 @@ func parseSecureVariableSpec(input []byte) (*api.SecureVariable, error) {
 		return nil, fmt.Errorf("error parsing: root should be an object")
 	}
 
-	var out api.SecureVariable
-	if err := parseSecureVariableSpecImpl(&out, list); err != nil {
+	var out api.Variable
+	if err := parseVariableSpecImpl(&out, list); err != nil {
 		return nil, err
 	}
 	fmt.Printf("\n\n\n%+#v\n\n\n", out)
 	return &out, nil
 }
 
-// parseSecureVariableSpecImpl parses the secure variable taking as input the AST tree
-func parseSecureVariableSpecImpl(result *api.SecureVariable, list *ast.ObjectList) error {
+// parseVariableSpecImpl parses the variable taking as input the AST tree
+func parseVariableSpecImpl(result *api.Variable, list *ast.ObjectList) error {
 	// Decode the full thing into a map[string]interface for ease
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, list); err != nil {

@@ -32,7 +32,7 @@ func TestVarDeleteCommand_Fails(t *testing.T) {
 	code = cmd.Run([]string{"-address=nope", "foo"})
 	out = ui.ErrorWriter.String()
 	require.Equal(t, 1, code, "expected exit code 1, got: %d")
-	require.Contains(t, out, "deleting secure variable", "connection error, got: %s", out)
+	require.Contains(t, out, "deleting variable", "connection error, got: %s", out)
 	ui.ErrorWriter.Reset()
 }
 
@@ -47,15 +47,15 @@ func TestVarDeleteCommand_Good(t *testing.T) {
 	cmd := &VarDeleteCommand{Meta: Meta{Ui: ui}}
 
 	// Create a var to delete
-	sv := testSecureVariable()
-	_, _, err := client.SecureVariables().Create(sv, nil)
+	sv := testVariable()
+	_, _, err := client.Variables().Create(sv, nil)
 	require.NoError(t, err)
 
 	// Delete a namespace
 	code := cmd.Run([]string{"-address=" + url, sv.Path})
 	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 
-	vars, _, err := client.SecureVariables().List(nil)
+	vars, _, err := client.Variables().List(nil)
 	require.NoError(t, err)
 	require.Len(t, vars, 0)
 }
@@ -69,8 +69,8 @@ func TestVarDeleteCommand_AutocompleteArgs(t *testing.T) {
 	cmd := &VarDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a var
-	sv := testSecureVariable()
-	_, _, err := client.SecureVariables().Create(sv, nil)
+	sv := testVariable()
+	_, _, err := client.Variables().Create(sv, nil)
 	require.NoError(t, err)
 
 	args := complete.Args{Last: "t"}
@@ -81,10 +81,10 @@ func TestVarDeleteCommand_AutocompleteArgs(t *testing.T) {
 	require.Equal(t, sv.Path, res[0])
 }
 
-// testSecureVariable returns a test secure variable spec
-func testSecureVariable() *api.SecureVariable {
-	return &api.SecureVariable{
-		Path: "test/secure/delete",
+// testVariable returns a test variable spec
+func testVariable() *api.Variable {
+	return &api.Variable{
+		Path: "test/var/delete",
 		Items: map[string]string{
 			"keyA": "valueA",
 			"keyB": "valueB",

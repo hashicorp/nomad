@@ -15,9 +15,9 @@ func (c *VarDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad var delete [options] <path>
 
-  Delete is used to delete an existing secure variable.
+  Delete is used to delete an existing variable.
 
-  If ACLs are enabled, this command requires a token with the 'var:purge'
+  If ACLs are enabled, this command requires a token with the 'var:destroy'
   capability.
 
 General Options:
@@ -32,11 +32,11 @@ func (c *VarDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *VarDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return SecureVariablePathPredictor(c.Meta.Client)
+	return VariablePathPredictor(c.Meta.Client)
 }
 
 func (c *VarDeleteCommand) Synopsis() string {
-	return "Delete a secure variable"
+	return "Delete a variable"
 }
 
 func (c *VarDeleteCommand) Name() string { return "var delete" }
@@ -66,13 +66,13 @@ func (c *VarDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	_, err = client.SecureVariables().Delete(path, nil)
+	_, err = client.Variables().Delete(path, nil)
 	// TODO: Manage Conflict result
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error deleting secure variable: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error deleting variable: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully deleted secure variable %q!", path))
+	c.Ui.Output(fmt.Sprintf("Successfully deleted variable %q!", path))
 	return 0
 }

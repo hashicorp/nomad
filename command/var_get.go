@@ -21,8 +21,7 @@ func (c *VarGetCommand) Help() string {
 	helpText := `
 Usage: nomad var get [options] <path>
 
-  The 'var get' command is used to get the contents of an existing secure
-  variable.
+  The 'var get' command is used to get the contents of an existing variable.
 
   If ACLs are enabled, this command requires a token with the 'var:read'
   capability.
@@ -34,7 +33,7 @@ General Options:
 Read Options:
 
   -output ( go-template | hcl | json | table )
-     Format to render the secure variable in. When using "go-template",
+     Format to render the variable in. When using "go-template",
      provide the template content with the "-template" option. Defaults
      to "table" when stdout is a terminal and to "json" when stdout is
 	 redirected.
@@ -43,7 +42,7 @@ Read Options:
      Template to render output with. Required when output is "go-template".
 
   -exit-code-not-found
-     Exit code to use when the secure variable is not found. Defaults to
+     Exit code to use when the variable is not found. Defaults to
      1.
 `
 	return strings.TrimSpace(helpText)
@@ -60,11 +59,11 @@ func (c *VarGetCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *VarGetCommand) AutocompleteArgs() complete.Predictor {
-	return SecureVariablePathPredictor(c.Meta.Client)
+	return VariablePathPredictor(c.Meta.Client)
 }
 
 func (c *VarGetCommand) Synopsis() string {
-	return "Read a secure variable"
+	return "Read a variable"
 }
 
 func (c *VarGetCommand) Name() string { return "var read" }
@@ -112,13 +111,13 @@ func (c *VarGetCommand) Run(args []string) int {
 		Namespace: c.Meta.namespace,
 	}
 
-	sv, _, err := client.SecureVariables().Read(path, qo)
+	sv, _, err := client.Variables().Read(path, qo)
 	if err != nil {
-		if err.Error() == "secure variable not found" {
-			c.Ui.Warn("Secure variable not found")
+		if err.Error() == "variable not found" {
+			c.Ui.Warn("secure variable not found")
 			return exitCodeNotFound
 		}
-		c.Ui.Error(fmt.Sprintf("Error retrieving secure variable: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving variable: %s", err))
 		return 1
 	}
 

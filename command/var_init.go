@@ -115,7 +115,7 @@ func (c *VarInitCommand) Run(args []string) int {
 	// Success
 	if !quiet {
 		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
-		c.Ui.Output(fmt.Sprintf("Example secure variable specification written to %s", fileName))
+		c.Ui.Output(fmt.Sprintf("Example variable specification written to %s", fileName))
 	}
 	return 0
 }
@@ -140,8 +140,8 @@ var defaultHclVarSpec = strings.TrimSpace(`
 
 # The items map is the only strictly required part of a variable
 # specification, since path and namespace can be set via other means. It
-# contains the sensitive material to encrypt and store as a Nomad secure
-# variable. The entire items map is encrypted and decrypted as a single unit.
+# contains the sensitive material to encrypt and store as a Nomad variable.
+# The entire items map is encrypted and decrypted as a single unit.
 
 `+warnInHCLFile()+`
 items {

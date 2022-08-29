@@ -85,10 +85,10 @@ type VarUI interface {
 	Colorize() *colorstring.Colorize
 }
 
-// renderSVAsUiTable prints a secure variable as a table. It needs access to the
+// renderSVAsUiTable prints a variable as a table. It needs access to the
 // command to get access to colorize and the UI itself. Commands that call it
 // need to implement the VarUI interface.
-func renderSVAsUiTable(sv *api.SecureVariable, c VarUI) {
+func renderSVAsUiTable(sv *api.Variable, c VarUI) {
 	meta := []string{
 		fmt.Sprintf("Namespace|%s", sv.Namespace),
 		fmt.Sprintf("Path|%s", sv.Path),
@@ -115,7 +115,7 @@ func renderSVAsUiTable(sv *api.SecureVariable, c VarUI) {
 	ui.Output(formatKV(items))
 }
 
-func renderAsHCL(sv *api.SecureVariable) string {
+func renderAsHCL(sv *api.Variable) string {
 	const tpl = `
 namespace    = "{{.Namespace}}"
 path         = "{{.Path}}"
@@ -134,13 +134,13 @@ items = {
 	if err != nil {
 		// Any errors in this should be caught as test panics.
 		// If we ship with one, the worst case is that it panics a single
-		// run of the CLI and only for output of secure variables in HCL.
+		// run of the CLI and only for output of variables in HCL.
 		panic(err)
 	}
 	return out
 }
 
-func renderWithGoTemplate(sv *api.SecureVariable, tpl string) (string, error) {
+func renderWithGoTemplate(sv *api.Variable, tpl string) (string, error) {
 	t := template.Must(template.New("var").Parse(tpl))
 	var out bytes.Buffer
 	if err := t.Execute(&out, sv); err != nil {
