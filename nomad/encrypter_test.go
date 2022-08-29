@@ -21,7 +21,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
 	tmpDir := t.TempDir()
-	encrypter, err := NewEncrypter(nil, tmpDir)
+	encrypter, err := NewEncrypter(&Server{shutdownCtx: context.Background()}, tmpDir)
 	require.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
