@@ -44,6 +44,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -7686,20 +7687,6 @@ var (
 	TemplateChangeModeInvalidError = errors.New("Invalid change mode. Must be one of the following: noop, signal, script, restart")
 )
 
-// ChangeScript holds the configuration for the script that is executed if
-// change mode is set to script
-type ChangeScript struct {
-	// Command is the full path to the script
-	Command string
-	// Args is a slice of arguments passed to the script
-	Args []string
-	// Timeout is the amount of seconds we wait for the script to finish
-	Timeout time.Duration
-	// FailOnError indicates whether a task should fail in case script execution
-	// fails or log script failure and don't interrupt the task
-	FailOnError bool
-}
-
 // Template represents a template configuration to be rendered for a given task
 type Template struct {
 	// SourcePath is the path to the template to be rendered
@@ -7777,9 +7764,8 @@ func (t *Template) Copy() *Template {
 	nt := new(Template)
 	*nt = *t
 
-	if t.Wait != nil {
-		nt.Wait = t.Wait.Copy()
-	}
+	nt.ChangeScript = t.ChangeScript.Copy()
+	nt.Wait = t.Wait.Copy()
 
 	return nt
 }
@@ -7822,8 +7808,12 @@ func (t *Template) Validate() error {
 			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	case TemplateChangeModeScript:
-		if t.ChangeScript.Command == "" {
-			_ = multierror.Append(&mErr, fmt.Errorf("must specify script path value when change mode is script"))
+		if t.ChangeScript == nil {
+			_ = multierror.Append(&mErr, fmt.Errorf("must specify change script configuration value when change mode is script"))
+		}
+
+		if err = t.ChangeScript.Validate(); err != nil {
+			_ = multierror.Append(&mErr, err)
 		}
 	default:
 		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)
@@ -7864,6 +7854,47 @@ func (t *Template) DiffID() string {
 	return t.DestPath
 }
 
+// ChangeScript holds the configuration for the script that is executed if
+// change mode is set to script
+type ChangeScript struct {
+	// Command is the full path to the script
+	Command string
+	// Args is a slice of arguments passed to the script
+	Args []string
+	// Timeout is the amount of seconds we wait for the script to finish
+	Timeout time.Duration
+	// FailOnError indicates whether a task should fail in case script execution
+	// fails or log script failure and don't interrupt the task
+	FailOnError bool
+}
+
+func (cs *ChangeScript) Copy() *ChangeScript {
+	if cs == nil {
+		return nil
+	}
+
+	ncs := new(ChangeScript)
+	*ncs = *cs
+
+	// args is a slice!
+	ncs.Args = slices.Clone(cs.Args)
+
+	return ncs
+}
+
+// Validate makes sure all the required fields of ChangeScript are present
+func (cs *ChangeScript) Validate() error {
+	if cs == nil {
+		return nil
+	}
+
+	if cs.Command == "" {
+		return fmt.Errorf("must specify script path value when change mode is script")
+	}
+
+	return nil
+}
+
 // WaitConfig is the Min/Max duration used by the Consul Template Watcher. Consul
 // Template relies on pointer based business logic. This struct uses pointers so
 // that we tell the different between zero values and unset values.
@@ -7881,11 +7912,11 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	nwc := new(WaitConfig)
 
 	if wc.Min != nil {
-		nwc.Min = &*wc.Min
+		nwc.Min = wc.Min
 	}
 
 	if wc.Max != nil {
-		nwc.Max = &*wc.Max
+		nwc.Max = wc.Max
 	}
 
 	return nwc

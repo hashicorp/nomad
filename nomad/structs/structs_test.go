@@ -2587,16 +2587,19 @@ func TestTemplate_Copy(t *testing.T) {
 		SourcePath:   "/local/file.txt",
 		DestPath:     "/local/dest.txt",
 		EmbeddedTmpl: "tpl",
-		ChangeMode:   TemplateChangeModeSignal,
-		ChangeSignal: "SIGHUP",
-		Splay:        10 * time.Second,
-		Perms:        "777",
-		Uid:          pointer.Of(1000),
-		Gid:          pointer.Of(2000),
-		LeftDelim:    "[[",
-		RightDelim:   "]]",
-		Envvars:      true,
-		VaultGrace:   time.Minute,
+		ChangeMode:   TemplateChangeModeScript,
+		ChangeScript: &ChangeScript{
+			Command: "/bin/foo",
+			Args:    []string{"--force", "--debug"},
+		},
+		Splay:      10 * time.Second,
+		Perms:      "777",
+		Uid:        pointer.Of(1000),
+		Gid:        pointer.Of(2000),
+		LeftDelim:  "[[",
+		RightDelim: "]]",
+		Envvars:    true,
+		VaultGrace: time.Minute,
 		Wait: &WaitConfig{
 			Min: pointer.Of(time.Second),
 			Max: pointer.Of(time.Minute),
@@ -2607,8 +2610,9 @@ func TestTemplate_Copy(t *testing.T) {
 	t1.SourcePath = "/local/file2.txt"
 	t1.DestPath = "/local/dest2.txt"
 	t1.EmbeddedTmpl = "tpl2"
-	t1.ChangeMode = TemplateChangeModeRestart
-	t1.ChangeSignal = ""
+	t1.ChangeMode = TemplateChangeModeSignal
+	t1.ChangeScript.Command = "/bin/foobar"
+	t1.ChangeScript.Args = []string{"--forces", "--debugs"}
 	t1.Splay = 5 * time.Second
 	t1.Perms = "700"
 	t1.Uid = pointer.Of(5000)
@@ -2624,7 +2628,8 @@ func TestTemplate_Copy(t *testing.T) {
 	require.NotEqual(t, t1.DestPath, t2.DestPath)
 	require.NotEqual(t, t1.EmbeddedTmpl, t2.EmbeddedTmpl)
 	require.NotEqual(t, t1.ChangeMode, t2.ChangeMode)
-	require.NotEqual(t, t1.ChangeSignal, t2.ChangeSignal)
+	require.NotEqual(t, t1.ChangeScript.Command, t2.ChangeScript.Command)
+	require.NotEqual(t, t1.ChangeScript.Args, t2.ChangeScript.Args)
 	require.NotEqual(t, t1.Splay, t2.Splay)
 	require.NotEqual(t, t1.Perms, t2.Perms)
 	require.NotEqual(t, t1.Uid, t2.Uid)
@@ -2758,6 +2763,33 @@ func TestTemplate_Validate(t *testing.T) {
 					Min: pointer.Of(5 * time.Second),
 					Max: pointer.Of(10 * time.Second),
 				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: nil,
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: ""},
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: "/bin/foo"},
 			},
 			Fail: false,
 		},
