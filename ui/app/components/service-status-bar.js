@@ -9,18 +9,21 @@ export default class ServiceStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
   services = null;
+  name = null;
 
   'data-test-service-status-bar' = true;
 
-  @computed('services.@each.status')
+  @computed('services.{}', 'name')
   get data() {
-    if (!this.services) {
+    const service = this.services && this.services.get(this.name);
+
+    if (!service) {
       return [];
     }
 
-    const pending = this.services.filterBy('status', 'pending').length;
-    const failing = this.services.filterBy('status', 'failing').length;
-    const success = this.services.filterBy('status', 'success').length;
+    const pending = service.pending || 0;
+    const failing = service.failure || 0;
+    const success = service.success || 0;
 
     const [grey, red, green] = ['queued', 'failed', 'complete'];
 
