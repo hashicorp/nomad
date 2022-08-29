@@ -442,8 +442,8 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.SecureVariablesListRequest)))
-	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.SecureVariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
+	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
+	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
 	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
 

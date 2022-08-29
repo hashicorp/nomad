@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	msgSecureVariableNotFound = "No matching secure variables found"
-	msgWarnFilterPerformance  = "Filter queries require a full scan of the data; use prefix searching where possible"
+	msgVariableNotFound      = "No matching variables found"
+	msgWarnFilterPerformance = "Filter queries require a full scan of the data; use prefix searching where possible"
 )
 
 type VarListCommand struct {
@@ -24,10 +24,10 @@ func (c *VarListCommand) Help() string {
 	helpText := `
 Usage: nomad var list [options] <prefix>
 
-  List is used to list available secure variables. Supplying an optional prefix,
+  List is used to list available variables. Supplying an optional prefix,
   filters the list to variables having a path starting with the prefix.
 
-  If ACLs are enabled, this command will return only secure variables stored at
+  If ACLs are enabled, this command will return only variables stored at
   namespaced paths where the token has the ` + "`read`" + ` capability.
 
 General Options:
@@ -48,13 +48,13 @@ List Options:
     the prefix parameter should be used whenever possible.
 
   -json
-    Output the secure variables in JSON format.
+    Output the variables in JSON format.
 
   -t
-    Format and display the secure variables using a Go template.
+    Format and display the variables using a Go template.
 
   -q
-    Output matching secure variable paths with no additional information.
+    Output matching variable paths with no additional information.
     This option overrides the ` + "`-t`" + ` option.
 `
 	return strings.TrimSpace(helpText)
@@ -74,7 +74,7 @@ func (c *VarListCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *VarListCommand) Synopsis() string {
-	return "List secure variable metadata"
+	return "List variable metadata"
 }
 
 func (c *VarListCommand) Name() string { return "var list" }
@@ -126,7 +126,7 @@ func (c *VarListCommand) Run(args []string) int {
 		Params:    map[string]string{},
 	}
 
-	vars, qm, err := client.SecureVariables().PrefixList(prefix, qo)
+	vars, qm, err := client.Variables().PrefixList(prefix, qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving vars: %s", err))
 		return 1
@@ -203,9 +203,9 @@ func (c *VarListCommand) Run(args []string) int {
 	return 0
 }
 
-func formatVarStubs(vars []*api.SecureVariableMetadata) string {
+func formatVarStubs(vars []*api.VariableMetadata) string {
 	if len(vars) == 0 {
-		return msgSecureVariableNotFound
+		return msgVariableNotFound
 	}
 
 	// Sort the output by variable namespace, path
@@ -228,11 +228,11 @@ func formatVarStubs(vars []*api.SecureVariableMetadata) string {
 	return formatList(rows)
 }
 
-func dataToQuietStringSlice(vars []*api.SecureVariableMetadata, ns string) []string {
+func dataToQuietStringSlice(vars []*api.VariableMetadata, ns string) []string {
 	// If ns is the wildcard namespace, we have to provide namespace
 	// as part of the quiet output, otherwise it can be a simple list
 	// of paths.
-	toPathStr := func(v *api.SecureVariableMetadata) string {
+	toPathStr := func(v *api.VariableMetadata) string {
 		if ns == "*" {
 			return fmt.Sprintf("%s|%s", v.Namespace, v.Path)
 		}
@@ -249,7 +249,7 @@ func dataToQuietStringSlice(vars []*api.SecureVariableMetadata, ns string) []str
 	return pList
 }
 
-func dataToQuietJSONReadySlice(vars []*api.SecureVariableMetadata, ns string) interface{} {
+func dataToQuietJSONReadySlice(vars []*api.VariableMetadata, ns string) interface{} {
 	// If ns is the wildcard namespace, we have to provide namespace
 	// as part of the quiet output, otherwise it can be a simple list
 	// of paths.

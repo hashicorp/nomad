@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-func TestSecureVariablesEndpoint_auth(t *testing.T) {
+func TestVariablesEndpoint_auth(t *testing.T) {
 
 	ci.Parallel(t)
 	srv, _, shutdown := TestACLServer(t, func(c *Config) {
@@ -36,7 +36,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	alloc1.Namespace = ns
 	jobID := alloc1.JobID
 
-	// create an alloc that will have no access to secure variables we create
+	// create an alloc that will have no access to variables we create
 	alloc2 := mock.Alloc()
 	alloc2.Job.TaskGroups[0].Name = "other-no-permissions"
 	alloc2.TaskGroup = "other-no-permissions"
@@ -79,7 +79,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 
 	policy := mock.ACLPolicy()
 	policy.Rules = `namespace "nondefault-namespace" {
-		secure_variables {
+		variables {
 		    path "nomad/jobs/*" { capabilities = ["list"] }
 		    path "other/path" { capabilities = ["read"] }
 		}}`
@@ -98,7 +98,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	must.NoError(t, err)
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		_, err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+		_, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, "n/a",
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -110,7 +110,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		_, err = srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+		_, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, "n/a",
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -260,7 +260,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := srv.staticEndpoints.SecureVariables.handleMixedAuthEndpoint(
+			_, err := srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
 				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
@@ -272,7 +272,7 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 
 }
 
-func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
+func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 	ci.Parallel(t)
 	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -282,52 +282,52 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
-	pol := mock.NamespacePolicyWithSecureVariables(
+	pol := mock.NamespacePolicyWithVariables(
 		structs.DefaultNamespace, "", []string{"list-jobs"},
 		map[string][]string{
 			"dropbox/*": {"write"},
 		})
 	writeToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", pol)
 
-	sv1 := mock.SecureVariable()
+	sv1 := mock.Variable()
 	sv1.ModifyIndex = 0
-	var svHold *structs.SecureVariableDecrypted
+	var svHold *structs.VariableDecrypted
 
-	opMap := map[string]structs.SVOp{
-		"set":        structs.SVOpSet,
-		"cas":        structs.SVOpCAS,
-		"delete":     structs.SVOpDelete,
-		"delete-cas": structs.SVOpDeleteCAS,
+	opMap := map[string]structs.VarOp{
+		"set":        structs.VarOpSet,
+		"cas":        structs.VarOpCAS,
+		"delete":     structs.VarOpDelete,
+		"delete-cas": structs.VarOpDeleteCAS,
 	}
 
 	for name, op := range opMap {
 		t.Run(name+"/no token", func(t *testing.T) {
 			sv1 := sv1
-			applyReq := structs.SecureVariablesApplyRequest{
+			applyReq := structs.VariablesApplyRequest{
 				Op:           op,
 				Var:          sv1,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
-			applyResp := new(structs.SecureVariablesApplyResponse)
-			err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, applyResp)
+			applyResp := new(structs.VariablesApplyResponse)
+			err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
 			must.EqError(t, err, structs.ErrPermissionDenied.Error())
 		})
 	}
 
 	t.Run("cas/management token/new", func(t *testing.T) {
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv1,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: rootToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, applyResp)
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultOk, applyResp.Result)
+		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Equals(t, sv1.Items, applyResp.Output.Items)
 
 		svHold = applyResp.Output
@@ -338,21 +338,21 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv := svHold
 		sv.Items["new"] = "newVal"
 
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: rootToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
+		applyResp := new(structs.VariablesApplyResponse)
 		applyReq.AuthToken = rootToken.SecretID
 
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, &applyResp)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, &applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultOk, applyResp.Result)
+		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Equals(t, sv.Items, applyResp.Output.Items)
 
 		svHold = applyResp.Output
@@ -365,45 +365,45 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv1 := sv1
 		svHold := svHold
 
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv1,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: rootToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
+		applyResp := new(structs.VariablesApplyResponse)
 		applyReq.AuthToken = rootToken.SecretID
 
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, &applyResp)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, &applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultConflict, applyResp.Result)
-		must.Equals(t, svHold.SecureVariableMetadata, applyResp.Conflict.SecureVariableMetadata)
+		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+		must.Equals(t, svHold.VariableMetadata, applyResp.Conflict.VariableMetadata)
 		must.Equals(t, svHold.Items, applyResp.Conflict.Items)
 	})
 
-	sv3 := mock.SecureVariable()
+	sv3 := mock.Variable()
 	sv3.Path = "dropbox/a"
 	sv3.ModifyIndex = 0
 
 	t.Run("cas/write-only/read own new", func(t *testing.T) {
 		sv3 := sv3
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv3,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: writeToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
+		applyResp := new(structs.VariablesApplyResponse)
 
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, &applyResp)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, &applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultOk, applyResp.Result)
+		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Equals(t, sv3.Items, applyResp.Output.Items)
 		svHold = applyResp.Output
 	})
@@ -414,20 +414,20 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv3 := sv3
 		svHold := svHold
 
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv3,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: writeToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, &applyResp)
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, &applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultRedacted, applyResp.Result)
-		must.Eq(t, svHold.SecureVariableMetadata, applyResp.Conflict.SecureVariableMetadata)
+		must.Eq(t, structs.VarOpResultRedacted, applyResp.Result)
+		must.Eq(t, svHold.VariableMetadata, applyResp.Conflict.VariableMetadata)
 		must.Nil(t, applyResp.Conflict.Items)
 	})
 
@@ -436,24 +436,24 @@ func TestSecureVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv := svHold
 		sv.Items["upsert"] = "read"
 
-		applyReq := structs.SecureVariablesApplyRequest{
-			Op:  structs.SVOpCAS,
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpCAS,
 			Var: sv,
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: writeToken.SecretID,
 			},
 		}
-		applyResp := new(structs.SecureVariablesApplyResponse)
-		err := msgpackrpc.CallWithCodec(codec, structs.SecureVariablesApplyRPCMethod, &applyReq, &applyResp)
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, &applyResp)
 
 		must.NoError(t, err)
-		must.Eq(t, structs.SVOpResultOk, applyResp.Result)
+		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Equals(t, sv.Items, applyResp.Output.Items)
 	})
 }
 
-func TestSecureVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
+func TestVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
 
 	ci.Parallel(t)
 	srv, _, shutdown := TestACLServer(t, func(c *Config) {
@@ -467,7 +467,7 @@ func TestSecureVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
 
 	policyRules := `
 namespace "dev" {
-  secure_variables {
+  variables {
     path "*" { capabilities = ["list", "read"] }
     path "system/*" { capabilities = ["deny"] }
     path "config/system/*" { capabilities = ["deny"] }
@@ -475,7 +475,7 @@ namespace "dev" {
 }
 
 namespace "prod" {
-  secure_variables {
+  variables {
     path  "*" {
     capabilities = ["list"]
     }
@@ -495,11 +495,11 @@ namespace "*" {}
 
 	writeVar := func(ns, path string) {
 		idx++
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 		sv.Namespace = ns
 		sv.Path = path
-		resp := store.SVESet(idx, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		})
 		must.NoError(t, resp.Error)
@@ -522,7 +522,7 @@ namespace "*" {}
 
 	testListPrefix := func(ns, prefix string, expectedCount int, expectErr error) {
 		t.Run(fmt.Sprintf("ns=%s-prefix=%s", ns, prefix), func(t *testing.T) {
-			req := &structs.SecureVariablesListRequest{
+			req := &structs.VariablesListRequest{
 				QueryOptions: structs.QueryOptions{
 					Namespace: ns,
 					Prefix:    prefix,
@@ -530,15 +530,15 @@ namespace "*" {}
 					Region:    "global",
 				},
 			}
-			var resp structs.SecureVariablesListResponse
+			var resp structs.VariablesListResponse
 
 			if expectErr != nil {
 				must.EqError(t,
-					msgpackrpc.CallWithCodec(codec, "SecureVariables.List", req, &resp),
+					msgpackrpc.CallWithCodec(codec, "Variables.List", req, &resp),
 					expectErr.Error())
 				return
 			}
-			must.NoError(t, msgpackrpc.CallWithCodec(codec, "SecureVariables.List", req, &resp))
+			must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.List", req, &resp))
 
 			found := "found:\n"
 			for _, sv := range resp.Data {
@@ -574,7 +574,7 @@ namespace "*" {}
 
 }
 
-func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
+func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -596,7 +596,7 @@ func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
 	})
 
 	// Lookup the variable
-	req := &structs.SecureVariablesReadRequest{
+	req := &structs.VariablesReadRequest{
 		Path: "bbb",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
@@ -604,9 +604,9 @@ func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
 			MaxQueryTime:  500 * time.Millisecond,
 		},
 	}
-	var resp structs.SecureVariablesReadResponse
+	var resp structs.VariablesReadResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	elapsed := time.Since(start)
@@ -632,9 +632,9 @@ func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
 	})
 
 	req.QueryOptions.MinQueryIndex = 250
-	var resp2 structs.SecureVariablesReadResponse
+	var resp2 structs.VariablesReadResponse
 	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	elapsed = time.Since(start)
@@ -655,17 +655,17 @@ func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
 	// Variable delete triggers watches
 	delay = 100 * time.Millisecond
 	time.AfterFunc(delay, func() {
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 		sv.Path = "bbb"
-		if resp := state.SVEDelete(400, &structs.SVApplyStateRequest{Op: structs.SVOpDelete, Var: sv}); !resp.IsOk() {
+		if resp := state.VarDelete(400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
 			t.Fatalf("err: %v", resp.Error)
 		}
 	})
 
 	req.QueryOptions.MinQueryIndex = 350
-	var resp3 structs.SecureVariablesReadResponse
+	var resp3 structs.VariablesReadResponse
 	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "SecureVariables.Read", req, &resp3); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp3); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	elapsed = time.Since(start)
@@ -686,22 +686,22 @@ func TestSecureVariablesEndpoint_GetSecureVariable_Blocking(t *testing.T) {
 
 func writeVar(t *testing.T, s *Server, idx uint64, ns, path string) {
 	store := s.fsm.State()
-	sv := mock.SecureVariable()
+	sv := mock.Variable()
 	sv.Namespace = ns
 	sv.Path = path
 	bPlain, err := json.Marshal(sv.Items)
 	must.NoError(t, err)
 	bEnc, kID, err := s.encrypter.Encrypt(bPlain)
 	must.NoError(t, err)
-	sve := &structs.SecureVariableEncrypted{
-		SecureVariableMetadata: sv.SecureVariableMetadata,
-		SecureVariableData: structs.SecureVariableData{
+	sve := &structs.VariableEncrypted{
+		VariableMetadata: sv.VariableMetadata,
+		VariableData: structs.VariableData{
 			Data:  bEnc,
 			KeyID: kID,
 		},
 	}
-	resp := store.SVESet(idx, &structs.SVApplyStateRequest{
-		Op:  structs.SVOpSet,
+	resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
 		Var: sve,
 	})
 	must.NoError(t, resp.Error)

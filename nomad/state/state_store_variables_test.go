@@ -15,23 +15,23 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestStateStore_GetSecureVariable(t *testing.T) {
+func TestStateStore_GetVariable(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 	ws := memdb.NewWatchSet()
-	sve, err := testState.GetSecureVariable(ws, "default", "not/a/path")
+	sve, err := testState.GetVariable(ws, "default", "not/a/path")
 	require.NoError(t, err)
 	require.Nil(t, sve)
 }
 
-func TestStateStore_UpsertSecureVariables(t *testing.T) {
+func TestStateStore_UpsertVariables(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 	ws := memdb.NewWatchSet()
 
-	svs := []*structs.SecureVariableEncrypted{
-		mock.SecureVariableEncrypted(),
-		mock.SecureVariableEncrypted(),
+	svs := []*structs.VariableEncrypted{
+		mock.VariableEncrypted(),
+		mock.VariableEncrypted(),
 	}
 	svs[0].Path = "aaaaa"
 	svs[1].Path = "bbbbb"
@@ -43,36 +43,36 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		expectedQuotaSize += len(v.Data)
 	}
 
-	// Ensure new secure variables are inserted as expected with their
+	// Ensure new variables are inserted as expected with their
 	// correct indexes, along with an update to the index table.
 	t.Run("1 create new variables", func(t *testing.T) {
-		// Perform the initial upsert of secure variables.
+		// Perform the initial upsert of variables.
 		for _, sv := range svs {
 			insertIndex++
-			resp := testState.SVESet(insertIndex, &structs.SVApplyStateRequest{
-				Op:  structs.SVOpSet,
+			resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+				Op:  structs.VarOpSet,
 				Var: sv,
 			})
 			require.NoError(t, resp.Error)
 		}
 
 		// Check that the index for the table was modified as expected.
-		initialIndex, err := testState.Index(TableSecureVariables)
+		initialIndex, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, insertIndex, initialIndex)
 
-		// List all the secure variables in the table
-		iter, err := testState.SecureVariables(ws)
+		// List all the variables in the table
+		iter, err := testState.Variables(ws)
 		require.NoError(t, err)
 
-		got := []*structs.SecureVariableEncrypted{}
+		got := []*structs.VariableEncrypted{}
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.SecureVariableEncrypted)
-			var svCopy structs.SecureVariableEncrypted
+			sv := raw.(*structs.VariableEncrypted)
+			var svCopy structs.VariableEncrypted
 			svCopy = sv.Copy()
 			got = append(got, &svCopy)
 		}
-		require.Len(t, got, 2, "incorrect number of secure variables found")
+		require.Len(t, got, 2, "incorrect number of variables found")
 
 		// Ensure the create and modify indexes are populated correctly.
 		require.Equal(t, uint64(21), got[0].CreateIndex, "%s: incorrect create index", got[0].Path)
@@ -80,7 +80,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		require.Equal(t, uint64(22), got[1].CreateIndex, "%s: incorrect create index", got[1].Path)
 		require.Equal(t, uint64(22), got[1].ModifyIndex, "%s: incorrect modify index", got[1].Path)
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 
@@ -90,39 +90,39 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 	})
 
 	t.Run("1a fetch variable", func(t *testing.T) {
-		sve, err := testState.GetSecureVariable(ws, svs[0].Namespace, svs[0].Path)
+		sve, err := testState.GetVariable(ws, svs[0].Namespace, svs[0].Path)
 		require.NoError(t, err)
 		require.NotNil(t, sve)
 	})
 
-	// Upsert the exact same secure variables without any modification. In this
+	// Upsert the exact same variables without any modification. In this
 	// case, the index table should not be updated, indicating no write actually
 	// happened due to equality checking.
 	t.Run("2 upsert same", func(t *testing.T) {
 		reInsertIndex := uint64(30)
 
 		for _, sv := range svs {
-			svReq := &structs.SVApplyStateRequest{
-				Op:  structs.SVOpSet,
+			svReq := &structs.VarApplyStateRequest{
+				Op:  structs.VarOpSet,
 				Var: sv,
 			}
 			reInsertIndex++
-			resp := testState.SVESet(reInsertIndex, svReq)
+			resp := testState.VarSet(reInsertIndex, svReq)
 			require.NoError(t, resp.Error)
 		}
 
-		reInsertActualIndex, err := testState.Index(TableSecureVariables)
+		reInsertActualIndex, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, insertIndex, reInsertActualIndex, "index should not have changed")
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
-	// Modify a single one of the previously inserted secure variables and
+	// Modify a single one of the previously inserted variables and
 	// performs an upsert. This ensures the index table is modified correctly
-	// and that each secure variable is updated, or not, as expected.
+	// and that each variable is updated, or not, as expected.
 	t.Run("3 modify one", func(t *testing.T) {
 		sv1Update := svs[0].Copy()
 		sv1Update.KeyID = "sv1-update"
@@ -134,27 +134,27 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 
 		update1Index := uint64(40)
 
-		resp := testState.SVESet(update1Index, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		resp := testState.VarSet(update1Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: &sv1Update,
 		})
 		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
-		updateActualIndex, err := testState.Index(TableSecureVariables)
+		updateActualIndex, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, update1Index, updateActualIndex, "index should have changed")
 
-		// Get the secure variables from the table.
-		iter, err := testState.SecureVariables(ws)
+		// Get the variables from the table.
+		iter, err := testState.Variables(ws)
 		require.NoError(t, err)
 
-		got := []*structs.SecureVariableEncrypted{}
+		got := []*structs.VariableEncrypted{}
 
 		// Iterate all the stored variables and assert indexes have been updated as expected
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.SecureVariableEncrypted)
-			var svCopy structs.SecureVariableEncrypted
+			sv := raw.(*structs.VariableEncrypted)
+			var svCopy structs.VariableEncrypted
 			svCopy = sv.Copy()
 			got = append(got, &svCopy)
 		}
@@ -166,7 +166,7 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		// indexes and times now that we have validated them
 		svs = got
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 	})
@@ -179,26 +179,26 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		sv2.KeyID = "sv2-update"
 		sv2.ModifyIndex = update2Index
 
-		resp := testState.SVESet(update2Index, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		resp := testState.VarSet(update2Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
 		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
-		update2ActualIndex, err := testState.Index(TableSecureVariables)
+		update2ActualIndex, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, update2Index, update2ActualIndex, "index should have changed")
 
-		// Get the secure variables from the table.
-		iter, err := testState.SecureVariables(ws)
+		// Get the variables from the table.
+		iter, err := testState.Variables(ws)
 		require.NoError(t, err)
 
-		got := []structs.SecureVariableEncrypted{}
+		got := []structs.VariableEncrypted{}
 
 		// Iterate all the stored variables and assert indexes have been updated as expected
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.SecureVariableEncrypted)
+			sv := raw.(*structs.VariableEncrypted)
 			got = append(got, sv.Copy())
 		}
 		require.Len(t, got, 2)
@@ -208,45 +208,45 @@ func TestStateStore_UpsertSecureVariables(t *testing.T) {
 		require.True(t, svs[0].Equals(got[0]))
 		require.True(t, sv2.Equals(got[1]))
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 
 	})
 }
 
-func TestStateStore_DeleteSecureVariable(t *testing.T) {
+func TestStateStore_DeleteVariable(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
-	// Generate some test secure variables that we will use and modify throughout.
-	svs := []*structs.SecureVariableEncrypted{
-		mock.SecureVariableEncrypted(),
-		mock.SecureVariableEncrypted(),
+	// Generate some test variables that we will use and modify throughout.
+	svs := []*structs.VariableEncrypted{
+		mock.VariableEncrypted(),
+		mock.VariableEncrypted(),
 	}
 	svs[0].Path = "aaaaa"
 	svs[1].Path = "bbbbb"
 
 	initialIndex := uint64(10)
 
-	t.Run("1 delete a secure variable that does not exist", func(t *testing.T) {
+	t.Run("1 delete a variable that does not exist", func(t *testing.T) {
 
-		resp := testState.SVEDelete(initialIndex, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpDelete,
+		resp := testState.VarDelete(initialIndex, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
-		require.NoError(t, resp.Error, "deleting non-existing secure var is not an error")
+		require.NoError(t, resp.Error, "deleting non-existing var is not an error")
 
-		actualInitialIndex, err := testState.Index(TableSecureVariables)
+		actualInitialIndex, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, uint64(0), actualInitialIndex, "index should not have changed")
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(nil, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(nil, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Nil(t, quotaUsed)
 	})
 
-	// Upsert two secure variables, deletes one, then ensure the
+	// Upsert two variables, deletes one, then ensure the
 	// remaining is left as expected.
 	t.Run("2 upsert variable and delete", func(t *testing.T) {
 
@@ -255,33 +255,33 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 		require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
 		for _, sv := range svs {
-			svReq := &structs.SVApplyStateRequest{
-				Op:  structs.SVOpSet,
+			svReq := &structs.VarApplyStateRequest{
+				Op:  structs.VarOpSet,
 				Var: sv,
 			}
 			initialIndex++
-			resp := testState.SVESet(initialIndex, svReq)
+			resp := testState.VarSet(initialIndex, svReq)
 			require.NoError(t, resp.Error)
 		}
 
 		// Perform the delete.
 		delete1Index := uint64(20)
 
-		resp := testState.SVEDelete(delete1Index, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpDelete,
+		resp := testState.VarDelete(delete1Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
 		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
-		actualDelete1Index, err := testState.Index(TableSecureVariables)
+		actualDelete1Index, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, delete1Index, actualDelete1Index, "index should have changed")
 
 		ws := memdb.NewWatchSet()
 
-		// Get the secure variables from the table.
-		iter, err := testState.SecureVariables(ws)
+		// Get the variables from the table.
+		iter, err := testState.Variables(ws)
 		require.NoError(t, err)
 
 		var delete1Count int
@@ -291,11 +291,11 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 		// number.
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
 			delete1Count++
-			v := raw.(*structs.SecureVariableEncrypted)
+			v := raw.(*structs.VariableEncrypted)
 			expectedQuotaSize += len(v.Data)
 		}
 		require.Equal(t, 1, delete1Count, "unexpected number of variables in table")
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
@@ -303,20 +303,20 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 	t.Run("3 delete remaining variable", func(t *testing.T) {
 		delete2Index := uint64(30)
 
-		resp := testState.SVEDelete(delete2Index, &structs.SVApplyStateRequest{
-			Op:  structs.SVOpDelete,
+		resp := testState.VarDelete(delete2Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
 			Var: svs[1],
 		})
 		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
-		actualDelete2Index, err := testState.Index(TableSecureVariables)
+		actualDelete2Index, err := testState.Index(TableVariables)
 		require.NoError(t, err)
 		require.Equal(t, delete2Index, actualDelete2Index, "index should have changed")
 
-		// Get the secure variables from the table.
+		// Get the variables from the table.
 		ws := memdb.NewWatchSet()
-		iter, err := testState.SecureVariables(ws)
+		iter, err := testState.Variables(ws)
 		require.NoError(t, err)
 
 		var delete2Count int
@@ -327,13 +327,13 @@ func TestStateStore_DeleteSecureVariable(t *testing.T) {
 		}
 		require.Equal(t, 0, delete2Count, "unexpected number of variables in table")
 
-		quotaUsed, err := testState.SecureVariablesQuotaByNamespace(ws, structs.DefaultNamespace)
+		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), quotaUsed.Size)
 	})
 }
 
-func TestStateStore_GetSecureVariables(t *testing.T) {
+func TestStateStore_GetVariables(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
@@ -342,34 +342,34 @@ func TestStateStore_GetSecureVariables(t *testing.T) {
 	initialIndex := uint64(10)
 	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
-	// Generate some test secure variables in different namespaces and upsert them.
-	svs := []*structs.SecureVariableEncrypted{
-		mock.SecureVariableEncrypted(),
-		mock.SecureVariableEncrypted(),
+	// Generate some test variables in different namespaces and upsert them.
+	svs := []*structs.VariableEncrypted{
+		mock.VariableEncrypted(),
+		mock.VariableEncrypted(),
 	}
 	svs[0].Path = "aaaaa"
 	svs[0].Namespace = "~*magical*~"
 	svs[1].Path = "bbbbb"
 
 	for _, sv := range svs {
-		svReq := &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		svReq := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.SVESet(initialIndex, svReq)
+		resp := testState.VarSet(initialIndex, svReq)
 		require.NoError(t, resp.Error)
 	}
 
-	// Look up secure variables using the namespace of the first mock variable.
+	// Look up variables using the namespace of the first mock variable.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetSecureVariablesByNamespace(ws, svs[0].Namespace)
+	iter, err := testState.GetVariablesByNamespace(ws, svs[0].Namespace)
 	require.NoError(t, err)
 
 	var count1 int
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.SecureVariableEncrypted)
+		sv := raw.(*structs.VariableEncrypted)
 		require.Equal(t, svs[0].Namespace, sv.Namespace)
 		require.Equal(t, uint64(11), sv.CreateIndex, "%s incorrect create index", sv.Path)
 		require.Equal(t, uint64(11), sv.ModifyIndex, "%s incorrect modify index", sv.Path)
@@ -379,14 +379,14 @@ func TestStateStore_GetSecureVariables(t *testing.T) {
 	require.Equal(t, 1, count1)
 
 	// Look up variables using the namespace of the second mock variable.
-	iter, err = testState.GetSecureVariablesByNamespace(ws, svs[1].Namespace)
+	iter, err = testState.GetVariablesByNamespace(ws, svs[1].Namespace)
 	require.NoError(t, err)
 
 	var count2 int
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count2++
-		sv := raw.(*structs.SecureVariableEncrypted)
+		sv := raw.(*structs.VariableEncrypted)
 		require.Equal(t, initialIndex, sv.CreateIndex, "%s incorrect create index", sv.Path)
 		require.Equal(t, initialIndex, sv.ModifyIndex, "%s incorrect modify index", sv.Path)
 		require.Equal(t, svs[1].Namespace, sv.Namespace)
@@ -395,7 +395,7 @@ func TestStateStore_GetSecureVariables(t *testing.T) {
 
 	// Look up variables using a namespace that shouldn't contain any
 	// variables.
-	iter, err = testState.GetSecureVariablesByNamespace(ws, "pony-club")
+	iter, err = testState.GetVariablesByNamespace(ws, "pony-club")
 	require.NoError(t, err)
 
 	var count3 int
@@ -406,14 +406,14 @@ func TestStateStore_GetSecureVariables(t *testing.T) {
 	require.Equal(t, 0, count3)
 }
 
-func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
+func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
-	// Generate some test secure variables and upsert them.
-	svs := []*structs.SecureVariableEncrypted{}
+	// Generate some test variables and upsert them.
+	svs := []*structs.VariableEncrypted{}
 	for i := 0; i < 6; i++ {
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 		svs = append(svs, sv)
 	}
 
@@ -433,12 +433,12 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
 	for _, sv := range svs {
-		svReq := &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		svReq := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.SVESet(initialIndex, svReq)
+		resp := testState.VarSet(initialIndex, svReq)
 		require.NoError(t, resp.Error)
 	}
 
@@ -468,13 +468,13 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
-				iter, err := testState.GetSecureVariablesByNamespace(ws, tC.namespace)
+				iter, err := testState.GetVariablesByNamespace(ws, tC.namespace)
 				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
-					sv := raw.(*structs.SecureVariableEncrypted)
+					sv := raw.(*structs.VariableEncrypted)
 					require.Equal(t, tC.namespace, sv.Namespace)
 				}
 			})
@@ -523,13 +523,13 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
-				iter, err := testState.GetSecureVariablesByNamespaceAndPrefix(ws, tC.namespace, tC.prefix)
+				iter, err := testState.GetVariablesByNamespaceAndPrefix(ws, tC.namespace, tC.prefix)
 				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
-					sv := raw.(*structs.SecureVariableEncrypted)
+					sv := raw.(*structs.VariableEncrypted)
 					require.Equal(t, tC.namespace, sv.Namespace)
 					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
@@ -564,13 +564,13 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
-				iter, err := testState.GetSecureVariablesByPrefix(ws, tC.prefix)
+				iter, err := testState.GetVariablesByPrefix(ws, tC.prefix)
 				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
-					sv := raw.(*structs.SecureVariableEncrypted)
+					sv := raw.(*structs.VariableEncrypted)
 					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
 				require.Equal(t, tC.expectedCount, count)
@@ -578,14 +578,14 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 		}
 	})
 }
-func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
+func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
-	// Generate some test secure variables and upsert them.
-	svs := []*structs.SecureVariableEncrypted{}
+	// Generate some test variables and upsert them.
+	svs := []*structs.VariableEncrypted{}
 	for i := 0; i < 7; i++ {
-		sv := mock.SecureVariableEncrypted()
+		sv := mock.VariableEncrypted()
 		sv.Path = uuid.Generate()
 		svs = append(svs, sv)
 	}
@@ -604,22 +604,22 @@ func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 	initialIndex := uint64(10)
 
 	for _, sv := range svs {
-		svReq := &structs.SVApplyStateRequest{
-			Op:  structs.SVOpSet,
+		svReq := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.SVESet(initialIndex, svReq)
+		resp := testState.VarSet(initialIndex, svReq)
 		require.NoError(t, resp.Error)
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetSecureVariablesByKeyID(ws, keyID)
+	iter, err := testState.GetVariablesByKeyID(ws, keyID)
 	require.NoError(t, err)
 
 	var count int
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.SecureVariableEncrypted)
+		sv := raw.(*structs.VariableEncrypted)
 		require.Equal(t, keyID, sv.KeyID)
 		require.Equal(t, expectedForKey[count], sv.Path)
 		require.NotContains(t, expectedOrphaned, sv.Path)
@@ -628,18 +628,18 @@ func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
 	require.Equal(t, 5, count)
 }
 
-func printSecureVariable(tsv *structs.SecureVariableEncrypted) string {
+func printVariable(tsv *structs.VariableEncrypted) string {
 	b, _ := json.Marshal(tsv)
 	return string(b)
 }
 
-func printSecureVariables(tsvs []*structs.SecureVariableEncrypted) string {
+func printVariables(tsvs []*structs.VariableEncrypted) string {
 	if len(tsvs) == 0 {
 		return ""
 	}
 	var out strings.Builder
 	for _, tsv := range tsvs {
-		out.WriteString(printSecureVariable(tsv) + "\n")
+		out.WriteString(printVariable(tsv) + "\n")
 	}
 	return out.String()
 }

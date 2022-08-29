@@ -12,11 +12,11 @@ import (
 const (
 	tableIndex = "index"
 
-	TableNamespaces            = "namespaces"
-	TableServiceRegistrations  = "service_registrations"
-	TableSecureVariables       = "secure_variables"
-	TableSecureVariablesQuotas = "secure_variables_quota"
-	TableRootKeyMeta           = "secure_variables_root_key_meta"
+	TableNamespaces           = "namespaces"
+	TableServiceRegistrations = "service_registrations"
+	TableVariables            = "variables"
+	TableVariablesQuotas      = "variables_quota"
+	TableRootKeyMeta          = "root_key_meta"
 )
 
 const (
@@ -75,9 +75,9 @@ func init() {
 		scalingEventTableSchema,
 		namespaceTableSchema,
 		serviceRegistrationsTableSchema,
-		secureVariablesTableSchema,
-		secureVariablesQuotasTableSchema,
-		secureVariablesRootKeyMetaSchema,
+		variablesTableSchema,
+		variablesQuotasTableSchema,
+		variablesRootKeyMetaSchema,
 	}...)
 }
 
@@ -1281,11 +1281,10 @@ func serviceRegistrationsTableSchema() *memdb.TableSchema {
 	}
 }
 
-// secureVariablesTableSchema returns the MemDB schema for Nomad
-// secure variables.
-func secureVariablesTableSchema() *memdb.TableSchema {
+// variablesTableSchema returns the MemDB schema for Nomad variables.
+func variablesTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableSecureVariables,
+		Name: TableVariables,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,
@@ -1305,7 +1304,7 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 			indexKeyID: {
 				Name:         indexKeyID,
 				AllowMissing: false,
-				Indexer:      &secureVariableKeyIDFieldIndexer{},
+				Indexer:      &variableKeyIDFieldIndexer{},
 			},
 			indexPath: {
 				Name:         indexPath,
@@ -1319,11 +1318,11 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 	}
 }
 
-type secureVariableKeyIDFieldIndexer struct{}
+type variableKeyIDFieldIndexer struct{}
 
 // FromArgs implements go-memdb/Indexer and is used to build an exact
 // index lookup based on arguments
-func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -1338,7 +1337,7 @@ func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte,
 
 // PrefixFromArgs implements go-memdb/PrefixIndexer and returns a
 // prefix that should be used for scanning based on the arguments
-func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	val, err := s.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -1355,10 +1354,10 @@ func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([
 // FromObject implements go-memdb/SingleIndexer and is used to extract
 // an index value from an object or to indicate that the index value
 // is missing.
-func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
-	variable, ok := obj.(*structs.SecureVariableEncrypted)
+func (s *variableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	variable, ok := obj.(*structs.VariableEncrypted)
 	if !ok {
-		return false, nil, fmt.Errorf("object %#v is not a SecureVariable", obj)
+		return false, nil, fmt.Errorf("object %#v is not a Variable", obj)
 	}
 
 	keyID := variable.KeyID
@@ -1371,11 +1370,11 @@ func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []b
 	return true, []byte(keyID), nil
 }
 
-// secureVariablesQuotasTableSchema returns the MemDB schema for Nomad
-// secure variables quotas tracking
-func secureVariablesQuotasTableSchema() *memdb.TableSchema {
+// variablesQuotasTableSchema returns the MemDB schema for Nomad variables
+// quotas tracking
+func variablesQuotasTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableSecureVariablesQuotas,
+		Name: TableVariablesQuotas,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,
@@ -1390,9 +1389,8 @@ func secureVariablesQuotasTableSchema() *memdb.TableSchema {
 	}
 }
 
-// secureVariablesRootKeyMetaSchema returns the MemDB schema for Nomad
-// secure variables root keys
-func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
+// variablesRootKeyMetaSchema returns the MemDB schema for Nomad root keys
+func variablesRootKeyMetaSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableRootKeyMeta,
 		Indexes: map[string]*memdb.IndexSchema{

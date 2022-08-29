@@ -12,25 +12,25 @@ import (
 )
 
 const (
-	ErrVariableNotFound     = "secure variable not found"
-	ErrVariableMissingItems = "secure variable missing Items field"
+	ErrVariableNotFound     = "variable not found"
+	ErrVariableMissingItems = "variable missing Items field"
 )
 
-// SecureVariables is used to access secure variables.
-type SecureVariables struct {
+// Variables is used to access variables.
+type Variables struct {
 	client *Client
 }
 
-// SecureVariables returns a new handle on the secure variables.
-func (c *Client) SecureVariables() *SecureVariables {
-	return &SecureVariables{client: c}
+// Variables returns a new handle on the variables.
+func (c *Client) Variables() *Variables {
+	return &Variables{client: c}
 }
 
-// Create is used to create a secure variable.
-func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
+// Create is used to create a variable.
+func (sv *Variables) Create(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	var out SecureVariable
+	var out Variable
 	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
 		return nil, wm, err
@@ -38,13 +38,13 @@ func (sv *SecureVariables) Create(v *SecureVariable, qo *WriteOptions) (*SecureV
 	return &out, wm, nil
 }
 
-// CheckedCreate is used to create a secure variable if it doesn't exist
+// CheckedCreate is used to create a variable if it doesn't exist
 // already. If it does, it will return a ErrCASConflict that can be unwrapped
 // for more details.
-func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
+func (sv *Variables) CheckedCreate(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	var out SecureVariable
+	var out Variable
 	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas=0", v, &out, qo)
 	if err != nil {
 		return nil, wm, err
@@ -53,12 +53,12 @@ func (sv *SecureVariables) CheckedCreate(v *SecureVariable, qo *WriteOptions) (*
 	return &out, wm, nil
 }
 
-// Read is used to query a single secure variable by path. This will error
+// Read is used to query a single variable by path. This will error
 // if the variable is not found.
-func (sv *SecureVariables) Read(path string, qo *QueryOptions) (*SecureVariable, *QueryMeta, error) {
+func (sv *Variables) Read(path string, qo *QueryOptions) (*Variable, *QueryMeta, error) {
 
 	path = cleanPathString(path)
-	var svar = new(SecureVariable)
+	var svar = new(Variable)
 	qm, err := sv.readInternal("/v1/var/"+path, &svar, qo)
 	if err != nil {
 		return nil, nil, err
@@ -69,12 +69,12 @@ func (sv *SecureVariables) Read(path string, qo *QueryOptions) (*SecureVariable,
 	return svar, qm, nil
 }
 
-// Peek is used to query a single secure variable by path, but does not error
+// Peek is used to query a single variable by path, but does not error
 // when the variable is not found
-func (sv *SecureVariables) Peek(path string, qo *QueryOptions) (*SecureVariable, *QueryMeta, error) {
+func (sv *Variables) Peek(path string, qo *QueryOptions) (*Variable, *QueryMeta, error) {
 
 	path = cleanPathString(path)
-	var svar = new(SecureVariable)
+	var svar = new(Variable)
 	qm, err := sv.readInternal("/v1/var/"+path, &svar, qo)
 	if err != nil {
 		return nil, nil, err
@@ -82,11 +82,11 @@ func (sv *SecureVariables) Peek(path string, qo *QueryOptions) (*SecureVariable,
 	return svar, qm, nil
 }
 
-// Update is used to update a secure variable.
-func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
+// Update is used to update a variable.
+func (sv *Variables) Update(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	var out SecureVariable
+	var out Variable
 
 	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
@@ -95,13 +95,13 @@ func (sv *SecureVariables) Update(v *SecureVariable, qo *WriteOptions) (*SecureV
 	return &out, wm, nil
 }
 
-// CheckedUpdate is used to updated a secure variable if the modify index
+// CheckedUpdate is used to updated a variable if the modify index
 // matches the one on the server.  If it does not, it will return an
 // ErrCASConflict that can be unwrapped for more details.
-func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*SecureVariable, *WriteMeta, error) {
+func (sv *Variables) CheckedUpdate(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 
 	v.Path = cleanPathString(v.Path)
-	var out SecureVariable
+	var out Variable
 	wm, err := sv.writeChecked("/v1/var/"+v.Path+"?cas="+fmt.Sprint(v.ModifyIndex), v, &out, qo)
 	if err != nil {
 		return nil, wm, err
@@ -110,8 +110,8 @@ func (sv *SecureVariables) CheckedUpdate(v *SecureVariable, qo *WriteOptions) (*
 	return &out, wm, nil
 }
 
-// Delete is used to delete a secure variable
-func (sv *SecureVariables) Delete(path string, qo *WriteOptions) (*WriteMeta, error) {
+// Delete is used to delete a variable
+func (sv *Variables) Delete(path string, qo *WriteOptions) (*WriteMeta, error) {
 
 	path = cleanPathString(path)
 	wm, err := sv.deleteInternal(path, qo)
@@ -121,10 +121,10 @@ func (sv *SecureVariables) Delete(path string, qo *WriteOptions) (*WriteMeta, er
 	return wm, nil
 }
 
-// CheckedDelete is used to conditionally delete a secure variable. If the
+// CheckedDelete is used to conditionally delete a variable. If the
 // existing variable does not match the provided checkIndex, it will return an
 // ErrCASConflict that can be unwrapped for more details.
-func (sv *SecureVariables) CheckedDelete(path string, checkIndex uint64, qo *WriteOptions) (*WriteMeta, error) {
+func (sv *Variables) CheckedDelete(path string, checkIndex uint64, qo *WriteOptions) (*WriteMeta, error) {
 
 	path = cleanPathString(path)
 	wm, err := sv.deleteChecked(path, checkIndex, qo)
@@ -135,11 +135,11 @@ func (sv *SecureVariables) CheckedDelete(path string, checkIndex uint64, qo *Wri
 	return wm, nil
 }
 
-// List is used to dump all of the secure variables, can be used to pass prefix
+// List is used to dump all of the variables, can be used to pass prefix
 // via QueryOptions rather than as a parameter
-func (sv *SecureVariables) List(qo *QueryOptions) ([]*SecureVariableMetadata, *QueryMeta, error) {
+func (sv *Variables) List(qo *QueryOptions) ([]*VariableMetadata, *QueryMeta, error) {
 
-	var resp []*SecureVariableMetadata
+	var resp []*VariableMetadata
 	qm, err := sv.client.query("/v1/vars", &resp, qo)
 	if err != nil {
 		return nil, nil, err
@@ -147,8 +147,8 @@ func (sv *SecureVariables) List(qo *QueryOptions) ([]*SecureVariableMetadata, *Q
 	return resp, qm, nil
 }
 
-// PrefixList is used to do a prefix List search over secure variables.
-func (sv *SecureVariables) PrefixList(prefix string, qo *QueryOptions) ([]*SecureVariableMetadata, *QueryMeta, error) {
+// PrefixList is used to do a prefix List search over variables.
+func (sv *Variables) PrefixList(prefix string, qo *QueryOptions) ([]*VariableMetadata, *QueryMeta, error) {
 
 	if qo == nil {
 		qo = &QueryOptions{Prefix: prefix}
@@ -159,12 +159,12 @@ func (sv *SecureVariables) PrefixList(prefix string, qo *QueryOptions) ([]*Secur
 	return sv.List(qo)
 }
 
-// GetItems returns the inner Items collection from a secure variable at a
+// GetItems returns the inner Items collection from a variable at a
 // given path
-func (sv *SecureVariables) GetItems(path string, qo *QueryOptions) (*SecureVariableItems, *QueryMeta, error) {
+func (sv *Variables) GetItems(path string, qo *QueryOptions) (*VariableItems, *QueryMeta, error) {
 
 	path = cleanPathString(path)
-	svar := new(SecureVariable)
+	svar := new(Variable)
 
 	qm, err := sv.readInternal("/v1/var/"+path, &svar, qo)
 	if err != nil {
@@ -177,7 +177,7 @@ func (sv *SecureVariables) GetItems(path string, qo *QueryOptions) (*SecureVaria
 // readInternal exists because the API's higher-level read method requires
 // the status code to be 200 (OK). For Peek(), we do not consider 404
 // (Not Found) an error.
-func (sv *SecureVariables) readInternal(endpoint string, out **SecureVariable, q *QueryOptions) (*QueryMeta, error) {
+func (sv *Variables) readInternal(endpoint string, out **Variable, q *QueryOptions) (*QueryMeta, error) {
 
 	r, err := sv.client.newRequest("GET", endpoint)
 	if err != nil {
@@ -212,7 +212,7 @@ func (sv *SecureVariables) readInternal(endpoint string, out **SecureVariable, q
 // readInternal exists because the API's higher-level delete method requires
 // the status code to be 200 (OK). The SV HTTP API returns a 204 (No Content)
 // on success.
-func (sv *SecureVariables) deleteInternal(path string, q *WriteOptions) (*WriteMeta, error) {
+func (sv *Variables) deleteInternal(path string, q *WriteOptions) (*WriteMeta, error) {
 
 	r, err := sv.client.newRequest("DELETE", fmt.Sprintf("/v1/var/%s", path))
 	if err != nil {
@@ -235,7 +235,7 @@ func (sv *SecureVariables) deleteInternal(path string, q *WriteOptions) (*WriteM
 // deleteChecked exists because the API's higher-level delete method requires
 // the status code to be OK. The SV HTTP API returns a 204 (No Content) on
 // success and a 409 (Conflict) on a CAS error.
-func (sv *SecureVariables) deleteChecked(path string, checkIndex uint64, q *WriteOptions) (*WriteMeta, error) {
+func (sv *Variables) deleteChecked(path string, checkIndex uint64, q *WriteOptions) (*WriteMeta, error) {
 
 	r, err := sv.client.newRequest("DELETE", fmt.Sprintf("/v1/var/%s?cas=%v", path, checkIndex))
 	if err != nil {
@@ -255,7 +255,7 @@ func (sv *SecureVariables) deleteChecked(path string, checkIndex uint64, q *Writ
 	// it is a conflict response. Otherwise, there won't be one.
 	if resp.StatusCode == http.StatusConflict {
 
-		conflict := new(SecureVariable)
+		conflict := new(Variable)
 		if err := decodeBody(resp, &conflict); err != nil {
 			return nil, err
 		}
@@ -270,7 +270,7 @@ func (sv *SecureVariables) deleteChecked(path string, checkIndex uint64, q *Writ
 // writeChecked exists because the API's higher-level write method requires
 // the status code to be OK. The SV HTTP API returns a 200 (OK) on
 // success and a 409 (Conflict) on a CAS error.
-func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out *SecureVariable, q *WriteOptions) (*WriteMeta, error) {
+func (sv *Variables) writeChecked(endpoint string, in *Variable, out *Variable, q *WriteOptions) (*WriteMeta, error) {
 
 	r, err := sv.client.newRequest("PUT", endpoint)
 	if err != nil {
@@ -292,7 +292,7 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 
 	if resp.StatusCode == http.StatusConflict {
 
-		conflict := new(SecureVariable)
+		conflict := new(Variable)
 		if err := decodeBody(resp, &conflict); err != nil {
 			return nil, err
 		}
@@ -309,12 +309,12 @@ func (sv *SecureVariables) writeChecked(endpoint string, in *SecureVariable, out
 	return wm, nil
 }
 
-// SecureVariable specifies the metadata and contents to be stored in the
+// Variable specifies the metadata and contents to be stored in the
 // encrypted Nomad backend.
-type SecureVariable struct {
-	// Namespace is the Nomad namespace associated with the secure variable
+type Variable struct {
+	// Namespace is the Nomad namespace associated with the variable
 	Namespace string
-	// Path is the path to the secure variable
+	// Path is the path to the variable
 	Path string
 
 	// Raft indexes to track creation and modification
@@ -325,15 +325,15 @@ type SecureVariable struct {
 	CreateTime int64
 	ModifyTime int64
 
-	Items SecureVariableItems
+	Items VariableItems
 }
 
-// SecureVariableMetadata specifies the metadata for a secure variable and
+// VariableMetadata specifies the metadata for a variable and
 // is used as the list object
-type SecureVariableMetadata struct {
-	// Namespace is the Nomad namespace associated with the secure variable
+type VariableMetadata struct {
+	// Namespace is the Nomad namespace associated with the variable
 	Namespace string
-	// Path is the path to the secure variable
+	// Path is the path to the variable
 	Path string
 
 	// Raft indexes to track creation and modification
@@ -345,35 +345,35 @@ type SecureVariableMetadata struct {
 	ModifyTime int64
 }
 
-type SecureVariableItems map[string]string
+type VariableItems map[string]string
 
-// NewSecureVariable is a convenience method to more easily create a
-// ready-to-use secure variable
-func NewSecureVariable(path string) *SecureVariable {
+// NewVariable is a convenience method to more easily create a
+// ready-to-use variable
+func NewVariable(path string) *Variable {
 
-	return &SecureVariable{
+	return &Variable{
 		Path:  path,
-		Items: make(SecureVariableItems),
+		Items: make(VariableItems),
 	}
 }
 
-// Copy returns a new deep copy of this SecureVariable
-func (sv1 *SecureVariable) Copy() *SecureVariable {
+// Copy returns a new deep copy of this Variable
+func (sv1 *Variable) Copy() *Variable {
 
-	var out SecureVariable = *sv1
-	out.Items = make(SecureVariableItems)
+	var out Variable = *sv1
+	out.Items = make(VariableItems)
 	for k, v := range sv1.Items {
 		out.Items[k] = v
 	}
 	return &out
 }
 
-// Metadata returns the SecureVariableMetadata component of
-// a SecureVariable. This can be useful for comparing against
+// Metadata returns the VariableMetadata component of
+// a Variable. This can be useful for comparing against
 // a List result.
-func (sv *SecureVariable) Metadata() *SecureVariableMetadata {
+func (sv *Variable) Metadata() *VariableMetadata {
 
-	return &SecureVariableMetadata{
+	return &VariableMetadata{
 		Namespace:   sv.Namespace,
 		Path:        sv.Path,
 		CreateIndex: sv.CreateIndex,
@@ -383,10 +383,10 @@ func (sv *SecureVariable) Metadata() *SecureVariableMetadata {
 	}
 }
 
-// IsZeroValue can be used to test if a SecureVariable has been changed
+// IsZeroValue can be used to test if a Variable has been changed
 // from the default values it gets at creation
-func (sv *SecureVariable) IsZeroValue() bool {
-	return *sv.Metadata() == SecureVariableMetadata{} && sv.Items == nil
+func (sv *Variable) IsZeroValue() bool {
+	return *sv.Metadata() == VariableMetadata{} && sv.Items == nil
 }
 
 // cleanPathString removes leading and trailing slashes since they
@@ -396,16 +396,16 @@ func cleanPathString(path string) string {
 	return strings.Trim(path, " /")
 }
 
-// AsJSON returns the SecureVariable as a JSON-formatted string
-func (sv SecureVariable) AsJSON() string {
+// AsJSON returns the Variable as a JSON-formatted string
+func (sv Variable) AsJSON() string {
 	var b []byte
 	b, _ = json.Marshal(sv)
 	return string(b)
 }
 
-// AsPrettyJSON returns the SecureVariable as a JSON-formatted string with
+// AsPrettyJSON returns the Variable as a JSON-formatted string with
 // indentation
-func (sv SecureVariable) AsPrettyJSON() string {
+func (sv Variable) AsPrettyJSON() string {
 	var b []byte
 	b, _ = json.MarshalIndent(sv, "", "  ")
 	return string(b)
@@ -413,7 +413,7 @@ func (sv SecureVariable) AsPrettyJSON() string {
 
 type ErrCASConflict struct {
 	CheckIndex uint64
-	Conflict   *SecureVariable
+	Conflict   *Variable
 }
 
 func (e ErrCASConflict) Error() string {
@@ -449,7 +449,7 @@ func requireStatusIn(statuses ...int) doRequestWrapper {
 
 // generateUnexpectedResponseCodeError creates a standardized error
 // when the the API client's newRequest method receives an unexpected
-// HTTP response code when accessing the secure variable's HTTP API
+// HTTP response code when accessing the variable's HTTP API
 func generateUnexpectedResponseCodeError(resp *http.Response) error {
 	var buf bytes.Buffer
 	io.Copy(&buf, resp.Body)

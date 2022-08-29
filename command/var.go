@@ -16,28 +16,28 @@ func (f *VarCommand) Help() string {
 	helpText := `
 Usage: nomad var <subcommand> [options] [args]
 
-  This command groups subcommands for interacting with secure variables. Secure
-  variables allow operators to provide credentials and otherwise sensitive
-  material to Nomad jobs at runtime via the template stanza or directly through
+  This command groups subcommands for interacting with variables. Variables
+  allow operators to provide credentials and otherwise sensitive material to
+  Nomad jobs at runtime via the template stanza or directly through
   the Nomad API and CLI.
 
-  Users can create new secure variables; list, inspect, and delete existing
-  secure variables, and more. For a full guide on secure variables see:
+  Users can create new variables; list, inspect, and delete existing
+  variables, and more. For a full guide on variables see:
   https://www.nomadproject.io/guides/vars.html
 
-  Create a secure variable specification file:
+  Create a variable specification file:
 
       $ nomad var init
 
-  Upsert a secure variable:
+  Upsert a variable:
 
       $ nomad var put <path>
 
-  Examine a secure variable:
+  Examine a variable:
 
       $ nomad var get <path>
 
-  List existing secure variables:
+  List existing variables:
 
       $ nomad var list <prefix>
 
@@ -48,7 +48,7 @@ Usage: nomad var <subcommand> [options] [args]
 }
 
 func (f *VarCommand) Synopsis() string {
-	return "Interact with secure variables"
+	return "Interact with variables"
 }
 
 func (f *VarCommand) Name() string { return "var" }
@@ -57,18 +57,18 @@ func (f *VarCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
 
-// SecureVariablePathPredictor returns a var predictor
-func SecureVariablePathPredictor(factory ApiClientFactory) complete.Predictor {
+// VariablePathPredictor returns a var predictor
+func VariablePathPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()
 		if err != nil {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.SecureVariables, nil)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Variables, nil)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.SecureVariables]
+		return resp.Matches[contexts.Variables]
 	})
 }

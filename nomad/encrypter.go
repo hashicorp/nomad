@@ -31,7 +31,8 @@ import (
 
 const nomadKeystoreExtension = ".nks.json"
 
-// Encrypter is the keyring for secure variables.
+// Encrypter is the keyring for encrypting variables and signing workload
+// identities.
 type Encrypter struct {
 	srv          *Server
 	keystorePath string

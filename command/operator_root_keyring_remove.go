@@ -8,16 +8,16 @@ import (
 	"github.com/posener/complete"
 )
 
-// OperatorSecureVariablesKeyringRemoveCommand is a Command
-// implementation that handles removeing secure variables encryption
+// OperatorRootKeyringRemoveCommand is a Command
+// implementation that handles removeing variables encryption
 // keys from a keyring.
-type OperatorSecureVariablesKeyringRemoveCommand struct {
+type OperatorRootKeyringRemoveCommand struct {
 	Meta
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) Help() string {
+func (c *OperatorRootKeyringRemoveCommand) Help() string {
 	helpText := `
-Usage: nomad operator secure-variables keyring remove [options] <key ID>
+Usage: nomad operator root keyring remove [options] <key ID>
 
   Remove an encryption key from the cluster. This operation may only be
   performed on keys that are not the active key.
@@ -31,26 +31,26 @@ General Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) Synopsis() string {
-	return "Removes a secure variables encryption key"
+func (c *OperatorRootKeyringRemoveCommand) Synopsis() string {
+	return "Removes a root encryption key"
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorRootKeyringRemoveCommand) AutocompleteFlags() complete.Flags {
 	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorRootKeyringRemoveCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictAnything
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) Name() string {
-	return "secure-variables keyring remove"
+func (c *OperatorRootKeyringRemoveCommand) Name() string {
+	return "root keyring remove"
 }
 
-func (c *OperatorSecureVariablesKeyringRemoveCommand) Run(args []string) int {
+func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
 	var verbose bool
 
-	flags := c.Meta.FlagSet("secure-variables keyring remove", FlagSetClient)
+	flags := c.Meta.FlagSet("root keyring remove", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 

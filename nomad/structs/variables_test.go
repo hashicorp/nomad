@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
+func TestStructs_VariableDecrypted_Copy(t *testing.T) {
 	ci.Parallel(t)
 	n := time.Now()
-	a := SecureVariableMetadata{
+	a := VariableMetadata{
 		Namespace:   "a",
 		Path:        "a/b/c",
 		CreateIndex: 1,
@@ -19,9 +19,9 @@ func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
 		ModifyIndex: 2,
 		ModifyTime:  n.Add(48 * time.Hour).UnixNano(),
 	}
-	sv := SecureVariableDecrypted{
-		SecureVariableMetadata: a,
-		Items: SecureVariableItems{
+	sv := VariableDecrypted{
+		VariableMetadata: a,
+		Items: VariableItems{
 			"foo": "bar",
 			"k1":  "v1",
 		},
@@ -32,12 +32,12 @@ func TestStructs_SecureVariableDecrypted_Copy(t *testing.T) {
 	require.False(t, sv.Equals(sv2), "sv and sv2 should not be equal")
 }
 
-func TestStructs_SecureVariableDecrypted_Validate(t *testing.T) {
+func TestStructs_VariableDecrypted_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	sv := SecureVariableDecrypted{
-		SecureVariableMetadata: SecureVariableMetadata{Namespace: "a"},
-		Items:                  SecureVariableItems{"foo": "bar"},
+	sv := VariableDecrypted{
+		VariableMetadata: VariableMetadata{Namespace: "a"},
+		Items:            VariableItems{"foo": "bar"},
 	}
 
 	testCases := []struct {

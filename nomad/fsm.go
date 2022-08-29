@@ -55,8 +55,8 @@ const (
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
-	SecureVariablesSnapshot              SnapshotType = 22
-	SecureVariablesQuotaSnapshot         SnapshotType = 23
+	VariablesSnapshot                    SnapshotType = 22
+	VariablesQuotaSnapshot               SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
@@ -317,8 +317,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
 	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
 		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
-	case structs.SVApplyStateRequestType:
-		return n.applySecureVariableOperation(msgType, buf[1:], log.Index)
+	case structs.VarApplyStateRequestType:
+		return n.applyVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaDeleteRequestType:
@@ -1719,23 +1719,23 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				}
 			}
 
-		case SecureVariablesSnapshot:
-			variable := new(structs.SecureVariableEncrypted)
+		case VariablesSnapshot:
+			variable := new(structs.VariableEncrypted)
 			if err := dec.Decode(variable); err != nil {
 				return err
 			}
 
-			if err := restore.SecureVariablesRestore(variable); err != nil {
+			if err := restore.VariablesRestore(variable); err != nil {
 				return err
 			}
 
-		case SecureVariablesQuotaSnapshot:
-			quota := new(structs.SecureVariablesQuota)
+		case VariablesQuotaSnapshot:
+			quota := new(structs.VariablesQuota)
 			if err := dec.Decode(quota); err != nil {
 				return err
 			}
 
-			if err := restore.SecureVariablesQuotaRestore(quota); err != nil {
+			if err := restore.VariablesQuotaRestore(quota); err != nil {
 				return err
 			}
 
@@ -2034,25 +2034,25 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applySecureVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	var req structs.SVApplyStateRequest
+func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"nomad", "fsm", "apply_sv_operation"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
-	case structs.SVOpSet:
-		return n.state.SVESet(index, &req)
-	case structs.SVOpDelete:
-		return n.state.SVEDelete(index, &req)
-	case structs.SVOpDeleteCAS:
-		return n.state.SVEDeleteCAS(index, &req)
-	case structs.SVOpCAS:
-		return n.state.SVESetCAS(index, &req)
+	case structs.VarOpSet:
+		return n.state.VarSet(index, &req)
+	case structs.VarOpDelete:
+		return n.state.VarDelete(index, &req)
+	case structs.VarOpDeleteCAS:
+		return n.state.VarDeleteCAS(index, &req)
+	case structs.VarOpCAS:
+		return n.state.VarSetCAS(index, &req)
 	default:
-		err := fmt.Errorf("Invalid SVE operation '%s'", req.Op)
-		n.logger.Warn("Invalid SVE operation", "operation", req.Op)
+		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
+		n.logger.Warn("Invalid variable operation", "operation", req.Op)
 		return err
 	}
 }
@@ -2197,11 +2197,11 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistSecureVariables(sink, encoder); err != nil {
+	if err := s.persistVariables(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistSecureVariablesQuotas(sink, encoder); err != nil {
+	if err := s.persistVariablesQuotas(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2767,11 +2767,11 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 	}
 }
 
-func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	variables, err := s.snap.SecureVariables(ws)
+	variables, err := s.snap.Variables(ws)
 	if err != nil {
 		return err
 	}
@@ -2781,8 +2781,8 @@ func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		variable := raw.(*structs.SecureVariableEncrypted)
-		sink.Write([]byte{byte(SecureVariablesSnapshot)})
+		variable := raw.(*structs.VariableEncrypted)
+		sink.Write([]byte{byte(VariablesSnapshot)})
 		if err := encoder.Encode(variable); err != nil {
 			return err
 		}
@@ -2790,11 +2790,11 @@ func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
 	return nil
 }
 
-func (s *nomadSnapshot) persistSecureVariablesQuotas(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistVariablesQuotas(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	quotas, err := s.snap.SecureVariablesQuotas(ws)
+	quotas, err := s.snap.VariablesQuotas(ws)
 	if err != nil {
 		return err
 	}
@@ -2804,8 +2804,8 @@ func (s *nomadSnapshot) persistSecureVariablesQuotas(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		dirEntry := raw.(*structs.SecureVariablesQuota)
-		sink.Write([]byte{byte(SecureVariablesQuotaSnapshot)})
+		dirEntry := raw.(*structs.VariablesQuota)
+		sink.Write([]byte{byte(VariablesQuotaSnapshot)})
 		if err := encoder.Encode(dirEntry); err != nil {
 			return err
 		}
