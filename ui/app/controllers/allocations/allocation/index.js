@@ -89,7 +89,7 @@ export default class IndexController extends Controller.extend(Sortable) {
           });
         }
       } else {
-        result.set(currentServiceName, {});
+        result.set(currentServiceName, { [currentServiceStatus]: 1 });
       }
     });
 
