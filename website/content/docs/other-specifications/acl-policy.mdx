@@ -29,8 +29,8 @@ namespace "foo" {
   policy = "write"                # this is a policy field
   capabilities = ["alloc-exec"]  # this is a capabilities list
 
-  # this block controls access to secure variables in this namespace
-  secure_variables {
+  # this block controls access to variables in this namespace
+  variables {
     path "project/*" {
       capabilities = ["read", "write"]
     }
@@ -107,7 +107,7 @@ namespace "*" {
 ```
 
 Each namespace rule can include a coarse-grained `policy` field, a fine-grained
-`capabilities` field, a `secure_variables` block, or all three.
+`capabilities` field, a `variables` block, or all three.
 
 The `policy` field for namespace rules can have one of the following values:
 - `read`: allow the resource to be read but not modified
@@ -183,39 +183,39 @@ namespace "default" {
 }
 ```
 
-### Secure Variables
+### Variables
 
-The `secure_variables` block in the `namespace` rule controls access to [Secure
-Variables][]. The secure variables block is optional, but you can specify only
-one secure variables block per namespace rule.
+The `variables` block in the `namespace` rule controls access to
+[Variables][]. The variables block is optional, but you can specify only one
+variables block per namespace rule.
 
-A `secure_variables` block includes one or more `path` blocks. Each `path` block
-is labeled with the path it applies to. You may use wildcard globs (`"*"`) in
-the path label, to apply the block to multiple paths in the namespace.
+A `variables` block includes one or more `path` blocks. Each `path` block is
+labeled with the path it applies to. You may use wildcard globs (`"*"`) in the
+path label, to apply the block to multiple paths in the namespace.
 
-Each path has a list of `capabilities`. The available capabilities for Secure
-Variables are as follows:
+Each path has a list of `capabilities`. The available capabilities for Variables
+are as follows:
 
-| Capability | Notes                                                                                                                        |
-|------------|------------------------------------------------------------------------------------------------------------------------------|
-| write      | Create or update Secure Variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
-| read       | Read the decrypted contents of Secure Variables at this path. Also includes the "list" capability                            |
-| list       | List the metadata but not contents of Secure Variables at this path.                                                         |
-| destroy    | Delete Secure Variables at this path.                                                                                        |
-| deny       | No permissions at this path. Deny takes precedence over other capabilities.                                                  |
+| Capability | Notes                                                                                                                 |
+|------------|-----------------------------------------------------------------------------------------------------------------------|
+| write      | Create or update Variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
+| read       | Read the decrypted contents of Variables at this path. Also includes the "list" capability                            |
+| list       | List the metadata but not contents of Variables at this path.                                                         |
+| destroy    | Delete Variables at this path.                                                                                        |
+| deny       | No permissions at this path. Deny takes precedence over other capabilities.                                           |
 
-For example, the policy below allows full access to secure variables at all
-paths in the "dev" namespace that are prefixed with "project/", but only read
-access to paths prefixed with "system/". Note that the glob can match an empty
-string but all other characters are strictly matched. This policy grants read
-access to paths prefixed with "system/" but not a path named "system" (without a
-trailing slash). This policy does not grant any other coarse-grained policy or
+For example, the policy below allows full access to variables at all paths in
+the "dev" namespace that are prefixed with "project/", but only read access to
+paths prefixed with "system/". Note that the glob can match an empty string but
+all other characters are strictly matched. This policy grants read access to
+paths prefixed with "system/" but not a path named "system" (without a trailing
+slash). This policy does not grant any other coarse-grained policy or
 fine-grained capabilities.
 
 ```hcl
 namespace "dev" {
 
-  secure_variables {
+  variables {
 
     # full access to secrets in all "project" paths
     path "project/*" {
@@ -402,4 +402,4 @@ The `policy` field for the plugin rule can have one of the following values:
 [api_quota]: /api-docs/quotas/
 [host_volumes]: /docs/configuration/client#host_volume-stanza
 [api_plugins]: /api-docs/plugins/
-[Secure Variables]: /docs/concepts/secure-variables
+[Variables]: /docs/concepts/variables
