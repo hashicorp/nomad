@@ -227,7 +227,7 @@ moduleForJob(
   }
 );
 
-module.skip('Acceptance | job detail (with namespaces)', function (hooks) {
+module('Acceptance | job detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 

@@ -91,7 +91,7 @@ export default Factory.extend({
           maybeResources.originalResources = generateResources(resources[idx]);
         }
         return server.create('task', {
-          taskGroup: group,
+          taskGroupID: group.id,
           ...maybeResources,
           withServices: group.withTaskServices,
           volumeMounts: mounts.map((mount) => ({
@@ -138,12 +138,14 @@ export default Factory.extend({
     if (group.withServices) {
       const services = server.createList('service-fragment', 5, {
         taskGroupId: group.id,
+        taskGroup: group,
         provider: 'nomad',
       });
 
       services.push(
         server.create('service-fragment', {
           taskGroupId: group.id,
+          taskGroup: group,
           provider: 'consul',
         })
       );
