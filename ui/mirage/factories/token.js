@@ -55,7 +55,7 @@ node {
             {
               Name: '*',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -121,7 +121,7 @@ node {
             {
               Name: '*',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list'],
@@ -133,7 +133,7 @@ node {
             {
               Name: 'namespace-1',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list', 'read', 'destroy', 'create'],
@@ -145,7 +145,7 @@ node {
             {
               Name: 'namespace-2',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list', 'read', 'destroy', 'create'],
