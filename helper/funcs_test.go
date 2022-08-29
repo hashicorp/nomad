@@ -593,3 +593,37 @@ func Test_ElementsEquals(t *testing.T) {
 		must.False(t, ElementsEquals(b, a))
 	})
 }
+
+func Test_SliceSetEq(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := make([]int, 0)
+		b := make([]int, 0)
+		must.True(t, SliceSetEq(a, b))
+	})
+
+	t.Run("subset small", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5}
+		b := []int{1, 2, 3}
+		must.False(t, SliceSetEq(a, b))
+		must.False(t, SliceSetEq(b, a))
+	})
+
+	t.Run("subset large", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+		must.False(t, SliceSetEq(a, b))
+		must.False(t, SliceSetEq(b, a))
+	})
+
+	t.Run("same small", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5}
+		b := []int{1, 2, 3, 4, 5}
+		must.True(t, SliceSetEq(a, b))
+	})
+
+	t.Run("same large", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		must.True(t, SliceSetEq(a, b))
+	})
+}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
 )
@@ -676,6 +677,34 @@ OUTER:
 	for _, item := range a {
 		for _, other := range b {
 			if item.Equals(other) {
+				continue OUTER
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// SliceSetEq returns true if slices a and b contain the same elements (in no
+// particular order), using '==' for comparison.
+//
+// Note: for pointers, consider implementing an Equals method and using
+// ElementsEquals instead.
+func SliceSetEq[T comparable](a, b []T) bool {
+	lenA, lenB := len(a), len(b)
+	if lenA != lenB {
+		return false
+	}
+
+	if lenA > 10 {
+		// avoid quadratic comparisons over large input
+		return set.From(a).EqualSlice(b)
+	}
+
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item == other {
 				continue OUTER
 			}
 		}
