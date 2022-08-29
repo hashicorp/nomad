@@ -13,6 +13,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
   startWatchers(controller, model) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
+      // TODO: Add conditional logic
       controller.set(
         'watchHealthChecks',
         this.watchHealthChecks.perform(model, 'getServiceHealth')
