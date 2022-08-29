@@ -165,4 +165,8 @@ export default class IndexController extends Controller.extend(Sortable) {
   taskClick(allocation, task, event) {
     lazyClick([() => this.send('gotoTask', allocation, task), event]);
   }
+
+  @action handleServiceClick(service, e) {
+    console.log('clique', service);
+  }
 }

@@ -295,7 +295,9 @@
             </td>
           </t.head>
           <t.body as |row|>
-            <tr data-test-service>
+            <tr data-test-service class="is-interactive"
+              {{on "click" (fn this.handleServiceClick row.model)}}
+            >
               <td data-test-service-name>
                 {{row.model.name}}
               </td>
@@ -497,4 +499,5 @@
       </div>
     </div>
   {{/if}}
+  <AllocationServiceSidebar />
 </section>

@@ -1,0 +1,13 @@
+<Portal @target="service-detail-portal">
+	<div
+		class="sidebar open {{if this.isSideBarOpen "open"}}"
+		{{on-click-outside
+			this.closeSidebar
+			capture=true
+		}}
+	>
+		<h1 class="title">Service Details</h1>
+	</div>
+</Portal>
+
+{{yield}}
