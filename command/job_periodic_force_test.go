@@ -219,17 +219,17 @@ func TestJobPeriodicForceCommand_SuccessfulIfJobIDEqualsPrefix(t *testing.T) {
 
 	j1 := testJob("periodic-prefix")
 	j1.Periodic = &api.PeriodicConfig{
-		SpecType:        pointer.Of(api.PeriodicSpecCron),
-		Spec:            pointer.Of("*/15 * * * * *"),
-		ProhibitOverlap: pointer.Of(true),
-		TimeZone:        pointer.Of("Europe/Minsk"),
+		SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
+		Spec:            helper.StringToPtr("*/15 * * * * *"),
+		ProhibitOverlap: helper.BoolToPtr(true),
+		TimeZone:        helper.StringToPtr("Europe/Minsk"),
 	}
 	j2 := testJob("periodic-prefix-another-job")
 	j2.Periodic = &api.PeriodicConfig{
-		SpecType:        pointer.Of(api.PeriodicSpecCron),
-		Spec:            pointer.Of("*/15 * * * * *"),
-		ProhibitOverlap: pointer.Of(true),
-		TimeZone:        pointer.Of("Europe/Minsk"),
+		SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
+		Spec:            helper.StringToPtr("*/15 * * * * *"),
+		ProhibitOverlap: helper.BoolToPtr(true),
+		TimeZone:        helper.StringToPtr("Europe/Minsk"),
 	}
 
 	ui := cli.NewMockUi()
