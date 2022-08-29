@@ -12,8 +12,6 @@
 
 	<ListTable
 		@source={{this.model.instances}}
-		{{!-- @sortProperty={{this.sortProperty}}
-		@sortDescending={{this.sortDescending}} --}}
 		as |t|
 	>
 		<t.head>
@@ -21,7 +19,7 @@
 			<t.sort-by @prop="address">IP Address &amp; Port</t.sort-by>
 		</t.head>
 		<t.body as |row|>
-			<tr>
+			<tr data-test-service-row>
 				<td
 					{{keyboard-shortcut 
 						enumerated=true
