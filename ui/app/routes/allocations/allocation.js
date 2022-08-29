@@ -13,11 +13,18 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
   startWatchers(controller, model) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
-      // TODO: Add conditional logic
-      controller.set(
-        'watchHealthChecks',
-        this.watchHealthChecks.perform(model, 'getServiceHealth')
-      );
+
+      // Conditionally Long Poll /checks endpoint if alloc has services
+      const doesAllocHaveServices =
+        !!model.taskGroup.services ||
+        !!model.states.mapBy('task').map((t) => t && t.get('services'));
+
+      if (doesAllocHaveServices) {
+        controller.set(
+          'watchHealthChecks',
+          this.watchHealthChecks.perform(model, 'getServiceHealth')
+        );
+      }
     }
   }
 
