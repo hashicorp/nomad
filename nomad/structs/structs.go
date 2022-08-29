@@ -44,6 +44,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -7763,13 +7764,8 @@ func (t *Template) Copy() *Template {
 	nt := new(Template)
 	*nt = *t
 
-	if t.Wait != nil {
-		nt.Wait = t.Wait.Copy()
-	}
-
-	if t.ChangeScript != nil {
-		nt.ChangeScript = t.ChangeScript.Copy()
-	}
+	nt.ChangeScript = t.ChangeScript.Copy()
+	nt.Wait = t.Wait.Copy()
 
 	return nt
 }
@@ -7879,6 +7875,9 @@ func (cs *ChangeScript) Copy() *ChangeScript {
 
 	ncs := new(ChangeScript)
 	*ncs = *cs
+
+	// args is a slice!
+	ncs.Args = slices.Clone(cs.Args)
 
 	return ncs
 }
