@@ -12,7 +12,7 @@ import {
   clickTrigger,
 } from 'ember-power-select/test-support/helpers';
 
-module('Integration | Component | secure-variable-form', function (hooks) {
+module('Integration | Component | variable-form', function (hooks) {
   setupRenderingTest(hooks);
   setupMirage(hooks);
   setupCodeMirror(hooks);
@@ -25,7 +25,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         keyValues: [{ key: '', value: '' }],
       })
     );
-    await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
     await componentA11yAudit(this.element, assert);
   });
 
@@ -38,7 +38,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     );
     assert.expect(7);
 
-    await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
     assert.equal(
       findAll('div.key-value').length,
       1,
@@ -106,7 +106,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
 
       assert.expect(6);
 
-      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
       await click('.key-value button.add-more'); // add a second variable
 
       findAll('input.value-input').forEach((input, iter) => {
@@ -163,7 +163,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         keyValues,
       })
     );
-    await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
     assert.equal(
       findAll('div.key-value').length,
       5,
@@ -206,7 +206,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     });
     variable.isNew = false;
     this.set('variable', variable);
-    await render(hbs`<SecureVariableForm @model={{this.variable}} />`);
+    await render(hbs`<VariableForm @model={{this.variable}} />`);
     assert.dom('input.path-input').hasValue('/baz/bat', 'Path is set');
     assert
       .dom('input.path-input')
@@ -215,7 +215,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     variable.isNew = true;
     variable.path = '';
     this.set('variable', variable);
-    await render(hbs`<SecureVariableForm @model={{this.variable}} />`);
+    await render(hbs`<VariableForm @model={{this.variable}} />`);
     assert
       .dom('input.path-input')
       .isNotDisabled('New variable is not in disabled state');
@@ -244,7 +244,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       this.set('existingVariables', server.db.variables.toArray());
 
       await render(
-        hbs`<SecureVariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`
+        hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`
       );
 
       await typeIn('.path-input', 'foo/bar');
@@ -278,7 +278,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         })
       );
 
-      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
 
       await typeIn('.key-value label:nth-child(1) input', 'superSecret');
       assert.dom('.key-value-error').doesNotExist();
@@ -297,7 +297,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         })
       );
 
-      await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
+      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
 
       await click('.key-value button.add-more');
 
@@ -332,7 +332,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       this.set('view', 'table');
 
       await render(
-        hbs`<SecureVariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} @view={{this.view}} />`
+        hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} @view={{this.view}} />`
       );
       assert.dom('.key-value').exists();
       assert.dom('.CodeMirror').doesNotExist();
@@ -359,7 +359,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       this.set('view', 'json');
 
       await render(
-        hbs`<SecureVariableForm @model={{this.mockedModel}} @view={{this.view}} />`
+        hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`
       );
 
       await percySnapshot(assert);
@@ -406,7 +406,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       this.set('view', 'json');
 
       await render(
-        hbs`<SecureVariableForm @model={{this.mockedModel}} @view={{this.view}} />`
+        hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`
       );
 
       codeFillable('[data-test-json-editor]').get()(

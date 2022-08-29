@@ -837,7 +837,7 @@ export default function () {
     }
   );
 
-  //#region Secure Variables
+  //#region Variables
 
   this.get('/vars', function (schema, { queryParams: { namespace } }) {
     if (namespace && namespace !== '*') {
@@ -883,7 +883,7 @@ export default function () {
     return '';
   });
 
-  //#endregion Secure Variables
+  //#endregion Variables
 }
 
 function filterKeys(object, ...keys) {

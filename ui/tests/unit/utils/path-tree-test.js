@@ -61,17 +61,17 @@ module('Unit | Utility | path-tree', function () {
     assert.equal(
       Object.keys(tree.findPath('a/b').files).length,
       4,
-      'Multiple files are listed at a found non-terminal compacted path with many secure variables'
+      'Multiple files are listed at a found non-terminal compacted path with many variables'
     );
     assert.equal(
       Object.keys(tree.findPath('a/b/c/doberman').files).length,
       1,
-      'One file listed at a found compacted path with a single secure variable'
+      'One file listed at a found compacted path with a single variable'
     );
     assert.equal(
       Object.keys(tree.findPath('a/b/c/dachshund').files).length,
       2,
-      'Multiple files listed at a found terminal compacted path with many secure variables'
+      'Multiple files listed at a found terminal compacted path with many variables'
     );
   });
 });

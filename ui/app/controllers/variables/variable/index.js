@@ -40,7 +40,7 @@ export default class VariablesVariableIndexController extends Controller {
         this.router.transitionTo('variables');
       }
       this.flashMessages.add({
-        title: 'Secure Variable deleted',
+        title: 'Variable deleted',
         message: `${this.model.path} successfully deleted`,
         type: 'success',
         destroyOnClick: false,

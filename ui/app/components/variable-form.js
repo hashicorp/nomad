@@ -19,7 +19,7 @@ const EMPTY_KV = {
   warnings: EmberObject.create(),
 };
 
-export default class SecureVariableFormComponent extends Component {
+export default class VariableFormComponent extends Component {
   @service flashMessages;
   @service router;
   @service store;
@@ -200,7 +200,7 @@ export default class SecureVariableFormComponent extends Component {
       await this.args.model.save({ adapterOptions: { overwrite } });
 
       this.flashMessages.add({
-        title: 'Secure Variable saved',
+        title: 'Variable saved',
         message: `${this.path} successfully saved`,
         type: 'success',
         destroyOnClick: false,
@@ -302,15 +302,13 @@ export default class SecureVariableFormComponent extends Component {
         throw new Error('Invalid JSON');
       }
 
-      // "myString" is valid JSON, but it's not a valid Secure Variable.
-      // Ditto for an array of objects. We expect a single object to be a Secure Variable.
+      // "myString" is valid JSON, but it's not a valid Variable.
+      // Ditto for an array of objects. We expect a single object to be a Variable.
       const hasFormatErrors =
         JSON.parse(value) instanceof Array ||
         typeof JSON.parse(value) !== 'object';
       if (hasFormatErrors) {
-        throw new Error(
-          'A Secure Variable must be formatted as a single JSON object'
-        );
+        throw new Error('A Variable must be formatted as a single JSON object');
       }
 
       set(this, 'JSONError', null);
