@@ -1,17 +1,17 @@
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
-<form class="new-secure-variables" autocomplete="off" {{on "submit" this.save}}>
+<form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}
     <div class="related-entities related-entities-hint">
-      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your secure variable accessible to a specified job, task group, or task.<br />
+      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
       Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
     </div>
   {{/if}}
 
   {{#if this.hasConflict}}
     <div class="notification conflict is-danger">
-      <h3 class="title is-4">Heads up! Your Secure Variable has a conflict.</h3>
+      <h3 class="title is-4">Heads up! Your variable has a conflict.</h3>
       <p>This might be because someone else tried saving in the time since you've had it open.</p>
       {{#if this.conflictingVariable.modifyTime}}
         <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
@@ -46,7 +46,7 @@
       />
       {{#if this.duplicatePathWarning}}
         <p class="duplicate-path-error help is-danger">
-          There is already a Secure Variable located at
+          There is already a variable located at
           {{this.path}}
           .
           <br />
@@ -55,13 +55,13 @@
             @route="variables.variable.edit"
             @model={{this.duplicatePathWarning.path}}
           >
-            edit the existing Secure Variable
+            edit the existing variable
           </LinkTo>
           .
         </p>
       {{/if}}
     </label>
-    <SecureVariableForm::NamespaceFilter 
+    <VariableForm::NamespaceFilter 
       @data={{hash 
         disabled=(not @model.isNew)
         selection=this.variableNamespace
@@ -108,7 +108,7 @@
             {{on "input" (fn this.validateKey entry)}}
           />
         </label>
-        <SecureVariableForm::InputGroup @entry={{entry}} />
+        <VariableForm::InputGroup @entry={{entry}} />
         {{#if (eq entry this.keyValues.lastObject)}}
           <button
             class="add-more button is-info is-inverted"
@@ -137,7 +137,7 @@
   {{/if}}
 
   {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
-    <SecureVariableForm::RelatedEntities
+    <VariableForm::RelatedEntities
       @new={{true}}
       @job={{@model.pathLinkedEntities.job}}
       @group={{@model.pathLinkedEntities.group}}

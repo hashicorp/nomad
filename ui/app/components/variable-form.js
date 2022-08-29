@@ -19,7 +19,7 @@ const EMPTY_KV = {
   warnings: EmberObject.create(),
 };
 
-export default class SecureVariableFormComponent extends Component {
+export default class VariableFormComponent extends Component {
   @service flashMessages;
   @service router;
   @service store;
