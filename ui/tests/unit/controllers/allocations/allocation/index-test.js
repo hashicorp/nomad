@@ -45,6 +45,56 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
         'Service Health Check data is transformed and grouped by Service name'
       );
     });
+
+    test('it handles duplicate names', function (assert) {
+      let controller = this.owner.lookup(
+        'controller:allocations/allocation/index'
+      );
+
+      const dupeTaskLevelService =
+        Allocation.allocationTaskGroup.Tasks[0].Services[0];
+      dupeTaskLevelService.Name = 'fake-py@task';
+      dupeTaskLevelService.isTaskLevel = true;
+
+      const healthChecks = Allocation.healthChecks;
+      healthChecks['73ad9b936fb3f3cc4d7f62a1aab6de53'].Service = 'fake-py';
+      healthChecks['19421ef816ae0d3eeeb81697bce0e261'].Service = 'fake-py';
+
+      controller.set('model', Allocation);
+
+      const result = new Map();
+      result.set('fake-py', {
+        failure: 1,
+        success: 1,
+      });
+      result.set('fake-py@task', {
+        failure: 1,
+        success: 1,
+      });
+      result.set('web@task', {
+        success: 1,
+      });
+
+      const fakePy = controller.serviceHealthStatuses.get('fake-py');
+      const taskFakePy = controller.serviceHealthStatuses.get('fake-py@task');
+      const web = controller.serviceHealthStatuses.get('web@task');
+
+      assert.deepEqual(
+        fakePy,
+        result.get('fake-py'),
+        'Service Health Check data is transformed and grouped by Service name'
+      );
+      assert.deepEqual(
+        taskFakePy,
+        result.get('fake-py@task'),
+        'Service Health Check data is transformed and grouped by Service name'
+      );
+      assert.deepEqual(
+        web,
+        result.get('web@task'),
+        'Service Health Check data is transformed and grouped by Service name'
+      );
+    });
   });
 });
 
