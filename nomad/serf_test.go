@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
-	"github.com/hashicorp/serf/testutil/retry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -328,16 +327,35 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	})
 	defer cleanupS4()
 
+	// Start with 4th server for higher chance of success when joining servers.
+	servers := []*Server{s4, s3, s2, s1}
+
 	// Join with fourth server (now have quorum)
-	// Start with 4th server for higher chance of success
-	TestJoin(t, s4, s3, s2, s1)
+	TestJoin(t, servers...)
 
 	// Assert leadership with 4 peers
-	servers := []*Server{s1, s2, s3, s4}
-	for _, s := range servers {
-		testutil.WaitForLeader(t, s.RPC)
-		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 4)) })
-	}
+	expect := len(servers)
+	testutil.WaitForLeader(t, servers[0].RPC)
+	testutil.WaitForResult(func() (bool, error) {
+		// Retry the join to decrease flakiness
+		TestJoin(t, servers...)
+		for _, s := range servers {
+			peers, err := s.numPeers()
+			if err != nil {
+				return false, fmt.Errorf("failed to get number of peers: %v", err)
+			}
+			if peers != expect {
+				return false, fmt.Errorf("expected %d peers, got %d", expect, peers)
+			}
+			if len(s.localPeers) != expect {
+				return false, fmt.Errorf("expected %d local peers, got %d: %#v", expect, len(s.localPeers), s.localPeers)
+			}
+
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
 
 func TestNomad_BadExpect(t *testing.T) {
