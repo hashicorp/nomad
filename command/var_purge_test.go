@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVarDeleteCommand_Implements(t *testing.T) {
+func TestVarPurgeCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
-	var _ cli.Command = &VarDeleteCommand{}
+	var _ cli.Command = &VarPurgeCommand{}
 }
 
-func TestVarDeleteCommand_Fails(t *testing.T) {
+func TestVarPurgeCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	cmd := &VarDeleteCommand{Meta: Meta{Ui: ui}}
+	cmd := &VarPurgeCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
@@ -36,7 +36,7 @@ func TestVarDeleteCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 }
 
-func TestVarDeleteCommand_Good(t *testing.T) {
+func TestVarPurgeCommand_Good(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a server
@@ -44,7 +44,7 @@ func TestVarDeleteCommand_Good(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := &VarDeleteCommand{Meta: Meta{Ui: ui}}
+	cmd := &VarPurgeCommand{Meta: Meta{Ui: ui}}
 
 	// Create a var to delete
 	sv := testVariable()
@@ -60,13 +60,13 @@ func TestVarDeleteCommand_Good(t *testing.T) {
 	require.Len(t, vars, 0)
 }
 
-func TestVarDeleteCommand_AutocompleteArgs(t *testing.T) {
+func TestVarPurgeCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 	_, client, url, shutdownFn := testAPIClient(t)
 	defer shutdownFn()
 
 	ui := cli.NewMockUi()
-	cmd := &VarDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &VarPurgeCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a var
 	sv := testVariable()

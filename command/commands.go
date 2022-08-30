@@ -936,8 +936,8 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"var delete": func() (cli.Command, error) {
-			return &VarDeleteCommand{
+		"var purge": func() (cli.Command, error) {
+			return &VarPurgeCommand{
 				Meta: meta,
 			}, nil
 		},

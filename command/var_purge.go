@@ -7,11 +7,11 @@ import (
 	"github.com/posener/complete"
 )
 
-type VarDeleteCommand struct {
+type VarPurgeCommand struct {
 	Meta
 }
 
-func (c *VarDeleteCommand) Help() string {
+func (c *VarPurgeCommand) Help() string {
 	helpText := `
 Usage: nomad var delete [options] <path>
 
@@ -27,21 +27,21 @@ General Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *VarDeleteCommand) AutocompleteFlags() complete.Flags {
+func (c *VarPurgeCommand) AutocompleteFlags() complete.Flags {
 	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
-func (c *VarDeleteCommand) AutocompleteArgs() complete.Predictor {
+func (c *VarPurgeCommand) AutocompleteArgs() complete.Predictor {
 	return VariablePathPredictor(c.Meta.Client)
 }
 
-func (c *VarDeleteCommand) Synopsis() string {
+func (c *VarPurgeCommand) Synopsis() string {
 	return "Delete a variable"
 }
 
-func (c *VarDeleteCommand) Name() string { return "var delete" }
+func (c *VarPurgeCommand) Name() string { return "var delete" }
 
-func (c *VarDeleteCommand) Run(args []string) int {
+func (c *VarPurgeCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
