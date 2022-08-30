@@ -19,7 +19,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -31,11 +31,11 @@ type noopReplacer struct {
 }
 
 func clientPath(taskDir, path string, join bool) (string, bool) {
-	if !filepath.IsAbs(path) || (helper.PathEscapesSandbox(taskDir, path) && join) {
+	if !filepath.IsAbs(path) || (escapingfs.PathEscapesSandbox(taskDir, path) && join) {
 		path = filepath.Join(taskDir, path)
 	}
 	path = filepath.Clean(path)
-	if taskDir != "" && !helper.PathEscapesSandbox(taskDir, path) {
+	if taskDir != "" && !escapingfs.PathEscapesSandbox(taskDir, path) {
 		return path, false
 	}
 	return path, true

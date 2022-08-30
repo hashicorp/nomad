@@ -2788,7 +2788,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		// datacenterQueryLimit, the next heartbeat will pick
 		// a new set of servers so it's okay.
 		shuffleStrings(dcs[1:])
-		dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
+		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 	}
 
 	// Query for servers in this client's region only
