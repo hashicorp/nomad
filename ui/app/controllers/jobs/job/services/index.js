@@ -1,14 +1,31 @@
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import Sortable from 'nomad-ui/mixins/sortable';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { union } from '@ember/object/computed';
 
 export default class JobsJobServicesIndexController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
+  Sortable
 ) {
   @alias('model') job;
   @alias('job.taskGroups') taskGroups;
+
+  queryParams = [
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
+
+  sortProperty = 'name';
+  sortDescending = false;
+
+  @alias('services') listToSort;
+  @alias('listSorted') sortedServices;
 
   @computed('taskGroups.@each.tasks')
   get tasks() {
