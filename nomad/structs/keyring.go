@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	// note: this is aliased so that it's more noticeable if someone
-	// accidentally swaps it out for math/rand via running goimports
-	cryptorand "crypto/rand"
-
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -29,14 +26,9 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 
 	switch algorithm {
 	case EncryptionAlgorithmAES256GCM:
-		const keyBytes = 32
-		key := make([]byte, keyBytes)
-		n, err := cryptorand.Read(key)
+		key, err := crypto.Bytes(32)
 		if err != nil {
-			return nil, err
-		}
-		if n < keyBytes {
-			return nil, fmt.Errorf("failed to generate key: entropy exhausted")
+			return nil, fmt.Errorf("failed to generate key: %v", err)
 		}
 		rootKey.Key = key
 	}
@@ -160,6 +152,15 @@ func (rkm *RootKeyMeta) Validate() error {
 	return nil
 }
 
+// KeyEncryptionKeyWrapper is the struct that gets serialized for the on-disk
+// KMS wrapper. This struct includes the server-specific key-wrapping key and
+// should never be sent over RPC.
+type KeyEncryptionKeyWrapper struct {
+	Meta                       *RootKeyMeta
+	EncryptedDataEncryptionKey []byte `json:"DEK"`
+	KeyEncryptionKey           []byte `json:"KEK"`
+}
+
 // EncryptionAlgorithm chooses which algorithm is used for
 // encrypting / decrypting entries with this key
 type EncryptionAlgorithm string
@@ -168,6 +169,7 @@ const (
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
 
+// KeyringRotateRootKeyRequest is the argument to the Keyring.Rotate RPC
 type KeyringRotateRootKeyRequest struct {
 	Algorithm EncryptionAlgorithm
 	Full      bool
@@ -180,11 +182,12 @@ type KeyringRotateRootKeyResponse struct {
 	WriteMeta
 }
 
+// KeyringListRootKeyMetaRequest is the argument to the Keyring.List RPC
 type KeyringListRootKeyMetaRequest struct {
-	// TODO: do we need any fields here?
 	QueryOptions
 }
 
+// KeyringListRootKeyMetaRequest is the response value of the List RPC
 type KeyringListRootKeyMetaResponse struct {
 	Keys []*RootKeyMeta
 	QueryMeta

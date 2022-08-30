@@ -10,7 +10,8 @@ Nomad servers maintain an encryption keyring used to encrypt [Variables][] and
 sign task [workload identities][]. The servers store key metadata in raft, but
 the encryption key material is stored in a separate file in the `keystore`
 subdirectory of the Nomad [data directory][]. These files have the extension
-`.nks.json`.
+`.nks.json`. The key material in each file is wrapped in a unique key encryption
+key (KEK) that is not shared between servers.
 
 Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
@@ -49,8 +50,10 @@ snapshots you might provide without exposing any of your keys or variables.
 
 However, this means that to restore a cluster from snapshot you need to also
 provide the keystore directory with the `.nks.json` key files on at least one
-server. Operators should include these files as part of your organization's
-backup and recovery strategy for the cluster.
+server. The `.nks.json` key files are unique per server, but only one server's
+key files are needed to recover the cluster. Operators should include these
+files as part of your organization's backup and recovery strategy for the
+cluster.
 
 [Variables]: /docs/concepts/variables
 [workload identities]: /docs/concepts/workload-identity

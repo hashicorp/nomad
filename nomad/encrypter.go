@@ -1,12 +1,10 @@
 package nomad
 
 import (
-	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -16,16 +14,14 @@ import (
 	"sync"
 	"time"
 
-	// note: this is aliased so that it's more noticeable if someone
-	// accidentally swaps it out for math/rand via running goimports
-	cryptorand "crypto/rand"
-
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-msgpack/codec"
+	kms "github.com/hashicorp/go-kms-wrapping/v2"
+	"github.com/hashicorp/go-kms-wrapping/v2/aead"
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -50,26 +46,27 @@ type keyset struct {
 // NewEncrypter loads or creates a new local keystore and returns an
 // encryption keyring with the keys it finds.
 func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
-	err := os.MkdirAll(keystorePath, 0700)
+
+	encrypter := &Encrypter{
+		srv:          srv,
+		keystorePath: keystorePath,
+		keyring:      make(map[string]*keyset),
+	}
+
+	err := encrypter.loadKeystore()
 	if err != nil {
 		return nil, err
 	}
-	encrypter, err := encrypterFromKeystore(keystorePath)
-	if err != nil {
-		return nil, err
-	}
-	encrypter.srv = srv
 	return encrypter, nil
 }
 
-func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
+func (e *Encrypter) loadKeystore() error {
 
-	encrypter := &Encrypter{
-		keyring:      make(map[string]*keyset),
-		keystorePath: keystoreDirectory,
+	if err := os.MkdirAll(e.keystorePath, 0o700); err != nil {
+		return err
 	}
 
-	err := filepath.Walk(keystoreDirectory, func(path string, info fs.FileInfo, err error) error {
+	return filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("could not read path %s from keystore: %v", path, err)
 		}
@@ -77,7 +74,7 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 		// skip over subdirectories and non-key files; they shouldn't
 		// be here but there's no reason to fail startup for it if the
 		// administrator has left something there
-		if path != keystoreDirectory && info.IsDir() {
+		if path != e.keystorePath && info.IsDir() {
 			return filepath.SkipDir
 		}
 		if !strings.HasSuffix(path, nomadKeystoreExtension) {
@@ -88,7 +85,7 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 			return nil
 		}
 
-		key, err := encrypter.loadKeyFromStore(path)
+		key, err := e.loadKeyFromStore(path)
 		if err != nil {
 			return fmt.Errorf("could not load key file %s from keystore: %v", path, err)
 		}
@@ -96,17 +93,12 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
 		}
 
-		err = encrypter.AddKey(key)
+		err = e.AddKey(key)
 		if err != nil {
 			return fmt.Errorf("could not add key file %s to keystore: %v", path, err)
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return encrypter, nil
 }
 
 // Encrypt encrypts the clear data with the cipher for the current
@@ -121,14 +113,9 @@ func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 		return nil, "", err
 	}
 
-	nonceSize := keyset.cipher.NonceSize()
-	nonce := make([]byte, nonceSize)
-	n, err := cryptorand.Read(nonce)
+	nonce, err := crypto.Bytes(keyset.cipher.NonceSize())
 	if err != nil {
-		return nil, "", err
-	}
-	if n < nonceSize {
-		return nil, "", fmt.Errorf("failed to encrypt: entropy exhausted")
+		return nil, "", fmt.Errorf("failed to generate key wrapper nonce: %v", err)
 	}
 
 	keyID := keyset.rootKey.Meta.KeyID
@@ -306,9 +293,6 @@ func (e *Encrypter) keysetByIDLocked(keyID string) (*keyset, error) {
 
 // RemoveKey removes a key by ID from the keyring
 func (e *Encrypter) RemoveKey(keyID string) error {
-	// TODO: should the server remove the serialized file here?
-	// TODO: given that it's irreversible, should the server *ever*
-	// remove the serialized file?
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	delete(e.keyring, keyID)
@@ -317,14 +301,33 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 
 // saveKeyToStore serializes a root key to the on-disk keystore.
 func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
-	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
-	err := enc.Encode(rootKey)
+
+	kek, err := crypto.Bytes(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate key wrapper key: %v", err)
+	}
+	wrapper, err := e.newKMSWrapper(rootKey.Meta.KeyID, kek)
+	if err != nil {
+		return fmt.Errorf("failed to create encryption wrapper: %v", err)
+	}
+	blob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.Key)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt root key: %v", err)
+	}
+
+	kekWrapper := &structs.KeyEncryptionKeyWrapper{
+		Meta:                       rootKey.Meta,
+		EncryptedDataEncryptionKey: blob.Ciphertext,
+		KeyEncryptionKey:           kek,
+	}
+
+	buf, err := json.Marshal(kekWrapper)
 	if err != nil {
 		return err
 	}
+
 	path := filepath.Join(e.keystorePath, rootKey.Meta.KeyID+nomadKeystoreExtension)
-	err = os.WriteFile(path, buf.Bytes(), 0600)
+	err = os.WriteFile(path, buf, 0o600)
 	if err != nil {
 		return err
 	}
@@ -339,34 +342,51 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		return nil, err
 	}
 
-	storedKey := &struct {
-		Meta *structs.RootKeyMetaStub
-		Key  string
-	}{}
-
-	if err := json.Unmarshal(raw, storedKey); err != nil {
+	kekWrapper := &structs.KeyEncryptionKeyWrapper{}
+	if err := json.Unmarshal(raw, kekWrapper); err != nil {
 		return nil, err
 	}
 
-	meta := &structs.RootKeyMeta{
-		State:      storedKey.Meta.State,
-		KeyID:      storedKey.Meta.KeyID,
-		Algorithm:  storedKey.Meta.Algorithm,
-		CreateTime: storedKey.Meta.CreateTime,
-	}
+	meta := kekWrapper.Meta
 	if err = meta.Validate(); err != nil {
 		return nil, err
 	}
 
-	key, err := base64.StdEncoding.DecodeString(storedKey.Key)
+	// the errors that bubble up from this library can be a bit opaque, so make
+	// sure we wrap them with as much context as possible
+	wrapper, err := e.newKMSWrapper(meta.KeyID, kekWrapper.KeyEncryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("could not decode key: %v", err)
+		return nil, fmt.Errorf("unable to create key wrapper cipher: %v", err)
+	}
+	key, err := wrapper.Decrypt(e.srv.shutdownCtx, &kms.BlobInfo{
+		Ciphertext: kekWrapper.EncryptedDataEncryptionKey,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to decrypt wrapped root key: %v", err)
 	}
 
 	return &structs.RootKey{
 		Meta: meta,
 		Key:  key,
 	}, nil
+}
+
+// newKMSWrapper returns a go-kms-wrapping interface the caller can use to
+// encrypt the RootKey with a key encryption key (KEK). This is a bit of
+// security theatre for local on-disk key material, but gives us a shim for
+// external KMS providers in the future.
+func (e *Encrypter) newKMSWrapper(keyID string, kek []byte) (kms.Wrapper, error) {
+	wrapper := aead.NewWrapper()
+	wrapper.SetConfig(context.Background(),
+		aead.WithAeadType(kms.AeadTypeAesGcm),
+		aead.WithHashType(kms.HashTypeSha256),
+		kms.WithKeyId(keyID),
+	)
+	err := wrapper.SetAesGcmKeyBytes(kek)
+	if err != nil {
+		return nil, err
+	}
+	return wrapper, nil
 }
 
 type KeyringReplicator struct {
