@@ -166,7 +166,19 @@ export default class IndexController extends Controller.extend(Sortable) {
     lazyClick([() => this.send('gotoTask', allocation, task), event]);
   }
 
-  @action handleServiceClick(service, e) {
-    console.log('clique', service);
+  @action handleServiceClick(service) {
+    this.set('activeService', service);
   }
+
+  @action closeSidebar() {
+    this.set('activeService', null);
+  }
+
+  keyCommands = [
+    {
+      label: 'Close Evaluations Sidebar',
+      pattern: ['Escape'],
+      action: () => this.closeSidebar(),
+    },
+  ];
 }

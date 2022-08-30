@@ -1,13 +1,24 @@
-<Portal @target="service-detail-portal">
-	<div
-		class="sidebar open {{if this.isSideBarOpen "open"}}"
-		{{on-click-outside
-			this.closeSidebar
-			capture=true
-		}}
-	>
-		<h1 class="title">Service Details</h1>
-	</div>
-</Portal>
+<div
+	class="sidebar has-subnav {{if this.isSideBarOpen "open"}}"
+	{{on-click-outside
+		@fns.closeSidebar
+		capture=true
+	}}
+>
+	{{#if @service}}
 
-{{yield}}
+		{{keyboard-commands this.keyCommands}}
+
+		<header class="detail-header">
+			<h1 class="title">Service Details for {{@service.name}}</h1>
+			<button
+				data-test-close-service-sidebar
+				class="button is-borderless"
+				type="button"
+				{{on "click" @fns.closeSidebar}}
+			>
+				{{x-icon "cancel"}}
+			</button>
+		</header>
+	{{/if}}
+</div>

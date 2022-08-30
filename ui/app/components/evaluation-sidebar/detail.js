@@ -75,12 +75,4 @@ export default class Detail extends Component {
   closeSidebar() {
     return this.statechart.send('MODAL_CLOSE');
   }
-
-  keyCommands = [
-    {
-      label: 'Close Evaluations Sidebar',
-      pattern: ['Escape'],
-      action: () => this.closeSidebar(),
-    },
-  ];
 }

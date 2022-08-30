@@ -297,6 +297,10 @@
           <t.body as |row|>
             <tr data-test-service class="is-interactive"
               {{on "click" (fn this.handleServiceClick row.model)}}
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(fn this.handleServiceClick row.model)
+              }}
             >
               <td data-test-service-name>
                 {{row.model.name}}
@@ -499,5 +503,10 @@
       </div>
     </div>
   {{/if}}
-  <AllocationServiceSidebar />
+  <AllocationServiceSidebar
+    @service={{this.activeService}}
+    @fns={{hash
+      closeSidebar=this.closeSidebar
+    }}
+  />
 </section>
