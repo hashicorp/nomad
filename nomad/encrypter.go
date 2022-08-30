@@ -21,6 +21,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -61,8 +62,7 @@ func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 
 func (e *Encrypter) loadKeystore() error {
 
-	err := os.MkdirAll(e.keystorePath, 0o700)
-	if err != nil {
+	if err := os.MkdirAll(e.keystorePath, 0o700); err != nil {
 		return err
 	}
 
@@ -113,7 +113,7 @@ func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 		return nil, "", err
 	}
 
-	nonce, err := helper.CryptoBytes(keyset.cipher.NonceSize())
+	nonce, err := crypto.Bytes(keyset.cipher.NonceSize())
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate key wrapper nonce: %v", err)
 	}
@@ -302,13 +302,13 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 // saveKeyToStore serializes a root key to the on-disk keystore.
 func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
 
-	kek, err := helper.CryptoBytes(32)
+	kek, err := crypto.Bytes(32)
 	if err != nil {
 		return fmt.Errorf("failed to generate key wrapper key: %v", err)
 	}
 	wrapper, err := e.newKMSWrapper(rootKey.Meta.KeyID, kek)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create encryption wrapper: %v", err)
 	}
 	blob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.Key)
 	if err != nil {

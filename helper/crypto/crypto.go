@@ -1,4 +1,4 @@
-package helper
+package crypto
 
 import (
 	"errors"
@@ -9,10 +9,9 @@ import (
 	cryptorand "crypto/rand"
 )
 
-// CryptoBytes gets a slice of cryptographically random bytes of the given
-// length and enforces that we check for short reads to avoid entropy
-// exhaustion.
-func CryptoBytes(length int) ([]byte, error) {
+// Bytes gets a slice of cryptographically random bytes of the given length and
+// enforces that we check for short reads to avoid entropy exhaustion.
+func Bytes(length int) ([]byte, error) {
 	key := make([]byte, length)
 	n, err := cryptorand.Read(key)
 	if err != nil {

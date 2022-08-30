@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -25,7 +26,7 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 
 	switch algorithm {
 	case EncryptionAlgorithmAES256GCM:
-		key, err := helper.CryptoBytes(32)
+		key, err := crypto.Bytes(32)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate key: %v", err)
 		}
