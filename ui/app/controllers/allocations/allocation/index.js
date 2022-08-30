@@ -178,7 +178,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     this.set('activeServiceID', service.refID);
   }
 
-  @computed('activeServiceID')
+  @computed('activeServiceID', 'services')
   get activeService() {
     return this.services.findBy('refID', this.activeServiceID);
   }

@@ -75,11 +75,13 @@ export default Factory.extend({
     if (task.withServices) {
       const services = server.createList('service-fragment', 1, {
         provider: 'nomad',
+        taskName: task.name,
       });
 
       services.push(
         server.create('service-fragment', {
           provider: 'consul',
+          taskName: task.name,
         })
       );
       services.forEach((fragment) => {
