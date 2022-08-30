@@ -332,7 +332,6 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 // TestJobGetter_HCL2_Variables asserts variable arguments from CLI
 // and varfiles are both honored
 func TestJobGetter_HCL2_Variables(t *testing.T) {
-	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -346,7 +345,6 @@ job "example" {
   datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
 }
 `
-
 	t.Setenv("NOMAD_VAR_var4", "from-envvar")
 
 	cliArgs := []string{`var2=from-cli`}
@@ -377,7 +375,6 @@ job "example" {
 }
 
 func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
-	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -392,8 +389,7 @@ job "example" {
 }
 `
 
-	os.Setenv("NOMAD_VAR_var4", "from-envvar")
-	defer os.Unsetenv("NOMAD_VAR_var4")
+	t.Setenv("NOMAD_VAR_var4", "from-envvar")
 
 	// Both the CLI and var file contain variables that are not used with the
 	// template and therefore would error, if hcl2-strict was true.

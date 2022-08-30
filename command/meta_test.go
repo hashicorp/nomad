@@ -62,7 +62,6 @@ func TestMeta_FlagSet(t *testing.T) {
 }
 
 func TestMeta_Colorize(t *testing.T) {
-	ci.Parallel(t)
 
 	type testCaseSetupFn func(*testing.T, *Meta)
 

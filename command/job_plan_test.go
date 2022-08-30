@@ -158,7 +158,6 @@ job "job1" {
 }
 
 func TestPlanCommand_From_Files(t *testing.T) {
-	ci.Parallel(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVault(t)
