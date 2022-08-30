@@ -6087,53 +6087,6 @@ func TestIsRecoverable(t *testing.T) {
 	}
 }
 
-func TestACLTokenValidate(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{}
-
-	// Missing a type
-	err := tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "client or management") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Missing policies
-	tk.Type = ACLClientToken
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "missing policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Invalid policies
-	tk.Type = ACLManagementToken
-	tk.Policies = []string{"foo"}
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "associated with policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Name too long policies
-	tk.Name = ""
-	for i := 0; i < 8; i++ {
-		tk.Name += uuid.Generate()
-	}
-	tk.Policies = nil
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "too long") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Make it valid
-	tk.Name = "foo"
-	err = tk.Validate()
-	assert.Nil(t, err)
-}
-
 func TestACLTokenPolicySubset(t *testing.T) {
 	ci.Parallel(t)
 

@@ -116,6 +116,7 @@ server {
   deployment_gc_threshold       = "12h"
   csi_volume_claim_gc_threshold = "12h"
   csi_plugin_gc_threshold       = "12h"
+  acl_token_gc_threshold        = "12h"
   heartbeat_grace               = "30s"
   min_heartbeat_ttl             = "33s"
   max_heartbeats_per_second     = 11.0
@@ -159,10 +160,12 @@ server {
 }
 
 acl {
-  enabled           = true
-  token_ttl         = "60s"
-  policy_ttl        = "60s"
-  replication_token = "foobar"
+  enabled                  = true
+  token_ttl                = "60s"
+  policy_ttl               = "60s"
+  token_min_expiration_ttl = "1h"
+  token_max_expiration_ttl = "100h"
+  replication_token        = "foobar"
 }
 
 audit {

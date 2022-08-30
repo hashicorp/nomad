@@ -4,7 +4,9 @@
       "enabled": true,
       "policy_ttl": "60s",
       "replication_token": "foobar",
-      "token_ttl": "60s"
+      "token_ttl": "60s",
+      "token_min_expiration_ttl": "1h",
+      "token_max_expiration_ttl": "100h"
     }
   ],
   "audit": {
@@ -255,6 +257,7 @@
   ],
   "server": [
     {
+      "acl_token_gc_threshold": "12h",
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,
       "csi_plugin_gc_threshold": "12h",

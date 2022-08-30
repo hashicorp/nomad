@@ -322,3 +322,206 @@ func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Re
 	setIndex(resp, out.Index)
 	return out, nil
 }
+
+// ACLRoleListRequest performs a listing of ACL roles and is callable via the
+// /v1/acl/roles HTTP API.
+func (s *HTTPServer) ACLRoleListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.ACLRolesListRequest{}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.ACLRolesListResponse
+	if err := s.agent.RPC(structs.ACLListRolesRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.ACLRoles == nil {
+		reply.ACLRoles = make([]*structs.ACLRoleListStub, 0)
+	}
+	return reply.ACLRoles, nil
+}
+
+// ACLRoleRequest creates a new ACL role and is callable via the
+// /v1/acl/role HTTP API.
+func (s *HTTPServer) ACLRoleRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// // The endpoint only supports PUT or POST requests.
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Use the generic upsert function without setting an ID as this will be
+	// handled by the Nomad leader.
+	return s.aclRoleUpsertRequest(resp, req, "")
+}
+
+// ACLRoleSpecificRequest is callable via the /v1/acl/role/ HTTP API and
+// handles read via both the role name and ID, updates, and deletions.
+func (s *HTTPServer) ACLRoleSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// Grab the suffix of the request, so we can further understand it.
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/acl/role/")
+
+	// Split the request suffix in order to identify whether this is a lookup
+	// of a service, or whether this includes a service and service identifier.
+	suffixParts := strings.Split(reqSuffix, "/")
+
+	switch len(suffixParts) {
+	case 1:
+		// Ensure the role ID is not an empty string which is possible if the
+		// caller requested "/v1/acl/role/"
+		if suffixParts[0] == "" {
+			return nil, CodedError(http.StatusBadRequest, "missing ACL role ID")
+		}
+		return s.aclRoleRequest(resp, req, suffixParts[0])
+	case 2:
+		// This endpoint only supports GET.
+		if req.Method != http.MethodGet {
+			return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+		}
+
+		// Ensure that the path is correct, otherwise the call could use
+		// "/v1/acl/role/foobar/role-name" and successfully pass through here.
+		if suffixParts[0] != "name" {
+			return nil, CodedError(http.StatusBadRequest, "invalid URI")
+		}
+
+		// Ensure the role name is not an empty string which is possible if the
+		// caller requested "/v1/acl/role/name/"
+		if suffixParts[1] == "" {
+			return nil, CodedError(http.StatusBadRequest, "missing ACL role name")
+		}
+
+		return s.aclRoleGetByNameRequest(resp, req, suffixParts[1])
+
+	default:
+		return nil, CodedError(http.StatusBadRequest, "invalid URI")
+	}
+}
+
+func (s *HTTPServer) aclRoleRequest(
+	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+
+	// Identify the method which indicates which downstream function should be
+	// called.
+	switch req.Method {
+	case http.MethodGet:
+		return s.aclRoleGetByIDRequest(resp, req, roleID)
+	case http.MethodDelete:
+		return s.aclRoleDeleteRequest(resp, req, roleID)
+	case http.MethodPost, http.MethodPut:
+		return s.aclRoleUpsertRequest(resp, req, roleID)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) aclRoleGetByIDRequest(
+	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+
+	args := structs.ACLRoleByIDRequest{
+		RoleID: roleID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var reply structs.ACLRoleByIDResponse
+	if err := s.agent.RPC(structs.ACLGetRoleByIDRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.ACLRole == nil {
+		return nil, CodedError(http.StatusNotFound, "ACL role not found")
+	}
+	return reply.ACLRole, nil
+}
+
+func (s *HTTPServer) aclRoleDeleteRequest(
+	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+
+	args := structs.ACLRolesDeleteByIDRequest{
+		ACLRoleIDs: []string{roleID},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var reply structs.ACLRolesDeleteByIDResponse
+	if err := s.agent.RPC(structs.ACLDeleteRolesByIDRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setIndex(resp, reply.Index)
+	return nil, nil
+
+}
+
+// aclRoleUpsertRequest handles upserting an ACL to the Nomad servers. It can
+// handle both new creations, and updates to existing roles.
+func (s *HTTPServer) aclRoleUpsertRequest(
+	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+
+	// Decode the ACL role.
+	var aclRole structs.ACLRole
+	if err := decodeBody(req, &aclRole); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	}
+
+	// Ensure the request path ID matches the ACL role ID that was decoded.
+	// Only perform this check on updates as a generic error on creation might
+	// be confusing to operators as there is no specific role request path.
+	if roleID != "" && roleID != aclRole.ID {
+		return nil, CodedError(http.StatusBadRequest, "ACL role ID does not match request path")
+	}
+
+	args := structs.ACLRolesUpsertRequest{
+		ACLRoles: []*structs.ACLRole{&aclRole},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.ACLRolesUpsertResponse
+	if err := s.agent.RPC(structs.ACLUpsertRolesRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+
+	if len(out.ACLRoles) > 0 {
+		return out.ACLRoles[0], nil
+	}
+	return nil, nil
+
+}
+
+func (s *HTTPServer) aclRoleGetByNameRequest(
+	resp http.ResponseWriter, req *http.Request, roleName string) (interface{}, error) {
+
+	args := structs.ACLRoleByNameRequest{
+		RoleName: roleName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var reply structs.ACLRoleByNameResponse
+	if err := s.agent.RPC(structs.ACLGetRoleByNameRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.ACLRole == nil {
+		return nil, CodedError(http.StatusNotFound, "ACL role not found")
+	}
+	return reply.ACLRole, nil
+}

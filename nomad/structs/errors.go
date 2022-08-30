@@ -12,6 +12,7 @@ const (
 	errNotReadyForConsistentReads = "Not ready to serve consistent reads"
 	errNoRegionPath               = "No path to region"
 	errTokenNotFound              = "ACL token not found"
+	errTokenExpired               = "ACL token expired"
 	errPermissionDenied           = "Permission denied"
 	errJobRegistrationDisabled    = "Job registration, dispatch, and scale are disabled by the scheduler configuration"
 	errNoNodeConn                 = "No path to node"
@@ -48,6 +49,7 @@ var (
 	ErrNotReadyForConsistentReads = errors.New(errNotReadyForConsistentReads)
 	ErrNoRegionPath               = errors.New(errNoRegionPath)
 	ErrTokenNotFound              = errors.New(errTokenNotFound)
+	ErrTokenExpired               = errors.New(errTokenExpired)
 	ErrPermissionDenied           = errors.New(errPermissionDenied)
 	ErrJobRegistrationDisabled    = errors.New(errJobRegistrationDisabled)
 	ErrNoNodeConn                 = errors.New(errNoNodeConn)

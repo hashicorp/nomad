@@ -107,6 +107,36 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl role": func() (cli.Command, error) {
+			return &ACLRoleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role create": func() (cli.Command, error) {
+			return &ACLRoleCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role delete": func() (cli.Command, error) {
+			return &ACLRoleDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role info": func() (cli.Command, error) {
+			return &ACLRoleInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role list": func() (cli.Command, error) {
+			return &ACLRoleListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role update": func() (cli.Command, error) {
+			return &ACLRoleUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl token": func() (cli.Command, error) {
 			return &ACLTokenCommand{
 				Meta: meta,

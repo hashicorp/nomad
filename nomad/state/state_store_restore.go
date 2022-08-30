@@ -224,3 +224,12 @@ func (r *StateRestore) RootKeyMetaRestore(quota *structs.RootKeyMeta) error {
 	}
 	return nil
 }
+
+// ACLRoleRestore is used to restore a single ACL role into the acl_roles
+// table.
+func (r *StateRestore) ACLRoleRestore(aclRole *structs.ACLRole) error {
+	if err := r.txn.Insert(TableACLRoles, aclRole); err != nil {
+		return fmt.Errorf("ACL role insert failed: %v", err)
+	}
+	return nil
+}

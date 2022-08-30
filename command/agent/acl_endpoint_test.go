@@ -1,11 +1,13 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -557,4 +559,438 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 		obj, err = s.Server.ExchangeOneTimeToken(respW, req)
 		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 	})
+}
+
+func TestHTTPServer_ACLRoleListRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleListRequest(respW, req)
+				require.NoError(t, err)
+				require.Empty(t, obj)
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/roles", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleListRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "Invalid method")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "no roles in state",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleListRequest(respW, req)
+				require.NoError(t, err)
+				require.Empty(t, obj.([]*structs.ACLRoleListStub))
+			},
+		},
+		{
+			name: "roles in state",
+			testFn: func(srv *TestAgent) {
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, srv.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create two ACL roles and put these directly into state.
+				aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles, false))
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleListRequest(respW, req)
+				require.NoError(t, err)
+				require.Len(t, obj.([]*structs.ACLRoleListStub), 2)
+			},
+		},
+		{
+			name: "roles in state using prefix",
+			testFn: func(srv *TestAgent) {
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, srv.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create two ACL roles and put these directly into state, one
+				// using a custom prefix.
+				aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+				aclRoles[1].ID = "badger-badger-badger-" + uuid.Generate()
+				require.NoError(t, srv.server.State().UpsertACLRoles(structs.MsgTypeTestSetup, 20, aclRoles, false))
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/roles?prefix=badger-badger-badger", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleListRequest(respW, req)
+				require.NoError(t, err)
+				require.Len(t, obj.([]*structs.ACLRoleListStub), 1)
+				require.Contains(t, obj.([]*structs.ACLRoleListStub)[0].ID, "badger-badger-badger")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLRoleRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock role to use in the request body.
+				mockACLRole := mock.ACLRole()
+				mockACLRole.ID = ""
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/role", encodeReq(mockACLRole))
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "Permission denied")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/role", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "Invalid method")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "successful upsert",
+			testFn: func(srv *TestAgent) {
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, srv.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create a mock role to use in the request body.
+				mockACLRole := mock.ACLRole()
+				mockACLRole.ID = ""
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/role", encodeReq(mockACLRole))
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				require.NoError(t, err)
+				require.NotNil(t, obj)
+				require.Equal(t, obj.(*structs.ACLRole).Hash, mockACLRole.Hash)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLRoleSpecificRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "invalid URI",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/role/name/this/is/will/not/work", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "invalid URI")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "invalid role name lookalike URI",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/role/foobar/rolename", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "invalid URI")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "missing role name",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/role/name/", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "missing ACL role name")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "missing role ID",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/role/", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "missing ACL role ID")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "role name incorrect method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/role/name/foobar", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "Invalid method")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "role ID incorrect method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/role/foobar", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "Invalid method")
+				require.Nil(t, obj)
+			},
+		},
+		{
+			name: "get role by name",
+			testFn: func(srv *TestAgent) {
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, srv.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create a mock role and put directly into state.
+				mockACLRole := mock.ACLRole()
+				require.NoError(t, srv.server.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}, false))
+
+				url := fmt.Sprintf("/v1/acl/role/name/%s", mockACLRole.Name)
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Equal(t, obj.(*structs.ACLRole).Hash, mockACLRole.Hash)
+			},
+		},
+		{
+			name: "get, update, and delete role by ID",
+			testFn: func(srv *TestAgent) {
+
+				// Create the policies our ACL roles wants to link to.
+				policy1 := mock.ACLPolicy()
+				policy1.Name = "mocked-test-policy-1"
+				policy2 := mock.ACLPolicy()
+				policy2.Name = "mocked-test-policy-2"
+
+				require.NoError(t, srv.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+				// Create a mock role and put directly into state.
+				mockACLRole := mock.ACLRole()
+				require.NoError(t, srv.server.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLRole{mockACLRole}, false))
+
+				url := fmt.Sprintf("/v1/acl/role/%s", mockACLRole.ID)
+
+				// Build the HTTP request to read the role using its ID.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Equal(t, obj.(*structs.ACLRole).Hash, mockACLRole.Hash)
+
+				// Update the role policy list and make the request via the
+				// HTTP API.
+				mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: "mocked-test-policy-1"}}
+
+				req, err = http.NewRequest(http.MethodPost, url, encodeReq(mockACLRole))
+				require.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err = srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Equal(t, obj.(*structs.ACLRole).Policies, mockACLRole.Policies)
+
+				// Delete the ACL role using its ID.
+				req, err = http.NewRequest(http.MethodDelete, url, nil)
+				require.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err = srv.Server.ACLRoleSpecificRequest(respW, req)
+				require.NoError(t, err)
+				require.Nil(t, obj)
+
+				// Ensure the ACL role is no longer stored within state.
+				aclRole, err := srv.server.State().GetACLRoleByID(nil, mockACLRole.ID)
+				require.NoError(t, err)
+				require.Nil(t, aclRole)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
 }

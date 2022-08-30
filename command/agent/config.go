@@ -380,6 +380,18 @@ type ACLConfig struct {
 	// within the authoritative region.
 	ReplicationToken string `hcl:"replication_token"`
 
+	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
+	// ACL token expiration. This is used by the Nomad servers to validate ACL
+	// tokens with an expiration value set upon creation.
+	TokenMinExpirationTTL    time.Duration
+	TokenMinExpirationTTLHCL string `hcl:"token_min_expiration_ttl" json:"-"`
+
+	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
+	// for ACL token expiration. This is used by the Nomad servers to validate
+	// ACL tokens with an expiration value set upon creation.
+	TokenMaxExpirationTTL    time.Duration
+	TokenMaxExpirationTTLHCL string `hcl:"token_max_expiration_ttl" json:"-"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -452,7 +464,7 @@ type ServerConfig struct {
 	EvalGCThreshold string `hcl:"eval_gc_threshold"`
 
 	// DeploymentGCThreshold controls how "old" a deployment must be to be
-	// collected by GC.  Age is not the only requirement for a deployment to be
+	// collected by GC. Age is not the only requirement for a deployment to be
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
 
@@ -465,6 +477,10 @@ type ServerConfig struct {
 	// collected by GC. Age is not the only requirement for a plugin to be
 	// GCed but the threshold can be used to filter by age.
 	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
+
+	// ACLTokenGCThreshold controls how "old" an expired ACL token must be to
+	// be collected by GC.
+	ACLTokenGCThreshold string `hcl:"acl_token_gc_threshold"`
 
 	// RootKeyGCInterval is how often we dispatch a job to GC
 	// encryption key metadata
@@ -1159,7 +1175,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	return conf
 }
 
-// DefaultConfig is a the baseline configuration for Nomad
+// DefaultConfig is the baseline configuration for Nomad.
 func DefaultConfig() *Config {
 	return &Config{
 		LogLevel:   "INFO",
@@ -1738,6 +1754,18 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
+	if b.TokenMinExpirationTTL != 0 {
+		result.TokenMinExpirationTTL = b.TokenMinExpirationTTL
+	}
+	if b.TokenMinExpirationTTLHCL != "" {
+		result.TokenMinExpirationTTLHCL = b.TokenMinExpirationTTLHCL
+	}
+	if b.TokenMaxExpirationTTL != 0 {
+		result.TokenMaxExpirationTTL = b.TokenMaxExpirationTTL
+	}
+	if b.TokenMaxExpirationTTLHCL != "" {
+		result.TokenMaxExpirationTTLHCL = b.TokenMaxExpirationTTLHCL
+	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
 	}
@@ -1793,6 +1821,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.CSIPluginGCThreshold != "" {
 		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
+	}
+	if b.ACLTokenGCThreshold != "" {
+		result.ACLTokenGCThreshold = b.ACLTokenGCThreshold
 	}
 	if b.RootKeyGCInterval != "" {
 		result.RootKeyGCInterval = b.RootKeyGCInterval

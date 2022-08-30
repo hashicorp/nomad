@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	memdb "github.com/hashicorp/go-memdb"
-
+	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -17,16 +17,20 @@ const (
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
+	TableACLRoles             = "acl_roles"
 )
 
 const (
-	indexID          = "id"
-	indexJob         = "job"
-	indexNodeID      = "node_id"
-	indexAllocID     = "alloc_id"
-	indexServiceName = "service_name"
-	indexKeyID       = "key_id"
-	indexPath        = "path"
+	indexID            = "id"
+	indexJob           = "job"
+	indexNodeID        = "node_id"
+	indexAllocID       = "alloc_id"
+	indexServiceName   = "service_name"
+	indexExpiresGlobal = "expires-global"
+	indexExpiresLocal  = "expires-local"
+	indexKeyID         = "key_id"
+	indexPath          = "path"
+	indexName          = "name"
 )
 
 var (
@@ -78,6 +82,7 @@ func init() {
 		variablesTableSchema,
 		variablesQuotasTableSchema,
 		variablesRootKeyMetaSchema,
+		aclRolesTableSchema,
 	}...)
 }
 
@@ -894,8 +899,58 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "Global",
 				},
 			},
+			indexExpiresGlobal: {
+				Name:         indexExpiresGlobal,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: indexer.SingleIndexer{
+					ReadIndex:  indexer.ReadIndex(indexer.IndexFromTimeQuery),
+					WriteIndex: indexer.WriteIndex(indexExpiresGlobalFromACLToken),
+				},
+			},
+			indexExpiresLocal: {
+				Name:         indexExpiresLocal,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: indexer.SingleIndexer{
+					ReadIndex:  indexer.ReadIndex(indexer.IndexFromTimeQuery),
+					WriteIndex: indexer.WriteIndex(indexExpiresLocalFromACLToken),
+				},
+			},
 		},
 	}
+}
+
+func indexExpiresLocalFromACLToken(raw interface{}) ([]byte, error) {
+	return indexExpiresFromACLToken(raw, false)
+}
+
+func indexExpiresGlobalFromACLToken(raw interface{}) ([]byte, error) {
+	return indexExpiresFromACLToken(raw, true)
+}
+
+// indexExpiresFromACLToken implements the indexer.WriteIndex interface and
+// allows us to use an ACL tokens ExpirationTime as an index, if it is a
+// non-default value. This allows for efficient lookups when trying to deal
+// with removal of expired tokens from state.
+func indexExpiresFromACLToken(raw interface{}, global bool) ([]byte, error) {
+	p, ok := raw.(*structs.ACLToken)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T for structs.ACLToken index", raw)
+	}
+	if p.Global != global {
+		return nil, indexer.ErrMissingValueForIndex
+	}
+	if !p.HasExpirationTime() {
+		return nil, indexer.ErrMissingValueForIndex
+	}
+	if p.ExpirationTime.Unix() < 0 {
+		return nil, fmt.Errorf("token expiration time cannot be before the unix epoch: %s", p.ExpirationTime)
+	}
+
+	var b indexer.IndexBuilder
+	b.Time(*p.ExpirationTime)
+	return b.Bytes(), nil
 }
 
 // oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
@@ -1401,6 +1456,30 @@ func variablesRootKeyMetaSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "KeyID",
 					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+func aclRolesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLRoles,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
 				},
 			},
 		},

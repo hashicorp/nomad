@@ -241,6 +241,12 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
 	}
+	if agentConfig.ACL.TokenMinExpirationTTL != 0 {
+		conf.ACLTokenMinExpirationTTL = agentConfig.ACL.TokenMinExpirationTTL
+	}
+	if agentConfig.ACL.TokenMaxExpirationTTL != 0 {
+		conf.ACLTokenMaxExpirationTTL = agentConfig.ACL.TokenMaxExpirationTTL
+	}
 	if agentConfig.Sentinel != nil {
 		conf.SentinelConfig = agentConfig.Sentinel
 	}
@@ -376,6 +382,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			return nil, err
 		}
 		conf.CSIPluginGCThreshold = dur
+	}
+	if gcThreshold := agentConfig.Server.ACLTokenGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.ACLTokenExpirationGCThreshold = dur
 	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {

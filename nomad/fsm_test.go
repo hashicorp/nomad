@@ -2893,6 +2893,43 @@ func TestFSM_SnapshotRestore_ServiceRegistrations(t *testing.T) {
 	require.ElementsMatch(t, restoredRegs, serviceRegs)
 }
 
+func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Create the policies our ACL roles wants to link to.
+	policy1 := mock.ACLPolicy()
+	policy1.Name = "mocked-test-policy-1"
+	policy2 := mock.ACLPolicy()
+	policy2.Name = "mocked-test-policy-2"
+
+	require.NoError(t, testState.UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+	// Generate and upsert some ACL roles.
+	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+	require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	// List the ACL roles from restored state and ensure everything is as
+	// expected.
+	iter, err := restoredState.GetACLRoles(memdb.NewWatchSet())
+	require.NoError(t, err)
+
+	var restoredACLRoles []*structs.ACLRole
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		restoredACLRoles = append(restoredACLRoles, raw.(*structs.ACLRole))
+	}
+	require.ElementsMatch(t, restoredACLRoles, aclRoles)
+}
+
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
@@ -3418,6 +3455,73 @@ func TestFSM_SnapshotRestore_Variables(t *testing.T) {
 		restoredSVs = append(restoredSVs, raw.(*structs.VariableEncrypted))
 	}
 	require.ElementsMatch(t, restoredSVs, svs)
+}
+
+func TestFSM_ApplyACLRolesUpsert(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Create the policies our ACL roles wants to link to.
+	policy1 := mock.ACLPolicy()
+	policy1.Name = "mocked-test-policy-1"
+	policy2 := mock.ACLPolicy()
+	policy2.Name = "mocked-test-policy-2"
+
+	require.NoError(t, fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+	// Generate the upsert request and apply the change.
+	req := structs.ACLRolesUpsertRequest{
+		ACLRoles: []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()},
+	}
+	buf, err := structs.Encode(structs.ACLRolesUpsertRequestType, req)
+	require.NoError(t, err)
+	require.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Read out both ACL roles and perform an equality check using the hash.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetACLRoleByName(ws, req.ACLRoles[0].Name)
+	require.NoError(t, err)
+	require.Equal(t, req.ACLRoles[0].Hash, out.Hash)
+
+	out, err = fsm.State().GetACLRoleByName(ws, req.ACLRoles[1].Name)
+	require.NoError(t, err)
+	require.Equal(t, req.ACLRoles[1].Hash, out.Hash)
+}
+
+func TestFSM_ApplyACLRolesDeleteByID(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Create the policies our ACL roles wants to link to.
+	policy1 := mock.ACLPolicy()
+	policy1.Name = "mocked-test-policy-1"
+	policy2 := mock.ACLPolicy()
+	policy2.Name = "mocked-test-policy-2"
+
+	require.NoError(t, fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
+
+	// Generate and upsert two ACL roles.
+	aclRoles := []*structs.ACLRole{mock.ACLRole(), mock.ACLRole()}
+	require.NoError(t, fsm.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, aclRoles, false))
+
+	// Build and apply our message.
+	req := structs.ACLRolesDeleteByIDRequest{ACLRoleIDs: []string{aclRoles[0].ID, aclRoles[1].ID}}
+	buf, err := structs.Encode(structs.ACLRolesDeleteByIDRequestType, req)
+	require.NoError(t, err)
+	require.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// List all ACL roles within state to ensure both have been removed.
+	ws := memdb.NewWatchSet()
+	iter, err := fsm.State().GetACLRoles(ws)
+	require.NoError(t, err)
+
+	var count int
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		count++
+	}
+	require.Equal(t, 0, count)
 }
 
 func TestFSM_ACLEvents(t *testing.T) {
