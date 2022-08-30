@@ -184,7 +184,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	if consul {
 		var err error
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
-			// defaults
+			c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)

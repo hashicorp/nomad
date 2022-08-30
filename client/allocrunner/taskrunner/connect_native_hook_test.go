@@ -25,6 +25,7 @@ import (
 
 func getTestConsul(t *testing.T) *consultest.TestServer {
 	testConsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
+		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		if !testing.Verbose() { // disable consul logging if -v not set
 			c.Stdout = ioutil.Discard
 			c.Stderr = ioutil.Discard

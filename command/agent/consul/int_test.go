@@ -46,6 +46,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
+		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
