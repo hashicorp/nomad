@@ -14,28 +14,30 @@ module('Integration | Component | Service Status Bar', function (hooks) {
     const component = this;
     await componentA11yAudit(component, assert);
 
-    const healthyService = EmberObject.create({
-      id: '1',
-      status: 'success',
-    });
+    const healthyService = {
+      success: 1,
+    };
 
-    const failingService = EmberObject.create({
-      id: '2',
-      status: 'failing',
-    });
+    const failingService = {
+      failure: 1,
+    };
 
-    const pendingService = EmberObject.create({
-      id: '3',
-      status: 'pending',
-    });
+    const pendingService = {
+      pending: 1,
+    };
 
-    const services = A([healthyService, failingService, pendingService]);
+    const services = new Map();
+    services.set('peter', healthyService);
+    services.set('peter', { ...services.get('peter'), ...failingService });
+    services.set('peter', { ...services.get('peter'), ...pendingService });
+
     this.set('services', services);
 
     await render(hbs`
       <div class="inline-chart">
         <ServiceStatusBar
-          @services={{this.services}}  
+          @services={{this.services}}
+          @name="peter"
         />
       </div>
     `);
