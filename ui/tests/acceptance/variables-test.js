@@ -25,7 +25,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 const VARIABLE_TOKEN_ID = '53cur3-v4r14bl35';
 const LIMITED_VARIABLE_TOKEN_ID = 'f3w3r-53cur3-v4r14bl35';
 
-module('Acceptance | secure variables', function (hooks) {
+module('Acceptance | variables', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {

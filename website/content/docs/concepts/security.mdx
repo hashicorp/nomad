@@ -259,9 +259,9 @@ The following are not part of the threat model for server agents:
   system through various means) results in almost all aspects of the agent
   being compromised including access to certificates and other secrets.
 
-- **Existence of [Secure Variables] metadata** - Access to Secure
-  Variables List APIs is controlled by ACL policies, but the existence
-  of specific paths or metadata is not considered sensitive.
+- **Existence of [Variables] metadata** - Access to Variables List APIs is
+  controlled by ACL policies, but the existence of specific paths or metadata is
+  not considered sensitive.
 
 The following are not part of the threat model for client agents:
 
@@ -331,4 +331,4 @@ There are two main components to consider to for external threats in a Nomad clu
 | **4648** / TCP + UDP | Servers | [gossip](/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
 
 
-[Secure Variables]: /docs/concepts/secure-variables
+[Variables]: /docs/concepts/variables
