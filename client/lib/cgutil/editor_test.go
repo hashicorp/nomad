@@ -29,7 +29,7 @@ func TestCG_editor(t *testing.T) {
 	cg, rm := createCG(t)
 	t.Cleanup(rm)
 
-	edits := &editor{cg}
+	edits := &cgEditor{cg}
 	writeErr := edits.write("cpu.weight.nice", "13")
 	must.NoError(t, writeErr)
 

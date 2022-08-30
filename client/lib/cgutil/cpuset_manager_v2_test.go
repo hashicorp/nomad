@@ -4,15 +4,18 @@ package cgutil
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -89,4 +92,54 @@ func TestCpusetManager_V2_RemoveAlloc(t *testing.T) {
 	// with alloc1 gone, alloc2 gets the now shared core
 	manager.RemoveAlloc(alloc1.ID)
 	cpusetIs(t, "0-1", parent, alloc2.ID, "web")
+}
+
+func TestCGv2_availableControllers(t *testing.T) {
+	testutil.CgroupsCompatibleV2(t)
+
+	edit := &cgEditor{"init.scope"}
+	result, err := availableControllers(edit)
+	must.NoError(t, err)
+	must.True(t, result.Contains("cpu"))
+}
+
+func TestCGv2_diffControllers(t *testing.T) {
+	testutil.CgroupsCompatibleV2(t)
+
+	cases := []struct {
+		name    string
+		online  []string
+		include []string
+		exclude []string
+	}{
+		{
+			name:    "normal",
+			online:  []string{"cpu", "misc", "cpuset", "hugetlb", "io", "memory", "rdma", "pids"},
+			include: []string{"cpu", "cpuset", "memory"},
+			exclude: []string{"hugetlb", "io", "misc", "pids", "rdma"},
+		},
+		{
+			name:    "missing desired controller",
+			online:  []string{"misc", "cpuset", "hugetlb", "io", "memory", "rdma", "pids"},
+			include: []string{"cpuset", "memory"},
+			exclude: []string{"hugetlb", "io", "misc", "pids", "rdma"},
+		},
+		{
+			name:    "none",
+			online:  []string{},
+			include: []string{},
+			exclude: []string{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			online := set.From(tc.online)
+			include, exclude := diffControllers(online, controllers)
+			sort.Strings(include)
+			sort.Strings(exclude)
+			must.Eq(t, tc.include, include)
+			must.Eq(t, tc.exclude, exclude)
+		})
+	}
 }

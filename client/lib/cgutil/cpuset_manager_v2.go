@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -52,10 +54,27 @@ type cpusetManagerV2 struct {
 	isolating map[identity]cpuset.CPUSet // isolating tasks using cores from the pool + reserved cores
 }
 
+// controllers are the set of cgroup controllers we want to keep enabled; any
+// other controllers should be disabled for tasks.
+var controllers = set.From([]string{"cpu", "cpuset", "memory"})
+
 func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger) CpusetManager {
-	parentAbs := filepath.Join(CgroupRoot, parent)
-	if err := os.MkdirAll(parentAbs, 0o755); err != nil {
+	edit := &editor{fromRoot: parent}
+
+	if err := edit.create(); err != nil {
 		logger.Warn("failed to ensure nomad parent cgroup exists; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	online, err := availableControllers(edit)
+	if err != nil {
+		logger.Warn("failed to read available cgroup controllers; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	include, exclude := diffControllers(online, controllers)
+	if err = setControllers(include, exclude, edit); err != nil {
+		logger.Warn("failed to configure cgroup controllers; disable cpuset management", "error", err)
 		return new(NoopCpusetManager)
 	}
 
@@ -72,11 +91,39 @@ func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger)
 	return &cpusetManagerV2{
 		initial:   cpuset.New(reservable...),
 		parent:    parent,
-		parentAbs: parentAbs,
+		parentAbs: filepath.Join(CgroupRoot, parent),
 		logger:    logger,
 		sharing:   make(map[identity]nothing),
 		isolating: make(map[identity]cpuset.CPUSet),
 	}
+}
+
+func availableControllers(edit *editor) (*set.Set[string], error) {
+	s, err := edit.read("cgroup.controllers")
+	if err != nil {
+		return nil, err
+	}
+	return set.From(strings.Fields(s)), nil
+}
+
+// diffControllers computes which controllers need to be enabled & disabled
+func diffControllers(online, limit *set.Set[string]) ([]string, []string) {
+	include := limit.Intersect(online)
+	exclude := online.Difference(limit)
+	return include.List(), exclude.List()
+}
+
+func setControllers(include, exclude []string, edit *editor) error {
+	var builder strings.Builder
+	for _, s := range include {
+		builder.WriteString("+" + s + " ")
+	}
+	for _, s := range exclude {
+		builder.WriteString("-" + s + " ")
+	}
+	enable := builder.String()
+	netlog.New("CON").Info("enable", "s", enable)
+	return edit.write("cgroup.subtree_control", enable)
 }
 
 func (c *cpusetManagerV2) Init() {
@@ -176,8 +223,8 @@ func (c *cpusetManagerV2) CgroupPathFor(allocID, task string) CgroupPathGetter {
 // must be called while holding c.lock
 func (c *cpusetManagerV2) recalculate() {
 	remaining := c.initial.Copy()
-	for _, set := range c.isolating {
-		remaining = remaining.Difference(set)
+	for _, cpuSet := range c.isolating {
+		remaining = remaining.Difference(cpuSet)
 	}
 	c.pool = remaining
 }
@@ -190,8 +237,8 @@ func (c *cpusetManagerV2) reconcile() {
 		c.write(id, c.pool)
 	}
 
-	for id, set := range c.isolating {
-		c.write(id, c.pool.Union(set))
+	for id, cpuSet := range c.isolating {
+		c.write(id, c.pool.Union(cpuSet))
 	}
 }
 
@@ -308,9 +355,9 @@ func getCPUsFromCgroupV2(group string) ([]uint16, error) {
 	if err != nil {
 		return nil, err
 	}
-	set, err := cpuset.Parse(effective)
+	cpuSet, err := cpuset.Parse(effective)
 	if err != nil {
 		return nil, err
 	}
-	return set.ToSlice(), nil
+	return cpuSet.ToSlice(), nil
 }
