@@ -307,7 +307,11 @@
               <td data-test-service-health>
                 {{#if (eq row.model.provider "nomad")}}
                   <div class="inline-chart">
-                    <ServiceStatusBar @isNarrow={{true}} @services={{this.serviceHealthStatuses}} @name={{row.model.name}} />
+                    {{#if row.model.isTaskLevel}}
+                      <ServiceStatusBar @isNarrow={{true}} @services={{this.serviceHealthStatuses}} @name={{concat row.model.name "@task"}} />
+                    {{else}}
+                      <ServiceStatusBar @isNarrow={{true}} @services={{this.serviceHealthStatuses}} @name={{row.model.name}} />
+                    {{/if}}
                   </div>
                 {{/if}}
               </td>
