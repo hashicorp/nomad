@@ -276,6 +276,9 @@
             <td>
               Upstreams
             </td>
+            <td>
+              Health Check Status
+            </td>
           </t.head>
           <t.body as |row|>
             <tr data-test-service>
@@ -300,6 +303,13 @@
                 }}
                   {{upstream.destinationName}}:{{upstream.localBindPort}}
                 {{/each}}
+              </td>
+              <td data-test-service-health>
+                {{#if (eq row.model.provider "nomad")}}
+                  <div class="inline-chart">
+                    <ServiceStatusBar @isNarrow={{true}} @services={{this.serviceHealthStatuses}} @name={{row.model.name}} />
+                  </div>
+                {{/if}}
               </td>
             </tr>
           </t.body>
