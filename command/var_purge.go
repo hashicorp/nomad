@@ -13,16 +13,23 @@ type VarPurgeCommand struct {
 
 func (c *VarPurgeCommand) Help() string {
 	helpText := `
-Usage: nomad var delete [options] <path>
+Usage: nomad var purge [options] <path>
 
-  Delete is used to delete an existing variable.
+  Purge is used to permanently delete an existing variable.
 
   If ACLs are enabled, this command requires a token with the 'var:destroy'
   capability.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault)
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+Purge Options:
+
+  -check-index
+    If set, the variable is only purged if the server side version's modify
+	index matches the provided value.
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -36,14 +43,17 @@ func (c *VarPurgeCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *VarPurgeCommand) Synopsis() string {
-	return "Delete a variable"
+	return "Purge a variable"
 }
 
-func (c *VarPurgeCommand) Name() string { return "var delete" }
+func (c *VarPurgeCommand) Name() string { return "var purge" }
 
 func (c *VarPurgeCommand) Run(args []string) int {
+	var checkIndexStr string
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.StringVar(&checkIndexStr, "check-index", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -57,6 +67,13 @@ func (c *VarPurgeCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Parse the check-index
+	checkIndex, enforce, err := parseCheckIndex(checkIndexStr)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing check-index value %q: %v", checkIndexStr, err))
+		return 1
+	}
+
 	path := args[0]
 
 	// Get the HTTP client
@@ -66,13 +83,18 @@ func (c *VarPurgeCommand) Run(args []string) int {
 		return 1
 	}
 
-	_, err = client.Variables().Delete(path, nil)
-	// TODO: Manage Conflict result
+	if enforce {
+		_, err = client.Variables().CheckedDelete(path, checkIndex, nil)
+		// TODO: Manage Conflict result; for now, will be caught in generic error handler later.
+	} else {
+		_, err = client.Variables().Delete(path, nil)
+	}
+
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error deleting variable: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error purging variable: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully deleted variable %q!", path))
+	c.Ui.Output(fmt.Sprintf("Successfully purged variable %q!", path))
 	return 0
 }

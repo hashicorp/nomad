@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -53,6 +54,35 @@ func TestVarPurgeCommand_Good(t *testing.T) {
 
 	// Delete a namespace
 	code := cmd.Run([]string{"-address=" + url, sv.Path})
+	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+
+	vars, _, err := client.Variables().List(nil)
+	require.NoError(t, err)
+	require.Len(t, vars, 0)
+}
+
+func TestVarPurgeCommand_Checked(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a server
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &VarPurgeCommand{Meta: Meta{Ui: ui}}
+
+	// Create a var to delete
+	sv := testVariable()
+	sv, _, err := client.Variables().Create(sv, nil)
+	require.NoError(t, err)
+
+	// Delete a variable
+	code := cmd.Run([]string{"-address=" + url, "-check-index=1", sv.Path})
+	stderr := ui.ErrorWriter.String()
+	require.Equal(t, 1, code, "expected exit 1, got: %d; %v", code, stderr)
+	require.Contains(t, stderr, "Error purging variable: cas conflict: expected ModifyIndex 1")
+
+	code = cmd.Run([]string{"-address=" + url, fmt.Sprintf("-check-index=%v", sv.ModifyIndex), sv.Path})
 	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 
 	vars, _, err := client.Variables().List(nil)
