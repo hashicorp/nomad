@@ -724,12 +724,12 @@ func TestHTTP_PrefixSearch_Variables_ACL(t *testing.T) {
 		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default",
 			mock.NamespacePolicyWithVariables(
 				"default", "read", []string{},
-				map[string][]string{"*": []string{"read", "list"}}))
+				map[string][]string{"*": {"read", "list"}}))
 
 		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name,
 			mock.NamespacePolicyWithVariables(
 				ns.Name, "read", []string{},
-				map[string][]string{"*": []string{"read", "list"}}))
+				map[string][]string{"*": {"read", "list"}}))
 
 		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none",
 			mock.NamespacePolicy("default", "deny", nil))
@@ -834,9 +834,19 @@ func TestHTTP_FuzzySearch_Variables_ACL(t *testing.T) {
 		require.NoError(t, setResp.Error)
 
 		rootToken := s.RootToken
-		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default", mock.NamespacePolicy("default", "read", nil))
-		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name, mock.NamespacePolicy(ns.Name, "read", nil))
-		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none", mock.NamespacePolicy("default", "deny", nil))
+
+		defNSToken := mock.CreatePolicyAndToken(t, state, 8002, "default",
+			mock.NamespacePolicyWithVariables(
+				"default", "read", []string{},
+				map[string][]string{"*": {"list"}}))
+
+		ns1NSToken := mock.CreatePolicyAndToken(t, state, 8004, "ns-"+ns.Name,
+			mock.NamespacePolicyWithVariables(
+				ns.Name, "read", []string{},
+				map[string][]string{"*": {"list"}}))
+
+		denyToken := mock.CreatePolicyAndToken(t, state, 8006, "none",
+			mock.NamespacePolicy("default", "deny", nil))
 
 		type testCase struct {
 			desc               string

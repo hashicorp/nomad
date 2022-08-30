@@ -482,8 +482,7 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
 
 		case *structs.VariableEncrypted:
-			// FIXME: Update to final implementation.
-			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+			return !aclObj.AllowVariableSearch(t.Namespace)
 
 		case *structs.Namespace:
 			return !aclObj.AllowNamespace(t.Name)
