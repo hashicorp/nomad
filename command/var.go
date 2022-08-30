@@ -53,6 +53,10 @@ Usage: nomad var <subcommand> [options] [args]
 
       $ nomad var list <prefix>
 
+  Purge a variable:
+
+      $ nomad var purge <path>
+
   Please see the individual subcommand help for detailed usage information.
 `
 
