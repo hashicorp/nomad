@@ -305,9 +305,9 @@
                 {{/each}}
               </td>
               <td data-test-service-health>
-                {{#if (not row.model.connect)}}
+                {{#if (eq row.model.provider "nomad")}}
                   <div class="inline-chart">
-                    <ServiceStatusBar @services={{this.serviceHealthStatuses}} @name={{row.model.name}} />
+                    <ServiceStatusBar @isNarrow={{true}} @services={{this.serviceHealthStatuses}} @name={{row.model.name}} />
                   </div>
                 {{/if}}
               </td>
