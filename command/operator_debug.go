@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
@@ -682,7 +683,7 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 	joinedPath := c.path(paths...)
 
 	// Ensure path doesn't escape the sandbox of the capture directory
-	escapes := helper.PathEscapesSandbox(c.collectDir, joinedPath)
+	escapes := escapingfs.PathEscapesSandbox(c.collectDir, joinedPath)
 	if escapes {
 		return fmt.Errorf("file path escapes capture directory")
 	}
@@ -1178,7 +1179,7 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	}
 
 	// Ensure filename doesn't escape the sandbox of the capture directory
-	escapes := helper.PathEscapesSandbox(c.collectDir, filePath)
+	escapes := escapingfs.PathEscapesSandbox(c.collectDir, filePath)
 	if escapes {
 		return fmt.Errorf("file path \"%s\" escapes capture directory \"%s\"", filePath, c.collectDir)
 	}

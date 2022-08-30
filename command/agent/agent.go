@@ -14,11 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
@@ -26,8 +23,10 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -838,7 +837,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 			return err
 		}
 		// Persist this configured nodeID to our data directory
-		if err := lib.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
@@ -850,7 +849,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// If we still don't have a valid node ID, make one.
 	if config.NodeID == "" {
 		id := uuid.Generate()
-		if err := lib.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {

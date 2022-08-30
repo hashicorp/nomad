@@ -2,7 +2,6 @@ package helper
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -392,91 +391,6 @@ func TestCheckNamespaceScope(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			offending := CheckNamespaceScope(tc.provided, tc.requested)
 			require.Equal(t, offending, tc.offending)
-		})
-	}
-}
-
-func TestPathEscapesSandbox(t *testing.T) {
-	cases := []struct {
-		name     string
-		path     string
-		dir      string
-		expected bool
-	}{
-		{
-			// this is the ${NOMAD_SECRETS_DIR} case
-			name:     "ok joined absolute path inside sandbox",
-			path:     filepath.Join("/alloc", "/secrets"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail unjoined absolute path outside sandbox",
-			path:     "/secrets",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "ok joined relative path inside sandbox",
-			path:     filepath.Join("/alloc", "./safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail unjoined relative path outside sandbox",
-			path:     "./safe",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "ok relative path traversal constrained to sandbox",
-			path:     filepath.Join("/alloc", "../../alloc/safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "ok unjoined absolute path traversal constrained to sandbox",
-			path:     filepath.Join("/alloc", "/../alloc/safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "ok unjoined absolute path traversal constrained to sandbox",
-			path:     "/../alloc/safe",
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail joined relative path traverses outside sandbox",
-			path:     filepath.Join("/alloc", "../../../unsafe"),
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail unjoined relative path traverses outside sandbox",
-			path:     "../../../unsafe",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail joined absolute path tries to transverse outside sandbox",
-			path:     filepath.Join("/alloc", "/alloc/../../unsafe"),
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail unjoined absolute path tries to transverse outside sandbox",
-			path:     "/alloc/../../unsafe",
-			dir:      "/alloc",
-			expected: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			caseMsg := fmt.Sprintf("path: %v\ndir: %v", tc.path, tc.dir)
-			escapes := PathEscapesSandbox(tc.dir, tc.path)
-			require.Equal(t, tc.expected, escapes, caseMsg)
 		})
 	}
 }
