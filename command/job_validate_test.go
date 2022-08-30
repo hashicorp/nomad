@@ -18,7 +18,6 @@ func TestValidateCommand_Implements(t *testing.T) {
 }
 
 func TestValidateCommand_Files(t *testing.T) {
-	ci.Parallel(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVault(t)

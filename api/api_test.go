@@ -117,7 +117,7 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
-	testutil.Parallel(t)
+
 	testURL := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
 	region := "test"

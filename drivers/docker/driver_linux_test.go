@@ -19,7 +19,6 @@ import (
 )
 
 func TestDockerDriver_authFromHelper(t *testing.T) {
-	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	dir := t.TempDir()
