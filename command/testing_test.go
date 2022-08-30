@@ -164,6 +164,26 @@ func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
 	})
 }
 
+func waitForCheckStatus(t *testing.T, client *api.Client, allocID, status string) {
+	testutil.WaitForResult(func() (bool, error) {
+		results, err := client.Allocations().Checks(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		// pick a check, any check will do
+		for _, check := range results {
+			if check.Status == status {
+				return true, nil
+			}
+		}
+
+		return false, fmt.Errorf("no check with status: %s", status)
+	}, func(err error) {
+		t.Fatalf("timed out waiting for alloc to be running: %v", err)
+	})
+}
+
 func getAllocFromJob(t *testing.T, client *api.Client, jobID string) string {
 	var allocID string
 	if allocations, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {

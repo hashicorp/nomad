@@ -69,13 +69,13 @@ var (
 
 const (
 	// The following are the fine-grained capabilities that can be
-	// granted for a secure variables path. When capabilities are
+	// granted for a variables path. When capabilities are
 	// combined we take the union of all capabilities.
-	SecureVariablesCapabilityList    = "list"
-	SecureVariablesCapabilityRead    = "read"
-	SecureVariablesCapabilityWrite   = "write"
-	SecureVariablesCapabilityDestroy = "destroy"
-	SecureVariablesCapabilityDeny    = "deny"
+	VariablesCapabilityList    = "list"
+	VariablesCapabilityRead    = "read"
+	VariablesCapabilityWrite   = "write"
+	VariablesCapabilityDestroy = "destroy"
+	VariablesCapabilityDeny    = "deny"
 )
 
 // Policy represents a parsed HCL or JSON policy.
@@ -104,17 +104,17 @@ func (p *Policy) IsEmpty() bool {
 
 // NamespacePolicy is the policy for a specific namespace
 type NamespacePolicy struct {
-	Name            string `hcl:",key"`
-	Policy          string
-	Capabilities    []string
-	SecureVariables *SecureVariablesPolicy `hcl:"secure_variables"`
+	Name         string `hcl:",key"`
+	Policy       string
+	Capabilities []string
+	Variables    *VariablesPolicy `hcl:"variables"`
 }
 
-type SecureVariablesPolicy struct {
-	Paths []*SecureVariablesPathPolicy `hcl:"path"`
+type VariablesPolicy struct {
+	Paths []*VariablesPathPolicy `hcl:"path"`
 }
 
-type SecureVariablesPathPolicy struct {
+type VariablesPathPolicy struct {
 	PathSpec     string `hcl:",key"`
 	Capabilities []string
 }
@@ -184,11 +184,11 @@ func isNamespaceCapabilityValid(cap string) bool {
 }
 
 // isPathCapabilityValid ensures the given capability is valid for a
-// secure variables path policy
+// variables path policy
 func isPathCapabilityValid(cap string) bool {
 	switch cap {
-	case SecureVariablesCapabilityWrite, SecureVariablesCapabilityRead,
-		SecureVariablesCapabilityList, SecureVariablesCapabilityDestroy, SecureVariablesCapabilityDeny:
+	case VariablesCapabilityWrite, VariablesCapabilityRead,
+		VariablesCapabilityList, VariablesCapabilityDestroy, VariablesCapabilityDeny:
 		return true
 	default:
 		return false
@@ -266,15 +266,15 @@ func expandHostVolumePolicy(policy string) []string {
 	}
 }
 
-func expandSecureVariablesCapabilities(caps []string) []string {
+func expandVariablesCapabilities(caps []string) []string {
 	var foundRead, foundList bool
 	for _, cap := range caps {
 		switch cap {
-		case SecureVariablesCapabilityDeny:
-			return []string{SecureVariablesCapabilityDeny}
-		case SecureVariablesCapabilityRead:
+		case VariablesCapabilityDeny:
+			return []string{VariablesCapabilityDeny}
+		case VariablesCapabilityRead:
 			foundRead = true
-		case SecureVariablesCapabilityList:
+		case VariablesCapabilityList:
 			foundList = true
 		}
 	}
@@ -327,21 +327,21 @@ func Parse(rules string) (*Policy, error) {
 			ns.Capabilities = append(ns.Capabilities, extraCap...)
 		}
 
-		if ns.SecureVariables != nil {
-			if len(ns.SecureVariables.Paths) == 0 {
-				return nil, fmt.Errorf("Invalid secure variable policy: no secure variable paths in namespace %s", ns.Name)
+		if ns.Variables != nil {
+			if len(ns.Variables.Paths) == 0 {
+				return nil, fmt.Errorf("Invalid variable policy: no variable paths in namespace %s", ns.Name)
 			}
-			for _, pathPolicy := range ns.SecureVariables.Paths {
+			for _, pathPolicy := range ns.Variables.Paths {
 				if pathPolicy.PathSpec == "" {
-					return nil, fmt.Errorf("Invalid missing secure variable path in namespace %s", ns.Name)
+					return nil, fmt.Errorf("Invalid missing variable path in namespace %s", ns.Name)
 				}
 				for _, cap := range pathPolicy.Capabilities {
 					if !isPathCapabilityValid(cap) {
 						return nil, fmt.Errorf(
-							"Invalid secure variable capability '%s' in namespace %s", cap, ns.Name)
+							"Invalid variable capability '%s' in namespace %s", cap, ns.Name)
 					}
 				}
-				pathPolicy.Capabilities = expandSecureVariablesCapabilities(pathPolicy.Capabilities)
+				pathPolicy.Capabilities = expandVariablesCapabilities(pathPolicy.Capabilities)
 
 			}
 

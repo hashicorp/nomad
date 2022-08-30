@@ -48,7 +48,7 @@ export default class Variable extends AbstractAbility {
 
   @computed('token.selfTokenPolicies')
   get policiesSupportVariableList() {
-    return this.policyNamespacesIncludeSecureVariablesCapabilities(
+    return this.policyNamespacesIncludeVariablesCapabilities(
       this.token.selfTokenPolicies,
       ['list', 'read', 'write', 'destroy']
     );
@@ -65,7 +65,7 @@ export default class Variable extends AbstractAbility {
   /**
    *
    * Map to your policy's namespaces,
-   * and each of their SecureVariables blocks' paths,
+   * and each of their Variables blocks' paths,
    * and each of their capabilities.
    * Then, check to see if any of the permissions you're looking for
    * are contained within at least one of them.
@@ -74,36 +74,36 @@ export default class Variable extends AbstractAbility {
    * @param {string[]} capabilities
    * @returns {boolean}
    */
-  policyNamespacesIncludeSecureVariablesCapabilities(
+  policyNamespacesIncludeVariablesCapabilities(
     policies = [],
     capabilities = [],
     path
   ) {
-    const namespacesWithSecureVariableCapabilities = policies
+    const namespacesWithVariableCapabilities = policies
       .toArray()
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
       .map((namespace = {}) => {
-        return namespace.SecureVariables?.Paths;
+        return namespace.Variables?.Paths;
       })
       .flat()
       .compact()
-      .filter((secVarsBlock = {}) => {
+      .filter((varsBlock = {}) => {
         if (!path || path === WILDCARD_GLOB) {
           return true;
         } else {
-          return secVarsBlock.PathSpec === path;
+          return varsBlock.PathSpec === path;
         }
       })
-      .map((secVarsBlock = {}) => {
-        return secVarsBlock.Capabilities;
+      .map((varsBlock = {}) => {
+        return varsBlock.Capabilities;
       })
       .flat()
       .compact();
 
     // Check for requested permissions
-    return namespacesWithSecureVariableCapabilities.some((abilityList) => {
+    return namespacesWithVariableCapabilities.some((abilityList) => {
       return capabilities.includes(abilityList);
     });
   }
@@ -113,7 +113,7 @@ export default class Variable extends AbstractAbility {
     if (this.namespace === WILDCARD_GLOB && this.path === WILDCARD_GLOB) {
       // If you're checking if you can write from root, and you don't specify a namespace,
       // Then if you can write in ANY path in ANY namespace, you can get to /new.
-      return this.policyNamespacesIncludeSecureVariablesCapabilities(
+      return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['write'],
         this._nearestMatchingPath(this.path)
@@ -150,7 +150,7 @@ export default class Variable extends AbstractAbility {
 
         const variables = (namespaces || []).find(
           (namespace) => namespace.Name === matchingNamespace
-        )?.SecureVariables;
+        )?.Variables;
 
         const pathNames = variables?.Paths?.map((path) => ({
           name: path.PathSpec,

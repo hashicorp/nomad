@@ -782,8 +782,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer oneTimeTokenGC.Stop()
 	rootKeyGC := time.NewTicker(s.config.RootKeyGCInterval)
 	defer rootKeyGC.Stop()
-	secureVariablesRekey := time.NewTicker(s.config.SecureVariablesRekeyInterval)
-	defer secureVariablesRekey.Stop()
+	variablesRekey := time.NewTicker(s.config.VariablesRekeyInterval)
+	defer variablesRekey.Stop()
 
 	// Set up the expired ACL local token garbage collection timer.
 	localTokenExpiredGC, localTokenExpiredGCStop := helper.NewSafeTimer(s.config.ACLTokenExpirationGCInterval)
@@ -833,9 +833,9 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobRootKeyRotateOrGC, index))
 			}
-		case <-secureVariablesRekey.C:
+		case <-variablesRekey.C:
 			if index, ok := s.getLatestIndex(); ok {
-				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobSecureVariablesRekey, index))
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobVariablesRekey, index))
 			}
 		case <-stopCh:
 			return

@@ -1,9 +1,9 @@
-{{page-title "New Secure Variable"}}
+{{page-title "New Variable"}}
 <Breadcrumb @crumb={{hash label="New" args=(array "variables.new")}} />
 
 <section class="section">
   <h1 class="title variable-title">
-    Create a Secure Variable
+    Create a Variable
     <Toggle
       data-test-memory-toggle
       @isActive={{eq this.view "json"}}
@@ -12,7 +12,7 @@
     >JSON</Toggle>
   </h1>
 
-  <SecureVariableForm
+  <VariableForm
     @model={{this.model}}
     @path={{this.path}}
     @existingVariables={{this.existingVariables}}

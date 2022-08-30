@@ -35,7 +35,7 @@ var (
 		structs.Plugins,
 		structs.Volumes,
 		structs.ScalingPolicies,
-		structs.SecureVariables,
+		structs.Variables,
 		structs.Namespaces,
 	}
 )
@@ -77,7 +77,7 @@ func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]s
 			id = t.ID
 		case *structs.Namespace:
 			id = t.Name
-		case *structs.SecureVariableEncrypted:
+		case *structs.VariableEncrypted:
 			id = t.Path
 		default:
 			matchID, ok := getEnterpriseMatch(raw)
@@ -218,10 +218,10 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 	case *structs.CSIPlugin:
 		name = t.ID
 		ctx = structs.Plugins
-	case *structs.SecureVariableEncrypted:
+	case *structs.VariableEncrypted:
 		name = t.Path
 		scope = []string{t.Namespace, t.Path}
-		ctx = structs.SecureVariables
+		ctx = structs.Variables
 	}
 
 	if idx := fuzzyIndex(name, text); idx >= 0 {
@@ -390,8 +390,8 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
-	case structs.SecureVariables:
-		iter, err := store.GetSecureVariablesByPrefix(ws, prefix)
+	case structs.Variables:
+		iter, err := store.GetVariablesByPrefix(ws, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -427,12 +427,12 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 		}
 		return store.AllocsByNamespace(ws, namespace)
 
-	case structs.SecureVariables:
+	case structs.Variables:
 		if wildcard(namespace) {
-			iter, err := store.SecureVariables(ws)
+			iter, err := store.Variables(ws)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return store.GetSecureVariablesByNamespace(ws, namespace)
+		return store.GetVariablesByNamespace(ws, namespace)
 
 	case structs.Nodes:
 		if wildcard(namespace) {
@@ -481,7 +481,7 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 		case *structs.Allocation:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
 
-		case *structs.SecureVariableEncrypted:
+		case *structs.VariableEncrypted:
 			// FIXME: Update to final implementation.
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
 
@@ -643,8 +643,8 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 			acl.NamespaceCapabilityCSIReadVolume,
 			acl.NamespaceCapabilityListJobs,
 			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
-	case structs.SecureVariables:
-		return aclObj.AllowSecureVariableSearch(namespace)
+	case structs.Variables:
+		return aclObj.AllowVariableSearch(namespace)
 	}
 
 	return true
@@ -864,7 +864,7 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 			if aclObj.AllowNamespace(namespace) {
 				available = append(available, c)
 			}
-		case structs.SecureVariables:
+		case structs.Variables:
 			if jobRead {
 				available = append(available, c)
 			}

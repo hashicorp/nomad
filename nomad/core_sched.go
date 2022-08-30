@@ -61,8 +61,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.expiredACLTokenGC(eval, true)
 	case structs.CoreJobRootKeyRotateOrGC:
 		return c.rootKeyRotateOrGC(eval)
-	case structs.CoreJobSecureVariablesRekey:
-		return c.secureVariablesRekey(eval)
+	case structs.CoreJobVariablesRekey:
+		return c.variablesRekey(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -936,7 +936,7 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 		if keyMeta.CreateIndex > allocOldThreshold {
 			continue // don't GC keys possibly used to sign live allocations
 		}
-		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
 		if err != nil {
 			return err
 		}
@@ -995,12 +995,12 @@ func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) 
 	return true, nil
 }
 
-// secureVariablesReKey is optionally run after rotating the active
+// variablesReKey is optionally run after rotating the active
 // root key. It iterates over all the variables for the keys in the
 // re-keying state, decrypts them, and re-encrypts them in batches
 // with the currently active key. This job does not GC the keys, which
 // is handled in the normal periodic GC job.
-func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
+func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.RootKeyMetas(ws)
@@ -1017,7 +1017,7 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 		if !keyMeta.Rekeying() {
 			continue
 		}
-		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
 		if err != nil {
 			return err
 		}
@@ -1054,13 +1054,13 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 	return nil
 }
 
-// rotateVariables runs over an iterator of secure variables and decrypts them,
-// and then sends them back to be re-encrypted with the currently active key,
+// rotateVariables runs over an iterator of variables and decrypts them, and
+// then sends them back to be re-encrypted with the currently active key,
 // checking for conflicts
 func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
 
-	args := &structs.SecureVariablesApplyRequest{
-		Op: structs.SVOpCAS,
+	args := &structs.VariablesApplyRequest{
+		Op: structs.VarOpCAS,
 		WriteRequest: structs.WriteRequest{
 			Region:    c.srv.config.Region,
 			AuthToken: eval.LeaderACL,
@@ -1111,13 +1111,13 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 		default:
 		}
 
-		ev := raw.(*structs.SecureVariableEncrypted)
+		ev := raw.(*structs.VariableEncrypted)
 		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
 		if err != nil {
 			return err
 		}
-		dv := &structs.SecureVariableDecrypted{
-			SecureVariableMetadata: ev.SecureVariableMetadata,
+		dv := &structs.VariableDecrypted{
+			VariableMetadata: ev.VariableMetadata,
 		}
 		dv.Items = make(map[string]string)
 		err = json.Unmarshal(cleartext, &dv.Items)
@@ -1125,13 +1125,13 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 			return err
 		}
 		args.Var = dv
-		reply := &structs.SecureVariablesApplyResponse{}
+		reply := &structs.VariablesApplyResponse{}
 
 		if err := limiter.Wait(ctx); err != nil {
 			return err
 		}
 
-		err = c.srv.RPC("SecureVariables.Apply", args, reply)
+		err = c.srv.RPC("Variables.Apply", args, reply)
 		if err != nil {
 			return err
 		}

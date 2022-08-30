@@ -6,11 +6,11 @@ description: Learn about the key management in Nomad.
 
 # Key Management
 
-Nomad servers maintain an encryption keyring used to encrypt [Secure
-Variables][] and sign task [workload identities][]. The servers store key
-metadata in raft, but the encryption key material is stored in a separate file
-in the `keystore` subdirectory of the Nomad [data directory][]. These files have
-the extension `.nks.json`.
+Nomad servers maintain an encryption keyring used to encrypt [Variables][] and
+sign task [workload identities][]. The servers store key metadata in raft, but
+the encryption key material is stored in a separate file in the `keystore`
+subdirectory of the Nomad [data directory][]. These files have the extension
+`.nks.json`.
 
 Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
@@ -26,11 +26,10 @@ previously encrypted variables and verifying workload identities for existing
 allocations.
 
 If you believe key material has been compromised, you can execute [`nomad
-operator keyring secure-variables rotate -full`][]. A new "active" key will be
-created and "inactive" keys will be marked "rekeying". Nomad will asynchronously
-decrypt and re-encrypt all secure variables with the new key. As each key's
-variables are encrypted with the new key, the old key will marked as
-"deprecated".
+operator root keyring rotate -full`][]. A new "active" key will be created and
+"inactive" keys will be marked "rekeying". Nomad will asynchronously decrypt and
+re-encrypt all variables with the new key. As each key's variables are encrypted
+with the new key, the old key will marked as "deprecated".
 
 ## Key Replication
 
@@ -44,17 +43,16 @@ immediately before a leader election.
 ## Restoring the Keyring from Backup
 
 Key material is never stored in raft. This prevents an attacker with a backup of
-the state store from getting access to encrypted secure variables. It also
-allows the HashiCorp engineering and support organization to safely handle
-cluster snapshots you might provide without exposing any of your keys or secure
-variables.
+the state store from getting access to encrypted variables. It also allows the
+HashiCorp engineering and support organization to safely handle cluster
+snapshots you might provide without exposing any of your keys or variables.
 
 However, this means that to restore a cluster from snapshot you need to also
 provide the keystore directory with the `.nks.json` key files on at least one
 server. Operators should include these files as part of your organization's
 backup and recovery strategy for the cluster.
 
-[Secure Variables]: /docs/concepts/secure-variables
+[Variables]: /docs/concepts/variables
 [workload identities]: /docs/concepts/workload-identity
 [data directory]: /docs/configuration#data_dir
-[`nomad operator keyring secure-variables rotate -full`]: /docs/commands/operator/secure-variables/keyring-rotate.mdx
+[`nomad operator root keyring rotate -full`]: /docs/commands/operator/root/keyring-rotate.mdx

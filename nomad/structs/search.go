@@ -16,7 +16,7 @@ const (
 	Recommendations Context = "recommendations"
 	ScalingPolicies Context = "scaling_policy"
 	Plugins         Context = "plugins"
-	SecureVariables Context = "vars"
+	Variables       Context = "vars"
 	Volumes         Context = "volumes"
 
 	// Subtypes used in fuzzy matching.

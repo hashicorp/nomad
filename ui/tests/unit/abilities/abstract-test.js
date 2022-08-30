@@ -44,7 +44,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'default',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -88,7 +88,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: '*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -128,7 +128,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'madness',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['read', 'list', 'write'],
@@ -174,7 +174,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'default',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -218,7 +218,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: '*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -258,7 +258,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'pablo',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['read', 'list', 'write'],
@@ -304,7 +304,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'default',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -348,7 +348,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: '*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -388,7 +388,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'pablo/*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['read', 'list', 'write'],
@@ -437,7 +437,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'default',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -481,7 +481,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: '*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -521,7 +521,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: '*/rilkes',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['read', 'list', 'write'],
@@ -570,7 +570,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'default',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -614,7 +614,7 @@ module('Unit | Ability | abstract', function (hooks) {
           ],
           Name: 'pablo/*',
           Policy: 'write',
-          SecureVariables: {
+          Variables: {
             Paths: [
               {
                 Capabilities: ['read', 'list', 'write'],

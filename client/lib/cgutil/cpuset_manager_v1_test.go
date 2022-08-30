@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func tmpCpusetManagerV1(t *testing.T) (manager *cpusetManagerV1, cleanup func()) {
+func tmpCpusetManagerV1(t *testing.T) (*cpusetManagerV1, func()) {
 	mount, err := FindCgroupMountpointDir()
 	if err != nil || mount == "" {
 		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
@@ -25,15 +25,10 @@ func tmpCpusetManagerV1(t *testing.T) (manager *cpusetManagerV1, cleanup func())
 	parent := "/gotest-" + uuid.Short()
 	require.NoError(t, cpusetEnsureParentV1(parent))
 
-	manager = &cpusetManagerV1{
-		cgroupParent: parent,
-		cgroupInfo:   map[string]allocTaskCgroupInfo{},
-		logger:       testlog.HCLogger(t),
-	}
-
 	parentPath, err := GetCgroupPathHelperV1("cpuset", parent)
 	require.NoError(t, err)
 
+	manager := NewCpusetManagerV1(parent, nil, testlog.HCLogger(t)).(*cpusetManagerV1)
 	return manager, func() { require.NoError(t, cgroups.RemovePaths(map[string]string{"cpuset": parentPath})) }
 }
 
@@ -42,7 +37,7 @@ func TestCpusetManager_V1_Init(t *testing.T) {
 
 	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init(nil))
+	manager.Init()
 
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName))
 	require.FileExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
@@ -59,7 +54,7 @@ func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
 
 	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init(nil))
+	manager.Init()
 
 	alloc := mock.Alloc()
 	// reserve just one core (the 0th core, which probably exists)
@@ -114,7 +109,7 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 
 	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init(nil))
+	manager.Init()
 
 	alloc1 := mock.Alloc()
 	alloc1Cpuset := cpuset.New(manager.parentCpuset.ToSlice()[0])
