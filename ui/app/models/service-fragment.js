@@ -11,7 +11,6 @@ export default class Service extends Fragment {
   @fragment('consul-connect') connect;
   @attr() groupName;
   @attr() taskName;
-
   get refID() {
     return `${this.groupName || this.taskName}-${this.name}`;
   }

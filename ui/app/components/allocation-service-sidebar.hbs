@@ -6,11 +6,9 @@
 	}}
 >
 	{{#if @service}}
-
 		{{keyboard-commands this.keyCommands}}
-
 		<header class="detail-header">
-			<h1 class="title">Service Details for {{@service.name}}</h1>
+			<h1 class="title">Service Details for {{@service.name}}; {{@service.refID}}</h1>
 			<button
 				data-test-close-service-sidebar
 				class="button is-borderless"

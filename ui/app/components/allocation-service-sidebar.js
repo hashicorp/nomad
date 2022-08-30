@@ -1,6 +1,9 @@
 import Component from '@glimmer/component';
+import { inject as service } from '@ember/service';
 
 export default class AllocationServiceSidebarComponent extends Component {
+  @service store;
+
   get isSideBarOpen() {
     return !!this.args.service;
   }
@@ -11,4 +14,8 @@ export default class AllocationServiceSidebarComponent extends Component {
       action: () => this.args.fns.closeSidebar(),
     },
   ];
+
+  get service() {
+    return this.store.query('service-fragment', { refID: this.args.serviceID });
+  }
 }

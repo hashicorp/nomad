@@ -12,6 +12,7 @@ import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 import { union } from '@ember/object/computed';
+import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
@@ -24,6 +25,9 @@ export default class IndexController extends Controller.extend(Sortable) {
     },
     {
       sortDescending: 'desc',
+    },
+    {
+      activeServiceID: 'service',
     },
   ];
 
@@ -166,12 +170,21 @@ export default class IndexController extends Controller.extend(Sortable) {
     lazyClick([() => this.send('gotoTask', allocation, task), event]);
   }
 
+  //#region Services
+
+  @tracked activeServiceID = null;
+
   @action handleServiceClick(service) {
-    this.set('activeService', service);
+    this.set('activeServiceID', service.refID);
+  }
+
+  @computed('activeServiceID')
+  get activeService() {
+    return this.services.findBy('refID', this.activeServiceID);
   }
 
   @action closeSidebar() {
-    this.set('activeService', null);
+    this.set('activeServiceID', null);
   }
 
   keyCommands = [
@@ -181,4 +194,6 @@ export default class IndexController extends Controller.extend(Sortable) {
       action: () => this.closeSidebar(),
     },
   ];
+
+  //#endregion Services
 }
