@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
@@ -881,7 +881,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 			return err
 		}
 		// Persist this configured nodeID to our data directory
-		if err := helper.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
@@ -893,7 +893,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// If we still don't have a valid node ID, make one.
 	if config.NodeID == "" {
 		id := uuid.Generate()
-		if err := helper.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {

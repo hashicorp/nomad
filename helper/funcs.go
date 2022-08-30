@@ -602,20 +602,6 @@ func CheckNamespaceScope(provided string, requested []string) []string {
 	return nil
 }
 
-// PathEscapesSandbox returns whether previously cleaned path inside the
-// sandbox directory (typically this will be the allocation directory)
-// escapes.
-func PathEscapesSandbox(sandboxDir, path string) bool {
-	rel, err := filepath.Rel(sandboxDir, path)
-	if err != nil {
-		return true
-	}
-	if strings.HasPrefix(rel, "..") {
-		return true
-	}
-	return false
-}
-
 // StopFunc is used to stop a time.Timer created with NewSafeTimer
 type StopFunc func()
 
