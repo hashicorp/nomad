@@ -727,6 +727,7 @@ func TestDebug_CollectConsul(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
+		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
