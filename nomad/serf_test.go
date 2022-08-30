@@ -326,10 +326,10 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	})
 	defer cleanupS4()
 
-	servers := []*Server{s1, s2, s3, s4}
+	// Start with 4th server for higher chance of success when joining servers.
+	servers := []*Server{s4, s3, s2, s1}
 
 	// Join with fourth server (now have quorum)
-	// Start with 4th server for higher chance of success
 	TestJoin(t, servers...)
 
 	// Assert leadership with 4 peers
