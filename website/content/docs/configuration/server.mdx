@@ -107,6 +107,10 @@ server {
   CSI plugin before it is eligible for garbage collection if not in use.
   This is specified using a label suffix like "30s" or "1h".
 
+- `acl_token_gc_threshold` `(string: "1h")` - Specifies the minimum age of an
+  expired ACL token before it is eligible for garbage collection. This is
+  specified using a label suffix like "30s" or "1h".
+
 - `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
   nil)</code> - Specifies the initial default scheduler config when
   bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or

@@ -237,44 +237,79 @@
             "path": "commands/acl/bootstrap"
           },
           {
-            "title": "policy apply",
-            "path": "commands/acl/policy-apply"
+            "title": "policy",
+            "routes": [
+              {
+                "title": "apply",
+                "path": "commands/acl/policy/apply"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/policy/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/policy/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/policy/list"
+              }
+            ]
           },
           {
-            "title": "policy delete",
-            "path": "commands/acl/policy-delete"
+            "title": "role",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/role/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/role/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/role/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/role/list"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/role/update"
+              }
+            ]
           },
           {
-            "title": "policy info",
-            "path": "commands/acl/policy-info"
-          },
-          {
-            "title": "policy list",
-            "path": "commands/acl/policy-list"
-          },
-          {
-            "title": "token create",
-            "path": "commands/acl/token-create"
-          },
-          {
-            "title": "token delete",
-            "path": "commands/acl/token-delete"
-          },
-          {
-            "title": "token info",
-            "path": "commands/acl/token-info"
-          },
-          {
-            "title": "token list",
-            "path": "commands/acl/token-list"
-          },
-          {
-            "title": "token self",
-            "path": "commands/acl/token-self"
-          },
-          {
-            "title": "token update",
-            "path": "commands/acl/token-update"
+            "title": "token",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/token/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/token/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/token/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/token/list"
+              },
+              {
+                "title": "self",
+                "path": "commands/acl/token/self"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/token/update"
+              }
+            ]
           }
         ]
       },

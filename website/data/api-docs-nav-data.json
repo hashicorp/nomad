@@ -18,12 +18,25 @@
     "divider": true
   },
   {
-    "title": "ACL Policies",
-    "path": "acl-policies"
-  },
-  {
-    "title": "ACL Tokens",
-    "path": "acl-tokens"
+    "title": "ACL",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "acl"
+      },
+      {
+        "title": "Policies",
+        "path": "acl/policies"
+      },
+      {
+        "title": "Roles",
+        "path": "acl/roles"
+      },
+      {
+        "title": "Tokens",
+        "path": "acl/tokens"
+      }
+    ]
   },
   {
     "title": "Agent",
