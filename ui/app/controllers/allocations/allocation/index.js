@@ -73,8 +73,11 @@ export default class IndexController extends Controller.extend(Sortable) {
 
     let result = new Map();
     Object.values(this.model.healthChecks)?.forEach((service) => {
+      const isTask = !!service.Task;
       const currentServiceStatus = service.Status;
-      const currentServiceName = service.Service;
+      const currentServiceName = isTask
+        ? service.Service.concat('@task')
+        : service.Service;
       const serviceStatuses = result.get(currentServiceName);
       if (serviceStatuses) {
         if (serviceStatuses[currentServiceStatus]) {
