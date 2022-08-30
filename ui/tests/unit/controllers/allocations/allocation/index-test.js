@@ -17,17 +17,18 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
         failure: 1,
         success: 1,
       });
-      result.set('task-fake-py', {
+      result.set('task-fake-py@task', {
         failure: 1,
         success: 1,
       });
-      result.set('web', {
+      result.set('web@task', {
         success: 1,
       });
 
       const fakePy = controller.serviceHealthStatuses.get('fake-py');
-      const taskFakePy = controller.serviceHealthStatuses.get('task-fake-py');
-      const web = controller.serviceHealthStatuses.get('web');
+      const taskFakePy =
+        controller.serviceHealthStatuses.get('task-fake-py@task');
+      const web = controller.serviceHealthStatuses.get('web@task');
 
       assert.deepEqual(
         fakePy,
@@ -36,12 +37,12 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       );
       assert.deepEqual(
         taskFakePy,
-        result.get('task-fake-py'),
+        result.get('task-fake-py@task'),
         'Service Health Check data is transformed and grouped by Service name'
       );
       assert.deepEqual(
         web,
-        result.get('web'),
+        result.get('web@task'),
         'Service Health Check data is transformed and grouped by Service name'
       );
     });
