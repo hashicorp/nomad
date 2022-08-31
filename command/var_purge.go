@@ -28,7 +28,7 @@ Purge Options:
 
   -check-index
     If set, the variable is only purged if the server side version's modify
-	index matches the provided value.
+    index matches the provided value.
 `
 
 	return strings.TrimSpace(helpText)

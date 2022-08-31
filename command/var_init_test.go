@@ -21,41 +21,40 @@ func TestVarInitCommand_Run_HCL(t *testing.T) {
 	cmd := &VarInitCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
+	ec := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, 1, ec)
 	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
-	// Ensure we change the cwd back
+	// Capture current working dir
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(origDir)
-
 	// Create a temp dir and change into it
 	dir := t.TempDir()
-
 	err = os.Chdir(dir)
 	require.NoError(t, err)
+	// Ensure we change back to the starting dir
+	defer os.Chdir(origDir)
 
 	// Works if the file doesn't exist
-	code = cmd.Run([]string{})
-	require.Empty(t, ui.ErrorWriter.String())
-	require.Zero(t, code)
+	ec = cmd.Run([]string{"-out", "hcl"})
+	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys in the items")
+	require.Zero(t, ec)
 
 	content, err := ioutil.ReadFile(DefaultHclVarInitName)
 	require.NoError(t, err)
 	require.Equal(t, defaultHclVarSpec, string(content))
 
 	// Fails if the file exists
-	code = cmd.Run([]string{})
+	ec = cmd.Run([]string{"-out", "hcl"})
 	require.Contains(t, ui.ErrorWriter.String(), "exists")
-	require.Equal(t, 1, code)
+	require.Equal(t, 1, ec)
 	ui.ErrorWriter.Reset()
 
 	// Works if file is passed
-	code = cmd.Run([]string{"mytest.hcl"})
-	require.Empty(t, ui.ErrorWriter.String())
-	require.Zero(t, code)
+	ec = cmd.Run([]string{"-out", "hcl", "mytest.hcl"})
+	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys in the items")
+	require.Zero(t, ec)
 
 	content, err = ioutil.ReadFile("mytest.hcl")
 	require.NoError(t, err)
@@ -70,22 +69,21 @@ func TestVarInitCommand_Run_JSON(t *testing.T) {
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
 	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+	require.Contains(t, ui.ErrorWriter.String(), "This command takes no arguments or one")
 	ui.ErrorWriter.Reset()
 
-	// Ensure we change the cwd back
+	// Capture current working dir
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(origDir)
-
 	// Create a temp dir and change into it
 	dir := t.TempDir()
-
 	err = os.Chdir(dir)
 	require.NoError(t, err)
+	// Ensure we change back to the starting dir
+	defer os.Chdir(origDir)
 
 	// Works if the file doesn't exist
-	code = cmd.Run([]string{"-json"})
+	code = cmd.Run([]string{"-out", "json"})
 	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
 	require.Zero(t, code)
 
@@ -94,13 +92,13 @@ func TestVarInitCommand_Run_JSON(t *testing.T) {
 	require.Equal(t, defaultJsonVarSpec, string(content))
 
 	// Fails if the file exists
-	code = cmd.Run([]string{"-json"})
+	code = cmd.Run([]string{"-out", "json"})
 	require.Contains(t, ui.ErrorWriter.String(), "exists")
 	require.Equal(t, 1, code)
 	ui.ErrorWriter.Reset()
 
 	// Works if file is passed
-	code = cmd.Run([]string{"-json", "mytest.json"})
+	code = cmd.Run([]string{"-out", "json", "mytest.json"})
 	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
 	require.Zero(t, code)
 

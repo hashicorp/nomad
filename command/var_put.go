@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/command/kvbuilder"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
@@ -41,21 +40,29 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Apply Options:
+  -check-index
+     If set, the variable is only purged if the server side version's modify
+     index matches the provided value.
 
-  -input (hcl | json)
+  -in (hcl | json)
      Parser to use for data supplied via standard input or when the type can
      not be known using the file's extension. Defaults to "json".
 
-  -output (hcl | json | none)
+  -out (hcl | json | none | table)
      Format to render created or updated variable. Defaults to "none" when
      stdout is a terminal and "json" when the output is redirected.
 
- -template
+  -template
      Template to render output with. Required when format is "go-template",
-	 invalid for other formats.
+     invalid for other formats.
 
   -force
-     Replace any existing value at the specified path regardless of modify index
+     Replace any existing value at the specified path regardless of modify index.
+
+  -v
+     Verbose output. Additional output is written to stderr to preserve stdout
+     for redirected output.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -63,8 +70,8 @@ Apply Options:
 func (c *VarPutCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-input":  complete.PredictSet("hcl", "json"),
-			"-output": complete.PredictSet("none", "hcl", "json", "go-template"),
+			"-in":  complete.PredictSet("hcl", "json"),
+			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "table"),
 		},
 	)
 }
@@ -81,18 +88,22 @@ func (c *VarPutCommand) Name() string { return "var put" }
 
 func (c *VarPutCommand) Run(args []string) int {
 	var err error
-	var forceOverwrite bool
-	var path string
+	var forceOverwrite, enforce, doVerbose bool
+	var path, checkIndexStr string
+	var checkIndex uint64
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	flags.StringVar(&c.inFmt, "input", "json", "")
+	flags.StringVar(&c.inFmt, "in", "json", "")
+	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.BoolVar(&forceOverwrite, "force", false, "")
+	flags.BoolVar(&doVerbose, "v", false, "")
+
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
-		flags.StringVar(&c.outFmt, "output", "none", "")
+		flags.StringVar(&c.outFmt, "out", "none", "")
 	} else {
-		flags.StringVar(&c.outFmt, "output", "json", "")
+		flags.StringVar(&c.outFmt, "out", "json", "")
 	}
 
 	if err := flags.Parse(args); err != nil {
@@ -101,6 +112,20 @@ func (c *VarPutCommand) Run(args []string) int {
 	}
 
 	args = flags.Args()
+
+	// Manage verbose output
+	verbose := func(_ string) {} //no-op
+	if doVerbose {
+		verbose = func(msg string) {
+			c.Ui.Warn(msg)
+		}
+	}
+	// Parse the check-index
+	checkIndex, enforce, err = parseCheckIndex(checkIndexStr)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing check-index value %q: %v", checkIndexStr, err))
+		return 1
+	}
 
 	// Pull our fake stdin if needed
 	stdin := (io.Reader)(os.Stdin)
@@ -141,7 +166,7 @@ func (c *VarPutCommand) Run(args []string) int {
 				return 1
 			}
 		}
-		c.Ui.Info(fmt.Sprintf("Reading whole %s variable specification from stdin", strings.ToUpper(c.inFmt)))
+		verbose(fmt.Sprintf("Reading whole %s variable specification from stdin", strings.ToUpper(c.inFmt)))
 
 	case isArgFileRef(arg):
 		// ArgFileRefs start with "@" so we need to peel that off
@@ -149,7 +174,7 @@ func (c *VarPutCommand) Run(args []string) int {
 		// detect format based on extension
 		p := strings.Split(filepath, ".")
 		if len(p) < 2 {
-			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -input flag to specify it.", filepath))
+			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", filepath))
 			return 1
 		}
 		// detect format based on file extension
@@ -159,11 +184,11 @@ func (c *VarPutCommand) Run(args []string) int {
 		case "hcl":
 			c.inFmt = "hcl"
 		default:
-			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -input flag to specify it.", filepath))
+			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", filepath))
 			return 1
 		}
 
-		c.Ui.Info(fmt.Sprintf("Reading whole %s variable specification from %q", strings.ToUpper(c.inFmt), filepath))
+		verbose(fmt.Sprintf("Reading whole %s variable specification from %q", strings.ToUpper(c.inFmt), filepath))
 		c.contents, err = os.ReadFile(filepath)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading %q: %s", filepath, err))
@@ -171,7 +196,7 @@ func (c *VarPutCommand) Run(args []string) int {
 		}
 	default:
 		path = sanitizePath(arg)
-		c.Ui.Info(fmt.Sprintf("Writing to path %q", path))
+		verbose(fmt.Sprintf("Writing to path %q", path))
 	}
 
 	args = args[1:]
@@ -180,7 +205,7 @@ func (c *VarPutCommand) Run(args []string) int {
 	case len(args) == 0:
 		// no-op
 	case isArgStdinRef(args[0]):
-		c.Ui.Info(fmt.Sprintf("Creating variable %q using specification from stdin", path))
+		verbose(fmt.Sprintf("Creating variable %q using specification from stdin", path))
 		stat, _ := os.Stdin.Stat()
 		if (stat.Mode() & os.ModeCharDevice) == 0 {
 			c.contents, err = io.ReadAll(os.Stdin)
@@ -193,7 +218,7 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	case isArgFileRef(args[0]):
 		arg := args[0]
-		c.Ui.Info(fmt.Sprintf("Creating variable %q from specification file %q", path, arg))
+		verbose(fmt.Sprintf("Creating variable %q from specification file %q", path, arg))
 		fPath := arg[1:]
 		c.contents, err = os.ReadFile(fPath)
 		if err != nil {
@@ -238,20 +263,22 @@ func (c *VarPutCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
-	fmt.Println(sv)
 
-	var createFn func(*api.Variable, *api.WriteOptions) (*api.Variable, *api.WriteMeta, error)
-	createFn = client.Variables().CheckedUpdate
-	if forceOverwrite {
-		createFn = client.Variables().Update
+	if enforce {
+		sv.ModifyIndex = checkIndex
 	}
-	_, _, err = createFn(sv, nil)
+
+	if forceOverwrite {
+		sv, _, err = client.Variables().Update(sv, nil)
+	} else {
+		sv, _, err = client.Variables().CheckedUpdate(sv, nil)
+	}
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating variable: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully created variable %q!", sv.Path))
+	verbose(fmt.Sprintf("Created variable %q with modify index %v", sv.Path, sv.ModifyIndex))
 
 	var out string
 	switch c.outFmt {
@@ -264,18 +291,19 @@ func (c *VarPutCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
-	default:
+	case "table":
 		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
 		renderSVAsUiTable(sv, c)
 		return 0
+	default:
+		return 0
 	}
-
-	c.Ui.Output("\n" + out)
+	c.Ui.Output(out)
 	return 0
 }
 
 // makeVariable creates a variable based on whether or not there is data in
-// content and the format is set
+// content and the format is set.
 func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 	var err error
 	out := new(api.Variable)
@@ -303,17 +331,29 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 		return nil, fmt.Errorf("unknown format flag value")
 	}
 
+	// Handle cases where values are provided by CLI flags that modify the
+	// the created variable. Typical of a "copy" operation, it is a convenience
+	// to reset the Create and Modify metadata to zero.
+	var resetIndex bool
+
 	// Step on the namespace in the object if one is provided by flag
-	if c.Meta.namespace != "" {
+	if c.Meta.namespace != "" && c.Meta.namespace != out.Path {
 		out.Namespace = c.Meta.namespace
+		resetIndex = true
 	}
 
-	// Step on the path in the object if one is provided by argument
-	if path != "" {
+	// Step on the path in the object if one is provided by argument.
+	if path != "" && path != out.Path {
 		out.Path = path
+		resetIndex = true
 	}
 
-	c.Ui.Error(fmt.Sprintf("%#v\n", out))
+	if resetIndex {
+		out.CreateIndex = 0
+		out.CreateTime = 0
+		out.ModifyIndex = 0
+		out.ModifyTime = 0
+	}
 	return out, nil
 }
 
@@ -385,7 +425,7 @@ func sanitizePath(s string) string {
 // parseArgsData parses the given args in the format key=value into a map of
 // the provided arguments. The given reader can also supply key=value pairs.
 func parseArgsData(stdin io.Reader, args []string) (map[string]interface{}, error) {
-	builder := &kvbuilder.Builder{Stdin: stdin}
+	builder := &KVBuilder{Stdin: stdin}
 	if err := builder.Add(args...); err != nil {
 		return nil, err
 	}
@@ -393,7 +433,7 @@ func parseArgsData(stdin io.Reader, args []string) (map[string]interface{}, erro
 }
 
 func (c *VarPutCommand) GetConcurrentUI() cli.ConcurrentUi {
-	return c.GetConcurrentUI()
+	return cli.ConcurrentUi{Ui: c.Ui}
 }
 
 func (c *VarPutCommand) validateInputFlag() error {
@@ -401,7 +441,7 @@ func (c *VarPutCommand) validateInputFlag() error {
 	case "hcl": // noop
 	case "json": // noop
 	default:
-		return errors.New(`Invalid value for "-input"; valid values are [hcl, json]`)
+		return errors.New(`Invalid value for "-in"; valid values are [hcl, json]`)
 	}
 	return nil
 }
@@ -412,8 +452,9 @@ func (c *VarPutCommand) validateOutputFlag() error {
 	case "json": // noop
 	case "hcl": //noop
 	case "go-template": //noop
+	case "table": //noop
 	default:
-		return errors.New(`Invalid value for "-output"; valid values are [go-template, hcl, json, none]`)
+		return errors.New(`Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`)
 	}
 	if c.outFmt == "go-template" && c.tmpl == "" {
 		return errors.New(`A template must be supplied using '-template' when using go-template formatting`)

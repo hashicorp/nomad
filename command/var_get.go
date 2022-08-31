@@ -32,18 +32,15 @@ General Options:
 
 Read Options:
 
-  -output ( go-template | hcl | json | table )
+  -out ( go-template | hcl | json | table )
      Format to render the variable in. When using "go-template",
      provide the template content with the "-template" option. Defaults
      to "table" when stdout is a terminal and to "json" when stdout is
-	 redirected.
+     redirected.
 
   -template
      Template to render output with. Required when output is "go-template".
 
-  -exit-code-not-found
-     Exit code to use when the variable is not found. Defaults to
-     1.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,9 +48,8 @@ Read Options:
 func (c *VarGetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-format":              complete.PredictSet("table", "hcl", "json", "go-template"),
-			"-template":            complete.PredictAnything,
-			"-exit-code-not-found": complete.PredictAnything,
+			"-out":      complete.PredictSet("table", "hcl", "json", "go-template"),
+			"-template": complete.PredictAnything,
 		},
 	)
 }
@@ -75,12 +71,11 @@ func (c *VarGetCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
-		flags.StringVar(&c.outFmt, "output", "table", "")
+		flags.StringVar(&c.outFmt, "out", "table", "")
 	} else {
-		flags.StringVar(&c.outFmt, "output", "json", "")
+		flags.StringVar(&c.outFmt, "out", "json", "")
 	}
 	flags.StringVar(&c.tmpl, "template", "", "")
-	flags.IntVar(&exitCodeNotFound, "exit-code-not-found", 1, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -131,6 +126,9 @@ func (c *VarGetCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
+	case "none":
+		// exit without more output
+		return 0
 	default:
 		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
 		renderSVAsUiTable(sv, c)
@@ -143,12 +141,11 @@ func (c *VarGetCommand) Run(args []string) int {
 
 func (c *VarGetCommand) validateOutputFlag() error {
 	switch c.outFmt {
-	case "none": // noop
-	case "json": // noop
-	case "hcl": //noop
-	case "go-template": //noop
+	case "hcl", "json", "none", "table":
+		return nil
+	case "go-template": //noop - needs more validation
 	default:
-		return errors.New(`Invalid value for "-output"; valid values are [go-template, hcl, json, none]`)
+		return errors.New(`Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`)
 	}
 	if c.outFmt == "go-template" && c.tmpl == "" {
 		return errors.New(`A template must be supplied using '-template' when using go-template formatting`)
@@ -160,5 +157,5 @@ func (c *VarGetCommand) validateOutputFlag() error {
 }
 
 func (c *VarGetCommand) GetConcurrentUI() cli.ConcurrentUi {
-	return c.GetConcurrentUI()
+	return cli.ConcurrentUi{Ui: c.Ui}
 }

@@ -38,11 +38,9 @@ Usage: nomad var init <filename>
 
 Init Options:
 
-  -json
-    Create an example JSON variable specification.
+  -out (hcl | json)
+    Format for variable specification. Defaults to "json".
 
-  -q
-    Suppress non-error output
 `
 	return strings.TrimSpace(helpText)
 }
@@ -53,7 +51,7 @@ func (c *VarInitCommand) Synopsis() string {
 
 func (c *VarInitCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-json": complete.PredictNothing,
+		"-out": complete.PredictSet("hcl", "json"),
 	}
 }
 
@@ -64,13 +62,12 @@ func (c *VarInitCommand) AutocompleteArgs() complete.Predictor {
 func (c *VarInitCommand) Name() string { return "var init" }
 
 func (c *VarInitCommand) Run(args []string) int {
-	var jsonOutput bool
+	var outFmt string
 	var quiet bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&jsonOutput, "json", false, "")
-	flags.BoolVar(&quiet, "q", false, "")
+	flags.StringVar(&outFmt, "out", "json", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -83,13 +80,16 @@ func (c *VarInitCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-
-	fileName := DefaultHclVarInitName
-	fileContent := defaultHclVarSpec
-	if jsonOutput {
+	var fileName, fileContent string
+	switch outFmt {
+	case "hcl":
+		fileName = DefaultHclVarInitName
+		fileContent = defaultHclVarSpec
+	case "json":
 		fileName = DefaultJsonVarInitName
 		fileContent = defaultJsonVarSpec
 	}
+
 	if len(args) == 1 {
 		fileName = args[0]
 	}
