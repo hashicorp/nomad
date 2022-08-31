@@ -7,13 +7,6 @@
 	{{on "click" (fn this.gotoService @service)}}
 	class={{if (eq @service.provider "nomad") "is-interactive"}}
 >
-	<td>
-		{{#if (eq @service.provider "nomad")}}
-			<FlightIcon @name="nomad-color" />
-		{{else if (eq @service.provider "consul")}}
-			<FlightIcon @name="consul-color" />
-		{{/if}}
-	</td>
   <td
 	  {{keyboard-shortcut 
 			enumerated=true
@@ -21,8 +14,10 @@
 		}}
 	>
 		{{#if (eq @service.provider "nomad")}}
+			<FlightIcon @name="nomad-color" />
 			<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
 		{{else}}
+			<FlightIcon @name="consul-color" />
 			{{@service.name}}
 		{{/if}}
   </td>
