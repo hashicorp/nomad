@@ -8,22 +8,19 @@ import classic from 'ember-classic-decorator';
 export default class ServiceStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
-  services = null;
-  name = null;
+  status = null;
 
   'data-test-service-status-bar' = true;
 
-  @computed('services.{}', 'name')
+  @computed('status.{failure,pending,success}')
   get data() {
-    const service = this.services && this.services.get(this.name);
-
-    if (!service) {
+    if (!this.status) {
       return [];
     }
 
-    const pending = service.pending || 0;
-    const failing = service.failure || 0;
-    const success = service.success || 0;
+    const pending = this.status.pending || 0;
+    const failing = this.status.failure || 0;
+    const success = this.status.success || 0;
 
     const [grey, red, green] = ['queued', 'failed', 'complete'];
 

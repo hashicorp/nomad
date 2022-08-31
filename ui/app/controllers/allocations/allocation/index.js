@@ -71,38 +71,32 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @union('taskServices', 'groupServices') services;
 
-  @computed('model.healthChecks.{}')
-  get serviceHealthStatuses() {
-    if (!this.model.healthChecks) return null;
-
-    let result = new Map();
-    Object.values(this.model.healthChecks)?.forEach((service) => {
-      const isTask = !!service.Task;
-      const groupName = service.Group.split('.')[1].split('[')[0];
-      const currentServiceStatus = service.Status;
-
-      const currentServiceName = isTask
-        ? service.Task.concat(`-${service.Service}`)
-        : groupName.concat(`-${service.Service}`);
-      const serviceStatuses = result.get(currentServiceName);
-      if (serviceStatuses) {
-        if (serviceStatuses[currentServiceStatus]) {
-          result.set(currentServiceName, {
-            ...serviceStatuses,
-            [currentServiceStatus]: serviceStatuses[currentServiceStatus]++,
-          });
-        } else {
-          result.set(currentServiceName, {
-            ...serviceStatuses,
-            [currentServiceStatus]: 1,
-          });
-        }
-      } else {
-        result.set(currentServiceName, { [currentServiceStatus]: 1 });
+  @computed('model.healthChecks.{}', 'services')
+  get servicesWithHealthChecks() {
+    return this.services.map((service) => {
+      if (this.model.healthChecks) {
+        const healthChecks = Object.values(this.model.healthChecks)?.filter(
+          (check) => {
+            const refPrefix =
+              check.Task || check.Group.split('.')[1].split('[')[0];
+            const currentServiceName = `${refPrefix}-${check.Service}`;
+            return currentServiceName === service.refID;
+          }
+        );
+        // Only append those healthchecks whose timestamps are not already found in service.healthChecks
+        healthChecks.forEach((check) => {
+          if (
+            !service.healthChecks.find(
+              (sc) =>
+                sc.Check === check.Check && sc.Timestamp === check.Timestamp
+            )
+          ) {
+            service.healthChecks.pushObject(check);
+          }
+        });
       }
+      return service;
     });
-
-    return result;
   }
 
   onDismiss() {
