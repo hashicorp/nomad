@@ -18,5 +18,28 @@
 				{{x-icon "cancel"}}
 			</button>
 		</header>
+
+        <ListTable @source={{@service.mostRecentChecks}} as |t|>
+          <t.head>
+            <th>
+              Name
+            </th>
+            <th>
+              Status
+            </th>
+            <td>
+              Error Output
+            </td>
+          </t.head>
+          <t.body as |row|>
+            <tr>
+							<td>{{row.model.Check}}</td>
+							<td>{{row.model.Status}}</td>
+							<td>{{row.model.Output}}</td>
+						</tr>
+					</t.body>
+				</ListTable>
+
+
 	{{/if}}
 </div>

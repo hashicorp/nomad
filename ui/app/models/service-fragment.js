@@ -17,6 +17,23 @@ export default class Service extends Fragment {
   }
   @attr({ defaultValue: () => [] }) healthChecks;
 
+  // TODO: find out why this doesnt update within the sidebar context
+  @computed('healthChecks.[]')
+  get mostRecentChecks() {
+    console.log('mRC recompute');
+    // Get unique check names, then get the most recent one
+    return this.get('healthChecks')
+      .mapBy('Check')
+      .uniq()
+      .map((name) => {
+        // Assumtion: health checks are being pushed in sequential order (hence .reverse)
+        return this.get('healthChecks')
+          .reverse()
+          .find((x) => x.Check === name);
+      });
+  }
+
+  // TODO: make this compute on mostRecentChecks instead
   @computed('healthChecks.[]')
   get mostRecentCheckStatus() {
     // Get unique check names, then get the most recent one
