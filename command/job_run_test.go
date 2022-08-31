@@ -54,6 +54,24 @@ job "job1" {
 	}
 }
 
+func TestRunCommand_hcl1_hcl2_strict(t *testing.T) {
+	ci.Parallel(t)
+
+	_, _, addr := testServer(t, false, nil)
+
+	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+		got := cmd.Run([]string{
+			"-hcl1", "-hcl2-strict",
+			"-address", addr,
+			"-detach",
+			"assets/example-short.nomad",
+		})
+		require.Equal(t, 0, got, ui.ErrorWriter.String())
+	})
+}
+
 func TestRunCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 

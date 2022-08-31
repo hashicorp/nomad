@@ -114,6 +114,26 @@ job "job1" {
 	}
 }
 
+func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
+	ci.Parallel(t)
+
+	_, _, addr := testServer(t, false, nil)
+
+	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+		cmd.Run([]string{
+			"-hcl1", "-hcl2-strict",
+			"-address", addr,
+			"assets/example-short.nomad",
+		})
+		// Invalid parsing flag combination will result in exit code 1, which
+		// is the same as when allocs need to be created, so check for an empty
+		// STDERR instead.
+		require.Empty(t, ui.ErrorWriter.String())
+	})
+}
+
 func TestPlanCommand_From_STDIN(t *testing.T) {
 	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
