@@ -16,11 +16,11 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
 
       // Conditionally Long Poll /checks endpoint if alloc has nomad services
       const doesAllocHaveServices =
-        !!model.taskGroup.services.filterBy('provider', 'nomad').length ||
+        !!model.taskGroup?.services?.filterBy('provider', 'nomad').length ||
         !!model.states
-          .mapBy('task')
-          .map((t) => t && t.get('services'))[0]
-          .filterBy('provider', 'nomad').length;
+          ?.mapBy('task')
+          ?.map((t) => t && t.get('services'))[0]
+          ?.filterBy('provider', 'nomad').length;
 
       if (doesAllocHaveServices) {
         controller.set(
