@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: ignore -hcl2-strict when -hcl1 is set.
+```
