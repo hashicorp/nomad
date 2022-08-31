@@ -1,3 +1,13 @@
+## 1.2.12 (August 31, 2022)
+
+IMPROVEMENTS:
+
+* consul: Reduce load on Consul leader server by allowing stale results when listing namespaces. [[GH-12953](https://github.com/hashicorp/nomad/issues/12953)]
+
+BUG FIXES:
+
+* cli: Fixed a bug where forcing a periodic job would fail if the job ID prefix-matched other periodic jobs [[GH-14333](https://github.com/hashicorp/nomad/issues/14333)]
+
 ## 1.2.11 (August 25, 2022)
 
 IMPROVEMENTS:
