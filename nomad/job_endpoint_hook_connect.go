@@ -116,7 +116,7 @@ func (jobConnectHook) Name() string {
 	return "connect"
 }
 
-func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (jobConnectHook) Mutate(job *structs.Job, _ jobAdmissionErrorLevel) (*structs.Job, []error, error) {
 	for _, g := range job.TaskGroups {
 		// TG isn't validated yet, but validation
 		// may depend on mutation results.
@@ -135,7 +135,7 @@ func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	return job, nil, nil
 }
 
-func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
+func (jobConnectHook) Validate(job *structs.Job, _ jobAdmissionErrorLevel) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {

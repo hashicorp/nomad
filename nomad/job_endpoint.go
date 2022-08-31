@@ -96,7 +96,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Run admission controllers
-	job, warnings, err := j.admissionControllers(args.Job)
+	job, warnings, err := j.admissionControllers(args.Job, jobAdmissionErrorLevelStrict)
 	if err != nil {
 		return err
 	}
@@ -529,7 +529,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
 	}
 
-	job, mutateWarnings, err := j.admissionMutators(args.Job)
+	job, mutateWarnings, err := j.admissionMutators(args.Job, jobAdmissionErrorLevelBasic)
 	if err != nil {
 		return err
 	}
@@ -543,7 +543,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 	}
 
 	// Validate the job and capture any warnings
-	validateWarnings, err := j.admissionValidators(args.Job)
+	validateWarnings, err := j.admissionValidators(args.Job, jobAdmissionErrorLevelBasic)
 	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, err := range merr.Errors {
@@ -1607,7 +1607,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Run admission controllers
-	job, warnings, err := j.admissionControllers(args.Job)
+	job, warnings, err := j.admissionControllers(args.Job, jobAdmissionErrorLevelBasic)
 	if err != nil {
 		return err
 	}

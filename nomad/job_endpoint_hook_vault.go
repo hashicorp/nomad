@@ -19,7 +19,7 @@ func (jobVaultHook) Name() string {
 	return "vault"
 }
 
-func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
+func (h jobVaultHook) Validate(job *structs.Job, errLevel jobAdmissionErrorLevel) ([]error, error) {
 	vaultBlocks := job.Vault()
 	if len(vaultBlocks) == 0 {
 		return nil, nil
@@ -38,7 +38,12 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 	// At this point the job has a vault block and the server requires
 	// authentication, so check if the user has the right permissions.
 	if job.VaultToken == "" {
-		return nil, fmt.Errorf("Vault used in the job but missing Vault token")
+		err := fmt.Errorf("Vault used in the job but missing Vault token")
+
+		if errLevel == jobAdmissionErrorLevelBasic {
+			return []error{err}, nil
+		}
+		return nil, err
 	}
 
 	tokenSecret, err := h.srv.vault.LookupToken(context.Background(), job.VaultToken)

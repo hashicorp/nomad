@@ -14,7 +14,7 @@ func (jobNamespaceConstraintCheckHook) Name() string {
 	return "namespace-constraint-check"
 }
 
-func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []error, err error) {
+func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job, _ jobAdmissionErrorLevel) (warnings []error, err error) {
 	// This was validated before and matches the WriteRequest namespace
 	ns, err := c.srv.State().NamespaceByName(nil, job.Namespace)
 	if err != nil {

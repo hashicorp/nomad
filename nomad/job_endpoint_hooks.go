@@ -15,6 +15,13 @@ const (
 	vaultConstraintLTarget = "${attr.vault.version}"
 )
 
+type jobAdmissionErrorLevel uint8
+
+const (
+	jobAdmissionErrorLevelBasic jobAdmissionErrorLevel = iota
+	jobAdmissionErrorLevelStrict
+)
+
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
 	// Vault token
@@ -52,23 +59,23 @@ type admissionController interface {
 
 type jobMutator interface {
 	admissionController
-	Mutate(*structs.Job) (out *structs.Job, warnings []error, err error)
+	Mutate(*structs.Job, jobAdmissionErrorLevel) (out *structs.Job, warnings []error, err error)
 }
 
 type jobValidator interface {
 	admissionController
-	Validate(*structs.Job) (warnings []error, err error)
+	Validate(*structs.Job, jobAdmissionErrorLevel) (warnings []error, err error)
 }
 
-func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings []error, err error) {
+func (j *Job) admissionControllers(job *structs.Job, level jobAdmissionErrorLevel) (out *structs.Job, warnings []error, err error) {
 	// Mutators run first before validators, so validators view the final rendered job.
 	// So, mutators must handle invalid jobs.
-	out, warnings, err = j.admissionMutators(job)
+	out, warnings, err = j.admissionMutators(job, level)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	validateWarnings, err := j.admissionValidators(job)
+	validateWarnings, err := j.admissionValidators(job, level)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,10 +85,10 @@ func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings
 }
 
 // admissionMutator returns an updated job as well as warnings or an error.
-func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
+func (j *Job) admissionMutators(job *structs.Job, level jobAdmissionErrorLevel) (_ *structs.Job, warnings []error, err error) {
 	var w []error
 	for _, mutator := range j.mutators {
-		job, w, err = mutator.Mutate(job)
+		job, w, err = mutator.Mutate(job, level)
 		j.logger.Trace("job mutate results", "mutator", mutator.Name(), "warnings", w, "error", err)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error in job mutator %s: %v", mutator.Name(), err)
@@ -93,7 +100,7 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 
 // admissionValidators returns a slice of validation warnings and a multierror
 // of validation failures.
-func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
+func (j *Job) admissionValidators(origJob *structs.Job, level jobAdmissionErrorLevel) ([]error, error) {
 	// ensure job is not mutated
 	job := origJob.Copy()
 
@@ -101,7 +108,7 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 	var errs error
 
 	for _, validator := range j.validators {
-		w, err := validator.Validate(job)
+		w, err := validator.Validate(job, level)
 		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
 		if err != nil {
 			errs = multierror.Append(errs, err)
@@ -121,7 +128,7 @@ func (jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (jobCanonicalizer) Mutate(job *structs.Job, _ jobAdmissionErrorLevel) (*structs.Job, []error, error) {
 	job.Canonicalize()
 	return job, nil, nil
 }
@@ -134,7 +141,7 @@ func (jobImpliedConstraints) Name() string {
 	return "constraints"
 }
 
-func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, error) {
+func (jobImpliedConstraints) Mutate(j *structs.Job, _ jobAdmissionErrorLevel) (*structs.Job, []error, error) {
 	// Get the Vault blocks in the job
 	vaultBlocks := j.Vault()
 
@@ -243,7 +250,7 @@ func (jobValidate) Name() string {
 	return "validate"
 }
 
-func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (jobValidate) Validate(job *structs.Job, _ jobAdmissionErrorLevel) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -282,7 +289,7 @@ func (*memoryOversubscriptionValidate) Name() string {
 	return "memory_oversubscription"
 }
 
-func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (v *memoryOversubscriptionValidate) Validate(job *structs.Job, _ jobAdmissionErrorLevel) (warnings []error, err error) {
 	_, c, err := v.srv.State().SchedulerConfig()
 	if err != nil {
 		return nil, err
