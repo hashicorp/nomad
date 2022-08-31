@@ -1,0 +1,56 @@
+---
+layout: docs
+page_title: 'Commands: acl role update'
+description: The role update command is used to update existing ACL Roles.
+---
+
+# Command: acl role update
+
+The `acl role update` command is used to update existing ACL Roles.
+
+## Usage
+
+```plaintext
+nomad acl role update [options] <role_id>
+```
+
+The `acl role update` command requires an existing role's ID.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Update Options
+
+- `-name`: Sets the human-readable name for the ACL Role. It is required and
+  can contain alphanumeric characters, dashes, and underscores. This name must
+  be unique and must not exceed 128 characters.
+
+- `-description`: A free form text description of the role that must not exceed
+  256 characters.
+
+- `-policy`: Specifies a policy to associate with the role identified by their
+  name. This flag can be specified multiple times and must be specified at
+  least once.
+
+- `-no-merge`: Do not merge the current role information with what is provided
+  to the command. Instead, overwrite all fields with the exception of the role
+  ID which is immutable.
+
+- `-json`: Output the ACL role in a JSON format.
+
+- `-t`: Format and display the ACL role using a Go template.
+
+## Examples
+
+Update an existing ACL token:
+
+```shell-session
+$ nomad acl role update -name="example-acl-role-updated" a53b0095-c28a-6181-0586-807b82e665e4
+ID           = a53b0095-c28a-6181-0586-807b82e665e4
+Name         = example-acl-role-updated
+Description  = <none>
+Policies     = general-write
+Create Index = 71
+Modify Index = 80
+```

@@ -27,14 +27,18 @@ The `acl token info` command requires an existing token's AccessorID.
 Fetch information about an existing ACL token:
 
 ```shell-session
-$ nomad acl token info d532c40a-30f1-695c-19e5-c35b882b0efd
-Accessor ID  = d532c40a-30f1-695c-19e5-c35b882b0efd
-Secret ID    = 85310d07-9afa-ef53-0933-0c043cd673c7
-Name         = my token
+$ nomad acl token info 1b60edc8-e4ed-08ef-208d-ecc18a90ccc3
+Accessor ID  = 1b60edc8-e4ed-08ef-208d-ecc18a90ccc3
+Secret ID    = e4c7c80e-870b-c6a6-43d2-dbfa90130c06
+Name         = example-acl-token
 Type         = client
 Global       = false
-Policies     = [foo bar]
-Create Time  = 2017-09-15 05:04:41.814954949 +0000 UTC
-Create Index = 8
-Modify Index = 8
+Create Time  = 2022-08-23 12:17:35.45067293 +0000 UTC
+Expiry Time  = 2022-08-23 20:17:35.45067293 +0000 UTC
+Create Index = 142
+Modify Index = 142
+Policies     = [example-acl-policy]
+
+Roles
+<none>
 ```

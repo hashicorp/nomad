@@ -29,13 +29,15 @@ Fetch information about an existing ACL token:
 $ export NOMAD_TOKEN=85310d07-9afa-ef53-0933-0c043cd673c7
 
 $ nomad acl token self
-Accessor ID  = d532c40a-30f1-695c-19e5-c35b882b0efd
+Accessor ID  = 9c2d1b3a-cbc3-d9a0-3df9-5a382545a819
 Secret ID    = 85310d07-9afa-ef53-0933-0c043cd673c7
-Name         = my token
-Type         = client
-Global       = false
-Policies     = [foo bar]
-Create Time  = 2017-09-15 05:04:41.814954949 +0000 UTC
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Create Time  = 2022-08-23 10:35:32.371025521 +0000 UTC
+Expiry Time  = <none>
 Create Index = 8
 Modify Index = 8
+Policies     = n/a
+Roles        = n/a
 ```

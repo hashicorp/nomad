@@ -39,14 +39,19 @@ The `acl token update` command requires an existing token's accessor ID.
 Update an existing ACL token:
 
 ```shell-session
-$ nomad acl token update -name="my updated token" -policy=foo -policy=bar d532c40a-30f1-695c-19e5-c35b882b0efd
-Accessor ID  = d532c40a-30f1-695c-19e5-c35b882b0efd
-Secret ID    = 85310d07-9afa-ef53-0933-0c043cd673c7
-Name         = my updated token
+$ nomad acl token update -name="example-acl-token-updated" ef851ca0-b331-da5d-bbeb-7ede8f7c9151
+Accessor ID  = ef851ca0-b331-da5d-bbeb-7ede8f7c9151
+Secret ID    = 11d5348a-8768-5baa-6185-c154980e1488
+Name         = example-acl-token-updated
 Type         = client
 Global       = false
-Policies     = [foo bar]
-Create Time  = 2017-09-15 05:04:41.814954949 +0000 UTC
-Create Index = 8
-Modify Index = 8
+Create Time  = 2022-08-23 12:16:09.680699039 +0000 UTC
+Expiry Time  = <never>
+Create Index = 140
+Modify Index = 151
+Policies     = [example-acl-policy]
+
+Roles
+ID                                    Name
+2fe0c403-4502-e99d-4c79-a2821355e66d  example-acl-role-updated
 ```
