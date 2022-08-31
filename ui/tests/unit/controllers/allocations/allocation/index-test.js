@@ -13,36 +13,37 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       controller.set('model', Allocation);
 
       const result = new Map();
-      result.set('fake-py', {
+      result.set('fakepy-fake-py', {
         failure: 1,
         success: 1,
       });
-      result.set('task-fake-py@task', {
+      result.set('http.server-task-fake-py', {
         failure: 1,
         success: 1,
       });
-      result.set('web@task', {
+      result.set('http.server-web', {
         success: 1,
       });
 
-      const fakePy = controller.serviceHealthStatuses.get('fake-py');
-      const taskFakePy =
-        controller.serviceHealthStatuses.get('task-fake-py@task');
-      const web = controller.serviceHealthStatuses.get('web@task');
+      const fakePy = controller.serviceHealthStatuses.get('fakepy-fake-py');
+      const taskFakePy = controller.serviceHealthStatuses.get(
+        'http.server-task-fake-py'
+      );
+      const web = controller.serviceHealthStatuses.get('http.server-web');
 
       assert.deepEqual(
         fakePy,
-        result.get('fake-py'),
+        result.get('fakepy-fake-py'),
         'Service Health Check data is transformed and grouped by Service name'
       );
       assert.deepEqual(
         taskFakePy,
-        result.get('task-fake-py@task'),
+        result.get('http.server-task-fake-py'),
         'Service Health Check data is transformed and grouped by Service name'
       );
       assert.deepEqual(
         web,
-        result.get('web@task'),
+        result.get('http.server-web'),
         'Service Health Check data is transformed and grouped by Service name'
       );
     });
@@ -54,7 +55,7 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
 
       const dupeTaskLevelService =
         Allocation.allocationTaskGroup.Tasks[0].Services[0];
-      dupeTaskLevelService.Name = 'fake-py@task';
+      dupeTaskLevelService.Name = 'fake-py';
       dupeTaskLevelService.isTaskLevel = true;
 
       const healthChecks = Allocation.healthChecks;
@@ -64,35 +65,37 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       controller.set('model', Allocation);
 
       const result = new Map();
-      result.set('fake-py', {
+      result.set('fakepy-fake-py', {
         failure: 1,
         success: 1,
       });
-      result.set('fake-py@task', {
+      result.set('http.server-fake-py', {
         failure: 1,
         success: 1,
       });
-      result.set('web@task', {
+      result.set('http.server-web', {
         success: 1,
       });
 
-      const fakePy = controller.serviceHealthStatuses.get('fake-py');
-      const taskFakePy = controller.serviceHealthStatuses.get('fake-py@task');
-      const web = controller.serviceHealthStatuses.get('web@task');
+      const fakePy = controller.serviceHealthStatuses.get('fakepy-fake-py');
+      const taskFakePy = controller.serviceHealthStatuses.get(
+        'http.server-fake-py'
+      );
+      const web = controller.serviceHealthStatuses.get('http.server-web');
 
       assert.deepEqual(
         fakePy,
-        result.get('fake-py'),
+        result.get('fakepy-fake-py'),
         'Service Health Check data is transformed and grouped by Service name'
       );
       assert.deepEqual(
         taskFakePy,
-        result.get('fake-py@task'),
+        result.get('http.server-fake-py'),
         'Service Health Check data is transformed and grouped by Service name'
       );
       assert.deepEqual(
         web,
-        result.get('web@task'),
+        result.get('http.server-web'),
         'Service Health Check data is transformed and grouped by Service name'
       );
     });
