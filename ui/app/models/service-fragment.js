@@ -9,12 +9,10 @@ export default class Service extends Fragment {
   @attr('string') onUpdate;
   @attr('string') provider;
   @fragment('consul-connect') connect;
+  @attr() groupName;
+  @attr() taskName;
 
-  get fragOwner() {
-    return this._internalModel._recordData._owner;
-  }
-
-  get isTaskLevel() {
-    return this.fragOwner._internalModel.modelName === 'task';
+  get refID() {
+    return `${this.groupName || this.taskName}-${this.name}`;
   }
 }
