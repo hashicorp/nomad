@@ -1,3 +1,9 @@
+## 1.1.18 (August 31, 2022)
+
+BUG FIXES:
+
+* cli: Fixed a bug where forcing a periodic job would fail if the job ID prefix-matched other periodic jobs [[GH-14333](https://github.com/hashicorp/nomad/issues/14333)]
+
 ## 1.1.17 (August 25, 2022)
 
 BUG FIXES:
