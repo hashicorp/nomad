@@ -92,10 +92,10 @@ func TestVarGetCommand(t *testing.T) {
 		{
 			name:     "not-found",
 			format:   "json",
-			expected: "Variable not found",
+			expected: errVariableNotFound,
 			testPath: "not-found",
 			isError:  true,
-			exitCode: 0,
+			exitCode: 1,
 		},
 	}
 	for i, tc := range testCases {

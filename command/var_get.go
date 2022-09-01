@@ -70,7 +70,6 @@ func (c *VarGetCommand) Synopsis() string {
 func (c *VarGetCommand) Name() string { return "var read" }
 
 func (c *VarGetCommand) Run(args []string) int {
-	var exitCodeNotFound int
 	var out, item string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -117,8 +116,8 @@ func (c *VarGetCommand) Run(args []string) int {
 	sv, _, err := client.Variables().Read(path, qo)
 	if err != nil {
 		if err.Error() == "variable not found" {
-			c.Ui.Warn("Variable not found")
-			return exitCodeNotFound
+			c.Ui.Warn(errVariableNotFound)
+			return 1
 		}
 		c.Ui.Error(fmt.Sprintf("Error retrieving variable: %s", err))
 		return 1
