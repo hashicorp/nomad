@@ -122,15 +122,14 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
 		ui := cli.NewMockUi()
 		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-		cmd.Run([]string{
+		got := cmd.Run([]string{
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
 			"assets/example-short.nomad",
 		})
-		// Invalid parsing flag combination will result in exit code 1, which
-		// is the same as when allocs need to be created, so check for an empty
-		// STDERR instead.
-		require.Empty(t, ui.ErrorWriter.String())
+		// Exit code 1 here means that an alloc will be created, which is
+		// expected.
+		require.Equal(t, 1, got)
 	})
 }
 
