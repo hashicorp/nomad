@@ -288,7 +288,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Initialize and start the autopilot routine
 	s.getOrCreateAutopilotConfig()
-	s.autopilot.Start()
+	s.autopilot.Start(s.shutdownCtx)
 
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
@@ -1302,7 +1302,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	// but we want to avoid doing that if possible to prevent useless Raft
 	// log entries. If the address is the same but the ID changed, remove the
 	// old server before adding the new one.
-	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+	minRaftProtocol, err := s.MinRaftProtocol()
 	if err != nil {
 		return err
 	}
@@ -1372,7 +1372,7 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 		return err
 	}
 
-	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+	minRaftProtocol, err := s.MinRaftProtocol()
 	if err != nil {
 		return err
 	}
