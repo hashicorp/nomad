@@ -33,11 +33,12 @@ schedule workloads based on the availability of volumes on a given
 Nomad client node.
 
 A list of available CSI plugins can be found in the [Kubernetes CSI
-documentation][csi-drivers-list]. Any of these plugins should work with Nomad
-out of the box, but it's some plugin vendors have implemented their plugins in a
-way that makes Kubernetes API calls or is otherwise non-compliant with the CSI
-specification. You should verify plugin compatibility with Nomad before adopting
-in production.
+documentation][csi-drivers-list]. Spec-compliant plugins should work with Nomad.
+However, it is possible a plugin vendor has implemented their plugin to make
+Kubernetes API calls, or is otherwise non-compliant with the CSI
+specification. In those situations the plugin may not function correctly in a
+Nomad environment. You should verify plugin compatibility with Nomad before
+deploying in production.
 
 A CSI plugin task requires the [`csi_plugin`][csi_plugin] block:
 
