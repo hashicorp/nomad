@@ -2869,6 +2869,7 @@ DISCOLOOP:
 				addr, err := net.ResolveTCPAddr("tcp", p)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
+					continue
 				}
 				srv := &servers.Server{Addr: addr}
 				nomadServers = append(nomadServers, srv)
