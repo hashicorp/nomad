@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
-import { client, NOMAD_TOKEN } from './api-client.js';
-import { PROD_NAMESPACE, DEV_NAMESPACE, OPERATOR_POLICY_JSON, DEV_POLICY_JSON, ANON_POLICY_JSON } from './utils/index.js';
+import { client, NOMAD_ADDR, NOMAD_TOKEN } from './api-client.js';
+import { PROD_NAMESPACE, DEV_NAMESPACE, OPERATOR_POLICY_JSON, DEV_POLICY_JSON } from './utils/index.js';
 
 async function globalSetup() {
   if (NOMAD_TOKEN === undefined || NOMAD_TOKEN === "") {
@@ -12,8 +12,8 @@ async function globalSetup() {
       await client(`/namespace/dev`, {data: DEV_NAMESPACE});
       await client(`/acl/policy/operator`, {data: OPERATOR_POLICY_JSON});
       await client(`/acl/policy/dev`, {data: DEV_POLICY_JSON});
-      await client(`/acl/token/operator`, {data: {Name: "Operator", Type: "client", Policies: ["operator"]}});
-      await client(`/acl/token/dev`, {data: {Name: "Developer", Type: "client", Policies: ["dev"]}});
+      await client(`/acl/token`, {data: {Name: "Operator", Type: "client", Policies: ["operator"]}});
+      await client(`/acl/token`, {data: {Name: "Developer", Type: "client", Policies: ["dev"]}});
     } catch (e) {
       console.error('ERROR:  ', e)
     }  

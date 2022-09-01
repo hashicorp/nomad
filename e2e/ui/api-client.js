@@ -1,23 +1,23 @@
 import axios from 'axios';
 
-let NOMAD_ADDR = process.env.NOMAD_ADDR;
+export let NOMAD_ADDR = process.env.NOMAD_ADDR;
 export let NOMAD_TOKEN = process.env.NOMAD_TOKEN;
 
 if (NOMAD_ADDR == undefined || NOMAD_ADDR == "") {
   NOMAD_ADDR = 'http://localhost:4646';
 }
 
-export const client = async (path, parameters, {data, method, headers: customHeaders, ...customConfig} = {}) => {
+export const client = async (path, {data, method, headers: customHeaders, ...customConfig} = {}, parameters) => {
     const url = `${NOMAD_ADDR}/v1`.concat(path);
 
-    const method = !!method ? method : data ? 'post' : 'get';
+    method = !!method ? method : data ? 'post' : 'get';
 
     const config = {
-      url: parameters ? url : url.concat(parameters),
+      url: parameters ? url.concat(parameters) : url,
       method,
       data: data ? data : undefined,
       headers: {
-        'content-type': 'application/json; charset=UTF-8',
+        'content-type': 'application/json',
         'X-Nomad-Token': NOMAD_TOKEN,
         ...customHeaders
       },
@@ -29,6 +29,6 @@ export const client = async (path, parameters, {data, method, headers: customHea
         return res;
       }
     }, reason => {
-      throw new Error(reason)
+      throw new Error(reason.response.data)
     });
 }

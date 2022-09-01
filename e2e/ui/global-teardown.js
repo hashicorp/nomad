@@ -6,8 +6,13 @@ async function globalTeardown() {
       await client(`/namespace/dev`, {method: 'delete'});
       await client(`/acl/policy/operator`, {method: 'delete'});
       await client(`/acl/policy/dev`, {method: 'delete'});
-      await client(`/acl/token/operator`, {method: 'delete'});
-      await client(`/acl/token/dev`, {method: 'delete'});
+      const {data: tokens} = await client(`/acl/tokens`);
+      console.log('TOKENZS\n\n\n\n', tokens)
+      tokens.forEach(token => {
+        if (token.Type === 'client') {
+          await client(`/acl/token/${token.AccessorID}`, {method: 'delete'});
+        }
+      })
     } catch (e) {
       console.error('ERROR:  ', e)
     }  
