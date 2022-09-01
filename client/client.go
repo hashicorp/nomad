@@ -2469,7 +2469,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
 		err = ar.Reconnect(update)
 		if err != nil {
-			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "error", err)
 		}
 		return
 	}
