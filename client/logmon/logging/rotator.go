@@ -96,7 +96,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 			f.flushBuffer()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
-				f.logger.Error("error creating next file", "err", err)
+				f.logger.Error("error creating next file", "error", err)
 				return 0, err
 			}
 		}
@@ -144,7 +144,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
-			f.logger.Error("error writing to file", "err", err)
+			f.logger.Error("error writing to file", "error", err)
 
 			// As bufio writer does not automatically recover in case of any
 			// io error, we need to recover from it manually resetting the
@@ -277,7 +277,7 @@ func (f *FileRotator) purgeOldFiles() {
 			var fIndexes []int
 			files, err := ioutil.ReadDir(f.path)
 			if err != nil {
-				f.logger.Error("error getting directory listing", "err", err)
+				f.logger.Error("error getting directory listing", "error", err)
 				return
 			}
 			// Inserting all the rotated files in a slice
@@ -286,7 +286,7 @@ func (f *FileRotator) purgeOldFiles() {
 					fileIdx := strings.TrimPrefix(fi.Name(), fmt.Sprintf("%s.", f.baseFileName))
 					n, err := strconv.Atoi(fileIdx)
 					if err != nil {
-						f.logger.Error("error extracting file index", "err", err)
+						f.logger.Error("error extracting file index", "error", err)
 						continue
 					}
 					fIndexes = append(fIndexes, n)
@@ -307,7 +307,7 @@ func (f *FileRotator) purgeOldFiles() {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
 				err := os.RemoveAll(fname)
 				if err != nil {
-					f.logger.Error("error removing file", "filename", fname, "err", err)
+					f.logger.Error("error removing file", "filename", fname, "error", err)
 				}
 			}
 			f.oldestLogFileIdx = fIndexes[0]

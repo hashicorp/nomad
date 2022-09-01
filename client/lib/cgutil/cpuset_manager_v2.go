@@ -232,7 +232,7 @@ func (c *cpusetManagerV2) cleanup() {
 
 		return nil
 	}); err != nil {
-		c.logger.Error("failed to cleanup cgroup", "err", err)
+		c.logger.Error("failed to cleanup cgroup", "error", err)
 	}
 }
 
@@ -248,7 +248,7 @@ func (c *cpusetManagerV2) pathOf(id identity) string {
 func (c *cpusetManagerV2) remove(path string) {
 	mgr, err := fs2.NewManager(nil, path)
 	if err != nil {
-		c.logger.Warn("failed to create manager", "path", path, "err", err)
+		c.logger.Warn("failed to create manager", "path", path, "error", err)
 		return
 	}
 
@@ -264,7 +264,7 @@ func (c *cpusetManagerV2) remove(path string) {
 
 	// remove the cgroup
 	if err3 := mgr.Destroy(); err3 != nil {
-		c.logger.Warn("failed to cleanup cgroup", "path", path, "err", err)
+		c.logger.Warn("failed to cleanup cgroup", "path", path, "error", err)
 		return
 	}
 }
@@ -276,13 +276,13 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 	// make a manager for the cgroup
 	m, err := fs2.NewManager(new(configs.Cgroup), path)
 	if err != nil {
-		c.logger.Error("failed to manage cgroup", "path", path, "err", err)
+		c.logger.Error("failed to manage cgroup", "path", path, "error", err)
 		return
 	}
 
 	// create the cgroup
 	if err = m.Apply(CreationPID); err != nil {
-		c.logger.Error("failed to apply cgroup", "path", path, "err", err)
+		c.logger.Error("failed to apply cgroup", "path", path, "error", err)
 		return
 	}
 
@@ -290,7 +290,7 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 	if err = m.Set(&configs.Resources{
 		CpusetCpus: set.String(),
 	}); err != nil {
-		c.logger.Error("failed to set cgroup", "path", path, "err", err)
+		c.logger.Error("failed to set cgroup", "path", path, "error", err)
 		return
 	}
 }
