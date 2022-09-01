@@ -1176,7 +1176,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// Multiregion: region added
 			Old: &Job{
@@ -1319,6 +1318,21 @@ func TestJobDiff(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{
+			// VaultToken is filtered
+			Old: &Job{
+				ID:         "vault-job",
+				VaultToken: "secret",
+			},
+			New: &Job{
+				ID:         "vault-job",
+				VaultToken: "new-secret",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+				ID:   "vault-job",
 			},
 		},
 	}
