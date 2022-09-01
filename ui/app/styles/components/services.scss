@@ -44,10 +44,14 @@
     }
   }
 
-  .service-output {
-    max-height: 100px;
-    overflow: auto;
-    display: block;
+  td.service-output {
+    padding: 0;
+    code {
+      padding: 1.25em 1.5em;
+      max-height: 100px;
+      overflow: auto;
+      display: block;
+    }
   }
 
   .inline-definitions {
