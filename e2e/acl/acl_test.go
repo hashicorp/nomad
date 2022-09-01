@@ -18,6 +18,7 @@ func TestACL(t *testing.T) {
 
 	// Run our test cases.
 	t.Run("TestACL_Role", testACLRole)
+	t.Run("TestACL_TokenExpiration", testACLTokenExpiration)
 }
 
 // testResourceType indicates what the resource is so the cleanup process can
