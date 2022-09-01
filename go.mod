@@ -40,7 +40,6 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/hashicorp/consul v1.7.8
 	github.com/hashicorp/consul-template v0.29.3-0.20220829190305-21d2c9bb9752
 	github.com/hashicorp/consul/api v1.14.0
 	github.com/hashicorp/consul/sdk v0.11.0
@@ -78,6 +77,7 @@ require (
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20220829153708-e1e5bb1dcefb
 	github.com/hashicorp/raft v1.3.9
+	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.2.0
 	github.com/hashicorp/serf v0.9.7
 	github.com/hashicorp/vault/api v1.7.2

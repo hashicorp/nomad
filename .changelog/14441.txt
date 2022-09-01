@@ -1,0 +1,3 @@
+```release-note:improvement
+autopilot: upgrade to raft-autopilot library
+```

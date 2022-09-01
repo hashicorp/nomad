@@ -2,13 +2,15 @@ package nomad
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // StatsFetcher has two functions for autopilot. First, lets us fetch all the
@@ -22,7 +24,7 @@ type StatsFetcher struct {
 	logger       log.Logger
 	pool         *pool.ConnPool
 	region       string
-	inflight     map[string]struct{}
+	inflight     map[raft.ServerID]struct{}
 	inflightLock sync.Mutex
 }
 
@@ -32,7 +34,7 @@ func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *Sta
 		logger:   logger.Named("stats_fetcher"),
 		pool:     pool,
 		region:   region,
-		inflight: make(map[string]struct{}),
+		inflight: make(map[raft.ServerID]struct{}),
 	}
 }
 
@@ -40,39 +42,47 @@ func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *Sta
 // cancel this when the context is canceled because we only want one in-flight
 // RPC to each server, so we let it finish and then clean up the in-flight
 // tracking.
-func (f *StatsFetcher) fetch(server *serverParts, replyCh chan *autopilot.ServerStats) {
+func (f *StatsFetcher) fetch(server *autopilot.Server, replyCh chan *autopilot.ServerStats) {
 	var args struct{}
-	var reply autopilot.ServerStats
-	err := f.pool.RPC(f.region, server.Addr, "Status.RaftStats", &args, &reply)
+	var reply structs.RaftStats
+
+	// defer some cleanup to notify everything else that the fetching is no longer occurring
+	// this is easier than trying to make the conditionals line up just right.
+	defer func() {
+		f.inflightLock.Lock()
+		delete(f.inflight, server.ID)
+		f.inflightLock.Unlock()
+	}()
+
+	addr, err := net.ResolveTCPAddr("tcp", string(server.Address))
 	if err != nil {
-		f.logger.Warn("failed retrieving server health", "server", server.Name, "error", err)
-	} else {
-		replyCh <- &reply
+		f.logger.Warn("error resolving TCP address for server",
+			"address", server.Address,
+			"error", err)
+		return
 	}
 
-	f.inflightLock.Lock()
-	delete(f.inflight, server.ID)
-	f.inflightLock.Unlock()
+	err = f.pool.RPC(f.region, addr, "Status.RaftStats", &args, &reply)
+	if err != nil {
+		f.logger.Warn("error getting server health", "server", server.Name, "error", err)
+		return
+	}
+
+	replyCh <- reply.ToAutopilotServerStats()
 }
 
 // Fetch will attempt to query all the servers in parallel.
-func (f *StatsFetcher) Fetch(ctx context.Context, members []serf.Member) map[string]*autopilot.ServerStats {
+func (f *StatsFetcher) Fetch(ctx context.Context, servers map[raft.ServerID]*autopilot.Server) map[raft.ServerID]*autopilot.ServerStats {
 	type workItem struct {
-		server  *serverParts
+		server  *autopilot.Server
 		replyCh chan *autopilot.ServerStats
-	}
-	var servers []*serverParts
-	for _, s := range members {
-		if ok, parts := isNomadServer(s); ok {
-			servers = append(servers, parts)
-		}
 	}
 
 	// Skip any servers that have inflight requests.
 	var work []*workItem
 	f.inflightLock.Lock()
-	for _, server := range servers {
-		if _, ok := f.inflight[server.ID]; ok {
+	for id, server := range servers {
+		if _, ok := f.inflight[id]; ok {
 			f.logger.Warn("failed retrieving server health; last request still outstanding", "server", server.Name)
 		} else {
 			workItem := &workItem{
@@ -80,7 +90,7 @@ func (f *StatsFetcher) Fetch(ctx context.Context, members []serf.Member) map[str
 				replyCh: make(chan *autopilot.ServerStats, 1),
 			}
 			work = append(work, workItem)
-			f.inflight[server.ID] = struct{}{}
+			f.inflight[id] = struct{}{}
 			go f.fetch(workItem.server, workItem.replyCh)
 		}
 	}
@@ -88,14 +98,28 @@ func (f *StatsFetcher) Fetch(ctx context.Context, members []serf.Member) map[str
 
 	// Now wait for the results to come in, or for the context to be
 	// canceled.
-	replies := make(map[string]*autopilot.ServerStats)
+	replies := make(map[raft.ServerID]*autopilot.ServerStats)
 	for _, workItem := range work {
+		// Drain the reply first if there is one.
+		select {
+		case reply := <-workItem.replyCh:
+			replies[workItem.server.ID] = reply
+			continue
+		default:
+		}
+
 		select {
 		case reply := <-workItem.replyCh:
 			replies[workItem.server.ID] = reply
 
 		case <-ctx.Done():
-			f.logger.Warn("failed retrieving server health", "server", workItem.server.Name, "error", ctx.Err())
+			f.logger.Warn("failed retrieving server health",
+				"server", workItem.server.Name, "error", ctx.Err())
+
+			f.inflightLock.Lock()
+			delete(f.inflight, workItem.server.ID)
+			f.inflightLock.Unlock()
+
 		}
 	}
 	return replies

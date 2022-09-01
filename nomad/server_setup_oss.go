@@ -4,7 +4,7 @@
 package nomad
 
 import (
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	autopilot "github.com/hashicorp/raft-autopilot"
 )
 
 type EnterpriseState struct{}
@@ -20,7 +20,15 @@ func (es *EnterpriseState) ReloadLicense(_ *Config) error {
 func (s *Server) setupEnterprise(config *Config) error {
 	// Set up the OSS version of autopilot
 	apDelegate := &AutopilotDelegate{s}
-	s.autopilot = autopilot.NewAutopilot(s.logger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
+
+	s.autopilot = autopilot.New(
+		s.raft,
+		apDelegate,
+		autopilot.WithLogger(s.logger),
+		autopilot.WithReconcileInterval(config.AutopilotInterval),
+		autopilot.WithUpdateInterval(config.ServerHealthInterval),
+		autopilot.WithPromoter(s.autopilotPromoter()),
+	)
 
 	return nil
 }

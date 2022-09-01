@@ -20,11 +20,16 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
+
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
@@ -38,10 +43,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
-	"github.com/hashicorp/serf/serf"
-	"go.etcd.io/bbolt"
 )
 
 const (
@@ -752,7 +753,7 @@ func (s *Server) Leave() error {
 	// for some sane period of time.
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
-		minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+		minRaftProtocol, err := s.MinRaftProtocol()
 		if err != nil {
 			return err
 		}
