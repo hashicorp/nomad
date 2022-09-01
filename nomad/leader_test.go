@@ -1342,7 +1342,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	for _, s := range []*Server{s3, s4} {
 		retry.RunWith(&retry.Counter{
 			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second * 2,
 		}, t, func(r *retry.R) {
 			configFuture := s.raft.GetConfiguration()
 			if len(configFuture.Configuration().Servers) != 3 {
@@ -1359,7 +1359,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 		retry.RunWith(&retry.Counter{
 			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second * 2,
 		}, t, func(r *retry.R) {
 			configFuture := s.raft.GetConfiguration()
 			if len(configFuture.Configuration().Servers) != 3 {
@@ -1380,7 +1380,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	for _, s := range []*Server{s3, s4, s5} {
 		retry.RunWith(&retry.Counter{
 			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second * 2,
 		}, t, func(r *retry.R) {
 			configFuture := s.raft.GetConfiguration()
 			if len(configFuture.Configuration().Servers) != 3 {
@@ -1397,7 +1397,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 		retry.RunWith(&retry.Counter{
 			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second * 2,
 		}, t, func(r *retry.R) {
 			minVer, err := s.MinRaftProtocol()
 			if err != nil {
