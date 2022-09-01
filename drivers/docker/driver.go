@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/ryanuber/go-glob"
+	"github.com/shoenig/netlog"
 )
 
 var (
@@ -428,11 +429,18 @@ func (d *Driver) createContainer(client createContainerClient, config docker.Cre
 	image string) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
+
+	log := netlog.New("DockerDriver")
+	config.HostConfig.Cgroup = "foo.scope"
+	log.Info("createContainer", "name", config.Name, "cgroup", config.HostConfig.Cgroup)
+
 CREATE:
 	container, createErr := client.CreateContainer(config)
 	if createErr == nil {
 		return container, nil
 	}
+
+	container.ID
 
 	d.logger.Debug("failed to create container", "container_name",
 		config.Name, "image_name", image, "image_id", config.Config.Image,
