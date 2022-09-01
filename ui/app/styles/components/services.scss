@@ -15,6 +15,16 @@
 }
 
 .service-sidebar {
+  .aggregate-status {
+    font-size: 1rem;
+    font-weight: normal;
+    line-height: 16px;
+    & > svg {
+      position: relative;
+      top: 3px;
+      margin-left: 5px;
+    }
+  }
   td.name {
     span {
       display: block;
@@ -37,5 +47,10 @@
     max-height: 100px;
     overflow: auto;
     display: block;
+  }
+
+  .inline-definitions {
+    display: grid;
+    grid-template-columns: auto 1fr;
   }
 }

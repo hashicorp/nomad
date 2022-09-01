@@ -18,4 +18,24 @@ export default class AllocationServiceSidebarComponent extends Component {
   get service() {
     return this.store.query('service-fragment', { refID: this.args.serviceID });
   }
+
+  get address() {
+    const port = this.args.allocation?.allocatedResources?.ports?.findBy(
+      'label',
+      this.args.service.portLabel
+    );
+    if (port) {
+      return `${port.hostIp}:${port.value}`;
+    } else {
+      return null;
+    }
+  }
+
+  get aggregateStatus() {
+    return this.args.service?.mostRecentChecks?.any(
+      (check) => check.Status === 'failure'
+    )
+      ? 'Unhealthy'
+      : 'Healthy';
+  }
 }

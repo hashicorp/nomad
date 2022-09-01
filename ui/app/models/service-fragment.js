@@ -2,7 +2,9 @@ import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragment } from 'ember-data-model-fragments/attributes';
 import { computed } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class Service extends Fragment {
   @attr('string') name;
   @attr('string') portLabel;
@@ -17,25 +19,8 @@ export default class Service extends Fragment {
   }
   @attr({ defaultValue: () => [] }) healthChecks;
 
-  // TODO: find out why this doesnt update within the sidebar context
   @computed('healthChecks.[]')
   get mostRecentChecks() {
-    console.log('mRC recompute');
-    // Get unique check names, then get the most recent one
-    return this.get('healthChecks')
-      .mapBy('Check')
-      .uniq()
-      .map((name) => {
-        // Assumtion: health checks are being pushed in sequential order (hence .reverse)
-        return this.get('healthChecks')
-          .reverse()
-          .find((x) => x.Check === name);
-      });
-  }
-
-  // TODO: make this compute on mostRecentChecks instead
-  @computed('healthChecks.[]')
-  get mostRecentCheckStatus() {
     // Get unique check names, then get the most recent one
     return this.get('healthChecks')
       .mapBy('Check')
@@ -46,6 +31,13 @@ export default class Service extends Fragment {
           .reverse()
           .find((x) => x.Check === name);
       })
+      .sortBy('Check');
+  }
+
+  @computed('mostRecentChecks.[]')
+  get mostRecentCheckStatus() {
+    // Get unique check names, then get the most recent one
+    return this.get('mostRecentChecks')
       .mapBy('Status')
       .reduce((acc, curr) => {
         acc[curr] = (acc[curr] || 0) + 1;

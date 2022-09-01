@@ -8,7 +8,18 @@
 	{{#if @service}}
 		{{keyboard-commands this.keyCommands}}
 		<header class="detail-header">
-			<h1 class="title">Service Details for {{@service.name}}</h1>
+			<h1 class="title">
+				{{@service.name}}
+				<span class="aggregate-status">
+					{{#if (eq this.aggregateStatus 'Unhealthy')}}
+						<FlightIcon @name="x-square-fill" @color="#c84034" />
+						Unhealthy
+					{{else}}
+						<FlightIcon @name="check-square-fill" @color="#25ba81" />
+						Healthy
+					{{/if}}
+				</span>
+			</h1>
 			<button
 				data-test-close-service-sidebar
 				class="button is-borderless"
@@ -18,6 +29,63 @@
 				{{x-icon "cancel"}}
 			</button>
 		</header>
+
+		<div class="boxed-section is-small">
+			<div
+				class="boxed-section-body inline-definitions"
+			>
+				<span class="label">
+					Service Details
+				</span>
+
+				<div>
+					<span class="pair">
+						<span class="term">
+							Allocation
+						</span>
+						<LinkTo
+							@route="allocations.allocation"
+							@model={{@allocation}}
+							@query={{hash service=""}}
+						>
+							{{@allocation.shortId}}
+						</LinkTo>
+					</span>
+					<span class="pair">
+						<span class="term">
+							IP Address &amp; Port
+						</span>
+						<a
+							href="http://{{this.address}}"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{{this.address}}
+						</a>
+					</span>
+					{{#if @service.tags.length}}
+						<span class="pair">
+							<span class="term">
+								Tags
+							</span>
+							{{join ", " @service.tags}}
+						</span>
+					{{/if}}
+					<span class="pair">
+						<span class="term">
+							Client
+						</span>
+						<LinkTo
+							@route="clients.client"
+							@model={{@allocation.node}}
+						>
+							{{@allocation.node.shortId}}
+						</LinkTo>
+					</span>
+
+				</div>
+			</div>
+		</div>
 
         <ListTable @source={{@service.mostRecentChecks}} as |t|>
           <t.head>
@@ -39,10 +107,10 @@
 							<td class="status">
 								<span>
 									{{#if (eq row.model.Status "success")}}
-										<FlightIcon @name="check-square-fill" @color="green" />
+										<FlightIcon @name="check-square-fill" @color="#25ba81" />
 										Healthy
 									{{else if (eq row.model.Status "failure")}}
-										<FlightIcon @name="x-square-fill" @color="red" />
+										<FlightIcon @name="x-square-fill" @color="#c84034" />
 										Unhealthy
 									{{else if (eq row.model.Status "pending")}}
 										Pending
