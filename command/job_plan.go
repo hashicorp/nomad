@@ -189,7 +189,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	if err := c.JobGetter.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
-		return 1
+		return 255
 	}
 
 	path := args[0]
