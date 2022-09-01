@@ -95,6 +95,7 @@ func (c *cpusetManagerV2) AddAlloc(alloc *structs.Allocation) {
 
 	// first update our tracking of isolating and sharing tasks
 	for task, resources := range alloc.AllocatedResources.Tasks {
+
 		id := makeID(alloc.ID, task)
 		if len(resources.Cpu.ReservedCores) > 0 {
 			c.isolating[id] = cpuset.New(resources.Cpu.ReservedCores...)
@@ -143,7 +144,7 @@ func (c *cpusetManagerV2) RemoveAlloc(allocID string) {
 	c.cleanup()
 }
 
-func (c *cpusetManagerV2) CgroupPathFor(allocID, task string) CgroupPathGetter {
+func (c *cpusetManagerV2) CgroupPathFor(allocID, task, driver string) CgroupPathGetter {
 	// The CgroupPathFor implementation must block until cgroup for allocID.task
 	// exists [and can accept a PID].
 	return func(ctx context.Context) (string, error) {
@@ -151,7 +152,7 @@ func (c *cpusetManagerV2) CgroupPathFor(allocID, task string) CgroupPathGetter {
 		defer cancel()
 
 		for {
-			path := c.pathOf(makeID(allocID, task))
+			path := c.pathOf(makeID(allocID, task), driver)
 			mgr, err := fs2.NewManager(nil, path)
 			if err != nil {
 				return "", err
@@ -237,8 +238,8 @@ func (c *cpusetManagerV2) cleanup() {
 }
 
 // pathOf returns the absolute path to a task with identity id.
-func (c *cpusetManagerV2) pathOf(id identity) string {
-	return filepath.Join(c.parentAbs, makeScope(id))
+func (c *cpusetManagerV2) pathOf(id identity, driver string) string {
+	return filepath.Join(c.parentAbs, makeScope(id, driver))
 }
 
 // remove does the actual fs delete of the cgroup

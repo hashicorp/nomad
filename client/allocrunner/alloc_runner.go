@@ -272,31 +272,28 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			DynamicRegistry:     ar.dynamicRegistry,
-			Consul:              ar.consulClient,
-			ConsulProxies:       ar.consulProxiesClient,
-			ConsulSI:            ar.sidsClient,
-			Vault:               ar.vaultClient,
-			DeviceStatsReporter: ar.deviceStatsReporter,
-			CSIManager:          ar.csiManager,
-			DeviceManager:       ar.devicemanager,
-			DriverManager:       ar.driverManager,
-			ServersContactedCh:  ar.serversContactedCh,
-			StartConditionMetCh: ar.taskCoordinator.StartConditionForTask(task),
-			ShutdownDelayCtx:    ar.shutdownDelayCtx,
-			ServiceRegWrapper:   ar.serviceRegWrapper,
-			Getter:              ar.getter,
-		}
-
-		if ar.cpusetManager != nil {
-			trConfig.CpusetCgroupPathGetter = ar.cpusetManager.CgroupPathFor(ar.id, task.Name)
+			Alloc:                  ar.alloc,
+			ClientConfig:           ar.clientConfig,
+			Task:                   task,
+			TaskDir:                ar.allocDir.NewTaskDir(task.Name),
+			Logger:                 ar.logger,
+			StateDB:                ar.stateDB,
+			StateUpdater:           ar,
+			DynamicRegistry:        ar.dynamicRegistry,
+			Consul:                 ar.consulClient,
+			ConsulProxies:          ar.consulProxiesClient,
+			ConsulSI:               ar.sidsClient,
+			Vault:                  ar.vaultClient,
+			DeviceStatsReporter:    ar.deviceStatsReporter,
+			CSIManager:             ar.csiManager,
+			DeviceManager:          ar.devicemanager,
+			DriverManager:          ar.driverManager,
+			ServersContactedCh:     ar.serversContactedCh,
+			StartConditionMetCh:    ar.taskCoordinator.StartConditionForTask(task),
+			ShutdownDelayCtx:       ar.shutdownDelayCtx,
+			ServiceRegWrapper:      ar.serviceRegWrapper,
+			Getter:                 ar.getter,
+			CpusetCgroupPathGetter: ar.cpusetManager.CgroupPathFor(ar.id, task.Name, task.Driver),
 		}
 
 		// Create, but do not Run, the task runner

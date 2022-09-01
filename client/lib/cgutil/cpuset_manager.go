@@ -30,7 +30,7 @@ type CpusetManager interface {
 
 	// CgroupPathFor returns a callback for getting the cgroup path and any error that may have occurred during
 	// cgroup initialization. The callback will block if the cgroup has not been created
-	CgroupPathFor(allocID, taskName string) CgroupPathGetter
+	CgroupPathFor(allocID, taskName, driver string) CgroupPathGetter
 }
 
 type NoopCpusetManager struct{}
@@ -44,7 +44,7 @@ func (n NoopCpusetManager) AddAlloc(alloc *structs.Allocation) {
 func (n NoopCpusetManager) RemoveAlloc(allocID string) {
 }
 
-func (n NoopCpusetManager) CgroupPathFor(allocID, task string) CgroupPathGetter {
+func (n NoopCpusetManager) CgroupPathFor(allocID, task, driver string) CgroupPathGetter {
 	return func(context.Context) (string, error) { return "", nil }
 }
 
@@ -69,8 +69,13 @@ func makeID(allocID, task string) identity {
 	return identity(fmt.Sprintf("%s.%s", allocID, task))
 }
 
-func makeScope(id identity) string {
-	return string(id) + ".scope"
+func makeScope(id identity, driver string) string {
+	switch driver {
+	case "podman":
+		return string(id) + ".scope"
+	default:
+		return string(id)
+	}
 }
 
 // SplitPath determines the parent and cgroup from p.

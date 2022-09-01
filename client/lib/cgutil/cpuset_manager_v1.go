@@ -131,7 +131,7 @@ func (c *cpusetManagerV1) RemoveAlloc(allocID string) {
 	go c.signalReconcile()
 }
 
-func (c *cpusetManagerV1) CgroupPathFor(allocID, task string) CgroupPathGetter {
+func (c *cpusetManagerV1) CgroupPathFor(allocID, task, _ string) CgroupPathGetter {
 	return func(ctx context.Context) (string, error) {
 		c.mu.Lock()
 		allocInfo, ok := c.cgroupInfo[allocID]
