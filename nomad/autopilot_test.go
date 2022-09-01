@@ -8,11 +8,14 @@ import (
 	// TODO: replace this with our own helper
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
 	"github.com/hashicorp/serf/serf"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 )
+
+var _ autopilot.ApplicationIntegration = (*AutopilotDelegate)(nil)
 
 // wantPeers determines whether the server has the given
 // number of voting raft peers.

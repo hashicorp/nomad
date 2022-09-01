@@ -23,13 +23,11 @@ const (
 )
 
 // AutopilotDelegate is a Nomad delegate for autopilot operations. It implements
-// the autopilot.ApplicationIntegration interface and methods required for that
-// have been documented as such below.
+// the autopilot.ApplicationIntegration interface, and the methods required for
+// that interface have been documented as such below.
 type AutopilotDelegate struct {
 	server *Server
 }
-
-var _ autopilot.ApplicationIntegration = &AutopilotDelegate{}
 
 // AutopilotConfig is used to retrieve the latest configuration from the Nomad
 // delegate. This method is required to implement the ApplicationIntegration
