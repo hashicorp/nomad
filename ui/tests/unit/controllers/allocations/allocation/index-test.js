@@ -24,12 +24,19 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       result.set('http.server-web', {
         success: 1,
       });
+      console.log(
+        'checking 1',
+        controller,
+        controller.servicesWithHealthChecks
+      );
 
       const fakePy = controller.serviceHealthStatuses.get('fakepy-fake-py');
       const taskFakePy = controller.serviceHealthStatuses.get(
         'http.server-task-fake-py'
       );
       const web = controller.serviceHealthStatuses.get('http.server-web');
+
+      console.log('checking and', fakePy, taskFakePy, web);
 
       assert.deepEqual(
         fakePy,

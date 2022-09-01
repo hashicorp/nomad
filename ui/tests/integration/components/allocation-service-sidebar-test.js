@@ -19,7 +19,7 @@ module(
       await render(
         hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
       );
-      assert.dom(this.element).hasText('Service Details for Funky Service');
+      assert.dom('h1').includesText('Funky Service');
       assert.dom('.sidebar').hasClass('open');
 
       this.set('service', null);
