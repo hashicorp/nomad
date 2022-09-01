@@ -231,6 +231,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				},
 				Config: map[string]interface{}{
 					"${config1}": 1,
+					"port":       "${port1}",
 				},
 			},
 		},
@@ -339,6 +340,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				},
 				Config: map[string]interface{}{
 					"_config1": 1,
+					"port":     "12345",
 				},
 			},
 		},

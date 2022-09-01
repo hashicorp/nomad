@@ -80,7 +80,12 @@ func interpolateMapStringInterface(taskEnv *TaskEnv, orig map[string]interface{}
 
 	m := make(map[string]interface{}, len(orig))
 	for k, v := range orig {
-		m[taskEnv.ReplaceEnv(k)] = v
+		envK := taskEnv.ReplaceEnv(k)
+		if vStr, ok := v.(string); ok {
+			m[envK] = taskEnv.ReplaceEnv(vStr)
+		} else {
+			m[envK] = v
+		}
 	}
 	return m
 }
