@@ -9,11 +9,11 @@ async function globalTeardown() {
       
       const {data: tokens} = await client(`/acl/tokens`);
       
-      tokens.forEach(token => {
+      await Promise.all(tokens.map(async (token) => {
         if (token.Type === 'client') {
           await client(`/acl/token/${token.AccessorID}`, {method: 'delete'});
         }
-      })
+      }));
     } catch (e) {
       console.error('ERROR:  ', e)
     }  
