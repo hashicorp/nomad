@@ -298,6 +298,12 @@ testing.
   with potentially multiple zones, which map to [datacenters](#datacenter) such
   as `us-west` and `us-east`.
 
+  !> **Be Careful!** Changing the `region` of an agent with data stored in its
+  `data_dir` may result in overwrite and data loss in the new region so avoid
+  modifying this value after the agent starts. If you must change it, make sure
+  no local state remains from the previous region before running the agent
+  again.
+
 - `sentinel` `(`[`Sentinel`]`: nil)` - Specifies configuration for Sentinel
   policies.
 
