@@ -150,6 +150,7 @@ items = {
 }
 
 func renderWithGoTemplate(sv *api.Variable, tpl string) (string, error) {
+	//TODO: Enhance this to take a template as an @-aliased filename too
 	t := template.Must(template.New("var").Parse(tpl))
 	var out bytes.Buffer
 	if err := t.Execute(&out, sv); err != nil {
@@ -286,3 +287,10 @@ func (b *KVBuilder) addReader(r io.Reader) error {
 
 	return dec.Decode(&b.result)
 }
+
+const (
+	errMissingTemplate    = `A template must be supplied using '-template' when using go-template formatting`
+	errUnexpectedTemplate = `The '-template' flag is only valid when using 'go-template' formatting`
+	errVariableNotFound   = "Variable not found"
+	errInvalidOutFormat   = `Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`
+)

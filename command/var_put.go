@@ -31,6 +31,9 @@ func (c *VarPutCommand) Help() string {
 Usage: nomad var put [options] <path> [<key>=<value>]...
 
   The 'var put' command is used to create or update an existing variable.
+  The items to be stored in the variable can be supplied as a series of
+  key-value pairs. The value for a key-value pair can be a string, an
+  @-prefixed file reference, or a '-' to get the value from standard input.
 
   If ACLs are enabled, this command requires a token with the 'var:write'
   capability.
@@ -48,7 +51,7 @@ Apply Options:
      Parser to use for data supplied via standard input or when the type can
      not be known using the file's extension. Defaults to "json".
 
-  -out (hcl | json | none | table)
+  -out (go-template | hcl | json | none | pretty-json | table)
      Format to render created or updated variable. Defaults to "none" when
      stdout is a terminal and "json" when the output is redirected.
 
@@ -71,7 +74,7 @@ func (c *VarPutCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-in":  complete.PredictSet("hcl", "json"),
-			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "table"),
+			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "pretty-json", "table"),
 		},
 	)
 }
@@ -99,7 +102,7 @@ func (c *VarPutCommand) Run(args []string) int {
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.BoolVar(&forceOverwrite, "force", false, "")
 	flags.BoolVar(&doVerbose, "v", false, "")
-
+	flags.StringVar(&c.tmpl, "template", "", "")
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "none", "")
 	} else {
@@ -107,7 +110,7 @@ func (c *VarPutCommand) Run(args []string) int {
 	}
 
 	if err := flags.Parse(args); err != nil {
-		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -136,19 +139,23 @@ func (c *VarPutCommand) Run(args []string) int {
 	switch {
 	case len(args) < 1:
 		c.Ui.Error(fmt.Sprintf("Not enough arguments (expected >1, got %d)", len(args)))
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	case len(args) == 1 && !isArgStdinRef(args[0]) && !isArgFileRef(args[0]):
 		c.Ui.Error("Must supply data")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	if err = c.validateInputFlag(); err != nil {
 		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	if err := c.validateOutputFlag(); err != nil {
 		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -284,6 +291,8 @@ func (c *VarPutCommand) Run(args []string) int {
 	switch c.outFmt {
 	case "json":
 		out = sv.AsJSON()
+	case "pretty-json":
+		out = sv.AsPrettyJSON()
 	case "hcl":
 		out = renderAsHCL(sv)
 	case "go-template":
@@ -438,29 +447,26 @@ func (c *VarPutCommand) GetConcurrentUI() cli.ConcurrentUi {
 
 func (c *VarPutCommand) validateInputFlag() error {
 	switch c.inFmt {
-	case "hcl": // noop
-	case "json": // noop
+	case "hcl", "json":
+		return nil
 	default:
 		return errors.New(`Invalid value for "-in"; valid values are [hcl, json]`)
 	}
-	return nil
 }
 
 func (c *VarPutCommand) validateOutputFlag() error {
-	switch c.outFmt {
-	case "none": // noop
-	case "json": // noop
-	case "hcl": //noop
-	case "go-template": //noop
-	case "table": //noop
-	default:
-		return errors.New(`Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`)
-	}
-	if c.outFmt == "go-template" && c.tmpl == "" {
-		return errors.New(`A template must be supplied using '-template' when using go-template formatting`)
-	}
 	if c.outFmt != "go-template" && c.tmpl != "" {
-		return errors.New(`The '-template' flag is only valid when using 'go-template' formatting`)
+		return errors.New(errUnexpectedTemplate)
 	}
-	return nil
+	switch c.outFmt {
+	case "none", "json", "pretty-json", "hcl", "table":
+		return nil
+	case "go-template":
+		if c.tmpl == "" {
+			return errors.New(errMissingTemplate)
+		}
+		return nil
+	default:
+		return errors.New(errInvalidOutFormat)
+	}
 }

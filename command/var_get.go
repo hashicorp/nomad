@@ -32,8 +32,13 @@ General Options:
 
 Read Options:
 
-  -out ( go-template | hcl | json | table )
-     Format to render the variable in. When using "go-template",
+  -item <item key>
+     Print only the value of the given item. Specifying this option will
+     take precedence over other formatting directives. The result will not
+     have a trailing newline making it ideal for piping to other processes.
+
+  -out ( go-template | hcl | json | none | pretty-json | table )
+     Format to render the variable in. When using "go-template", you must
      provide the template content with the "-template" option. Defaults
      to "table" when stdout is a terminal and to "json" when stdout is
      redirected.
@@ -48,7 +53,7 @@ Read Options:
 func (c *VarGetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-out":      complete.PredictSet("table", "hcl", "json", "go-template"),
+			"-out":      complete.PredictSet("table", "hcl", "json", "pretty-json", "go-template"),
 			"-template": complete.PredictAnything,
 		},
 	)
@@ -66,7 +71,7 @@ func (c *VarGetCommand) Name() string { return "var read" }
 
 func (c *VarGetCommand) Run(args []string) int {
 	var exitCodeNotFound int
-	var out string
+	var out, item string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -76,20 +81,23 @@ func (c *VarGetCommand) Run(args []string) int {
 		flags.StringVar(&c.outFmt, "out", "json", "")
 	}
 	flags.StringVar(&c.tmpl, "template", "", "")
+	flags.StringVar(&item, "item", "", "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
-	// Check that we got one argument
+	// Check that we got one or two arguments
 	args = flags.Args()
-	if l := len(args); !(l == 1 || l == 2) {
-		c.Ui.Error("This command takes one or two arguments:\n  <path>\n <path> <item key>")
+	if len(args) != 1 {
+		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	if err := c.validateOutputFlag(); err != nil {
 		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -109,16 +117,30 @@ func (c *VarGetCommand) Run(args []string) int {
 	sv, _, err := client.Variables().Read(path, qo)
 	if err != nil {
 		if err.Error() == "variable not found" {
-			c.Ui.Warn("secure variable not found")
+			c.Ui.Warn("Variable not found")
 			return exitCodeNotFound
 		}
 		c.Ui.Error(fmt.Sprintf("Error retrieving variable: %s", err))
 		return 1
 	}
+	// If the user provided an item key, return that value instead of the whole
+	// object
+	if item != "" {
+		if v, ok := sv.Items[item]; ok {
+			fmt.Print(v)
+			return 0
+		} else {
+			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", args[1]))
+			return 1
+		}
+	}
 
+	// Output whole object
 	switch c.outFmt {
 	case "json":
 		out = sv.AsJSON()
+	case "pretty-json":
+		out = sv.AsPrettyJSON()
 	case "hcl":
 		out = renderAsHCL(sv)
 	case "go-template":
@@ -140,20 +162,20 @@ func (c *VarGetCommand) Run(args []string) int {
 }
 
 func (c *VarGetCommand) validateOutputFlag() error {
+	if c.outFmt != "go-template" && c.tmpl != "" {
+		return errors.New(errUnexpectedTemplate)
+	}
 	switch c.outFmt {
-	case "hcl", "json", "none", "table":
+	case "hcl", "json", "pretty-json", "none", "table":
 		return nil
 	case "go-template": //noop - needs more validation
+		if c.tmpl == "" {
+			return errors.New(errMissingTemplate)
+		}
+		return nil
 	default:
-		return errors.New(`Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`)
+		return errors.New(errInvalidOutFormat)
 	}
-	if c.outFmt == "go-template" && c.tmpl == "" {
-		return errors.New(`A template must be supplied using '-template' when using go-template formatting`)
-	}
-	if c.outFmt != "go-template" && c.tmpl != "" {
-		return errors.New(`The '-template' flag is only valid when using 'go-template' formatting`)
-	}
-	return nil
 }
 
 func (c *VarGetCommand) GetConcurrentUI() cli.ConcurrentUi {
