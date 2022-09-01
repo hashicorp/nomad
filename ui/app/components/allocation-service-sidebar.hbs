@@ -1,5 +1,5 @@
 <div
-	class="sidebar has-subnav {{if this.isSideBarOpen "open"}}"
+	class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
 	{{on-click-outside
 		@fns.closeSidebar
 		capture=true
@@ -33,9 +33,27 @@
           </t.head>
           <t.body as |row|>
             <tr>
-							<td>{{row.model.Check}}</td>
-							<td>{{row.model.Status}}</td>
-							<td>{{row.model.Output}}</td>
+							<td class="name">
+								<span title={{row.model.Check}}>{{row.model.Check}}</span>
+							</td>
+							<td class="status">
+								<span>
+									{{#if (eq row.model.Status "success")}}
+										<FlightIcon @name="check-square-fill" @color="green" />
+										Healthy
+									{{else if (eq row.model.Status "failure")}}
+										<FlightIcon @name="x-square-fill" @color="red" />
+										Unhealthy
+									{{else if (eq row.model.Status "pending")}}
+										Pending
+									{{/if}}
+								</span>
+							</td>
+							<td>
+								<code class="service-output">
+									{{row.model.Output}}
+								</code>
+							</td>
 						</tr>
 					</t.body>
 				</ListTable>

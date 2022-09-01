@@ -13,3 +13,29 @@
     margin-right: 5px;
   }
 }
+
+.service-sidebar {
+  td.name {
+    span {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100px;
+    }
+  }
+  td.status {
+    span {
+      display: inline-grid;
+      grid-auto-flow: column;
+      line-height: 16px;
+      gap: 0.25rem;
+    }
+  }
+
+  .service-output {
+    max-height: 100px;
+    overflow: auto;
+    display: block;
+  }
+}
