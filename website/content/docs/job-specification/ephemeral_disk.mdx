@@ -26,6 +26,7 @@ job "docs" {
   }
 }
 ```
+The ephemeral disk can be referenced under `alloc/data/`. More information can be found in the [filesystem internals].
 
 ## `ephemeral_disk` Parameters
 
@@ -60,3 +61,4 @@ ephemeral_disk {
 ```
 
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'
