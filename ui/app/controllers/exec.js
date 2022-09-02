@@ -51,9 +51,7 @@ export default class ExecController extends Controller {
     if (this.sortedTaskGroups.length > 0) {
       this.terminal.writeln('Select a task to start your session.');
     } else {
-      this.terminal.writeln(
-        'Run a job and then select a task to start your session.'
-      );
+      this.terminal.writeln(`There are no tasks running for this job.`);
     }
   }
 
