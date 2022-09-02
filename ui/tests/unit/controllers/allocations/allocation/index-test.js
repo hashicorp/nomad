@@ -12,46 +12,86 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
 
       controller.set('model', Allocation);
 
-      const result = new Map();
-      result.set('fakepy-fake-py', {
-        failure: 1,
-        success: 1,
-      });
-      result.set('http.server-task-fake-py', {
-        failure: 1,
-        success: 1,
-      });
-      result.set('http.server-web', {
-        success: 1,
-      });
-      console.log(
-        'checking 1',
-        controller,
+      const groupFakePy = {
+        refID: 'fakepy-group-fake-py',
+        statuses: {
+          success: 1,
+          failure: 1,
+          pending: 0,
+        },
+      };
+      const taskFakePy = {
+        refID: 'http.server-task-fake-py',
+        statuses: {
+          success: 2,
+          failure: 2,
+          pending: 0,
+        },
+      };
+      const pender = {
+        refID: 'http.server-pender',
+        statuses: {
+          success: 0,
+          failure: 0,
+          pending: 1,
+        },
+      };
+
+      assert.equal(
         controller.servicesWithHealthChecks
+          .findBy('refID', groupFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'success').length,
+        groupFakePy.statuses['success']
+      );
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', groupFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'failure').length,
+        groupFakePy.statuses['failure']
+      );
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', groupFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'pending').length,
+        groupFakePy.statuses['pending']
       );
 
-      const fakePy = controller.serviceHealthStatuses.get('fakepy-fake-py');
-      const taskFakePy = controller.serviceHealthStatuses.get(
-        'http.server-task-fake-py'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'success').length,
+        taskFakePy.statuses['success']
       );
-      const web = controller.serviceHealthStatuses.get('http.server-web');
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'failure').length,
+        taskFakePy.statuses['failure']
+      );
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskFakePy.refID)
+          .healthChecks.filter((check) => check.Status === 'pending').length,
+        taskFakePy.statuses['pending']
+      );
 
-      console.log('checking and', fakePy, taskFakePy, web);
-
-      assert.deepEqual(
-        fakePy,
-        result.get('fakepy-fake-py'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', pender.refID)
+          .healthChecks.filter((check) => check.Status === 'success').length,
+        pender.statuses['success']
       );
-      assert.deepEqual(
-        taskFakePy,
-        result.get('http.server-task-fake-py'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', pender.refID)
+          .healthChecks.filter((check) => check.Status === 'failure').length,
+        pender.statuses['failure']
       );
-      assert.deepEqual(
-        web,
-        result.get('http.server-web'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', pender.refID)
+          .healthChecks.filter((check) => check.Status === 'pending').length,
+        pender.statuses['pending']
       );
     });
 
@@ -60,50 +100,61 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
         'controller:allocations/allocation/index'
       );
 
-      const dupeTaskLevelService =
-        Allocation.allocationTaskGroup.Tasks[0].Services[0];
-      dupeTaskLevelService.Name = 'fake-py';
-      dupeTaskLevelService.isTaskLevel = true;
-
-      const healthChecks = Allocation.healthChecks;
-      healthChecks['73ad9b936fb3f3cc4d7f62a1aab6de53'].Service = 'fake-py';
-      healthChecks['19421ef816ae0d3eeeb81697bce0e261'].Service = 'fake-py';
-
       controller.set('model', Allocation);
 
-      const result = new Map();
-      result.set('fakepy-fake-py', {
-        failure: 1,
-        success: 1,
-      });
-      result.set('http.server-fake-py', {
-        failure: 1,
-        success: 1,
-      });
-      result.set('http.server-web', {
-        success: 1,
-      });
+      const groupDupe = {
+        refID: 'fakepy-duper',
+        statuses: {
+          success: 1,
+          failure: 0,
+          pending: 0,
+        },
+      };
+      const taskDupe = {
+        refID: 'http.server-duper',
+        statuses: {
+          success: 0,
+          failure: 1,
+          pending: 0,
+        },
+      };
 
-      const fakePy = controller.serviceHealthStatuses.get('fakepy-fake-py');
-      const taskFakePy = controller.serviceHealthStatuses.get(
-        'http.server-fake-py'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', groupDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'success').length,
+        groupDupe.statuses['success']
       );
-      const web = controller.serviceHealthStatuses.get('http.server-web');
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', groupDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'failure').length,
+        groupDupe.statuses['failure']
+      );
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', groupDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'pending').length,
+        groupDupe.statuses['pending']
+      );
 
-      assert.deepEqual(
-        fakePy,
-        result.get('fakepy-fake-py'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'success').length,
+        taskDupe.statuses['success']
       );
-      assert.deepEqual(
-        taskFakePy,
-        result.get('http.server-fake-py'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'failure').length,
+        taskDupe.statuses['failure']
       );
-      assert.deepEqual(
-        web,
-        result.get('http.server-web'),
-        'Service Health Check data is transformed and grouped by Service name'
+      assert.equal(
+        controller.servicesWithHealthChecks
+          .findBy('refID', taskDupe.refID)
+          .healthChecks.filter((check) => check.Status === 'pending').length,
+        taskDupe.statuses['pending']
       );
     });
   });
@@ -112,32 +163,36 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
 // Using var to hoist this variable to the top of the module
 var Allocation = {
   namespace: 'default',
-  name: 'trying-multi-dupes.fakepy[1]',
-  taskGroupName: 'fakepy',
-  resources: {
-    Cpu: null,
-    Memory: null,
-    MemoryMax: null,
-    Disk: null,
-    Iops: null,
-    Networks: [
+  name: 'my-alloc',
+  taskGroup: {
+    name: 'fakepy',
+    count: 3,
+    services: [
       {
-        Device: '',
-        CIDR: '',
-        IP: '127.0.0.1',
-        Mode: 'host',
-        MBits: 0,
-        Ports: [
-          {
-            name: 'http',
-            port: 22308,
-            to: 0,
-            isDynamic: true,
-          },
-        ],
+        Name: 'group-fake-py',
+        refID: 'fakepy-group-fake-py',
+        PortLabel: 'http',
+        Tags: [],
+        OnUpdate: 'require_healthy',
+        Provider: 'nomad',
+        Connect: null,
+        GroupName: 'fakepy',
+        TaskName: '',
+        healthChecks: [],
+      },
+      {
+        Name: 'duper',
+        refID: 'fakepy-duper',
+        PortLabel: 'http',
+        Tags: [],
+        OnUpdate: 'require_healthy',
+        Provider: 'nomad',
+        Connect: null,
+        GroupName: 'fakepy',
+        TaskName: '',
+        healthChecks: [],
       },
     ],
-    Ports: [],
   },
   allocatedResources: {
     Cpu: 100,
@@ -171,53 +226,35 @@ var Allocation = {
       },
     ],
   },
-  jobVersion: 0,
-  modifyIndex: 31,
-  modifyTime: '2022-08-29T14:13:57.761Z',
-  createIndex: 15,
-  createTime: '2022-08-29T14:08:57.587Z',
-  clientStatus: 'running',
-  desiredStatus: 'run',
   healthChecks: {
-    '93a090236c79d964d1381cb218efc0f5': {
-      Check: 'happy',
+    c97fda942e772b43a5a537e5b0c8544c: {
+      Check: 'service: "task-fake-py" check',
       Group: 'trying-multi-dupes.fakepy[1]',
-      ID: '93a090236c79d964d1381cb218efc0f5',
+      ID: 'c97fda942e772b43a5a537e5b0c8544c',
       Mode: 'healthiness',
       Output: 'nomad: http ok',
-      Service: 'fake-py',
+      Service: 'task-fake-py',
       Status: 'success',
       StatusCode: 200,
-      Timestamp: 1661787992,
+      Task: 'http.server',
+      Timestamp: 1662131947,
     },
-    '4b5daa12d4159bcb367aac65548f48f4': {
-      Check: 'sad',
-      Group: 'trying-multi-dupes.fakepy[1]',
-      ID: '4b5daa12d4159bcb367aac65548f48f4',
-      Mode: 'healthiness',
-      Output:
-        '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
-      Service: 'fake-py',
-      Status: 'failure',
-      StatusCode: 404,
-      Timestamp: 1661787965,
-    },
-    '73ad9b936fb3f3cc4d7f62a1aab6de53': {
+    '2e1bfc8ecc485ee86b972ae08e890152': {
       Check: 'task-happy',
       Group: 'trying-multi-dupes.fakepy[1]',
-      ID: '73ad9b936fb3f3cc4d7f62a1aab6de53',
+      ID: '2e1bfc8ecc485ee86b972ae08e890152',
       Mode: 'healthiness',
       Output: 'nomad: http ok',
       Service: 'task-fake-py',
       Status: 'success',
       StatusCode: 200,
       Task: 'http.server',
-      Timestamp: 1661787992,
+      Timestamp: 1662131949,
     },
-    '19421ef816ae0d3eeeb81697bce0e261': {
+    '6162723ab20b268c25eda69b400dc9c6': {
       Check: 'task-sad',
       Group: 'trying-multi-dupes.fakepy[1]',
-      ID: '19421ef816ae0d3eeeb81697bce0e261',
+      ID: '6162723ab20b268c25eda69b400dc9c6',
       Mode: 'healthiness',
       Output:
         '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
@@ -225,140 +262,157 @@ var Allocation = {
       Status: 'failure',
       StatusCode: 404,
       Task: 'http.server',
-      Timestamp: 1661787965,
+      Timestamp: 1662131936,
     },
-    '784d40e33fa4c960355bbda79fbd20f0': {
+    a4a7050175a2b236edcf613cb3563753: {
+      Check: 'task-sad2',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: 'a4a7050175a2b236edcf613cb3563753',
+      Mode: 'healthiness',
+      Output:
+        '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
+      Service: 'task-fake-py',
+      Status: 'failure',
+      StatusCode: 404,
+      Task: 'http.server',
+      Timestamp: 1662131936,
+    },
+    '2dfe58eb841bdfa704f0ae9ef5b5af5e': {
       Check: 'tcp_probe',
       Group: 'trying-multi-dupes.fakepy[1]',
-      ID: '784d40e33fa4c960355bbda79fbd20f0',
+      ID: '2dfe58eb841bdfa704f0ae9ef5b5af5e',
       Mode: 'readiness',
       Output: 'nomad: tcp ok',
       Service: 'web',
       Status: 'success',
       Task: 'http.server',
-      Timestamp: 1661787995,
+      Timestamp: 1662131949,
+    },
+    '69021054964f4c461b3c4c4f456e16a8': {
+      Check: 'happy',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: '69021054964f4c461b3c4c4f456e16a8',
+      Mode: 'healthiness',
+      Output: 'nomad: http ok',
+      Service: 'group-fake-py',
+      Status: 'success',
+      StatusCode: 200,
+      Timestamp: 1662131949,
+    },
+    '913f5b725ceecdd5ff48a9a51ddf8513': {
+      Check: 'sad',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: '913f5b725ceecdd5ff48a9a51ddf8513',
+      Mode: 'healthiness',
+      Output:
+        '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
+      Service: 'group-fake-py',
+      Status: 'failure',
+      StatusCode: 404,
+      Timestamp: 1662131936,
+    },
+    bloop: {
+      Check: 'is-alive',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: 'bloop',
+      Mode: 'healthiness',
+      Service: 'pender',
+      Status: 'pending',
+      Task: 'http.server',
+      Timestamp: 1662131947,
+    },
+    'group-dupe': {
+      Check: 'is-alive',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: 'group-dupe',
+      Mode: 'healthiness',
+      Service: 'duper',
+      Status: 'success',
+      Task: '',
+      Timestamp: 1662131947,
+    },
+    'task-dupe': {
+      Check: 'is-alive',
+      Group: 'trying-multi-dupes.fakepy[1]',
+      ID: 'task-dupe',
+      Mode: 'healthiness',
+      Service: 'duper',
+      Status: 'failure',
+      Task: 'http.server',
+      Timestamp: 1662131947,
     },
   },
-  isMigrating: false,
-  wasPreempted: false,
-  allocationTaskGroup: {
-    Name: 'fakepy',
-    Count: 3,
-    Tasks: [
-      {
-        Name: 'http.server',
-        Driver: 'raw_exec',
-        Kind: '',
-        Meta: null,
-        Lifecycle: null,
-        ReservedMemory: 300,
-        ReservedMemoryMax: 0,
-        ReservedCPU: 100,
-        ReservedDisk: 0,
-        ReservedEphemeralDisk: 300,
-        Services: [
-          {
-            Name: 'task-fake-py',
-            PortLabel: 'http',
-            Tags: [],
-            OnUpdate: 'require_healthy',
-            Provider: 'nomad',
-            Connect: null,
-          },
-          {
-            Name: 'web',
-            PortLabel: 'http',
-            Tags: ['web', 'tcp', 'lol', 'lmao'],
-            OnUpdate: 'require_healthy',
-            Provider: 'nomad',
-            Connect: null,
-          },
-          {
-            Name: 'duper',
-            PortLabel: 'http',
-            Tags: ['web', 'tcp', 'lol', 'lmao'],
-            OnUpdate: 'require_healthy',
-            Provider: 'nomad',
-            Connect: null,
-          },
-        ],
-        VolumeMounts: null,
-      },
-    ],
-    Services: [
-      {
-        Name: 'fake-py',
-        PortLabel: 'http',
-        Tags: [],
-        OnUpdate: 'require_healthy',
-        Provider: 'nomad',
-        Connect: null,
-      },
-      {
-        Name: 'duper',
-        PortLabel: 'http',
-        Tags: [],
-        OnUpdate: 'require_healthy',
-        Provider: 'nomad',
-        Connect: null,
-      },
-    ],
-    Volumes: [],
-    Scaling: null,
-    Meta: null,
-    ReservedEphemeralDisk: 300,
-  },
+
   states: [
     {
       Name: 'http.server',
-      State: 'running',
-      StartedAt: '2022-08-29T14:08:57.680Z',
-      FinishedAt: null,
-      Failed: false,
-      Resources: {
-        Cpu: 100,
-        Memory: 300,
-        MemoryMax: null,
-        Disk: null,
-        Iops: null,
-        Networks: [],
-        Ports: [],
+      task: {
+        name: 'http.server',
+        driver: 'raw_exec',
+        kind: '',
+        meta: null,
+        lifecycle: null,
+        reservedMemory: 300,
+        reservedMemoryMax: 0,
+        reservedCPU: 100,
+        reservedDisk: 0,
+        reservedEphemeralDisk: 300,
+        services: [
+          {
+            Name: 'task-fake-py',
+            PortLabel: 'http',
+            refID: 'http.server-task-fake-py',
+            Tags: [
+              'long',
+              'and',
+              'arbitrary',
+              'list',
+              'of',
+              'tags',
+              'arbitrary',
+            ],
+            OnUpdate: 'require_healthy',
+            Provider: 'nomad',
+            Connect: null,
+            TaskName: 'http.server',
+            healthChecks: [],
+          },
+          {
+            Name: 'pender',
+            refID: 'http.server-pender',
+            PortLabel: 'http',
+            Tags: ['lol', 'lmao'],
+            OnUpdate: 'require_healthy',
+            Provider: 'nomad',
+            Connect: null,
+            TaskName: 'http.server',
+            healthChecks: [],
+          },
+          {
+            Name: 'web',
+            refID: 'http.server-web',
+            PortLabel: 'http',
+            Tags: ['lol', 'lmao'],
+            OnUpdate: 'require_healthy',
+            Provider: 'nomad',
+            Connect: null,
+            TaskName: 'http.server',
+            healthChecks: [],
+          },
+          {
+            Name: 'duper',
+            refID: 'http.server-duper',
+            PortLabel: 'http',
+            Tags: ['lol', 'lmao'],
+            OnUpdate: 'require_healthy',
+            Provider: 'nomad',
+            Connect: null,
+            TaskName: 'http.server',
+            healthChecks: [],
+          },
+        ],
+        volumeMounts: null,
       },
-      Events: [
-        {
-          Type: 'Received',
-          Signal: 0,
-          ExitCode: 0,
-          Time: '2022-08-29T14:08:57.592Z',
-          TimeNanos: 865024,
-          DisplayMessage: 'Task received by client',
-        },
-        {
-          Type: 'Task Setup',
-          Signal: 0,
-          ExitCode: 0,
-          Time: '2022-08-29T14:08:57.595Z',
-          TimeNanos: 160064,
-          DisplayMessage: 'Building Task Directory',
-        },
-        {
-          Type: 'Started',
-          Signal: 0,
-          ExitCode: 0,
-          Time: '2022-08-29T14:08:57.680Z',
-          TimeNanos: 728064,
-          DisplayMessage: 'Task started by client',
-        },
-        {
-          Type: 'Alloc Unhealthy',
-          Signal: 0,
-          ExitCode: 0,
-          Time: '2022-08-29T14:13:57.592Z',
-          TimeNanos: 152064,
-          DisplayMessage:
-            'Task not running for min_healthy_time of 10s by healthy_deadline of 5m0s',
-        },
-      ],
     },
   ],
   rescheduleEvents: [],

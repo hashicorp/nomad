@@ -26,7 +26,7 @@ export default class Service extends Fragment {
       .mapBy('Check')
       .uniq()
       .map((name) => {
-        // Assumtion: health checks are being pushed in sequential order (hence .reverse)
+        // Assumption: health checks are being pushed in sequential order (hence .reverse)
         return this.get('healthChecks')
           .reverse()
           .find((x) => x.Check === name);
