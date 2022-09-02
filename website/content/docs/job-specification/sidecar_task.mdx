@@ -134,6 +134,7 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
   to the same user the Nomad client is being run as.
 
 - `config` `(map: nil)` - Configuration provided to the driver for initialization.
+  Keys and values support [runtime variable interpolation][interpolation].
 
 - `env` `(map: nil)` - Map of environment variables used by the driver.
 
