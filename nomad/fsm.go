@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -55,9 +55,10 @@ const (
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
-	SecureVariablesSnapshot              SnapshotType = 22
-	SecureVariablesQuotaSnapshot         SnapshotType = 23
+	VariablesSnapshot                    SnapshotType = 22
+	VariablesQuotaSnapshot               SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
+	ACLRoleSnapshot                      SnapshotType = 25
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -317,14 +318,16 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
 	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
 		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
-	case structs.SecureVariableUpsertRequestType:
-		return n.applySecureVariableUpsert(msgType, buf[1:], log.Index)
-	case structs.SecureVariableDeleteRequestType:
-		return n.applySecureVariableDelete(msgType, buf[1:], log.Index)
+	case structs.VarApplyStateRequestType:
+		return n.applyVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaDeleteRequestType:
 		return n.applyRootKeyMetaDelete(msgType, buf[1:], log.Index)
+	case structs.ACLRolesUpsertRequestType:
+		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
+	case structs.ACLRolesDeleteByIDRequestType:
+		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -702,7 +705,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		if err != nil {
 			return err
 		}
-		transition := &structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+		transition := &structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
 		for _, alloc := range allocs {
 			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
 			if err != nil {
@@ -1229,7 +1232,7 @@ func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []by
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.ExpireOneTimeTokens(msgType, index); err != nil {
+	if err := n.state.ExpireOneTimeTokens(msgType, index, req.Timestamp); err != nil {
 		n.logger.Error("ExpireOneTimeTokens failed", "error", err)
 		return err
 	}
@@ -1721,23 +1724,23 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				}
 			}
 
-		case SecureVariablesSnapshot:
-			variable := new(structs.SecureVariableEncrypted)
+		case VariablesSnapshot:
+			variable := new(structs.VariableEncrypted)
 			if err := dec.Decode(variable); err != nil {
 				return err
 			}
 
-			if err := restore.SecureVariablesRestore(variable); err != nil {
+			if err := restore.VariablesRestore(variable); err != nil {
 				return err
 			}
 
-		case SecureVariablesQuotaSnapshot:
-			quota := new(structs.SecureVariablesQuota)
+		case VariablesQuotaSnapshot:
+			quota := new(structs.VariablesQuota)
 			if err := dec.Decode(quota); err != nil {
 				return err
 			}
 
-			if err := restore.SecureVariablesQuotaRestore(quota); err != nil {
+			if err := restore.VariablesQuotaRestore(quota); err != nil {
 				return err
 			}
 
@@ -1748,6 +1751,20 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
+				return err
+			}
+		case ACLRoleSnapshot:
+
+			// Create a new ACLRole object, so we can decode the message into
+			// it.
+			aclRole := new(structs.ACLRole)
+
+			if err := dec.Decode(aclRole); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ACLRoleRestore(aclRole); err != nil {
 				return err
 			}
 
@@ -2010,6 +2027,36 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 	return nil
 }
 
+func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_upsert"}, time.Now())
+	var req structs.ACLRolesUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLRoles(msgType, index, req.ACLRoles, req.AllowMissingPolicies); err != nil {
+		n.logger.Error("UpsertACLRoles failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_delete_by_id"}, time.Now())
+	var req structs.ACLRolesDeleteByIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteACLRolesByID(msgType, index, req.ACLRoleIDs); err != nil {
+		n.logger.Error("DeleteACLRolesByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 type FSMFilter struct {
 	evaluator *bexpr.Evaluator
 }
@@ -2036,34 +2083,27 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_upsert"}, time.Now())
-	var req structs.SecureVariablesEncryptedUpsertRequest
+func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-
-	if err := n.state.UpsertSecureVariables(msgType, index, req.Data); err != nil {
-		n.logger.Error("UpsertSecureVariables failed", "error", err)
+	defer metrics.MeasureSinceWithLabels([]string{"nomad", "fsm", "apply_sv_operation"}, time.Now(),
+		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
+	switch req.Op {
+	case structs.VarOpSet:
+		return n.state.VarSet(index, &req)
+	case structs.VarOpDelete:
+		return n.state.VarDelete(index, &req)
+	case structs.VarOpDeleteCAS:
+		return n.state.VarDeleteCAS(index, &req)
+	case structs.VarOpCAS:
+		return n.state.VarSetCAS(index, &req)
+	default:
+		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
+		n.logger.Warn("Invalid variable operation", "operation", req.Op)
 		return err
 	}
-
-	return nil
-}
-
-func (n *nomadFSM) applySecureVariableDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_delete"}, time.Now())
-	var req structs.SecureVariablesDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteSecureVariables(msgType, index, req.Namespace, []string{req.Path}); err != nil {
-		n.logger.Error("DeleteSecureVariables failed", "error", err)
-		return err
-	}
-
-	return nil
 }
 
 func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
@@ -2206,15 +2246,19 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistSecureVariables(sink, encoder); err != nil {
+	if err := s.persistVariables(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistSecureVariablesQuotas(sink, encoder); err != nil {
+	if err := s.persistVariablesQuotas(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
 	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLRoles(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2776,11 +2820,11 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 	}
 }
 
-func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	variables, err := s.snap.SecureVariables(ws)
+	variables, err := s.snap.Variables(ws)
 	if err != nil {
 		return err
 	}
@@ -2790,8 +2834,8 @@ func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		variable := raw.(*structs.SecureVariableEncrypted)
-		sink.Write([]byte{byte(SecureVariablesSnapshot)})
+		variable := raw.(*structs.VariableEncrypted)
+		sink.Write([]byte{byte(VariablesSnapshot)})
 		if err := encoder.Encode(variable); err != nil {
 			return err
 		}
@@ -2799,11 +2843,11 @@ func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
 	return nil
 }
 
-func (s *nomadSnapshot) persistSecureVariablesQuotas(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistVariablesQuotas(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	quotas, err := s.snap.SecureVariablesQuotas(ws)
+	quotas, err := s.snap.VariablesQuotas(ws)
 	if err != nil {
 		return err
 	}
@@ -2813,8 +2857,8 @@ func (s *nomadSnapshot) persistSecureVariablesQuotas(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		dirEntry := raw.(*structs.SecureVariablesQuota)
-		sink.Write([]byte{byte(SecureVariablesQuotaSnapshot)})
+		dirEntry := raw.(*structs.VariablesQuota)
+		sink.Write([]byte{byte(VariablesQuotaSnapshot)})
 		if err := encoder.Encode(dirEntry); err != nil {
 			return err
 		}
@@ -2843,6 +2887,33 @@ func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
 		}
 	}
 	return nil
+}
+
+func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the ACL roles.
+	ws := memdb.NewWatchSet()
+	aclRolesIter, err := s.snap.GetACLRoles(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item.
+		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+
+			// Prepare the request struct.
+			role := raw.(*structs.ACLRole)
+
+			// Write out an ACL role snapshot.
+			sink.Write([]byte{byte(ACLRoleSnapshot)})
+			if err := encoder.Encode(role); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // Release is a no-op, as we just need to GC the pointer

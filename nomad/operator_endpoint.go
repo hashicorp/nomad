@@ -9,13 +9,12 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/raft"
+	"github.com/hashicorp/serf/serf"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/serf"
 )
 
 // Operator endpoint is used to perform low-level operator tasks for Nomad.
@@ -183,7 +182,7 @@ REMOVE:
 	// doing if you are calling this. If you remove a peer that's known to
 	// Serf, for example, it will come back when the leader does a reconcile
 	// pass.
-	minRaftProtocol, err := op.srv.autopilot.MinRaftProtocol()
+	minRaftProtocol, err := op.srv.MinRaftProtocol()
 	if err != nil {
 		return err
 	}
@@ -270,7 +269,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 }
 
 // ServerHealth is used to get the current health of the servers.
-func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.OperatorHealthReply) error {
+func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *structs.OperatorHealthReply) error {
 	// This must be sent to the leader, so we fix the args since we are
 	// re-using a structure where we don't support all the options.
 	args.AllowStale = false
@@ -288,7 +287,7 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.
 	}
 
 	// Exit early if the min Raft version is too low
-	minRaftProtocol, err := op.srv.autopilot.MinRaftProtocol()
+	minRaftProtocol, err := op.srv.MinRaftProtocol()
 	if err != nil {
 		return fmt.Errorf("error getting server raft protocol versions: %s", err)
 	}
@@ -296,7 +295,7 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.
 		return fmt.Errorf("all servers must have raft_protocol set to 3 or higher to use this endpoint")
 	}
 
-	*reply = op.srv.autopilot.GetClusterHealth()
+	*reply = *op.srv.GetClusterHealth()
 
 	return nil
 }

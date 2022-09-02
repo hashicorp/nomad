@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
-	"github.com/mitchellh/copystructure"
 )
 
 type Member struct {
@@ -81,11 +80,8 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		Member: nomadMember(member),
 		Stats:  s.agent.Stats(),
 	}
-	if ac, err := copystructure.Copy(s.agent.config); err != nil {
-		return nil, CodedError(500, err.Error())
-	} else {
-		self.Config = ac.(*Config)
-	}
+
+	self.Config = s.agent.GetConfig().Copy()
 
 	if self.Config != nil && self.Config.Vault != nil && self.Config.Vault.Token != "" {
 		self.Config.Vault.Token = "<redacted>"

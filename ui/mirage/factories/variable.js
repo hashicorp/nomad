@@ -1,6 +1,7 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
-import { pickOne } from '../utils';
+import { provide, pickOne } from '../utils';
+
 export default Factory.extend({
   id: () => faker.random.words(3).split(' ').join('/').toLowerCase(),
   path() {
@@ -9,8 +10,8 @@ export default Factory.extend({
   namespace: null,
   createdIndex: 100,
   modifiedIndex: 100,
-  createTime: () => faker.date.past(15),
-  modifyTime: () => faker.date.recent(1),
+  createTime: () => faker.date.past(15) * 1000000,
+  modifyTime: () => faker.date.recent(1) * 1000000,
   items() {
     return (
       this.Items || {
@@ -24,9 +25,8 @@ export default Factory.extend({
   },
 
   afterCreate(variable, server) {
-    if (!variable.namespaceId) {
-      const namespace =
-        (server.db.jobs && server.db.jobs[0]?.namespace) || 'default';
+    if (!variable.namespace) {
+      const namespace = pickOne(server.db.jobs)?.namespace || 'default';
       variable.update({
         namespace,
       });

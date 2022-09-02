@@ -11,9 +11,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1999,7 +1998,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Interval: 10 * time.Second,
 	}
 
-	err := invalidCheck.validate()
+	err := invalidCheck.validateConsul()
 	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
 		t.Fatalf("expected a timeout validation error but received: %q", err)
 	}
@@ -2011,12 +2010,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	if err := check1.validate(); err != nil {
+	if err := check1.validateConsul(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = "foo"
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2026,19 +2025,19 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	}
 
 	check1.InitialStatus = api.HealthCritical
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = api.HealthPassing
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = ""
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2051,22 +2050,22 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Path:     "/foo/bar",
 	}
 
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = ""
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if !strings.Contains(err.Error(), "valid http path") {
+	if !strings.Contains(err.Error(), "http type must have http path") {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = "http://www.example.com"
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2082,7 +2081,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Expose:   true,
-			}).validate())
+			}).validateConsul())
 		})
 		t.Run("type tcp", func(t *testing.T) {
 			require.EqualError(t, (&ServiceCheck{
@@ -2090,7 +2089,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Interval: 1 * time.Second,
 				Timeout:  1 * time.Second,
 				Expose:   true,
-			}).validate(), "expose may only be set on HTTP or gRPC checks")
+			}).validateConsul(), "expose may only be set on HTTP or gRPC checks")
 		})
 	})
 }
@@ -2580,6 +2579,69 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 }
 
+func TestTemplate_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	t1 := &Template{
+		SourcePath:   "/local/file.txt",
+		DestPath:     "/local/dest.txt",
+		EmbeddedTmpl: "tpl",
+		ChangeMode:   TemplateChangeModeScript,
+		ChangeScript: &ChangeScript{
+			Command: "/bin/foo",
+			Args:    []string{"--force", "--debug"},
+		},
+		Splay:      10 * time.Second,
+		Perms:      "777",
+		Uid:        pointer.Of(1000),
+		Gid:        pointer.Of(2000),
+		LeftDelim:  "[[",
+		RightDelim: "]]",
+		Envvars:    true,
+		VaultGrace: time.Minute,
+		Wait: &WaitConfig{
+			Min: pointer.Of(time.Second),
+			Max: pointer.Of(time.Minute),
+		},
+	}
+	t2 := t1.Copy()
+
+	t1.SourcePath = "/local/file2.txt"
+	t1.DestPath = "/local/dest2.txt"
+	t1.EmbeddedTmpl = "tpl2"
+	t1.ChangeMode = TemplateChangeModeSignal
+	t1.ChangeScript.Command = "/bin/foobar"
+	t1.ChangeScript.Args = []string{"--forces", "--debugs"}
+	t1.Splay = 5 * time.Second
+	t1.Perms = "700"
+	t1.Uid = pointer.Of(5000)
+	t1.Gid = pointer.Of(6000)
+	t1.LeftDelim = "(("
+	t1.RightDelim = "))"
+	t1.Envvars = false
+	t1.VaultGrace = 2 * time.Minute
+	t1.Wait.Min = pointer.Of(2 * time.Second)
+	t1.Wait.Max = pointer.Of(2 * time.Minute)
+
+	require.NotEqual(t, t1.SourcePath, t2.SourcePath)
+	require.NotEqual(t, t1.DestPath, t2.DestPath)
+	require.NotEqual(t, t1.EmbeddedTmpl, t2.EmbeddedTmpl)
+	require.NotEqual(t, t1.ChangeMode, t2.ChangeMode)
+	require.NotEqual(t, t1.ChangeScript.Command, t2.ChangeScript.Command)
+	require.NotEqual(t, t1.ChangeScript.Args, t2.ChangeScript.Args)
+	require.NotEqual(t, t1.Splay, t2.Splay)
+	require.NotEqual(t, t1.Perms, t2.Perms)
+	require.NotEqual(t, t1.Uid, t2.Uid)
+	require.NotEqual(t, t1.Gid, t2.Gid)
+	require.NotEqual(t, t1.LeftDelim, t2.LeftDelim)
+	require.NotEqual(t, t1.RightDelim, t2.RightDelim)
+	require.NotEqual(t, t1.Envvars, t2.Envvars)
+	require.NotEqual(t, t1.VaultGrace, t2.VaultGrace)
+	require.NotEqual(t, t1.Wait.Min, t2.Wait.Min)
+	require.NotEqual(t, t1.Wait.Max, t2.Wait.Max)
+
+}
+
 func TestTemplate_Validate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2670,8 +2732,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(10 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(10 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: true,
@@ -2685,8 +2747,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2697,9 +2759,36 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(10 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(10 * time.Second),
 				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: nil,
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: ""},
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: "/bin/foo"},
 			},
 			Fail: false,
 		},
@@ -2735,12 +2824,12 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "all-fields",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 		{
@@ -2751,19 +2840,19 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "min-only",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 		},
 		{
 			name: "max-only",
 			config: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 	}
@@ -3431,6 +3520,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate task in name",
 		},
@@ -3446,6 +3536,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "no interpolation in name",
 		},
@@ -3461,6 +3552,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate job, taskgroup and task in name",
 		},
@@ -3476,6 +3568,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate base in name",
 		},
@@ -3492,6 +3585,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "nomad",
 				Namespace: "platform",
+				TaskName:  "redis",
 			},
 			name: "nomad provider",
 		},
@@ -4321,7 +4415,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		err := tc.Input.Validate()
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
-			continue
 		}
 	}
 }
@@ -5226,11 +5319,11 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 		},
 		{
 			desc:          "has max_client_disconnect",
-			maxDisconnect: helper.TimeToPtr(30 * time.Second),
+			maxDisconnect: pointer.Of(30 * time.Second),
 		},
 		{
 			desc:          "zero max_client_disconnect",
-			maxDisconnect: helper.TimeToPtr(0 * time.Second),
+			maxDisconnect: pointer.Of(0 * time.Second),
 		},
 	}
 	for _, tc := range testCases {
@@ -5994,53 +6087,6 @@ func TestIsRecoverable(t *testing.T) {
 	}
 }
 
-func TestACLTokenValidate(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{}
-
-	// Missing a type
-	err := tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "client or management") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Missing policies
-	tk.Type = ACLClientToken
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "missing policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Invalid policies
-	tk.Type = ACLManagementToken
-	tk.Policies = []string{"foo"}
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "associated with policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Name too long policies
-	tk.Name = ""
-	for i := 0; i < 8; i++ {
-		tk.Name += uuid.Generate()
-	}
-	tk.Policies = nil
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "too long") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Make it valid
-	tk.Name = "foo"
-	err = tk.Validate()
-	assert.Nil(t, err)
-}
-
 func TestACLTokenPolicySubset(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6669,7 +6715,6 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		out, err := r.ParseReservedHostPorts()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
-			continue
 		}
 
 		require.Equal(out, tc.Parsed)

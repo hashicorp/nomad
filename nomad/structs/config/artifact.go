@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // ArtifactConfig is the configuration specific to the Artifact stanza
@@ -43,22 +43,22 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 
 	newCopy := &ArtifactConfig{}
 	if a.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = helper.StringToPtr(*a.HTTPReadTimeout)
+		newCopy.HTTPReadTimeout = pointer.Of(*a.HTTPReadTimeout)
 	}
 	if a.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = helper.StringToPtr(*a.HTTPMaxSize)
+		newCopy.HTTPMaxSize = pointer.Of(*a.HTTPMaxSize)
 	}
 	if a.GCSTimeout != nil {
-		newCopy.GCSTimeout = helper.StringToPtr(*a.GCSTimeout)
+		newCopy.GCSTimeout = pointer.Of(*a.GCSTimeout)
 	}
 	if a.GitTimeout != nil {
-		newCopy.GitTimeout = helper.StringToPtr(*a.GitTimeout)
+		newCopy.GitTimeout = pointer.Of(*a.GitTimeout)
 	}
 	if a.HgTimeout != nil {
-		newCopy.HgTimeout = helper.StringToPtr(*a.HgTimeout)
+		newCopy.HgTimeout = pointer.Of(*a.HgTimeout)
 	}
 	if a.S3Timeout != nil {
-		newCopy.S3Timeout = helper.StringToPtr(*a.S3Timeout)
+		newCopy.S3Timeout = pointer.Of(*a.S3Timeout)
 	}
 
 	return newCopy
@@ -74,22 +74,22 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 
 	newCopy := a.Copy()
 	if o.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = helper.StringToPtr(*o.HTTPReadTimeout)
+		newCopy.HTTPReadTimeout = pointer.Of(*o.HTTPReadTimeout)
 	}
 	if o.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = helper.StringToPtr(*o.HTTPMaxSize)
+		newCopy.HTTPMaxSize = pointer.Of(*o.HTTPMaxSize)
 	}
 	if o.GCSTimeout != nil {
-		newCopy.GCSTimeout = helper.StringToPtr(*o.GCSTimeout)
+		newCopy.GCSTimeout = pointer.Of(*o.GCSTimeout)
 	}
 	if o.GitTimeout != nil {
-		newCopy.GitTimeout = helper.StringToPtr(*o.GitTimeout)
+		newCopy.GitTimeout = pointer.Of(*o.GitTimeout)
 	}
 	if o.HgTimeout != nil {
-		newCopy.HgTimeout = helper.StringToPtr(*o.HgTimeout)
+		newCopy.HgTimeout = pointer.Of(*o.HgTimeout)
 	}
 	if o.S3Timeout != nil {
-		newCopy.S3Timeout = helper.StringToPtr(*o.S3Timeout)
+		newCopy.S3Timeout = pointer.Of(*o.S3Timeout)
 	}
 
 	return newCopy
@@ -161,26 +161,26 @@ func DefaultArtifactConfig() *ArtifactConfig {
 	return &ArtifactConfig{
 		// Read timeout for HTTP operations. Must be long enough to
 		// accommodate large/slow downloads.
-		HTTPReadTimeout: helper.StringToPtr("30m"),
+		HTTPReadTimeout: pointer.Of("30m"),
 
 		// Maximum download size. Must be large enough to accommodate
 		// large downloads.
-		HTTPMaxSize: helper.StringToPtr("100GB"),
+		HTTPMaxSize: pointer.Of("100GB"),
 
 		// Timeout for GCS operations. Must be long enough to
 		// accommodate large/slow downloads.
-		GCSTimeout: helper.StringToPtr("30m"),
+		GCSTimeout: pointer.Of("30m"),
 
 		// Timeout for Git operations. Must be long enough to
 		// accommodate large/slow clones.
-		GitTimeout: helper.StringToPtr("30m"),
+		GitTimeout: pointer.Of("30m"),
 
 		// Timeout for Hg operations. Must be long enough to
 		// accommodate large/slow clones.
-		HgTimeout: helper.StringToPtr("30m"),
+		HgTimeout: pointer.Of("30m"),
 
 		// Timeout for S3 operations. Must be long enough to
 		// accommodate large/slow downloads.
-		S3Timeout: helper.StringToPtr("30m"),
+		S3Timeout: pointer.Of("30m"),
 	}
 }

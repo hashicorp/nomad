@@ -1,11 +1,11 @@
 // @ts-check
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
 import { computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { trimPath } from '../helpers/trim-path';
+import { attr } from '@ember-data/model';
 
 /**
  * @typedef KeyValue
@@ -15,12 +15,12 @@ import { trimPath } from '../helpers/trim-path';
  */
 
 /**
- * @typedef SecureVariable
+ * @typedef Variable
  * @type {object}
  */
 
 /**
- * A Secure Variable has a path, namespace, and an array of key-value pairs within the client.
+ * A Variable has a path, namespace, and an array of key-value pairs within the client.
  * On the server, these key-value pairs are serialized into object structure.
  * @class
  * @extends Model
@@ -67,7 +67,9 @@ export default class VariableModel extends Model {
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
-    this.set('id', this.get('path'));
+    if (!this.get('id')) {
+      this.set('id', `${this.get('path')}@${this.get('namespace')}`);
+    }
   }
 
   /**
@@ -97,10 +99,13 @@ export default class VariableModel extends Model {
   get pathLinkedEntities() {
     const entityTypes = ['job', 'group', 'task'];
     const emptyEntities = { job: '', group: '', task: '' };
-    if (this.path.startsWith('jobs/') && this.path.split('/').length <= 4) {
+    if (
+      this.path?.startsWith('nomad/jobs/') &&
+      this.path?.split('/').length <= 5
+    ) {
       return this.path
         .split('/')
-        .slice(1, 4)
+        .slice(2, 5)
         .reduce((acc, pathPart, index) => {
           acc[entityTypes[index]] = pathPart;
           return acc;

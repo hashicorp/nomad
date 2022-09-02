@@ -41,11 +41,15 @@ func ParseConfigFile(path string) (*Config, error) {
 				WaitBounds:  &client.WaitConfig{},
 				ConsulRetry: &client.RetryConfig{},
 				VaultRetry:  &client.RetryConfig{},
+				NomadRetry:  &client.RetryConfig{},
 			},
+		},
+		Server: &ServerConfig{
+			PlanRejectionTracker: &PlanRejectionTracker{},
+			ServerJoin:           &ServerJoin{},
 		},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
-		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
 		Consul:    &config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
@@ -54,7 +58,7 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	err = hcl.Decode(c, buf.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode HCL file %s: %w", path, err)
 	}
 
 	// convert strings to time.Durations
@@ -62,10 +66,13 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
 		{"acl.token_ttl", &c.ACL.TokenTTL, &c.ACL.TokenTTLHCL, nil},
 		{"acl.policy_ttl", &c.ACL.PolicyTTL, &c.ACL.PolicyTTLHCL, nil},
+		{"acl.token_min_expiration_ttl", &c.ACL.TokenMinExpirationTTL, &c.ACL.TokenMinExpirationTTLHCL, nil},
+		{"acl.token_max_expiration_ttl", &c.ACL.TokenMaxExpirationTTL, &c.ACL.TokenMaxExpirationTTLHCL, nil},
 		{"client.server_join.retry_interval", &c.Client.ServerJoin.RetryInterval, &c.Client.ServerJoin.RetryIntervalHCL, nil},
 		{"server.heartbeat_grace", &c.Server.HeartbeatGrace, &c.Server.HeartbeatGraceHCL, nil},
 		{"server.min_heartbeat_ttl", &c.Server.MinHeartbeatTTL, &c.Server.MinHeartbeatTTLHCL, nil},
 		{"server.failover_heartbeat_ttl", &c.Server.FailoverHeartbeatTTL, &c.Server.FailoverHeartbeatTTLHCL, nil},
+		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
 		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
@@ -119,6 +126,16 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"client.template.vault_retry.max_backoff", nil, &c.Client.TemplateConfig.VaultRetry.MaxBackoffHCL,
 			func(d *time.Duration) {
 				c.Client.TemplateConfig.VaultRetry.MaxBackoff = d
+			},
+		},
+		{"client.template.nomad_retry.backoff", nil, &c.Client.TemplateConfig.NomadRetry.BackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.NomadRetry.Backoff = d
+			},
+		},
+		{"client.template.nomad_retry.max_backoff", nil, &c.Client.TemplateConfig.NomadRetry.MaxBackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
 	}
@@ -258,6 +275,10 @@ func finalizeClientTemplateConfig(config *Config) {
 
 	if config.Client.TemplateConfig.VaultRetry.IsEmpty() {
 		config.Client.TemplateConfig.VaultRetry = nil
+	}
+
+	if config.Client.TemplateConfig.NomadRetry.IsEmpty() {
+		config.Client.TemplateConfig.NomadRetry = nil
 	}
 
 	if config.Client.TemplateConfig.IsEmpty() {

@@ -49,7 +49,11 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       percent: percent(cpuUsed, this.reservedCPU),
     });
 
-    const memoryUsed = frame.ResourceUsage.MemoryStats.RSS;
+    const memoryUsed =
+      frame.ResourceUsage.MemoryStats.Usage ||
+      frame.ResourceUsage.MemoryStats.RSS ||
+      0;
+
     this.memory.pushObject({
       timestamp,
       used: memoryUsed,
@@ -80,7 +84,11 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
         percentStack: percentCpuTotal + aggregateCpu,
       });
 
-      const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
+      const taskMemoryUsed =
+        taskFrame.ResourceUsage.MemoryStats.Usage ||
+        taskFrame.ResourceUsage.MemoryStats.RSS ||
+        0;
+
       const percentMemoryTotal = percent(
         taskMemoryUsed / 1024 / 1024,
         this.reservedMemory

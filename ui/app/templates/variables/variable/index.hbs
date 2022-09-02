@@ -1,33 +1,13 @@
-{{#if this.error}}
-  <div data-test-inline-error class="notification is-danger">
-    <div class="columns">
-      <div class="column">
-        <h3 data-test-inline-error-title class="title is-4">
-          {{this.error.title}}
-        </h3>
-        <p data-test-inline-error-body>
-          {{this.error.description}}
-        </p>
-      </div>
-      <div class="column is-centered is-minimum">
-        <button
-          data-test-inline-error-close
-          class="button is-danger"
-          onclick={{action this.onDismissError}}
-          type="button"
-        >
-          Okay
-        </button>
-      </div>
-    </div>
-  </div>
-{{/if}}
-
 <h1 class="variable-title title with-flex">
   <div>
     <FlightIcon @name="file-text" />
     {{this.model.path}}
     <Toggle
+      {{keyboard-shortcut 
+        label="Toggle View (JSON/List)"
+        pattern=(array "j")
+        action=(action this.toggleView)
+      }}
       data-test-memory-toggle
       @isActive={{eq this.view "json"}}
       @onToggle={{action this.toggleView}}
@@ -36,9 +16,10 @@
   </div>
   <div>
     {{#unless this.isDeleting}}
-      {{#if (can "write variable" path=this.model.absolutePath)}}
+      {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
       <div class="two-step-button">
         <LinkTo
+          {{autofocus}}
           data-test-edit-button
           class="button is-info is-inverted is-small"
           @model={{this.model}}
@@ -50,7 +31,7 @@
       </div>
       {{/if}}
     {{/unless}}
-    {{#if (can "destroy variable" path=this.model.absolutePath)}}
+    {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
       <TwoStepButton
         data-test-delete-button
         @alignRight={{true}}
@@ -68,7 +49,7 @@
 </h1>
 
 {{#if this.shouldShowLinkedEntities}}
-  <SecureVariableForm::RelatedEntities
+  <VariableForm::RelatedEntities
     @job={{this.model.pathLinkedEntities.job}}
     @group={{this.model.pathLinkedEntities.group}}
     @task={{this.model.pathLinkedEntities.task}}
@@ -112,6 +93,12 @@
               class="show-hide-values button is-borderless is-compact"
               type="button"
               {{on "click" (action this.toggleRowVisibility row.model)}}
+              {{keyboard-shortcut 
+                label="Toggle Variable Visibility"
+                pattern=(array "v")
+                action=(action this.toggleRowVisibility row.model)
+              }}
+
             >
               <FlightIcon
                 @name={{if row.model.isVisible "eye" "eye-off"}}

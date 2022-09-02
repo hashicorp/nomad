@@ -17,7 +17,7 @@ const (
 var UseV2 = false
 
 // CreateCPUSetManager creates a no-op CpusetManager for non-Linux operating systems.
-func CreateCPUSetManager(string, hclog.Logger) CpusetManager {
+func CreateCPUSetManager(string, []uint16, hclog.Logger) CpusetManager {
 	return new(NoopCpusetManager)
 }
 

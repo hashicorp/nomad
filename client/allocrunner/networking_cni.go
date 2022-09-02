@@ -98,7 +98,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
-			c.logger.Warn("failed to configure network", "err", err, "attempt", attempt)
+			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
 			case 1:
 				firstError = err

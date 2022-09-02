@@ -56,7 +56,7 @@ func TestParse(t *testing.T) {
 				capabilities = ["deny", "read-logs"]
 			}
 			namespace "apps" {
-				secure_variables {
+				variables {
 					path "jobs/write-does-not-imply-read-or-delete" {
 						capabilities = ["write"]
 					}
@@ -137,25 +137,25 @@ func TestParse(t *testing.T) {
 					},
 					{
 						Name: "apps",
-						SecureVariables: &SecureVariablesPolicy{
-							Paths: []*SecureVariablesPathPolicy{
+						Variables: &VariablesPolicy{
+							Paths: []*VariablesPathPolicy{
 								{
 									PathSpec:     "jobs/write-does-not-imply-read-or-delete",
-									Capabilities: []string{SecureVariablesCapabilityWrite},
+									Capabilities: []string{VariablesCapabilityWrite},
 								},
 								{
 									PathSpec: "project/read-implies-list",
 									Capabilities: []string{
-										SecureVariablesCapabilityRead,
-										SecureVariablesCapabilityList,
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
 									},
 								},
 								{
 									PathSpec: "project/explicit",
 									Capabilities: []string{
-										SecureVariablesCapabilityRead,
-										SecureVariablesCapabilityList,
-										SecureVariablesCapabilityDestroy,
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
+										VariablesCapabilityDestroy,
 									},
 								},
 							},
@@ -196,6 +196,17 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid namespace policy",
+			nil,
+		},
+		{
+			`
+			namespace "dev" {
+			  variables "*" {
+			      capabilities = ["read", "write"]
+			  }
+			}
+			`,
+			"Invalid variable policy: no variable paths in namespace dev",
 			nil,
 		},
 		{

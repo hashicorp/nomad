@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/url"
-	"time"
 )
 
 // Keyring is used to access the Secure Variables keyring
@@ -35,7 +34,7 @@ type RootKey struct {
 type RootKeyMeta struct {
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
-	CreateTime  time.Time
+	CreateTime  int64
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState

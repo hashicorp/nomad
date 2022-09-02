@@ -41,18 +41,20 @@ SEND_BATCH:
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
+	newConfig := c.config.Copy()
+
 	// csi updates
 	var csiChanged bool
 	c.batchNodeUpdates.batchCSIUpdates(func(name string, info *structs.CSIInfo) {
-		if c.updateNodeFromCSIControllerLocked(name, info) {
-			if c.config.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
-				c.config.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
+		if c.updateNodeFromCSIControllerLocked(name, info, newConfig.Node) {
+			if newConfig.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
+				newConfig.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
 			}
 			csiChanged = true
 		}
-		if c.updateNodeFromCSINodeLocked(name, info) {
-			if c.config.Node.CSINodePlugins[name].UpdateTime.IsZero() {
-				c.config.Node.CSINodePlugins[name].UpdateTime = time.Now()
+		if c.updateNodeFromCSINodeLocked(name, info, newConfig.Node) {
+			if newConfig.Node.CSINodePlugins[name].UpdateTime.IsZero() {
+				newConfig.Node.CSINodePlugins[name].UpdateTime = time.Now()
 			}
 			csiChanged = true
 		}
@@ -61,10 +63,10 @@ SEND_BATCH:
 	// driver node updates
 	var driverChanged bool
 	c.batchNodeUpdates.batchDriverUpdates(func(driver string, info *structs.DriverInfo) {
-		if c.updateNodeFromDriverLocked(driver, info) {
-			c.config.Node.Drivers[driver] = info
-			if c.config.Node.Drivers[driver].UpdateTime.IsZero() {
-				c.config.Node.Drivers[driver].UpdateTime = time.Now()
+		if c.applyNodeUpdatesFromDriver(driver, info, newConfig.Node) {
+			newConfig.Node.Drivers[driver] = info
+			if newConfig.Node.Drivers[driver].UpdateTime.IsZero() {
+				newConfig.Node.Drivers[driver].UpdateTime = time.Now()
 			}
 			driverChanged = true
 		}
@@ -80,7 +82,8 @@ SEND_BATCH:
 
 	// only update the node if changes occurred
 	if driverChanged || devicesChanged || csiChanged {
-		c.updateNodeLocked()
+		c.config = newConfig
+		c.updateNode()
 	}
 
 	close(c.fpInitialized)
@@ -92,24 +95,27 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
+	newConfig := c.config.Copy()
+
 	changed := false
 
-	if c.updateNodeFromCSIControllerLocked(name, info) {
-		if c.config.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
-			c.config.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
+	if c.updateNodeFromCSIControllerLocked(name, info, newConfig.Node) {
+		if newConfig.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
+			newConfig.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
 		}
 		changed = true
 	}
 
-	if c.updateNodeFromCSINodeLocked(name, info) {
-		if c.config.Node.CSINodePlugins[name].UpdateTime.IsZero() {
-			c.config.Node.CSINodePlugins[name].UpdateTime = time.Now()
+	if c.updateNodeFromCSINodeLocked(name, info, newConfig.Node) {
+		if newConfig.Node.CSINodePlugins[name].UpdateTime.IsZero() {
+			newConfig.Node.CSINodePlugins[name].UpdateTime = time.Now()
 		}
 		changed = true
 	}
 
 	if changed {
-		c.updateNodeLocked()
+		c.config = newConfig
+		c.updateNode()
 	}
 }
 
@@ -119,7 +125,7 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 //
 // It is safe to call for all CSI Updates, but will only perform changes when
 // a ControllerInfo field is present.
-func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CSIInfo) bool {
+func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CSIInfo, node *structs.Node) bool {
 	var changed bool
 	if info.ControllerInfo == nil {
 		return false
@@ -127,15 +133,15 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 	i := info.Copy()
 	i.NodeInfo = nil
 
-	oldController, hadController := c.config.Node.CSIControllerPlugins[name]
+	oldController, hadController := node.CSIControllerPlugins[name]
 	if !hadController {
 		// If the controller info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSIControllerPlugins[name] = i
+		node.CSIControllerPlugins[name] = i
 	} else {
 		// The controller info has already been set, fix it up
 		if !oldController.Equal(i) {
-			c.config.Node.CSIControllerPlugins[name] = i
+			node.CSIControllerPlugins[name] = i
 			changed = true
 		}
 
@@ -162,7 +168,7 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 //
 // It is safe to call for all CSI Updates, but will only perform changes when
 // a NodeInfo field is present.
-func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo) bool {
+func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo, node *structs.Node) bool {
 	var changed bool
 	if info.NodeInfo == nil {
 		return false
@@ -170,15 +176,15 @@ func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo)
 	i := info.Copy()
 	i.ControllerInfo = nil
 
-	oldNode, hadNode := c.config.Node.CSINodePlugins[name]
+	oldNode, hadNode := node.CSINodePlugins[name]
 	if !hadNode {
 		// If the Node info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSINodePlugins[name] = i
+		node.CSINodePlugins[name] = i
 	} else {
 		// The node info has already been set, fix it up
 		if !oldNode.Equal(info) {
-			c.config.Node.CSINodePlugins[name] = i
+			node.CSINodePlugins[name] = i
 			changed = true
 		}
 
@@ -205,30 +211,33 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
-	if c.updateNodeFromDriverLocked(name, info) {
-		c.config.Node.Drivers[name] = info
-		if c.config.Node.Drivers[name].UpdateTime.IsZero() {
-			c.config.Node.Drivers[name].UpdateTime = time.Now()
+	newConfig := c.config.Copy()
+
+	if c.applyNodeUpdatesFromDriver(name, info, newConfig.Node) {
+		newConfig.Node.Drivers[name] = info
+		if newConfig.Node.Drivers[name].UpdateTime.IsZero() {
+			newConfig.Node.Drivers[name].UpdateTime = time.Now()
 		}
-		c.updateNodeLocked()
+
+		c.config = newConfig
+		c.updateNode()
 	}
 }
 
-// updateNodeFromDriverLocked makes the changes to the node from a driver update
-// but does not send the update to the server. c.configLock must be held before
-// calling this func
-func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInfo) bool {
+// applyNodeUpdatesFromDriver applies changes to the passed in node. true is
+// returned if the node has changed.
+func (c *Client) applyNodeUpdatesFromDriver(name string, info *structs.DriverInfo, node *structs.Node) bool {
 	var hasChanged bool
 
-	hadDriver := c.config.Node.Drivers[name] != nil
+	hadDriver := node.Drivers[name] != nil
 	if !hadDriver {
 		// If the driver info has not yet been set, do that here
 		hasChanged = true
 		for attrName, newVal := range info.Attributes {
-			c.config.Node.Attributes[attrName] = newVal
+			node.Attributes[attrName] = newVal
 		}
 	} else {
-		oldVal := c.config.Node.Drivers[name]
+		oldVal := node.Drivers[name]
 		// The driver info has already been set, fix it up
 		if oldVal.Detected != info.Detected {
 			hasChanged = true
@@ -247,16 +256,16 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 		}
 
 		for attrName, newVal := range info.Attributes {
-			oldVal := c.config.Node.Drivers[name].Attributes[attrName]
+			oldVal := node.Drivers[name].Attributes[attrName]
 			if oldVal == newVal {
 				continue
 			}
 
 			hasChanged = true
 			if newVal == "" {
-				delete(c.config.Node.Attributes, attrName)
+				delete(node.Attributes, attrName)
 			} else {
-				c.config.Node.Attributes[attrName] = newVal
+				node.Attributes[attrName] = newVal
 			}
 		}
 	}
@@ -266,16 +275,14 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 	// their attributes as DriverInfo
 	driverName := fmt.Sprintf("driver.%s", name)
 	if info.Detected {
-		c.config.Node.Attributes[driverName] = "1"
+		node.Attributes[driverName] = "1"
 	} else {
-		delete(c.config.Node.Attributes, driverName)
+		delete(node.Attributes, driverName)
 	}
 
 	return hasChanged
 }
 
-// updateNodeFromFingerprint updates the node with the result of
-// fingerprinting the node from the diff that was created
 func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
@@ -284,7 +291,7 @@ func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
 	// dispatched task resources and not appropriate for expressing
 	// node available device resources
 	if c.updateNodeFromDevicesLocked(devices) {
-		c.updateNodeLocked()
+		c.updateNode()
 	}
 }
 
@@ -294,7 +301,9 @@ func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
 func (c *Client) updateNodeFromDevicesLocked(devices []*structs.NodeDeviceResource) bool {
 	if !structs.DevicesEquals(c.config.Node.NodeResources.Devices, devices) {
 		c.logger.Debug("new devices detected", "devices", len(devices))
-		c.config.Node.NodeResources.Devices = devices
+		newConfig := c.config.Copy()
+		newConfig.Node.NodeResources.Devices = devices
+		c.config = newConfig
 		return true
 	}
 

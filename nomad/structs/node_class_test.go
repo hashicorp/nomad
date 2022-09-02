@@ -217,7 +217,7 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 
 func TestNode_EscapedConstraints(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	// Non-escaped constraints
 	ne1 := &Constraint{
 		LTarget: "${attr.kernel.name}",

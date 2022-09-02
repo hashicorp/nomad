@@ -1,0 +1,78 @@
+---
+layout: docs
+page_title: Workload Identity
+description: Learn about Nomad's workload identity feature
+---
+
+# Workload Identity
+
+When an [allocation][] is accepted by the [plan applier][], the leader generates
+a Workload Identity for each task in the allocation. This workload identity is a
+[JSON Web Token (JWT)][] that has been signed by the leader's keyring. The
+workload identity includes the following identity claims:
+
+```json
+{
+  "nomad_namespace": "default",
+  "nomad_job_id": "example",
+  "nomad_allocation_id": "5c6328f7-48c5-4d03-bada-91ef2e904d0d",
+  "nomad_task": "web"
+}
+```
+
+# Workload Associated ACL Policies
+
+You can associate additional ACL policies with workload identities by passing
+the `-job`, `-group`, and `-task` flags to `nomad acl policy apply`. When Nomad
+resolves a workload identity claim, it will automatically include policies that
+match. If no matching policies exist, the workload identity does not have any
+additional capabilities.
+
+For example, to allow a workload access to secrets from the namespace "shared",
+you can create the following policy file:
+
+```hcl
+namespace "shared" {
+  variables {
+    path "*" {
+      capabilities = ["read"]
+    }
+  }
+}
+```
+
+You can then apply this policy to a specific task:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default -job example -group cache -task redis \
+   redis-policy ./policy.hcl
+```
+
+You can also apply this policy to all tasks in the group by omitting the `-task`
+flag:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default -job example -group cache \
+   redis-policy ./policy.hcl
+```
+
+And you can apply this policy to all groups in the job by omitting both the
+`-group` and `-task` flag:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default -job example \
+   redis-policy ./policy.hcl
+```
+
+## Using Workload Identity
+
+In Nomad 1.4.0 the workload identity is used only for `template`
+access to [Variables][] and not exposed outside of Nomad.
+
+[allocation]: /docs/concepts/architecture#allocation
+[plan applier]: /docs/concepts/scheduling/scheduling
+[Variables]: /docs/concepts/variables
+[JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519

@@ -8,7 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +26,7 @@ var (
 	// allocations part of a deployment to be rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowRescheduleTransition = &structs.DesiredTransition{
-		Reschedule: helper.BoolToPtr(true),
+		Reschedule: pointer.Of(true),
 	}
 )
 
@@ -233,7 +233,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
 	if j != nil {
-		resp.RevertedJobVersion = helper.Uint64ToPtr(j.Version)
+		resp.RevertedJobVersion = pointer.Of(j.Version)
 	}
 	return nil
 }
@@ -293,17 +293,21 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 			continue
 		}
 
-		if !dstate.AutoPromote || dstate.DesiredCanaries != len(dstate.PlacedCanaries) {
+		if !dstate.AutoPromote || len(dstate.PlacedCanaries) < dstate.DesiredCanaries {
 			return nil
 		}
 
+		healthyCanaries := 0
 		// Find the health status of each canary
 		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
-				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
-					return nil
+				if c == a.ID && a.DeploymentStatus.IsHealthy() {
+					healthyCanaries += 1
 				}
 			}
+		}
+		if healthyCanaries != dstate.DesiredCanaries {
+			return nil
 		}
 	}
 
@@ -390,7 +394,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
 	if rollbackJob != nil {
-		resp.RevertedJobVersion = helper.Uint64ToPtr(rollbackJob.Version)
+		resp.RevertedJobVersion = pointer.Of(rollbackJob.Version)
 	}
 	return nil
 }
@@ -836,10 +840,12 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	// on the previous version that are then "watched" on a leader that's on
 	// the new version. This would result in an eval with its priority set to
 	// zero which would be bad. This therefore protects against that.
+	w.l.Lock()
 	priority := w.d.EvalPriority
 	if priority == 0 {
 		priority = w.j.Priority
 	}
+	w.l.Unlock()
 
 	return &structs.Evaluation{
 		ID:           uuid.Generate(),

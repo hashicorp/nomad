@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -996,6 +996,79 @@ func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 	err = state.DeleteNamespaces(1002, []string{ns.Name})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "one non-terminal")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespaces_CSIVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	plugin := mock.CSIPlugin()
+	vol := mock.CSIVolume(plugin)
+	vol.Namespace = ns.Name
+
+	require.NoError(t, state.UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one CSI volume")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespaces_Variables(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	sv := mock.VariableEncrypted()
+	sv.Namespace = ns.Name
+
+	resp := state.VarSet(1001, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: sv,
+	})
+	require.NoError(t, resp.Error)
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one variable")
 	require.False(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -5095,7 +5168,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(true),
+			Healthy:   pointer.Of(true),
 			Timestamp: healthy,
 		},
 	}
@@ -5140,7 +5213,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(true),
+			Healthy: pointer.Of(true),
 			Canary:  false,
 		},
 	}
@@ -5611,10 +5684,10 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: helper.BoolToPtr(true),
+		Migrate: pointer.Of(true),
 	}
 	t2 := &structs.DesiredTransition{
-		Migrate: helper.BoolToPtr(false),
+		Migrate: pointer.Of(false),
 	}
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
@@ -7341,7 +7414,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c3.JobID = j.ID
 	c3.DeploymentID = d.ID
 	c3.DesiredStatus = structs.AllocDesiredStatusStop
-	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
@@ -7427,7 +7500,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -7435,7 +7508,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
@@ -7522,7 +7595,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 
@@ -7533,7 +7606,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 
@@ -7542,7 +7615,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c3.DeploymentID = d.ID
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 	c3.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 
@@ -7679,7 +7752,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))
@@ -7697,7 +7770,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	b.JobID = job.ID
 	b.DeploymentID = d1.ID
 	b.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  false,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{b}))
@@ -7718,7 +7791,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	c.JobID = job.ID
 	c.DeploymentID = d2.ID
 	c.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 		Canary:  true,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 6, []*structs.Allocation{c}))
@@ -7749,7 +7822,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  false,
 	}
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))
@@ -8912,9 +8985,9 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 
 	// now verify expiration
 
-	getExpiredTokens := func() []*structs.OneTimeToken {
+	getExpiredTokens := func(now time.Time) []*structs.OneTimeToken {
 		txn := state.db.ReadTxn()
-		iter, err := state.oneTimeTokensExpiredTxn(txn, nil)
+		iter, err := state.oneTimeTokensExpiredTxn(txn, nil, now)
 		require.NoError(t, err)
 
 		results := []*structs.OneTimeToken{}
@@ -8930,7 +9003,7 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 		return results
 	}
 
-	results = getExpiredTokens()
+	results = getExpiredTokens(time.Now())
 	require.Len(t, results, 2)
 
 	// results aren't ordered
@@ -8942,10 +9015,10 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 
 	// clear the expired tokens and verify they're gone
 	index++
-	require.NoError(t,
-		state.ExpireOneTimeTokens(structs.MsgTypeTestSetup, index))
+	require.NoError(t, state.ExpireOneTimeTokens(
+		structs.MsgTypeTestSetup, index, time.Now()))
 
-	results = getExpiredTokens()
+	results = getExpiredTokens(time.Now())
 	require.Len(t, results, 0)
 
 	// query the unexpired token

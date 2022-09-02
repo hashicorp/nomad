@@ -107,6 +107,36 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl role": func() (cli.Command, error) {
+			return &ACLRoleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role create": func() (cli.Command, error) {
+			return &ACLRoleCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role delete": func() (cli.Command, error) {
+			return &ACLRoleDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role info": func() (cli.Command, error) {
+			return &ACLRoleInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role list": func() (cli.Command, error) {
+			return &ACLRoleListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl role update": func() (cli.Command, error) {
+			return &ACLRoleUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl token": func() (cli.Command, error) {
 			return &ACLTokenCommand{
 				Meta: meta,
@@ -174,6 +204,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"alloc restart": func() (cli.Command, error) {
 			return &AllocRestartCommand{
+				Meta: meta,
+			}, nil
+		},
+		"alloc checks": func() (cli.Command, error) {
+			return &AllocChecksCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -614,28 +649,28 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator secure-variables keyring": func() (cli.Command, error) {
-			return &OperatorSecureVariablesKeyringCommand{
+		"operator root keyring": func() (cli.Command, error) {
+			return &OperatorRootKeyringCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator secure-variables keyring install": func() (cli.Command, error) {
-			return &OperatorSecureVariablesKeyringInstallCommand{
+		"operator root keyring install": func() (cli.Command, error) {
+			return &OperatorRootKeyringInstallCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator secure-variables keyring list": func() (cli.Command, error) {
-			return &OperatorSecureVariablesKeyringListCommand{
+		"operator root keyring list": func() (cli.Command, error) {
+			return &OperatorRootKeyringListCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator secure-variables keyring remove": func() (cli.Command, error) {
-			return &OperatorSecureVariablesKeyringRemoveCommand{
+		"operator root keyring remove": func() (cli.Command, error) {
+			return &OperatorRootKeyringRemoveCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator secure-variables keyring rotate": func() (cli.Command, error) {
-			return &OperatorSecureVariablesKeyringRotateCommand{
+		"operator root keyring rotate": func() (cli.Command, error) {
+			return &OperatorRootKeyringRotateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -908,6 +943,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"var list": func() (cli.Command, error) {
 			return &VarListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var init": func() (cli.Command, error) {
+			return &VarInitCommand{
 				Meta: meta,
 			}, nil
 		},

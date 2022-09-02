@@ -157,7 +157,6 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 // Preempted allocs are removed from the allocs propsed for a node.
 //
 // See https://github.com/hashicorp/nomad/issues/6787
-//
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	ci.Parallel(t)
 	state, ctx := testContext(t)
@@ -435,7 +434,7 @@ func TestPortCollisionEvent_Copy(t *testing.T) {
 	evCopy.Allocations = append(evCopy.Allocations, mock.Alloc())
 	require.NotEqual(t, ev.Allocations, evCopy.Allocations)
 
-	evCopy.NetIndex.AddReservedPortRange("1000-2000")
+	evCopy.NetIndex.AddAllocs(evCopy.Allocations)
 	require.NotEqual(t, ev.NetIndex, evCopy.NetIndex)
 }
 

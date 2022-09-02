@@ -32,10 +32,10 @@ func (h *remoteTaskHook) Name() string {
 }
 
 // Prestart performs 2 remote task driver related tasks:
-//   1. If there is no local handle, see if there is a handle propagated from a
-//      previous alloc to be restored.
-//   2. If the alloc is lost make sure the task signal is set to detach instead
-//      of kill.
+//  1. If there is no local handle, see if there is a handle propagated from a
+//     previous alloc to be restored.
+//  2. If the alloc is lost make sure the task signal is set to detach instead
+//     of kill.
 func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	if h.tr.getDriverHandle() != nil {
 		// Driver handle already exists so don't try to load remote

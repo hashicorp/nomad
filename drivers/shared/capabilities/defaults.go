@@ -136,8 +136,9 @@ func LegacySupported() *Set {
 //
 // cap_add takes precedence over cap_drop, enabling the common pattern of dropping
 // all capabilities, then adding back the desired smaller set. e.g.
-//   cap_drop = ["all"]
-//   cap_add = ["chown", "kill"]
+//
+//	cap_drop = ["all"]
+//	cap_add = ["chown", "kill"]
 //
 // Note that the resulting capability names are upper-cased and prefixed with
 // "CAP_", which is the expected input for the exec/java driver implementation.

@@ -5,13 +5,13 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"hash"
 	"io"
 	"strings"
 )
 
-var errMismatchChecksum = fmt.Errorf("mismatch checksum")
+var errMismatchChecksum = errors.New("mismatch checksum")
 
 // checksumValidatingReader is a wrapper reader that validates
 // the checksum of the underlying reader.
@@ -38,7 +38,7 @@ type checksumValidatingReader struct {
 func newChecksumValidatingReader(r io.ReadCloser, digest string) (io.ReadCloser, error) {
 	parts := strings.SplitN(digest, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid digest format")
+		return nil, errors.New("invalid digest format")
 	}
 
 	algo := parts[0]

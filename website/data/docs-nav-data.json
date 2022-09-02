@@ -142,6 +142,14 @@
       {
         "title": "Security Model",
         "path": "concepts/security"
+      },
+      {
+        "title": "Workload Identity",
+        "path": "concepts/workload-identity"
+      },
+      {
+        "title": "Variables",
+        "path": "concepts/variables"
       }
     ]
   },
@@ -229,44 +237,79 @@
             "path": "commands/acl/bootstrap"
           },
           {
-            "title": "policy apply",
-            "path": "commands/acl/policy-apply"
+            "title": "policy",
+            "routes": [
+              {
+                "title": "apply",
+                "path": "commands/acl/policy/apply"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/policy/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/policy/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/policy/list"
+              }
+            ]
           },
           {
-            "title": "policy delete",
-            "path": "commands/acl/policy-delete"
+            "title": "role",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/role/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/role/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/role/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/role/list"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/role/update"
+              }
+            ]
           },
           {
-            "title": "policy info",
-            "path": "commands/acl/policy-info"
-          },
-          {
-            "title": "policy list",
-            "path": "commands/acl/policy-list"
-          },
-          {
-            "title": "token create",
-            "path": "commands/acl/token-create"
-          },
-          {
-            "title": "token delete",
-            "path": "commands/acl/token-delete"
-          },
-          {
-            "title": "token info",
-            "path": "commands/acl/token-info"
-          },
-          {
-            "title": "token list",
-            "path": "commands/acl/token-list"
-          },
-          {
-            "title": "token self",
-            "path": "commands/acl/token-self"
-          },
-          {
-            "title": "token update",
-            "path": "commands/acl/token-update"
+            "title": "token",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/token/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/token/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/token/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/token/list"
+              },
+              {
+                "title": "self",
+                "path": "commands/acl/token/self"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/token/update"
+              }
+            ]
           }
         ]
       },
@@ -563,6 +606,31 @@
             "path": "commands/operator/debug"
           },
           {
+            "title": "gossip",
+            "routes": [
+              {
+                "title": "keyring generate",
+                "path": "commands/operator/gossip/keyring-generate"
+              },
+              {
+                "title": "keyring install",
+                "path": "commands/operator/gossip/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/gossip/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/gossip/keyring-remove"
+              },
+              {
+                "title": "keyring use",
+                "path": "commands/operator/gossip/keyring-use"
+              }
+            ]
+          },
+          {
             "title": "keygen",
             "path": "commands/operator/keygen"
           },
@@ -596,6 +664,27 @@
               {
                 "title": "state",
                 "path": "commands/operator/raft/state"
+              }
+            ]
+          },
+          {
+            "title": "root",
+            "routes": [
+              {
+                "title": "keyring install",
+                "path": "commands/operator/root/keyring-install"
+              },
+              {
+                "title": "keyring list",
+                "path": "commands/operator/root/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/root/keyring-remove"
+              },
+              {
+                "title": "keyring rotate",
+                "path": "commands/operator/root/keyring-rotate"
               }
             ]
           },
@@ -1305,6 +1394,14 @@
         "path": "job-specification/affinity"
       },
       {
+        "title": "change_script",
+        "path": "job-specification/change_script"
+      },
+      {
+        "title": "check",
+        "path": "job-specification/check"
+      },
+      {
         "title": "check_restart",
         "path": "job-specification/check_restart"
       },
@@ -1456,6 +1553,10 @@
       {
         "title": "Overview",
         "path": "other-specifications"
+      },
+      {
+        "title": "ACL Policy",
+        "path": "other-specifications/acl-policy"
       },
       {
         "title": "Volume",
@@ -1882,6 +1983,10 @@
       {
         "title": "Access Control",
         "href": "https://learn.hashicorp.com/collections/nomad/access-control"
+      },
+      {
+        "title": "Key Management",
+        "path": "operations/key-management"
       }
     ]
   },

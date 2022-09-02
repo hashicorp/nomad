@@ -1,8 +1,12 @@
 import Route from '@ember/routing/route';
 
 export default class VariablesNewRoute extends Route {
-  model(params) {
-    return this.store.createRecord('variable', { path: params.path });
+  async model(params) {
+    const namespaces = await this.store.peekAll('namespace');
+    return this.store.createRecord('variable', {
+      path: params.path,
+      namespace: namespaces.objectAt(0)?.id,
+    });
   }
   resetController(controller, isExiting) {
     // If the user navigates away from /new, clear the path

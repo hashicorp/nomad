@@ -117,7 +117,7 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
-	testutil.Parallel(t)
+
 	testURL := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
 	region := "test"
@@ -501,7 +501,7 @@ func TestCloneHttpClient(t *testing.T) {
 	client := defaultHttpClient()
 	originalTransport := client.Transport.(*http.Transport)
 	originalTransport.Proxy = func(*http.Request) (*url.URL, error) {
-		return nil, fmt.Errorf("stub function")
+		return nil, errors.New("stub function")
 	}
 
 	t.Run("closing with negative timeout", func(t *testing.T) {

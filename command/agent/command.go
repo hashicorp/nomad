@@ -399,6 +399,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	for _, hn := range config.Client.HostNetworks {
+		// Ensure port range is valid
 		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
 			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
 				hn.Name, hn.ReservedPorts, err))
@@ -1007,7 +1008,7 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	if s := c.agent.Client(); s != nil {
+	if client := c.agent.Client(); client != nil {
 		c.agent.logger.Debug("starting reload of client config")
 		clientConfig, err := convertClientConfig(newConf)
 		if err != nil {
@@ -1021,7 +1022,7 @@ func (c *Command) handleReload() {
 			return
 		}
 
-		if err := c.agent.Client().Reload(clientConfig); err != nil {
+		if err := client.Reload(clientConfig); err != nil {
 			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
 		}

@@ -317,7 +317,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			Name:     "group1",
 			Services: []*structs.Service{s},
 			Networks: structs.Networks{{
-				Mode: "bridge",
+				Mode:         "bridge",
 				DynamicPorts: []structs.Port{
 					// service declares "sPort", but does not exist
 				},

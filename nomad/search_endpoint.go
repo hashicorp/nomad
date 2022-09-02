@@ -35,7 +35,7 @@ var (
 		structs.Plugins,
 		structs.Volumes,
 		structs.ScalingPolicies,
-		structs.SecureVariables,
+		structs.Variables,
 		structs.Namespaces,
 	}
 )
@@ -77,7 +77,7 @@ func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]s
 			id = t.ID
 		case *structs.Namespace:
 			id = t.Name
-		case *structs.SecureVariableEncrypted:
+		case *structs.VariableEncrypted:
 			id = t.Path
 		default:
 			matchID, ok := getEnterpriseMatch(raw)
@@ -186,8 +186,9 @@ func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[st
 }
 
 // fuzzyIndex returns the index of text in name, ignoring case.
-//   text is assumed to be lower case.
-//   -1 is returned if name does not contain text.
+//
+//	text is assumed to be lower case.
+//	-1 is returned if name does not contain text.
 func fuzzyIndex(name, text string) int {
 	lower := strings.ToLower(name)
 	return strings.Index(lower, text)
@@ -217,10 +218,10 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 	case *structs.CSIPlugin:
 		name = t.ID
 		ctx = structs.Plugins
-	case *structs.SecureVariableEncrypted:
+	case *structs.VariableEncrypted:
 		name = t.Path
 		scope = []string{t.Namespace, t.Path}
-		ctx = structs.SecureVariables
+		ctx = structs.Variables
 	}
 
 	if idx := fuzzyIndex(name, text); idx >= 0 {
@@ -238,12 +239,12 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 // of matchable Context. Results are categorized by Context and paired with their
 // score, but are unsorted.
 //
-//   job.name
-//   job|group.name
-//   job|group|service.name
-//   job|group|task.name
-//   job|group|task|service.name
-//   job|group|task|driver.{image,command,class}
+//	job.name
+//	job|group.name
+//	job|group|service.name
+//	job|group|task.name
+//	job|group|task|service.name
+//	job|group|task|driver.{image,command,class}
 func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context][]fuzzyMatch {
 	sm := make(map[structs.Context][]fuzzyMatch)
 	ns := j.Namespace
@@ -389,8 +390,8 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
-	case structs.SecureVariables:
-		iter, err := store.GetSecureVariablesByPrefix(ws, prefix)
+	case structs.Variables:
+		iter, err := store.GetVariablesByPrefix(ws, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -426,12 +427,12 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 		}
 		return store.AllocsByNamespace(ws, namespace)
 
-	case structs.SecureVariables:
+	case structs.Variables:
 		if wildcard(namespace) {
-			iter, err := store.SecureVariables(ws)
+			iter, err := store.Variables(ws)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return store.GetSecureVariablesByNamespace(ws, namespace)
+		return store.GetVariablesByNamespace(ws, namespace)
 
 	case structs.Nodes:
 		if wildcard(namespace) {
@@ -480,9 +481,8 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 		case *structs.Allocation:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
 
-		case *structs.SecureVariableEncrypted:
-			// FIXME: Update to final implementation.
-			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+		case *structs.VariableEncrypted:
+			return !aclObj.AllowVariableSearch(t.Namespace)
 
 		case *structs.Namespace:
 			return !aclObj.AllowNamespace(t.Name)
@@ -552,10 +552,10 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	if err != nil {
 		return err
 	}
-
 	namespace := args.RequestNamespace()
 
-	// Require either node:read or namespace:read-job
+	// Require read permissions for the context, ex. node:read or
+	// namespace:read-job
 	if !sufficientSearchPerms(aclObj, namespace, args.Context) {
 		return structs.ErrPermissionDenied
 	}
@@ -609,22 +609,65 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	return s.srv.blockingRPC(&opts)
 }
 
+// sufficientSearchPerms returns true if the provided ACL has access to any
+// capabilities required for prefix searching.
+//
+// Returns true if aclObj is nil or is for a management token
+func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
+	if aclObj == nil || aclObj.IsManagement() {
+		return true
+	}
+
+	nodeRead := aclObj.AllowNodeRead()
+	allowNS := aclObj.AllowNamespace(namespace)
+	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
+	allowEnt := sufficientSearchPermsEnt(aclObj)
+
+	if !nodeRead && !allowNS && !allowEnt && !jobRead {
+		return false
+	}
+
+	// Reject requests that explicitly specify a disallowed context. This
+	// should give the user better feedback than simply filtering out all
+	// results and returning an empty list.
+	switch context {
+	case structs.Nodes:
+		return nodeRead
+	case structs.Namespaces:
+		return allowNS
+	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
+		return jobRead
+	case structs.Volumes:
+		return acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+			acl.NamespaceCapabilityCSIReadVolume,
+			acl.NamespaceCapabilityListJobs,
+			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
+	case structs.Variables:
+		return aclObj.AllowVariableSearch(namespace)
+	}
+
+	return true
+}
+
 // FuzzySearch is used to list fuzzy or prefix matches for a given text argument and Context.
 // If the Context is "all", all searchable contexts are searched. If ACLs are enabled,
 // results are limited to policies of the provided ACL token.
 //
 // These types are limited to prefix UUID searching:
-//   Evals, Deployments, ScalingPolicies, Volumes
+//
+//	Evals, Deployments, ScalingPolicies, Volumes
 //
 // These types are available for fuzzy searching:
-//   Nodes, Namespaces, Jobs, Allocs, Plugins
+//
+//	Nodes, Namespaces, Jobs, Allocs, Plugins
 //
 // Jobs are a special case that expand into multiple types, and whose return
 // values include Scope which is a descending list of IDs of parent objects,
 // starting with the Namespace. The subtypes of jobs are fuzzy searchable.
 //
 // The Jobs type expands into these sub types:
-//   Jobs, Groups, Services, Tasks, Images, Commands, Classes
+//
+//	Jobs, Groups, Services, Tasks, Images, Commands, Classes
 //
 // The results are in descending order starting with strongest match, per Context type.
 func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.FuzzySearchResponse) error {
@@ -780,6 +823,65 @@ func sufficientFuzzySearchPerms(aclObj *acl.ACL, namespace string, context struc
 		return true
 	}
 	return sufficientSearchPerms(aclObj, namespace, context)
+}
+
+// filteredSearchContexts returns the expanded set of contexts, filtered down
+// to the subset of contexts the aclObj is valid for.
+//
+// If aclObj is nil, no contexts are filtered out.
+func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
+	desired := expandContext(context)
+
+	// If ACLs aren't enabled return all contexts
+	if aclObj == nil {
+		return desired
+	}
+	if aclObj.IsManagement() {
+		return desired
+	}
+	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityListJobs,
+		acl.NamespaceCapabilityReadJob)
+	volRead := allowVolume(aclObj, namespace)
+	policyRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListScalingPolicies)
+
+	// Filter contexts down to those the ACL grants access to
+	available := make([]structs.Context, 0, len(desired))
+	for _, c := range desired {
+		switch c {
+		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
+			if jobRead {
+				available = append(available, c)
+			}
+		case structs.ScalingPolicies:
+			if policyRead || jobRead {
+				available = append(available, c)
+			}
+		case structs.Namespaces:
+			if aclObj.AllowNamespace(namespace) {
+				available = append(available, c)
+			}
+		case structs.Variables:
+			if jobRead {
+				available = append(available, c)
+			}
+		case structs.Nodes:
+			if aclObj.AllowNodeRead() {
+				available = append(available, c)
+			}
+		case structs.Volumes:
+			if volRead {
+				available = append(available, c)
+			}
+		default:
+			if ok := filteredSearchContextsEnt(aclObj, namespace, c); ok {
+				available = append(available, c)
+			}
+		}
+	}
+	return available
 }
 
 // filterFuzzySearchContexts returns every context asked for if the searched namespace

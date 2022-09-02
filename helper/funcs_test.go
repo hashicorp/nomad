@@ -2,11 +2,9 @@ package helper
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -68,7 +66,7 @@ func Test_CopyMap(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		m := make(map[string]int, 10)
 		result := CopyMap(m)
-		must.Nil(t, result)
+		must.MapEq(t, map[string]int{}, result)
 	})
 
 	t.Run("elements", func(t *testing.T) {
@@ -129,25 +127,6 @@ func TestStringHasPrefixInSlice(t *testing.T) {
 	require.False(t, StringHasPrefixInSlice("def", prefixes))
 	require.False(t, StringHasPrefixInSlice("delta", prefixes))
 
-}
-
-func TestCompareTimePtrs(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		a := (*time.Duration)(nil)
-		b := (*time.Duration)(nil)
-		require.True(t, CompareTimePtrs(a, b))
-		c := TimeToPtr(3 * time.Second)
-		require.False(t, CompareTimePtrs(a, c))
-		require.False(t, CompareTimePtrs(c, a))
-	})
-
-	t.Run("not nil", func(t *testing.T) {
-		a := TimeToPtr(1 * time.Second)
-		b := TimeToPtr(1 * time.Second)
-		c := TimeToPtr(2 * time.Second)
-		require.True(t, CompareTimePtrs(a, b))
-		require.False(t, CompareTimePtrs(a, c))
-	})
 }
 
 func TestCompareSliceSetString(t *testing.T) {
@@ -448,91 +427,6 @@ func TestCheckNamespaceScope(t *testing.T) {
 	}
 }
 
-func TestPathEscapesSandbox(t *testing.T) {
-	cases := []struct {
-		name     string
-		path     string
-		dir      string
-		expected bool
-	}{
-		{
-			// this is the ${NOMAD_SECRETS_DIR} case
-			name:     "ok joined absolute path inside sandbox",
-			path:     filepath.Join("/alloc", "/secrets"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail unjoined absolute path outside sandbox",
-			path:     "/secrets",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "ok joined relative path inside sandbox",
-			path:     filepath.Join("/alloc", "./safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail unjoined relative path outside sandbox",
-			path:     "./safe",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "ok relative path traversal constrained to sandbox",
-			path:     filepath.Join("/alloc", "../../alloc/safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "ok unjoined absolute path traversal constrained to sandbox",
-			path:     filepath.Join("/alloc", "/../alloc/safe"),
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "ok unjoined absolute path traversal constrained to sandbox",
-			path:     "/../alloc/safe",
-			dir:      "/alloc",
-			expected: false,
-		},
-		{
-			name:     "fail joined relative path traverses outside sandbox",
-			path:     filepath.Join("/alloc", "../../../unsafe"),
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail unjoined relative path traverses outside sandbox",
-			path:     "../../../unsafe",
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail joined absolute path tries to transverse outside sandbox",
-			path:     filepath.Join("/alloc", "/alloc/../../unsafe"),
-			dir:      "/alloc",
-			expected: true,
-		},
-		{
-			name:     "fail unjoined absolute path tries to transverse outside sandbox",
-			path:     "/alloc/../../unsafe",
-			dir:      "/alloc",
-			expected: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			caseMsg := fmt.Sprintf("path: %v\ndir: %v", tc.path, tc.dir)
-			escapes := PathEscapesSandbox(tc.dir, tc.path)
-			require.Equal(t, tc.expected, escapes, caseMsg)
-		})
-	}
-}
-
 func Test_NewSafeTimer(t *testing.T) {
 	t.Run("zero", func(t *testing.T) {
 		timer, stop := NewSafeTimer(0)
@@ -544,5 +438,131 @@ func Test_NewSafeTimer(t *testing.T) {
 		timer, stop := NewSafeTimer(1)
 		defer stop()
 		<-timer.C
+	})
+}
+
+func Test_ConvertSlice(t *testing.T) {
+	t.Run("string wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id string }
+		input := []string{"foo", "bar", "bad", "had"}
+		cFn := func(id string) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: "foo"}, {id: "bar"}, {id: "bad"}, {id: "had"}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+	})
+
+	t.Run("int wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id int }
+		input := []int{10, 13, 1987, 2020}
+		cFn := func(id int) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: 10}, {id: 13}, {id: 1987}, {id: 2020}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+
+	})
+}
+
+func Test_IsMethodHTTP(t *testing.T) {
+	t.Run("is method", func(t *testing.T) {
+		cases := []string{
+			"GET", "Get", "get",
+			"HEAD", "Head", "head",
+			"POST", "Post", "post",
+			"PUT", "Put", "put",
+			"PATCH", "Patch", "patch",
+			"DELETE", "Delete", "delete",
+			"CONNECT", "Connect", "connect",
+			"OPTIONS", "Options", "options",
+			"TRACE", "Trace", "trace",
+		}
+		for _, tc := range cases {
+			result := IsMethodHTTP(tc)
+			must.True(t, result)
+		}
+	})
+
+	t.Run("is not method", func(t *testing.T) {
+		not := []string{"GETTER", "!GET", ""}
+		for _, tc := range not {
+			result := IsMethodHTTP(tc)
+			must.False(t, result)
+		}
+	})
+}
+
+type employee struct {
+	id   int
+	name string
+}
+
+func (e *employee) Equals(o *employee) bool {
+	return e.id == o.id // name can be different
+}
+
+func Test_ElementsEquals(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := []*employee(nil)
+		var b []*employee
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different sizes", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "mitchell"}, {2, "armon"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
+	})
+
+	t.Run("equal", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
+		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
+	})
+}
+
+func Test_SliceSetEq(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		a := make([]int, 0)
+		b := make([]int, 0)
+		must.True(t, SliceSetEq(a, b))
+	})
+
+	t.Run("subset small", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5}
+		b := []int{1, 2, 3}
+		must.False(t, SliceSetEq(a, b))
+		must.False(t, SliceSetEq(b, a))
+	})
+
+	t.Run("subset large", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+		must.False(t, SliceSetEq(a, b))
+		must.False(t, SliceSetEq(b, a))
+	})
+
+	t.Run("same small", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5}
+		b := []int{1, 2, 3, 4, 5}
+		must.True(t, SliceSetEq(a, b))
+	})
+
+	t.Run("same large", func(t *testing.T) {
+		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		must.True(t, SliceSetEq(a, b))
 	})
 }

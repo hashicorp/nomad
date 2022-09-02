@@ -122,7 +122,7 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 				"error", err)
 			return nil
 		}
-		path := cfg.Cgroups.Paths["freezer"]
+		path := cfg.Cgroups.Path
 		e.logger.Trace("cgroup created, now need to apply", "path", path)
 		e.containment = resources.Contain(e.logger, cfg.Cgroups)
 		return e.containment.Apply(pid)

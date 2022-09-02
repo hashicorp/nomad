@@ -14,6 +14,12 @@ export default class AllocationAdapter extends Watchable {
     });
   }
 
+  restartAll(allocation) {
+    const prefix = `${this.host || '/'}${this.urlPrefix()}`;
+    const url = `${prefix}/client/allocation/${allocation.id}/restart`;
+    return this.ajax(url, 'PUT', { data: { AllTasks: true } });
+  }
+
   ls(model, path) {
     return this.token
       .authorizedRequest(

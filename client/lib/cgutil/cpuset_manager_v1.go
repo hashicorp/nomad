@@ -29,14 +29,52 @@ const (
 )
 
 // NewCpusetManagerV1 creates a  CpusetManager compatible with cgroups.v1
-func NewCpusetManagerV1(cgroupParent string, logger hclog.Logger) CpusetManager {
+func NewCpusetManagerV1(cgroupParent string, _ []uint16, logger hclog.Logger) CpusetManager {
 	if cgroupParent == "" {
 		cgroupParent = DefaultCgroupV1Parent
 	}
+
+	cgroupParentPath, err := GetCgroupPathHelperV1("cpuset", cgroupParent)
+	if err != nil {
+		logger.Warn("failed to get cgroup path; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	// ensures that shared cpuset exists and that the cpuset values are copied from the parent if created
+	if err = cpusetEnsureParentV1(filepath.Join(cgroupParentPath, SharedCpusetCgroupName)); err != nil {
+		logger.Warn("failed to ensure cgroup parent exists; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	parentCpus, parentMems, err := getCpusetSubsystemSettingsV1(cgroupParentPath)
+	if err != nil {
+		logger.Warn("failed to detect parent cpuset settings; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	parentCpuset, err := cpuset.Parse(parentCpus)
+	if err != nil {
+		logger.Warn("failed to parse parent cpuset.cpus setting; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	// ensure the reserved cpuset exists, but only copy the mems from the parent if creating the cgroup
+	if err = os.Mkdir(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), 0755); err != nil {
+		logger.Warn("failed to ensure reserved cpuset.cpus interface exists; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
+	if err = cgroups.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
+		logger.Warn("failed to ensure reserved cpuset.mems interface exists; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
 	return &cpusetManagerV1{
-		cgroupParent: cgroupParent,
-		cgroupInfo:   map[string]allocTaskCgroupInfo{},
-		logger:       logger,
+		parentCpuset:     parentCpuset,
+		cgroupParent:     cgroupParent,
+		cgroupParentPath: cgroupParentPath,
+		cgroupInfo:       map[string]allocTaskCgroupInfo{},
+		logger:           logger,
 	}
 }
 
@@ -140,48 +178,11 @@ type allocTaskCgroupInfo map[string]*TaskCgroupInfo
 // Init checks that the cgroup parent and expected child cgroups have been created
 // If the cgroup parent is set to /nomad then this will ensure that the /nomad/shared
 // cgroup is initialized.
-func (c *cpusetManagerV1) Init(_ []uint16) error {
-	cgroupParentPath, err := GetCgroupPathHelperV1("cpuset", c.cgroupParent)
-	if err != nil {
-		return err
-	}
-	c.cgroupParentPath = cgroupParentPath
-
-	// ensures that shared cpuset exists and that the cpuset values are copied from the parent if created
-	if err := cpusetEnsureParentV1(filepath.Join(cgroupParentPath, SharedCpusetCgroupName)); err != nil {
-		return err
-	}
-
-	parentCpus, parentMems, err := getCpusetSubsystemSettingsV1(cgroupParentPath)
-	if err != nil {
-		return fmt.Errorf("failed to detect parent cpuset settings: %v", err)
-	}
-	c.parentCpuset, err = cpuset.Parse(parentCpus)
-	if err != nil {
-		return fmt.Errorf("failed to parse parent cpuset.cpus setting: %v", err)
-	}
-
-	// ensure the reserved cpuset exists, but only copy the mems from the parent if creating the cgroup
-	if err := os.Mkdir(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), 0755); err == nil {
-		// cgroup created, leave cpuset.cpus empty but copy cpuset.mems from parent
-		if err != nil {
-			return err
-		}
-	} else if !os.IsExist(err) {
-		return err
-	}
-
-	if err := cgroups.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
-		return err
-	}
-
+func (c *cpusetManagerV1) Init() {
 	c.doneCh = make(chan struct{})
 	c.signalCh = make(chan struct{})
-
 	c.logger.Info("initialized cpuset cgroup manager", "parent", c.cgroupParent, "cpuset", c.parentCpuset.String())
-
 	go c.reconcileLoop()
-	return nil
 }
 
 func (c *cpusetManagerV1) reconcileLoop() {
@@ -298,21 +299,6 @@ func (c *cpusetManagerV1) signalReconcile() {
 	}
 }
 
-func (c *cpusetManagerV1) getCpuset(group string) (cpuset.CPUSet, error) {
-	man := fs.NewManager(
-		&configs.Cgroup{
-			Path: filepath.Join(c.cgroupParent, group),
-		},
-		map[string]string{"cpuset": filepath.Join(c.cgroupParentPath, group)},
-		false,
-	)
-	stats, err := man.GetStats()
-	if err != nil {
-		return cpuset.CPUSet{}, err
-	}
-	return cpuset.New(stats.CPUSetStats.CPUs...), nil
-}
-
 func (c *cpusetManagerV1) getCgroupPathsForTask(allocID, task string) (absolute, relative string) {
 	return filepath.Join(c.reservedCpusetPath(), fmt.Sprintf("%s-%s", allocID, task)),
 		filepath.Join(c.cgroupParent, ReservedCpusetCgroupName, fmt.Sprintf("%s-%s", allocID, task))
@@ -332,19 +318,26 @@ func getCPUsFromCgroupV1(group string) ([]uint16, error) {
 		return nil, err
 	}
 
-	man := fs.NewManager(&configs.Cgroup{Path: group}, map[string]string{"cpuset": cgroupPath}, false)
+	cgroup := &configs.Cgroup{
+		Path:      group,
+		Resources: new(configs.Resources),
+	}
+
+	paths := map[string]string{
+		"cpuset": cgroupPath,
+	}
+
+	man, err := fs.NewManager(cgroup, paths)
+	if err != nil {
+		return nil, err
+	}
+
 	stats, err := man.GetStats()
 	if err != nil {
 		return nil, err
 	}
-	return stats.CPUSetStats.CPUs, nil
-}
 
-func getParentV1(parent string) string {
-	if parent == "" {
-		return DefaultCgroupV1Parent
-	}
-	return parent
+	return stats.CPUSetStats.CPUs, nil
 }
 
 // cpusetEnsureParentV1 makes sure that the parent directories of current

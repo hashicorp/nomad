@@ -1,10 +1,14 @@
 import { assert } from '@ember/debug';
 import { action } from '@ember/object';
-import Component from '@glimmer/component';
+import BreadcrumbsTemplate from './default';
 
-export default class BreadcrumbsJob extends Component {
+export default class BreadcrumbsJob extends BreadcrumbsTemplate {
   get job() {
     return this.args.crumb.job;
+  }
+
+  get hasParent() {
+    return !!this.job.belongsTo('parent').id();
   }
 
   @action
@@ -14,8 +18,7 @@ export default class BreadcrumbsJob extends Component {
 
   @action
   fetchParent() {
-    const hasParent = !!this.job.belongsTo('parent').id();
-    if (hasParent) {
+    if (this.hasParent) {
       return this.job.get('parent');
     }
   }

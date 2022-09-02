@@ -1,0 +1,160 @@
+{{did-update this.onViewChange @view}}
+{{did-insert this.establishKeyValues}}
+<form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
+
+  {{#if @model.isNew}}
+    <div class="related-entities related-entities-hint">
+      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+    </div>
+  {{/if}}
+
+  {{#if this.hasConflict}}
+    <div class="notification conflict is-danger">
+      <h3 class="title is-4">Heads up! Your variable has a conflict.</h3>
+      <p>This might be because someone else tried saving in the time since you've had it open.</p>
+      {{#if this.conflictingVariable.modifyTime}}
+        <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
+          {{moment-from-now this.conflictingVariable.modifyTime}}
+        </span>
+      {{/if}}
+      {{#if this.conflictingVariable.items}}
+        <pre><code>{{stringify-object this.conflictingVariable.items whitespace=2}}</code></pre>
+      {{else}}
+        <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
+      {{/if}}
+      <div class="options">
+        <button data-test-refresh-button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
+        <button data-test-overwrite-button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
+      </div>
+    </div>
+  {{/if}}
+
+  <div class={{if this.namespaceOptions "path-namespace"}}>
+    <label>
+      <span>
+        Path
+      </span>
+      <Input
+        @type="text"
+        @value={{this.path}}
+        placeholder="nomad/jobs/my-job/my-group/my-task"
+        class="input path-input {{if this.duplicatePathWarning "error"}}"
+        disabled={{not @model.isNew}}
+        {{autofocus}}
+        data-test-path-input
+      />
+      {{#if this.duplicatePathWarning}}
+        <p class="duplicate-path-error help is-danger">
+          There is already a variable located at
+          {{this.path}}
+          .
+          <br />
+          Please choose a different path, or
+          <LinkTo
+            @route="variables.variable.edit"
+            @model={{this.duplicatePathWarning.path}}
+          >
+            edit the existing variable
+          </LinkTo>
+          .
+        </p>
+      {{/if}}
+    </label>
+    <VariableForm::NamespaceFilter 
+      @data={{hash 
+        disabled=(not @model.isNew)
+        selection=this.variableNamespace
+        namespaceOptions=this.namespaceOptions
+      }}
+      @fns={{hash
+        onSelect=this.setNamespace
+        setNamespaceOptions=this.setNamespaceOptions
+      }}
+    />
+  </div>
+  {{#if (eq this.view "json")}}
+    <div
+      class="editor-wrapper boxed-section-body is-full-bleed
+        {{if this.JSONError 'error'}}"
+    >
+      <div
+        data-test-json-editor
+        {{code-mirror
+          content=this.JSONItems
+          onUpdate=this.updateCode
+          extraKeys=(hash Cmd-Enter=(action "save"))
+        }}
+      ></div>
+      {{#if this.JSONError}}
+        <p class="help is-danger">
+          {{this.JSONError}}
+        </p>
+      {{/if}}
+    </div>
+  {{else}}
+    {{#each this.keyValues as |entry iter|}}
+      <div class="key-value">
+        <label>
+          <span>
+            Key
+          </span>
+          <Input
+            data-test-var-key
+            @type="text"
+            @value={{entry.key}}
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (fn this.validateKey entry)}}
+          />
+        </label>
+        <VariableForm::InputGroup @entry={{entry}} />
+        {{#if (eq entry this.keyValues.lastObject)}}
+          <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            disabled={{not (and entry.key entry.value)}}
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
+        {{else}}
+          <button
+            class="delete-row button is-danger is-inverted"
+            type="button"
+            {{on "click" (action this.deleteRow entry)}}
+          >
+            Delete
+          </button>
+        {{/if}}
+        {{#each-in entry.warnings as |k v|}}
+          <span class="key-value-error help is-danger">
+            {{v}}
+          </span>
+        {{/each-in}}
+      </div>
+    {{/each}}
+  {{/if}}
+
+  {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
+    <VariableForm::RelatedEntities
+      @new={{true}}
+      @job={{@model.pathLinkedEntities.job}}
+      @group={{@model.pathLinkedEntities.group}}
+      @task={{@model.pathLinkedEntities.task}}
+      @namespace={{this.variableNamespace}}
+    />
+  {{/if}}
+
+  <footer>
+    <button
+      disabled={{this.shouldDisableSave}}
+      class="button is-primary"
+      type="submit"
+      data-test-submit-var
+    >
+      Save
+      {{pluralize "Variable" @this.keyValues.length}}
+    </button>
+  </footer>
+</form>

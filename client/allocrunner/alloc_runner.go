@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
@@ -22,12 +23,12 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -41,6 +42,7 @@ type allocRunner struct {
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
+	// clientConfig is the client configuration block.
 	clientConfig *config.Config
 
 	// stateUpdater is used to emit updated alloc state
@@ -170,7 +172,9 @@ type allocRunner struct {
 	// restore.
 	serversContactedCh chan struct{}
 
-	taskHookCoordinator *taskHookCoordinator
+	// taskCoordinator is used to controlled when tasks are allowed to run
+	// depending on their lifecycle configuration.
+	taskCoordinator *tasklifecycle.Coordinator
 
 	shutdownDelayCtx      context.Context
 	shutdownDelayCancelFn context.CancelFunc
@@ -182,6 +186,9 @@ type allocRunner struct {
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// checkStore contains check status information
+	checkStore checkstore.Shim
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
@@ -229,6 +236,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
+		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 	}
 
@@ -241,7 +249,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
 
-	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
+	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
@@ -264,27 +272,27 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:                ar.alloc,
-			ClientConfig:         ar.clientConfig,
-			Task:                 task,
-			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
-			Logger:               ar.logger,
-			StateDB:              ar.stateDB,
-			StateUpdater:         ar,
-			DynamicRegistry:      ar.dynamicRegistry,
-			Consul:               ar.consulClient,
-			ConsulProxies:        ar.consulProxiesClient,
-			ConsulSI:             ar.sidsClient,
-			Vault:                ar.vaultClient,
-			DeviceStatsReporter:  ar.deviceStatsReporter,
-			CSIManager:           ar.csiManager,
-			DeviceManager:        ar.devicemanager,
-			DriverManager:        ar.driverManager,
-			ServersContactedCh:   ar.serversContactedCh,
-			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
-			ShutdownDelayCtx:     ar.shutdownDelayCtx,
-			ServiceRegWrapper:    ar.serviceRegWrapper,
-			Getter:               ar.getter,
+			Alloc:               ar.alloc,
+			ClientConfig:        ar.clientConfig,
+			Task:                task,
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
+			Logger:              ar.logger,
+			StateDB:             ar.stateDB,
+			StateUpdater:        ar,
+			DynamicRegistry:     ar.dynamicRegistry,
+			Consul:              ar.consulClient,
+			ConsulProxies:       ar.consulProxiesClient,
+			ConsulSI:            ar.sidsClient,
+			Vault:               ar.vaultClient,
+			DeviceStatsReporter: ar.deviceStatsReporter,
+			CSIManager:          ar.csiManager,
+			DeviceManager:       ar.devicemanager,
+			DriverManager:       ar.driverManager,
+			ServersContactedCh:  ar.serversContactedCh,
+			StartConditionMetCh: ar.taskCoordinator.StartConditionForTask(task),
+			ShutdownDelayCtx:    ar.shutdownDelayCtx,
+			ServiceRegWrapper:   ar.serviceRegWrapper,
+			Getter:              ar.getter,
 		}
 
 		if ar.cpusetManager != nil {
@@ -382,26 +390,12 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
-	// Start all tasks
+	// Start and wait for all tasks.
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
-
-	// Block on all tasks except poststop tasks
 	for _, task := range ar.tasks {
-		if !task.IsPoststopTask() {
-			<-task.WaitCh()
-		}
-	}
-
-	// Signal poststop tasks to proceed to main runtime
-	ar.taskHookCoordinator.StartPoststopTasks()
-
-	// Wait for poststop tasks to finish before proceeding
-	for _, task := range ar.tasks {
-		if task.IsPoststopTask() {
-			<-task.WaitCh()
-		}
+		<-task.WaitCh()
 	}
 }
 
@@ -455,7 +449,7 @@ func (ar *allocRunner) Restore() error {
 		states[tr.Task().Name] = tr.TaskState()
 	}
 
-	ar.taskHookCoordinator.taskStateUpdated(states)
+	ar.taskCoordinator.Restore(states)
 
 	return nil
 }
@@ -552,45 +546,69 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		// if all live runners are sidecars - kill alloc
-		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
-			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
-		}
-
-		// If there's a kill event set and live runners, kill them
-		if killEvent != nil && len(liveRunners) > 0 {
-
-			// Log kill reason
-			switch killEvent.Type {
-			case structs.TaskLeaderDead:
-				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			case structs.TaskMainDead:
-				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
-			default:
-				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+		if len(liveRunners) > 0 {
+			// if all live runners are sidecars - kill alloc
+			onlySidecarsRemaining := hasSidecars && !hasNonSidecarTasks(liveRunners)
+			if killEvent == nil && onlySidecarsRemaining {
+				killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 			}
 
-			// Emit kill event for live runners
-			for _, tr := range liveRunners {
-				tr.EmitEvent(killEvent)
+			// If there's a kill event set and live runners, kill them
+			if killEvent != nil {
+
+				// Log kill reason
+				switch killEvent.Type {
+				case structs.TaskLeaderDead:
+					ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
+				case structs.TaskMainDead:
+					ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+				default:
+					ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+				}
+
+				// Emit kill event for live runners
+				for _, tr := range liveRunners {
+					tr.EmitEvent(killEvent)
+				}
+
+				// Kill 'em all
+				states = ar.killTasks()
+
+				// Wait for TaskRunners to exit before continuing. This will
+				// prevent looping before TaskRunners have transitioned to
+				// Dead.
+				for _, tr := range liveRunners {
+					ar.logger.Info("waiting for task to exit", "task", tr.Task().Name)
+					select {
+					case <-tr.WaitCh():
+					case <-ar.waitCh:
+					}
+				}
 			}
+		} else {
+			// If there are no live runners left kill all non-poststop task
+			// runners to unblock them from the alloc restart loop.
+			for _, tr := range ar.tasks {
+				if tr.IsPoststopTask() {
+					continue
+				}
 
-			// Kill 'em all
-			states = ar.killTasks()
-
-			// Wait for TaskRunners to exit before continuing to
-			// prevent looping before TaskRunners have transitioned
-			// to Dead.
-			for _, tr := range liveRunners {
-				ar.logger.Info("killing task", "task", tr.Task().Name)
 				select {
 				case <-tr.WaitCh():
 				case <-ar.waitCh:
+				default:
+					// Kill task runner without setting an event because the
+					// task is already dead, it's just waiting in the alloc
+					// restart loop.
+					err := tr.Kill(context.TODO(), nil)
+					if err != nil {
+						ar.logger.Warn("failed to kill task", "task", tr.Task().Name, "error", err)
+					}
 				}
 			}
 		}
 
-		ar.taskHookCoordinator.taskStateUpdated(states)
+		ar.taskCoordinator.TaskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
@@ -601,6 +619,28 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// Broadcast client alloc to listeners
 		ar.allocBroadcaster.Send(calloc)
 	}
+}
+
+// hasNonSidecarTasks returns false if all the passed tasks are sidecar tasks
+func hasNonSidecarTasks(tasks []*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		if !tr.IsSidecarTask() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasSidecarTasks returns true if any of the passed tasks are sidecar tasks
+func hasSidecarTasks(tasks map[string]*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		if tr.IsSidecarTask() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // killTasks kills all task runners, leader (if there is one) first. Errors are
@@ -631,7 +671,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		break
 	}
 
-	// Kill the rest non-sidecar or poststop tasks concurrently
+	// Kill the rest non-sidecar and non-poststop tasks concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
 		// Filter out poststop and sidecar tasks so that they stop after all the other tasks are killed
@@ -721,7 +761,7 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		if a.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.DeploymentID != "" && !a.DeploymentStatus.HasHealth() {
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(false),
+				Healthy: pointer.Of(false),
 			}
 		}
 
@@ -1188,19 +1228,37 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 	return nil
 }
 
-// RestartTask signalls the task runner for the  provided task to restart.
-func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent) error {
+// Restart satisfies the WorkloadRestarter interface and restarts all tasks
+// that are currently running.
+func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	return ar.restartTasks(ctx, event, failure, false)
+}
+
+// RestartTask restarts the provided task.
+func (ar *allocRunner) RestartTask(taskName string, event *structs.TaskEvent) error {
 	tr, ok := ar.tasks[taskName]
 	if !ok {
 		return fmt.Errorf("Could not find task runner for task: %s", taskName)
 	}
 
-	return tr.Restart(context.TODO(), taskEvent, false)
+	return tr.Restart(context.TODO(), event, false)
 }
 
-// Restart satisfies the WorkloadRestarter interface restarts all task runners
-// concurrently
-func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+// RestartRunning restarts all tasks that are currently running.
+func (ar *allocRunner) RestartRunning(event *structs.TaskEvent) error {
+	return ar.restartTasks(context.TODO(), event, false, false)
+}
+
+// RestartAll restarts all tasks in the allocation, including dead ones. They
+// will restart following their lifecycle order.
+func (ar *allocRunner) RestartAll(event *structs.TaskEvent) error {
+	// Restart the taskCoordinator to allow dead tasks to run again.
+	ar.taskCoordinator.Restart()
+	return ar.restartTasks(context.TODO(), event, false, true)
+}
+
+// restartTasks restarts all task runners concurrently.
+func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool, force bool) error {
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
@@ -1213,10 +1271,19 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 		defer close(waitCh)
 		for tn, tr := range ar.tasks {
 			wg.Add(1)
-			go func(taskName string, r agentconsul.WorkloadRestarter) {
+			go func(taskName string, taskRunner *taskrunner.TaskRunner) {
 				defer wg.Done()
-				e := r.Restart(ctx, event, failure)
-				if e != nil {
+
+				var e error
+				if force {
+					e = taskRunner.ForceRestart(ctx, event.Copy(), failure)
+				} else {
+					e = taskRunner.Restart(ctx, event.Copy(), failure)
+				}
+
+				// Ignore ErrTaskNotRunning errors since tasks that are not
+				// running are expected to not be restarted.
+				if e != nil && e != taskrunner.ErrTaskNotRunning {
 					errMutex.Lock()
 					defer errMutex.Unlock()
 					err = multierror.Append(err, fmt.Errorf("failed to restart task %s: %v", taskName, e))
@@ -1229,25 +1296,6 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 	select {
 	case <-waitCh:
 	case <-ctx.Done():
-	}
-
-	return err.ErrorOrNil()
-}
-
-// RestartAll signalls all task runners in the allocation to restart and passes
-// a copy of the task event to each restart event.
-// Returns any errors in a concatenated form.
-func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
-	var err *multierror.Error
-
-	// run alloc task restart hooks
-	ar.taskRestartHooks()
-
-	for tn := range ar.tasks {
-		rerr := ar.RestartTask(tn, taskEvent.Copy())
-		if rerr != nil {
-			err = multierror.Append(err, rerr)
-		}
 	}
 
 	return err.ErrorOrNil()

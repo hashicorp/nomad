@@ -54,7 +54,7 @@ module('Unit | Model | variable', function (hooks) {
 
     let model = store.createRecord('variable');
     model.setProperties({
-      path: 'jobs/my-job-name/my-group-name/my-task-name',
+      path: 'nomad/jobs/my-job-name/my-group-name/my-task-name',
     });
     assert.ok(model.pathLinkedEntities, 'generates a linked entities object');
     assert.equal(
@@ -74,7 +74,7 @@ module('Unit | Model | variable', function (hooks) {
     );
 
     model.setProperties({
-      path: 'jobs/my-job-name/my-group-name/my-task-name/too-long/oh-no',
+      path: 'nomad/jobs/my-job-name/my-group-name/my-task-name/too-long/oh-no',
     });
     assert.equal(
       model.pathLinkedEntities.job,
@@ -99,17 +99,17 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(
       model.pathLinkedEntities.job,
       '',
-      'entities object lacks a job name if not prefixed with jobs/'
+      'entities object lacks a job name if not prefixed with nomad/jobs/'
     );
     assert.equal(
       model.pathLinkedEntities.group,
       '',
-      'entities object lacks a group name if not prefixed with jobs/'
+      'entities object lacks a group name if not prefixed with nomad/jobs/'
     );
     assert.equal(
       model.pathLinkedEntities.task,
       '',
-      'entities object lacks a task name if not prefixed with jobs/'
+      'entities object lacks a task name if not prefixed with nomad/jobs/'
     );
   });
 });

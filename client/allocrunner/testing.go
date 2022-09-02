@@ -4,6 +4,7 @@
 package allocrunner
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -14,11 +15,13 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,12 +70,14 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 	consulRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
 	nomadRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
 
+	stateDB := new(state.NoopDB)
+
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
 		Alloc:              alloc.Copy(),
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
-		StateDB:            state.NoopDB{},
+		StateDB:            stateDB,
 		Consul:             consulRegMock,
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		Vault:              vaultclient.NewMockVaultClient(),
@@ -84,6 +89,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		CpusetManager:      new(cgutil.NoopCpusetManager),
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
+		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
 		Getter:             getter.TestDefaultGetter(t),
 	}
 
@@ -99,4 +105,14 @@ func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) (*allocRu
 	}
 
 	return ar, cleanup
+}
+
+func WaitForClientState(t *testing.T, ar *allocRunner, state string) {
+	testutil.WaitForResult(func() (bool, error) {
+		got := ar.AllocState().ClientStatus
+		return got == state,
+			fmt.Errorf("expected alloc runner to be in state %s, got %s", state, got)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }

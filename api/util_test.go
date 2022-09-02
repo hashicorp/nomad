@@ -27,18 +27,18 @@ func testJob() *Job {
 	task := NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      intToPtr(100),
-			MemoryMB: intToPtr(256),
+			CPU:      pointerOf(100),
+			MemoryMB: pointerOf(256),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      intToPtr(1),
-			MaxFileSizeMB: intToPtr(2),
+			MaxFiles:      pointerOf(1),
+			MaxFileSizeMB: pointerOf(2),
 		})
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: intToPtr(25),
+			SizeMB: pointerOf(25),
 		})
 
 	job := NewBatchJob("job1", "redis", "global", 1).
@@ -52,18 +52,18 @@ func testJobWithScalingPolicy() *Job {
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
 		Policy:  map[string]interface{}{},
-		Min:     int64ToPtr(1),
-		Max:     int64ToPtr(5),
-		Enabled: boolToPtr(true),
+		Min:     pointerOf(int64(1)),
+		Max:     pointerOf(int64(5)),
+		Enabled: pointerOf(true),
 	}
 	return job
 }
 
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
-		Enabled:  boolToPtr(true),
-		Spec:     stringToPtr("*/30 * * * *"),
-		SpecType: stringToPtr("cron"),
+		Enabled:  pointerOf(true),
+		Spec:     pointerOf("*/30 * * * *"),
+		SpecType: pointerOf("cron"),
 	})
 	return job
 }
@@ -109,8 +109,8 @@ func testQuotaSpec() *QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &Resources{
-					CPU:      intToPtr(2000),
-					MemoryMB: intToPtr(2000),
+					CPU:      pointerOf(2000),
+					MemoryMB: pointerOf(2000),
 				},
 			},
 		},

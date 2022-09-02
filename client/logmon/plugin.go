@@ -5,22 +5,27 @@ import (
 	"os"
 	"os/exec"
 
-	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/logmon/proto"
 	"github.com/hashicorp/nomad/plugins/base"
 	"google.golang.org/grpc"
 )
 
+var bin = getBin()
+
+func getBin() string {
+	b, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 // LaunchLogMon launches a new logmon or reattaches to an existing one.
 // TODO: Integrate with base plugin loader
 func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (LogMon, *plugin.Client, error) {
 	logger = logger.Named("logmon")
-	bin, err := os.Executable()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	conf := &plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{

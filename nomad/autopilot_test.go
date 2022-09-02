@@ -5,13 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	// TODO: replace this with our own helper
 	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
+	"github.com/hashicorp/serf/serf"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/serf"
 )
+
+var _ autopilot.ApplicationIntegration = (*AutopilotDelegate)(nil)
 
 // wantPeers determines whether the server has the given
 // number of voting raft peers.
@@ -21,7 +25,13 @@ func wantPeers(s *Server, peers int) error {
 		return err
 	}
 
-	n := autopilot.NumPeers(future.Configuration())
+	var n int
+	for _, server := range future.Configuration().Servers {
+		if server.Suffrage == raft.Voter {
+			n++
+		}
+	}
+
 	if got, want := n, peers; got != want {
 		return fmt.Errorf("server %v: got %d peers want %d\n\tservers: %#+v", s.config.NodeName, got, want, future.Configuration().Servers)
 	}
@@ -68,7 +78,6 @@ func wantRaft(servers []*Server) error {
 
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
 	ci.Parallel(t)
-	t.Run("raft_v2", func(t *testing.T) { testCleanupDeadServer(t, 2) })
 	t.Run("raft_v3", func(t *testing.T) { testCleanupDeadServer(t, 3) })
 }
 
@@ -351,9 +360,9 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 		if servers[1].Suffrage != raft.Nonvoter {
 			r.Fatalf("bad: %v", servers)
 		}
-		health := s1.autopilot.GetServerHealth(string(servers[1].ID))
+		health := s1.autopilot.GetServerHealth(raft.ServerID(servers[1].ID))
 		if health == nil {
-			r.Fatalf("nil health, %v", s1.autopilot.GetClusterHealth())
+			r.Fatalf("nil health, %v", s1.GetClusterHealth())
 		}
 		if !health.Healthy {
 			r.Fatalf("bad: %v", health)

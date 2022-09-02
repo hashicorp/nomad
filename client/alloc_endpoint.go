@@ -8,12 +8,11 @@ import (
 	"io"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
-
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -103,7 +102,7 @@ func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstruct
 		return nstructs.ErrPermissionDenied
 	}
 
-	return a.c.RestartAllocation(args.AllocID, args.TaskName)
+	return a.c.RestartAllocation(args.AllocID, args.TaskName, args.AllTasks)
 }
 
 // Stats is used to collect allocation statistics
@@ -137,6 +136,29 @@ func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.Al
 	return nil
 }
 
+// Checks is used to retrieve nomad service discovery check status information.
+func (a *Allocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.AllocChecksResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "checks"}, time.Now())
+
+	// Get the allocation
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check read-job permission
+	if aclObj, aclErr := a.c.ResolveToken(args.AuthToken); aclErr != nil {
+		return aclErr
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	// Get the status information for the allocation
+	reply.Results = a.c.checkStore.List(alloc.ID)
+
+	return nil
+}
+
 // exec is used to execute command in a running task
 func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "allocations", "exec"}, time.Now())
@@ -161,7 +183,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	if err := decoder.Decode(&req); err != nil {
-		return helper.Int64ToPtr(500), err
+		return pointer.Of(int64(500)), err
 	}
 
 	if a.c.GetConfig().DisableRemoteExec {
@@ -169,13 +191,13 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	if req.AllocID == "" {
-		return helper.Int64ToPtr(400), allocIDNotPresentErr
+		return pointer.Of(int64(400)), allocIDNotPresentErr
 	}
 	ar, err := a.c.getAllocRunner(req.AllocID)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		return code, err
@@ -210,17 +232,17 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	// Validate the arguments
 	if req.Task == "" {
-		return helper.Int64ToPtr(400), taskNotPresentErr
+		return pointer.Of(int64(400)), taskNotPresentErr
 	}
 	if len(req.Cmd) == 0 {
-		return helper.Int64ToPtr(400), errors.New("command is not present")
+		return pointer.Of(int64(400)), errors.New("command is not present")
 	}
 
 	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		return code, err
@@ -236,9 +258,9 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	allocState, err := a.c.GetAllocState(req.AllocID)
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
+			code = pointer.Of(int64(404))
 		}
 
 		return code, err
@@ -247,11 +269,11 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Check that the task is there
 	taskState := allocState.TaskStates[req.Task]
 	if taskState == nil {
-		return helper.Int64ToPtr(400), fmt.Errorf("unknown task name %q", req.Task)
+		return pointer.Of(int64(400)), fmt.Errorf("unknown task name %q", req.Task)
 	}
 
 	if taskState.StartedAt.IsZero() {
-		return helper.Int64ToPtr(404), fmt.Errorf("task %q not started yet.", req.Task)
+		return pointer.Of(int64(404)), fmt.Errorf("task %q not started yet.", req.Task)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -259,12 +281,12 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	h := ar.GetTaskExecHandler(req.Task)
 	if h == nil {
-		return helper.Int64ToPtr(404), fmt.Errorf("task %q is not running.", req.Task)
+		return pointer.Of(int64(404)), fmt.Errorf("task %q is not running.", req.Task)
 	}
 
 	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
 	if err != nil {
-		code := helper.Int64ToPtr(500)
+		code := pointer.Of(int64(500))
 		return code, err
 	}
 

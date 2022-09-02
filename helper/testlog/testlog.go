@@ -74,7 +74,7 @@ func HCLoggerTestLevel() hclog.Level {
 func HCLoggerNode(t LogPrinter, node int32) (hclog.InterceptLogger, io.Writer) {
 	var output io.Writer = os.Stderr
 	if node > -1 {
-		output = NewPrefixWriter(t, fmt.Sprintf("node-%03d", node))
+		output = NewPrefixWriter(t, fmt.Sprintf("node-%03d ", node))
 	}
 	opts := &hclog.LoggerOptions{
 		Level:           HCLoggerTestLevel(),
