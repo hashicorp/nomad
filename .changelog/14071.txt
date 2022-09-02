@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Display different message when trying to exec into a job with no task running.
+```
