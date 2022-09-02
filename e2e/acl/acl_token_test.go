@@ -155,3 +155,160 @@ func testACLTokenExpiration(t *testing.T) {
 
 	cleanUpProcess.remove(tokenNormalExpiryCreateResp.AccessorID, aclTokenTestResourceType)
 }
+
+// testACLTokenRolePolicyAssignment tests that tokens allow and have the
+// expected permissions when created or updated with a combination of role and
+// policy assignments.
+func testACLTokenRolePolicyAssignment(t *testing.T) {
+
+	nomadClient := e2eutil.NomadClient(t)
+
+	// Create and defer the cleanup process. This is used to remove all
+	// resources created by this test and covers situations where the test
+	// fails or during normal running.
+	cleanUpProcess := newCleanup()
+	defer cleanUpProcess.run(t, nomadClient)
+
+	// Create two ACL policies which will be used throughout this test. One
+	// grants read access to the default namespace, the other grants read
+	// access to node objects.
+	defaultNamespacePolicy := api.ACLPolicy{
+		Name:        "e2e-acl-" + uuid.Short(),
+		Description: "E2E ACL Role Testing",
+		Rules:       `namespace "default" {policy = "read"}`,
+	}
+	_, err := nomadClient.ACLPolicies().Upsert(&defaultNamespacePolicy, nil)
+	require.NoError(t, err)
+
+	cleanUpProcess.add(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+
+	nodePolicy := api.ACLPolicy{
+		Name:        "e2e-acl-" + uuid.Short(),
+		Description: "E2E ACL Role Testing",
+		Rules:       `node { policy = "read" }`,
+	}
+	_, err = nomadClient.ACLPolicies().Upsert(&nodePolicy, nil)
+	require.NoError(t, err)
+
+	cleanUpProcess.add(nodePolicy.Name, aclPolicyTestResourceType)
+
+	// Create an ACL role that has the node read policy assigned.
+	aclRole := api.ACLRole{
+		Name:        "e2e-acl-" + uuid.Short(),
+		Description: "E2E ACL Role Testing",
+		Policies:    []*api.ACLRolePolicyLink{{Name: nodePolicy.Name}},
+	}
+	aclRoleCreateResp, _, err := nomadClient.ACLRoles().Create(&aclRole, nil)
+	require.NoError(t, err)
+	require.NotNil(t, aclRoleCreateResp)
+	require.NotEmpty(t, aclRoleCreateResp.ID)
+
+	cleanUpProcess.add(aclRoleCreateResp.ID, aclRoleTestResourceType)
+
+	// Create an ACL token which only has the ACL policy which allows reading
+	// the default namespace assigned.
+	token := api.ACLToken{
+		Name:     "e2e-acl-" + uuid.Short(),
+		Type:     "client",
+		Policies: []string{defaultNamespacePolicy.Name},
+	}
+	aclTokenCreateResp, _, err := nomadClient.ACLTokens().Create(&token, nil)
+	require.NoError(t, err)
+	require.NotNil(t, aclTokenCreateResp)
+	require.NotEmpty(t, aclTokenCreateResp.SecretID)
+
+	// Test that the token can read the default namespace, but that it cannot
+	// read node objects.
+	defaultNSQueryMeta := api.QueryOptions{Namespace: "default", AuthToken: aclTokenCreateResp.SecretID}
+	jobListResp, _, err := nomadClient.Jobs().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Empty(t, jobListResp)
+
+	nodeStubList, _, err := nomadClient.Nodes().List(&defaultNSQueryMeta)
+	require.ErrorContains(t, err, "Permission denied")
+	require.Nil(t, nodeStubList)
+
+	// Update the token to also include the ACL role which will allow reading
+	// node objects.
+	newToken := aclTokenCreateResp
+	newToken.Roles = []*api.ACLTokenRoleLink{{ID: aclRoleCreateResp.ID}}
+	aclTokenUpdateResp, _, err := nomadClient.ACLTokens().Update(newToken, nil)
+	require.NoError(t, err)
+	require.Equal(t, aclTokenUpdateResp.SecretID, aclTokenCreateResp.SecretID)
+
+	// Test that the token can now read the default namespace and node objects.
+	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Empty(t, jobListResp)
+
+	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Greater(t, len(nodeStubList), 0)
+
+	// Remove the policy assignment from the token.
+	newToken.Policies = []string{}
+	aclTokenUpdateResp, _, err = nomadClient.ACLTokens().Update(newToken, nil)
+	require.NoError(t, err)
+	require.Equal(t, aclTokenUpdateResp.SecretID, aclTokenCreateResp.SecretID)
+
+	// Test that the token can now only read node objects and not the default
+	// namespace.
+	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	require.ErrorContains(t, err, "Permission denied")
+	require.Nil(t, jobListResp)
+
+	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Greater(t, len(nodeStubList), 0)
+
+	// Try and remove the role assignment which should result in a validation
+	// error as it needs to include either a policy or role linking.
+	newToken.Roles = nil
+	aclTokenUpdateResp, _, err = nomadClient.ACLTokens().Update(newToken, nil)
+	require.ErrorContains(t, err, "client token missing policies or roles")
+	require.Nil(t, aclTokenUpdateResp)
+
+	// Create a new token that has both the role and policy linking in place.
+	token = api.ACLToken{
+		Name:     "e2e-acl-" + uuid.Short(),
+		Type:     "client",
+		Policies: []string{defaultNamespacePolicy.Name},
+		Roles:    []*api.ACLTokenRoleLink{{ID: aclRoleCreateResp.ID}},
+	}
+	aclTokenCreateResp, _, err = nomadClient.ACLTokens().Create(&token, nil)
+	require.NoError(t, err)
+	require.NotNil(t, aclTokenCreateResp)
+	require.NotEmpty(t, aclTokenCreateResp.SecretID)
+
+	// Test that the token is working as expected.
+	defaultNSQueryMeta.AuthToken = aclTokenCreateResp.SecretID
+
+	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Empty(t, jobListResp)
+
+	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
+	require.NoError(t, err)
+	require.Greater(t, len(nodeStubList), 0)
+
+	// Now delete both the policy and the role from underneath the token. This
+	// differs to the graceful approaches above where the token was modified to
+	// remove the assignment.
+	_, err = nomadClient.ACLPolicies().Delete(defaultNamespacePolicy.Name, nil)
+	require.NoError(t, err)
+	cleanUpProcess.remove(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+
+	_, err = nomadClient.ACLRoles().Delete(aclRoleCreateResp.ID, nil)
+	require.NoError(t, err)
+	cleanUpProcess.remove(aclRoleCreateResp.ID, aclRoleTestResourceType)
+
+	// The token now should not have any power here; quite different to
+	// Gandalf's power over the spell on King Theoden.
+	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	require.ErrorContains(t, err, "Permission denied")
+	require.Nil(t, jobListResp)
+
+	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
+	require.ErrorContains(t, err, "Permission denied")
+	require.Nil(t, nodeStubList)
+}
