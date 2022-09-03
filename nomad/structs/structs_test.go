@@ -255,6 +255,36 @@ func TestJob_Warnings(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "Update.MaxParallel warning",
+			Expected: []string{"Update max parallel count is greater than task group count (5 > 2). A destructive change would result in the simultaneous replacement of all allocations."},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Count: 2,
+						Update: &UpdateStrategy{
+							MaxParallel: 5,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Update.MaxParallel no warning",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Count: 1,
+						Update: &UpdateStrategy{
+							MaxParallel: 5,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

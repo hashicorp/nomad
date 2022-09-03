@@ -47,7 +47,12 @@ export default class ExecController extends Controller {
     window.execTerminal = this.terminal; // Issue to improve: https://github.com/hashicorp/nomad/issues/7457
 
     this.terminal.write(ANSI_UI_GRAY_400);
-    this.terminal.writeln('Select a task to start your session.');
+
+    if (this.sortedTaskGroups.length > 0) {
+      this.terminal.writeln('Select a task to start your session.');
+    } else {
+      this.terminal.writeln(`There are no tasks running for this job.`);
+    }
   }
 
   @alias('model.allocations') allocations;

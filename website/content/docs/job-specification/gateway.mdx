@@ -80,6 +80,7 @@ envoy_gateway_bind_addresses "<service>" {
   This option applies to terminating gateways that route to services addressed by a
   hostname.
 - `config` `(map: nil)` - Escape hatch for [Advanced Configuration] of Envoy.
+  Keys and values support [runtime variable interpolation][interpolation].
 
 #### `address` Parameters
 
@@ -98,18 +99,18 @@ envoy_gateway_bind_addresses "<service>" {
   on the gateway. If TLS is enabled, then each host defined in the `host` field will
   be added as a DNSSAN to the gateway's x509 certificate.
 
-- `tls_min_version` `(string: optional)` - Set the default minimum TLS version 
+- `tls_min_version` `(string: optional)` - Set the default minimum TLS version
   supported by the gateway. Refer to
   [`TLSMinVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsminversion)
   in the Consul documentation for supported versions.
 
-- `tls_max_version` `(string: optional)` - Set the default maximum TLS version 
-  supported by the gateway. Refer to 
+- `tls_max_version` `(string: optional)` - Set the default maximum TLS version
+  supported by the gateway. Refer to
   [`TLSMaxVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
   in the Consul documentation for supported versions.
 
-- `cipher_suites` `(array<string>: optional)` - Set the default list of TLS 
-  cipher suites for the gateway's listeners. Refer to 
+- `cipher_suites` `(array<string>: optional)` - Set the default list of TLS
+  cipher suites for the gateway's listeners. Refer to
   [`CipherSuites`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#ciphersuites)
   in the Consul documentation for the supported cipher suites.
 
@@ -655,6 +656,7 @@ job "countdash-mesh-two" {
 [proxy]: /docs/job-specification/gateway#proxy-parameters
 [linked-service]: /docs/job-specification/gateway#service-parameters-1
 [listener]: /docs/job-specification/gateway#listener-parameters
+[interpolation]: /docs/runtime/interpolation
 [service]: /docs/job-specification/gateway#service-parameters
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
 [sidecar_task]: /docs/job-specification/sidecar_task
