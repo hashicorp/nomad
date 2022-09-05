@@ -287,9 +287,6 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
 		make test-nomad; \
 		fi
-	@if [ $(RUN_WEBSITE_TESTS) ]; then \
-		make test-website; \
-		fi
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
 		fi
