@@ -1323,6 +1323,10 @@
                     "path": "job-specification/hcl2/functions/string/split"
                   },
                   {
+                    "title": "strlen",
+                    "path": "job-specification/hcl2/functions/string/strlen"
+                  },
+                  {
                     "title": "strrev",
                     "path": "job-specification/hcl2/functions/string/strrev"
                   },
