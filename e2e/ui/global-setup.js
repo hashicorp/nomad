@@ -1,3 +1,4 @@
+import fs from "fs";
 import { chromium } from "@playwright/test";
 import { client, NOMAD_ADDR, NOMAD_TOKEN } from "./api-client.js";
 import {
@@ -6,6 +7,8 @@ import {
   OPERATOR_POLICY_JSON,
   DEV_POLICY_JSON,
 } from "./utils/index.js";
+
+const formatToken = token => `export const token = "${token}"`;
 
 async function globalSetup() {
   if (NOMAD_TOKEN === undefined || NOMAD_TOKEN === "") {
@@ -17,12 +20,18 @@ async function globalSetup() {
     await client(`/namespace/dev`, { data: DEV_NAMESPACE });
     await client(`/acl/policy/operator`, { data: OPERATOR_POLICY_JSON });
     await client(`/acl/policy/dev`, { data: DEV_POLICY_JSON });
-    await client(`/acl/token`, {
+    
+    // Create Operator Token and save to local director to use in tests
+    const {data: {SecretID: operatorToken}} = await client(`/acl/token`, {
       data: { Name: "Operator", Type: "client", Policies: ["operator"] },
     });
-    await client(`/acl/token`, {
+    fs.writeFileSync('input/tokens/operator.js', formatToken(operatorToken));
+
+    // Create Developer Token and save to local director to use in tests
+    const {data: {SecretID: devToken}} = await client(`/acl/token`, {
       data: { Name: "Developer", Type: "client", Policies: ["dev"] },
     });
+    fs.writeFileSync('input/tokens/dev.js', formatToken(devToken));
   } catch (e) {
     console.error("ERROR:  ", e);
   }
