@@ -260,6 +260,10 @@ jobs:
       enable_race_testing:
         type: boolean
         default: false
+      parallelism:
+        type: integer
+        default: 1
+    parallelism: "<< parameters.parallelism >>"
     environment:
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
@@ -383,7 +387,7 @@ jobs:
             ./scripts/vagrant-linux-unpriv-ui.sh
 
             export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
-            
+
             source ${BASH_ENV}
             . ~/.nvm/nvm.sh
             cd ui && yarn install --frozen-lockfile && cd ..
@@ -563,6 +567,7 @@ workflows:
           name: "test-nomad"
           test_packages: "./nomad/..."
           filters: *backend_test_branches_filter
+          parallelism: 10
       - test-machine:
           # API Tests run in a VM rather than container due to the FS tests
           # requiring `mount` priviliges.
