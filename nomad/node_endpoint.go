@@ -661,6 +661,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.MarkEligible && args.DrainStrategy == nil {
+		n.logger.Info("node transitioning to eligible state", "node_id", node.ID)
 		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -736,8 +737,10 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	if node.SchedulingEligibility == args.Eligibility {
 		return nil // Nothing to do
 	} else if args.Eligibility == structs.NodeSchedulingEligible {
+		n.logger.Info("node transitioning to eligible state", "node_id", node.ID)
 		args.NodeEvent.SetMessage(NodeEligibilityEventEligible)
 	} else {
+		n.logger.Info("node transitioning to ineligible state", "node_id", node.ID)
 		args.NodeEvent.SetMessage(NodeEligibilityEventIneligible)
 	}
 
