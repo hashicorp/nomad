@@ -325,22 +325,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
       assert.equal(renderedService.name, serverService.name);
       assert.equal(renderedService.port, serverService.portLabel);
-      assert.equal(renderedService.onUpdate, serverService.onUpdate);
-      assert.equal(renderedService.tags, (serverService.tags || []).join(', '));
-
-      assert.equal(
-        renderedService.connect,
-        serverService.Connect ? 'Yes' : 'No'
-      );
-
-      const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
-      const serverUpstreamsString = upstreams
-        .map(
-          (upstream) => `${upstream.DestinationName}:${upstream.LocalBindPort}`
-        )
-        .join(' ');
-
-      assert.equal(renderedService.upstreams, serverUpstreamsString);
+      assert.equal(renderedService.tags, (serverService.tags || []).join(' '));
     });
   });
 
