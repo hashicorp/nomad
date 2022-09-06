@@ -683,7 +683,6 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       .exists('At least one allocation has service health');
     await click('[data-test-service-status-bar]');
     assert.dom('.service-sidebar').hasClass('open');
-    await this.pauseTest();
     assert
       .dom('table.health-checks tr[data-service-health="success"]')
       .exists({ count: 2 }, 'Two successful health checks');
