@@ -48,5 +48,5 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
   @watchRecord('allocation') watch;
   @watchNonStoreRecords('allocation') watchHealthChecks;
 
-  @collect('watch') watchers;
+  @collect('watch', 'watchHealthChecks') watchers;
 }
