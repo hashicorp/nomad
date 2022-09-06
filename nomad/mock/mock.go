@@ -8,8 +8,8 @@ import (
 	"time"
 
 	fake "github.com/brianvoe/gofakeit/v6"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -592,6 +592,22 @@ func LifecycleJob() *structs.Job {
 							MemoryMB: 256,
 						},
 					},
+					{
+						Name:   "poststart",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPoststart,
+							Sidecar: false,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
 				},
 			},
 		},
@@ -634,6 +650,10 @@ func LifecycleAlloc() *structs.Allocation {
 				CPU:      1000,
 				MemoryMB: 256,
 			},
+			"poststart": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
 		},
 
 		AllocatedResources: &structs.AllocatedResources{
@@ -662,6 +682,14 @@ func LifecycleAlloc() *structs.Allocation {
 						MemoryMB: 256,
 					},
 				},
+				"poststart": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
 			},
 		},
 		Job:           LifecycleJob(),
@@ -669,6 +697,50 @@ func LifecycleAlloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+type LifecycleTaskDef struct {
+	Name      string
+	RunFor    string
+	ExitCode  int
+	Hook      string
+	IsSidecar bool
+}
+
+// LifecycleAllocFromTasks generates an Allocation with mock tasks that have
+// the provided lifecycles.
+func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
+	alloc := LifecycleAlloc()
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{}
+	for _, task := range tasks {
+		var lc *structs.TaskLifecycleConfig
+		if task.Hook != "" {
+			// TODO: task coordinator doesn't treat nil and empty structs the same
+			lc = &structs.TaskLifecycleConfig{
+				Hook:    task.Hook,
+				Sidecar: task.IsSidecar,
+			}
+		}
+
+		alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks,
+			&structs.Task{
+				Name:   task.Name,
+				Driver: "mock_driver",
+				Config: map[string]interface{}{
+					"run_for":   task.RunFor,
+					"exit_code": task.ExitCode},
+				Lifecycle: lc,
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{CPU: 100, MemoryMB: 256},
+			},
+		)
+		alloc.TaskResources[task.Name] = &structs.Resources{CPU: 100, MemoryMB: 256}
+		alloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu:    structs.AllocatedCpuResources{CpuShares: 100},
+			Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+		}
+	}
 	return alloc
 }
 
@@ -1198,7 +1270,7 @@ func ConnectIngressGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Ingress: &structs.ConsulIngressConfigEntry{
@@ -1249,7 +1321,7 @@ func ConnectTerminatingGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Terminating: &structs.ConsulTerminatingConfigEntry{
@@ -1300,7 +1372,7 @@ func ConnectMeshGatewayJob(mode string, inject bool) *structs.Job {
 		Connect: &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:            helper.TimeToPtr(3 * time.Second),
+					ConnectTimeout:            pointer.Of(3 * time.Second),
 					EnvoyGatewayBindAddresses: make(map[string]*structs.ConsulGatewayBindAddress),
 				},
 				Mesh: &structs.ConsulMeshConfigEntry{
@@ -2300,21 +2372,21 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 	}
 }
 
-type MockSecureVariables map[string]*structs.SecureVariableDecrypted
+type MockVariables map[string]*structs.VariableDecrypted
 
-func SecureVariable() *structs.SecureVariableDecrypted {
-	return &structs.SecureVariableDecrypted{
-		SecureVariableMetadata: mockSecureVariableMetadata(),
-		Items: structs.SecureVariableItems{
+func Variable() *structs.VariableDecrypted {
+	return &structs.VariableDecrypted{
+		VariableMetadata: mockVariableMetadata(),
+		Items: structs.VariableItems{
 			"key1": "value1",
 			"key2": "value2",
 		},
 	}
 }
 
-// SecureVariables returns a random number of secure variables between min
+// Variables returns a random number of variables between min
 // and max inclusive.
-func SecureVariables(minU, maxU uint8) MockSecureVariables {
+func Variables(minU, maxU uint8) MockVariables {
 	// the unsignedness of the args is to prevent goofy parameters, they're
 	// easier to work with as ints in this code.
 	min := int(minU)
@@ -2324,12 +2396,12 @@ func SecureVariables(minU, maxU uint8) MockSecureVariables {
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	svs := make([]*structs.SecureVariableDecrypted, vc)
-	paths := make(map[string]*structs.SecureVariableDecrypted, vc)
+	svs := make([]*structs.VariableDecrypted, vc)
+	paths := make(map[string]*structs.VariableDecrypted, vc)
 	for i := 0; i < vc; i++ {
-		nv := SecureVariable()
+		nv := Variable()
 		// There is an extremely rare chance of path collision because the mock
-		// secure variables generate their paths randomly. This check will add
+		// variables generate their paths randomly. This check will add
 		// an extra component on conflict to (ideally) disambiguate them.
 		if _, found := paths[nv.Path]; found {
 			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
@@ -2340,7 +2412,7 @@ func SecureVariables(minU, maxU uint8) MockSecureVariables {
 	return paths
 }
 
-func (svs MockSecureVariables) ListPaths() []string {
+func (svs MockVariables) ListPaths() []string {
 	out := make([]string, 0, len(svs))
 	for _, sv := range svs {
 		out = append(out, sv.Path)
@@ -2349,8 +2421,8 @@ func (svs MockSecureVariables) ListPaths() []string {
 	return out
 }
 
-func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
-	out := make([]*structs.SecureVariableDecrypted, 0, len(svs))
+func (svs MockVariables) List() []*structs.VariableDecrypted {
+	out := make([]*structs.VariableDecrypted, 0, len(svs))
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
@@ -2358,21 +2430,21 @@ func (svs MockSecureVariables) List() []*structs.SecureVariableDecrypted {
 	return out
 }
 
-type MockSecureVariablesEncrypted map[string]*structs.SecureVariableEncrypted
+type MockVariablesEncrypted map[string]*structs.VariableEncrypted
 
-func SecureVariableEncrypted() *structs.SecureVariableEncrypted {
-	return &structs.SecureVariableEncrypted{
-		SecureVariableMetadata: mockSecureVariableMetadata(),
-		SecureVariableData: structs.SecureVariableData{
+func VariableEncrypted() *structs.VariableEncrypted {
+	return &structs.VariableEncrypted{
+		VariableMetadata: mockVariableMetadata(),
+		VariableData: structs.VariableData{
 			KeyID: "foo",
 			Data:  []byte("foo"),
 		},
 	}
 }
 
-// SecureVariables returns a random number of secure variables between min
+// Variables returns a random number of variables between min
 // and max inclusive.
-func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
+func VariablesEncrypted(minU, maxU uint8) MockVariablesEncrypted {
 	// the unsignedness of the args is to prevent goofy parameters, they're
 	// easier to work with as ints in this code.
 	min := int(minU)
@@ -2382,12 +2454,12 @@ func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
 	if max > min {
 		vc = rand.Intn(max-min) + min
 	}
-	svs := make([]*structs.SecureVariableEncrypted, vc)
-	paths := make(map[string]*structs.SecureVariableEncrypted, vc)
+	svs := make([]*structs.VariableEncrypted, vc)
+	paths := make(map[string]*structs.VariableEncrypted, vc)
 	for i := 0; i < vc; i++ {
-		nv := SecureVariableEncrypted()
+		nv := VariableEncrypted()
 		// There is an extremely rare chance of path collision because the mock
-		// secure variables generate their paths randomly. This check will add
+		// variables generate their paths randomly. This check will add
 		// an extra component on conflict to (ideally) disambiguate them.
 		if _, found := paths[nv.Path]; found {
 			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
@@ -2398,7 +2470,7 @@ func SecureVariablesEncrypted(minU, maxU uint8) MockSecureVariablesEncrypted {
 	return paths
 }
 
-func (svs MockSecureVariablesEncrypted) ListPaths() []string {
+func (svs MockVariablesEncrypted) ListPaths() []string {
 	out := make([]string, 0, len(svs))
 	for _, sv := range svs {
 		out = append(out, sv.Path)
@@ -2407,8 +2479,8 @@ func (svs MockSecureVariablesEncrypted) ListPaths() []string {
 	return out
 }
 
-func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypted {
-	out := make([]*structs.SecureVariableEncrypted, 0, len(svs))
+func (svs MockVariablesEncrypted) List() []*structs.VariableEncrypted {
+	out := make([]*structs.VariableEncrypted, 0, len(svs))
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
@@ -2416,13 +2488,13 @@ func (svs MockSecureVariablesEncrypted) List() []*structs.SecureVariableEncrypte
 	return out
 }
 
-func mockSecureVariableMetadata() structs.SecureVariableMetadata {
+func mockVariableMetadata() structs.VariableMetadata {
 	envs := []string{"dev", "test", "prod"}
 	envIdx := rand.Intn(3)
 	env := envs[envIdx]
 	domain := fake.DomainName()
 
-	out := structs.SecureVariableMetadata{
+	out := structs.VariableMetadata{
 		Namespace:   "default",
 		Path:        strings.ReplaceAll(env+"."+domain, ".", "/"),
 		CreateIndex: uint64(rand.Intn(100) + 100),
@@ -2437,4 +2509,20 @@ func mockSecureVariableMetadata() structs.SecureVariableMetadata {
 		out.ModifyIndex = out.CreateIndex + uint64(rand.Intn(100))
 	}
 	return out
+}
+
+func ACLRole() *structs.ACLRole {
+	role := structs.ACLRole{
+		ID:          uuid.Generate(),
+		Name:        fmt.Sprintf("acl-role-%s", uuid.Short()),
+		Description: "mocked-test-acl-role",
+		Policies: []*structs.ACLRolePolicyLink{
+			{Name: "mocked-test-policy-1"},
+			{Name: "mocked-test-policy-2"},
+		},
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	role.SetHash()
+	return &role
 }

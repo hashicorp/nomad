@@ -18,7 +18,7 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -331,10 +331,10 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 		if c.Vault == nil {
 			c.Vault = &config.VaultConfig{}
 		}
-		c.Vault.Enabled = helper.BoolToPtr(true)
+		c.Vault.Enabled = pointer.Of(true)
 		c.Vault.Token = token
 		c.Vault.Role = "nomad-cluster"
-		c.Vault.AllowUnauthenticated = helper.BoolToPtr(true)
+		c.Vault.AllowUnauthenticated = pointer.Of(true)
 		c.Vault.Addr = v.HTTPAddr
 	})
 	defer nomad.Shutdown()

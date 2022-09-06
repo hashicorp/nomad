@@ -1,0 +1,43 @@
+---
+layout: docs
+page_title: 'Commands: operator root keyring rotate'
+description: |
+  Rotate encryption key
+---
+
+# Command: operator root keyring rotate
+
+The `operator root keyring rotate` command generates a new encryption key for
+all future variables.
+
+If ACLs are enabled, this command requires a management token.
+
+## Usage
+
+```plaintext
+nomad operator root keyring rotate [options]
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Rotate Options
+
+- `-full`: Decrypt all existing variables and re-encrypt with the new key. This
+    command will immediately return and the re-encryption process will run
+    asynchronously on the leader.
+
+- `-verbose`: Enable verbose output
+
+## Examples
+
+```shell-session
+$ nomad operator root keyring rotate
+Key       State   Create Time
+f19f6029  active  2022-07-11T19:14:36Z
+
+$ nomad operator root keyring rotate -verbose
+Key                                   State   Create Time
+53186ac1-9002-c4b6-216d-bb19fd37a791  active  2022-07-11T19:14:47Z
+```

@@ -18,7 +18,6 @@ func TestValidateCommand_Implements(t *testing.T) {
 }
 
 func TestValidateCommand_Files(t *testing.T) {
-	ci.Parallel(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVault(t)
@@ -67,6 +66,22 @@ func TestValidateCommand_Files(t *testing.T) {
 		code := cmd.Run(args)
 		require.Contains(t, ui.ErrorWriter.String(), "* bad token")
 		require.Equal(t, 1, code)
+	})
+}
+func TestValidateCommand_hcl1_hcl2_strict(t *testing.T) {
+	ci.Parallel(t)
+
+	_, _, addr := testServer(t, false, nil)
+
+	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
+		got := cmd.Run([]string{
+			"-hcl1", "-hcl2-strict",
+			"-address", addr,
+			"assets/example-short.nomad",
+		})
+		require.Equal(t, 0, got, ui.ErrorWriter.String())
 	})
 }
 

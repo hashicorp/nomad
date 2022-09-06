@@ -1,4 +1,4 @@
-{{page-title "Secure Variables"}}
+{{page-title "Variables"}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
@@ -18,7 +18,7 @@
           class="button is-primary"
           data-test-create-var
         >
-          Create Secure Variable
+          Create Variable
         </LinkTo>
       {{else}}
         <button
@@ -28,7 +28,7 @@
           type="button"
           data-test-disabled-create-var
         >
-          Create Secure Variable
+          Create Variable
         </button>
       {{/if}}
 
@@ -46,11 +46,11 @@
       <div class="empty-message">
         {{#if (eq this.namespaceSelection "*")}}
           <h3 data-test-empty-variables-list-headline class="empty-message-headline">
-            No Secure Variables
+            No Variables
           </h3>
           {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
             <p class="empty-message-body">
-              Get started by <LinkTo @route="variables.new">creating a new secure variable</LinkTo>
+              Get started by <LinkTo @route="variables.new">creating a new variable</LinkTo>
             </p>
           {{/if}}
         {{else}}

@@ -89,7 +89,7 @@ module('Integration | Component | variable-paths', function (hooks) {
                 {
                   Name: '*',
                   Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       {
                         Capabilities: ['list', 'read'],

@@ -8,6 +8,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -2480,11 +2481,11 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	key2.SetInactive()
 	require.NoError(t, store.UpsertRootKeyMeta(600, key2, false))
 
-	variable := mock.SecureVariableEncrypted()
+	variable := mock.VariableEncrypted()
 	variable.KeyID = key2.KeyID
 
-	setResp := store.SVESet(601, &structs.SVApplyStateRequest{
-		Op:  structs.SVOpSet,
+	setResp := store.VarSet(601, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
 		Var: variable,
 	})
 	require.NoError(t, setResp.Error)
@@ -2539,8 +2540,8 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NotNil(t, key, "new key should not have been GCd")
 }
 
-// TestCoreScheduler_SecureVariablesRekey exercises secure variables rekeying
-func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
+// TestCoreScheduler_VariablesRekey exercises variables rekeying
+func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanup := TestServer(t, nil)
@@ -2553,13 +2554,13 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		req := &structs.SecureVariablesApplyRequest{
-			Op:           structs.SVOpSet,
-			Var:          mock.SecureVariable(),
+		req := &structs.VariablesApplyRequest{
+			Op:           structs.VarOpSet,
+			Var:          mock.Variable(),
 			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
 		}
-		resp := &structs.SecureVariablesApplyResponse{}
-		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
+		resp := &structs.VariablesApplyResponse{}
+		require.NoError(t, srv.RPC("Variables.Apply", req, resp))
 	}
 
 	rotateReq := &structs.KeyringRotateRootKeyRequest{
@@ -2571,13 +2572,13 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 	require.NoError(t, srv.RPC("Keyring.Rotate", rotateReq, &rotateResp))
 
 	for i := 0; i < 3; i++ {
-		req := &structs.SecureVariablesApplyRequest{
-			Op:           structs.SVOpSet,
-			Var:          mock.SecureVariable(),
+		req := &structs.VariablesApplyRequest{
+			Op:           structs.VarOpSet,
+			Var:          mock.Variable(),
 			WriteRequest: structs.WriteRequest{Region: srv.config.Region},
 		}
-		resp := &structs.SecureVariablesApplyResponse{}
-		require.NoError(t, srv.RPC("SecureVariables.Apply", req, resp))
+		resp := &structs.VariablesApplyResponse{}
+		require.NoError(t, srv.RPC("Variables.Apply", req, resp))
 	}
 
 	rotateReq.Full = true
@@ -2586,21 +2587,21 @@ func TestCoreScheduler_SecureVariablesRekey(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		ws := memdb.NewWatchSet()
-		iter, err := store.SecureVariables(ws)
+		iter, err := store.Variables(ws)
 		require.NoError(t, err)
 		for {
 			raw := iter.Next()
 			if raw == nil {
 				break
 			}
-			variable := raw.(*structs.SecureVariableEncrypted)
+			variable := raw.(*structs.VariableEncrypted)
 			if variable.KeyID != newKeyID {
 				return false
 			}
 		}
 		return true
 	}, time.Second*5, 100*time.Millisecond,
-		"secure variable rekey should be complete")
+		"variable rekey should be complete")
 
 	iter, err := store.RootKeyMetas(memdb.NewWatchSet())
 	require.NoError(t, err)
@@ -2674,4 +2675,166 @@ func TestCoreScheduler_FailLoop(t *testing.T) {
 			"failed core jobs should not result in follow-up. TriggeredBy: %v",
 			out.TriggeredBy)
 	}
+}
+
+func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, rootACLToken, testServerShutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer testServerShutdown()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	now := time.Now().UTC()
+
+	// Craft some specific local and global tokens. For each type, one is
+	// expired, one is not.
+	expiredGlobal := mock.ACLToken()
+	expiredGlobal.Global = true
+	expiredGlobal.ExpirationTime = pointer.Of(now.Add(-2 * time.Hour))
+
+	unexpiredGlobal := mock.ACLToken()
+	unexpiredGlobal.Global = true
+	unexpiredGlobal.ExpirationTime = pointer.Of(now.Add(2 * time.Hour))
+
+	expiredLocal := mock.ACLToken()
+	expiredLocal.ExpirationTime = pointer.Of(now.Add(-2 * time.Hour))
+
+	unexpiredLocal := mock.ACLToken()
+	unexpiredLocal.ExpirationTime = pointer.Of(now.Add(2 * time.Hour))
+
+	// Upsert these into state.
+	err := testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, []*structs.ACLToken{
+		expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal,
+	})
+	require.NoError(t, err)
+
+	// Overwrite the timetable. The existing timetable has an entry due to the
+	// ACL bootstrapping which makes witnessing a new index at a timestamp in
+	// the past impossible.
+	tt := NewTimeTable(timeTableGranularity, timeTableLimit)
+	tt.Witness(20, time.Now().UTC().Add(-1*testServer.config.ACLTokenExpirationGCThreshold))
+	testServer.fsm.timetable = tt
+
+	// Generate the core scheduler.
+	snap, err := testServer.State().Snapshot()
+	require.NoError(t, err)
+	coreScheduler := NewCoreScheduler(testServer, snap)
+
+	// Trigger global and local periodic garbage collection runs.
+	index, err := testServer.State().LatestIndex()
+	require.NoError(t, err)
+	index++
+
+	globalGCEval := testServer.coreJobEval(structs.CoreJobGlobalTokenExpiredGC, index)
+	require.NoError(t, coreScheduler.Process(globalGCEval))
+
+	localGCEval := testServer.coreJobEval(structs.CoreJobLocalTokenExpiredGC, index)
+	require.NoError(t, coreScheduler.Process(localGCEval))
+
+	// Ensure the ACL tokens stored within state are as expected.
+	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
+	require.NoError(t, err)
+
+	var tokens []*structs.ACLToken
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		tokens = append(tokens, raw.(*structs.ACLToken))
+	}
+	require.ElementsMatch(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
+}
+
+func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, rootACLToken, testServerShutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer testServerShutdown()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// This time is the threshold for all expiry calls to be based on. All
+	// tokens with expiry can use this as their base and use Add().
+	expiryTimeThreshold := time.Now().UTC()
+
+	// Track expired and non-expired tokens for local and global tokens in
+	// separate arrays, so we have a clear way to test state.
+	var expiredGlobalTokens, nonExpiredGlobalTokens, expiredLocalTokens, nonExpiredLocalTokens []*structs.ACLToken
+
+	// Add the root ACL token to the appropriate array. This will be returned
+	// from state so must be accounted for and tested.
+	nonExpiredGlobalTokens = append(nonExpiredGlobalTokens, rootACLToken)
+
+	// Generate and upsert a number of mixed expired, non-expired global
+	// tokens.
+	for i := 0; i < 20; i++ {
+		mockedToken := mock.ACLToken()
+		mockedToken.Global = true
+		if i%2 == 0 {
+			expiredGlobalTokens = append(expiredGlobalTokens, mockedToken)
+			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
+		} else {
+			nonExpiredGlobalTokens = append(nonExpiredGlobalTokens, mockedToken)
+			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(24 * time.Hour))
+		}
+	}
+
+	// Generate and upsert a number of mixed expired, non-expired local
+	// tokens.
+	for i := 0; i < 20; i++ {
+		mockedToken := mock.ACLToken()
+		mockedToken.Global = false
+		if i%2 == 0 {
+			expiredLocalTokens = append(expiredLocalTokens, mockedToken)
+			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
+		} else {
+			nonExpiredLocalTokens = append(nonExpiredLocalTokens, mockedToken)
+			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(24 * time.Hour))
+		}
+	}
+
+	allTokens := append(expiredGlobalTokens, nonExpiredGlobalTokens...)
+	allTokens = append(allTokens, expiredLocalTokens...)
+	allTokens = append(allTokens, nonExpiredLocalTokens...)
+
+	// Upsert them all.
+	err := testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, allTokens)
+	require.NoError(t, err)
+
+	// This function provides an easy way to get all tokens out of the
+	// iterator.
+	fromIteratorFunc := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+			tokens = append(tokens, raw.(*structs.ACLToken))
+		}
+		return tokens
+	}
+
+	// Check all the tokens are correctly stored within state.
+	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
+	require.NoError(t, err)
+
+	tokens := fromIteratorFunc(iter)
+	require.ElementsMatch(t, allTokens, tokens)
+
+	// Generate the core scheduler and trigger a forced garbage collection
+	// which should delete all expired tokens.
+	snap, err := testServer.State().Snapshot()
+	require.NoError(t, err)
+	coreScheduler := NewCoreScheduler(testServer, snap)
+
+	index, err := testServer.State().LatestIndex()
+	require.NoError(t, err)
+	index++
+
+	forceGCEval := testServer.coreJobEval(structs.CoreJobForceGC, index)
+	require.NoError(t, coreScheduler.Process(forceGCEval))
+
+	// List all the remaining ACL tokens to be sure they are as expected.
+	iter, err = testServer.State().ACLTokens(nil, state.SortDefault)
+	require.NoError(t, err)
+
+	tokens = fromIteratorFunc(iter)
+	require.ElementsMatch(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
 }

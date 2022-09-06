@@ -11,6 +11,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
 )
@@ -32,6 +33,10 @@ var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
 
 // invalidFilenameStrict = invalidFilename plus additional punctuation
 var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
+
+type Copyable[T any] interface {
+	Copy() T
+}
 
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
@@ -70,82 +75,6 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// BoolToPtr returns the pointer to a boolean.
-//
-// Deprecated; use pointer.Of instead.
-func BoolToPtr(b bool) *bool {
-	return &b
-}
-
-// IntToPtr returns the pointer to an int.
-//
-// Deprecated; use pointer.Of instead.
-func IntToPtr(i int) *int {
-	return &i
-}
-
-// Int8ToPtr returns the pointer to an int8.
-//
-// Deprecated; use pointer.Of instead.
-func Int8ToPtr(i int8) *int8 {
-	return &i
-}
-
-// Int32ToPtr returns the pointer to an int32.
-//
-// Deprecated; use pointer.Of instead.
-func Int32ToPtr(i int32) *int32 {
-	return &i
-}
-
-// Int64ToPtr returns the pointer to an int64.
-//
-// Deprecated; use pointer.Of instead.
-func Int64ToPtr(i int64) *int64 {
-	return &i
-}
-
-// Uint64ToPtr returns the pointer to an uint64.
-//
-// Deprecated; use pointer.Of instead.
-func Uint64ToPtr(u uint64) *uint64 {
-	return &u
-}
-
-// UintToPtr returns the pointer to an uint.
-//
-// Deprecated; use pointer.Of instead.
-func UintToPtr(u uint) *uint {
-	return &u
-}
-
-// StringToPtr returns the pointer to a string.
-//
-// Deprecated; use pointer.Of instead.
-func StringToPtr(str string) *string {
-	return &str
-}
-
-// TimeToPtr returns the pointer to a time.Duration.
-func TimeToPtr(t time.Duration) *time.Duration {
-	return &t
-}
-
-// CompareTimePtrs return true if a is the same as b.
-func CompareTimePtrs(a, b *time.Duration) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
-}
-
-// Float64ToPtr returns the pointer to an float64.
-//
-// Deprecated; use pointer.Of instead.
-func Float64ToPtr(f float64) *float64 {
-	return &f
-}
-
 // Min returns the minimum of a and b.
 func Min[T constraints.Ordered](a, b T) T {
 	if a < b {
@@ -156,36 +85,6 @@ func Min[T constraints.Ordered](a, b T) T {
 
 // Max returns the maximum of a and b.
 func Max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// IntMin returns the minimum of a and b.
-//
-// Deprecated; use Min instead.
-func IntMin(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// IntMax returns the maximum of a and b.
-//
-// Deprecated; use Max instead.
-func IntMax(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// Uint64Max returns the maximum of a and b.
-//
-// Deprecated; use Max instead.
-func Uint64Max(a, b uint64) uint64 {
 	if a > b {
 		return a
 	}
@@ -360,9 +259,9 @@ func CompareMapStringString(a, b map[string]string) bool {
 
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
-// If m is nil or contains no elements, the return value is nil.
+// If m is nil the return value is nil.
 func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
-	if len(m) == 0 {
+	if m == nil {
 		return nil
 	}
 
@@ -373,16 +272,44 @@ func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
 	return result
 }
 
+// DeepCopyMap creates a copy of m by calling Copy() on each value.
+//
+// If m is nil the return value is nil.
+func DeepCopyMap[M ~map[K]V, K comparable, V Copyable[V]](m M) M {
+	if m == nil {
+		return nil
+	}
+
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v.Copy()
+	}
+	return result
+}
+
+// CopySlice creates a deep copy of s. For slices with elements that do not
+// implement Copy(), use slices.Clone.
+func CopySlice[S ~[]E, E Copyable[E]](s S) S {
+	if s == nil {
+		return nil
+	}
+
+	result := make(S, len(s))
+	for i, v := range s {
+		result[i] = v.Copy()
+	}
+	return result
+}
+
 // CopyMapStringString creates a copy of m.
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]string, l)
+	c := make(map[string]string, len(m))
 	for k, v := range m {
 		c[k] = v
 	}
@@ -393,12 +320,11 @@ func CopyMapStringString(m map[string]string) map[string]string {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]struct{}, l)
+	c := make(map[string]struct{}, len(m))
 	for k := range m {
 		c[k] = struct{}{}
 	}
@@ -409,12 +335,11 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]interface{}, l)
+	c := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		c[k] = v
 	}
@@ -677,20 +602,6 @@ func CheckNamespaceScope(provided string, requested []string) []string {
 	return nil
 }
 
-// PathEscapesSandbox returns whether previously cleaned path inside the
-// sandbox directory (typically this will be the allocation directory)
-// escapes.
-func PathEscapesSandbox(sandboxDir, path string) bool {
-	rel, err := filepath.Rel(sandboxDir, path)
-	if err != nil {
-		return true
-	}
-	if strings.HasPrefix(rel, "..") {
-		return true
-	}
-	return false
-}
-
 // StopFunc is used to stop a time.Timer created with NewSafeTimer
 type StopFunc func()
 
@@ -718,6 +629,17 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	return t, cancel
 }
 
+// ConvertSlice takes the input slice and generates a new one using the
+// supplied conversion function to covert the element. This is useful when
+// converting a slice of strings to a slice of structs which wraps the string.
+func ConvertSlice[A, B any](original []A, conversion func(a A) B) []B {
+	result := make([]B, len(original))
+	for i, element := range original {
+		result[i] = conversion(element)
+	}
+	return result
+}
+
 // IsMethodHTTP returns whether s is a known HTTP method, ignoring case.
 func IsMethodHTTP(s string) bool {
 	switch strings.ToUpper(s) {
@@ -731,6 +653,58 @@ func IsMethodHTTP(s string) bool {
 	case http.MethodOptions:
 	case http.MethodTrace:
 	default:
+		return false
+	}
+	return true
+}
+
+// EqualsFunc represents a type implementing the Equals method.
+type EqualsFunc[A any] interface {
+	Equals(A) bool
+}
+
+// ElementsEquals returns true if slices a and b contain the same elements (in
+// no particular order) using the Equals function defined on their type for
+// comparison.
+func ElementsEquals[T EqualsFunc[T]](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item.Equals(other) {
+				continue OUTER
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// SliceSetEq returns true if slices a and b contain the same elements (in no
+// particular order), using '==' for comparison.
+//
+// Note: for pointers, consider implementing an Equals method and using
+// ElementsEquals instead.
+func SliceSetEq[T comparable](a, b []T) bool {
+	lenA, lenB := len(a), len(b)
+	if lenA != lenB {
+		return false
+	}
+
+	if lenA > 10 {
+		// avoid quadratic comparisons over large input
+		return set.From(a).EqualSlice(b)
+	}
+
+OUTER:
+	for _, item := range a {
+		for _, other := range b {
+			if item == other {
+				continue OUTER
+			}
+		}
 		return false
 	}
 	return true

@@ -381,6 +381,11 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
 	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
 
+	// Register our ACL role handlers.
+	s.mux.HandleFunc("/v1/acl/roles", s.wrap(s.ACLRoleListRequest))
+	s.mux.HandleFunc("/v1/acl/role", s.wrap(s.ACLRoleRequest))
+	s.mux.HandleFunc("/v1/acl/role/", s.wrap(s.ACLRoleSpecificRequest))
+
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
@@ -442,8 +447,8 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.SecureVariablesListRequest)))
-	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.SecureVariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
+	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
+	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
 	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
 

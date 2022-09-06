@@ -1,0 +1,7 @@
+```release-note:bug
+vault: Fixed a bug where changing the Vault configuration `namespace` field was not detected as a change during server configuration reload.
+```
+
+```release-note:bug
+vault: Fixed a bug where Vault clients were recreated when the server configuration was reloaded, even if there were no changes to the Vault configuration.
+```

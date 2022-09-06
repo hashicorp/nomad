@@ -24,19 +24,25 @@ var UseV2 = cgroups.IsCgroup2UnifiedMode()
 // will create cgroups. If parent is not set, an appropriate name for the version
 // of cgroups will be used.
 func GetCgroupParent(parent string) string {
-	if UseV2 {
-		return getParentV2(parent)
+	switch {
+	case parent != "":
+		return parent
+	case UseV2:
+		return DefaultCgroupParentV2
+	default:
+		return DefaultCgroupV1Parent
 	}
-	return getParentV1(parent)
 }
 
 // CreateCPUSetManager creates a V1 or V2 CpusetManager depending on system configuration.
-func CreateCPUSetManager(parent string, logger hclog.Logger) CpusetManager {
+func CreateCPUSetManager(parent string, reservable []uint16, logger hclog.Logger) CpusetManager {
 	parent = GetCgroupParent(parent) // use appropriate default parent if not set in client config
-	if UseV2 {
-		return NewCpusetManagerV2(parent, logger.Named("cpuset.v2"))
+	switch {
+	case UseV2:
+		return NewCpusetManagerV2(parent, reservable, logger.Named("cpuset.v2"))
+	default:
+		return NewCpusetManagerV1(parent, reservable, logger.Named("cpuset.v1"))
 	}
-	return NewCpusetManagerV1(parent, logger.Named("cpuset.v1"))
 }
 
 // GetCPUsFromCgroup gets the effective cpuset value for the given cgroup.

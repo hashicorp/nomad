@@ -21,7 +21,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS ?=
+GO_TAGS ?= osusergo
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -49,7 +49,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.3.3
+LAST_RELEASE ?= v1.3.5
 
 default: help
 
@@ -143,9 +143,9 @@ deps:  ## Install build and development dependencies
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.4
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.5
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)

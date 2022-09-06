@@ -87,12 +87,12 @@ Plan Options:
     used as the job.
 
   -hcl1
-    Parses the job file as HCLv1.
+    Parses the job file as HCLv1. Takes precedence over "-hcl2-strict".
 
   -hcl2-strict
     Whether an error should be produced from the HCL2 parser where a variable
     has been supplied which is not defined within the root variables. Defaults
-    to true.
+    to true, but ignored if "-hcl1" is also defined.
 
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
@@ -183,9 +183,13 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
+	if c.JobGetter.HCL1 {
+		c.JobGetter.Strict = false
+	}
+
 	if err := c.JobGetter.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
-		return 1
+		return 255
 	}
 
 	path := args[0]

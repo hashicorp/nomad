@@ -69,7 +69,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
-		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime", "NomadTokenID"}
+		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime", "NomadTokenID", "VaultToken"}
 
 	if j == nil && other == nil {
 		return diff, nil
@@ -1649,6 +1649,39 @@ func waitConfigDiff(old, new *WaitConfig, contextual bool) *ObjectDiff {
 	return diff
 }
 
+// changeScriptDiff returns the diff of two ChangeScript objects. If contextual
+// diff is enabled, all fields will be returned, even if no diff occurred.
+func changeScriptDiff(old, new *ChangeScript, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ChangeScript"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ChangeScript{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ChangeScript{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Args diffs
+	if setDiff := stringSetDiff(old.Args, new.Args, "Args", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	return diff
+}
+
 // templateDiff returns the diff of two Consul Template objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
 func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
@@ -1671,12 +1704,37 @@ func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	}
 
+	// Add the pointer primitive fields.
+	if old != nil {
+		if old.Uid != nil {
+			oldPrimitiveFlat["Uid"] = fmt.Sprintf("%v", *old.Uid)
+		}
+		if old.Gid != nil {
+			oldPrimitiveFlat["Gid"] = fmt.Sprintf("%v", *old.Gid)
+		}
+	}
+	if new != nil {
+		if new.Uid != nil {
+			newPrimitiveFlat["Uid"] = fmt.Sprintf("%v", *new.Uid)
+		}
+		if new.Gid != nil {
+			newPrimitiveFlat["Gid"] = fmt.Sprintf("%v", *new.Gid)
+		}
+	}
+
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// WaitConfig diffs
 	if waitDiffs := waitConfigDiff(old.Wait, new.Wait, contextual); waitDiffs != nil {
 		diff.Objects = append(diff.Objects, waitDiffs)
+	}
+
+	// ChangeScript diffs
+	if changeScriptDiffs := changeScriptDiff(
+		old.ChangeScript, new.ChangeScript, contextual,
+	); changeScriptDiffs != nil {
+		diff.Objects = append(diff.Objects, changeScriptDiffs)
 	}
 
 	return diff

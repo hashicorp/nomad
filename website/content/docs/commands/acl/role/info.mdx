@@ -1,0 +1,58 @@
+---
+layout: docs
+page_title: 'Commands: acl role info'
+description: |
+  The role info command is used to fetch information about an existing ACL
+  Role.
+---
+
+# Command: acl role info
+
+The `acl role info` command is used to fetch information about an existing ACL Role.
+
+## Usage
+
+```plaintext
+nomad acl role info [options] <role_id> or <role_name>
+```
+
+The `acl role info` command requires an existing role's ID or name.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Info Options
+
+- `-by-name`: Look up the ACL role using its name as the identifier. The
+  command defaults to expecting the ACL ID as the argument.
+
+- `-json`: Output the ACL role in a JSON format.
+
+- `-t`: Format and display the ACL role using a Go template.
+
+## Examples
+
+Fetch information about an existing ACL Role using its ID:
+
+```shell-session
+$ nomad acl role info a53b0095-c28a-6181-0586-807b82e665e4
+ID           = a53b0095-c28a-6181-0586-807b82e665e4
+Name         = example-acl-role
+Description  = <none>
+Policies     = general-write
+Create Index = 71
+Modify Index = 71
+```
+
+Fetch information about an existing ACL Role using its name:
+
+```shell-session
+$ nomad acl role info -by-name example-acl-role
+ID           = a53b0095-c28a-6181-0586-807b82e665e4
+Name         = example-acl-role
+Description  = <none>
+Policies     = general-write
+Create Index = 71
+Modify Index = 71
+```

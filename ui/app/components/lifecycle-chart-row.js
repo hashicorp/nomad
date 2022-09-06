@@ -15,9 +15,9 @@ export default class LifecycleChartRow extends Component {
     return undefined;
   }
 
-  @computed('taskState.finishedAt')
+  @computed('taskState.state')
   get finishedClass() {
-    if (this.taskState && this.taskState.finishedAt) {
+    if (this.taskState && this.taskState.state === 'dead') {
       return 'is-finished';
     }
 

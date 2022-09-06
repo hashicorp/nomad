@@ -2,7 +2,7 @@
 layout: docs
 page_title: check Block - Job Specification
 description: |-
-  The "check" block declares service check definition for a Consul service.
+  The "check" block declares service check definition for a service registered into the Nomad or Consul service provider.
 ---
 
 # `check` Stanza
@@ -15,24 +15,36 @@ description: |-
 />
 
 The `check` block instructs Nomad to register a check associated with a [service][service]
-from the Consul service provider.
+into the Nomad or Consul service provider.
 
 ```hcl
-job "job" {
-  group "group" {
-    task "task " {
-      service {
-        check {
-          type     = "tcp"
-          port     = 6379
-          interval = "10s"
-          timeout  = "2s"
-        }
-        # ...
-      }
-      # ...
+job "example" {
+  datacenters = ["dc1"]
+
+  group "cache" {
+    network {
+      port "db" { to = 6379 }
     }
-    # ...
+
+    service {
+      provider = "nomad"
+      name     = "redis"
+      port     = "db"
+      check {
+        name     = "redis_probe"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "1s"
+      }
+    }
+
+    task "redis" {
+      driver = "docker"
+      config {
+        image = "redis:7"
+        ports = ["db"]
+      }
+    }
   }
 }
 ```
@@ -51,12 +63,13 @@ job "job" {
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
-- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza]. Only
+  supported in the Consul service provider.
 
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
   other value for a failing health check. This is required for script-based
-  health checks.
+  health checks. Only supported in the Consul service provider.
 
   ~> **Caveat:** The command must be the path to the command on disk, and no
   shell exists by default. That means operators like `||` or `&&` are not
@@ -73,29 +86,32 @@ job "job" {
 - `initial_status` `(string: <enum>)` - Specifies the starting status of the
   service. Valid options are `passing`, `warning`, and `critical`. Omitting
   this field (or submitting an empty string) will result in the Consul default
-  behavior, which is `critical`.
+  behavior, which is `critical`. Only supported in the Consul service provider.
+  In the Nomad service provider, the initial status of a check is `pending`
+  until Nomad produces an initial check status result.
 
 - `success_before_passing` `(int:0)` - The number of consecutive successful checks
   required before Consul will transition the service status to [`passing`][consul_passfail].
+  Only supported in the Consul service provider.
 
 - `failures_before_critical` `(int:0)` - The number of consecutive failing checks
   required before Consul will transition the service status to [`critical`][consul_passfail].
+  Only supported in the Consul service provider.
 
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
-  that Consul will perform. This is specified using a label suffix like "30s"
-  or "1h". This must be greater than or equal to "1s".
+  that Consul or Nomad service provider will perform. This is specified using a label
+  suffix like "30s" or "1h". This must be greater than or equal to "1s".
 
 - `method` `(string: "GET")` - Specifies the HTTP method to use for HTTP
-  checks.
+  checks. Must be a valid HTTP method.
 
 - `body` `(string: "")` - Specifies the HTTP body to use for HTTP checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
   check. If the name is not specified Nomad generates one based on the service name.
-  If you have more than one check you must specify the name.
 
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
-  Consul will query to query the health of a service. Nomad will automatically
+  will be queried to observe the health of a service. Nomad will automatically
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
@@ -103,6 +119,7 @@ job "job" {
   should be automatically generated for this check. Only compatible with
   Connect-enabled task-group services using the default Connect proxy. If set, check
   [`type`][type] must be `http` or `grpc`, and check `name` must be set.
+  Only supported in the Consul service provider.
 
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
@@ -124,9 +141,9 @@ job "job" {
   level `services` only. Inherits the [`service.task`][service_task] value if not
   set. May only be set for script or gRPC checks.
 
-- `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
-  health check query to succeed. This is specified using a label suffix like
-  "30s" or "1h". This must be greater than or equal to "1s"
+- `timeout` `(string: <required>)` - Specifies how long to wait for a health check
+  query to succeed. This is specified using a label suffix like "30s" or "1h". This
+  must be greater than or equal to "1s"
 
   ~> **Caveat:** Script checks use the task driver to execute in the task's
   environment. For task drivers with namespace isolation such as `docker` or
@@ -138,19 +155,19 @@ job "job" {
   `client.allocrunner.taskrunner.tasklet_timeout`.
 
 - `type` `(string: <required>)` - This indicates the check types supported by
-  Nomad. Valid options are `grpc`, `http`, `script`, and `tcp`. gRPC health
-  checks require Consul 1.0.5 or later.
+  Nomad. For Consul service checks, valid options are `grpc`, `http`, `script`,
+  and `tcp`. For Nomad service checks, valid options are `http` and `tcp`.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
-  checks. Requires Consul >= 0.7.2.
+  checks. Only supported in the Consul service provider.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial
   deployment). This allows job submitters to define certain checks as readiness
   checks, progressing a deployment even if the Service's checks are not yet
   healthy. Checks inherit the Service's value by default. The check status is
-  not altered in Consul and is only used to determine the check's health during
-  an update.
+  not altered in the service provider and is only used to determine the check's
+  health during an update.
 
   - `require_healthy` - In order for Nomad to consider the check healthy during
     an update it must report as healthy.
@@ -252,8 +269,7 @@ service {
 
 gRPC health checks use the same host and port behavior as `http` and `tcp`
 checks, but gRPC checks also have an optional gRPC service to health check. Not
-all gRPC applications require a service to health check. gRPC health checks
-require Consul 1.0.5 or later.
+all gRPC applications require a service to health check.
 
 ```hcl
 service {
@@ -342,6 +358,70 @@ service {
     on_update = "ignore_warnings"
   }
 }
+```
+
+For checks registered into the Nomad service provider, the status information will
+indicate `Mode = readiness` for readiness checks and `Mode = healthiness` for health
+checks.
+
+### Check status on CLI
+
+For checks registered into the Nomad service provider, the status information of
+checks can be viewed per-allocation. The `alloc status` command now includes
+summary information for Nomad service checks.
+
+```
+➜ nomad alloc status <allocation-id>
+```
+
+```
+Nomad Service Checks:
+Service   Task     Name          Mode         Status
+database  task     db_tcp_probe  readiness    success
+web       (group)  healthz       healthiness  failure
+web       (group)  index-page    healthiness  success
+```
+
+The `alloc checks` command can be used for viewing complete check status information
+for all checks in an allocation.
+
+```
+➜ noamd alloc checks <allocation-id>
+```
+
+```
+Status of 3 Nomad Service Checks
+
+ID         =  d8651d93a50b9e28375a7beb9418c418
+Name       =  db_tcp_probe
+Group      =  example.group[0]
+Task       =  task
+Service    =  database
+Status     =  success
+Mode       =  readiness
+Timestamp  =  2022-08-22T10:41:23-05:00
+Output     =  nomad: tcp ok
+
+ID          =  0413b61bda7014f02671675d7e146373
+Name        =  index-page
+Group       =  example.group[0]
+Task        =  (group)
+Service     =  web
+Status      =  success
+StatusCode  =  200
+Mode        =  healthiness
+Timestamp   =  2022-08-22T10:41:23-05:00
+Output      =  nomad: http ok
+
+ID         =  c3cce3f0c97975f84bbf39bdd50deaea
+Name       =  healthz
+Group      =  example.group[0]
+Task       =  (group)
+Service    =  web
+Status     =  failure
+Mode       =  healthiness
+Timestamp  =  2022-08-22T10:41:23-05:00
+Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection refused
 ```
 
 ---

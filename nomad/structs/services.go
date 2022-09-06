@@ -17,8 +17,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/exp/slices"
 )
@@ -905,20 +907,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !helper.ElementsEquals(s.Checks, o.Checks) {
 		return false
 	}
 
@@ -1222,7 +1211,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.KillTimeout, o.KillTimeout) {
+	if !pointer.Eq(t.KillTimeout, o.KillTimeout) {
 		return false
 	}
 
@@ -1230,7 +1219,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.ShutdownDelay, o.ShutdownDelay) {
+	if !pointer.Eq(t.ShutdownDelay, o.ShutdownDelay) {
 		return false
 	}
 
@@ -1260,11 +1249,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+		nt.KillTimeout = pointer.Of(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
 
 	return nt
@@ -1375,29 +1364,13 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		return nil
 	}
 
-	newP := &ConsulProxy{
+	return &ConsulProxy{
 		LocalServiceAddress: p.LocalServiceAddress,
 		LocalServicePort:    p.LocalServicePort,
 		Expose:              p.Expose.Copy(),
+		Upstreams:           slices.Clone(p.Upstreams),
+		Config:              helper.CopyMap(p.Config),
 	}
-
-	if n := len(p.Upstreams); n > 0 {
-		newP.Upstreams = make([]ConsulUpstream, n)
-
-		for i := range p.Upstreams {
-			newP.Upstreams[i] = *p.Upstreams[i].Copy()
-		}
-	}
-
-	if n := len(p.Config); n > 0 {
-		newP.Config = make(map[string]interface{}, n)
-
-		for k, v := range p.Config {
-			newP.Config[k] = v
-		}
-	}
-
-	return newP
 }
 
 // opaqueMapsEqual compares map[string]interface{} commonly used for opaque
@@ -1457,21 +1430,13 @@ type ConsulMeshGateway struct {
 	Mode string
 }
 
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
+func (c *ConsulMeshGateway) Copy() ConsulMeshGateway {
+	return ConsulMeshGateway{
 		Mode: c.Mode,
 	}
 }
 
-func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
-	if c == nil || o == nil {
-		return c == o
-	}
-
+func (c *ConsulMeshGateway) Equals(o ConsulMeshGateway) bool {
 	return c.Mode == o.Mode
 }
 
@@ -1509,40 +1474,7 @@ type ConsulUpstream struct {
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
-	MeshGateway *ConsulMeshGateway
-}
-
-func upstreamsEquals(a, b []ConsulUpstream) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, upA := range a {
-		for _, upB := range b {
-			if upA.Equals(&upB) {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
-}
-
-// Copy the stanza recursively. Returns nil if u is nil.
-func (u *ConsulUpstream) Copy() *ConsulUpstream {
-	if u == nil {
-		return nil
-	}
-
-	return &ConsulUpstream{
-		DestinationName:      u.DestinationName,
-		DestinationNamespace: u.DestinationNamespace,
-		LocalBindPort:        u.LocalBindPort,
-		Datacenter:           u.Datacenter,
-		LocalBindAddress:     u.LocalBindAddress,
-		MeshGateway:          u.MeshGateway.Copy(),
-	}
+	MeshGateway ConsulMeshGateway
 }
 
 // Equals returns true if the structs are recursively equal.
@@ -1550,23 +1482,11 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 	if u == nil || o == nil {
 		return u == o
 	}
+	return *u == *o
+}
 
-	switch {
-	case u.DestinationName != o.DestinationName:
-		return false
-	case u.DestinationNamespace != o.DestinationNamespace:
-		return false
-	case u.LocalBindPort != o.LocalBindPort:
-		return false
-	case u.Datacenter != o.Datacenter:
-		return false
-	case u.LocalBindAddress != o.LocalBindAddress:
-		return false
-	case !u.MeshGateway.Equals(o.MeshGateway):
-		return false
-	}
-
-	return true
+func upstreamsEquals(a, b []ConsulUpstream) bool {
+	return set.From(a).Equal(set.From(b))
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
@@ -1582,21 +1502,8 @@ type ConsulExposePath struct {
 	ListenerPort  string
 }
 
-func exposePathsEqual(pathsA, pathsB []ConsulExposePath) bool {
-	if len(pathsA) != len(pathsB) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, pathA := range pathsA {
-		for _, pathB := range pathsB {
-			if pathA == pathB {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
+func exposePathsEqual(a, b []ConsulExposePath) bool {
+	return helper.SliceSetEq(a, b)
 }
 
 // Copy the stanza. Returns nil if e is nil.
@@ -1790,7 +1697,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
@@ -1831,7 +1738,7 @@ func (p *ConsulGatewayProxy) Equals(o *ConsulGatewayProxy) bool {
 		return p == o
 	}
 
-	if !helper.CompareTimePtrs(p.ConnectTimeout, o.ConnectTimeout) {
+	if !pointer.Eq(p.ConnectTimeout, o.ConnectTimeout) {
 		return false
 	}
 
@@ -2061,21 +1968,8 @@ func (l *ConsulIngressListener) Validate() error {
 	return nil
 }
 
-func ingressServicesEqual(servicesA, servicesB []*ConsulIngressService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func ingressServicesEqual(a, b []*ConsulIngressService) bool {
+	return helper.ElementsEquals(a, b)
 }
 
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
@@ -2136,21 +2030,8 @@ func (e *ConsulIngressConfigEntry) Validate() error {
 	return nil
 }
 
-func ingressListenersEqual(listenersA, listenersB []*ConsulIngressListener) bool {
-	if len(listenersA) != len(listenersB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, listenerA := range listenersA {
-		for _, listenerB := range listenersB {
-			if listenerA.Equals(listenerB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func ingressListenersEqual(a, b []*ConsulIngressListener) bool {
+	return helper.ElementsEquals(a, b)
 }
 
 type ConsulLinkedService struct {
@@ -2225,21 +2106,8 @@ func (s *ConsulLinkedService) Validate() error {
 	return nil
 }
 
-func linkedServicesEqual(servicesA, servicesB []*ConsulLinkedService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func linkedServicesEqual(a, b []*ConsulLinkedService) bool {
+	return helper.ElementsEquals(a, b)
 }
 
 type ConsulTerminatingConfigEntry struct {

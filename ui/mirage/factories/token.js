@@ -28,7 +28,7 @@ export default Factory.extend({
 
     token.update({ policyIds });
 
-    // Create a special policy with secure variables rules in place
+    // Create a special policy with variables rules in place
     if (token.id === '53cur3-v4r14bl35') {
       const variableMakerPolicy = {
         id: 'Variable Maker',
@@ -37,8 +37,8 @@ export default Factory.extend({
 namespace "*" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
-  secure_variables {
-    # Base access is to all abilities for all secure variables
+  variables {
+    # Base access is to all abilities for all variables
     path "*" {
       capabilities = ["list", "read", "destroy", "create"]
     }
@@ -55,7 +55,7 @@ node {
             {
               Name: '*',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['write', 'read', 'destroy', 'list'],
@@ -78,8 +78,8 @@ node {
 namespace "*" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
-  secure_variables {
-    # Base access is to all abilities for all secure variables
+  variables {
+    # Base access is to all abilities for all variables
     path "*" {
       capabilities = ["list"]
     }
@@ -89,8 +89,8 @@ namespace "*" {
 namespace "namespace-1" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
-  secure_variables {
-    # Base access is to all abilities for all secure variables
+  variables {
+    # Base access is to all abilities for all variables
     path "*" {
       capabilities = ["list", "read", "destroy", "create"]
     }
@@ -100,8 +100,8 @@ namespace "namespace-1" {
 namespace "namespace-2" {
   policy = "read"
   capabilities = ["list-jobs", "alloc-exec", "read-logs"]
-  secure_variables {
-    # Base access is to all abilities for all secure variables
+  variables {
+    # Base access is to all abilities for all variables
     path "blue/*" {
       capabilities = ["list", "read", "destroy", "create"]
     }
@@ -121,7 +121,7 @@ node {
             {
               Name: '*',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list'],
@@ -133,7 +133,7 @@ node {
             {
               Name: 'namespace-1',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list', 'read', 'destroy', 'create'],
@@ -145,7 +145,7 @@ node {
             {
               Name: 'namespace-2',
               Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
-              SecureVariables: {
+              Variables: {
                 Paths: [
                   {
                     Capabilities: ['list', 'read', 'destroy', 'create'],

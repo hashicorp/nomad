@@ -62,7 +62,6 @@ func TestMeta_FlagSet(t *testing.T) {
 }
 
 func TestMeta_Colorize(t *testing.T) {
-	ci.Parallel(t)
 
 	type testCaseSetupFn func(*testing.T, *Meta)
 
@@ -92,7 +91,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "disable colors via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLINoColor, "1")
+				t.Setenv(EnvNomadCLINoColor, "1")
 				m.SetupUi([]string{})
 			},
 			ExpectColor: false,
@@ -107,7 +106,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "force colors via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLIForceColor, "1")
+				t.Setenv(EnvNomadCLIForceColor, "1")
 				m.SetupUi([]string{})
 			},
 			ExpectColor: true,
@@ -122,7 +121,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "no color take predecence over force color via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLINoColor, "1")
+				t.Setenv(EnvNomadCLINoColor, "1")
 				m.SetupUi([]string{"-force-color"})
 			},
 			ExpectColor: false,
@@ -141,8 +140,8 @@ func TestMeta_Colorize(t *testing.T) {
 			os.Stdout = tty
 
 			// Make sure color related environment variables are clean.
-			setEnv(t, EnvNomadCLIForceColor, "")
-			setEnv(t, EnvNomadCLINoColor, "")
+			t.Setenv(EnvNomadCLIForceColor, "")
+			t.Setenv(EnvNomadCLINoColor, "")
 
 			// Run test case.
 			m := &Meta{}

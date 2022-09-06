@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 )
 
 func TestStatsFetcher(t *testing.T) {
@@ -47,13 +48,14 @@ func TestStatsFetcher(t *testing.T) {
 	func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		stats := s1.statsFetcher.Fetch(ctx, s1.Members())
+
+		stats := s1.statsFetcher.Fetch(ctx, s1.autopilotServers())
 		if len(stats) != 3 {
 			t.Fatalf("bad: %#v", stats)
 		}
 		for id, stat := range stats {
 			switch id {
-			case s1.config.NodeID, s2.config.NodeID, s3.config.NodeID:
+			case raft.ServerID(s1.config.NodeID), raft.ServerID(s2.config.NodeID), raft.ServerID(s3.config.NodeID):
 				// OK
 			default:
 				t.Fatalf("bad: %s", id)
@@ -68,20 +70,20 @@ func TestStatsFetcher(t *testing.T) {
 	// Fake an in-flight request to server 3 and make sure we don't fetch
 	// from it.
 	func() {
-		s1.statsFetcher.inflight[string(s3.config.NodeID)] = struct{}{}
-		defer delete(s1.statsFetcher.inflight, string(s3.config.NodeID))
+		s1.statsFetcher.inflight[raft.ServerID(s3.config.NodeID)] = struct{}{}
+		defer delete(s1.statsFetcher.inflight, raft.ServerID(s3.config.NodeID))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		stats := s1.statsFetcher.Fetch(ctx, s1.Members())
+		stats := s1.statsFetcher.Fetch(ctx, s1.autopilotServers())
 		if len(stats) != 2 {
 			t.Fatalf("bad: %#v", stats)
 		}
 		for id, stat := range stats {
 			switch id {
-			case s1.config.NodeID, s2.config.NodeID:
+			case raft.ServerID(s1.config.NodeID), raft.ServerID(s2.config.NodeID):
 				// OK
-			case s3.config.NodeID:
+			case raft.ServerID(s3.config.NodeID):
 				t.Fatalf("bad")
 			default:
 				t.Fatalf("bad: %s", id)

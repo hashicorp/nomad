@@ -1,4 +1,4 @@
-{{page-title "Secure Variables: " this.absolutePath}}
+{{page-title "Variables: " this.absolutePath}}
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
@@ -21,7 +21,7 @@
               @query={{hash path=(concat this.absolutePath "/")}}
               class="button is-primary"
             >
-              Create Secure Variable
+              Create Variable
             </LinkTo>
           {{else}}
             <button
@@ -30,7 +30,7 @@
               disabled
               type="button"
             >
-              Create Secure Variable
+              Create Variable
             </button>
           {{/if}}
         </div>
@@ -50,7 +50,7 @@
               Path /{{this.absolutePath}} contains no variables
             </h3>
             <p class="empty-message-body">
-              To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
+              To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.absolutePath "/")}}>create a new variable here</LinkTo>, or <LinkTo @route="variables">go back to the Variables root directory</LinkTo>.
             </p>
           {{else}}
             <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -3488,7 +3488,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		// We got new health information from the client
 		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
 			// Updated deployment health and timestamp
-			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Healthy = pointer.Of(*alloc.DeploymentStatus.Healthy)
 			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
 			copyAlloc.DeploymentStatus.ModifyIndex = index
 		}
@@ -4564,7 +4564,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 			copy.ModifyIndex = index
@@ -5570,6 +5570,20 @@ func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (me
 	return iter, nil
 }
 
+// ACLPolicyByJob is used to lookup policies that have been attached to a
+// specific job
+func (s *StateStore) ACLPolicyByJob(ws memdb.WatchSet, ns, jobID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("acl_policy", "job_prefix", ns, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // ACLPolicies returns an iterator over all the acl policies
 func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -5660,10 +5674,20 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 	}
 	ws.Add(watchCh)
 
-	if existing != nil {
-		return existing.(*structs.ACLToken), nil
+	// If the existing token is nil, this indicates it does not exist in state.
+	if existing == nil {
+		return nil, nil
 	}
-	return nil, nil
+
+	// Assert the token type which allows us to perform additional work on the
+	// token that is needed before returning the call.
+	token := existing.(*structs.ACLToken)
+
+	// Handle potential staleness of ACL role links.
+	if token, err = s.fixTokenRoleLinks(txn, token); err != nil {
+		return nil, err
+	}
+	return token, nil
 }
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
@@ -5680,10 +5704,20 @@ func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*st
 	}
 	ws.Add(watchCh)
 
-	if existing != nil {
-		return existing.(*structs.ACLToken), nil
+	// If the existing token is nil, this indicates it does not exist in state.
+	if existing == nil {
+		return nil, nil
 	}
-	return nil, nil
+
+	// Assert the token type which allows us to perform additional work on the
+	// token that is needed before returning the call.
+	token := existing.(*structs.ACLToken)
+
+	// Handle potential staleness of ACL role links.
+	if token, err = s.fixTokenRoleLinks(txn, token); err != nil {
+		return nil, err
+	}
+	return token, nil
 }
 
 // ACLTokenByAccessorIDPrefix is used to lookup tokens by prefix
@@ -6352,15 +6386,15 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 				"All CSI volumes in namespace must be deleted before it can be deleted", name, vol.ID)
 		}
 
-		varIter, err := s.getSecureVariablesByNamespaceImpl(txn, nil, name)
+		varIter, err := s.getVariablesByNamespaceImpl(txn, nil, name)
 		if err != nil {
 			return err
 		}
 		if varIter.Next() != nil {
 			// unlike job/volume, don't show the path here because the user may
-			// not have List permissions on the secure vars in this namespace
-			return fmt.Errorf("namespace %q contains at least one secure variable. "+
-				"All secure variables in namespace must be deleted before it can be deleted", name)
+			// not have List permissions on the vars in this namespace
+			return fmt.Errorf("namespace %q contains at least one variable. "+
+				"All variables in namespace must be deleted before it can be deleted", name)
 		}
 
 		// Delete the namespace

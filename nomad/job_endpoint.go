@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -41,7 +42,7 @@ var (
 	// allocations to be force rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowForceRescheduleTransition = &structs.DesiredTransition{
-		ForceReschedule: helper.BoolToPtr(true),
+		ForceReschedule: pointer.Of(true),
 	}
 )
 
@@ -103,12 +104,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
-	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
+	nomadACLToken, err := j.srv.ResolveSecretToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
-	if tokenID != nil {
-		args.Job.NomadTokenID = tokenID.AccessorID
+	if nomadACLToken != nil {
+		args.Job.NomadTokenID = nomadACLToken.AccessorID
 	}
 
 	// Set the warning message
@@ -272,7 +273,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())
+	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
+	if err != nil {
+		return err
+	}
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(), nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
@@ -1018,6 +1023,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
+	// Since job is going to be mutated we must copy it since state store methods
+	// return a shared pointer.
+	job = job.Copy()
+
 	// Find target group in job TaskGroups
 	groupName := args.Target[structs.ScalingTargetGroup]
 	var group *structs.TaskGroup
@@ -1389,7 +1398,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
+			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
@@ -1622,20 +1631,28 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		}
 	}
 
+	// Acquire a snapshot of the state
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	// Enforce Sentinel policies
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	nomadACLToken, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+	if err != nil && !strings.Contains(err.Error(), "missing secret id") {
+		return err
+	}
+	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
+	if err != nil {
+		return err
+	}
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
 	if policyWarnings != nil {
 		warnings = append(warnings, policyWarnings)
 		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
-	}
-
-	// Acquire a snapshot of the state
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
 	}
 
 	// Interpolate the job for this region

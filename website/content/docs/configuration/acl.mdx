@@ -16,8 +16,8 @@ Nomad with Access Control guide][secure-guide].
 
 ```hcl
 acl {
-  enabled = true
-  token_ttl = "30s"
+  enabled    = true
+  token_ttl  = "30s"
   policy_ttl = "60s"
 }
 ```
@@ -45,6 +45,14 @@ acl {
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
   to use for replicating policies and tokens. This is used by servers in non-authoritative
   region to mirror the policies and tokens into the local region from [authoritative_region][authoritative-region].
+
+- `token_min_expiration_ttl` `(string: "1m")` - Specifies the lowest acceptable
+  TTL value for an ACL token when setting expiration. This is used by the Nomad
+  servers to validate ACL tokens.
+
+- `token_max_expiration_ttl` `(string: "24h")` - Specifies the highest acceptable
+  TTL value for an ACL token when setting expiration. This is used by the Nomad
+  servers to validate ACL tokens.
 
 [secure-guide]: https://learn.hashicorp.com/collections/nomad/access-control
 [authoritative-region]: /docs/configuration/server#authoritative_region

@@ -5,28 +5,32 @@ import (
 	"sync"
 
 	memdb "github.com/hashicorp/go-memdb"
-
+	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
 	tableIndex = "index"
 
-	TableNamespaces            = "namespaces"
-	TableServiceRegistrations  = "service_registrations"
-	TableSecureVariables       = "secure_variables"
-	TableSecureVariablesQuotas = "secure_variables_quota"
-	TableRootKeyMeta           = "secure_variables_root_key_meta"
+	TableNamespaces           = "namespaces"
+	TableServiceRegistrations = "service_registrations"
+	TableVariables            = "variables"
+	TableVariablesQuotas      = "variables_quota"
+	TableRootKeyMeta          = "root_key_meta"
+	TableACLRoles             = "acl_roles"
 )
 
 const (
-	indexID          = "id"
-	indexJob         = "job"
-	indexNodeID      = "node_id"
-	indexAllocID     = "alloc_id"
-	indexServiceName = "service_name"
-	indexKeyID       = "key_id"
-	indexPath        = "path"
+	indexID            = "id"
+	indexJob           = "job"
+	indexNodeID        = "node_id"
+	indexAllocID       = "alloc_id"
+	indexServiceName   = "service_name"
+	indexExpiresGlobal = "expires-global"
+	indexExpiresLocal  = "expires-local"
+	indexKeyID         = "key_id"
+	indexPath          = "path"
+	indexName          = "name"
 )
 
 var (
@@ -75,9 +79,10 @@ func init() {
 		scalingEventTableSchema,
 		namespaceTableSchema,
 		serviceRegistrationsTableSchema,
-		secureVariablesTableSchema,
-		secureVariablesQuotasTableSchema,
-		secureVariablesRootKeyMetaSchema,
+		variablesTableSchema,
+		variablesQuotasTableSchema,
+		variablesRootKeyMetaSchema,
+		aclRolesTableSchema,
 	}...)
 }
 
@@ -775,8 +780,78 @@ func aclPolicyTableSchema() *memdb.TableSchema {
 					Field: "Name",
 				},
 			},
+			"job": {
+				Name:         "job",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer:      &ACLPolicyJobACLFieldIndex{},
+			},
 		},
 	}
+}
+
+// ACLPolicyJobACLFieldIndex is used to extract the policy's JobACL field and
+// build an index on it.
+type ACLPolicyJobACLFieldIndex struct{}
+
+// FromObject is used to extract an index value from an
+// object or to indicate that the index value is missing.
+func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	policy, ok := obj.(*structs.ACLPolicy)
+	if !ok {
+		return false, nil, fmt.Errorf("object %#v is not an ACLPolicy", obj)
+	}
+
+	if policy.JobACL == nil {
+		return false, nil, nil
+	}
+
+	ns := policy.JobACL.Namespace
+	if ns == "" {
+		return false, nil, nil
+	}
+	jobID := policy.JobACL.JobID
+	if jobID == "" {
+		return false, nil, fmt.Errorf(
+			"object %#v is not a valid ACLPolicy: JobACL.JobID without Namespace", obj)
+	}
+
+	val := ns + "\x00" + jobID + "\x00"
+	return true, []byte(val), nil
+}
+
+// FromArgs is used to build an exact index lookup based on arguments
+func (a *ACLPolicyJobACLFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("must provide two arguments")
+	}
+	arg0, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	arg1, ok := args[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+
+	// Add the null character as a terminator
+	arg0 += "\x00" + arg1 + "\x00"
+	return []byte(arg0), nil
+}
+
+// PrefixFromArgs returns a prefix that should be used for scanning based on the arguments
+func (a *ACLPolicyJobACLFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := a.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
 }
 
 // aclTokenTableSchema returns the MemDB schema for the tokens table.
@@ -824,8 +899,58 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "Global",
 				},
 			},
+			indexExpiresGlobal: {
+				Name:         indexExpiresGlobal,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: indexer.SingleIndexer{
+					ReadIndex:  indexer.ReadIndex(indexer.IndexFromTimeQuery),
+					WriteIndex: indexer.WriteIndex(indexExpiresGlobalFromACLToken),
+				},
+			},
+			indexExpiresLocal: {
+				Name:         indexExpiresLocal,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: indexer.SingleIndexer{
+					ReadIndex:  indexer.ReadIndex(indexer.IndexFromTimeQuery),
+					WriteIndex: indexer.WriteIndex(indexExpiresLocalFromACLToken),
+				},
+			},
 		},
 	}
+}
+
+func indexExpiresLocalFromACLToken(raw interface{}) ([]byte, error) {
+	return indexExpiresFromACLToken(raw, false)
+}
+
+func indexExpiresGlobalFromACLToken(raw interface{}) ([]byte, error) {
+	return indexExpiresFromACLToken(raw, true)
+}
+
+// indexExpiresFromACLToken implements the indexer.WriteIndex interface and
+// allows us to use an ACL tokens ExpirationTime as an index, if it is a
+// non-default value. This allows for efficient lookups when trying to deal
+// with removal of expired tokens from state.
+func indexExpiresFromACLToken(raw interface{}, global bool) ([]byte, error) {
+	p, ok := raw.(*structs.ACLToken)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T for structs.ACLToken index", raw)
+	}
+	if p.Global != global {
+		return nil, indexer.ErrMissingValueForIndex
+	}
+	if !p.HasExpirationTime() {
+		return nil, indexer.ErrMissingValueForIndex
+	}
+	if p.ExpirationTime.Unix() < 0 {
+		return nil, fmt.Errorf("token expiration time cannot be before the unix epoch: %s", p.ExpirationTime)
+	}
+
+	var b indexer.IndexBuilder
+	b.Time(*p.ExpirationTime)
+	return b.Bytes(), nil
 }
 
 // oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
@@ -1211,11 +1336,10 @@ func serviceRegistrationsTableSchema() *memdb.TableSchema {
 	}
 }
 
-// secureVariablesTableSchema returns the MemDB schema for Nomad
-// secure variables.
-func secureVariablesTableSchema() *memdb.TableSchema {
+// variablesTableSchema returns the MemDB schema for Nomad variables.
+func variablesTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableSecureVariables,
+		Name: TableVariables,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,
@@ -1235,7 +1359,7 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 			indexKeyID: {
 				Name:         indexKeyID,
 				AllowMissing: false,
-				Indexer:      &secureVariableKeyIDFieldIndexer{},
+				Indexer:      &variableKeyIDFieldIndexer{},
 			},
 			indexPath: {
 				Name:         indexPath,
@@ -1249,11 +1373,11 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 	}
 }
 
-type secureVariableKeyIDFieldIndexer struct{}
+type variableKeyIDFieldIndexer struct{}
 
 // FromArgs implements go-memdb/Indexer and is used to build an exact
 // index lookup based on arguments
-func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -1268,7 +1392,7 @@ func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte,
 
 // PrefixFromArgs implements go-memdb/PrefixIndexer and returns a
 // prefix that should be used for scanning based on the arguments
-func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	val, err := s.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -1285,10 +1409,10 @@ func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([
 // FromObject implements go-memdb/SingleIndexer and is used to extract
 // an index value from an object or to indicate that the index value
 // is missing.
-func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
-	variable, ok := obj.(*structs.SecureVariableEncrypted)
+func (s *variableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	variable, ok := obj.(*structs.VariableEncrypted)
 	if !ok {
-		return false, nil, fmt.Errorf("object %#v is not a SecureVariable", obj)
+		return false, nil, fmt.Errorf("object %#v is not a Variable", obj)
 	}
 
 	keyID := variable.KeyID
@@ -1301,11 +1425,11 @@ func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []b
 	return true, []byte(keyID), nil
 }
 
-// secureVariablesQuotasTableSchema returns the MemDB schema for Nomad
-// secure variables quotas tracking
-func secureVariablesQuotasTableSchema() *memdb.TableSchema {
+// variablesQuotasTableSchema returns the MemDB schema for Nomad variables
+// quotas tracking
+func variablesQuotasTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableSecureVariablesQuotas,
+		Name: TableVariablesQuotas,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,
@@ -1320,9 +1444,8 @@ func secureVariablesQuotasTableSchema() *memdb.TableSchema {
 	}
 }
 
-// secureVariablesRootKeyMetaSchema returns the MemDB schema for Nomad
-// secure variables root keys
-func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
+// variablesRootKeyMetaSchema returns the MemDB schema for Nomad root keys
+func variablesRootKeyMetaSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableRootKeyMeta,
 		Indexes: map[string]*memdb.IndexSchema{
@@ -1333,6 +1456,30 @@ func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "KeyID",
 					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+func aclRolesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLRoles,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
 				},
 			},
 		},

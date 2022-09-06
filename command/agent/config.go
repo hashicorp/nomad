@@ -22,18 +22,20 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
+	"golang.org/x/exp/slices"
 )
 
 // Config is the configuration for the Nomad agent.
 //
 // time.Duration values have two parts:
-// - a string field tagged with an hcl:"foo" and json:"-"
-// - a time.Duration field in the same struct and a call to duration
-//   in config_parse.go ParseConfigFile
+//   - a string field tagged with an hcl:"foo" and json:"-"
+//   - a time.Duration field in the same struct and a call to duration
+//     in config_parse.go ParseConfigFile
 //
 // All config structs should have an ExtraKeysHCL field to check for
 // unexpected keys
@@ -332,6 +334,28 @@ type ClientConfig struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+func (c *ClientConfig) Copy() *ClientConfig {
+	if c == nil {
+		return c
+	}
+
+	nc := *c
+	nc.Servers = slices.Clone(c.Servers)
+	nc.Options = helper.CopyMap(c.Options)
+	nc.Meta = helper.CopyMap(c.Meta)
+	nc.ChrootEnv = helper.CopyMap(c.ChrootEnv)
+	nc.Reserved = c.Reserved.Copy()
+	nc.NoHostUUID = pointer.Copy(c.NoHostUUID)
+	nc.TemplateConfig = c.TemplateConfig.Copy()
+	nc.ServerJoin = c.ServerJoin.Copy()
+	nc.HostVolumes = helper.CopySlice(c.HostVolumes)
+	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
+	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
+	nc.Artifact = c.Artifact.Copy()
+	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
+	return &nc
+}
+
 // ACLConfig is configuration specific to the ACL system
 type ACLConfig struct {
 	// Enabled controls if we are enforce and manage ACLs
@@ -356,8 +380,30 @@ type ACLConfig struct {
 	// within the authoritative region.
 	ReplicationToken string `hcl:"replication_token"`
 
+	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
+	// ACL token expiration. This is used by the Nomad servers to validate ACL
+	// tokens with an expiration value set upon creation.
+	TokenMinExpirationTTL    time.Duration
+	TokenMinExpirationTTLHCL string `hcl:"token_min_expiration_ttl" json:"-"`
+
+	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
+	// for ACL token expiration. This is used by the Nomad servers to validate
+	// ACL tokens with an expiration value set upon creation.
+	TokenMaxExpirationTTL    time.Duration
+	TokenMaxExpirationTTLHCL string `hcl:"token_max_expiration_ttl" json:"-"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (a *ACLConfig) Copy() *ACLConfig {
+	if a == nil {
+		return nil
+	}
+
+	na := *a
+	na.ExtraKeysHCL = slices.Clone(a.ExtraKeysHCL)
+	return &na
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -418,7 +464,7 @@ type ServerConfig struct {
 	EvalGCThreshold string `hcl:"eval_gc_threshold"`
 
 	// DeploymentGCThreshold controls how "old" a deployment must be to be
-	// collected by GC.  Age is not the only requirement for a deployment to be
+	// collected by GC. Age is not the only requirement for a deployment to be
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
 
@@ -431,6 +477,10 @@ type ServerConfig struct {
 	// collected by GC. Age is not the only requirement for a plugin to be
 	// GCed but the threshold can be used to filter by age.
 	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
+
+	// ACLTokenGCThreshold controls how "old" an expired ACL token must be to
+	// be collected by GC.
+	ACLTokenGCThreshold string `hcl:"acl_token_gc_threshold"`
 
 	// RootKeyGCInterval is how often we dispatch a job to GC
 	// encryption key metadata
@@ -555,6 +605,29 @@ type ServerConfig struct {
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
 }
 
+func (s *ServerConfig) Copy() *ServerConfig {
+	if s == nil {
+		return nil
+	}
+
+	ns := *s
+	ns.RaftMultiplier = pointer.Copy(s.RaftMultiplier)
+	ns.NumSchedulers = pointer.Copy(s.NumSchedulers)
+	ns.EnabledSchedulers = slices.Clone(s.EnabledSchedulers)
+	ns.StartJoin = slices.Clone(s.StartJoin)
+	ns.RetryJoin = slices.Clone(s.RetryJoin)
+	ns.ServerJoin = s.ServerJoin.Copy()
+	ns.DefaultSchedulerConfig = s.DefaultSchedulerConfig.Copy()
+	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
+	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
+	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
+	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
+	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
+	ns.Search = s.Search.Copy()
+	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
+	return &ns
+}
+
 // RaftBoltConfig is used in servers to configure parameters of the boltdb
 // used for raft consensus.
 type RaftBoltConfig struct {
@@ -564,6 +637,15 @@ type RaftBoltConfig struct {
 	//
 	// Default: false.
 	NoFreelistSync bool `hcl:"no_freelist_sync"`
+}
+
+func (r *RaftBoltConfig) Copy() *RaftBoltConfig {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	return &nr
 }
 
 // PlanRejectionTracker is used in servers to configure the plan rejection
@@ -583,6 +665,17 @@ type PlanRejectionTracker struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (p *PlanRejectionTracker) Copy() *PlanRejectionTracker {
+	if p == nil {
+		return nil
+	}
+
+	np := *p
+	np.Enabled = pointer.Copy(p.Enabled)
+	np.ExtraKeysHCL = slices.Clone(p.ExtraKeysHCL)
+	return &np
 }
 
 func (p *PlanRejectionTracker) Merge(b *PlanRejectionTracker) *PlanRejectionTracker {
@@ -649,6 +742,15 @@ type Search struct {
 	MinTermLength int `hcl:"min_term_length"`
 }
 
+func (s *Search) Copy() *Search {
+	if s == nil {
+		return nil
+	}
+
+	ns := *s
+	return &ns
+}
+
 // ServerJoin is used in both clients and servers to bootstrap connections to
 // servers
 type ServerJoin struct {
@@ -674,6 +776,18 @@ type ServerJoin struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (s *ServerJoin) Copy() *ServerJoin {
+	if s == nil {
+		return nil
+	}
+
+	ns := *s
+	ns.StartJoin = slices.Clone(s.StartJoin)
+	ns.RetryJoin = slices.Clone(s.RetryJoin)
+	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
+	return &ns
 }
 
 func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
@@ -810,6 +924,19 @@ type Telemetry struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+func (t *Telemetry) Copy() *Telemetry {
+	if t == nil {
+		return nil
+	}
+
+	nt := *t
+	nt.DataDogTags = slices.Clone(t.DataDogTags)
+	nt.PrefixFilter = slices.Clone(t.PrefixFilter)
+	nt.FilterDefault = pointer.Copy(t.FilterDefault)
+	nt.ExtraKeysHCL = slices.Clone(t.ExtraKeysHCL)
+	return &nt
+}
+
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
 func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
 	for _, rule := range a.PrefixFilter {
@@ -838,6 +965,16 @@ type Ports struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+func (p *Ports) Copy() *Ports {
+	if p == nil {
+		return nil
+	}
+
+	np := *p
+	np.ExtraKeysHCL = slices.Clone(p.ExtraKeysHCL)
+	return &np
+}
+
 // Addresses encapsulates all of the addresses we bind to for various
 // network services. Everything is optional and defaults to BindAddr.
 type Addresses struct {
@@ -848,6 +985,16 @@ type Addresses struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+func (a *Addresses) Copy() *Addresses {
+	if a == nil {
+		return nil
+	}
+
+	na := *a
+	na.ExtraKeysHCL = slices.Clone(a.ExtraKeysHCL)
+	return &na
+}
+
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
@@ -855,6 +1002,16 @@ type NormalizedAddrs struct {
 	HTTP []string
 	RPC  string
 	Serf string
+}
+
+func (n *NormalizedAddrs) Copy() *NormalizedAddrs {
+	if n == nil {
+		return nil
+	}
+
+	nn := *n
+	nn.HTTP = slices.Clone(n.HTTP)
+	return &nn
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
@@ -868,6 +1025,16 @@ type AdvertiseAddrs struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+func (a *AdvertiseAddrs) Copy() *AdvertiseAddrs {
+	if a == nil {
+		return nil
+	}
+
+	na := *a
+	na.ExtraKeysHCL = slices.Clone(a.ExtraKeysHCL)
+	return &na
+}
+
 type Resources struct {
 	CPU           int    `hcl:"cpu"`
 	MemoryMB      int    `hcl:"memory"`
@@ -876,6 +1043,16 @@ type Resources struct {
 	Cores         string `hcl:"cores"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (r *Resources) Copy() *Resources {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	nr.ExtraKeysHCL = slices.Clone(r.ExtraKeysHCL)
+	return &nr
 }
 
 // devModeConfig holds the config for the -dev and -dev-connect flags
@@ -974,7 +1151,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
+	conf.Consul.AutoAdvertise = pointer.Of(true)
 	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
@@ -990,7 +1167,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	}
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
-	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
+	conf.Client.NomadServiceDiscovery = pointer.Of(true)
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -998,7 +1175,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	return conf
 }
 
-// DefaultConfig is a the baseline configuration for Nomad
+// DefaultConfig is the baseline configuration for Nomad.
 func DefaultConfig() *Config {
 	return &Config{
 		LogLevel:   "INFO",
@@ -1028,7 +1205,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
-			NoHostUUID:            helper.BoolToPtr(true),
+			NoHostUUID:            pointer.Of(true),
 			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1042,17 +1219,17 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
-			NomadServiceDiscovery:          helper.BoolToPtr(true),
+			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
-			EnableEventBroker: helper.BoolToPtr(true),
-			EventBufferSize:   helper.IntToPtr(100),
+			EnableEventBroker: pointer.Of(true),
+			EventBufferSize:   pointer.Of(100),
 			RaftProtocol:      3,
 			StartJoin:         []string{},
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       helper.BoolToPtr(false),
+				Enabled:       pointer.Of(false),
 				NodeThreshold: 100,
 				NodeWindow:    5 * time.Minute,
 			},
@@ -1083,7 +1260,7 @@ func DefaultConfig() *Config {
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
 		Audit:              &config.AuditConfig{},
-		DisableUpdateCheck: helper.BoolToPtr(false),
+		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
 	}
 }
@@ -1169,7 +1346,7 @@ func (c *Config) Merge(b *Config) *Config {
 		result.SyslogFacility = b.SyslogFacility
 	}
 	if b.DisableUpdateCheck != nil {
-		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
+		result.DisableUpdateCheck = pointer.Of(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
@@ -1308,6 +1485,42 @@ func (c *Config) Merge(b *Config) *Config {
 	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
+}
+
+// Copy returns a deep copy safe for mutation.
+func (c *Config) Copy() *Config {
+	if c == nil {
+		return nil
+	}
+	nc := *c
+
+	nc.Ports = c.Ports.Copy()
+	nc.Addresses = c.Addresses.Copy()
+	nc.normalizedAddrs = c.normalizedAddrs.Copy()
+	nc.AdvertiseAddrs = c.AdvertiseAddrs.Copy()
+	nc.Client = c.Client.Copy()
+	nc.Server = c.Server.Copy()
+	nc.ACL = c.ACL.Copy()
+	nc.Telemetry = c.Telemetry.Copy()
+	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
+	nc.Consul = c.Consul.Copy()
+	nc.Vault = c.Vault.Copy()
+	nc.UI = c.UI.Copy()
+
+	nc.NomadConfig = c.NomadConfig.Copy()
+	nc.ClientConfig = c.ClientConfig.Copy()
+
+	nc.Version = c.Version.Copy()
+	nc.Files = slices.Clone(c.Files)
+	nc.TLSConfig = c.TLSConfig.Copy()
+	nc.HTTPAPIResponseHeaders = helper.CopyMap(c.HTTPAPIResponseHeaders)
+	nc.Sentinel = c.Sentinel.Copy()
+	nc.Autopilot = c.Autopilot.Copy()
+	nc.Plugins = helper.CopySlice(c.Plugins)
+	nc.Limits = c.Limits.Copy()
+	nc.Audit = c.Audit.Copy()
+	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
+	return &nc
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
@@ -1541,6 +1754,18 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
+	if b.TokenMinExpirationTTL != 0 {
+		result.TokenMinExpirationTTL = b.TokenMinExpirationTTL
+	}
+	if b.TokenMinExpirationTTLHCL != "" {
+		result.TokenMinExpirationTTLHCL = b.TokenMinExpirationTTLHCL
+	}
+	if b.TokenMaxExpirationTTL != 0 {
+		result.TokenMaxExpirationTTL = b.TokenMaxExpirationTTL
+	}
+	if b.TokenMaxExpirationTTLHCL != "" {
+		result.TokenMaxExpirationTTLHCL = b.TokenMaxExpirationTTLHCL
+	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
 	}
@@ -1574,7 +1799,7 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.RaftMultiplier = &c
 	}
 	if b.NumSchedulers != nil {
-		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
+		result.NumSchedulers = pointer.Of(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
@@ -1596,6 +1821,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.CSIPluginGCThreshold != "" {
 		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
+	}
+	if b.ACLTokenGCThreshold != "" {
+		result.ACLTokenGCThreshold = b.ACLTokenGCThreshold
 	}
 	if b.RootKeyGCInterval != "" {
 		result.RootKeyGCInterval = b.RootKeyGCInterval

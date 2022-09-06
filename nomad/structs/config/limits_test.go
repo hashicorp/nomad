@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,9 +32,9 @@ func TestLimits_Copy(t *testing.T) {
 
 	// Assert changes to copy are not propagated to the original
 	c.HTTPSHandshakeTimeout = "1s"
-	c.HTTPMaxConnsPerClient = helper.IntToPtr(50)
+	c.HTTPMaxConnsPerClient = pointer.Of(50)
 	c.RPCHandshakeTimeout = "1s"
-	c.RPCMaxConnsPerClient = helper.IntToPtr(50)
+	c.RPCMaxConnsPerClient = pointer.Of(50)
 
 	require.NotEqual(t, c.HTTPSHandshakeTimeout, o.HTTPSHandshakeTimeout)
 
@@ -74,7 +74,7 @@ func TestLimits_Merge(t *testing.T) {
 
 	// Use short struct initialization style so it fails to compile if
 	// fields are added
-	expected := Limits{"10s", helper.IntToPtr(100), "5s", helper.IntToPtr(100)}
+	expected := Limits{"10s", pointer.Of(100), "5s", pointer.Of(100)}
 	require.Equal(t, expected, m2)
 
 	// Mergin in 0 values should not change anything

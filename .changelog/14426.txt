@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: ignore `-hcl2-strict` when -hcl1 is set.
+```
+
+```release-note:bug
+cli: return exit code `255` when `nomad job plan` fails job validation.
+```

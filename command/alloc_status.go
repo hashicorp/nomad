@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
@@ -199,9 +199,16 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output(output)
 
+		// add allocation network addresses
 		if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
 			c.Ui.Output("")
 			c.Ui.Output(formatAllocNetworkInfo(alloc))
+		}
+
+		// add allocation nomad service discovery checks
+		if checkOutput := formatAllocNomadServiceChecks(alloc.ID, client); checkOutput != "" {
+			c.Ui.Output("")
+			c.Ui.Output(checkOutput)
 		}
 	}
 
@@ -355,7 +362,28 @@ func formatAllocNetworkInfo(alloc *api.Allocation) string {
 		mode = fmt.Sprintf(" (mode = %q)", nw.Mode)
 	}
 
-	return fmt.Sprintf("Allocation Addresses%s\n%s", mode, formatList(addrs))
+	return fmt.Sprintf("Allocation Addresses%s:\n%s", mode, formatList(addrs))
+}
+
+func formatAllocNomadServiceChecks(allocID string, client *api.Client) string {
+	statuses, err := client.Allocations().Checks(allocID, nil)
+	if err != nil {
+		return ""
+	} else if len(statuses) == 0 {
+		return ""
+	}
+	results := []string{"Service|Task|Name|Mode|Status"}
+	for _, status := range statuses {
+		task := "(group)"
+		if status.Task != "" {
+			task = status.Task
+		}
+		// check | group | mode | status
+		s := fmt.Sprintf("%s|%s|%s|%s|%s", status.Service, task, status.Check, status.Mode, status.Status)
+		results = append(results, s)
+	}
+	sort.Strings(results[1:])
+	return fmt.Sprintf("Nomad Service Checks:\n%s", formatList(results))
 }
 
 // futureEvalTimePretty returns when the eval is eligible to reschedule
@@ -553,7 +581,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		return
 	}
 
-	c.Ui.Output("Task Resources")
+	c.Ui.Output("Task Resources:")
 	var addr []string
 	for _, nw := range resource.Networks {
 		ports := append(nw.DynamicPorts, nw.ReservedPorts...) //nolint:gocritic

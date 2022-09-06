@@ -16,7 +16,7 @@ var (
 	}
 )
 
-//DataFormatter is a transformer of the data.
+// DataFormatter is a transformer of the data.
 type DataFormatter interface {
 	// TransformData should return transformed string data.
 	TransformData(interface{}) (string, error)

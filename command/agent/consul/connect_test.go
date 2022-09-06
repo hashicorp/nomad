@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -501,7 +501,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway(&structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					ConnectTimeout:                  pointer.Of(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: false,
 					EnvoyGatewayBindAddresses:       nil,
 					EnvoyGatewayNoDefaultBind:       false,
@@ -531,7 +531,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway(&structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					ConnectTimeout:                  pointer.Of(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: true,
 					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 						"service1": {
@@ -568,28 +568,28 @@ func TestConnect_newConnectGateway(t *testing.T) {
 func Test_connectMeshGateway(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("nil", func(t *testing.T) {
-		result := connectMeshGateway(nil)
+	t.Run("empty", func(t *testing.T) {
+		result := connectMeshGateway(structs.ConsulMeshGateway{})
 		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeDefault}, result)
 	})
 
 	t.Run("local", func(t *testing.T) {
-		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "local"})
+		result := connectMeshGateway(structs.ConsulMeshGateway{Mode: "local"})
 		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeLocal}, result)
 	})
 
 	t.Run("remote", func(t *testing.T) {
-		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "remote"})
+		result := connectMeshGateway(structs.ConsulMeshGateway{Mode: "remote"})
 		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeRemote}, result)
 	})
 
 	t.Run("none", func(t *testing.T) {
-		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "none"})
+		result := connectMeshGateway(structs.ConsulMeshGateway{Mode: "none"})
 		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeNone}, result)
 	})
 
 	t.Run("nonsense", func(t *testing.T) {
-		result := connectMeshGateway(nil)
+		result := connectMeshGateway(structs.ConsulMeshGateway{})
 		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeDefault}, result)
 	})
 }

@@ -1,0 +1,34 @@
+---
+layout: docs
+page_title: 'Commands: operator root keyring remove'
+description: |
+  Remove an unused encryption key
+---
+
+# Command: operator root keyring remove
+
+The `operator root keyring remove` command removes an encryption key from the
+cluster. This operation may only be performed on keys that are not the active
+key.
+
+If ACLs are enabled, this command requires a management token.
+
+## Usage
+
+```plaintext
+nomad operator root keyring remove [options] <key ID>
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Examples
+
+```shell-session
+$ nomad operator root keyring remove 48596ce5-3ff5-8f77-2dcf-301682ada0ce
+error: Unexpected response code: 500 (active root key cannot be deleted - call rotate first)
+
+$ nomad operator root keyring remove 33374156-9f81-b14c-83d4-a2f1f87dbf99
+Removed encryption key 33374156-9f81-b14c-83d4-a2f1f87dbf99
+```

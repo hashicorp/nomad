@@ -81,7 +81,7 @@ func (c *Client) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 
 func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
 	// Fast-path if ACLs are disabled
-	if !c.config.ACLEnabled {
+	if !c.GetConfig().ACLEnabled {
 		return nil, nil, nil
 	}
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
@@ -127,7 +127,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 	raw, ok := c.tokenCache.Get(secretID)
 	if ok {
 		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.config.ACLTokenTTL {
+		if cached.Age() <= c.GetConfig().ACLTokenTTL {
 			return cached.Token, nil
 		}
 	}
@@ -179,7 +179,7 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 
 		// Check if the cached value is valid or expired
 		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.config.ACLPolicyTTL {
+		if cached.Age() <= c.GetConfig().ACLPolicyTTL {
 			out = append(out, cached.Policy)
 		} else {
 			expired = append(expired, cached.Policy)
