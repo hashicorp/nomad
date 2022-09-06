@@ -282,15 +282,6 @@
               Tags
             </td>
             <td>
-              On Update
-            </td>
-            <td>
-              Connect?
-            </td>
-            <td>
-              Upstreams
-            </td>
-            <td>
               Health Check Status
             </td>
           </t.head>
@@ -309,19 +300,8 @@
                 {{row.model.portLabel}}
               </td>
               <td data-test-service-tags class="is-long-text">
-                {{join ", " row.model.tags}}
-              </td>
-              <td data-test-service-onupdate>
-                {{row.model.onUpdate}}
-              </td>
-              <td data-test-service-connect>
-                {{if row.model.connect "Yes" "No"}}
-              </td>
-              <td data-test-service-upstreams>
-                {{#each
-                  row.model.connect.sidecarService.proxy.upstreams as |upstream|
-                }}
-                  {{upstream.destinationName}}:{{upstream.localBindPort}}
+                {{#each row.model.tags as |tag|}}
+                  <span class="tag">{{tag}}</span>
                 {{/each}}
               </td>
               <td data-test-service-health>
