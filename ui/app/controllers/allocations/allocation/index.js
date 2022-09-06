@@ -92,6 +92,7 @@ export default class IndexController extends Controller.extend(Sortable) {
             )
           ) {
             service.healthChecks.pushObject(check);
+            service.healthChecks = [...service.healthChecks.slice(-10)];
           }
         });
       }

@@ -87,7 +87,7 @@
 			</div>
 		</div>
 
-        <ListTable @source={{@service.mostRecentChecks}} as |t|>
+        <ListTable class="health-checks" @source={{@service.mostRecentChecks}} as |t|>
           <t.head>
             <th>
               Name
@@ -100,7 +100,7 @@
             </td>
           </t.head>
           <t.body as |row|>
-            <tr>
+            <tr data-service-health={{row.model.Status}}>
 							<td class="name">
 								<span title={{row.model.Check}}>{{row.model.Check}}</span>
 							</td>
