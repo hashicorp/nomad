@@ -270,12 +270,12 @@
         Services
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.servicesWithHealthChecks}} as |t|>
+        <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
-            <th class="is-2">
+            <th>
               Name
             </th>
-            <th class="is-1">
+            <th>
               Port
             </th>
             <td>
@@ -294,6 +294,11 @@
               }}
             >
               <td data-test-service-name>
+                {{#if (eq row.model.provider "nomad")}}
+                  <FlightIcon @name="nomad-color" />
+                {{else}}
+                  <FlightIcon @name="consul-color" />
+                {{/if}}
                 {{row.model.name}}
               </td>
               <td data-test-service-port>
