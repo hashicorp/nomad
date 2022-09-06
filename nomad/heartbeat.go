@@ -8,6 +8,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -150,7 +151,16 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		return
 	}
 
-	h.logger.Warn("node TTL expired", "node_id", id)
+	// Do not invalidate the node if we are able to directly contact the the node
+	// and we get back any status that is not down. This check is more defense against
+	// racy heartbeat timeouts vs. leadership changeover.
+	if h.nodeStatusIsNotDown(id) {
+		h.logger.Info("resetting expired node TTL because node was responsive", "node_id", id)
+		_, _ = h.resetHeartbeatTimer(id)
+		return
+	}
+
+	h.logger.Warn("setting node status down due to expired TTL and node was not responsive", "node_id", id)
 
 	canDisconnect, hasPendingReconnects := h.disconnectState(id)
 
@@ -171,6 +181,22 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
+}
+
+// nodeStatusIsNotDown will query the Client with simple RPC (ClientStats.Stats),
+// returning true if we can reach the client at all.
+//
+// This is only used in the context of a last attempt at making sure a client
+// is actually down - (a workaround for racy / misguided heartbeat timer) before
+// marking the node as down in raft.
+func (h *nodeHeartbeater) nodeStatusIsNotDown(id string) bool {
+	args := structs.NodeSpecificRequest{NodeID: id}
+	var reply cstructs.ClientStatsResponse
+	if err := findNodeConnAndForward(h.Server, id, "ClientStats.Stats", &args, &reply); err != nil {
+		// If we cannot reach the client then yeah, it's probably down for real.
+		return false
+	}
+	return true
 }
 
 func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
