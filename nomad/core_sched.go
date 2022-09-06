@@ -817,7 +817,14 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 		return nil
 	}
 
-	expiryThresholdIdx := c.getThreshold(eval, "expired_acl_token",
+	// The object name is logged within the getThreshold function, therefore we
+	// want to be clear what token type this trigger is for.
+	tokenScope := "local"
+	if global {
+		tokenScope = "global"
+	}
+
+	expiryThresholdIdx := c.getThreshold(eval, tokenScope+" expired ACL tokens",
 		"acl_token_expiration_gc_threshold", c.srv.config.ACLTokenExpirationGCThreshold)
 
 	expiredIter, err := c.snap.ACLTokensByExpired(global)
@@ -874,7 +881,7 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 	// garbage collection in environments with a high rate of token creation
 	// and expiration.
 	c.logger.Debug("expired ACL token GC found eligible tokens",
-		"num", len(expiredAccessorIDs))
+		"num", len(expiredAccessorIDs), "global", global)
 
 	// Set up and make the RPC request which will return any error performing
 	// the deletion.
