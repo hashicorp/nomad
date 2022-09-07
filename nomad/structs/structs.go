@@ -1339,7 +1339,17 @@ type NodeUpdateResponse struct {
 	// region.
 	Servers []*NodeServerInfo
 
+	// ClientStatus is used to inform clients what the server-side
+	// has for their scheduling status during heartbeats.
+	ClientStatus *ClientStatus
+
 	QueryMeta
+}
+
+// ClientStatus is used to inform clients what the server-side
+// has for their scheduling status during heartbeats.
+type ClientStatus struct {
+	SchedulingEligibility string
 }
 
 // NodeDrainUpdateResponse is used to respond to a node drain update

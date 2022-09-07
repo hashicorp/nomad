@@ -1900,6 +1900,11 @@ func (c *Client) updateNodeStatus() error {
 				"req_latency", end.Sub(start), "heartbeat_ttl", oldTTL, "since_last_heartbeat", time.Since(last))
 		}
 	}
+	// Check heartbeat response for information about the server-side scheduling
+	// state of this node
+	c.UpdateConfig(func(c *config.Config) {
+		c.Node.SchedulingEligibility = resp.ClientStatus.SchedulingEligibility
+	})
 
 	// Update the number of nodes in the cluster so we can adjust our server
 	// rebalance rate.
