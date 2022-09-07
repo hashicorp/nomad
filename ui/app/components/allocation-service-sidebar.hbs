@@ -125,6 +125,15 @@
 							</code>
 						</td>
 					</tr>
+					<tr>
+						<td colspan="3">
+							<div class="service-status-indicators">
+								{{#each (filter-by "Check" row.model.Check @service.healthChecks) as |check|}}
+									<ServiceStatusIndicator @check={{check}} />
+								{{/each}}
+							</div>
+						</td>
+					</tr>
 				</t.body>
 			</ListTable>
 		{{/if}}

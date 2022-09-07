@@ -67,3 +67,21 @@
     margin-right: 5px;
   }
 }
+
+.service-status-indicators {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: end;
+  gap: 0.25rem;
+  .service-status-indicator {
+    width: 10px;
+    height: 10px;
+    display: block;
+    &.status-success {
+      background-color: green;
+    }
+    &.status-failure {
+      background-color: red;
+    }
+  }
+}
