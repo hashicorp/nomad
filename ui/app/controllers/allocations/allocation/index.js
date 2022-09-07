@@ -88,11 +88,12 @@ export default class IndexController extends Controller.extend(Sortable) {
           if (
             !service.healthChecks.find(
               (sc) =>
-                sc.Check === check.Check && sc.Timestamp === check.Timestamp
+                sc.Check === check.Check &&
+                sc.Timestamp === check.Timestamp &&
+                this.model.id === check.Alloc
             )
           ) {
             service.healthChecks.pushObject(check);
-            service.healthChecks = [...service.healthChecks.slice(-10)];
           }
         });
       }

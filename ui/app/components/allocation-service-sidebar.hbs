@@ -1,3 +1,5 @@
+{{log "TODO: test" @service.healthChecks.length}}
+
 <div
 	class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
 	{{on-click-outside
@@ -86,8 +88,8 @@
 				</div>
 			</div>
 		</div>
-		{{#if @service.mostRecentChecks.length}}
-			<ListTable class="health-checks" @source={{@service.mostRecentChecks}} as |t|>
+		{{#if this.checks.length}}
+			<ListTable class="health-checks" @source={{this.checks}} as |t|>
 				<t.head>
 					<th>
 						Name
@@ -103,6 +105,11 @@
 					<tr data-service-health={{row.model.Status}}>
 						<td class="name">
 							<span title={{row.model.Check}}>{{row.model.Check}}</span>
+							TODO: TEMP
+							{{format-ts
+								row.model.Timestamp
+							}}
+
 						</td>
 						<td class="status">
 							<span>

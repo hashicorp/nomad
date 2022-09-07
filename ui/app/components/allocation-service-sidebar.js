@@ -38,4 +38,15 @@ export default class AllocationServiceSidebarComponent extends Component {
       ? 'Unhealthy'
       : 'Healthy';
   }
+
+  get checks() {
+    if (!this.args.service || !this.args.allocation) return;
+    console.log('getting checks and', this.args.service);
+    let allocID = this.args.allocation.id;
+    return this.args.service.healthChecks
+      .filterBy('Alloc', allocID)
+      .sortBy('Timestamp')
+      .reverse();
+    // .uniqBy('Check');
+  }
 }
