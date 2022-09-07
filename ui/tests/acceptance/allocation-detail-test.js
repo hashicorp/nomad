@@ -10,7 +10,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 import formatHost from 'nomad-ui/utils/format-host';
-import { allScenarios } from '../../mirage/scenarios/default';
 
 let job;
 let node;
@@ -624,7 +623,18 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    allScenarios.servicesTestCluster(server);
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+    server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+    server.createList('node', 5);
+    server.createList('job', 1, { createRecommendations: true });
+    server.create('job', {
+      withGroupServices: true,
+      withTaskServices: true,
+      name: 'Service-haver',
+      id: 'service-haver',
+      namespaceId: 'default',
+    });
+
     server.db.serviceFragments.update({
       healthChecks: [
         {
