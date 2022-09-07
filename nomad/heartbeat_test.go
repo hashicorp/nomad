@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -144,29 +145,64 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	t.Fatalf("should have expired")
 }
 
-func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
+func TestHeartbeat_processMissedHeartbeat(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
+	now := time.Now()
+	deadline := now.Add(1 * time.Second)
+
 	// Create a node
 	node := mock.Node()
+	node.StatusUpdatedAt = now.Unix()
 	state := s1.fsm.State()
-	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
-	// This should cause a status update
-	s1.invalidateHeartbeat(node.ID)
+	// This should cause a status update, over deadline
+	s1.processMissedHeartbeat(node.ID, deadline)
 
 	// Check it is updated
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	require.NoError(err)
-	require.True(out.TerminalStatus())
-	require.Len(out.Events, 2)
-	require.Equal(NodeHeartbeatEventMissed, out.Events[1].Message)
+	must.NoError(t, err)
+	must.True(t, out.TerminalStatus())
+	must.Len(t, 2, out.Events)
+	must.Eq(t, NodeHeartbeatEventMissed, out.Events[1].Message)
+}
+
+func TestHeartbeat_processMissedHeartbeat_Updated(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	now := time.Now()
+	deadline := now.Add(-1 * time.Second)
+
+	// Create a node
+	node := mock.Node()
+	node.StatusUpdatedAt = now.Unix()
+	state := s1.fsm.State()
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+	// This should not cause a status update, under deadline
+	s1.processMissedHeartbeat(node.ID, deadline)
+
+	// Check it is not updated (this should fail right now)
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	must.NoError(t, err)
+	must.False(t, out.TerminalStatus())
+	must.Len(t, 1, out.Events)
+	must.NotEq(t, NodeHeartbeatEventMissed, out.Events[0].Message)
 }
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
@@ -347,7 +383,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
-			s1.invalidateHeartbeat(node.ID)
+			s1.processMissedHeartbeat(node.ID, time.Now().Add(-1*time.Second))
 			out, err := state.NodeByID(nil, node.ID)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedNodeStatus, out.Status)

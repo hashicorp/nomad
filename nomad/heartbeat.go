@@ -8,7 +8,6 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -125,14 +124,18 @@ func (h *nodeHeartbeater) resetHeartbeatTimerLocked(id string, ttl time.Duration
 
 	// Create a new timer to track expiration of this heartbeat
 	timer := time.AfterFunc(ttl, func() {
-		h.invalidateHeartbeat(id)
+		// any update between now and when we process this call back is good
+		// enough to reset this timer (no need for the update to come in after
+		// the true deadline of (now + ttl)).
+		fencepost := time.Now()
+		h.processMissedHeartbeat(id, fencepost)
 	})
 	h.heartbeatTimers[id] = timer
 }
 
-// invalidateHeartbeat is invoked when a heartbeat TTL is reached and we
+// processMissedHeartbeat is invoked when a heartbeat TTL is reached and we
 // need to invalidate the heartbeat.
-func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
+func (h *nodeHeartbeater) processMissedHeartbeat(id string, fencepost time.Time) {
 	defer metrics.MeasureSince([]string{"nomad", "heartbeat", "invalidate"}, time.Now())
 	// Clear the heartbeat timer
 	h.heartbeatTimersLock.Lock()
@@ -142,15 +145,37 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	}
 	h.heartbeatTimersLock.Unlock()
 
-	// Do not invalidate the node since we are not the leader. This check avoids
+	// Do not invalidate the node if we are no longer the leader. This check avoids
 	// the race in which leadership is lost but a timer is created on this
 	// server since it was servicing an RPC during a leadership loss.
-	if !h.IsLeader() {
-		h.logger.Debug("ignoring node TTL since this server is not the leader", "node_id", id)
+	if future := h.raft.VerifyLeader(); future.Error() != nil {
+		h.logger.Debug("ignoring expired node TTL since this server is not the leader", "node_id", id)
 		return
 	}
 
-	h.logger.Warn("node TTL expired", "node_id", id)
+	// Lookup the node and see if a node update got sent while we were confirming
+	// out status as leader.
+	snap, err := h.fsm.State().Snapshot()
+	if err != nil {
+		h.logger.Error("failed to create fsm snapshot to lookup node TTL status", "node_id", id, "error", err)
+		return
+	}
+	node, err := snap.NodeByID(memdb.NewWatchSet(), id)
+	if err != nil {
+		h.logger.Error("failed to lookup node for TTL expiration status", "node_id", id, "error", err)
+		return
+	}
+
+	// Check if a recent node update came in after the deadline. If so, we just
+	// reset the heartbeat timer.
+	latestUpdate := time.Unix(node.StatusUpdatedAt, 0)
+	if latestUpdate.After(fencepost) {
+		_, _ = h.resetHeartbeatTimer(id)
+		h.logger.Debug("reset node TTL because a newer status update was found", "node_id", id)
+		return
+	}
+
+	h.logger.Warn("setting node status down due to expired TTL", "node_id", id, "min_update_time", fencepost, "latest_update_time", latestUpdate)
 
 	canDisconnect, hasPendingReconnects := h.disconnectState(id)
 
@@ -168,8 +193,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		req.Status = structs.NodeStatusDisconnected
 	}
 	var resp structs.NodeUpdateResponse
-	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
-		h.logger.Error("update node status failed", "error", err)
+	if err = h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
+		h.logger.Error("failed to update node status with expired TTL", "node_id", id, "error", err)
 	}
 }
 

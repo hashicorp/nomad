@@ -1964,7 +1964,7 @@ type Node struct {
 	StatusDescription string
 
 	// StatusUpdatedAt is the time stamp at which the state of the node was
-	// updated
+	// updated (unix seconds)
 	StatusUpdatedAt int64
 
 	// Events is the most recent set of events generated for the node,
