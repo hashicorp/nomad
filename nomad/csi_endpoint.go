@@ -787,6 +787,7 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 // be called on a copy of the volume.
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("controller unpublish", "vol", vol.ID)
+
 	if !vol.ControllerRequired {
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
@@ -801,26 +802,39 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	} else if plugin == nil {
 		return fmt.Errorf("no such plugin: %q", vol.PluginID)
 	}
+
 	if !plugin.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
+		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
 	}
 
-	// we only send a controller detach if a Nomad client no longer has
-	// any claim to the volume, so we need to check the status of claimed
-	// allocations
 	vol, err = state.CSIVolumeDenormalize(ws, vol)
 	if err != nil {
 		return err
 	}
-	for _, alloc := range vol.ReadAllocs {
-		if alloc != nil && alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
+
+	// we only send a controller detach if a Nomad client no longer has any
+	// claim to the volume, so we need to check the status of any other claimed
+	// allocations
+	shouldCancel := func(alloc *structs.Allocation) bool {
+		if alloc != nil && alloc.ID != claim.AllocationID &&
+			alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
 			claim.State = structs.CSIVolumeClaimStateReadyToFree
+			v.logger.Debug(
+				"controller unpublish canceled: another non-terminal alloc is on this node",
+				"vol", vol.ID, "alloc", alloc.ID)
+			return true
+		}
+		return false
+	}
+
+	for _, alloc := range vol.ReadAllocs {
+		if shouldCancel(alloc) {
 			return nil
 		}
 	}
 	for _, alloc := range vol.WriteAllocs {
-		if alloc != nil && alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
-			claim.State = structs.CSIVolumeClaimStateReadyToFree
+		if shouldCancel(alloc) {
 			return nil
 		}
 	}
@@ -846,6 +860,8 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	if err != nil {
 		return fmt.Errorf("could not detach from controller: %v", err)
 	}
+
+	v.logger.Trace("controller detach complete", "vol", vol.ID)
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	return v.checkpointClaim(vol, claim)
 }
