@@ -1,7 +1,7 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import { run } from '@ember/runloop';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, click, visit, triggerEvent } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -324,22 +324,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
       assert.equal(renderedService.name, serverService.name);
       assert.equal(renderedService.port, serverService.portLabel);
-      assert.equal(renderedService.onUpdate, serverService.onUpdate);
-      assert.equal(renderedService.tags, (serverService.tags || []).join(', '));
-
-      assert.equal(
-        renderedService.connect,
-        serverService.Connect ? 'Yes' : 'No'
-      );
-
-      const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
-      const serverUpstreamsString = upstreams
-        .map(
-          (upstream) => `${upstream.DestinationName}:${upstream.LocalBindPort}`
-        )
-        .join(' ');
-
-      assert.equal(renderedService.upstreams, serverUpstreamsString);
+      assert.equal(renderedService.tags, (serverService.tags || []).join(' '));
     });
   });
 
@@ -630,5 +615,82 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
       'The allocations this allocation preempted are shown'
     );
     assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
+  });
+});
+
+module('Acceptance | allocation detail (services)', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function () {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+    server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+    server.createList('node', 5);
+    server.createList('job', 1, { createRecommendations: true });
+    server.create('job', {
+      withGroupServices: true,
+      withTaskServices: true,
+      name: 'Service-haver',
+      id: 'service-haver',
+      namespaceId: 'default',
+    });
+
+    server.db.serviceFragments.update({
+      healthChecks: [
+        {
+          Status: 'success',
+          Check: 'check1',
+          Timestamp: 99,
+        },
+        {
+          Status: 'failure',
+          Check: 'check2',
+          Output: 'One',
+          propThatDoesntMatter:
+            'this object will be ignored, since it shared a Check name with a later one.',
+          Timestamp: 98,
+        },
+        {
+          Status: 'success',
+          Check: 'check2',
+          Output: 'Two',
+          Timestamp: 99,
+        },
+        {
+          Status: 'failure',
+          Check: 'check3',
+          Output: 'Oh no!',
+          Timestamp: 99,
+        },
+      ],
+    });
+  });
+
+  test('Allocation has a list of services with active checks', async function (assert) {
+    await visit('jobs/service-haver@default');
+    await click('.allocation-row');
+
+    assert.dom('[data-test-service]').exists();
+    assert.dom('.service-sidebar').exists();
+    assert.dom('.service-sidebar').doesNotHaveClass('open');
+    assert
+      .dom('[data-test-service-status-bar]')
+      .exists('At least one allocation has service health');
+    await click('[data-test-service-status-bar]');
+    assert.dom('.service-sidebar').hasClass('open');
+    assert
+      .dom('table.health-checks tr[data-service-health="success"]')
+      .exists({ count: 2 }, 'Two successful health checks');
+    assert
+      .dom('table.health-checks tr[data-service-health="failure"]')
+      .exists({ count: 1 }, 'One failing health check');
+    assert
+      .dom(
+        'table.health-checks tr[data-service-health="failure"] td.service-output'
+      )
+      .containsText('Oh no!');
+
+    await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
+    assert.dom('.service-sidebar').doesNotHaveClass('open');
   });
 });

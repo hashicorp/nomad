@@ -1,0 +1,130 @@
+<div
+	class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
+	{{on-click-outside
+		@fns.closeSidebar
+		capture=true
+	}}
+>
+	{{#if @service}}
+		{{keyboard-commands this.keyCommands}}
+		<header class="detail-header">
+			<h1 class="title">
+				{{@service.name}}
+				<span class="aggregate-status">
+					{{#if (eq this.aggregateStatus 'Unhealthy')}}
+						<FlightIcon @name="x-square-fill" @color="#c84034" />
+						Unhealthy
+					{{else}}
+						<FlightIcon @name="check-square-fill" @color="#25ba81" />
+						Healthy
+					{{/if}}
+				</span>
+			</h1>
+			<button
+				data-test-close-service-sidebar
+				class="button is-borderless"
+				type="button"
+				{{on "click" @fns.closeSidebar}}
+			>
+				{{x-icon "cancel"}}
+			</button>
+		</header>
+
+		<div class="boxed-section is-small">
+			<div
+				class="boxed-section-body inline-definitions"
+			>
+				<span class="label">
+					Service Details
+				</span>
+
+				<div>
+					<span class="pair">
+						<span class="term">
+							Allocation
+						</span>
+						<LinkTo
+							@route="allocations.allocation"
+							@model={{@allocation}}
+							@query={{hash service=""}}
+						>
+							{{@allocation.shortId}}
+						</LinkTo>
+					</span>
+					<span class="pair">
+						<span class="term">
+							IP Address &amp; Port
+						</span>
+						<a
+							href="http://{{this.address}}"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{{this.address}}
+						</a>
+					</span>
+					{{#if @service.tags.length}}
+						<span class="pair">
+							<span class="term">
+								Tags
+							</span>
+							{{join ", " @service.tags}}
+						</span>
+					{{/if}}
+					<span class="pair">
+						<span class="term">
+							Client
+						</span>
+						<LinkTo
+							@route="clients.client"
+							@model={{@allocation.node}}
+						>
+							{{@allocation.node.shortId}}
+						</LinkTo>
+					</span>
+
+				</div>
+			</div>
+		</div>
+		{{#if @service.mostRecentChecks.length}}
+			<ListTable class="health-checks" @source={{@service.mostRecentChecks}} as |t|>
+				<t.head>
+					<th>
+						Name
+					</th>
+					<th>
+						Status
+					</th>
+					<td>
+						Output
+					</td>
+				</t.head>
+				<t.body as |row|>
+					<tr data-service-health={{row.model.Status}}>
+						<td class="name">
+							<span title={{row.model.Check}}>{{row.model.Check}}</span>
+						</td>
+						<td class="status">
+							<span>
+								{{#if (eq row.model.Status "success")}}
+									<FlightIcon @name="check-square-fill" @color="#25ba81" />
+									Healthy
+								{{else if (eq row.model.Status "failure")}}
+									<FlightIcon @name="x-square-fill" @color="#c84034" />
+									Unhealthy
+								{{else if (eq row.model.Status "pending")}}
+									Pending
+								{{/if}}
+							</span>
+						</td>
+						<td class="service-output">
+							<code>
+								{{row.model.Output}}
+							</code>
+						</td>
+					</tr>
+				</t.body>
+			</ListTable>
+		{{/if}}
+	{{/if}}
+</div>

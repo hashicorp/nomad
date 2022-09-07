@@ -141,6 +141,7 @@ export default class Job extends Model {
   @hasMany('variables') variables;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
+  @hasMany('services') services;
 
   @hasMany('recommendation-summary') recommendationSummaries;
 

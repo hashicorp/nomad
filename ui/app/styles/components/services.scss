@@ -1,0 +1,69 @@
+.service-list {
+  .title {
+    .back-link {
+      text-decoration: none;
+      color: #363636;
+      position: relative;
+      top: 4px;
+    }
+  }
+  td svg {
+    position: relative;
+    top: 3px;
+    margin-right: 5px;
+  }
+}
+
+.service-sidebar {
+  .aggregate-status {
+    font-size: 1rem;
+    font-weight: normal;
+    line-height: 16px;
+    & > svg {
+      position: relative;
+      top: 3px;
+      margin-left: 5px;
+    }
+  }
+  td.name {
+    width: 100px;
+    span {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100px;
+    }
+  }
+  td.status {
+    span {
+      display: inline-grid;
+      grid-auto-flow: column;
+      line-height: 16px;
+      gap: 0.25rem;
+    }
+  }
+
+  td.service-output {
+    padding: 0;
+    code {
+      padding: 1.25em 1.5em;
+      max-height: 100px;
+      overflow: auto;
+      display: block;
+    }
+  }
+
+  .inline-definitions {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.allocation-services-table {
+  td svg {
+    position: relative;
+    top: 3px;
+    margin-right: 5px;
+  }
+}
