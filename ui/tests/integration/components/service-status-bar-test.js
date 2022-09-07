@@ -12,29 +12,18 @@ module('Integration | Component | Service Status Bar', function (hooks) {
     const component = this;
     await componentA11yAudit(component, assert);
 
-    const healthyService = {
+    const serviceStatus = {
       success: 1,
-    };
-
-    const failingService = {
+      pending: 1,
       failure: 1,
     };
 
-    const pendingService = {
-      pending: 1,
-    };
-
-    const services = new Map();
-    services.set('peter', healthyService);
-    services.set('peter', { ...services.get('peter'), ...failingService });
-    services.set('peter', { ...services.get('peter'), ...pendingService });
-
-    this.set('services', services);
+    this.set('serviceStatus', serviceStatus);
 
     await render(hbs`
       <div class="inline-chart">
         <ServiceStatusBar
-          @services={{this.services}}
+          @status={{this.serviceStatus}}
           @name="peter"
         />
       </div>

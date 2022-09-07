@@ -12,6 +12,7 @@ import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 import { union } from '@ember/object/computed';
+import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
@@ -24,6 +25,9 @@ export default class IndexController extends Controller.extend(Sortable) {
     },
     {
       sortDescending: 'desc',
+    },
+    {
+      activeServiceID: 'service',
     },
   ];
 
@@ -55,7 +59,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   @computed('tasks.@each.services')
   get taskServices() {
     return this.get('tasks')
-      .map((t) => ((t && t.get('services')) || []).toArray())
+      .map((t) => ((t && t.services) || []).toArray())
       .flat()
       .compact();
   }
@@ -67,38 +71,33 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @union('taskServices', 'groupServices') services;
 
-  @computed('model.healthChecks.{}')
-  get serviceHealthStatuses() {
-    if (!this.model.healthChecks) return null;
-
-    let result = new Map();
-    Object.values(this.model.healthChecks)?.forEach((service) => {
-      const isTask = !!service.Task;
-      const groupName = service.Group.split('.')[1].split('[')[0];
-      const currentServiceStatus = service.Status;
-
-      const currentServiceName = isTask
-        ? service.Task.concat(`-${service.Service}`)
-        : groupName.concat(`-${service.Service}`);
-      const serviceStatuses = result.get(currentServiceName);
-      if (serviceStatuses) {
-        if (serviceStatuses[currentServiceStatus]) {
-          result.set(currentServiceName, {
-            ...serviceStatuses,
-            [currentServiceStatus]: serviceStatuses[currentServiceStatus]++,
-          });
-        } else {
-          result.set(currentServiceName, {
-            ...serviceStatuses,
-            [currentServiceStatus]: 1,
-          });
-        }
-      } else {
-        result.set(currentServiceName, { [currentServiceStatus]: 1 });
+  @computed('model.healthChecks.{}', 'services')
+  get servicesWithHealthChecks() {
+    return this.services.map((service) => {
+      if (this.model.healthChecks) {
+        const healthChecks = Object.values(this.model.healthChecks)?.filter(
+          (check) => {
+            const refPrefix =
+              check.Task || check.Group.split('.')[1].split('[')[0];
+            const currentServiceName = `${refPrefix}-${check.Service}`;
+            return currentServiceName === service.refID;
+          }
+        );
+        // Only append those healthchecks whose timestamps are not already found in service.healthChecks
+        healthChecks.forEach((check) => {
+          if (
+            !service.healthChecks.find(
+              (sc) =>
+                sc.Check === check.Check && sc.Timestamp === check.Timestamp
+            )
+          ) {
+            service.healthChecks.pushObject(check);
+            service.healthChecks = [...service.healthChecks.slice(-10)];
+          }
+        });
       }
+      return service;
     });
-
-    return result;
   }
 
   onDismiss() {
@@ -165,4 +164,31 @@ export default class IndexController extends Controller.extend(Sortable) {
   taskClick(allocation, task, event) {
     lazyClick([() => this.send('gotoTask', allocation, task), event]);
   }
+
+  //#region Services
+
+  @tracked activeServiceID = null;
+
+  @action handleServiceClick(service) {
+    this.set('activeServiceID', service.refID);
+  }
+
+  @computed('activeServiceID', 'services')
+  get activeService() {
+    return this.services.findBy('refID', this.activeServiceID);
+  }
+
+  @action closeSidebar() {
+    this.set('activeServiceID', null);
+  }
+
+  keyCommands = [
+    {
+      label: 'Close Evaluations Sidebar',
+      pattern: ['Escape'],
+      action: () => this.closeSidebar(),
+    },
+  ];
+
+  //#endregion Services
 }

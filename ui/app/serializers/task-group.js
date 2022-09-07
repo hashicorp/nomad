@@ -13,7 +13,6 @@ export default class TaskGroup extends ApplicationSerializer {
         service.GroupName = hash.Name;
       });
     }
-
     // Provide EphemeralDisk to each task
     hash.Tasks.forEach((task) => {
       task.EphemeralDisk = copy(hash.EphemeralDisk);
