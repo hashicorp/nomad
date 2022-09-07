@@ -659,12 +659,14 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	case structs.CSIVolumeClaimStateReadyToFree:
 		goto RELEASE_CLAIM
 	}
+	vol = vol.Copy()
 	err = v.nodeUnpublishVolume(vol, claim)
 	if err != nil {
 		return err
 	}
 
 NODE_DETACHED:
+	vol = vol.Copy()
 	err = v.controllerUnpublishVolume(vol, claim)
 	if err != nil {
 		return err
@@ -684,6 +686,10 @@ RELEASE_CLAIM:
 	return nil
 }
 
+// nodeUnpublishVolume handles the sending RPCs to the Node plugin to unmount
+// it. Typically this task is already completed on the client, but we need to
+// have this here so that GC can re-send it in case of client-side
+// problems. This function should only be called on a copy of the volume.
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("node unpublish", "vol", vol.ID)
 
@@ -776,6 +782,9 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 	return nil
 }
 
+// controllerUnpublishVolume handles the sending RPCs to the Controller plugin
+// to unpublish the volume (detach it from its host). This function should only
+// be called on a copy of the volume.
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("controller unpublish", "vol", vol.ID)
 	if !vol.ControllerRequired {
