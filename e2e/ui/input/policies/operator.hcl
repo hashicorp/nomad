@@ -6,7 +6,7 @@ namespace "*" {
     "csi-register-plugin",
   ]
 
-  secure_variables {
+  variables {
     path "*" {
       capabilities = ["write", "read", "destroy", "list"]
     }
