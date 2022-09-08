@@ -271,6 +271,59 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	return NodeRpc(state.Session, "Allocations.Stats", args, reply)
 }
 
+// Checks is the server implementation of the allocation checks RPC. The
+// ultimate response is provided by the node running the allocation. This RPC
+// is needed to handle queries which hit the server agent API directly, or via
+// another node which is not running the allocation.
+func (a *ClientAllocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.AllocChecksResponse) error {
+
+	// We only allow stale reads since the only potentially stale information
+	// is the Node registration and the cost is fairly high for adding another
+	// hop in the forwarding chain.
+	args.QueryOptions.AllowStale = true
+
+	// Potentially forward to a different region.
+	if done, err := a.srv.forward("ClientAllocations.Checks", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "checks"}, time.Now())
+
+	// Grab the state snapshot, as we need this to perform lookups for a number
+	// of objects, all things being well.
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Get the full allocation object, so we have information such as the
+	// namespace and node ID.
+	alloc, err := getAlloc(snap, args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check for namespace read-job permissions.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Make sure Node is valid and new enough to support RPC.
+	if _, err = getNodeForRpc(snap, alloc.NodeID); err != nil {
+		return err
+	}
+
+	// Get the connection to the client.
+	state, ok := a.srv.getNodeConn(alloc.NodeID)
+	if !ok {
+		return findNodeConnAndForward(a.srv, alloc.NodeID, "ClientAllocations.Checks", args, reply)
+	}
+
+	// Make the RPC
+	return NodeRpc(state.Session, "Allocations.Checks", args, reply)
+}
+
 // exec is used to execute command in a running task
 func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	defer conn.Close()
