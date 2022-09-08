@@ -85,16 +85,7 @@ export default class IndexController extends Controller.extend(Sortable) {
         );
         // Only append those healthchecks whose timestamps are not already found in service.healthChecks
         healthChecks.forEach((check) => {
-          if (
-            !service.healthChecks.find(
-              (sc) =>
-                sc.Check === check.Check &&
-                sc.Timestamp === check.Timestamp &&
-                this.model.id === check.Alloc
-            )
-          ) {
-            service.healthChecks.pushObject(check);
-          }
+          service.healthChecks.pushObject(check);
         });
       }
       return service;

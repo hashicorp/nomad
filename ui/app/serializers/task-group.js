@@ -9,7 +9,6 @@ export default class TaskGroup extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     if (hash.Services) {
-      console.log('yeah group has services, but what about allocs', hash);
       hash.Services.forEach((service) => {
         service.GroupName = hash.Name;
       });
