@@ -32,9 +32,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   }
 
   get aggregateStatus() {
-    return this.args.service?.mostRecentChecks?.any(
-      (check) => check.Status === 'failure'
-    )
+    return this.checks.any((check) => check.Status === 'failure')
       ? 'Unhealthy'
       : 'Healthy';
   }
@@ -45,7 +43,7 @@ export default class AllocationServiceSidebarComponent extends Component {
     // Our UI checks run every 2 seconds; but a check itself may only update every, say, minute.
     // Therefore, we'll have duplicate checks in a service's healthChecks array.
     // Only get the most recent check for each check.
-    return this.args.service.healthChecks
+    return (this.args.service.healthChecks || [])
       .filterBy('Alloc', allocID)
       .uniqBy('Timestamp')
       .sortBy('Timestamp')

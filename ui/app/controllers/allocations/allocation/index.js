@@ -83,11 +83,15 @@ export default class IndexController extends Controller.extend(Sortable) {
             return currentServiceName === service.refID;
           }
         );
-        // Only append those healthchecks whose timestamps are not already found in service.healthChecks
         healthChecks.forEach((check) => {
           service.healthChecks.pushObject(check);
         });
       }
+      // Contextualize healthchecks for the allocation we're in
+      service.healthChecks = service.healthChecks.filterBy(
+        'Alloc',
+        this.model.id
+      );
       return service;
     });
   }
