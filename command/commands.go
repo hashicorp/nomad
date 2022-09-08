@@ -654,11 +654,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator root keyring install": func() (cli.Command, error) {
-			return &OperatorRootKeyringInstallCommand{
-				Meta: meta,
-			}, nil
-		},
 		"operator root keyring list": func() (cli.Command, error) {
 			return &OperatorRootKeyringListCommand{
 				Meta: meta,
