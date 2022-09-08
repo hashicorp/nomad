@@ -199,7 +199,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(args.Node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
@@ -258,7 +258,7 @@ func equalDevices(n1, n2 *structs.Node) bool {
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
-func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
+func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
 
 	// Reply with config information required for future RPC requests
@@ -270,6 +270,10 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 				Datacenter:       v.Datacenter,
 			})
 	}
+
+	// Add ClientStatus information to heartbeat response.
+	node, _ := snap.NodeByID(nil, nodeID)
+	reply.SchedulingEligibility = node.SchedulingEligibility
 
 	// TODO(sean@): Use an indexed node count instead
 	//
@@ -564,7 +568,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	reply.Index = index
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
@@ -818,7 +822,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
