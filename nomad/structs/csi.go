@@ -367,12 +367,15 @@ type CSIVolListStub struct {
 	Schedulable         bool
 	PluginID            string
 	Provider            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
 	NodesExpected       int
-	CreateIndex         uint64
-	ModifyIndex         uint64
+	ResourceExhausted   time.Time
+
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // NewCSIVolume creates the volume struct. No side-effects
@@ -409,7 +412,7 @@ func (v *CSIVolume) RemoteID() string {
 }
 
 func (v *CSIVolume) Stub() *CSIVolListStub {
-	stub := CSIVolListStub{
+	return &CSIVolListStub{
 		ID:                  v.ID,
 		Namespace:           v.Namespace,
 		Name:                v.Name,
@@ -422,15 +425,15 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		Schedulable:         v.Schedulable,
 		PluginID:            v.PluginID,
 		Provider:            v.Provider,
+		ControllerRequired:  v.ControllerRequired,
 		ControllersHealthy:  v.ControllersHealthy,
 		ControllersExpected: v.ControllersExpected,
 		NodesHealthy:        v.NodesHealthy,
 		NodesExpected:       v.NodesExpected,
+		ResourceExhausted:   v.ResourceExhausted,
 		CreateIndex:         v.CreateIndex,
 		ModifyIndex:         v.ModifyIndex,
 	}
-
-	return &stub
 }
 
 // ReadSchedulable determines if the volume is potentially schedulable
