@@ -1339,6 +1339,10 @@ type NodeUpdateResponse struct {
 	// region.
 	Servers []*NodeServerInfo
 
+	// SchedulingEligibility is used to inform clients what the server-side
+	// has for their scheduling status during heartbeats.
+	SchedulingEligibility string
+
 	QueryMeta
 }
 
