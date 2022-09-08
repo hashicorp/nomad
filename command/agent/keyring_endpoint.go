@@ -34,7 +34,12 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
 	case strings.HasPrefix(path, "rotate"):
-		return s.keyringRotateRequest(resp, req)
+		switch req.Method {
+		case http.MethodPost, http.MethodPut:
+			return s.keyringRotateRequest(resp, req)
+		default:
+			return nil, CodedError(405, ErrInvalidMethod)
+		}
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
