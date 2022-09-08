@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Updated `github.com/armon/go-metrics` to `v0.4.1` which includes a performance improvement for Prometheus sink
+```
