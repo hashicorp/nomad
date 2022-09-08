@@ -1917,11 +1917,12 @@ func (c *Client) updateNodeStatus() error {
 				"req_latency", end.Sub(start), "heartbeat_ttl", oldTTL, "since_last_heartbeat", time.Since(last))
 		}
 	}
+
 	// Check heartbeat response for information about the server-side scheduling
 	// state of this node
 	c.UpdateConfig(func(c *config.Config) {
-		if resp.ClientStatus != nil {
-			c.Node.SchedulingEligibility = resp.ClientStatus.SchedulingEligibility
+		if resp.SchedulingEligibility != "" {
+			c.Node.SchedulingEligibility = resp.SchedulingEligibility
 		}
 	})
 
