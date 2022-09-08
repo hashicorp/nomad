@@ -270,50 +270,51 @@
         Services
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.services}} as |t|>
+        <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
-            <th class="is-2">
+            <th>
               Name
             </th>
-            <th class="is-1">
+            <th>
               Port
             </th>
             <td>
               Tags
             </td>
             <td>
-              On Update
-            </td>
-            <td>
-              Connect?
-            </td>
-            <td>
-              Upstreams
+              Health Check Status
             </td>
           </t.head>
           <t.body as |row|>
-            <tr data-test-service>
+            <tr data-test-service class="is-interactive {{if (eq this.activeService row.model) "is-active"}}"
+              {{on "click" (fn this.handleServiceClick row.model)}}
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(fn this.handleServiceClick row.model)
+              }}
+            >
               <td data-test-service-name>
+                {{#if (eq row.model.provider "nomad")}}
+                  <FlightIcon @name="nomad-color" />
+                {{else}}
+                  <FlightIcon @name="consul-color" />
+                {{/if}}
                 {{row.model.name}}
               </td>
               <td data-test-service-port>
                 {{row.model.portLabel}}
               </td>
               <td data-test-service-tags class="is-long-text">
-                {{join ", " row.model.tags}}
-              </td>
-              <td data-test-service-onupdate>
-                {{row.model.onUpdate}}
-              </td>
-              <td data-test-service-connect>
-                {{if row.model.connect "Yes" "No"}}
-              </td>
-              <td data-test-service-upstreams>
-                {{#each
-                  row.model.connect.sidecarService.proxy.upstreams as |upstream|
-                }}
-                  {{upstream.destinationName}}:{{upstream.localBindPort}}
+                {{#each row.model.tags as |tag|}}
+                  <span class="tag">{{tag}}</span>
                 {{/each}}
+              </td>
+              <td data-test-service-health>
+                {{#if (eq row.model.provider "nomad")}}
+                  <div class="inline-chart">
+                    <ServiceStatusBar @isNarrow={{true}} @status={{row.model.mostRecentCheckStatus}} />
+                  </div>
+                {{/if}}
               </td>
             </tr>
           </t.body>
@@ -483,4 +484,11 @@
       </div>
     </div>
   {{/if}}
+  <AllocationServiceSidebar
+    @service={{this.activeService}}
+    @allocation={{this.model}}
+    @fns={{hash
+      closeSidebar=this.closeSidebar
+    }}
+  />
 </section>

@@ -85,7 +85,10 @@ func (d *AutopilotDelegate) RemoveFailedServer(failedSrv *autopilot.Server) {
 	go func() {
 		err := d.server.RemoveFailedNode(failedSrv.Name)
 		if err != nil {
-			d.server.logger.Error("could not remove failed server", "server", string(failedSrv.ID))
+			d.server.logger.Error("could not remove failed server",
+				"server", string(failedSrv.ID),
+				"error", err,
+			)
 		}
 	}()
 }

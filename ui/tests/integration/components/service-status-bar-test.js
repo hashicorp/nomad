@@ -1,5 +1,3 @@
-import { A } from '@ember/array';
-import EmberObject from '@ember/object';
 import { findAll, render } from '@ember/test-helpers';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -14,28 +12,19 @@ module('Integration | Component | Service Status Bar', function (hooks) {
     const component = this;
     await componentA11yAudit(component, assert);
 
-    const healthyService = EmberObject.create({
-      id: '1',
-      status: 'success',
-    });
+    const serviceStatus = {
+      success: 1,
+      pending: 1,
+      failure: 1,
+    };
 
-    const failingService = EmberObject.create({
-      id: '2',
-      status: 'failing',
-    });
-
-    const pendingService = EmberObject.create({
-      id: '3',
-      status: 'pending',
-    });
-
-    const services = A([healthyService, failingService, pendingService]);
-    this.set('services', services);
+    this.set('serviceStatus', serviceStatus);
 
     await render(hbs`
       <div class="inline-chart">
         <ServiceStatusBar
-          @services={{this.services}}  
+          @status={{this.serviceStatus}}
+          @name="peter"
         />
       </div>
     `);

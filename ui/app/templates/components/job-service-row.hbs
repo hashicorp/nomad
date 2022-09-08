@@ -1,0 +1,42 @@
+<tr
+	data-test-service-row
+	data-test-service-name={{@service.name}}
+	data-test-num-allocs={{@service.instances.length}}
+	data-test-service-provider={{@service.provider}}
+	data-test-service-level={{@service.level}}
+	{{on "click" (fn this.gotoService @service)}}
+	class={{if (eq @service.provider "nomad") "is-interactive"}}
+>
+  <td
+	  {{keyboard-shortcut 
+			enumerated=true
+			action=(action "gotoService" @service)
+		}}
+	>
+		{{#if (eq @service.provider "nomad")}}
+			<FlightIcon @name="nomad-color" />
+			<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
+		{{else}}
+			<FlightIcon @name="consul-color" />
+			{{@service.name}}
+		{{/if}}
+  </td>
+	<td>
+		{{@service.level}}
+	</td>
+  <td>
+		<LinkTo @route="clients.client" @model={{@service.instances.0.node.id}}>{{@service.instances.0.node.shortId}}</LinkTo>
+  </td>
+  <td>
+    {{#each @service.tags as |tag|}}
+			<span class="tag">{{tag}}</span>
+    {{/each}}
+  </td>
+	<td>
+		{{#if (eq @service.provider "nomad")}}
+			{{@service.instances.length}} {{pluralize "allocation" @service.instances.length}}
+		{{else}}
+			--
+		{{/if}}
+	</td>
+</tr>
