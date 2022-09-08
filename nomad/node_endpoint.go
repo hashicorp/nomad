@@ -275,9 +275,7 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 
 	// Add ClientStatus information to heartbeat response.
 	node, _ := snap.NodeByID(nil, nodeID)
-	reply.ClientStatus = &structs.ClientStatus{
-		SchedulingEligibility: node.SchedulingEligibility,
-	}
+	reply.SchedulingEligibility = node.SchedulingEligibility
 
 	// TODO(sean@): Use an indexed node count instead
 	//
