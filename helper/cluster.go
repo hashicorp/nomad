@@ -1,4 +1,3 @@
-// These functions are coming from consul/lib/cluster.go
 package helper
 
 import (
@@ -13,11 +12,11 @@ const (
 )
 
 // RandomStagger returns an interval between 0 and the duration
-func RandomStagger(intv time.Duration) time.Duration {
-	if intv == 0 {
+func RandomStagger(interval time.Duration) time.Duration {
+	if interval <= 0 {
 		return 0
 	}
-	return time.Duration(uint64(rand.Int63()) % uint64(intv))
+	return time.Duration(uint64(rand.Int63()) % uint64(interval))
 }
 
 // RateScaledInterval is used to choose an interval to perform an action in
