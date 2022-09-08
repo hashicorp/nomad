@@ -38,7 +38,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   }
 
   get checks() {
-    if (!this.args.service || !this.args.allocation) return;
+    if (!this.args.service || !this.args.allocation) return null;
     let allocID = this.args.allocation.id;
     // Our UI checks run every 2 seconds; but a check itself may only update every, say, minute.
     // Therefore, we'll have duplicate checks in a service's healthChecks array.

@@ -71,7 +71,7 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @union('taskServices', 'groupServices') services;
 
-  @computed('model.healthChecks.{}', 'services')
+  @computed('model.{healthChecks,id}', 'services')
   get servicesWithHealthChecks() {
     return this.services.map((service) => {
       if (this.model.healthChecks) {
