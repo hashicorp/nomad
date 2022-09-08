@@ -292,6 +292,8 @@ type CSIVolumeListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
+	CurrentReaders      int
+	CurrentWriters      int
 	Schedulable         bool
 	PluginID            string
 	Provider            string
