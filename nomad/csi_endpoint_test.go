@@ -7,6 +7,9 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
@@ -17,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCSIVolumeEndpoint_Get(t *testing.T) {
@@ -500,22 +502,47 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 	type tc struct {
 		name           string
 		startingState  structs.CSIVolumeClaimState
+		endState       structs.CSIVolumeClaimState
+		nodeID         string
+		otherNodeID    string
 		expectedErrMsg string
 	}
 	testCases := []tc{
 		{
 			name:          "success",
 			startingState: structs.CSIVolumeClaimStateControllerDetached,
+			nodeID:        node.ID,
+			otherNodeID:   uuid.Generate(),
+		},
+		{
+			name:          "non-terminal allocation on same node",
+			startingState: structs.CSIVolumeClaimStateNodeDetached,
+			nodeID:        node.ID,
+			otherNodeID:   node.ID,
 		},
 		{
 			name:           "unpublish previously detached node",
 			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
+			otherNodeID:    uuid.Generate(),
+		},
+		{
+			name:           "unpublish claim on garbage collected node",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
+			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         uuid.Generate(),
+			otherNodeID:    uuid.Generate(),
 		},
 		{
 			name:           "first unpublish",
 			startingState:  structs.CSIVolumeClaimStateTaken,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
+			otherNodeID:    uuid.Generate(),
 		},
 	}
 
@@ -544,8 +571,13 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.NodeID = node.ID
 			alloc.ClientStatus = structs.AllocClientStatusFailed
 
+			otherAlloc := mock.BatchAlloc()
+			otherAlloc.NodeID = tc.otherNodeID
+			otherAlloc.ClientStatus = structs.AllocClientStatusRunning
+
 			index++
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
+			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc, otherAlloc}))
 
 			// setup: claim the volume for our alloc
 			claim := &structs.CSIVolumeClaim{
@@ -558,6 +590,19 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			index++
 			claim.State = structs.CSIVolumeClaimStateTaken
 			err = state.CSIVolumeClaim(index, ns, volID, claim)
+			require.NoError(t, err)
+
+			// setup: claim the volume for our other alloc
+			otherClaim := &structs.CSIVolumeClaim{
+				AllocationID:   otherAlloc.ID,
+				NodeID:         tc.otherNodeID,
+				ExternalNodeID: "i-example",
+				Mode:           structs.CSIVolumeClaimRead,
+			}
+
+			index++
+			otherClaim.State = structs.CSIVolumeClaimStateTaken
+			err = state.CSIVolumeClaim(index, ns, volID, otherClaim)
 			require.NoError(t, err)
 
 			// test: unpublish and check the results
@@ -575,17 +620,23 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
 
+			vol, volErr := state.CSIVolumeByID(nil, ns, volID)
+			require.NoError(t, volErr)
+			require.NotNil(t, vol)
+
 			if tc.expectedErrMsg == "" {
 				require.NoError(t, err)
-				vol, err = state.CSIVolumeByID(nil, ns, volID)
-				require.NoError(t, err)
-				require.NotNil(t, vol)
-				require.Len(t, vol.ReadAllocs, 0)
+				assert.Len(t, vol.ReadAllocs, 1)
 			} else {
 				require.Error(t, err)
-				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
-					"error message %q did not contain %q", err.Error(), tc.expectedErrMsg)
+				assert.Len(t, vol.ReadAllocs, 2)
+				assert.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
+					"error %v did not contain %q", err, tc.expectedErrMsg)
+				claim = vol.PastClaims[alloc.ID]
+				require.NotNil(t, claim)
+				assert.Equal(t, tc.endState, claim.State)
 			}
+
 		})
 	}
 
