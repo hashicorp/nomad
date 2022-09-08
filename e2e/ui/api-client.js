@@ -17,7 +17,7 @@ export const client = async (
   method = !!method ? method : data ? "post" : "get";
 
   const config = {
-    url: parameters ? url.concat(parameters) : url,
+    url: parameters ? url.concat(`?${parameters.join('&')}`) : url,
     method,
     data: data ? data : undefined,
     headers: {
