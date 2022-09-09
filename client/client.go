@@ -2706,11 +2706,15 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	}
 
 	req := &structs.DeriveSITokenRequest{
-		NodeID:       c.NodeID(),
-		SecretID:     c.secretNodeID(),
-		AllocID:      alloc.ID,
-		Tasks:        tasks,
-		QueryOptions: structs.QueryOptions{Region: c.Region()},
+		NodeID:   c.NodeID(),
+		SecretID: c.secretNodeID(),
+		AllocID:  alloc.ID,
+		Tasks:    tasks,
+		QueryOptions: structs.QueryOptions{
+			Region:        c.Region(),
+			AllowStale:    false,
+			MinQueryIndex: alloc.CreateIndex,
+		},
 	}
 
 	// Nicely ask Nomad Server for the tokens.

@@ -1569,6 +1569,22 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	return evalIDs, evalIndex, nil
 }
 
+// snapshotMinIndex wraps SnapshotMinIndex with a 10s timeout and
+// converts timeout errors into a descriptive error message.
+func (n *Node) snapshotMinIndex(minIndex uint64) (*state.StateSnapshot, error) {
+	defer metrics.MeasureSince([]string{"nomad", "client", "wait_for_index"}, time.Now())
+
+	const timeout = 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	snap, err := n.srv.fsm.State().SnapshotMinIndex(ctx, minIndex)
+	cancel()
+	if err == context.DeadlineExceeded {
+		return nil, fmt.Errorf("timed out after %s waiting for index=%d", timeout, minIndex)
+	}
+
+	return snap, err
+}
+
 // DeriveVaultToken is used by the clients to request wrapped Vault tokens for
 // tasks
 func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *structs.DeriveVaultTokenResponse) error {
@@ -1612,7 +1628,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 	// * The Allocation exists on the specified Node
 	// * The Allocation contains the given tasks and they each require Vault
 	//   tokens
-	snap, err := n.srv.fsm.State().Snapshot()
+	snap, err := n.snapshotMinIndex(args.QueryOptions.MinQueryIndex)
 	if err != nil {
 		setError(err, false)
 		return nil
@@ -1829,8 +1845,7 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	// * The Allocation exists on the specified Node.
 	// * The Allocation contains the given tasks, and each task requires a
 	//   SI token.
-
-	snap, err := n.srv.fsm.State().Snapshot()
+	snap, err := n.snapshotMinIndex(args.QueryOptions.MinQueryIndex)
 	if err != nil {
 		setError(err, false)
 		return nil
