@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
-
-// cSpell:ignore Pather
 
 func TestVarListCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
@@ -101,7 +98,7 @@ func TestVarListCommand_Offline(t *testing.T) {
 // They reuse the same testServer so that they can run in parallel and minimize
 // test startup time costs.
 func TestVarListCommand_Online(t *testing.T) {
-	//ci.Parallel(t)
+	ci.Parallel(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -163,7 +160,7 @@ func TestVarListCommand_Online(t *testing.T) {
 				"Namespace|Path|Last Updated",
 				fmt.Sprintf(
 					"default|a/b/c/d|%s",
-					time.Unix(0, variables.HavingPrefix("a/b/c/d")[0].ModifyTime),
+					formatUnixNanoTime(variables.HavingPrefix("a/b/c/d")[0].ModifyTime),
 				),
 			},
 			),
