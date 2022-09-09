@@ -16,12 +16,12 @@ variable "ami" {
 
 variable "server_instance_type" {
   description = "The AWS instance type to use for servers."
-  default     = "t2.medium"
+  default     = "t2.small"
 }
 
 variable "client_instance_type" {
   description = "The AWS instance type to use for clients."
-  default     = "t2.medium"
+  default     = "t2.micro"
 }
 
 variable "root_block_device_size" {
