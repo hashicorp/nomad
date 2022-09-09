@@ -1,8 +1,3 @@
-provider "aws" {
-  region = var.region
-}
-
-
 variable "name" {
 }
 
@@ -184,8 +179,8 @@ resource "aws_instance" "server" {
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
   }
-  user_data = templatefile("../../env/us-east/user-data-server.sh",
-  #user_data = templatefile("${path.root}/user-data-server.sh",
+  #user_data = templatefile("../../env/us-east/user-data-server.sh",
+  user_data = templatefile("${path.root}/user-data-server.sh",
     {
       server_count = var.server_count
       region       = var.region
@@ -231,8 +226,8 @@ resource "aws_instance" "client" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-  user_data = templatefile("../../env/us-east/user-data-client.sh",
-  #user_data = templatefile("${path.root}/user-data-client.sh",
+  #user_data = templatefile("../../env/us-east/user-data-client.sh",
+  user_data = templatefile("${path.root}/user-data-client.sh",
     {
       region = var.region
       retry_join = chomp(
