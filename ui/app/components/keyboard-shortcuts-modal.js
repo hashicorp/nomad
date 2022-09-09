@@ -1,3 +1,4 @@
+import { set } from '@ember/object';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
@@ -10,8 +11,8 @@ export default class KeyboardShortcutsModalComponent extends Component {
 
   constructor() {
     super(...arguments);
-    window.addEventListener('blur', (a, b, c) => {
-      this.keyboard.displayHints = false;
+    window.addEventListener('blur', () => {
+      set(this, 'keyboard.displayHints', false);
     });
   }
 
