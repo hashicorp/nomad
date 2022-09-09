@@ -1,8 +1,6 @@
 package api
 
 import (
-	"encoding/base64"
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,6 +15,13 @@ func TestKeyring_CRUD(t *testing.T) {
 
 	kr := c.Keyring()
 
+	// Find the bootstrap key
+	keys, qm, err := kr.List(nil)
+	require.NoError(t, err)
+	assertQueryMeta(t, qm)
+	require.Len(t, keys, 1)
+	oldKeyID := keys[0].KeyID
+
 	// Create a key by requesting a rotation
 	key, wm, err := kr.Rotate(nil, nil)
 	require.NoError(t, err)
@@ -24,29 +29,13 @@ func TestKeyring_CRUD(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Read all the keys
-	keys, qm, err := kr.List(&QueryOptions{WaitIndex: key.CreateIndex})
+	keys, qm, err = kr.List(&QueryOptions{WaitIndex: key.CreateIndex})
 	require.NoError(t, err)
 	assertQueryMeta(t, qm)
 	require.Len(t, keys, 2)
 
-	// Write a new active key, forcing a rotation
-	id := "fd77c376-9785-4c80-8e62-4ec3ab5f8b9a"
-	buf := make([]byte, 32)
-	rand.Read(buf)
-	encodedKey := base64.StdEncoding.EncodeToString(buf)
-
-	wm, err = kr.Update(&RootKey{
-		Key: encodedKey,
-		Meta: &RootKeyMeta{
-			KeyID:     id,
-			State:     RootKeyStateActive,
-			Algorithm: EncryptionAlgorithmAES256GCM,
-		}}, nil)
-	require.NoError(t, err)
-	assertWriteMeta(t, wm)
-
 	// Delete the old key
-	wm, err = kr.Delete(&KeyringDeleteOptions{KeyID: keys[0].KeyID}, nil)
+	wm, err = kr.Delete(&KeyringDeleteOptions{KeyID: oldKeyID}, nil)
 	require.NoError(t, err)
 	assertWriteMeta(t, wm)
 
@@ -54,14 +43,7 @@ func TestKeyring_CRUD(t *testing.T) {
 	keys, qm, err = kr.List(&QueryOptions{WaitIndex: key.CreateIndex})
 	require.NoError(t, err)
 	assertQueryMeta(t, qm)
-	require.Len(t, keys, 2)
-	for _, key := range keys {
-		if key.KeyID == id {
-			require.Equal(t, RootKeyState(RootKeyStateActive),
-				key.State, "new key should be active")
-		} else {
-			require.Equal(t, RootKeyState(RootKeyStateInactive),
-				key.State, "initial key should be inactive")
-		}
-	}
+	require.Len(t, keys, 1)
+	require.Equal(t, key.KeyID, keys[0].KeyID)
+	require.Equal(t, RootKeyState(RootKeyStateActive), keys[0].State)
 }

@@ -671,10 +671,6 @@
             "title": "root",
             "routes": [
               {
-                "title": "keyring install",
-                "path": "commands/operator/root/keyring-install"
-              },
-              {
                 "title": "keyring list",
                 "path": "commands/operator/root/keyring-list"
               },
