@@ -226,8 +226,8 @@ resource "aws_instance" "client" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-
-  user_data = templatefile("${path.root}/user-data-client.sh",
+  user_data = templatefile("../../env/us-east1/user-data-client.sh",
+  #user_data = templatefile("${path.root}/user-data-client.sh",
     {
       region = var.region
       retry_join = chomp(
