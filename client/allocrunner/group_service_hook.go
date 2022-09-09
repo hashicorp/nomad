@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -25,7 +24,7 @@ type groupServiceHook struct {
 	allocID          string
 	jobID            string
 	group            string
-	restarter        agentconsul.WorkloadRestarter
+	restarter        serviceregistration.WorkloadRestarter
 	prerun           bool
 	deregistered     bool
 	networkStatus    structs.NetworkStatus
@@ -56,7 +55,7 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc            *structs.Allocation
-	restarter        agentconsul.WorkloadRestarter
+	restarter        serviceregistration.WorkloadRestarter
 	taskEnvBuilder   *taskenv.Builder
 	networkStatus    structs.NetworkStatus
 	shutdownDelayCtx context.Context
