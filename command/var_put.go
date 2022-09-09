@@ -55,8 +55,8 @@ nomad var put [options] <path to store variable> [<variable spec file reference>
   Values supplied as command line arguments supersede values provided in the
   any variable specification piped into the command or loaded from file.
 
-  If ACLs are enabled, this command requires a token with the 'var:write'
-  capability.
+  If ACLs are enabled, this command requires the 'variables:write' capability
+  for the destination namespace.
 
 General Options:
 

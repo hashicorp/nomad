@@ -26,8 +26,8 @@ Usage: nomad var list [options] <prefix>
   List is used to list available variables. Supplying an optional prefix,
   filters the list to variables having a path starting with the prefix.
 
-  If ACLs are enabled, this command will return only variables stored at
-  namespaced paths where the token has the 'var:list' capability.
+  If ACLs are enabled, this command will only return variables stored in
+  namespaces where the token has the 'variables:list' capability.
 
 General Options:
 

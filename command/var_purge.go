@@ -20,8 +20,8 @@ Usage: nomad var purge [options] <path>
 
   Purge is used to permanently delete an existing variable.
 
-  If ACLs are enabled, this command requires a token with the 'var:destroy'
-  capability.
+  If ACLs are enabled, this command requires a token with the 'variables:destroy'
+  capability for the target variable's namespace.
 
 General Options:
 
