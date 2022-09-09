@@ -54,7 +54,7 @@ type FileRotator struct {
 	doneCh      chan struct{}
 
 	closed     bool
-	closedLock sync.Mutex
+	closedLock sync.Mutex // also used to guard oldestLogFileIdx
 }
 
 // NewFileRotator returns a new file rotator
@@ -310,7 +310,10 @@ func (f *FileRotator) purgeOldFiles() {
 					f.logger.Error("error removing file", "filename", fname, "error", err)
 				}
 			}
+
+			f.closedLock.Lock()
 			f.oldestLogFileIdx = fIndexes[0]
+			f.closedLock.Unlock()
 		case <-f.doneCh:
 			return
 		}
