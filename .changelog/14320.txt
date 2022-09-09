@@ -1,0 +1,7 @@
+```release-note:feature
+**ACL Roles:** Added support for ACL Roles.
+```
+
+```release-note:improvement
+acl: ACL tokens can now be created with an expiration TTL.
+```
