@@ -4,6 +4,7 @@ package cgutil
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -313,4 +314,16 @@ func getCPUsFromCgroupV2(group string) ([]uint16, error) {
 		return nil, err
 	}
 	return set.ToSlice(), nil
+}
+
+// identity is the "<allocID>.<taskName>" string that uniquely identifies an
+// individual instance of a task within the flat cgroup namespace
+type identity string
+
+func makeID(allocID, task string) identity {
+	return identity(fmt.Sprintf("%s.%s", allocID, task))
+}
+
+func makeScope(id identity) string {
+	return string(id) + ".scope"
 }
