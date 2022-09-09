@@ -104,6 +104,8 @@ module(
       assert.dom('table.health-checks').doesNotExist();
       assert.dom('[data-test-consul-link-notice]').doesNotExist();
 
+      this.system.agent.config.UI.Consul.BaseUIURL = 'http://localhost:8500';
+
       await render(
         hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
       );
