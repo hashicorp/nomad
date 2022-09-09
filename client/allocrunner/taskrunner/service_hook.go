@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -39,7 +38,7 @@ type serviceHookConfig struct {
 	serviceRegWrapper *wrapper.HandlerWrapper
 
 	// Restarter is a subset of the TaskLifecycle interface
-	restarter agentconsul.WorkloadRestarter
+	restarter serviceregistration.WorkloadRestarter
 
 	logger log.Logger
 }
@@ -48,7 +47,7 @@ type serviceHook struct {
 	allocID   string
 	jobID     string
 	taskName  string
-	restarter agentconsul.WorkloadRestarter
+	restarter serviceregistration.WorkloadRestarter
 	logger    log.Logger
 
 	// The following fields may be updated
