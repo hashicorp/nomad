@@ -34,5 +34,53 @@ module(
       assert.dom(this.element).hasText('');
       assert.dom('.sidebar').doesNotHaveClass('open');
     });
+
+    test('it correctly aggregates service health', async function (assert) {
+      const healthyService = {
+        name: 'Funky Service',
+        provider: 'nomad',
+        healthChecks: [
+          { Check: 'one', Status: 'success', Alloc: 'myAlloc' },
+          { Check: 'two', Status: 'success', Alloc: 'myAlloc' },
+        ],
+      };
+      const unhealthyService = {
+        name: 'Funky Service',
+        provider: 'nomad',
+        healthChecks: [
+          { Check: 'one', Status: 'failure', Alloc: 'myAlloc' },
+          { Check: 'two', Status: 'success', Alloc: 'myAlloc' },
+        ],
+      };
+
+      this.set('closeSidebar', () => this.set('service', null));
+      this.set('allocation', { id: 'myAlloc' });
+      this.set('service', healthyService);
+      await render(
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+      );
+      assert.dom('h1 .aggregate-status').includesText('Healthy');
+
+      this.set('service', unhealthyService);
+      await render(
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+      );
+      assert.dom('h1 .aggregate-status').includesText('Unhealthy');
+    });
+
+    test('it handles Consul services with reduced functionality', async function (assert) {
+      const consulService = {
+        name: 'Consul Service',
+        provider: 'consul',
+        healthChecks: [],
+      };
+
+      this.set('closeSidebar', () => this.set('service', null));
+      this.set('service', consulService);
+      await render(
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+      );
+      assert.dom('h1 .aggregate-status').doesNotExist();
+    });
   }
 );

@@ -10,15 +10,17 @@
 		<header class="detail-header">
 			<h1 class="title">
 				{{@service.name}}
-				<span class="aggregate-status">
-					{{#if (eq this.aggregateStatus 'Unhealthy')}}
-						<FlightIcon @name="x-square-fill" @color="#c84034" />
-						Unhealthy
-					{{else}}
-						<FlightIcon @name="check-square-fill" @color="#25ba81" />
-						Healthy
-					{{/if}}
-				</span>
+				{{#if (not-eq @service.provider "consul")}}
+					<span class="aggregate-status">
+						{{#if (eq this.aggregateStatus 'Unhealthy')}}
+							<FlightIcon @name="x-square-fill" @color="#c84034" />
+							Unhealthy
+						{{else}}
+							<FlightIcon @name="check-square-fill" @color="#25ba81" />
+							Healthy
+						{{/if}}
+					</span>
+				{{/if}}
 			</h1>
 			<button
 				data-test-close-service-sidebar
