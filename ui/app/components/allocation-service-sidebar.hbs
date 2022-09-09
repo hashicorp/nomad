@@ -128,5 +128,12 @@
 				</t.body>
 			</ListTable>
 		{{/if}}
+		{{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
+		<div data-test-consul-link-notice class="notification is-info">
+			<p>
+				Nomad cannot read health check information from Consul services, but you can <a href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">view this information in your Consul UI</a>.
+			</p>
+		</div>
+		{{/if}}
 	{{/if}}
 </div>

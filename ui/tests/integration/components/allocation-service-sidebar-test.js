@@ -3,11 +3,28 @@ import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import Service from '@ember/service';
+import EmberObject from '@ember/object';
 
 module(
   'Integration | Component | allocation-service-sidebar',
   function (hooks) {
     setupRenderingTest(hooks);
+    hooks.beforeEach(function () {
+      const mockSystem = Service.extend({
+        agent: EmberObject.create({
+          config: {
+            UI: {
+              Consul: {
+                BaseUIURL: '',
+              },
+            },
+          },
+        }),
+      });
+      this.owner.register('service:system', mockSystem);
+      this.system = this.owner.lookup('service:system');
+    });
 
     test('it supports basic open/close states', async function (assert) {
       assert.expect(7);
@@ -60,6 +77,9 @@ module(
         hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
       );
       assert.dom('h1 .aggregate-status').includesText('Healthy');
+      assert
+        .dom('table.health-checks tbody tr')
+        .exists({ count: 2 }, 'has two rows');
 
       this.set('service', unhealthyService);
       await render(
@@ -81,6 +101,14 @@ module(
         hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
       );
       assert.dom('h1 .aggregate-status').doesNotExist();
+      assert.dom('table.health-checks').doesNotExist();
+      assert.dom('[data-test-consul-link-notice]').doesNotExist();
+
+      await render(
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+      );
+
+      assert.dom('[data-test-consul-link-notice]').exists();
     });
   }
 );
