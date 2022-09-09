@@ -202,3 +202,48 @@ func TestEventStream_QueryParse(t *testing.T) {
 		})
 	}
 }
+
+func TestEventStream_WebSocket_Upgrade(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		ctx, cancel := context.WithCancel(context.Background())
+		req, err := http.NewRequestWithContext(ctx, "GET", "/v1/event/stream", nil)
+		require.Nil(t, err)
+		resp := httptest.NewRecorder()
+
+		respErrCh := make(chan error)
+		go func() {
+			_, err = s.Server.EventStream(resp, req)
+			respErrCh <- err
+			assert.NoError(t, err)
+		}()
+
+		pub, err := s.Agent.server.State().EventBroker()
+		require.NoError(t, err)
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
+
+		testutil.WaitForResult(func() (bool, error) {
+			got := resp.Body.String()
+			want := `{"ID":"123"}`
+			if strings.Contains(got, want) {
+				return true, nil
+			}
+
+			return false, fmt.Errorf("missing expected json, got: %v, want: %v", got, want)
+		}, func(err error) {
+			cancel()
+			require.Fail(t, err.Error())
+		})
+
+		// wait for response to close to prevent race between subscription
+		// shutdown and server shutdown returning subscription closed by server err
+		cancel()
+		select {
+		case err := <-respErrCh:
+			require.Nil(t, err)
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "waiting for request cancellation")
+		}
+	})
+}

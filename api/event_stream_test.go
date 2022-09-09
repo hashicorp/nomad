@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -280,4 +282,49 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 			tc.expectFn(t, out)
 		})
 	}
+}
+
+// TestEventStream_Websocket_Upgrade tests that a websocket connection
+// can be established and that events are streamed.
+func TestEventStream_Websocket_Upgrade(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// register job to generate events
+	jobs := c.Jobs()
+	job := testJob()
+	resp2, _, err := jobs.Register(job, nil)
+	require.Nil(t, err)
+	require.NotNil(t, resp2)
+
+	// build event stream request
+	events := c.EventStream()
+	q := &QueryOptions{}
+	topics := map[Topic][]string{
+		TopicEvaluation: {"*"},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	streamCh, err := events.Stream(ctx, topics, 0, q)
+	require.NoError(t, err)
+
+	select {
+	case event := <-streamCh:
+		if event.Err != nil {
+			require.Fail(t, err.Error())
+		}
+		require.Equal(t, len(event.Events), 1)
+		require.Equal(t, "Evaluation", string(event.Events[0].Topic))
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "failed waiting for event stream event")
+	}
+
+	// make a request that will result in an error
+	// ensure the error is what we expect
+	exitCode, err := events.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
+
+	require.Equal(t, exitCode, -2)
+	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
