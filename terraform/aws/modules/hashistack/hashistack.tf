@@ -1,3 +1,8 @@
+provider "aws" {
+  region = var.region
+}
+
+
 variable "name" {
 }
 
