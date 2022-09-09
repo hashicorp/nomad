@@ -343,7 +343,6 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.ServerJoin = c.ServerJoin.Copy()
 	nc.HostVolumes = helper.CopySlice(c.HostVolumes)
 	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
-	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
@@ -572,7 +571,6 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.RetryJoin = slices.Clone(s.RetryJoin)
 	ns.ServerJoin = s.ServerJoin.Copy()
 	ns.DefaultSchedulerConfig = s.DefaultSchedulerConfig.Copy()
-	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
 	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
 	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
