@@ -2,7 +2,6 @@ package acl
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -131,34 +130,12 @@ func testACLTokenExpiration(t *testing.T) {
 	require.ErrorContains(t, err, "ACL token expired")
 	require.Nil(t, jobListResp)
 
-	// Force a run of the garbage collection process. This should remove all
-	// expired tokens from state but leave unexpired tokens.
-	require.NoError(t, nomadClient.System().GarbageCollect())
-
-	require.Eventually(t, func() bool {
-		tokenQuickExpiryReadResp, _, err := nomadClient.ACLTokens().Info(tokenQuickExpiryCreateResp.AccessorID, nil)
-		if err == nil {
-			return false
-		}
-		if !strings.Contains(err.Error(), "ACL token not found") {
-			return false
-		}
-		return tokenQuickExpiryReadResp == nil
-	}, 5*time.Second, 200*time.Millisecond)
-
-	cleanUpProcess.remove(tokenQuickExpiryCreateResp.AccessorID, aclTokenTestResourceType)
-
-	tokenNormalExpiryReadResp, _, err := nomadClient.ACLTokens().Info(tokenNormalExpiryCreateResp.AccessorID, nil)
-	require.NoError(t, err)
-	require.NotNil(t, tokenNormalExpiryReadResp)
-	require.Equal(t, tokenNormalExpiryCreateResp.SecretID, tokenNormalExpiryReadResp.SecretID)
-
 	// Ensure we can manually delete unexpired tokens and that they are
 	// immediately removed from state.
-	_, err = nomadClient.ACLTokens().Delete(tokenNormalExpiryReadResp.AccessorID, nil)
+	_, err = nomadClient.ACLTokens().Delete(tokenNormalExpiryCreateResp.AccessorID, nil)
 	require.NoError(t, err)
 
-	tokenNormalExpiryReadResp, _, err = nomadClient.ACLTokens().Info(tokenNormalExpiryCreateResp.AccessorID, nil)
+	tokenNormalExpiryCreateResp, _, err = nomadClient.ACLTokens().Info(tokenNormalExpiryCreateResp.AccessorID, nil)
 	require.ErrorContains(t, err, "ACL token not found")
 
 	cleanUpProcess.remove(tokenNormalExpiryCreateResp.AccessorID, aclTokenTestResourceType)
