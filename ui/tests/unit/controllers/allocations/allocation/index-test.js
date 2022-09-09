@@ -9,8 +9,7 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       let controller = this.owner.lookup(
         'controller:allocations/allocation/index'
       );
-
-      controller.set('model', Allocation);
+      controller.set('model', JSON.parse(JSON.stringify(Allocation)));
 
       const groupFakePy = {
         refID: 'fakepy-group-fake-py',
@@ -95,12 +94,11 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
       );
     });
 
-    test('it handles duplicate names', function (assert) {
+    test('it handles duplicate names', async function (assert) {
       let controller = this.owner.lookup(
         'controller:allocations/allocation/index'
       );
-
-      controller.set('model', Allocation);
+      controller.set('model', JSON.parse(JSON.stringify(Allocation)));
 
       const groupDupe = {
         refID: 'fakepy-duper',
@@ -229,6 +227,7 @@ var Allocation = {
   healthChecks: {
     c97fda942e772b43a5a537e5b0c8544c: {
       Check: 'service: "task-fake-py" check',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: 'c97fda942e772b43a5a537e5b0c8544c',
       Mode: 'healthiness',
@@ -241,6 +240,7 @@ var Allocation = {
     },
     '2e1bfc8ecc485ee86b972ae08e890152': {
       Check: 'task-happy',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: '2e1bfc8ecc485ee86b972ae08e890152',
       Mode: 'healthiness',
@@ -253,6 +253,7 @@ var Allocation = {
     },
     '6162723ab20b268c25eda69b400dc9c6': {
       Check: 'task-sad',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: '6162723ab20b268c25eda69b400dc9c6',
       Mode: 'healthiness',
@@ -266,6 +267,7 @@ var Allocation = {
     },
     a4a7050175a2b236edcf613cb3563753: {
       Check: 'task-sad2',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: 'a4a7050175a2b236edcf613cb3563753',
       Mode: 'healthiness',
@@ -279,6 +281,7 @@ var Allocation = {
     },
     '2dfe58eb841bdfa704f0ae9ef5b5af5e': {
       Check: 'tcp_probe',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: '2dfe58eb841bdfa704f0ae9ef5b5af5e',
       Mode: 'readiness',
@@ -290,6 +293,7 @@ var Allocation = {
     },
     '69021054964f4c461b3c4c4f456e16a8': {
       Check: 'happy',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: '69021054964f4c461b3c4c4f456e16a8',
       Mode: 'healthiness',
@@ -301,6 +305,7 @@ var Allocation = {
     },
     '913f5b725ceecdd5ff48a9a51ddf8513': {
       Check: 'sad',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: '913f5b725ceecdd5ff48a9a51ddf8513',
       Mode: 'healthiness',
@@ -313,6 +318,7 @@ var Allocation = {
     },
     bloop: {
       Check: 'is-alive',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: 'bloop',
       Mode: 'healthiness',
@@ -323,6 +329,7 @@ var Allocation = {
     },
     'group-dupe': {
       Check: 'is-alive',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: 'group-dupe',
       Mode: 'healthiness',
@@ -333,6 +340,7 @@ var Allocation = {
     },
     'task-dupe': {
       Check: 'is-alive',
+      Alloc: 'my-alloc',
       Group: 'trying-multi-dupes.fakepy[1]',
       ID: 'task-dupe',
       Mode: 'healthiness',
@@ -342,7 +350,7 @@ var Allocation = {
       Timestamp: 1662131947,
     },
   },
-
+  id: 'my-alloc',
   states: [
     {
       Name: 'http.server',

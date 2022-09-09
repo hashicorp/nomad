@@ -71,7 +71,7 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @union('taskServices', 'groupServices') services;
 
-  @computed('model.healthChecks.{}', 'services')
+  @computed('model.{healthChecks,id}', 'services')
   get servicesWithHealthChecks() {
     return this.services.map((service) => {
       if (this.model.healthChecks) {
@@ -83,19 +83,15 @@ export default class IndexController extends Controller.extend(Sortable) {
             return currentServiceName === service.refID;
           }
         );
-        // Only append those healthchecks whose timestamps are not already found in service.healthChecks
         healthChecks.forEach((check) => {
-          if (
-            !service.healthChecks.find(
-              (sc) =>
-                sc.Check === check.Check && sc.Timestamp === check.Timestamp
-            )
-          ) {
-            service.healthChecks.pushObject(check);
-            service.healthChecks = [...service.healthChecks.slice(-10)];
-          }
+          service.healthChecks.pushObject(check);
         });
       }
+      // Contextualize healthchecks for the allocation we're in
+      service.healthChecks = service.healthChecks.filterBy(
+        'Alloc',
+        this.model.id
+      );
       return service;
     });
   }

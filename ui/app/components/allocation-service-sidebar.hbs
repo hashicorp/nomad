@@ -86,8 +86,8 @@
 				</div>
 			</div>
 		</div>
-		{{#if @service.mostRecentChecks.length}}
-			<ListTable class="health-checks" @source={{@service.mostRecentChecks}} as |t|>
+		{{#if this.checks.length}}
+			<ListTable class="health-checks" @source={{this.checks}} as |t|>
 				<t.head>
 					<th>
 						Name

@@ -71,7 +71,11 @@ func TestStatsFetcher(t *testing.T) {
 	// from it.
 	func() {
 		s1.statsFetcher.inflight[raft.ServerID(s3.config.NodeID)] = struct{}{}
-		defer delete(s1.statsFetcher.inflight, raft.ServerID(s3.config.NodeID))
+		defer func() {
+			s1.statsFetcher.inflightLock.Lock()
+			delete(s1.statsFetcher.inflight, raft.ServerID(s3.config.NodeID))
+			s1.statsFetcher.inflightLock.Unlock()
+		}()
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()

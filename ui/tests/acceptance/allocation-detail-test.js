@@ -627,7 +627,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
     server.createList('node', 5);
     server.createList('job', 1, { createRecommendations: true });
-    server.create('job', {
+    const job = server.create('job', {
       withGroupServices: true,
       withTaskServices: true,
       name: 'Service-haver',
@@ -635,12 +635,16 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       namespaceId: 'default',
     });
 
+    const currentAlloc = server.db.allocations.findBy({ jobId: job.id });
+    const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
+
     server.db.serviceFragments.update({
       healthChecks: [
         {
           Status: 'success',
           Check: 'check1',
           Timestamp: 99,
+          Alloc: currentAlloc.id,
         },
         {
           Status: 'failure',
@@ -649,18 +653,30 @@ module('Acceptance | allocation detail (services)', function (hooks) {
           propThatDoesntMatter:
             'this object will be ignored, since it shared a Check name with a later one.',
           Timestamp: 98,
+          Alloc: currentAlloc.id,
         },
         {
           Status: 'success',
           Check: 'check2',
           Output: 'Two',
           Timestamp: 99,
+          Alloc: currentAlloc.id,
         },
         {
           Status: 'failure',
           Check: 'check3',
           Output: 'Oh no!',
           Timestamp: 99,
+          Alloc: currentAlloc.id,
+        },
+        {
+          Status: 'success',
+          Check: 'check3',
+          Output: 'Wont be seen',
+          propThatDoesntMatter:
+            'this object will be ignored, in spite of its later timestamp, since it exists on a different alloc',
+          Timestamp: 100,
+          Alloc: otherAlloc.id,
         },
       ],
     });
@@ -669,7 +685,6 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   test('Allocation has a list of services with active checks', async function (assert) {
     await visit('jobs/service-haver@default');
     await click('.allocation-row');
-
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();
     assert.dom('.service-sidebar').doesNotHaveClass('open');

@@ -461,9 +461,9 @@ func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *
 	case useLocalClient:
 		rpcErr = s.agent.Client().ClientRPC("Allocations.Checks", &args, &reply)
 	case useClientRPC:
-		rpcErr = s.agent.Client().RPC("Allocations.Checks", &args, &reply)
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Checks", &args, &reply)
 	case useServerRPC:
-		rpcErr = s.agent.Server().RPC("Allocations.Checks", &args, &reply)
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Checks", &args, &reply)
 	default:
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}
