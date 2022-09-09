@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
@@ -24,16 +26,34 @@ type VarPutCommand struct {
 	outFmt    string
 	tmpl      string
 	testStdin io.Reader // for tests
+	verbose   func(string)
 }
 
 func (c *VarPutCommand) Help() string {
 	helpText := `
-Usage: nomad var put [options] <path> [<key>=<value>]...
+Usage:
+nomad var put [options] <variable spec file reference> [<key>=<value>]...
+nomad var put [options] <path to store variable> [<variable spec file reference>] [<key>=<value>]...
 
   The 'var put' command is used to create or update an existing variable.
-  The items to be stored in the variable can be supplied as a series of
-  key-value pairs. The value for a key-value pair can be a string, an
-  @-prefixed file reference, or a '-' to get the value from standard input.
+  Variable metadata and items can be supplied using a variable specification,
+  by using command arguments, or by a combination of the two techniques.
+
+  An entire variable specification can be provided to the command via standard
+  input (stdin) by setting the first argument to "-" or from a file by using an
+  @-prefixed path to a variable specification file. When providing variable
+  data via stdin, you must provide the "-in" flag with the format of the
+  specification, either "hcl" or "json"
+
+  Items to be stored in the variable can be supplied using the specification,
+  as a series of key-value pairs, or both. The value for a key-value pair can
+  be a string, an @-prefixed file reference, or a '-' to get the value from
+  stdin. Item values provided from file references or stdin are consumed as-is
+  with no additional processing and do not require the input format to be
+  specified.
+
+  Values supplied as command line arguments supersede values provided in the
+  any variable specification piped into the command or loaded from file.
 
   If ACLs are enabled, this command requires a token with the 'var:write'
   capability.
@@ -43,15 +63,23 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Apply Options:
+
   -check-index
-     If set, the variable is only purged if the server side version's modify
-     index matches the provided value.
+     If set, the variable is only acted upon if the server-side version's index
+     matches the provided value. When a variable specification contains
+     a modify index, that modify index is used as the check-index for the
+     check-and-set operation and can be overridden using this flag.
+
+  -force
+     Perform this operation regardless of the state or index of the variable
+     on the server-side.
 
   -in (hcl | json)
-     Parser to use for data supplied via standard input or when the type can
-     not be known using the file's extension. Defaults to "json".
+     Parser to use for data supplied via standard input or when the variable
+     specification's type can not be known using the file extension. Defaults
+     to "json".
 
-  -out (go-template | hcl | json | none | pretty-json | table)
+  -out (go-template | hcl | json | none | table)
      Format to render created or updated variable. Defaults to "none" when
      stdout is a terminal and "json" when the output is redirected.
 
@@ -59,12 +87,9 @@ Apply Options:
      Template to render output with. Required when format is "go-template",
      invalid for other formats.
 
-  -force
-     Replace any existing value at the specified path regardless of modify index.
-
-  -v
-     Verbose output. Additional output is written to stderr to preserve stdout
-     for redirected output.
+  -verbose
+     Provides additional information via standard error to preserve standard
+     output (stdout) for redirected output.
 
 `
 	return strings.TrimSpace(helpText)
@@ -74,7 +99,7 @@ func (c *VarPutCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-in":  complete.PredictSet("hcl", "json"),
-			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "pretty-json", "table"),
+			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "table"),
 		},
 	)
 }
@@ -90,19 +115,20 @@ func (c *VarPutCommand) Synopsis() string {
 func (c *VarPutCommand) Name() string { return "var put" }
 
 func (c *VarPutCommand) Run(args []string) int {
-	var err error
-	var forceOverwrite, enforce, doVerbose bool
+	var force, enforce, doVerbose bool
 	var path, checkIndexStr string
 	var checkIndex uint64
+	var err error
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	flags.StringVar(&c.inFmt, "in", "json", "")
+	flags.BoolVar(&force, "force", false, "")
+	flags.BoolVar(&doVerbose, "verbose", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
-	flags.BoolVar(&forceOverwrite, "force", false, "")
-	flags.BoolVar(&doVerbose, "v", false, "")
+	flags.StringVar(&c.inFmt, "in", "json", "")
 	flags.StringVar(&c.tmpl, "template", "", "")
+
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "none", "")
 	} else {
@@ -123,10 +149,17 @@ func (c *VarPutCommand) Run(args []string) int {
 			c.Ui.Warn(msg)
 		}
 	}
+	c.verbose = verbose
+
 	// Parse the check-index
 	checkIndex, enforce, err = parseCheckIndex(checkIndexStr)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing check-index value %q: %v", checkIndexStr, err))
+		return 1
+	}
+
+	if c.Meta.namespace == "*" {
+		c.Ui.Error(errWildcardNamespaceNotAllowed)
 		return 1
 	}
 
@@ -177,28 +210,22 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	case isArgFileRef(arg):
 		// ArgFileRefs start with "@" so we need to peel that off
-		filepath := arg[1:]
-		// detect format based on extension
-		p := strings.Split(filepath, ".")
-		if len(p) < 2 {
-			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", filepath))
-			return 1
-		}
 		// detect format based on file extension
-		switch strings.ToLower(p[len(p)-1]) {
-		case "json":
+		specPath := arg[1:]
+		switch filepath.Ext(specPath) {
+		case ".json":
 			c.inFmt = "json"
-		case "hcl":
+		case ".hcl":
 			c.inFmt = "hcl"
 		default:
-			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", filepath))
+			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", specPath))
 			return 1
 		}
 
-		verbose(fmt.Sprintf("Reading whole %s variable specification from %q", strings.ToUpper(c.inFmt), filepath))
-		c.contents, err = os.ReadFile(filepath)
+		verbose(fmt.Sprintf("Reading whole %s variable specification from %q", strings.ToUpper(c.inFmt), specPath))
+		c.contents, err = os.ReadFile(specPath)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error reading %q: %s", filepath, err))
+			c.Ui.Error(fmt.Sprintf("Error reading %q: %s", specPath, err))
 			return 1
 		}
 	default:
@@ -254,10 +281,10 @@ func (c *VarPutCommand) Run(args []string) int {
 			vs := v.(string)
 			if vs == "" {
 				if _, ok := sv.Items[k]; ok {
-					c.Ui.Warn(fmt.Sprintf("Removed item %q", k))
+					verbose(fmt.Sprintf("Removed item %q", k))
 					delete(sv.Items, k)
 				} else {
-					c.Ui.Warn(fmt.Sprintf("Item %q does not exist, continuing...", k))
+					verbose(fmt.Sprintf("Item %q does not exist, continuing...", k))
 				}
 				continue
 			}
@@ -275,12 +302,15 @@ func (c *VarPutCommand) Run(args []string) int {
 		sv.ModifyIndex = checkIndex
 	}
 
-	if forceOverwrite {
+	if force {
 		sv, _, err = client.Variables().Update(sv, nil)
 	} else {
 		sv, _, err = client.Variables().CheckedUpdate(sv, nil)
 	}
 	if err != nil {
+		if handled := handleCASError(err, c); handled {
+			return 1
+		}
 		c.Ui.Error(fmt.Sprintf("Error creating variable: %s", err))
 		return 1
 	}
@@ -290,8 +320,6 @@ func (c *VarPutCommand) Run(args []string) int {
 	var out string
 	switch c.outFmt {
 	case "json":
-		out = sv.AsJSON()
-	case "pretty-json":
 		out = sv.AsPrettyJSON()
 	case "hcl":
 		out = renderAsHCL(sv)
@@ -329,12 +357,11 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 			return nil, fmt.Errorf("error unmarshaling json: %w", err)
 		}
 	case "hcl":
-		out, err = parseVariableSpec(c.contents)
+		out, err = parseVariableSpec(c.contents, c.verbose)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing hcl: %w", err)
 		}
 	case "":
-		fmt.Println("format flag required")
 		return nil, errors.New("format flag required")
 	default:
 		return nil, fmt.Errorf("unknown format flag value")
@@ -346,7 +373,7 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 	var resetIndex bool
 
 	// Step on the namespace in the object if one is provided by flag
-	if c.Meta.namespace != "" && c.Meta.namespace != out.Path {
+	if c.Meta.namespace != "" && c.Meta.namespace != out.Namespace {
 		out.Namespace = c.Meta.namespace
 		resetIndex = true
 	}
@@ -368,7 +395,7 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 
 // parseVariableSpec is used to parse the variable specification
 // from HCL
-func parseVariableSpec(input []byte) (*api.Variable, error) {
+func parseVariableSpec(input []byte, verbose func(string)) (*api.Variable, error) {
 	root, err := hcl.ParseBytes(input)
 	if err != nil {
 		return nil, err
@@ -384,7 +411,6 @@ func parseVariableSpec(input []byte) (*api.Variable, error) {
 	if err := parseVariableSpecImpl(&out, list); err != nil {
 		return nil, err
 	}
-	fmt.Printf("\n\n\n%+#v\n\n\n", out)
 	return &out, nil
 }
 
@@ -396,23 +422,48 @@ func parseVariableSpecImpl(result *api.Variable, list *ast.ObjectList) error {
 		return err
 	}
 
-	delete(m, "items")
+	// Check for invalid keys
+	valid := []string{
+		"namespace",
+		"path",
+		"create_index",
+		"modify_index",
+		"create_time",
+		"modify_time",
+		"items",
+	}
+	if err := helper.CheckHCLKeys(list, valid); err != nil {
+		return err
+	}
+
+	for _, index := range []string{"create_index", "modify_index"} {
+		if value, ok := m[index]; ok {
+			vInt, ok := value.(int)
+			if !ok {
+				return fmt.Errorf("%s must be integer; got (%T) %[2]v", index, value)
+			}
+			idx := uint64(vInt)
+			n := strings.ReplaceAll(strings.Title(strings.ReplaceAll(index, "_", " ")), " ", "")
+			m[n] = idx
+			delete(m, index)
+		}
+	}
+
+	for _, index := range []string{"create_time", "modify_time"} {
+		if value, ok := m[index]; ok {
+			vInt, ok := value.(int)
+			if !ok {
+				return fmt.Errorf("%s must be a int64; got a (%T) %[2]v", index, value)
+			}
+			n := strings.ReplaceAll(strings.Title(strings.ReplaceAll(index, "_", " ")), " ", "")
+			m[n] = vInt
+			delete(m, index)
+		}
+	}
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
-	}
-
-	if itemsO := list.Filter("items"); len(itemsO.Items) > 0 {
-		for _, o := range itemsO.Elem().Items {
-			var m map[string]interface{}
-			if err := hcl.DecodeObject(&m, o.Val); err != nil {
-				return err
-			}
-			if err := mapstructure.WeakDecode(m, &result.Items); err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
@@ -450,7 +501,7 @@ func (c *VarPutCommand) validateInputFlag() error {
 	case "hcl", "json":
 		return nil
 	default:
-		return errors.New(`Invalid value for "-in"; valid values are [hcl, json]`)
+		return errors.New(errInvalidInFormat)
 	}
 }
 
@@ -459,7 +510,7 @@ func (c *VarPutCommand) validateOutputFlag() error {
 		return errors.New(errUnexpectedTemplate)
 	}
 	switch c.outFmt {
-	case "none", "json", "pretty-json", "hcl", "table":
+	case "none", "json", "hcl", "table":
 		return nil
 	case "go-template":
 		if c.tmpl == "" {

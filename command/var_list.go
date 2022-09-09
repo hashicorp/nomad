@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
@@ -28,7 +27,7 @@ Usage: nomad var list [options] <prefix>
   filters the list to variables having a path starting with the prefix.
 
   If ACLs are enabled, this command will return only variables stored at
-  namespaced paths where the token has the ` + "`read`" + ` capability.
+  namespaced paths where the token has the 'var:list' capability.
 
 General Options:
 
@@ -55,7 +54,7 @@ List Options:
 
   -q
     Output matching variable paths with no additional information.
-    This option overrides the ` + "`-t`" + ` option.
+    This option overrides the '-t' option.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -222,7 +221,7 @@ func formatVarStubs(vars []*api.VariableMetadata) string {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s",
 			sv.Namespace,
 			sv.Path,
-			time.Unix(0, sv.ModifyTime),
+			formatUnixNanoTime(sv.ModifyTime),
 		)
 	}
 	return formatList(rows)

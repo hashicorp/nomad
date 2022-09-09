@@ -35,7 +35,8 @@ func TestVarGetCommand_Fails(t *testing.T) {
 		code := cmd.Run([]string{"-address=nope", "foo"})
 		out := ui.ErrorWriter.String()
 		require.Equal(t, 1, code, "expected exit code 1, got: %d")
-		require.Contains(t, out, "retrieving variable", "connection error, got: %s", out)
+		require.Contains(t, ui.ErrorWriter.String(), "retrieving variable", "connection error, got: %s", out)
+		require.Zero(t, ui.OutputWriter.String())
 	})
 	t.Run("missing_template", func(t *testing.T) {
 		ci.Parallel(t)
@@ -45,6 +46,7 @@ func TestVarGetCommand_Fails(t *testing.T) {
 		out := strings.TrimSpace(ui.ErrorWriter.String())
 		require.Equal(t, 1, code, "expected exit code 1, got: %d", code)
 		require.Equal(t, errMissingTemplate+"\n"+commandErrorText(cmd), out)
+		require.Zero(t, ui.OutputWriter.String())
 	})
 	t.Run("unexpected_template", func(t *testing.T) {
 		ci.Parallel(t)
@@ -54,6 +56,7 @@ func TestVarGetCommand_Fails(t *testing.T) {
 		out := strings.TrimSpace(ui.ErrorWriter.String())
 		require.Equal(t, 1, code, "expected exit code 1, got: %d", code)
 		require.Equal(t, errUnexpectedTemplate+"\n"+commandErrorText(cmd), out)
+		require.Zero(t, ui.OutputWriter.String())
 	})
 }
 
@@ -103,7 +106,7 @@ func TestVarGetCommand(t *testing.T) {
 			tc := tc
 			ci.Parallel(t)
 			var err error
-			//Create a namespace for the testcase
+			// Create a namespace for the test case
 			testNS := strings.Map(validNS, t.Name())
 			_, err = client.Namespaces().Register(&api.Namespace{Name: testNS}, nil)
 			require.NoError(t, err)
@@ -146,7 +149,7 @@ func TestVarGetCommand(t *testing.T) {
 			}
 			switch tc.format {
 			case "json":
-				require.Equal(t, sv.AsJSON(), strings.TrimSpace(ui.OutputWriter.String()))
+				require.Equal(t, sv.AsPrettyJSON(), strings.TrimSpace(ui.OutputWriter.String()))
 			case "table":
 				out := ui.OutputWriter.String()
 				outs := strings.Split(out, "\n")

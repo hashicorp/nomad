@@ -1,9 +1,12 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -27,7 +30,7 @@ General Options:
 Purge Options:
 
   -check-index
-    If set, the variable is only purged if the server side version's modify
+    If set, the variable is only acted upon if the server side version's modify
     index matches the provided value.
 `
 
@@ -70,7 +73,19 @@ func (c *VarPurgeCommand) Run(args []string) int {
 	// Parse the check-index
 	checkIndex, enforce, err := parseCheckIndex(checkIndexStr)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing check-index value %q: %v", checkIndexStr, err))
+		switch {
+		case errors.Is(err, strconv.ErrRange):
+			c.Ui.Error(fmt.Sprintf("Invalid -check-index value %q: out of range for uint64", checkIndexStr))
+		case errors.Is(err, strconv.ErrSyntax):
+			c.Ui.Error(fmt.Sprintf("Invalid -check-index value %q: not parsable as uint64", checkIndexStr))
+		default:
+			c.Ui.Error(fmt.Sprintf("Error parsing -check-index value %q: %v", checkIndexStr, err))
+		}
+		return 1
+	}
+
+	if c.Meta.namespace == "*" {
+		c.Ui.Error(errWildcardNamespaceNotAllowed)
 		return 1
 	}
 
@@ -85,16 +100,22 @@ func (c *VarPurgeCommand) Run(args []string) int {
 
 	if enforce {
 		_, err = client.Variables().CheckedDelete(path, checkIndex, nil)
-		// TODO: Manage Conflict result; for now, will be caught in generic error handler later.
 	} else {
 		_, err = client.Variables().Delete(path, nil)
 	}
 
 	if err != nil {
+		if handled := handleCASError(err, c); handled {
+			return 1
+		}
 		c.Ui.Error(fmt.Sprintf("Error purging variable: %s", err))
 		return 1
 	}
 
 	c.Ui.Output(fmt.Sprintf("Successfully purged variable %q!", path))
 	return 0
+}
+
+func (c *VarPurgeCommand) GetConcurrentUI() cli.ConcurrentUi {
+	return cli.ConcurrentUi{Ui: c.Ui}
 }

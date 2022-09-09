@@ -37,7 +37,7 @@ Read Options:
      take precedence over other formatting directives. The result will not
      have a trailing newline making it ideal for piping to other processes.
 
-  -out ( go-template | hcl | json | none | pretty-json | table )
+  -out ( go-template | hcl | json | none | table )
      Format to render the variable in. When using "go-template", you must
      provide the template content with the "-template" option. Defaults
      to "table" when stdout is a terminal and to "json" when stdout is
@@ -53,7 +53,7 @@ Read Options:
 func (c *VarGetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-out":      complete.PredictSet("table", "hcl", "json", "pretty-json", "go-template"),
+			"-out":      complete.PredictSet("go-template", "hcl", "json", "none", "table"),
 			"-template": complete.PredictAnything,
 		},
 	)
@@ -74,19 +74,21 @@ func (c *VarGetCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+
+	flags.StringVar(&item, "item", "", "")
+	flags.StringVar(&c.tmpl, "template", "", "")
+
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "table", "")
 	} else {
 		flags.StringVar(&c.outFmt, "out", "json", "")
 	}
-	flags.StringVar(&c.tmpl, "template", "", "")
-	flags.StringVar(&item, "item", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
-	// Check that we got one or two arguments
+	// Check that we got one argument
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
@@ -97,6 +99,11 @@ func (c *VarGetCommand) Run(args []string) int {
 	if err := c.validateOutputFlag(); err != nil {
 		c.Ui.Error(err.Error())
 		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	if c.Meta.namespace == "*" {
+		c.Ui.Error(errWildcardNamespaceNotAllowed)
 		return 1
 	}
 
@@ -137,8 +144,6 @@ func (c *VarGetCommand) Run(args []string) int {
 	// Output whole object
 	switch c.outFmt {
 	case "json":
-		out = sv.AsJSON()
-	case "pretty-json":
 		out = sv.AsPrettyJSON()
 	case "hcl":
 		out = renderAsHCL(sv)
@@ -165,7 +170,7 @@ func (c *VarGetCommand) validateOutputFlag() error {
 		return errors.New(errUnexpectedTemplate)
 	}
 	switch c.outFmt {
-	case "hcl", "json", "pretty-json", "none", "table":
+	case "hcl", "json", "none", "table":
 		return nil
 	case "go-template": //noop - needs more validation
 		if c.tmpl == "" {

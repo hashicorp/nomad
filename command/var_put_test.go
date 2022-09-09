@@ -22,7 +22,7 @@ func TestVarPutCommand_Fails(t *testing.T) {
 		ci.Parallel(t)
 		ui := cli.NewMockUi()
 		cmd := &VarPutCommand{Meta: Meta{Ui: ui}}
-		code := cmd.Run([]string{"-badflag"})
+		code := cmd.Run([]string{"-bad-flag"})
 		out := ui.ErrorWriter.String()
 		require.Equal(t, 1, code, "expected exit code 1, got: %d")
 		require.Contains(t, out, commandErrorText(cmd), "expected help output, got: %s", out)
@@ -61,7 +61,16 @@ func TestVarPutCommand_Fails(t *testing.T) {
 		code := cmd.Run([]string{`-in=bad`, "foo", "-"})
 		out := strings.TrimSpace(ui.ErrorWriter.String())
 		require.Equal(t, 1, code, "expected exit code 1, got: %d", code)
-		require.Equal(t, "Invalid value for \"-in\"; valid values are [hcl, json]\n"+commandErrorText(cmd), out)
+		require.Equal(t, errInvalidInFormat+"\n"+commandErrorText(cmd), out)
+	})
+	t.Run("wildcard_namespace", func(t *testing.T) {
+		ci.Parallel(t)
+		ui := cli.NewMockUi()
+		cmd := &VarPutCommand{Meta: Meta{Ui: ui}}
+		code := cmd.Run([]string{`-namespace=*`, "foo", "-"})
+		out := strings.TrimSpace(ui.ErrorWriter.String())
+		require.Equal(t, 1, code, "expected exit code 1, got: %d", code)
+		require.Equal(t, errWildcardNamespaceNotAllowed, out)
 	})
 }
 
@@ -98,7 +107,7 @@ func TestVarPutCommand_AutocompleteArgs(t *testing.T) {
 	defer shutdownFn()
 
 	ui := cli.NewMockUi()
-	cmd := &VarPurgeCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &VarPutCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a var
 	sv := testVariable()

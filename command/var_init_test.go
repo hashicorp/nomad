@@ -1,8 +1,8 @@
 package command
 
 import (
-	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -15,94 +15,106 @@ func TestVarInitCommand_Implements(t *testing.T) {
 	var _ cli.Command = &VarInitCommand{}
 }
 
-func TestVarInitCommand_Run_HCL(t *testing.T) {
+func TestVarInitCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	ui := cli.NewMockUi()
-	cmd := &VarInitCommand{Meta: Meta{Ui: ui}}
-
-	// Fails on misuse
-	ec := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, ec)
-	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
-	ui.ErrorWriter.Reset()
-
-	// Capture current working dir
+	dir := t.TempDir()
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
-	// Create a temp dir and change into it
-	dir := t.TempDir()
 	err = os.Chdir(dir)
 	require.NoError(t, err)
-	// Ensure we change back to the starting dir
-	defer os.Chdir(origDir)
+	t.Cleanup(func() { os.Chdir(origDir) })
 
-	// Works if the file doesn't exist
-	ec = cmd.Run([]string{"-out", "hcl"})
-	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys in the items")
-	require.Zero(t, ec)
+	t.Run("hcl", func(t *testing.T) {
+		ci.Parallel(t)
+		dir := dir
+		ui := cli.NewMockUi()
+		cmd := &VarInitCommand{Meta: Meta{Ui: ui}}
 
-	content, err := ioutil.ReadFile(DefaultHclVarInitName)
-	require.NoError(t, err)
-	require.Equal(t, defaultHclVarSpec, string(content))
+		// Fails on misuse
+		ec := cmd.Run([]string{"some", "bad", "args"})
+		require.Equal(t, 1, ec)
+		require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+		require.Empty(t, ui.OutputWriter.String())
+		reset(ui)
 
-	// Fails if the file exists
-	ec = cmd.Run([]string{"-out", "hcl"})
-	require.Contains(t, ui.ErrorWriter.String(), "exists")
-	require.Equal(t, 1, ec)
-	ui.ErrorWriter.Reset()
+		// Works if the file doesn't exist
+		ec = cmd.Run([]string{"-out", "hcl"})
+		require.Empty(t, ui.ErrorWriter.String())
+		require.Equal(t, "Example variable specification written to spec.nsv.hcl\n", ui.OutputWriter.String())
+		require.Zero(t, ec)
+		reset(ui)
+		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nsv.hcl")) })
 
-	// Works if file is passed
-	ec = cmd.Run([]string{"-out", "hcl", "mytest.hcl"})
-	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys in the items")
-	require.Zero(t, ec)
+		content, err := os.ReadFile(DefaultHclVarInitName)
+		require.NoError(t, err)
+		require.Equal(t, defaultHclVarSpec, string(content))
 
-	content, err = ioutil.ReadFile("mytest.hcl")
-	require.NoError(t, err)
-	require.Equal(t, defaultHclVarSpec, string(content))
+		// Fails if the file exists
+		ec = cmd.Run([]string{"-out", "hcl"})
+		require.Contains(t, ui.ErrorWriter.String(), "exists")
+		require.Empty(t, ui.OutputWriter.String())
+		require.Equal(t, 1, ec)
+		reset(ui)
+
+		// Works if file is passed
+		ec = cmd.Run([]string{"-out", "hcl", "myTest.hcl"})
+		require.Empty(t, ui.ErrorWriter.String())
+		require.Equal(t, "Example variable specification written to myTest.hcl\n", ui.OutputWriter.String())
+		require.Zero(t, ec)
+		reset(ui)
+
+		t.Cleanup(func() { os.Remove(path.Join(dir, "myTest.hcl")) })
+		content, err = os.ReadFile("myTest.hcl")
+		require.NoError(t, err)
+		require.Equal(t, defaultHclVarSpec, string(content))
+	})
+	t.Run("json", func(t *testing.T) {
+		ci.Parallel(t)
+		dir := dir
+		ui := cli.NewMockUi()
+		cmd := &VarInitCommand{Meta: Meta{Ui: ui}}
+
+		// Fails on misuse
+		code := cmd.Run([]string{"some", "bad", "args"})
+		require.Equal(t, 1, code)
+		require.Contains(t, ui.ErrorWriter.String(), "This command takes no arguments or one")
+		require.Empty(t, ui.OutputWriter.String())
+		reset(ui)
+
+		// Works if the file doesn't exist
+		code = cmd.Run([]string{"-out", "json"})
+		require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
+		require.Contains(t, ui.OutputWriter.String(), "Example variable specification written to spec.nsv.json\n")
+		require.Zero(t, code)
+		reset(ui)
+
+		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nsv.json")) })
+		content, err := os.ReadFile(DefaultJsonVarInitName)
+		require.NoError(t, err)
+		require.Equal(t, defaultJsonVarSpec, string(content))
+
+		// Fails if the file exists
+		code = cmd.Run([]string{"-out", "json"})
+		require.Contains(t, ui.ErrorWriter.String(), "exists")
+		require.Empty(t, ui.OutputWriter.String())
+		require.Equal(t, 1, code)
+		reset(ui)
+
+		// Works if file is passed
+		code = cmd.Run([]string{"-out", "json", "myTest.json"})
+		require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
+		require.Contains(t, ui.OutputWriter.String(), "Example variable specification written to myTest.json\n")
+		require.Zero(t, code)
+		reset(ui)
+
+		t.Cleanup(func() { os.Remove(path.Join(dir, "myTest.json")) })
+		content, err = os.ReadFile("myTest.json")
+		require.NoError(t, err)
+		require.Equal(t, defaultJsonVarSpec, string(content))
+	})
 }
 
-func TestVarInitCommand_Run_JSON(t *testing.T) {
-	ci.Parallel(t)
-	ui := cli.NewMockUi()
-	cmd := &VarInitCommand{Meta: Meta{Ui: ui}}
-
-	// Fails on misuse
-	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "This command takes no arguments or one")
+func reset(ui *cli.MockUi) {
+	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
-
-	// Capture current working dir
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	// Create a temp dir and change into it
-	dir := t.TempDir()
-	err = os.Chdir(dir)
-	require.NoError(t, err)
-	// Ensure we change back to the starting dir
-	defer os.Chdir(origDir)
-
-	// Works if the file doesn't exist
-	code = cmd.Run([]string{"-out", "json"})
-	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
-	require.Zero(t, code)
-
-	content, err := ioutil.ReadFile(DefaultJsonVarInitName)
-	require.NoError(t, err)
-	require.Equal(t, defaultJsonVarSpec, string(content))
-
-	// Fails if the file exists
-	code = cmd.Run([]string{"-out", "json"})
-	require.Contains(t, ui.ErrorWriter.String(), "exists")
-	require.Equal(t, 1, code)
-	ui.ErrorWriter.Reset()
-
-	// Works if file is passed
-	code = cmd.Run([]string{"-out", "json", "mytest.json"})
-	require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
-	require.Zero(t, code)
-
-	content, err = ioutil.ReadFile("mytest.json")
-	require.NoError(t, err)
-	require.Equal(t, defaultJsonVarSpec, string(content))
 }

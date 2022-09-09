@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -101,7 +102,7 @@ func renderSVAsUiTable(sv *api.Variable, c VarUI) {
 	meta := []string{
 		fmt.Sprintf("Namespace|%s", sv.Namespace),
 		fmt.Sprintf("Path|%s", sv.Path),
-		fmt.Sprintf("Create Time|%v", time.Unix(0, sv.ModifyTime)),
+		fmt.Sprintf("Create Time|%v", formatUnixNanoTime(sv.ModifyTime)),
 	}
 	if sv.CreateTime != sv.ModifyTime {
 		meta = append(meta, fmt.Sprintf("Modify Time|%v", time.Unix(0, sv.ModifyTime)))
@@ -288,9 +289,51 @@ func (b *KVBuilder) addReader(r io.Reader) error {
 	return dec.Decode(&b.result)
 }
 
+// handleCASError provides consistent output for operations that result in a
+// check-and-set error
+func handleCASError(err error, c VarUI) (handled bool) {
+	ui := c.GetConcurrentUI()
+	var cErr api.ErrCASConflict
+	if errors.As(err, &cErr) {
+		lastUpdate := ""
+		if cErr.Conflict.ModifyIndex > 0 {
+			lastUpdate = fmt.Sprintf(
+				tidyRawString(msgfmtCASConflictLastAccess),
+				formatUnixNanoTime(cErr.Conflict.ModifyTime))
+		}
+		ui.Error(c.Colorize().Color("\n[bold][underline]Check-and-Set conflict[reset]\n"))
+		ui.Warn(
+			wrapAndPrepend(
+				c.Colorize().Color(
+					fmt.Sprintf(
+						tidyRawString(msgfmtCASMismatch),
+						cErr.CheckIndex,
+						cErr.Conflict.ModifyIndex,
+						lastUpdate),
+				),
+				80, "    ") + "\n",
+		)
+		handled = true
+	}
+	return
+}
+
 const (
-	errMissingTemplate    = `A template must be supplied using '-template' when using go-template formatting`
-	errUnexpectedTemplate = `The '-template' flag is only valid when using 'go-template' formatting`
-	errVariableNotFound   = "Variable not found"
-	errInvalidOutFormat   = `Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`
+	errMissingTemplate             = `A template must be supplied using '-template' when using go-template formatting`
+	errUnexpectedTemplate          = `The '-template' flag is only valid when using 'go-template' formatting`
+	errVariableNotFound            = `Variable not found`
+	errInvalidInFormat             = `Invalid value for "-in"; valid values are [hcl, json]`
+	errInvalidOutFormat            = `Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`
+	errWildcardNamespaceNotAllowed = `The wildcard namespace ("*") is not valid for this command.`
+
+	msgfmtCASMismatch = `
+	Your provided check-index [green](%v)[yellow] does not match the
+	server-side index [green](%v)[yellow].
+	%s
+	If you are sure you want to perform this operation, add the [green]-force[yellow] or
+	[green]-check-index=%[2]v[yellow] flag before the positional arguments.`
+
+	msgfmtCASConflictLastAccess = `
+	The server-side item was last updated on [green]%s[yellow].
+	`
 )

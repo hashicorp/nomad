@@ -13,13 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// cSpell:ignore Pather
+
 func TestVarListCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
 	var _ cli.Command = &VarListCommand{}
 }
 
 // TestVarListCommand_Offline contains all of the tests that do not require a
-// testagent to complete
+// testServer to complete
 func TestVarListCommand_Offline(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
@@ -95,11 +97,11 @@ func TestVarListCommand_Offline(t *testing.T) {
 	}
 }
 
-// TestVarListCommand_Online contains all of the tests that use a testagent.
-// They reuse the same testagent so that they can run in parallel and minimize
+// TestVarListCommand_Online contains all of the tests that use a testServer.
+// They reuse the same testServer so that they can run in parallel and minimize
 // test startup time costs.
 func TestVarListCommand_Online(t *testing.T) {
-	ci.Parallel(t)
+	//ci.Parallel(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
