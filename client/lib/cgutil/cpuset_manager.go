@@ -2,7 +2,6 @@ package cgutil
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -59,18 +58,6 @@ type TaskCgroupInfo struct {
 	RelativeCgroupPath string
 	Cpuset             cpuset.CPUSet
 	Error              error
-}
-
-// identity is the "<allocID>.<taskName>" string that uniquely identifies an
-// individual instance of a task within the flat cgroup namespace
-type identity string
-
-func makeID(allocID, task string) identity {
-	return identity(fmt.Sprintf("%s.%s", allocID, task))
-}
-
-func makeScope(id identity) string {
-	return string(id) + ".scope"
 }
 
 // SplitPath determines the parent and cgroup from p.
