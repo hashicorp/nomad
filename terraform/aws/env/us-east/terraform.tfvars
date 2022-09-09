@@ -21,7 +21,8 @@ name = "nomad"
 # `ami` (required) - The base AMI for the created nodes, This AMI must exist in
 # the requested region for this environment to build properly.
 #  - If it is not provided here, it will be requested interactively.
-ami = "ami-09730698a875f6abd"
+ami = "ami-00a885023319a49e0"
+#TODO:  Pull from packer
 
 # `server_instance_type` ("t2.medium"), `client_instance_type` ("t2.medium"),
 # `server_count` (3),`client_count` (4) - These options control instance size
