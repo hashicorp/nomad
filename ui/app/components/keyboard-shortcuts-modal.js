@@ -8,6 +8,13 @@ export default class KeyboardShortcutsModalComponent extends Component {
   @service keyboard;
   @service config;
 
+  constructor() {
+    super(...arguments);
+    window.addEventListener('blur', (a, b, c) => {
+      this.keyboard.displayHints = false;
+    });
+  }
+
   escapeCommand = {
     label: 'Hide Keyboard Shortcuts',
     pattern: ['Escape'],
