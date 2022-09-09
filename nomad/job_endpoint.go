@@ -349,7 +349,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Check if the job has changed at all
-	if existingJob == nil || existingJob.SpecChanged(args.Job) {
+	specChanged, err := j.specChanged(existingJob, args)
+	if err != nil {
+		return err
+	}
+
+	if existingJob == nil || specChanged {
 
 		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
 		// 0.12.1 introduced atomic eval job registration
@@ -431,6 +436,53 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	return nil
+}
+
+// specChanged checks to see if the job spec has changed. If the job is multiregion,
+// it checks all regions. This handles the case of a multiregion job that has been
+// stopped in one or more regions being restarted via the run command.
+func (j *Job) specChanged(existingJob *structs.Job, args *structs.JobRegisterRequest) (bool, error) {
+	if existingJob == nil {
+		return false, nil
+	}
+
+	if existingJob.SpecChanged(args.Job) {
+		return true, nil
+	}
+
+	if !existingJob.IsMultiregion() {
+		return false, nil
+	}
+
+	// If the spec hasn't changed, but this is a multiregion job, check other regions.
+	for _, region := range existingJob.Multiregion.Regions {
+		// Copy the job so we can mutate it by region and compare it with the response.
+		incomingJob := args.Job.Copy()
+		incomingJob.Region = region.Name
+		req := &structs.JobSpecificRequest{
+			JobID: incomingJob.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    region.Name,
+				Namespace: incomingJob.Namespace,
+				AuthToken: args.AuthToken,
+			},
+		}
+		resp := structs.SingleJobResponse{}
+		j.logger.Debug("checking spec for multiregion job")
+		err := j.GetJob(req, &resp)
+		if err != nil {
+			j.logger.Error("job lookup failed", "error", err)
+			return false, err
+		}
+
+		// If the jobspec changed or is nil (purged) for that region, assume it's being re-registered
+		// and treat like a spec change.
+		if resp.Job.SpecChanged(incomingJob) || resp.Job == nil {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // propagateScalingPolicyIDs propagates scaling policy IDs from existing job
