@@ -287,9 +287,6 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
 		make test-nomad; \
 		fi
-	@if [ $(RUN_WEBSITE_TESTS) ]; then \
-		make test-website; \
-		fi
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
 		fi
@@ -425,3 +422,8 @@ endif
 missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
 	@go run -modfile tools/go.mod tools/missing/main.go .github/workflows/test-core.yaml
+
+.PHONY: ec2info
+ec2info: ## Generate AWS EC2 CPU specification table
+	@echo "==> Generating AWS EC2 specifications ..."
+	@go run -modfile tools/go.mod tools/ec2info/main.go

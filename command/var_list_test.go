@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -19,7 +18,7 @@ func TestVarListCommand_Implements(t *testing.T) {
 }
 
 // TestVarListCommand_Offline contains all of the tests that do not require a
-// testagent to complete
+// testServer to complete
 func TestVarListCommand_Offline(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
@@ -95,8 +94,8 @@ func TestVarListCommand_Offline(t *testing.T) {
 	}
 }
 
-// TestVarListCommand_Online contains all of the tests that use a testagent.
-// They reuse the same testagent so that they can run in parallel and minimize
+// TestVarListCommand_Online contains all of the tests that use a testServer.
+// They reuse the same testServer so that they can run in parallel and minimize
 // test startup time costs.
 func TestVarListCommand_Online(t *testing.T) {
 	ci.Parallel(t)
@@ -161,7 +160,7 @@ func TestVarListCommand_Online(t *testing.T) {
 				"Namespace|Path|Last Updated",
 				fmt.Sprintf(
 					"default|a/b/c/d|%s",
-					time.Unix(0, variables.HavingPrefix("a/b/c/d")[0].ModifyTime),
+					formatUnixNanoTime(variables.HavingPrefix("a/b/c/d")[0].ModifyTime),
 				),
 			},
 			),

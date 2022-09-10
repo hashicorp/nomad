@@ -1,8 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"regexp"
 	"strings"
@@ -30,17 +31,16 @@ func (c *VarInitCommand) Help() string {
 	helpText := `
 Usage: nomad var init <filename>
 
-  Creates an example variable specification file that can be used as a
-  starting point to customize further. If no filename is given, the default of
-  "spec.nsv.hcl" or "spec.nsv.json" will be used.
+  Creates an example variable specification file that can be used as a starting
+  point to customize further. When no filename is supplied, a default filename
+  of "spec.nsv.hcl" or "spec.nsv.json" will be used depending on the output
+  format.
 
 Init Options:
 
-  -json
-    Create an example JSON variable specification.
+  -out (hcl | json)
+    Format of generated variable specification. Defaults to "hcl".
 
-  -q
-    Suppress non-error output
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,7 +51,7 @@ func (c *VarInitCommand) Synopsis() string {
 
 func (c *VarInitCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-json": complete.PredictNothing,
+		"-out": complete.PredictSet("hcl", "json"),
 	}
 }
 
@@ -62,13 +62,12 @@ func (c *VarInitCommand) AutocompleteArgs() complete.Predictor {
 func (c *VarInitCommand) Name() string { return "var init" }
 
 func (c *VarInitCommand) Run(args []string) int {
-	var jsonOutput bool
+	var outFmt string
 	var quiet bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&jsonOutput, "json", false, "")
-	flags.BoolVar(&quiet, "q", false, "")
+	flags.StringVar(&outFmt, "out", "hcl", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -81,30 +80,33 @@ func (c *VarInitCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-
-	fileName := DefaultHclVarInitName
-	fileContent := defaultHclVarSpec
-	if jsonOutput {
+	var fileName, fileContent string
+	switch outFmt {
+	case "hcl":
+		fileName = DefaultHclVarInitName
+		fileContent = defaultHclVarSpec
+	case "json":
 		fileName = DefaultJsonVarInitName
 		fileContent = defaultJsonVarSpec
 	}
+
 	if len(args) == 1 {
 		fileName = args[0]
 	}
 
 	// Check if the file already exists
 	_, err := os.Stat(fileName)
-	if err != nil && !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("Failed to stat %q: %v", fileName, err))
+	if err == nil {
+		c.Ui.Error(fmt.Sprintf("File %q already exists", fileName))
 		return 1
 	}
-	if !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("File %q already exists", fileName))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		c.Ui.Error(fmt.Sprintf("Failed to stat %q: %v", fileName, err))
 		return 1
 	}
 
 	// Write out the example
-	err = ioutil.WriteFile(fileName, []byte(fileContent), 0660)
+	err = os.WriteFile(fileName, []byte(fileContent), 0660)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to write %q: %v", fileName, err))
 		return 1
@@ -112,7 +114,10 @@ func (c *VarInitCommand) Run(args []string) int {
 
 	// Success
 	if !quiet {
-		c.Ui.Warn(WrapAndPrepend(TidyRawString(msgWarnKeys), 70, ""))
+		if outFmt == "json" {
+			c.Ui.Info(wrapString(tidyRawString(strings.ReplaceAll(msgOnlyItemsRequired, "items", "Items")), 70))
+			c.Ui.Warn(wrapString(tidyRawString(strings.ReplaceAll(msgWarnKeys, "items", "Items")), 70))
+		}
 		c.Ui.Output(fmt.Sprintf("Example variable specification written to %s", fileName))
 	}
 	return 0
@@ -123,6 +128,11 @@ const (
 	REMINDER: While keys in the items map can contain dots, using them in
 	templates is easier when they do not. As a best practice, avoid dotted
 	keys when possible.`
+	msgOnlyItemsRequired = `
+	The items map is the only strictly required part of a variable
+	specification, since path and namespace can be set via other means. It
+	contains the sensitive material to encrypt and store as a Nomad variable.
+	The entire items map is encrypted and decrypted as a single unit.`
 )
 
 var defaultHclVarSpec = strings.TrimSpace(`
@@ -132,16 +142,14 @@ var defaultHclVarSpec = strings.TrimSpace(`
 # HTTP API endpoint
 # path = "path/to/variable"
 
-# The Namespace to write the variable can be included in the specification
-# and is the highest precedence way to set the namespace value.
+# The Namespace to write the variable can be included in the specification. This
+# value can be overridden by specifying the "-namespace" flag on the "put"
+# command.
 # namespace = "default"
 
-# The items map is the only strictly required part of a variable
-# specification, since path and namespace can be set via other means. It
-# contains the sensitive material to encrypt and store as a Nomad secure
-# variable. The entire items map is encrypted and decrypted as a single unit.
+`+makeHCLComment(msgOnlyItemsRequired)+`
 
-`+warnInHCLFile()+`
+`+makeHCLComment(msgWarnKeys)+`
 items {
   key1 = "value 1"
   key2 = "value 2"
@@ -150,6 +158,8 @@ items {
 
 var defaultJsonVarSpec = strings.TrimSpace(`
 {
+  "Namespace": "default",
+  "Path": "path/to/variable",
   "Items": {
     "key1": "value 1",
     "key2": "value 2"
@@ -157,34 +167,39 @@ var defaultJsonVarSpec = strings.TrimSpace(`
 }
 `) + "\n"
 
-func warnInHCLFile() string {
-	return WrapAndPrepend(TidyRawString(msgWarnKeys), 70, "# ")
+// makeHCLComment is a helper function that will take the contents of a raw
+// string, tidy them, wrap them to 68 characters and add a leading comment
+// marker plus a space.
+func makeHCLComment(in string) string {
+	return wrapAndPrepend(tidyRawString(in), 70, "# ")
 }
 
-// WrapString is a convienience func to abstract away the word wrapping
+// wrapString is a convenience func to abstract away the word wrapping
 // implementation
-func WrapString(input string, lineLen int) string {
+func wrapString(input string, lineLen int) string {
 	return wordwrap.String(input, lineLen)
 }
 
-// WrapAndPrepend will word wrap the input string to lineLen characters and
+// wrapAndPrepend will word wrap the input string to lineLen characters and
 // prepend the provided prefix to every line. The total length of each returned
 // line will be at most len(input[line])+len(prefix)
-func WrapAndPrepend(input string, lineLen int, prefix string) string {
-	ss := strings.Split(wordwrap.String(input, lineLen), "\n")
+func wrapAndPrepend(input string, lineLen int, prefix string) string {
+	ss := strings.Split(wrapString(input, lineLen-len(prefix)), "\n")
 	prefixStringList(ss, prefix)
 	return strings.Join(ss, "\n")
 }
 
-// TidyRawString will convert a wrapped and indented raw string into a single
+// tidyRawString will convert a wrapped and indented raw string into a single
 // long string suitable for rewrapping with another tool. It trims leading and
 // trailing whitespace and then consume groups of tabs, newlines, and spaces
 // replacing them with a single space
-func TidyRawString(raw string) string {
+func tidyRawString(raw string) string {
 	re := regexp.MustCompile("[\t\n ]+")
 	return re.ReplaceAllString(strings.TrimSpace(raw), " ")
 }
 
+// prefixStringList is a helper function that prepends each item in a slice of
+// string with a provided prefix.
 func prefixStringList(ss []string, prefix string) []string {
 	for i, s := range ss {
 		ss[i] = prefix + s

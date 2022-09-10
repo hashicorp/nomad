@@ -3,11 +3,14 @@ package servicediscovery
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func testChecksHappy(t *testing.T) {
@@ -30,20 +33,28 @@ func testChecksHappy(t *testing.T) {
 	// wait for the alloc to be running
 	e2eutil.WaitForAllocRunning(t, nomadClient, allocStubs[0].ID)
 
-	// get the output of 'nomad alloc checks'
-	output, err := e2eutil.AllocChecks(allocStubs[0].ID)
-	must.NoError(t, err)
+	// Get and test the output of 'nomad alloc checks'.
+	require.Eventually(t, func() bool {
+		output, err := e2eutil.AllocChecks(allocStubs[0].ID)
+		if err != nil {
+			return false
+		}
 
-	// assert the output contains success
-	statusRe := regexp.MustCompile(`Status\s+=\s+success`)
-	must.RegexMatch(t, statusRe, output)
+		// assert the output contains success
+		statusRe := regexp.MustCompile(`Status\s+=\s+success`)
+		if !statusRe.MatchString(output) {
+			return false
+		}
 
-	// assert the output contains 200 status code
-	statusCodeRe := regexp.MustCompile(`StatusCode\s+=\s+200`)
-	must.RegexMatch(t, statusCodeRe, output)
+		// assert the output contains 200 status code
+		statusCodeRe := regexp.MustCompile(`StatusCode\s+=\s+200`)
+		if !statusCodeRe.MatchString(output) {
+			return false
+		}
 
-	// assert output contains nomad's success string
-	must.StrContains(t, output, `nomad: http ok`)
+		// assert output contains nomad's success string
+		return strings.Contains(output, `nomad: http ok`)
+	}, 5*time.Second, 200*time.Millisecond)
 }
 
 func testChecksSad(t *testing.T) {
@@ -66,18 +77,26 @@ func testChecksSad(t *testing.T) {
 	// wait for the alloc to be running
 	e2eutil.WaitForAllocRunning(t, nomadClient, allocStubs[0].ID)
 
-	// get the output of 'nomad alloc checks'
-	output, err := e2eutil.AllocChecks(allocStubs[0].ID)
-	must.NoError(t, err)
+	// Get and test the output of 'nomad alloc checks'.
+	require.Eventually(t, func() bool {
+		output, err := e2eutil.AllocChecks(allocStubs[0].ID)
+		if err != nil {
+			return false
+		}
 
-	// assert the output contains failure
-	statusRe := regexp.MustCompile(`Status\s+=\s+failure`)
-	must.RegexMatch(t, statusRe, output)
+		// assert the output contains failure
+		statusRe := regexp.MustCompile(`Status\s+=\s+failure`)
+		if !statusRe.MatchString(output) {
+			return false
+		}
 
-	// assert the output contains 501 status code
-	statusCodeRe := regexp.MustCompile(`StatusCode\s+=\s+501`)
-	must.RegexMatch(t, statusCodeRe, output)
+		// assert the output contains 501 status code
+		statusCodeRe := regexp.MustCompile(`StatusCode\s+=\s+501`)
+		if !statusCodeRe.MatchString(output) {
+			return false
+		}
 
-	// assert output contains error output from python http.server
-	must.StrContains(t, output, `<p>Error code explanation: HTTPStatus.NOT_IMPLEMENTED - Server does not support this operation.</p>`)
+		// assert output contains error output from python http.server
+		return strings.Contains(output, `<p>Error code explanation: HTTPStatus.NOT_IMPLEMENTED - Server does not support this operation.</p>`)
+	}, 5*time.Second, 200*time.Millisecond)
 }

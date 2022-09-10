@@ -654,11 +654,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator root keyring install": func() (cli.Command, error) {
-			return &OperatorRootKeyringInstallCommand{
-				Meta: meta,
-			}, nil
-		},
 		"operator root keyring list": func() (cli.Command, error) {
 			return &OperatorRootKeyringListCommand{
 				Meta: meta,
@@ -941,13 +936,28 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"var list": func() (cli.Command, error) {
-			return &VarListCommand{
+		"var purge": func() (cli.Command, error) {
+			return &VarPurgeCommand{
 				Meta: meta,
 			}, nil
 		},
 		"var init": func() (cli.Command, error) {
 			return &VarInitCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var list": func() (cli.Command, error) {
+			return &VarListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var put": func() (cli.Command, error) {
+			return &VarPutCommand{
+				Meta: meta,
+			}, nil
+		},
+		"var get": func() (cli.Command, error) {
+			return &VarGetCommand{
 				Meta: meta,
 			}, nil
 		},

@@ -313,36 +313,36 @@ func (sv *Variables) writeChecked(endpoint string, in *Variable, out *Variable, 
 // encrypted Nomad backend.
 type Variable struct {
 	// Namespace is the Nomad namespace associated with the variable
-	Namespace string
+	Namespace string `hcl:"namespace"`
 	// Path is the path to the variable
-	Path string
+	Path string `hcl:"path"`
 
 	// Raft indexes to track creation and modification
-	CreateIndex uint64
-	ModifyIndex uint64
+	CreateIndex uint64 `hcl:"create_index"`
+	ModifyIndex uint64 `hcl:"modify_index"`
 
 	// Times provided as a convenience for operators expressed time.UnixNanos
-	CreateTime int64
-	ModifyTime int64
+	CreateTime int64 `hcl:"create_time"`
+	ModifyTime int64 `hcl:"modify_time"`
 
-	Items VariableItems
+	Items VariableItems `hcl:"items"`
 }
 
 // VariableMetadata specifies the metadata for a variable and
 // is used as the list object
 type VariableMetadata struct {
 	// Namespace is the Nomad namespace associated with the variable
-	Namespace string
+	Namespace string `hcl:"namespace"`
 	// Path is the path to the variable
-	Path string
+	Path string `hcl:"path"`
 
 	// Raft indexes to track creation and modification
-	CreateIndex uint64
-	ModifyIndex uint64
+	CreateIndex uint64 `hcl:"create_index"`
+	ModifyIndex uint64 `hcl:"modify_index"`
 
 	// Times provided as a convenience for operators expressed time.UnixNanos
-	CreateTime int64
-	ModifyTime int64
+	CreateTime int64 `hcl:"create_time"`
+	ModifyTime int64 `hcl:"modify_time"`
 }
 
 type VariableItems map[string]string

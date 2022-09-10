@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -21,11 +21,6 @@ type ChecksAPI interface {
 	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
 }
 
-// WorkloadRestarter allows the checkWatcher to restart tasks or entire task groups.
-type WorkloadRestarter interface {
-	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
-}
-
 // checkRestart handles restarting a task if a check is unhealthy.
 type checkRestart struct {
 	allocID   string
@@ -34,7 +29,7 @@ type checkRestart struct {
 	checkName string
 	taskKey   string // composite of allocID + taskName for uniqueness
 
-	task           WorkloadRestarter
+	task           serviceregistration.WorkloadRestarter
 	grace          time.Duration
 	interval       time.Duration
 	timeLimit      time.Duration
@@ -50,7 +45,7 @@ type checkRestart struct {
 	// checks should be counted.
 	graceUntil time.Time
 
-	logger log.Logger
+	logger hclog.Logger
 }
 
 // apply restart state for check and restart task if necessary. Current
@@ -113,7 +108,7 @@ func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) 
 
 // asyncRestart mimics the pre-0.9 TaskRunner.Restart behavior and is intended
 // to be called in a goroutine.
-func asyncRestart(ctx context.Context, logger log.Logger, task WorkloadRestarter, event *structs.TaskEvent) {
+func asyncRestart(ctx context.Context, logger hclog.Logger, task serviceregistration.WorkloadRestarter, event *structs.TaskEvent) {
 	// Check watcher restarts are always failures
 	const failure = true
 
@@ -158,11 +153,11 @@ type checkWatcher struct {
 	// squelch repeated error messages.
 	lastErr bool
 
-	logger log.Logger
+	logger hclog.Logger
 }
 
 // newCheckWatcher creates a new checkWatcher but does not call its Run method.
-func newCheckWatcher(logger log.Logger, checksAPI ChecksAPI, namespacesClient *NamespacesClient) *checkWatcher {
+func newCheckWatcher(logger hclog.Logger, checksAPI ChecksAPI, namespacesClient *NamespacesClient) *checkWatcher {
 	return &checkWatcher{
 		namespacesClient: namespacesClient,
 		checksAPI:        checksAPI,
@@ -311,7 +306,7 @@ WATCHER:
 }
 
 // Watch a check and restart its task if unhealthy.
-func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter WorkloadRestarter) {
+func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter serviceregistration.WorkloadRestarter) {
 	if !check.TriggersRestarts() {
 		// Not watched, noop
 		return

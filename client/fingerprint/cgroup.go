@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	cgroupAvailable   = "available"
-	cgroupUnavailable = "unavailable"
+	cgroupUnavailable = "unavailable" // "available" is over in cgroup_linux
 
 	cgroupMountPointAttribute = "unique.cgroup.mountpoint"
 	cgroupVersionAttribute    = "unique.cgroup.version"
