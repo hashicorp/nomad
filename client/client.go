@@ -691,7 +691,7 @@ func (c *Client) init() error {
 	// startup the CPUSet manager
 	c.cpusetManager.Init()
 
-	// setup the check store
+	// setup the nsd check store
 	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
 
 	return nil
@@ -2607,6 +2607,9 @@ func (c *Client) setupNomadServiceRegistrationHandler() {
 		NodeSecret: c.secretNodeID(),
 		Region:     c.Region(),
 		RPCFn:      c.RPC,
+		CheckWatcher: serviceregistration.NewCheckWatcher(
+			c.logger, nsd.NewStatusGetter(c.checkStore),
+		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
 }

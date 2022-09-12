@@ -419,7 +419,6 @@ type ServiceClient struct {
 	deregisterProbationExpiry time.Time
 
 	// checkWatcher restarts checks that are unhealthy.
-	// checkWatcher *checkWatcher
 	checkWatcher *serviceregistration.CheckWatcher
 
 	// isClientAgent specifies whether this Consul client is being used
@@ -433,14 +432,14 @@ type checkStatusGetter struct {
 	namespacesClient *NamespacesClient
 }
 
-func (csg *checkStatusGetter) Get() (map[string]serviceregistration.CheckStatus, error) {
+func (csg *checkStatusGetter) Get() (map[string]string, error) {
 	// Get the list of all namespaces so we can iterate them.
 	namespaces, err := csg.namespacesClient.List()
 	if err != nil {
 		return nil, err
 	}
 
-	results := make(map[string]serviceregistration.CheckStatus)
+	results := make(map[string]string)
 	for _, namespace := range namespaces {
 		resultsInNamespace, err := csg.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
@@ -448,9 +447,7 @@ func (csg *checkStatusGetter) Get() (map[string]serviceregistration.CheckStatus,
 		}
 
 		for k, v := range resultsInNamespace {
-			results[k] = serviceregistration.CheckStatus{
-				Status: v.Status,
-			}
+			results[k] = v.Status
 		}
 	}
 	return results, nil

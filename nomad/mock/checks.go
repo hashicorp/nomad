@@ -28,3 +28,7 @@ func (s *CheckShim) Remove(allocID string, ids []structs.CheckID) error {
 func (s *CheckShim) Purge(allocID string) error {
 	return nil
 }
+
+func (s *CheckShim) Snapshot() map[string]string {
+	return nil
+}

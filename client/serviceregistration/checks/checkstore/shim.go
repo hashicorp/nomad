@@ -28,6 +28,10 @@ type Shim interface {
 
 	// Purge results for a specific allocation.
 	Purge(allocID string) error
+
+	// Snapshot returns a copy of the current status of every check indexed by
+	// checkID, for use by CheckWatcher.
+	Snapshot() map[string]string
 }
 
 type shim struct {
@@ -149,4 +153,17 @@ func (s *shim) Difference(allocID string, ids []structs.CheckID) []structs.Check
 	}
 
 	return remove
+}
+
+func (s *shim) Snapshot() map[string]string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	result := make(map[string]string)
+	for _, m := range s.current {
+		for checkID, status := range m {
+			result[string(checkID)] = string(status.Status)
+		}
+	}
+	return result
 }
