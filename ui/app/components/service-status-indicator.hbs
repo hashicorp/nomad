@@ -1,5 +1,1 @@
-{{log "CHECK" @check}}
-{{!-- {{@check.Status}} --}}
-<span class="service-status-indicator status-{{@check.Status}} tooltip" aria-label="{{format-ts @check.Timestamp}}">
-	{{!-- {{moment-from-now @check.Timestamp}} --}}
-</span>
+<span class="service-status-indicator status-{{@check.Status}} tooltip is-right-aligned" aria-label="{{@check.Status}} at {{format-ts @check.Timestamp}}"></span>

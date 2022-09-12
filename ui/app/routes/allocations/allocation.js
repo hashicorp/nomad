@@ -25,7 +25,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       if (doesAllocHaveServices) {
         controller.set(
           'watchHealthChecks',
-          this.watchHealthChecks.perform(model, 'getServiceHealth')
+          this.watchHealthChecks.perform(model, 'getServiceHealth', 2000)
         );
       }
     }

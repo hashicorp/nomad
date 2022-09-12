@@ -125,10 +125,10 @@
 							</code>
 						</td>
 					</tr>
-					<tr>
+					<tr class="service-status-indicators">
 						<td colspan="3">
-							<div class="service-status-indicators">
-								{{#each (filter-by "Check" row.model.Check @service.healthChecks) as |check|}}
+							<div>
+								{{#each (dedupe-by-property (filter-by "Check" row.model.Check @service.healthChecks) prop="Timestamp") as |check|}}
 									<ServiceStatusIndicator @check={{check}} />
 								{{/each}}
 							</div>
