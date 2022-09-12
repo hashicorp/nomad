@@ -905,6 +905,35 @@
         "path": "commands/ui"
       },
       {
+        "title": "var",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/var"
+          },
+          {
+            "title": "get",
+            "path": "commands/var/get"
+          },
+          {
+            "title": "init",
+            "path": "commands/var/init"
+          },
+          {
+            "title": "list",
+            "path": "commands/var/list"
+          },
+          {
+            "title": "put",
+            "path": "commands/var/put"
+          },
+          {
+            "title": "purge",
+            "path": "commands/var/purge"
+          }
+        ]
+      },
+      {
         "title": "version",
         "path": "commands/version"
       },
