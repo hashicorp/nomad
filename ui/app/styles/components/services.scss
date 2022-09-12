@@ -69,6 +69,16 @@
 }
 
 table.health-checks {
+  table-layout: fixed;
+  th.name {
+    width: 20%;
+  }
+  th.status {
+    width: 15%;
+  }
+  th.output {
+    width: 65%;
+  }
   tbody tr td {
     border-bottom-width: 0;
   }
