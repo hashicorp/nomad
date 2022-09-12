@@ -1,3 +1,4 @@
+import { set } from '@ember/object';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
@@ -7,6 +8,13 @@ import Tether from 'tether';
 export default class KeyboardShortcutsModalComponent extends Component {
   @service keyboard;
   @service config;
+
+  constructor() {
+    super(...arguments);
+    window.addEventListener('blur', () => {
+      set(this, 'keyboard.displayHints', false);
+    });
+  }
 
   escapeCommand = {
     label: 'Hide Keyboard Shortcuts',
