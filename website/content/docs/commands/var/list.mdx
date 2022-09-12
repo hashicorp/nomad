@@ -36,7 +36,7 @@ the namespaces containing the variables to list.
   results. Queries using this option are less efficient than using the prefix
   parameter; therefore, the prefix parameter should be used whenever possible.
 
-- `-out` `(enum: go-template | hcl | json | none | table )`: Format to render the
+- `-out` `(enum: go-template | json | table | terse )`: Format to render the
   variable in. When using "go-template", you must provide the template content
   with the `-template` option. Defaults to "table" when stdout is a terminal and
   to "json" when stdout is redirected.
@@ -51,10 +51,10 @@ List values under the key "nomad/jobs":
 ```shell-session
 $ nomad var list nomad/jobs
 Namespace  Path                           Last Updated
-default    nomad/jobs/example             2022-08-23 10:35:47.441518 -0400 EDT
-default    nomad/jobs/variable            2022-08-23 10:24:45.795348 -0400 EDT
-default    nomad/jobs/variable/www        2022-08-23 10:24:45.984175 -0400 EDT
-default    nomad/jobs/variable/www/nginx  2022-08-23 10:24:46.179808 -0400 EDT
+default    nomad/jobs/example             2022-08-23T10:35:47-04:00
+default    nomad/jobs/variable            2022-08-23T10:24:45-04:00
+default    nomad/jobs/variable/www        2022-08-23T10:24:45-04:00
+default    nomad/jobs/variable/www/nginx  2022-08-23T10:24:46-04:00
 ```
 
 List values under the key "nomad/jobs/variable/www" in JSON format:
