@@ -157,10 +157,26 @@ resource "aws_security_group" "primary" {
   }
 }
 
+resource "tls_private_key" "nomaddemo" {
+  algorithm = "RSA"
+}
+
+locals {
+  private_key_filename = "ssh-key.pem"
+  private_key_filename2 = ssh-key2.pem"
+}
+
+resource "aws_key_pair" "nomaddemo" {
+  key_name   = local.private_key_filename
+  public_key = tls_private_key.hashicat.public_key_openssh
+}
+
+
+
 resource "aws_instance" "server" {
   ami                    = var.ami
   instance_type          = var.server_instance_type
-  key_name               = var.key_name
+  key_name               = aws_key_pair.nomaddmo.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
 
