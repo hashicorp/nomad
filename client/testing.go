@@ -94,7 +94,6 @@ func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{
 
 	client := &Client{config: conf, logger: testlog.HCLogger(t)}
 	client.servers = servers.New(client.logger, client.shutdownCh, client)
-	client.configCopy = client.config.Copy()
 
 	client.rpcServer = rpc.NewServer()
 	for name, rpc := range rpcs {

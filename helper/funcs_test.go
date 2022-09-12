@@ -66,7 +66,7 @@ func Test_CopyMap(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		m := make(map[string]int, 10)
 		result := CopyMap(m)
-		must.Nil(t, result)
+		must.MapEq(t, map[string]int{}, result)
 	})
 
 	t.Run("elements", func(t *testing.T) {

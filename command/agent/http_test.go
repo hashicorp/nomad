@@ -904,7 +904,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert.Nil(err)
 
 	resp, err := client.Do(req)
-	if assert.Nil(err) {
+	if assert.NoError(err) {
 		resp.Body.Close()
 		assert.Equal(resp.StatusCode, 200)
 	}

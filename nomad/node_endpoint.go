@@ -541,7 +541,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	reply.Index = index
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
@@ -793,7 +793,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}

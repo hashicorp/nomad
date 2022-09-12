@@ -47,9 +47,11 @@ func (c *Client) StreamingRpcHandler(method string) (structs.StreamingRpcHandler
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
 func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
+	conf := c.GetConfig()
+
 	// Invoke the RPCHandler if it exists
-	if c.config.RPCHandler != nil {
-		return c.config.RPCHandler.RPC(method, args, reply)
+	if conf.RPCHandler != nil {
+		return conf.RPCHandler.RPC(method, args, reply)
 	}
 
 	// We will try to automatically retry requests that fail due to things like server unavailability
@@ -60,7 +62,7 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	// to the leader they may also allow for an RPCHoldTimeout while waiting for leader election.
 	// That's OK, we won't double up because we are using it here not as a sleep but
 	// as a hint to give up
-	deadline = deadline.Add(c.config.RPCHoldTimeout)
+	deadline = deadline.Add(conf.RPCHoldTimeout)
 
 	// If its a blocking query, allow the time specified by the request
 	if info, ok := args.(structs.RPCInfo); ok {
@@ -110,7 +112,7 @@ TRY:
 
 	// Wait to avoid thundering herd
 	select {
-	case <-time.After(lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
+	case <-time.After(lib.RandomStagger(conf.RPCHoldTimeout / structs.JitterFraction)):
 		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			newBlockTime := time.Until(deadline)

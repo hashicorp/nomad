@@ -125,6 +125,15 @@ type AutopilotConfig struct {
 	ModifyIndex uint64
 }
 
+func (a *AutopilotConfig) Copy() *AutopilotConfig {
+	if a == nil {
+		return nil
+	}
+
+	na := *a
+	return &na
+}
+
 // SchedulerAlgorithm is an enum string that encapsulates the valid options for a
 // SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
@@ -159,6 +168,15 @@ type SchedulerConfiguration struct {
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (s *SchedulerConfiguration) Copy() *SchedulerConfiguration {
+	if s == nil {
+		return s
+	}
+
+	ns := *s
+	return &ns
 }
 
 func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorithm {
