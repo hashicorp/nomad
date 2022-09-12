@@ -10,6 +10,7 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 let job;
 let node;
@@ -117,6 +118,7 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('a success message and a special management token message are shown when authenticating succeeds', async function (assert) {
+    faker.seed(1);
     const { secretId } = managementToken;
 
     await Tokens.visit();
