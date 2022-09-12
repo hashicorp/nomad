@@ -227,7 +227,7 @@ resource "aws_key_pair" "nomaddemo_client" {
 resource "aws_instance" "client" {
   ami                    = var.ami
   instance_type          = var.client_instance_type
-  key_name               = tls_private_key.nomaddemo_client[count.index].key_name
+  key_name               = aws_key_pair.nomaddemo_client[count.index].key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
