@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -145,12 +146,25 @@ func (sv VariableData) Copy() VariableData {
 	}
 }
 
-func (sv VariableDecrypted) Validate() error {
+var (
+	// validVariablePath is used to validate a variable path. We restrict to
+	// RFC3986 URL-safe characters that don't conflict with the use of
+	// characters "@" and "." in template blocks. We also restrict the length so
+	// that a user can't make queries in the state store unusually expensive (as
+	// they are O(k) on the key length)
+	validVariablePath = regexp.MustCompile("^[a-zA-Z0-9-_~/]{1,128}$")
+)
 
-	if len(sv.Path) == 0 {
+func (v VariableDecrypted) Validate() error {
+
+	if len(v.Path) == 0 {
 		return fmt.Errorf("variable requires path")
 	}
-	parts := strings.Split(sv.Path, "/")
+	if !validVariablePath.MatchString(v.Path) {
+		return fmt.Errorf("invalid path %q", v.Path)
+	}
+
+	parts := strings.Split(v.Path, "/")
 	switch {
 	case len(parts) == 1 && parts[0] == "nomad":
 		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
@@ -158,13 +172,13 @@ func (sv VariableDecrypted) Validate() error {
 		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
 	}
 
-	if len(sv.Items) == 0 {
+	if len(v.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
-	if sv.Items.Size() > maxVariableSize {
+	if v.Items.Size() > maxVariableSize {
 		return errors.New("variables are limited to 16KiB in total size")
 	}
-	if sv.Namespace == AllNamespacesSentinel {
+	if v.Namespace == AllNamespacesSentinel {
 		return errors.New("can not target wildcard (\"*\")namespace")
 	}
 	return nil
