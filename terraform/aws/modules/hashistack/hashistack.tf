@@ -163,7 +163,7 @@ resource "tls_private_key" "nomaddemo" {
 
 locals {
   private_key_filename = "ssh-key.pem"
-  private_key_filename2 = ssh-key2.pem"
+  private_key_filename2 = "ssh-key2.pem"
 }
 
 resource "aws_key_pair" "nomaddemo" {
