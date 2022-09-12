@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 
 export default class AllocationServiceSidebarComponent extends Component {
   @service store;
+  @service system;
 
   get isSideBarOpen() {
     return !!this.args.service;
@@ -35,6 +36,10 @@ export default class AllocationServiceSidebarComponent extends Component {
     return this.checks.any((check) => check.Status === 'failure')
       ? 'Unhealthy'
       : 'Healthy';
+  }
+
+  get consulRedirectLink() {
+    return this.system.agent.get('config')?.UI?.Consul?.BaseUIURL;
   }
 
   get checks() {
