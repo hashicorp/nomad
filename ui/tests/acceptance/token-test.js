@@ -22,6 +22,8 @@ module('Acceptance | tokens', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    faker.seed(1);
+
     window.localStorage.clear();
     window.sessionStorage.clear();
 
@@ -118,7 +120,6 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('a success message and a special management token message are shown when authenticating succeeds', async function (assert) {
-    faker.seed(1);
     const { secretId } = managementToken;
 
     await Tokens.visit();
