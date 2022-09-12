@@ -162,14 +162,14 @@ resource "tls_private_key" "nomaddemo_server" {
   count=var.server_count
 }
 
-locals {
-  count=4
-  private_key_filename = "ssh-key-${count.index}.pem"
-  private_key_filename2 = "ssh-key2-${count.index}.pem"
-}
+#locals {
+#  count=4
+#  private_key_filename = "ssh-key-${count.index}.pem"
+#  private_key_filename2 = "ssh-key2-${count.index}.pem"
+#}
 
 resource "aws_key_pair" "nomaddemo" {
-  key_name   = local.private_key_filename[count.index]
+  key_name   = "ssh-key-${count.index}.pem"
   public_key = tls_private_key.nomaddemo_server[count.index].public_key_openssh
   count=var.server_count
 }
