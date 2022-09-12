@@ -28,12 +28,12 @@ Create or update the variable stored at the path "secret/creds", which contains
 an item named `passcode` with the value `my-long-passcode`.
 
 ```shell-session
-$ nomad var put secret/creds passcode=my-long-passcode
+$ nomad var put -out=table secret/creds passcode=my-long-passcode
 Successfully created variable "secret/creds"!
 
 Namespace   = default
 Path        = secret/creds
-Create Time = 2022-08-23 11:14:37.189939 -0400 EDT
+Create Time = 2022-08-23T11:14:37-04:00
 Check Index = 116
 
 Items
@@ -42,13 +42,13 @@ passcode = my-long-passcode
 
 Update a value:
 ```shell-session
-$ nomad var get secret/creds | nomad var put -in=json -v - user=dba
+$ nomad var get secret/creds | nomad var put -in=json -out=table -v - user=dba
 Reading whole JSON variable specification from stdin
 Successfully updated variable "secret/creds"!
 
 Namespace   = default
 Path        = secret/creds
-Create Time = 2022-08-23 11:14:37.189939 -0400 EDT
+Create Time = 2022-08-23T11:14:37-04:00
 Check Index = 116
 
 Items
