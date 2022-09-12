@@ -9,7 +9,7 @@ description: |-
 
 The `var put` command creates or updates an existing variable.
 
-## Usage:
+## Usage
 
 ```plaintext
 nomad var put [options] <variable spec file reference> [<key>=<value>]...
@@ -17,7 +17,7 @@ nomad var put [options] <path to store variable> [<variable spec file reference>
 ```
 
 Variable metadata and items can be supplied using a variable specification, by
-using command arguments, or by a combination of the two techniques.  An entire
+using command arguments, or by a combination of the two techniques. An entire
 variable specification can be provided to the command via standard input (stdin)
 by setting the first argument to "-" or from a file by using an @-prefixed path
 to a variable specification file. When providing variable data via stdin, you
@@ -31,7 +31,7 @@ values provided from file references or stdin are consumed as-is with no
 additional processing and do not require the input format to be specified.
 
 Values supplied as command line arguments supersede values provided in the any
-variable specification piped into the command or loaded from file.  If ACLs are
+variable specification piped into the command or loaded from file. If ACLs are
 enabled, this command requires the `variables:write` capability for the
 destination namespace.
 
@@ -39,12 +39,12 @@ destination namespace.
 
 @include 'general_options.mdx'
 
-## Put Options:
+## Put Options
 
 - `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
   the server-side version's index matches the provided value. When a variable
   specification contains a modify index, that modify index is used as the
-  check-index for the check-and-set operation and can be overridden using thi
+  check-index for the check-and-set operation and can be overridden using this
   flag.
 
 - `-force`: Perform this operation regardless of the state or index of the
