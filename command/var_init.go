@@ -15,11 +15,11 @@ import (
 const (
 	// DefaultHclVarInitName is the default name we use when initializing the
 	// example var file in HCL format
-	DefaultHclVarInitName = "spec.nsv.hcl"
+	DefaultHclVarInitName = "spec.nv.hcl"
 
 	// DefaultHclVarInitName is the default name we use when initializing the
 	// example var file in JSON format
-	DefaultJsonVarInitName = "spec.nsv.json"
+	DefaultJsonVarInitName = "spec.nv.json"
 )
 
 // VarInitCommand generates a new variable specification
@@ -33,7 +33,7 @@ Usage: nomad var init <filename>
 
   Creates an example variable specification file that can be used as a starting
   point to customize further. When no filename is supplied, a default filename
-  of "spec.nsv.hcl" or "spec.nsv.json" will be used depending on the output
+  of "spec.nv.hcl" or "spec.nv.json" will be used depending on the output
   format.
 
 Init Options:
