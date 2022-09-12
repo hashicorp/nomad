@@ -21,8 +21,8 @@ using command arguments, or by a combination of the two techniques. An entire
 variable specification can be provided to the command via standard input (stdin)
 by setting the first argument to "-" or from a file by using an @-prefixed path
 to a variable specification file. When providing variable data via stdin, you
-must provide the `-in` flag with the format of the specification, either "hcl"
-or "json"
+must provide the `-in` flag with the format of the specification, which must be
+either "hcl" or "json".
 
 Items to be stored in the variable can be supplied using the specification, as a
 series of key-value pairs, or both. The value for a key-value pair can be a
@@ -30,7 +30,7 @@ string, an @-prefixed file reference, or a '-' to get the value from stdin. Item
 values provided from file references or stdin are consumed as-is with no
 additional processing and do not require the input format to be specified.
 
-Values supplied as command line arguments supersede values provided in the any
+Values supplied as command line arguments supersede values provided in any
 variable specification piped into the command or loaded from file. If ACLs are
 enabled, this command requires the `variables:write` capability for the
 destination namespace.
@@ -77,7 +77,7 @@ symbol. For example, you can store a variable using a specification created with
 the `nomad var init` command.
 
 ```shell-session
-$ nomad var put secret/foo @spec.nsv.json
+$ nomad var put secret/foo @spec.nv.json
 ```
 
 Or it can be read from standard input using the "-" symbol:
