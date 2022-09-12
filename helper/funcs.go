@@ -33,6 +33,10 @@ var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
 // invalidFilenameStrict = invalidFilename plus additional punctuation
 var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
 
+type Copyable[T any] interface {
+	Copy() T
+}
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -252,9 +256,9 @@ func CompareMapStringString(a, b map[string]string) bool {
 
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
-// If m is nil or contains no elements, the return value is nil.
+// If m is nil the return value is nil.
 func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
-	if len(m) == 0 {
+	if m == nil {
 		return nil
 	}
 
@@ -265,16 +269,44 @@ func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
 	return result
 }
 
+// DeepCopyMap creates a copy of m by calling Copy() on each value.
+//
+// If m is nil the return value is nil.
+func DeepCopyMap[M ~map[K]V, K comparable, V Copyable[V]](m M) M {
+	if m == nil {
+		return nil
+	}
+
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v.Copy()
+	}
+	return result
+}
+
+// CopySlice creates a deep copy of s. For slices with elements that do not
+// implement Copy(), use slices.Clone.
+func CopySlice[S ~[]E, E Copyable[E]](s S) S {
+	if s == nil {
+		return nil
+	}
+
+	result := make(S, len(s))
+	for i, v := range s {
+		result[i] = v.Copy()
+	}
+	return result
+}
+
 // CopyMapStringString creates a copy of m.
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]string, l)
+	c := make(map[string]string, len(m))
 	for k, v := range m {
 		c[k] = v
 	}
@@ -285,12 +317,11 @@ func CopyMapStringString(m map[string]string) map[string]string {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]struct{}, l)
+	c := make(map[string]struct{}, len(m))
 	for k := range m {
 		c[k] = struct{}{}
 	}
@@ -301,12 +332,11 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 //
 // Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
-	l := len(m)
-	if l == 0 {
+	if m == nil {
 		return nil
 	}
 
-	c := make(map[string]interface{}, l)
+	c := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		c[k] = v
 	}

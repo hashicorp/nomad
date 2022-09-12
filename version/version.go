@@ -30,6 +30,15 @@ type VersionInfo struct {
 	VersionMetadata   string
 }
 
+func (v *VersionInfo) Copy() *VersionInfo {
+	if v == nil {
+		return nil
+	}
+
+	nv := *v
+	return &nv
+}
+
 func GetVersion() *VersionInfo {
 	ver := Version
 	rel := VersionPrerelease
