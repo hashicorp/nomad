@@ -367,8 +367,8 @@ EOH
 
 ### Nomad Variables
 
-Nomad [variables] can be queried using the `nomadVar`, `nomadVarSafe`,
-`nomadVarList`, `nomadVarListSafe`, and `nomadVarExists` functions.
+Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
+`nomadVarListSafe`, and `nomadVarExists` functions.
 
 #### `nomadVarList` and `nomadVarListSafe`
 
@@ -428,8 +428,8 @@ EOH
 ```
 
 By default the `nomadVarList` will list variables in the same namespace as the
-task. The path filter can change the a namespace by adding a suffix separated
-by the `@` character:
+task. The path filter can change the namespace by adding a suffix separated by
+the `@` character:
 
 ```hcl
 template {
@@ -446,7 +446,7 @@ The `nomadVarListSafe` function works identically to `nomadVarList`, but refuses
 to render the template if the variable list query returns blank/empty data.
 
 
-#### `nomadVar` and `nomadVarSafe`
+#### `nomadVar`
 
 These functions can be used to a read Nomad variable, assuming the task has
 access rights to the variable based on the task's [workload identity]. If the
@@ -502,7 +502,7 @@ EOH
 ```
 
 By default the `nomadVar` will read a variable in the same namespace as the
-task. The path filter can change the a namespace by adding a suffix separated by
+task. The path filter can change the namespace by adding a suffix separated by
 the `@` character:
 
 ```hcl
@@ -512,9 +512,6 @@ template {
 EOH
 }
 ```
-
-The `nomadVarSafe` function works identically to `nomadVar`, but refuses to
-render the template if the variable query returns blank/empty data.
 
 #### `nomadVarExists`
 
