@@ -349,7 +349,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Check if the job has changed at all
-	if existingJob == nil || existingJob.SpecChanged(args.Job) {
+	specChanged, err := j.multiregionSpecChanged(existingJob, args)
+	if err != nil {
+		return err
+	}
+
+	if existingJob == nil || specChanged {
 
 		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
 		// 0.12.1 introduced atomic eval job registration
