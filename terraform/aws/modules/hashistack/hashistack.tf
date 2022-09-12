@@ -157,18 +157,21 @@ resource "aws_security_group" "primary" {
   }
 }
 
-resource "tls_private_key" "nomaddemo" {
+resource "tls_private_key" "nomaddemo_server" {
   algorithm = "RSA"
+  count=var.server_count
 }
 
 locals {
-  private_key_filename = "ssh-key.pem"
-  private_key_filename2 = "ssh-key2.pem"
+  count=4
+  private_key_filename = "ssh-key-${count.index}.pem"
+  private_key_filename2 = "ssh-key2-${count.index}.pem"
 }
 
 resource "aws_key_pair" "nomaddemo" {
-  key_name   = local.private_key_filename
-  public_key = tls_private_key.nomaddemo.public_key_openssh
+  key_name   = local.private_key_filename[count.index]
+  public_key = tls_private_key.nomaddemo_server[count.index].public_key_openssh
+  count=var.server_count
 }
 
 
@@ -176,7 +179,7 @@ resource "aws_key_pair" "nomaddemo" {
 resource "aws_instance" "server" {
   ami                    = var.ami
   instance_type          = var.server_instance_type
-  key_name               = aws_key_pair.nomaddemo.key_name
+  key_name               = aws_key_pair.nomaddemo.server[count.index].key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
 
@@ -212,10 +215,29 @@ resource "aws_instance" "server" {
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
+resource "tls_private_key" "nomaddemo_client" {
+  algorithm = "RSA"
+  count=var.client_count
+}
+
+locals {
+  private_key_filename = "ssh-key.pem"
+  private_key_filename2 = "ssh-key2.pem"
+}
+
+resource "aws_key_pair" "nomaddemo" {
+  key_name   = local.private_key_filename
+  public_key = tls_private_key.nomaddemo_client[count.index].public_key_openssh
+  count=var.client_count
+}
+
+
+
+
 resource "aws_instance" "client" {
   ami                    = var.ami
   instance_type          = var.client_instance_type
-  key_name               = var.key_name
+  key_name               = tls_private_key.nomaddemo_client[count.index].key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
