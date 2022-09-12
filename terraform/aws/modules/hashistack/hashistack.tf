@@ -168,13 +168,11 @@ resource "tls_private_key" "nomaddemo_server" {
 #  private_key_filename2 = "ssh-key2-${count.index}.pem"
 #}
 
-resource "aws_key_pair" "nomaddemo" {
-  key_name   = "ssh-key-${count.index}.pem"
+resource "aws_key_pair" "nomaddemo_server" {
+  key_name   = "ssh-key_server-${count.index}.pem"
   public_key = tls_private_key.nomaddemo_server[count.index].public_key_openssh
   count=var.server_count
 }
-
-
 
 resource "aws_instance" "server" {
   ami                    = var.ami
@@ -220,19 +218,11 @@ resource "tls_private_key" "nomaddemo_client" {
   count=var.client_count
 }
 
-locals {
-  private_key_filename = "ssh-key.pem"
-  private_key_filename2 = "ssh-key2.pem"
-}
-
-resource "aws_key_pair" "nomaddemo" {
-  key_name   = local.private_key_filename
+resource "aws_key_pair" "nomaddemo_client" {
+  key_name   = "ssh-key_client-${count.index}.pem"
   public_key = tls_private_key.nomaddemo_client[count.index].public_key_openssh
   count=var.client_count
 }
-
-
-
 
 resource "aws_instance" "client" {
   ami                    = var.ami
