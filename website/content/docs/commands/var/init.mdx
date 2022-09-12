@@ -2,32 +2,33 @@
 layout: docs
 page_title: 'Commands: var init'
 description: |
-  Generate an example var specification.
+  Generate an example variable specification.
 ---
 
 # Command: var init
 
-The `var init` command is used to create an example secure variable
-specification file that can be used as a starting point for further
-customization.
+The `var init` creates an example variable specification file that can be used
+as a starting point to customize further.
 
 ## Usage
 
 ```plaintext
-nomad var init
+nomad var init <filename>
 ```
+
+When no filename is supplied, a default filename of "spec.nsv.hcl" or
+"spec.nsv.json" will be used depending on the output format.
 
 ## Init Options
 
-
-- `-of` `(enum: json|hcl)`: Output format to render the secure variable
-  specification in. Defaults to `json`.
+- `-out` `(enum: hcl | json)`: Format of generated variable
+  specification. Defaults to `hcl`.
 
 ## Examples
 
-Create an example quota specification:
+Create an example variable specification:
 
 ```shell-session
 $ nomad var init
-Example secure variable specification written to spec.nsv.json
+Example variable specification written to spec.nsv.hcl
 ```

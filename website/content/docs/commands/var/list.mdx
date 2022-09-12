@@ -2,16 +2,16 @@
 layout: docs
 page_title: "Command: var list"
 description: |-
-  The "var list" command lists data from Nomad's secure variables datastore at
+  The "var list" command lists data from Nomad's variables datastore at
   or beginning with the given prefix.
 ---
 
 # Command: var list
 
-The `var list` command returns a list of secure variable paths accessible to the
+The `var list` command returns a list of variable paths accessible to the
 current user, optionally filtered to paths containing a provided prefix. Do not
-encode sensitive information in secure variable paths. The secure variable's
-items are not accessible via this command.
+encode sensitive information in variable paths. The variable's items are not
+accessible via this command.
 
 ## Usage
 
@@ -19,21 +19,30 @@ items are not accessible via this command.
 nomad var list [options] [<prefix>]
 ```
 
-If ACLs are enabled, this command requires a token with the
-`secure_variable:list` capability on the namespaces containing the variables to
-list.
+If ACLs are enabled, this command requires the `variables:list` capability for
+the namespaces containing the variables to list.
 
 ## General Options
 
 @include 'general_options.mdx'
 
-## Output Options
+## List Options
 
-- `-of` `(enum: terse|table|json|go-template")`: Print the output in the
-  specified format. Valid formats are `terse`, `table`, `json`, or
-  `go-template`. The `terse` format only outputs paths. If the `-namespace`
-  option is set to `*`, the variable paths will have `@` and the namespace
-  appended to them.
+- `-per-page` `(int: <unset>)`: How many results to show per page.
+
+- `-page-token` `(string: "")`: Where to start pagination.
+
+- `-filter` `(string: "")`: Specifies an expression used to filter query
+  results. Queries using this option are less efficient than using the prefix
+  parameter; therefore, the prefix parameter should be used whenever possible.
+
+- `-out` `(enum: go-template | hcl | json | none | table )`: Format to render the
+  variable in. When using "go-template", you must provide the template content
+  with the `-template` option. Defaults to "table" when stdout is a terminal and
+  to "json" when stdout is redirected.
+
+- `-template` `(string: "")` Template to render output with. Required when
+  output is "go-template".
 
 ## Examples
 
@@ -48,10 +57,26 @@ default    nomad/jobs/variable/www        2022-08-23 10:24:45.984175 -0400 EDT
 default    nomad/jobs/variable/www/nginx  2022-08-23 10:24:46.179808 -0400 EDT
 ```
 
+List values under the key "nomad/jobs/variable/www" in JSON format:
+
 ```shell-session
-$ nomad var list -of=terse -namespace="*" nomad/jobs
-nomad/jobs/example@default
-nomad/jobs/variable@default
-nomad/jobs/variable/www@default
-nomad/jobs/variable/www/nginx@default
+$ nomad var list -out=json -namespace="*" nomad/jobs/variable/www
+[
+  {
+    "Namespace": "default",
+    "Path": "nomad/jobs/variable/www",
+    "CreateIndex": 1457,
+    "ModifyIndex": 1457,
+    "CreateTime": 1662061225600373000,
+    "ModifyTime": 1662061225600373000
+  },
+  {
+    "Namespace": "default",
+    "Path": "nomad/jobs/variable/www/nginx",
+    "CreateIndex": 800,
+    "ModifyIndex": 1000,
+    "CreateTime": 1662061717905426000,
+    "ModifyTime": 1662062162982630000
+  }
+]
 ```

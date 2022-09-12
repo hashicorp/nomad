@@ -2,57 +2,67 @@
 layout: docs
 page_title: "Command: var put"
 description: |-
-  The "var put" command writes a secure variable to the given path in Nomad.
+  The "var put" command writes a variable to the given path in Nomad.
 ---
 
 # Command: var put
 
-The `var put` command writes the secure variable to the given path in Nomad.
-Items to be stored in the variable can be provided as key-value pairs after the
-path or using one of the file input options—standard input or @-prefixed
-filenames.
+The `var put` command creates or updates an existing variable.
 
-## Usage
+## Usage:
 
 ```plaintext
-nomad var put [options] <path> [<key>=value]...
+nomad var put [options] <variable spec file reference> [<key>=<value>]...
+nomad var put [options] <path to store variable> [<variable spec file reference>] [<key>=<value>]...
 ```
 
-If ACLs are enabled, this command requires a management ACL token or a token
-that has a capability associated with the namespace.
+Variable metadata and items can be supplied using a variable specification, by
+using command arguments, or by a combination of the two techniques.  An entire
+variable specification can be provided to the command via standard input (stdin)
+by setting the first argument to "-" or from a file by using an @-prefixed path
+to a variable specification file. When providing variable data via stdin, you
+must provide the `-in` flag with the format of the specification, either "hcl"
+or "json"
+
+Items to be stored in the variable can be supplied using the specification, as a
+series of key-value pairs, or both. The value for a key-value pair can be a
+string, an @-prefixed file reference, or a '-' to get the value from stdin. Item
+values provided from file references or stdin are consumed as-is with no
+additional processing and do not require the input format to be specified.
+
+Values supplied as command line arguments supersede values provided in the any
+variable specification piped into the command or loaded from file.  If ACLs are
+enabled, this command requires the `variables:write` capability for the
+destination namespace.
 
 ## General Options
 
 @include 'general_options.mdx'
 
-## Output Options
+## Put Options:
 
-- `-field` `(string: "")`: Print only the field with the given name. Specifying
-  this option will take precedence over other formatting directives. The result
-  will not have a trailing newline making it ideal for piping to other
-  processes.
+- `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
+  the server-side version's index matches the provided value. When a variable
+  specification contains a modify index, that modify index is used as the
+  check-index for the check-and-set operation and can be overridden using thi
+  flag.
 
-- `-of` `(string: varies)`: Print the output in the given format. Valid
-  formats are `none`, `table`, `json`, `hcl`, or `go-template`. Defaults to
-  `none` when the output is a terminal; defaults to `json` when the output is
-  redirected.
+- `-force`: Perform this operation regardless of the state or index of the
+  variable on the server-side.
 
-- `-q` - Silence all non-error output. This flag overrides any value set using
-  the `-of` option.
+- `-in` `(enum: hcl | json)`: Parser to use for data supplied via standard input
+  or when the variable specification's type can not be known using the file
+  extension. Defaults to "json".
 
-## Command Options
+- `-out` `(enum: go-template | hcl | json | none | table)`: Format to render
+  created or updated variable. Defaults to "none" when stdout is a terminal and
+  "json" when the output is redirected.
 
-- `-check-index` `(int: varies)`: If set, the secure variable is only updated if
-  the provided index matches the server side version's modify index. If a
-  check-index value of zero is set, the secure variable is only inserted if it
-  does not yet exist. This value defaults to the value provided in the variable
-  specification or to zero when a specification is not provided.
+- `-template` `(string: "")`: Template to render output with. Required when
+  format is "go-template", invalid for other formats.
 
-- `-if` `(string: "json")`: Specify the format of data read from standard input
-  and from files without the format-specifying extensions, ".hcl" or ".json".
-  Valid formats are `json` or `hcl`.
-
-- `-y`: Answer yes to all confirmation prompts.
+- `-verbose`: Provides additional information via standard error to preserve
+  standard output (stdout) for redirected output.
 
 ## Examples
 
@@ -63,8 +73,8 @@ $ nomad var put secret/creds passcode=my-long-passcode
 ```
 
 The data can also be consumed from a file on disk by prefixing with the "@"
-symbol. For example, you can store a variable using a specification created
-with the `nomad var init` command.
+symbol. For example, you can store a variable using a specification created with
+the `nomad var init` command.
 
 ```shell-session
 $ nomad var put secret/foo @spec.nsv.json

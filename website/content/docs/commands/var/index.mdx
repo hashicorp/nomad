@@ -2,13 +2,12 @@
 layout: docs
 page_title: "Commands: var"
 description: |-
-  The "var" command groups subcommands for interacting with Vault's key/value
-  secret engine.
+  The "var" command groups subcommands for interacting with Nomad variables.
 ---
 
 # Command: var
 
-The `var` command is used to interact with Nomad's secure variable storage.
+The `var` command is used to interact with Nomad [variables].
 
 ## Usage
 
@@ -17,20 +16,20 @@ Usage: `nomad var <subcommand> [options] [args]`
 Run `nomad var <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-- [`var init`][init] - Create a secure variable specification file
-- [`var list`][list] - List secure variables the user has access to
-- [`var get`][get] - Retrieve a secure variable
-- [`var put`][put] - Insert or update a secure variable
-- [`var purge`][purge] - Permanently delete a secure variable
+- [`var init`][init] - Create a variable specification file
+- [`var list`][list] - List variables the user has access to
+- [`var get`][get] - Retrieve a variable
+- [`var put`][put] - Insert or update a variable
+- [`var purge`][purge] - Permanently delete a variable
 
 ## Examples
 
 Create or update the variable stored at the path "secret/creds", which contains
-an item named `passcode` with the value `my-logn-passcode`.
+an item named `passcode` with the value `my-long-passcode`.
 
 ```shell-session
 $ nomad var put secret/creds passcode=my-long-passcode
-Successfully created secure variable "secret/creds"!
+Successfully created variable "secret/creds"!
 
 Namespace   = default
 Path        = secret/creds
@@ -43,9 +42,9 @@ passcode = my-long-passcode
 
 Update a value:
 ```shell-session
-$ nomad var get -format=json secret/creds | nomad var put - user=dba
+$ nomad var get secret/creds | nomad var put -in=json -v - user=dba
 Reading whole JSON variable specification from stdin
-Successfully updated secure variable "secret/creds"!
+Successfully updated variable "secret/creds"!
 
 Namespace   = default
 Path        = secret/creds
@@ -57,7 +56,7 @@ passcode = my-long-passcode
 user     = dba
 ```
 
-
+[variables]: /docs/concepts/variables
 [init]: /docs/commands/var/init
 [get]: /docs/commands/var/get
 [list]: /docs/commands/var/list

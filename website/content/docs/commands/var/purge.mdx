@@ -2,15 +2,14 @@
 layout: docs
 page_title: "Command: var purge"
 description: |-
-  The "var purge" command permanently removes the specified secure variable
+  The "var purge" command permanently removes the specified variable
   from Nomad.
 ---
 
 # Command: var purge
 
-The `var purge` command permanently removes the variable at the provided path
-from Nomad's secure variable storage. If no key exists at the path, no action
-is taken and the command will exit with a configurable exit code.
+The `var purge` command permanently deletes an existing variable from Nomad's
+variable storage.
 
 ## Usage
 
@@ -18,46 +17,28 @@ is taken and the command will exit with a configurable exit code.
 nomad var purge [options] <path>
 ```
 
-The `var purge` command requires the path to the specification file. The
-specification can be read from standard input by setting the path to `-`.
+The `var purge` command requires the path to the variable.
 
-If ACLs are enabled, this command requires a token with the
-`secure-variable:purge` capability for the namespace and path of the secure
-variable to be purged.
+If ACLs are enabled, this command requires a token with the `variables:destroy`
+capability for the target variable's namespace.
 
 ## General Options
 
 @include 'general_options.mdx'
 
-## Output Options
-
-- `-of` `(string: varies)`: Specify the format to print the secure variable that
-  was purged. Valid formats are `none`, `table`, `json`, `hcl`, or `go-template`.
-  Defaults to `none` when the output is a terminal; defaults to `json` when the
-  output is redirected.
-
-- `-q`: Quiet output; silences all non-error output. This flag overrides any
-  value set using the `-of` option.
-
-
 ## Command Options
 
-- `-check-index` `(int: varies)`: If set, the secure variable is only updated if
-  the provided index matches the server-side version's modify index. This value
-  defaults to the value provided in the variable specification or should be
-  manually provided when a specification is not provided.
-
-- `-exit-code-not-found` `(int: 1)`: Exit code to set if the secure variable is
-   not found. Defaults to 1.
-
-- `-y`: Answer yes to all confirmation prompts.
-
+- `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
+  the server-side version's index matches the provided value. When a variable
+  specification contains a modify index, that modify index is used as the
+  check-index for the check-and-set operation and can be overridden using thi
+  flag.
 
 ## Examples
 
-Purge the secure variable at the "secret/creds" path.
+Purge the variable at the "secret/creds" path.
 
 ```shell-session
 $ nomad var purge -y secret/creds
-Successfully purged secure variable "secret/creds"!
+Successfully purged variable "secret/creds"!
 ```
