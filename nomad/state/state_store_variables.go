@@ -352,15 +352,16 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
 	}
 
-	svEx, ok := raw.(*structs.VariableEncrypted)
-
-	// ModifyIndex of 0 means that we are doing a delete-if-not-exists.
-	if sv.ModifyIndex == 0 && raw != nil {
-		return req.ConflictResponse(idx, svEx)
+	// ModifyIndex of 0 means that we are doing a delete-if-not-exists, so when
+	// raw == nil, it is successful. We should return here without manipulating
+	// the state store further.
+	if sv.ModifyIndex == 0 && raw == nil {
+		return req.SuccessResponse(idx, nil)
 	}
 
 	// If the ModifyIndex is set but the variable doesn't exist, return a
-	// plausible zero value as the conflict
+	// plausible zero value as the conflict, because the user _expected_ there
+	// to have been a value and its absence is a conflict.
 	if sv.ModifyIndex != 0 && raw == nil {
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -369,6 +370,16 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 			},
 		}
 		return req.ConflictResponse(idx, zeroVal)
+	}
+
+	// Any work beyond this point needs to be able to consult the actual
+	// returned content, so assert it back into the right type.
+	svEx, ok := raw.(*structs.VariableEncrypted)
+
+	// ModifyIndex of 0 means that we are doing a delete-if-not-exists, but
+	// there was a value stored in the state store
+	if sv.ModifyIndex == 0 && raw != nil {
+		return req.ConflictResponse(idx, svEx)
 	}
 
 	// If the existing index does not match the provided CAS index arg, then we
