@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACL(t *testing.T) {
@@ -81,6 +82,8 @@ func (c *cleanup) run(t *testing.T, nomadClient *api.Client) {
 		_, err := nomadClient.ACLTokens().Delete(token, nil)
 		assert.NoError(t, err)
 	}
+
+	require.NoError(t, nomadClient.System().GarbageCollect())
 }
 
 // add the resource identifier to the resource tracker. It will be removed by

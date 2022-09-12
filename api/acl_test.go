@@ -118,12 +118,35 @@ func TestACLTokens_List(t *testing.T) {
 	defer s.Stop()
 	at := c.ACLTokens()
 
-	// Expect out bootstrap token
+	// Expect the bootstrap token.
 	result, qm, err := at.List(nil)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, qm.LastIndex)
 	require.Len(t, result, 1)
 	require.Nil(t, result[0].ExpirationTime)
+
+	// Create a token with an expiry.
+	token := &ACLToken{
+		Name:          "token-with-expiry",
+		Type:          "client",
+		Policies:      []string{"foo1"},
+		ExpirationTTL: 1 * time.Hour,
+	}
+	createExpirationResp, _, err := at.Create(token, nil)
+	require.Nil(t, err)
+
+	// Perform the listing again and ensure we have two entries along with the
+	// expiration correctly set and available.
+	listResp, qm, err := at.List(nil)
+	require.Nil(t, err)
+	assertQueryMeta(t, qm)
+	require.Len(t, listResp, 2)
+
+	for _, tokenStub := range listResp {
+		if tokenStub.AccessorID == createExpirationResp.AccessorID {
+			require.NotNil(t, tokenStub.ExpirationTime)
+		}
+	}
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {

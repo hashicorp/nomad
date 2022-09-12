@@ -130,13 +130,40 @@ func testACLTokenExpiration(t *testing.T) {
 	require.ErrorContains(t, err, "ACL token expired")
 	require.Nil(t, jobListResp)
 
+	cleanUpProcess.remove(tokenQuickExpiryCreateResp.AccessorID, aclTokenTestResourceType)
+
+	// List the tokens to ensure the output correctly shows the token
+	// expiration. Other tests may have left tokens in state, so do not perform
+	// a length check.
+	tokenListResp, _, err := nomadClient.ACLTokens().List(nil)
+	require.NoError(t, err)
+
+	var quickExpiryFound, normalExpiryFound bool
+
+	for _, token := range tokenListResp {
+		switch token.AccessorID {
+		case tokenQuickExpiryCreateResp.AccessorID:
+			quickExpiryFound = true
+			require.NotNil(t, token.ExpirationTime)
+		case tokenNormalExpiryCreateResp.AccessorID:
+			normalExpiryFound = true
+			require.NotNil(t, token.ExpirationTime)
+		default:
+			continue
+		}
+	}
+
+	require.True(t, quickExpiryFound)
+	require.True(t, normalExpiryFound)
+
 	// Ensure we can manually delete unexpired tokens and that they are
 	// immediately removed from state.
 	_, err = nomadClient.ACLTokens().Delete(tokenNormalExpiryCreateResp.AccessorID, nil)
 	require.NoError(t, err)
 
-	tokenNormalExpiryCreateResp, _, err = nomadClient.ACLTokens().Info(tokenNormalExpiryCreateResp.AccessorID, nil)
+	tokenNormalExpiryReadResp, _, err := nomadClient.ACLTokens().Info(tokenNormalExpiryCreateResp.AccessorID, nil)
 	require.ErrorContains(t, err, "ACL token not found")
+	require.Nil(t, tokenNormalExpiryReadResp)
 
 	cleanUpProcess.remove(tokenNormalExpiryCreateResp.AccessorID, aclTokenTestResourceType)
 }
@@ -202,6 +229,8 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	require.NotNil(t, aclTokenCreateResp)
 	require.NotEmpty(t, aclTokenCreateResp.SecretID)
 
+	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
+
 	// Test that the token can read the default namespace, but that it cannot
 	// read node objects.
 	defaultNSQueryMeta := api.QueryOptions{Namespace: "default", AuthToken: aclTokenCreateResp.SecretID}
@@ -264,6 +293,8 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, aclTokenCreateResp)
 	require.NotEmpty(t, aclTokenCreateResp.SecretID)
+
+	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
 
 	// Test that the token is working as expected.
 	defaultNSQueryMeta.AuthToken = aclTokenCreateResp.SecretID

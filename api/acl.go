@@ -375,7 +375,7 @@ type ACLTokenListStub struct {
 	// ExpirationTime represents the point after which a token should be
 	// considered revoked and is eligible for destruction. A nil value
 	// indicates no expiration has been set on the token.
-	ExpirationTime *time.Time `json:"expiration_time,omitempty"`
+	ExpirationTime *time.Time `json:",omitempty"`
 
 	CreateIndex uint64
 	ModifyIndex uint64
