@@ -691,7 +691,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		sv.CreateIndex = 0
 		sv.ModifyIndex = 0
 		sv.Path = "real_var/cas_0"
-		// XXX: This has to be a copy because VarSet mutates Var.
+		// Need to make a copy because VarSet mutates Var.
 		svZero := sv.Copy()
 		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
@@ -720,8 +720,6 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Var: sv,
 		})
 		require.True(t, resp.IsOk())
-		// XXX: I expected to have to update Var with the updated
-		// metadata, but it appears that VarSet mutates Var.
 
 		// A CAS delete with a correct index should succeed.
 		req := &structs.VarApplyStateRequest{
