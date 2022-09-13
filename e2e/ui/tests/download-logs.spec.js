@@ -24,7 +24,7 @@ test.describe("Download Task Logs", () => {
 
     // Clear token
     await page.locator("text=ACL Tokens").click();
-    await expect(page).toHaveURL("http://localhost:4200/ui/settings/tokens");
+    await expect(page).toHaveURL(NOMAD_ADDR + "/ui/settings/tokens");
     await page.locator("text=Clear Token").click();
   });
 
