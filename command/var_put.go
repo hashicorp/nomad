@@ -56,7 +56,7 @@ nomad var put [options] <path to store variable> [<variable spec file reference>
   any variable specification piped into the command or loaded from file.
 
   If ACLs are enabled, this command requires the 'variables:write' capability
-  for the destination namespace.
+  for the destination namespace and path.
 
 General Options:
 

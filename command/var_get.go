@@ -24,7 +24,7 @@ Usage: nomad var get [options] <path>
   The 'var get' command is used to get the contents of an existing variable.
 
   If ACLs are enabled, this command requires a token with the 'variables:read'
-  capability for the target variable's namespace.
+  capability for the target variable's namespace and path.
 
 General Options:
 
