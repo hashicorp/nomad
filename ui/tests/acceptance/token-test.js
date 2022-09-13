@@ -22,16 +22,16 @@ module('Acceptance | tokens', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    faker.seed(1);
-
     window.localStorage.clear();
     window.sessionStorage.clear();
+    faker.seed(1);
 
     server.create('agent');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');
     clientToken = server.create('token');
+    console.log('TODO: TEMP, CI', managementToken.name);
   });
 
   test('it passes an accessibility audit', async function (assert) {
