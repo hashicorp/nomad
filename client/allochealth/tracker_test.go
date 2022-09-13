@@ -14,6 +14,7 @@ import (
 	regmock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -530,8 +531,11 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 	case h := <-tracker.HealthyCh():
 		require.Fail(t, "unexpected health event", h)
 	}
-	require.False(t, tracker.tasksHealthy)
-	require.False(t, tracker.checksHealthy)
+
+	helper.WithLock(&tracker.lock, func() {
+		require.False(t, tracker.tasksHealthy)
+		require.False(t, tracker.checksHealthy)
+	})
 
 	// now set task to healthy
 	runningAlloc := alloc.Copy()
@@ -723,7 +727,8 @@ func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
+	for i := range cases {
+		tc := cases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
