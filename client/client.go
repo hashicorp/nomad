@@ -1870,14 +1870,6 @@ func (c *Client) updateNodeStatus() error {
 		}
 	}
 
-	// Check heartbeat response for information about the server-side scheduling
-	// state of this node
-	c.UpdateConfig(func(c *config.Config) {
-		if resp.SchedulingEligibility != "" {
-			c.Node.SchedulingEligibility = resp.SchedulingEligibility
-		}
-	})
-
 	// Update the number of nodes in the cluster so we can adjust our server
 	// rebalance rate.
 	c.servers.SetNumNodes(resp.NumNodes)
