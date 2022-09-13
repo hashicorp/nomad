@@ -52,7 +52,7 @@ nomad var put [options] <path to store variable> [<variable spec file reference>
   with no additional processing and do not require the input format to be
   specified.
 
-  Values supplied as command line arguments supersede values provided in the
+  Values supplied as command line arguments supersede values provided in
   any variable specification piped into the command or loaded from file.
 
   If ACLs are enabled, this command requires the 'variables:write' capability

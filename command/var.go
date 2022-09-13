@@ -322,8 +322,10 @@ const (
 	errMissingTemplate             = `A template must be supplied using '-template' when using go-template formatting`
 	errUnexpectedTemplate          = `The '-template' flag is only valid when using 'go-template' formatting`
 	errVariableNotFound            = `Variable not found`
+	errNoMatchingVariables         = `No matching variables found`
 	errInvalidInFormat             = `Invalid value for "-in"; valid values are [hcl, json]`
 	errInvalidOutFormat            = `Invalid value for "-out"; valid values are [go-template, hcl, json, none, table]`
+	errInvalidListOutFormat        = `Invalid value for "-out"; valid values are [go-template, json, table, terse]`
 	errWildcardNamespaceNotAllowed = `The wildcard namespace ("*") is not valid for this command.`
 
 	msgfmtCASMismatch = `

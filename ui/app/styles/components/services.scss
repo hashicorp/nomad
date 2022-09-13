@@ -67,3 +67,54 @@
     margin-right: 5px;
   }
 }
+
+table.health-checks {
+  table-layout: fixed;
+  th.name {
+    width: 20%;
+  }
+  th.status {
+    width: 15%;
+  }
+  th.output {
+    width: 65%;
+  }
+  tbody tr td {
+    border-bottom-width: 0;
+  }
+
+  .service-status-indicators {
+    td {
+      border-bottom-width: 1px;
+      text-align: right;
+      & > div {
+        display: grid;
+        grid-auto-flow: column;
+        justify-content: end;
+        gap: 2px;
+        width: calc(
+          750px - 3rem - 50px
+        ); //Sidebar width - padding - table padding
+        height: 20px;
+        padding-top: 30px;
+        margin-top: -20px;
+        overflow: hidden;
+        box-sizing: content-box;
+        .service-status-indicator {
+          width: 8px;
+          height: 8px;
+          display: block;
+          position: relative;
+          &.status-success {
+            background-color: $nomad-green;
+            top: 0px;
+          }
+          &.status-failure {
+            background-color: $red;
+            top: 12px;
+          }
+        }
+      }
+    }
+  }
+}

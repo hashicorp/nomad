@@ -40,10 +40,10 @@ func TestVarInitCommand_Run(t *testing.T) {
 		// Works if the file doesn't exist
 		ec = cmd.Run([]string{"-out", "hcl"})
 		require.Empty(t, ui.ErrorWriter.String())
-		require.Equal(t, "Example variable specification written to spec.nsv.hcl\n", ui.OutputWriter.String())
+		require.Equal(t, "Example variable specification written to spec.nv.hcl\n", ui.OutputWriter.String())
 		require.Zero(t, ec)
 		reset(ui)
-		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nsv.hcl")) })
+		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nv.hcl")) })
 
 		content, err := os.ReadFile(DefaultHclVarInitName)
 		require.NoError(t, err)
@@ -84,11 +84,11 @@ func TestVarInitCommand_Run(t *testing.T) {
 		// Works if the file doesn't exist
 		code = cmd.Run([]string{"-out", "json"})
 		require.Contains(t, ui.ErrorWriter.String(), "REMINDER: While keys")
-		require.Contains(t, ui.OutputWriter.String(), "Example variable specification written to spec.nsv.json\n")
+		require.Contains(t, ui.OutputWriter.String(), "Example variable specification written to spec.nv.json\n")
 		require.Zero(t, code)
 		reset(ui)
 
-		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nsv.json")) })
+		t.Cleanup(func() { os.Remove(path.Join(dir, "spec.nv.json")) })
 		content, err := os.ReadFile(DefaultJsonVarInitName)
 		require.NoError(t, err)
 		require.Equal(t, defaultJsonVarSpec, string(content))

@@ -365,6 +365,176 @@ EOH
 }
 ```
 
+### Nomad Variables
+
+Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
+`nomadVarListSafe`, and `nomadVarExists` functions.
+
+#### `nomadVarList` and `nomadVarListSafe`
+
+These functions can be used to list the paths of Nomad variables available to
+the task based on its [workload identity]. You can provide an optional prefix to
+filter the path list by as a parameter.
+
+The list functions return a slice of `NomadVarMeta` type:
+
+```golang
+type NomadVarMeta struct {
+	Namespace, Path          string
+	CreateIndex, ModifyIndex uint64
+	CreateTime, ModifyTime   nanoTime
+}
+```
+
+The `nanoTime` type contains Unix nanoseconds since the epoch. Its string method
+prints it out as a formatted date/time value. It also has a `Time` method that
+can be used to retrieve a Go [`time.Time`] for further manipulation.
+
+`NomadVarMeta` objects print their `Path` value when used as a string. For
+example, these two template blocks produce identical output:
+
+```hcl
+template {
+  data        = <<EOH
+{{ range nomadVarList }}
+  {{ . }}
+{{ end }}
+}
+EOH
+}
+
+template {
+  data        = <<EOH
+{{ range nomadVarList }}
+  {{ .Path }}
+{{ end }}
+}
+EOH
+}
+```
+
+You can provide a prefix to filter the path list as an optional parameter to the
+`nomadVarList` function.
+
+```hcl
+template {
+  data        = <<EOH
+{{ range nomadVarList "path/to/filter" }}
+  {{ . }}
+{{ end }}
+}
+EOH
+}
+```
+
+By default the `nomadVarList` will list variables in the same namespace as the
+task. The path filter can change the namespace by adding a suffix separated by
+the `@` character:
+
+```hcl
+template {
+  data        = <<EOH
+{{ range nomadVarList "path/to/filter@example_namespace" }}
+  {{ . }}
+{{ end }}
+}
+EOH
+}
+```
+
+The `nomadVarListSafe` function works identically to `nomadVarList`, but refuses
+to render the template if the variable list query returns blank/empty data.
+
+
+#### `nomadVar`
+
+These functions can be used to a read Nomad variable, assuming the task has
+access rights to the variable based on the task's [workload identity]. If the
+path does not exist or the caller does not have access to it, the `template`
+renderer will block until the path is available. To avoid blocking, wrap
+`nomadVar` calls with [`nomadVarExists`](#nomadvarexists).
+
+The `nomadVar` function returns a map of of `string` to `NomadVarItems`
+structs. Each member of the map corresponds to a member of the variable's
+`Items` collection.
+
+For example, given a variable exists at the path `nomad/jobs/redis`, with a
+single key/value pair in its Items collection — `maxconns`:`15`
+
+```hcl
+template {
+  data        = <<EOH
+{{ with nomadVar "nomad/jobs/redis" }}{{ .maxconns }}{{ end }}
+EOH
+}
+```
+
+renders
+
+```text
+15
+```
+
+Each map value also contains helper methods to get the variable metadata and a
+link to the parent variable:
+
+* `Keys`: produces a sorted list of keys to this `NomadVarItems` map.
+* `Values`: produces a key-sorted list.
+* `Tuples`: produces a key-sorted list of K,V tuple structs.
+* `Metadata`: returns this collection's parent metadata as a `NomadVarMeta`
+* `Parent`: returns a parent object that has a Metadata field referring to the
+  `NomadVarMeta` and an Items field that refers to this `NomadVarItems` object.
+
+For example, given a variable exists at the path `nomad/jobs/redis`, you could
+render some of its metadata as follows:
+
+```hcl
+template {
+  data        = <<EOH
+{{ with nomadVar "nomad/jobs/redis" }}
+Path:       {{ .Metadata.Path }}
+Namespace:  {{ .Metadata.Namespace }}
+CreateTime: {{ .Metadata.CreateTime }}
+ModifyTime: {{ .Metadata.ModifyTime }}
+{{ end }}
+EOH
+}
+```
+
+By default the `nomadVar` will read a variable in the same namespace as the
+task. The path filter can change the namespace by adding a suffix separated by
+the `@` character:
+
+```hcl
+template {
+  data        = <<EOH
+{{ with nomadVar "nomad/jobs/redis@example_namespace" }}{{ .maxconns }}{{ end }}
+EOH
+}
+```
+
+#### `nomadVarExists`
+
+This function can be used to check if a Nomad variable exists at the provided
+path, assuming the task has access rights to the variable based on the task's
+[workload identity]. If a variable exists, this will return true, false
+otherwise. Unlike [`nomadVar`](#nomadvar), this function will not block if the
+variable does not exist, which can be useful for controlling flow.
+
+For example:
+
+```hcl
+template {
+  data        = <<EOH
+{{ if nomadVarExists "app/beta_active" }}
+  # ...
+{{ else }}
+  # ...
+{{ end }}
+EOH
+}
+```
+
 ## Consul Integration
 
 ### Consul KV
@@ -585,3 +755,6 @@ options](/docs/configuration/client#options):
 [filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
 [`client.template.wait_bounds`]: /docs/configuration/client#wait_bounds
 [rhash]: https://en.wikipedia.org/wiki/Rendezvous_hashing
+[variables]: /docs/concepts/variables
+[workload identity]: /docs/concepts/workload-identity
+[`time.Time`]: https://pkg.go.dev/time#Time

@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -10,12 +12,13 @@ import (
 )
 
 const (
-	msgVariableNotFound      = "No matching variables found"
 	msgWarnFilterPerformance = "Filter queries require a full scan of the data; use prefix searching where possible"
 )
 
 type VarListCommand struct {
-	Prefix string
+	prefix string
+	outFmt string
+	tmpl   string
 	Meta
 }
 
@@ -25,6 +28,9 @@ Usage: nomad var list [options] <prefix>
 
   List is used to list available variables. Supplying an optional prefix,
   filters the list to variables having a path starting with the prefix.
+  When using pagination, the next page token is provided in the JSON output
+  or as a message to standard error to leave standard output for the listed
+  variables from that page.
 
   If ACLs are enabled, this command will only return variables stored in
   namespaces where the token has the 'variables:list' capability.
@@ -46,15 +52,16 @@ List Options:
     option are less efficient than using the prefix parameter; therefore,
     the prefix parameter should be used whenever possible.
 
-  -json
-    Output the variables in JSON format.
+  -out (go-template | json | table | terse )
+    Format to render created or updated variable. Defaults to "none" when
+    stdout is a terminal and "json" when the output is redirected. The "terse"
+	format outputs as little information as possible to uniquely identify a
+	variable depending on whether or not the wildcard namespace was passed.
 
-  -t
-    Format and display the variables using a Go template.
+ -template
+    Template to render output with. Required when format is "go-template",
+    invalid for other formats.
 
-  -q
-    Output matching variable paths with no additional information.
-    This option overrides the '-t' option.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -62,8 +69,8 @@ List Options:
 func (c *VarListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-out":      complete.PredictSet("go-template", "json", "terse", "table"),
+			"-template": complete.PredictAnything,
 		},
 	)
 }
@@ -78,18 +85,22 @@ func (c *VarListCommand) Synopsis() string {
 
 func (c *VarListCommand) Name() string { return "var list" }
 func (c *VarListCommand) Run(args []string) int {
-	var json, quiet bool
 	var perPage int
-	var tmpl, pageToken, filter, prefix string
+	var pageToken, filter, prefix string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&quiet, "q", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&c.tmpl, "template", "", "")
+
 	flags.IntVar(&perPage, "per-page", 0, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
 	flags.StringVar(&filter, "filter", "", "")
+
+	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
+		flags.StringVar(&c.outFmt, "out", "table", "")
+	} else {
+		flags.StringVar(&c.outFmt, "out", "json", "")
+	}
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -105,6 +116,12 @@ func (c *VarListCommand) Run(args []string) int {
 
 	if len(args) == 1 {
 		prefix = args[0]
+	}
+
+	if err := c.validateOutputFlag(); err != nil {
+		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
+		return 1
 	}
 
 	// Get the HTTP client
@@ -131,26 +148,19 @@ func (c *VarListCommand) Run(args []string) int {
 		return 1
 	}
 
-	switch {
-	case json:
-
+	switch c.outFmt {
+	case "json":
 		// obj and items enable us to rework the output before sending it
 		// to the Format method for transformation into JSON.
 		var obj, items interface{}
 		obj = vars
 		items = vars
 
-		if quiet {
-			items = dataToQuietJSONReadySlice(vars, c.Meta.namespace)
-			obj = items
-		}
-
 		// If the response is paginated, we need to provide a means for the
 		// caller to get to the pagination information. Wrapping the list
 		// in a struct for the special case allows this extra data without
 		// adding unnecessary structure in the non-paginated case.
 		if perPage > 0 {
-
 			obj = struct {
 				Data      interface{}
 				QueryMeta *api.QueryMeta
@@ -162,7 +172,7 @@ func (c *VarListCommand) Run(args []string) int {
 
 		// By this point, the output is ready to be transformed to JSON via
 		// the Format func.
-		out, err := Format(json, tmpl, obj)
+		out, err := Format(true, "", obj)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
@@ -174,18 +184,17 @@ func (c *VarListCommand) Run(args []string) int {
 		// itself, exit the command here so that it doesn't double print.
 		return 0
 
-	case quiet:
+	case "terse":
 		c.Ui.Output(
 			formatList(
 				dataToQuietStringSlice(vars, c.Meta.namespace)))
 
-	case len(tmpl) > 0:
-		out, err := Format(json, tmpl, vars)
+	case "go-template":
+		out, err := Format(false, c.tmpl, vars)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
-
 		c.Ui.Output(out)
 
 	default:
@@ -204,7 +213,7 @@ func (c *VarListCommand) Run(args []string) int {
 
 func formatVarStubs(vars []*api.VariableMetadata) string {
 	if len(vars) == 0 {
-		return msgVariableNotFound
+		return errNoMatchingVariables
 	}
 
 	// Sort the output by variable namespace, path
@@ -248,28 +257,19 @@ func dataToQuietStringSlice(vars []*api.VariableMetadata, ns string) []string {
 	return pList
 }
 
-func dataToQuietJSONReadySlice(vars []*api.VariableMetadata, ns string) interface{} {
-	// If ns is the wildcard namespace, we have to provide namespace
-	// as part of the quiet output, otherwise it can be a simple list
-	// of paths.
-	if ns == "*" {
-		type pTuple struct {
-			Namespace string
-			Path      string
-		}
-		pList := make([]*pTuple, len(vars))
-		for i, sv := range vars {
-			pList[i] = &pTuple{sv.Namespace, sv.Path}
-		}
-		return pList
+func (c *VarListCommand) validateOutputFlag() error {
+	if c.outFmt != "go-template" && c.tmpl != "" {
+		return errors.New(errUnexpectedTemplate)
 	}
-
-	// Reduce the items slice to a string slice containing only the
-	// variable paths.
-	pList := make([]string, len(vars))
-	for i, sv := range vars {
-		pList[i] = sv.Path
+	switch c.outFmt {
+	case "json", "terse", "table":
+		return nil
+	case "go-template":
+		if c.tmpl == "" {
+			return errors.New(errMissingTemplate)
+		}
+		return nil
+	default:
+		return errors.New(errInvalidListOutFormat)
 	}
-
-	return pList
 }

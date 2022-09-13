@@ -51,6 +51,9 @@ func TestStructs_VariableDecrypted_Validate(t *testing.T) {
 		{path: "nomad/jobs", ok: true},
 		{path: "nomadjobs", ok: true},
 		{path: "nomad/jobs/whatever", ok: true},
+		{path: "example/_-~/whatever", ok: true},
+		{path: "example/@whatever"},
+		{path: "example/what.ever"},
 	}
 	for _, tc := range testCases {
 		tc := tc
