@@ -23,11 +23,11 @@
           },
           {
             "title": "Reference Architecture",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul"
+            "href": "/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul"
           },
           {
             "title": "Deployment Guide",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
+            "href": "/nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul"
           }
         ]
       },
@@ -2003,15 +2003,15 @@
       },
       {
         "title": "Cluster Management",
-        "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
+        "href": "/nomad/tutorials/manage-clusters"
       },
       {
         "title": "Transport Security",
-        "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
+        "href": "/nomad/tutorials/transport-security"
       },
       {
         "title": "Access Control",
-        "href": "https://learn.hashicorp.com/collections/nomad/access-control"
+        "href": "/nomad/tutorials/access-control"
       },
       {
         "title": "Key Management",
