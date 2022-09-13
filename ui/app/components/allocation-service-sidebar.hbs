@@ -77,12 +77,15 @@
 						<span class="term">
 							Client
 						</span>
-						<LinkTo
-							@route="clients.client"
-							@model={{@allocation.node}}
-						>
-							{{@allocation.node.shortId}}
-						</LinkTo>
+						<Tooltip @text={{@allocation.node.name}}>
+							<LinkTo
+								@route="clients.client"
+								@model={{@allocation.node}}
+							>
+								{{@allocation.node.shortId}}
+							</LinkTo>
+						</Tooltip>
+
 					</span>
 
 				</div>
