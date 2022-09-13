@@ -9,12 +9,22 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+type mockStatusGetter struct {
+}
+
+func (g *mockStatusGetter) Get() (map[string]string, error) {
+	return nil, nil
+}
+
 func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
+	// TODO(shoenig) sr.CheckWatcher should be an interface we can mock, and make assertions with here.
+	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
 		inputCfg      *ServiceRegistrationHandlerCfg
 		inputWorkload *serviceregistration.WorkloadServices
@@ -23,22 +33,24 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 		name          string
 	}{
 		{
+			name: "registration disabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: false,
+				Enabled:      false,
+				CheckWatcher: watcher,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{},
 			expectedError: errors.New(`service registration provider "nomad" not enabled`),
-			name:          "registration disabled",
 		},
 		{
+			name: "registration enabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: true,
+				Enabled:      true,
+				CheckWatcher: watcher,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationUpsertRPCMethod: 1},
 			expectedError: nil,
-			name:          "registration enabled",
 		},
 	}
 
@@ -63,6 +75,7 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 }
 
 func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
+	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
 		inputCfg      *ServiceRegistrationHandlerCfg
 		inputWorkload *serviceregistration.WorkloadServices
@@ -71,22 +84,24 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 		name          string
 	}{
 		{
+			name: "registration disabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: false,
+				Enabled:      false,
+				CheckWatcher: watcher,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			name:          "registration disabled multiple services",
 		},
 		{
+			name: "registration enabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: true,
+				Enabled:      true,
+				CheckWatcher: watcher,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			name:          "registration enabled multiple services",
 		},
 	}
 
@@ -113,6 +128,7 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 }
 
 func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
+	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
 		inputCfg         *ServiceRegistrationHandlerCfg
 		inputOldWorkload *serviceregistration.WorkloadServices
@@ -123,7 +139,8 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 	}{
 		{
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: true,
+				Enabled:      true,
+				CheckWatcher: watcher,
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
@@ -167,7 +184,8 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 		},
 		{
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled: true,
+				Enabled:      true,
+				CheckWatcher: watcher,
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
@@ -505,6 +523,18 @@ func mockWorkload() *serviceregistration.WorkloadServices {
 				Name:        "redis-http",
 				AddressMode: structs.AddressModeHost,
 				PortLabel:   "http",
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:     "check1",
+						Type:     "http",
+						Interval: 5 * time.Second,
+						Timeout:  1 * time.Second,
+						CheckRestart: &structs.CheckRestart{
+							Limit: 1,
+							Grace: 1,
+						},
+					},
+				},
 			},
 		},
 		Ports: []structs.AllocatedPortMapping{

@@ -281,7 +281,18 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:      1 * time.Second,
 				CheckRestart: new(CheckRestart),
 			},
-			exp: `check_restart may only be set for Consul service checks`,
+		},
+		{
+			name: "check_restart ignore_warnings",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				CheckRestart: &CheckRestart{
+					IgnoreWarnings: true,
+				},
+			},
+			exp: `ignore_warnings on check_restart only supported for Consul service checks`,
 		},
 		{
 			name: "address mode driver",

@@ -1,6 +1,7 @@
 package nsd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -14,6 +15,10 @@ import (
 type ServiceRegistrationHandler struct {
 	log hclog.Logger
 	cfg *ServiceRegistrationHandlerCfg
+
+	// checkWatcher watches checks of services in the Nomad service provider,
+	// and restarts associated tasks in accordance with their check_restart stanza.
+	checkWatcher *serviceregistration.CheckWatcher
 
 	// registrationEnabled tracks whether this handler is enabled for
 	// registrations. This is needed as it's possible a client has its config
@@ -49,23 +54,27 @@ type ServiceRegistrationHandlerCfg struct {
 	// server service registration RPC calls. This RPC function has basic retry
 	// functionality.
 	RPCFn func(method string, args, resp interface{}) error
+
+	// CheckWatcher watches checks of services in the Nomad service provider,
+	// and restarts associated tasks in accordance with their check_restart stanza.
+	CheckWatcher *serviceregistration.CheckWatcher
 }
 
 // NewServiceRegistrationHandler returns a ready to use
 // ServiceRegistrationHandler which implements the serviceregistration.Handler
 // interface.
-func NewServiceRegistrationHandler(
-	log hclog.Logger, cfg *ServiceRegistrationHandlerCfg) serviceregistration.Handler {
+func NewServiceRegistrationHandler(log hclog.Logger, cfg *ServiceRegistrationHandlerCfg) serviceregistration.Handler {
+	go cfg.CheckWatcher.Run(context.TODO())
 	return &ServiceRegistrationHandler{
 		cfg:                 cfg,
 		log:                 log.Named("service_registration.nomad"),
 		registrationEnabled: cfg.Enabled,
+		checkWatcher:        cfg.CheckWatcher,
 		shutDownCh:          make(chan struct{}),
 	}
 }
 
 func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
-
 	// Check whether we are enabled or not first. Hitting this likely means
 	// there is a bug within the implicit constraint, or process using it, as
 	// that should guard ever placing an allocation on this client.
@@ -95,6 +104,18 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 		return err
 	}
 
+	// Service registrations look ok; startup check watchers as specified. The
+	// astute observer may notice the services are not actually registered yet -
+	// this is the same as the Consul flow so hopefully things just work out.
+	for _, service := range workload.Services {
+		for _, check := range service.Checks {
+			if check.TriggersRestarts() {
+				checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
+				s.checkWatcher.Watch(workload.AllocID, workload.Name(), checkID, check, workload.Restarter)
+			}
+		}
+	}
+
 	args := structs.ServiceRegistrationUpsertRequest{
 		Services: registrations,
 		WriteRequest: structs.WriteRequest{
@@ -122,6 +143,14 @@ func (s *ServiceRegistrationHandler) RemoveWorkload(workload *serviceregistratio
 
 func (s *ServiceRegistrationHandler) removeWorkload(
 	workload *serviceregistration.WorkloadServices, serviceSpec *structs.Service) {
+
+	// Stop check watcher
+	for _, service := range workload.Services {
+		for _, check := range service.Checks {
+			checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
+			s.checkWatcher.Unwatch(checkID)
+		}
+	}
 
 	// Generate the consistent ID for this service, so we know what to remove.
 	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), serviceSpec)

@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"golang.org/x/exp/slices"
@@ -376,4 +377,33 @@ func TestShim_Purge(t *testing.T) {
 			"alloc2": {"id1": newQR("id1", pending)},
 		}, internal)
 	})
+}
+
+func TestShim_Snapshot(t *testing.T) {
+	ci.Parallel(t)
+	logger := testlog.HCLogger(t)
+
+	db := state.NewMemDB(logger)
+	s := NewStore(logger, db)
+
+	id1, id2, id3 := uuid.Short(), uuid.Short(), uuid.Short()
+	must.NoError(t, s.Set("allocation1", &structs.CheckQueryResult{
+		ID:     structs.CheckID(id1),
+		Status: "passing",
+	}))
+	must.NoError(t, s.Set("allocation1", &structs.CheckQueryResult{
+		ID:     structs.CheckID(id2),
+		Status: "failing",
+	}))
+	must.NoError(t, s.Set("allocation2", &structs.CheckQueryResult{
+		ID:     structs.CheckID(id3),
+		Status: "passing",
+	}))
+
+	snap := s.Snapshot()
+	must.MapEq(t, map[string]string{
+		id1: "passing",
+		id2: "failing",
+		id3: "passing",
+	}, snap)
 }

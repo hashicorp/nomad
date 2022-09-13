@@ -51,7 +51,7 @@ func (r *restarter) apply(ctx context.Context, now time.Time, status string) boo
 		}
 	}
 	switch status {
-	case "critical":
+	case "critical", "failure", "pending":
 	case "warning":
 		if r.ignoreWarnings {
 			// Warnings are ignored, reset state and exit
@@ -113,14 +113,10 @@ func asyncRestart(ctx context.Context, logger hclog.Logger, task WorkloadRestart
 	}
 }
 
-type CheckStatus struct {
-	Status string // consider failure vs. critical, warnings, etc.
-}
-
 // CheckStatusGetter is implemented per-provider.
 type CheckStatusGetter interface {
 	// Get returns a map from CheckID -> (minimal) CheckStatus
-	Get() (map[string]CheckStatus, error)
+	Get() (map[string]string, error)
 }
 
 // checkWatchUpdates add or remove checks from the watcher
@@ -291,7 +287,7 @@ func (w *CheckWatcher) interval(ctx context.Context, now time.Time, watched map[
 			continue
 		}
 
-		if checkRestarter.apply(ctx, now, status.Status) {
+		if checkRestarter.apply(ctx, now, status) {
 			// check will be re-registered & re-watched on startup
 			delete(watched, checkID)
 			restarts.Insert(checkRestarter.taskKey)

@@ -107,19 +107,19 @@ type fakeCheckStatusGetter struct {
 	responses map[string][]response
 }
 
-func (g *fakeCheckStatusGetter) Get() (map[string]CheckStatus, error) {
+func (g *fakeCheckStatusGetter) Get() (map[string]string, error) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
 	now := time.Now()
-	result := make(map[string]CheckStatus)
+	result := make(map[string]string)
 	// use the newest response after now for the response
 	for k, vs := range g.responses {
 		for _, v := range vs {
 			if v.at.After(now) {
 				break
 			}
-			result[k] = CheckStatus{Status: v.status}
+			result[k] = v.status
 		}
 	}
 
