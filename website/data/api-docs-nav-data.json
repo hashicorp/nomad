@@ -160,6 +160,10 @@
     "path": "validate"
   },
   {
+    "title": "Variables",
+    "path": "variables"
+  },
+  {
     "title": "Volumes",
     "path": "volumes"
   }
