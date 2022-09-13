@@ -27,7 +27,11 @@ func Wait(t *testing.T, test testFn) {
 		}
 
 		if retries == 0 {
-			t.Fatalf("timeout: %v", err)
+			if err == nil {
+				t.Fatalf("timeout waiting for test function to succeed (you should probably return a helpful error instead of nil!)")
+			} else {
+				t.Fatalf("timeout: %v", err)
+			}
 		}
 	}
 }
