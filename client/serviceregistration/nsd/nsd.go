@@ -18,7 +18,7 @@ type ServiceRegistrationHandler struct {
 
 	// checkWatcher watches checks of services in the Nomad service provider,
 	// and restarts associated tasks in accordance with their check_restart stanza.
-	checkWatcher *serviceregistration.CheckWatcher
+	checkWatcher serviceregistration.CheckWatcher
 
 	// registrationEnabled tracks whether this handler is enabled for
 	// registrations. This is needed as it's possible a client has its config
@@ -57,7 +57,7 @@ type ServiceRegistrationHandlerCfg struct {
 
 	// CheckWatcher watches checks of services in the Nomad service provider,
 	// and restarts associated tasks in accordance with their check_restart stanza.
-	CheckWatcher *serviceregistration.CheckWatcher
+	CheckWatcher serviceregistration.CheckWatcher
 }
 
 // NewServiceRegistrationHandler returns a ready to use

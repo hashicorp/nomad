@@ -29,7 +29,7 @@ type fakeWorkloadRestarter struct {
 	restarts []restartRecord
 
 	// need the checkWatcher to re-Watch restarted tasks like TaskRunner
-	watcher *CheckWatcher
+	watcher *UniversalCheckWatcher
 
 	// check to re-Watch on restarts
 	check     *structs.ServiceCheck
@@ -41,7 +41,7 @@ type fakeWorkloadRestarter struct {
 }
 
 // newFakeCheckRestart creates a new mock WorkloadRestarter.
-func newFakeWorkloadRestarter(w *CheckWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeWorkloadRestarter {
+func newFakeWorkloadRestarter(w *UniversalCheckWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeWorkloadRestarter {
 	return &fakeWorkloadRestarter{
 		watcher:   w,
 		check:     c,
@@ -150,7 +150,7 @@ func testCheck() *structs.ServiceCheck {
 
 // testWatcherSetup sets up a fakeChecksAPI and a real checkWatcher with a test
 // logger and faster poll frequency.
-func testWatcherSetup(t *testing.T) (*fakeCheckStatusGetter, *CheckWatcher) {
+func testWatcherSetup(t *testing.T) (*fakeCheckStatusGetter, *UniversalCheckWatcher) {
 	logger := testlog.HCLogger(t)
 	getter := new(fakeCheckStatusGetter)
 	cw := NewCheckWatcher(logger, getter)
