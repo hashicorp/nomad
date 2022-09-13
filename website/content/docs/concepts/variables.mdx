@@ -1,19 +1,19 @@
 ---
 layout: docs
 page_title: Variables
-description: Learn about Nomad's variables feature
+description: Learn about the Nomad Variables feature
 ---
 
-# Variables
+# Nomad Variables
 
 Most Nomad workloads need access to config values or secrets. Nomad has a
 `template` block to provide such configuration to tasks, but has left the role
 of storing that configuration to external services such as [HashiCorp Consul]
 and [HashiCorp Vault].
 
-Nomad's Variables feature provides the option to securely store configuration at
-file-like paths directly in Nomad's state store. The contents of these secrets
-are encrypted and replicated between servers via raft. Access to secrets is
+Nomad Variables provide the option to securely store configuration at file-like
+paths directly in Nomad's state store. The contents of these secrets are
+encrypted and replicated between servers via raft. Access to secrets is
 controlled by ACL policies, and tasks have implicit ACL policies that allow them
 to access their own secrets. You can create, read, update, or delete secrets via
 the command line, the Nomad API, or in the Nomad web UI.
