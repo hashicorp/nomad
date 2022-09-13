@@ -9,11 +9,19 @@ export default class KeyboardShortcutsModalComponent extends Component {
   @service keyboard;
   @service config;
 
+  blurHandler() {
+    set(this, 'keyboard.displayHints', false);
+  }
+
   constructor() {
     super(...arguments);
-    window.addEventListener('blur', () => {
-      set(this, 'keyboard.displayHints', false);
-    });
+    set(this, '_blurHandler', this.blurHandler.bind(this));
+    window.addEventListener('blur', this._blurHandler);
+  }
+
+  willDestroy() {
+    super.willDestroy(...arguments);
+    window.removeEventListener('blur', this._blurHandler);
   }
 
   escapeCommand = {
