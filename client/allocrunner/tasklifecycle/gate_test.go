@@ -62,23 +62,6 @@ func TestGate(t *testing.T) {
 				requireChannelPassing(t, g.WaitCh(), "second allow")
 			},
 		},
-		{
-			name: "concurrent access",
-			test: func(t *testing.T, g *Gate) {
-				x := 100
-				go func() {
-					for i := 0; i < x; i++ {
-						g.Open()
-					}
-				}()
-				go func() {
-					for i := 0; i < x/10; i++ {
-						g.Close()
-					}
-				}()
-				requireChannelPassing(t, g.WaitCh(), "gate should be open")
-			},
-		},
 	}
 
 	for _, tc := range testCases {
