@@ -14,6 +14,28 @@ import (
 type testFn func() (bool, error)
 type errorFn func(error)
 
+func Wait(t *testing.T, test testFn) {
+	t.Helper()
+	retries := 500 * TestMultiplier()
+	for retries > 0 {
+		time.Sleep(10 * time.Millisecond)
+		retries--
+
+		success, err := test()
+		if success {
+			return
+		}
+
+		if retries == 0 {
+			if err == nil {
+				t.Fatalf("timeout waiting for test function to succeed (you should probably return a helpful error instead of nil!)")
+			} else {
+				t.Fatalf("timeout: %v", err)
+			}
+		}
+	}
+}
+
 func WaitForResult(test testFn, error errorFn) {
 	WaitForResultRetries(500*TestMultiplier(), test, error)
 }
