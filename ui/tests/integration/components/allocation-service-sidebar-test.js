@@ -78,7 +78,7 @@ module(
       );
       assert.dom('h1 .aggregate-status').includesText('Healthy');
       assert
-        .dom('table.health-checks tbody tr')
+        .dom('table.health-checks tbody tr:not(.service-status-indicators)')
         .exists({ count: 2 }, 'has two rows');
 
       this.set('service', unhealthyService);

@@ -91,13 +91,13 @@
 		{{#if this.checks.length}}
 			<ListTable class="health-checks" @source={{this.checks}} as |t|>
 				<t.head>
-					<th>
+					<th class="name">
 						Name
 					</th>
-					<th>
+					<th class="status">
 						Status
 					</th>
-					<td>
+					<td class="output">
 						Output
 					</td>
 				</t.head>
@@ -123,6 +123,15 @@
 							<code>
 								{{row.model.Output}}
 							</code>
+						</td>
+					</tr>
+					<tr class="service-status-indicators">
+						<td colspan="3">
+							<div>
+								{{#each (dedupe-by-property (filter-by "Check" row.model.Check @service.healthChecks) prop="Timestamp") as |check|}}
+									<ServiceStatusIndicator @check={{check}} />
+								{{/each}}
+							</div>
 						</td>
 					</tr>
 				</t.body>
