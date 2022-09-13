@@ -33,7 +33,7 @@ Usage: nomad var list [options] <prefix>
   variables from that page.
 
   If ACLs are enabled, this command will only return variables stored in
-  namespaces where the token has the 'variables:list' capability.
+  namespaces and paths where the token has the 'variables:list' capability.
 
 General Options:
 

@@ -8,7 +8,7 @@ description: |-
 
 # Command: var list
 
-The `var list` command returns a list of variable paths accessible to the
+The `var list` command returns a list of [variable][] paths accessible to the
 current user, optionally filtered to paths containing a provided prefix. Do not
 encode sensitive information in variable paths. The variable's items are not
 accessible via this command.
@@ -27,7 +27,8 @@ nomad var list [options] [<prefix>]
 ```
 
 If ACLs are enabled, this command requires the `variables:list` capability for
-the namespaces containing the variables to list.
+the namespaces and paths containing the variables to list. See the [ACL policy][]
+documentation for details.
 
 ## General Options
 
@@ -135,3 +136,6 @@ $ nomad var list -out=json -namespace="*" -per-page=1 nomad/jobs/variable/www
 
 As with the tabular version, provide the `QueryMeta.NextToken` value as the
 `-page-token` value to fetch the next page.
+
+[variable]: /docs/concepts/variables
+[ACL Policy]: /docs/other-specifications/acl-policy#variables

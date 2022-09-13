@@ -7,7 +7,7 @@ description: |-
 
 # Command: var put
 
-The `var put` command creates or updates an existing variable.
+The `var put` command creates or updates an existing [variable][].
 
 ## Usage
 
@@ -33,7 +33,8 @@ additional processing and do not require the input format to be specified.
 Values supplied as command line arguments supersede values provided in any
 variable specification piped into the command or loaded from file. If ACLs are
 enabled, this command requires the `variables:write` capability for the
-destination namespace.
+destination namespace and path. See the [ACL policy][] documentation for
+details.
 
 ## General Options
 
@@ -85,3 +86,7 @@ Or it can be read from standard input using the "-" symbol:
 ```shell-session
 $ echo "abcd1234" | vault var put secret/foo bar=-
 ```
+
+
+[variable]: /docs/concepts/variables
+[ACL Policy]: /docs/other-specifications/acl-policy#variables
