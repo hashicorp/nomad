@@ -100,7 +100,6 @@ func testACLTokenExpiration(t *testing.T) {
 
 	jobListResp, _, err := nomadClient.Jobs().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
-	require.Empty(t, jobListResp)
 
 	// Create an ACL token with the lowest expiry TTL possible, so it will
 	// expire almost immediately.
@@ -236,7 +235,6 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	defaultNSQueryMeta := api.QueryOptions{Namespace: "default", AuthToken: aclTokenCreateResp.SecretID}
 	jobListResp, _, err := nomadClient.Jobs().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
-	require.Empty(t, jobListResp)
 
 	nodeStubList, _, err := nomadClient.Nodes().List(&defaultNSQueryMeta)
 	require.ErrorContains(t, err, "Permission denied")
@@ -253,7 +251,6 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	// Test that the token can now read the default namespace and node objects.
 	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
-	require.Empty(t, jobListResp)
 
 	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
@@ -301,7 +298,6 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 
 	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
-	require.Empty(t, jobListResp)
 
 	nodeStubList, _, err = nomadClient.Nodes().List(&defaultNSQueryMeta)
 	require.NoError(t, err)
