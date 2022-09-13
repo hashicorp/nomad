@@ -16,7 +16,6 @@ let job;
 let node;
 let managementToken;
 let clientToken;
-
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
