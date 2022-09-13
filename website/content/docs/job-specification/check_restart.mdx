@@ -15,14 +15,13 @@ description: |-
   ]}
 />
 
-As of Nomad 0.7 the `check_restart` stanza instructs Nomad when to restart
-tasks with unhealthy service checks. When a health check in Consul has been
-unhealthy for the `limit` specified in a `check_restart` stanza, it is
-restarted according to the task group's [`restart` policy][restart_stanza]. The
-`check_restart` settings apply to [`check`s][check_stanza], but may also be
-placed on [`service`s][service_stanza] to apply to all checks on a service.
-If `check_restart` is set on both the check and service, the stanzas are
-merged with the check values taking precedence.
+The `check_restart` stanza instructs Nomad when to restart tasks with unhealthy
+service checks. When a health check in Nomad or Consul has been unhealthy for the `limit`
+specified in a `check_restart` stanza, it is restarted according to the task group's
+[`restart` policy][restart_stanza]. The `check_restart` settings apply to
+[`check`s][check_stanza], but may also be placed on [`service`s][service_stanza]
+to apply to all checks on a service. If `check_restart` is set on both the check
+and service, the stanzas are merged with the check values taking precedence.
 
 ```hcl
 job "mysql" {
@@ -78,7 +77,9 @@ job "mysql" {
   before checking its health.
 
 - `ignore_warnings` `(bool: false)` - By default checks with both `critical`
-  and `warning` statuses are considered unhealthy. Setting `ignore_warnings = true` treats a `warning` status like `passing` and will not trigger a restart.
+  and `warning` statuses are considered unhealthy. Setting `ignore_warnings = true`
+  treats a `warning` status like `passing` and will not trigger a restart. Only
+  available in the Consul service provider.
 
 ## Example Behavior
 
@@ -102,8 +103,9 @@ check_restart {
 }
 ```
 
-After the grace period if the script check fails, it has 180 seconds (`60s interval * 3 limit`) to pass before a restart is triggered. Once a restart is
-triggered the task group's [`restart` policy][restart_stanza] takes control:
+After the grace period if the script check fails, it has 180 seconds (`60s interval * 3 limit`)
+to pass before a restart is triggered. Once a restart is triggered the task group's
+[`restart` policy][restart_stanza] takes control:
 
 ```hcl
 restart {

@@ -63,8 +63,7 @@ job "example" {
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
-- `check_restart` - See [`check_restart` stanza][check_restart_stanza]. Only
-  supported in the Consul service provider.
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
 
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
