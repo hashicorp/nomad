@@ -19,6 +19,7 @@ import {
 } from 'ember-power-select/test-support/helpers';
 import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 const getStandardRes = () => [
   {
@@ -124,6 +125,8 @@ module('Acceptance | evaluations list', function (hooks) {
   });
 
   test('it renders an empty message if there are no evaluations rendered', async function (assert) {
+    faker.seed(1);
+
     await visit('/evaluations');
     assert.expect(2);
 
@@ -138,6 +141,7 @@ module('Acceptance | evaluations list', function (hooks) {
   });
 
   test('it renders a list of evaluations', async function (assert) {
+    faker.seed(1);
     assert.expect(3);
     server.get('/evaluations', function (_server, fakeRequest) {
       assert.deepEqual(
@@ -675,6 +679,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
   module('evaluation detail', function () {
     test('clicking an evaluation opens the detail view', async function (assert) {
+      faker.seed(1);
       server.get('/evaluations', getStandardRes);
       server.get('/evaluation/:id', function (_, { queryParams, params }) {
         const expectedNamespaces = ['default', 'ted-lasso'];

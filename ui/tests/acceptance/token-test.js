@@ -10,7 +10,7 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 
 let job;
 let node;
@@ -31,7 +31,6 @@ module('Acceptance | tokens', function (hooks) {
     job = server.create('job');
     managementToken = server.create('token');
     clientToken = server.create('token');
-    console.log('TODO: TEMP, CI', managementToken.name, faker.seedValue);
   });
 
   test('it passes an accessibility audit', async function (assert) {
