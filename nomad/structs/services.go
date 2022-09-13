@@ -47,7 +47,10 @@ const (
 	minCheckTimeout = 1 * time.Second
 )
 
-// ServiceCheck represents the Consul health check.
+// ServiceCheck represents a Nomad or Consul service health check.
+//
+// The fields available depend on the service provider the check is being
+// registered into.
 type ServiceCheck struct {
 	Name                   string              // Name of the check, defaults to a generated label
 	Type                   string              // Type of the check - tcp, http, docker and script
