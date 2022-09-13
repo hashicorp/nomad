@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// Keyring is used to access the Secure Variables keyring
+// Keyring is used to access the Variables keyring.
 type Keyring struct {
 	client *Client
 }
