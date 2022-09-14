@@ -41,10 +41,6 @@ type TLSCertCreateCommand struct {
 	// domain is used to provide a custom domain for the certificate.
 	domain string
 
-	// node is used to create a node server specific certificate. it adds a SAN
-	// to the certificate for the nodename.
-	node string
-
 	server bool
 }
 
@@ -99,10 +95,6 @@ Certificate Create Options:
   -key
     Provide path to the key. Defaults to #DOMAIN#-agent-ca-key.pem.
 
-  -node
-    When generating a server cert and this is set, an additional dns name is 
-    included of the form <node>.server.<datacenter>.<domain>.
-
   - server
     Generate server certificate.
 `
@@ -121,7 +113,6 @@ func (c *TLSCertCreateCommand) AutocompleteFlags() complete.Flags {
 			"-cluster-region":       complete.PredictAnything,
 			"-domain":               complete.PredictAnything,
 			"-key":                  complete.PredictAnything,
-			"-node":                 complete.PredictAnything,
 			"-server":               complete.PredictNothing,
 		})
 }
@@ -149,7 +140,6 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	flagSet.IntVar(&c.days, "days", 365, "")
 	flagSet.StringVar(&c.cluster_region, "cluster-region", "global", "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
-	flagSet.StringVar(&c.node, "node", "", "")
 	flagSet.BoolVar(&c.server, "server", false, "")
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -177,11 +167,6 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.node != "" && !c.server {
-		c.Ui.Error("-node requires -server")
-		return 1
-	}
-
 	var DNSNames []string
 	var IPAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
@@ -201,11 +186,6 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 
 	if c.server {
 		name = fmt.Sprintf("server.%s.%s", c.cluster_region, c.domain)
-
-		if c.node != "" {
-			nodeName := fmt.Sprintf("%s.server.%s.%s", c.node, c.cluster_region, c.domain)
-			DNSNames = append(DNSNames, nodeName)
-		}
 		DNSNames = append(DNSNames, name)
 		DNSNames = append(DNSNames, "localhost")
 

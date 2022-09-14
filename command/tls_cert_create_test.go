@@ -34,10 +34,6 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 			"Please provide either -server, -client, or -cli"},
 		"client+cli": {[]string{"-client", "-cli"},
 			"Please provide either -server, -client, or -cli"},
-		"client+node": {[]string{"-client", "-node", "foo"},
-			"-node requires -server"},
-		"cli+node": {[]string{"-cli", "-node", "foo"},
-			"-node requires -server"},
 	}
 
 	for name, tc := range cases {
@@ -88,19 +84,6 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 			"global-server-nomad-0-key.pem",
 			"server.global.nomad",
 			[]string{
-				"server.global.nomad",
-				"localhost",
-			},
-			[]net.IP{{127, 0, 0, 1}},
-		},
-		{"server1-with-node",
-			"server",
-			[]string{"-server", "-node", "mysrv"},
-			"global-server-nomad-1.pem",
-			"global-server-nomad-1-key.pem",
-			"server.global.nomad",
-			[]string{
-				"mysrv.server.global.nomad",
 				"server.global.nomad",
 				"localhost",
 			},
