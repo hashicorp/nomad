@@ -32,24 +32,61 @@ IMAGE="mcr.microsoft.com/playwright:focal"
 pushd $(dirname "${BASH_SOURCE[0]}") > /dev/null
 
 run_tests() {
+    if [[ -n $NOMAD_CLIENT_CERT ]]; then
+        run_mtls bash script.sh $@
+        return
+    fi
+
     run bash script.sh $@
 }
 
 run_shell() {
+    if [[ -n $NOMAD_CLIENT_CERT ]]; then
+        run_mtls bash $@
+        return
+    fi
+
     run bash $@
 }
 
 run() {
     exec docker run -it --rm \
-           -v $(pwd):/src \
-           -w /src \
-           -e NOMAD_ADDR=$NOMAD_ADDR \
-           -e NOMAD_TOKEN=$NOMAD_TOKEN \
-           --ipc=host \
-           --net=host \
-           "$IMAGE" \
-           $@
+         -v $(pwd):/src \
+         -w /src \
+         -e NOMAD_PROXY_ADDR=$NOMAD_ADDR \
+         -e NOMAD_ADDR=$NOMAD_ADDR \
+         -e NOMAD_TOKEN=$NOMAD_TOKEN \
+         --ipc=host \
+         --net=host \
+         "$IMAGE" \
+         $@
 }
+
+# The Nomad UI will be proxied by the proxy job, but the test setup also
+# requires making direct HTTP API requests that bypass the UI. For clusters with
+# mTLS configured (ex. nightly), we need to bind-mount the user's mTLS certs
+# into the test runner environment and expose environment variables that can be
+# picked up by the API client.
+run_mtls() {
+    exec docker run -it --rm \
+         -v $(pwd):/src \
+         -w /src \
+         -e NOMAD_PROXY_ADDR=$NOMAD_ADDR \
+         -e NOMAD_ADDR=$NOMAD_ADDR \
+         -e NOMAD_TOKEN=$NOMAD_TOKEN \
+         -e NOMAD_CLIENT_CERT=/etc/nomad-client.crt \
+         -e NOMAD_CLIENT_KEY=/etc/nomad-client.key \
+         -e NOMAD_CA_CERT=/etc/nomad-ca.crt \
+         -e NOMAD_TLS_SERVER_NAME=$NOMAD_TLS_SERVER_NAME \
+         -v ${NOMAD_CLIENT_CERT}:/etc/nomad-client.crt \
+         -v ${NOMAD_CLIENT_KEY}:/etc/nomad-client.key \
+         -v ${NOMAD_CA_CERT}:/etc/nomad-ca.crt \
+         --ipc=host \
+         --net=host \
+         "$IMAGE" \
+         $@
+}
+
 
 run_proxy() {
     nomad namespace apply proxy
@@ -57,7 +94,7 @@ run_proxy() {
     IP=$(nomad node status -json -verbose \
           $(nomad operator api '/v1/allocations?namespace=proxy' | jq -r '.[] | select(.JobID == "nomad-proxy") | .NodeID') \
         | jq -r '.Attributes."unique.platform.aws.public-ipv4"')
-    echo "NOMAD_ADDR=https://$IP:6464"
+    echo "NOMAD_PROXY_ADDR=https://$IP:6464"
     exit 0
 }
 

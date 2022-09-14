@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { client, NOMAD_ADDR } from "../api-client.js";
+import { client, NOMAD_PROXY_ADDR } from "../api-client.js";
 import { jobSpec } from "../input/jobs/service-discovery/service-discovery.js";
 import { token } from "../input/tokens/operator.js";
 
@@ -7,7 +7,7 @@ test.describe("Download Task Logs", () => {
   test.beforeEach(async ({ page }) => {
     // Go to the starting url before each test.
     await client(`/jobs`, { data: jobSpec });
-    await page.goto(NOMAD_ADDR + "/ui/settings/tokens");
+    await page.goto(NOMAD_PROXY_ADDR + "/ui/settings/tokens");
 
     // Set token
     await page
@@ -24,7 +24,7 @@ test.describe("Download Task Logs", () => {
 
     // Clear token
     await page.locator("text=ACL Tokens").click();
-    await expect(page).toHaveURL(NOMAD_ADDR + "/ui/settings/tokens");
+    await expect(page).toHaveURL(NOMAD_PROXY_ADDR + "/ui/settings/tokens");
     await page.locator("text=Clear Token").click();
   });
 
@@ -32,7 +32,7 @@ test.describe("Download Task Logs", () => {
     page,
   }) => {
     // Arrange -- Naviagate to Task Logs
-    await page.goto(NOMAD_ADDR + "/ui/jobs");
+    await page.goto(NOMAD_PROXY_ADDR + "/ui/jobs");
     await Promise.all([
       page.waitForNavigation(),
       page.locator("text=trying-multi-dupes").click(),
@@ -44,7 +44,7 @@ test.describe("Download Task Logs", () => {
       page.locator("text=Files").click(),
     ]);
     await page.locator("text=executor.out").click();
-    
+
     // Act - Download Log
     const [download] = await Promise.all([
       page.waitForEvent("download"),
