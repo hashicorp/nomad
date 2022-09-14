@@ -1,6 +1,6 @@
 import fs from "fs";
 import { chromium } from "@playwright/test";
-import { client, NOMAD_PROXY_ADDR, NOMAD_ADDR, NOMAD_TOKEN } from "./api-client.js";
+import { client, NOMAD_PROXY_ADDR, NOMAD_TOKEN } from "./api-client.js";
 import {
   PROD_NAMESPACE,
   DEV_NAMESPACE,

@@ -71,7 +71,7 @@ run_mtls() {
     exec docker run -it --rm \
          -v $(pwd):/src \
          -w /src \
-         -e NOMAD_PROXY_ADDR=$NOMAD_ADDR \
+         -e NOMAD_PROXY_ADDR=$NOMAD_PROXY_ADDR \
          -e NOMAD_ADDR=$NOMAD_ADDR \
          -e NOMAD_TOKEN=$NOMAD_TOKEN \
          -e NOMAD_CLIENT_CERT=/etc/nomad-client.crt \
