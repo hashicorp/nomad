@@ -70,6 +70,12 @@
               @allocation={{row.model}}
               @context="job"
               @onClick={{action "gotoAllocation" row.model}} />
+              {{!-- {{#if this.showSubTasks}} --}}
+                {{#each row.model.states as |task|}}
+                  <TaskSubRow @namespan="9" @taskState={{task}} @allocation={{row.model}} />
+                {{/each}}
+              {{!-- {{/if}} --}}
+
           </t.body>
         </ListTable>
         <div class="table-foot">

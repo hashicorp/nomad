@@ -496,6 +496,15 @@
           @inputClass="is-compact"
           @class="is-padded"
         />
+
+        <span class="is-padded">
+          Show Tasks
+          <Toggle
+            @isActive={{this.showSubTasks}}
+            @onToggle={{this.toggleShowSubTasks}}
+            title="Show tasks of allocations"
+          />
+        </span>
       </div>
     </div>
     <div
@@ -555,6 +564,11 @@
                 @onClick={{action "gotoAllocation" row.model}}
                 @data-test-allocation={{row.model.id}}
               />
+              {{#if this.showSubTasks}}
+                {{#each row.model.states as |task|}}
+                  <TaskSubRow @namespan="8" @taskState={{task}} @allocation={{row.model}} />
+                {{/each}}
+              {{/if}}
             </t.body>
           </ListTable>
           <div class="table-foot">

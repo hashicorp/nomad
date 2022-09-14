@@ -13,6 +13,14 @@ export default class RecentAllocations extends Component {
   sortProperty = 'modifyIndex';
   sortDescending = true;
 
+  showSubTasks = true;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
+  }
+
   @computed('job.allocations.@each.modifyIndex')
   get sortedAllocations() {
     return PromiseArray.create({

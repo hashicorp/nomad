@@ -60,6 +60,14 @@ export default class ClientController extends Controller.extend(
   sortProperty = 'modifyIndex';
   sortDescending = true;
 
+  showSubTasks = false;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
+  }
+
   @computed()
   get searchProps() {
     return ['shortId', 'name'];
