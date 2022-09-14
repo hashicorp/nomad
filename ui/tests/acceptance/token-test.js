@@ -10,12 +10,12 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 let job;
 let node;
 let managementToken;
 let clientToken;
-
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -23,6 +23,7 @@ module('Acceptance | tokens', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
     window.sessionStorage.clear();
+    faker.seed(1);
 
     server.create('agent');
     node = server.create('node');

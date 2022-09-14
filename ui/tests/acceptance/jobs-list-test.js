@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 let managementToken, clientToken;
 
@@ -38,6 +39,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
+    faker.seed(1);
     const jobsCount = JobsList.pageSize + 1;
     server.createList('job', jobsCount, { createAllocations: false });
 
@@ -116,6 +118,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when there are no jobs, there is an empty message', async function (assert) {
+    faker.seed(1);
     await JobsList.visit();
 
     await percySnapshot(assert);

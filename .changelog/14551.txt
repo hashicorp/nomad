@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Stabilizes visual regression tests
+```

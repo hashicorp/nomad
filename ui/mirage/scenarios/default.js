@@ -2,6 +2,7 @@ import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
 import * as sysbatchScenarios from './sysbatch';
 import { pickOne } from '../utils';
+import faker from 'nomad-ui/mirage/faker';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
@@ -45,6 +46,7 @@ export default function (server) {
 // Scenarios
 
 function smallCluster(server) {
+  faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
@@ -183,6 +185,7 @@ function mediumCluster(server) {
 }
 
 function variableTestCluster(server) {
+  faker.seed(1);
   createTokens(server);
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
@@ -252,6 +255,7 @@ function variableTestCluster(server) {
 }
 
 function servicesTestCluster(server) {
+  faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);

@@ -11,6 +11,7 @@ import {
   selectChoose,
   clickTrigger,
 } from 'ember-power-select/test-support/helpers';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Integration | Component | variable-form', function (hooks) {
   setupRenderingTest(hooks);
@@ -97,6 +98,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
   module('editing and creating new key/value pairs', function () {
     test('it should allow each key/value row to toggle password visibility', async function (assert) {
+      faker.seed(1);
       this.set(
         'mockedModel',
         server.create('variable', {
@@ -343,6 +345,7 @@ module('Integration | Component | variable-form', function (hooks) {
     });
 
     test('Persists Key/Values table data to JSON', async function (assert) {
+      faker.seed(1);
       assert.expect(2);
       const keyValues = [
         { key: 'foo', value: '123' },
