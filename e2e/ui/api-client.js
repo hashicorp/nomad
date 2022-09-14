@@ -25,9 +25,9 @@ export const client = async (
 ) => {
   const url = `${NOMAD_ADDR}/v1`.concat(path);
 
-  var httpsAgent = new https.Agent({keepAlive: true});
+  let httpsAgent = new https.Agent({keepAlive: true});
 
-  if (NOMAD_CLIENT_CERT != "") {
+  if (NOMAD_CLIENT_CERT !== "") {
     httpsAgent = new https.Agent({
       keepAlive: true,
       cert: fs.readFileSync(NOMAD_CLIENT_CERT),
@@ -47,7 +47,7 @@ export const client = async (
       "X-Nomad-Token": NOMAD_TOKEN,
       ...customHeaders,
     },
-    httpsAgent: httpsAgent,
+    httpsAgent,
     ...customConfig,
   };
 
