@@ -419,7 +419,7 @@ type ServiceClient struct {
 	deregisterProbationExpiry time.Time
 
 	// checkWatcher restarts checks that are unhealthy.
-	checkWatcher *serviceregistration.CheckWatcher
+	checkWatcher *serviceregistration.UniversalCheckWatcher
 
 	// isClientAgent specifies whether this Consul client is being used
 	// by a Nomad client.

@@ -1,6 +1,7 @@
 package nsd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -9,48 +10,74 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockStatusGetter struct {
+type mockCheckWatcher struct {
+	lock sync.Mutex
+
+	watchCalls   int
+	unWatchCalls int
 }
 
-func (g *mockStatusGetter) Get() (map[string]string, error) {
-	return nil, nil
+func (cw *mockCheckWatcher) Run(_ context.Context) {
+	// Run runs async; just assume it ran
+}
+
+func (cw *mockCheckWatcher) Watch(_, _, _ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
+	cw.lock.Lock()
+	defer cw.lock.Unlock()
+	cw.watchCalls++
+}
+
+func (cw *mockCheckWatcher) Unwatch(_ string) {
+	cw.lock.Lock()
+	defer cw.lock.Unlock()
+	cw.unWatchCalls++
+}
+
+func (cw *mockCheckWatcher) assert(t *testing.T, watchCalls, unWatchCalls int) {
+	cw.lock.Lock()
+	defer cw.lock.Unlock()
+	test.Eq(t, watchCalls, cw.watchCalls, test.Sprintf("expected %d Watch() calls but got %d", watchCalls, cw.watchCalls))
+	test.Eq(t, unWatchCalls, cw.unWatchCalls, test.Sprintf("expected %d Unwatch() calls but got %d", unWatchCalls, cw.unWatchCalls))
 }
 
 func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
-	// TODO(shoenig) sr.CheckWatcher should be an interface we can mock, and make assertions with here.
-	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
-		inputCfg      *ServiceRegistrationHandlerCfg
-		inputWorkload *serviceregistration.WorkloadServices
-		expectedRPCs  map[string]int
-		expectedError error
-		name          string
+		name                 string
+		inputCfg             *ServiceRegistrationHandlerCfg
+		inputWorkload        *serviceregistration.WorkloadServices
+		expectedRPCs         map[string]int
+		expectedError        error
+		expWatch, expUnWatch int
 	}{
 		{
 			name: "registration disabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      false,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{},
 			expectedError: errors.New(`service registration provider "nomad" not enabled`),
+			expWatch:      0,
+			expUnWatch:    0,
 		},
 		{
 			name: "registration enabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationUpsertRPCMethod: 1},
 			expectedError: nil,
+			expWatch:      1,
+			expUnWatch:    0,
 		},
 	}
 
@@ -70,38 +97,43 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 			actualErr := h.RegisterWorkload(tc.inputWorkload)
 			require.Equal(t, tc.expectedError, actualErr)
 			require.Equal(t, tc.expectedRPCs, mockRPC.calls())
+			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
 
 func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
-	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
-		inputCfg      *ServiceRegistrationHandlerCfg
-		inputWorkload *serviceregistration.WorkloadServices
-		expectedRPCs  map[string]int
-		expectedError error
-		name          string
+		name                 string
+		inputCfg             *ServiceRegistrationHandlerCfg
+		inputWorkload        *serviceregistration.WorkloadServices
+		expectedRPCs         map[string]int
+		expectedError        error
+		expWatch, expUnWatch int
 	}{
 		{
 			name: "registration disabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      false,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
+			expWatch:      0,
+			expUnWatch:    2, // RemoveWorkload works regardless if provider is enabled
 		},
 		{
 			name: "registration enabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
+			expWatch:      0,
+			expUnWatch:    2,
 		},
 	}
 
@@ -123,24 +155,26 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			require.Eventually(t, func() bool {
 				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
+			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
 
 func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
-	watcher := serviceregistration.NewCheckWatcher(testlog.HCLogger(t), new(mockStatusGetter))
 	testCases := []struct {
-		inputCfg         *ServiceRegistrationHandlerCfg
-		inputOldWorkload *serviceregistration.WorkloadServices
-		inputNewWorkload *serviceregistration.WorkloadServices
-		expectedRPCs     map[string]int
-		expectedError    error
-		name             string
+		name                 string
+		inputCfg             *ServiceRegistrationHandlerCfg
+		inputOldWorkload     *serviceregistration.WorkloadServices
+		inputNewWorkload     *serviceregistration.WorkloadServices
+		expectedRPCs         map[string]int
+		expectedError        error
+		expWatch, expUnWatch int
 	}{
 		{
+			name: "delete and upsert",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
@@ -155,11 +189,18 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 						Name:        "changed-redis-db",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "db",
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:         "changed-check-redis-db",
+								CheckRestart: &structs.CheckRestart{Limit: 1},
+							},
+						},
 					},
 					{
 						Name:        "changed-redis-http",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "http",
+						// No check restart this time
 					},
 				},
 				Ports: []structs.AllocatedPortMapping{
@@ -180,12 +221,14 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				structs.ServiceRegistrationDeleteByIDRPCMethod: 2,
 			},
 			expectedError: nil,
-			name:          "delete and upsert",
+			expWatch:      1,
+			expUnWatch:    2,
 		},
 		{
+			name: "upsert only",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: watcher,
+				CheckWatcher: new(mockCheckWatcher),
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
@@ -201,12 +244,32 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "db",
 						Tags:        []string{"foo"},
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:         "redis-db-check-1",
+								CheckRestart: &structs.CheckRestart{Limit: 1},
+							},
+							{
+								Name: "redis-db-check-2",
+								// No check restart on this one
+							},
+						},
 					},
 					{
 						Name:        "redis-http",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "http",
 						Tags:        []string{"bar"},
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:         "redis-http-check-1",
+								CheckRestart: &structs.CheckRestart{Limit: 1},
+							},
+							{
+								Name:         "redis-http-check-2",
+								CheckRestart: &structs.CheckRestart{Limit: 1},
+							},
+						},
 					},
 				},
 				Ports: []structs.AllocatedPortMapping{
@@ -226,7 +289,8 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				structs.ServiceRegistrationUpsertRPCMethod: 1,
 			},
 			expectedError: nil,
-			name:          "upsert only",
+			expWatch:      3,
+			expUnWatch:    0,
 		},
 	}
 
@@ -248,6 +312,7 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 			require.Eventually(t, func() bool {
 				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
+			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 
