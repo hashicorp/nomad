@@ -76,11 +76,11 @@ run_mtls() {
          -e NOMAD_TOKEN=$NOMAD_TOKEN \
          -e NOMAD_CLIENT_CERT=/etc/nomad-client.crt \
          -e NOMAD_CLIENT_KEY=/etc/nomad-client.key \
-         -e NOMAD_CA_CERT=/etc/nomad-ca.crt \
+         -e NOMAD_CACERT=/etc/nomad-ca.crt \
          -e NOMAD_TLS_SERVER_NAME=$NOMAD_TLS_SERVER_NAME \
          -v ${NOMAD_CLIENT_CERT}:/etc/nomad-client.crt \
          -v ${NOMAD_CLIENT_KEY}:/etc/nomad-client.key \
-         -v ${NOMAD_CA_CERT}:/etc/nomad-ca.crt \
+         -v ${NOMAD_CACERT}:/etc/nomad-ca.crt \
          --ipc=host \
          --net=host \
          "$IMAGE" \
