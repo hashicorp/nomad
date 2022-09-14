@@ -131,8 +131,17 @@ type checkWatchUpdate struct {
 // A CheckWatcher watches for check failures and restarts tasks according to
 // their check_restart policy.
 type CheckWatcher interface {
+	// Run the CheckWatcher. Maintains a background process to continuously
+	// monitor active checks. Must be called before Watch or Unwatch. Must be
+	// called as a goroutine.
 	Run(ctx context.Context)
+
+	// Watch the given check. If the check status enters a failing state, the
+	// task associated with the check will be restarted according to its check_restart
+	// policy via wr.
 	Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter)
+
+	// Unwatch will cause the CheckWatcher to no longer monitor the check of given checkID.
 	Unwatch(checkID string)
 }
 
