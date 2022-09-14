@@ -643,3 +643,90 @@ func printVariables(tsvs []*structs.VariableEncrypted) string {
 	}
 	return out.String()
 }
+
+// TestStateStore_Variables_DeleteCAS
+func TestStateStore_Variables_DeleteCAS(t *testing.T) {
+	ci.Parallel(t)
+	ts := testStateStore(t)
+
+	varNotExist := structs.VariableEncrypted{
+		VariableMetadata: structs.VariableMetadata{
+			Namespace:   "default",
+			Path:        "does/not/exist",
+			ModifyIndex: 0,
+		},
+	}
+
+	t.Run("missing_var-cas_0", func(t *testing.T) {
+		ci.Parallel(t)
+		varNotExist := varNotExist
+		// A CAS delete with index 0 should succeed when the variable does not
+		// exist in the state store.
+		resp := ts.VarDeleteCAS(10, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: &varNotExist,
+		})
+		require.True(t, resp.IsOk())
+	})
+	t.Run("missing_var-cas_1", func(t *testing.T) {
+		ci.Parallel(t)
+		varZero := varNotExist
+		varNotExist := varNotExist
+		// A CAS delete with a non-zero index should return a conflict when the
+		// variable does not exist in the state store. The conflict value should
+		// be a zero value having the same namespace and path.
+		varNotExist.ModifyIndex = 1
+		req := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: &varNotExist,
+		}
+		resp := ts.VarDeleteCAS(10, req)
+		require.True(t, resp.IsConflict())
+		require.NotNil(t, resp.Conflict)
+		require.Equal(t, varZero.VariableMetadata, resp.Conflict.VariableMetadata)
+	})
+	t.Run("real_var-cas_0", func(t *testing.T) {
+		ci.Parallel(t)
+		sv := mock.VariableEncrypted()
+		sv.CreateIndex = 0
+		sv.ModifyIndex = 0
+		sv.Path = "real_var/cas_0"
+		// Need to make a copy because VarSet mutates Var.
+		svZero := sv.Copy()
+		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: sv,
+		})
+		require.True(t, resp.IsOk(), "resp: %+v", resp)
+
+		// A CAS delete with a zero index should return a conflict when the
+		// variable exists in the state store. The conflict value should
+		// be the current state of the variable at the path.
+		req := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: &svZero,
+		}
+		resp = ts.VarDeleteCAS(0, req)
+		require.True(t, resp.IsConflict(), "resp: %+v", resp)
+		require.NotNil(t, resp.Conflict)
+		require.Equal(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
+	})
+	t.Run("real_var-cas_ok", func(t *testing.T) {
+		ci.Parallel(t)
+		sv := mock.VariableEncrypted()
+		sv.Path = "real_var/cas_ok"
+		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: sv,
+		})
+		require.True(t, resp.IsOk())
+
+		// A CAS delete with a correct index should succeed.
+		req := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: sv,
+		}
+		resp = ts.VarDeleteCAS(0, req)
+		require.True(t, resp.IsOk())
+	})
+}

@@ -30,6 +30,25 @@ Audit Log filtering in previous versions of Nomad handled `stages` and
 would be filtered. As of 1.4.0, `stages` and `operations` are treated as `AND
 filters`. Logs will only be filtered if all filter conditions match.
 
+#### Prevent Overlapping New Allocations with Stopping Allocations
+
+Prior to Nomad 1.4.0 the scheduler would consider the resources used by
+allocations that are in the process of stopping to be free for new allocations
+to use. This could cause newer allocations to crash when they try to use TCP
+ports or memory used by an allocation in the process of stopping. The new and
+stopping [allocations would "overlap" improperly.][alloc_overlap]
+
+[Nomad 1.4.0 fixes this behavior][gh_10446] so that an allocation's resources
+are only considered free for reuse once the client node the allocation was
+running on reports it has stopped. Technically speaking: only once the
+`Allocation.ClientStatus` has reached a terminal state (`complete`, `failed`,
+or `lost`).
+
+Despite this being a bug fix, it is considered a significant enough change in
+behavior to reserve for a major Nomad release and *not* be backported. Please
+report any negative side effects encountered as [new
+issues.][gh_issue]
+
 ## Nomad 1.3.3
 
 Environments that don't support the use of [`uid`][template_uid] and
@@ -1471,3 +1490,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
 [kill_timeout]: /docs/job-specification/task#kill_timeout
 [max_kill_timeout]: /docs/configuration/client#max_kill_timeout
+[alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
+[gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
+[gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose

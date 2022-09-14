@@ -8,7 +8,7 @@ description: |-
 
 # Command: var get
 
-The `var get` command is used to get the contents of an existing variable.
+The `var get` command is used to get the contents of an existing [variable][].
 
 ## Usage
 
@@ -17,7 +17,8 @@ nomad var get [options] <path>
 ```
 
 If ACLs are enabled, this command requires a token with the `variables:read`
-capability for the target variable's namespace.
+capability for the target variable's namespace and path. See the [ACL policy][]
+documentation for details.
 
 ## General Options
 
@@ -59,3 +60,6 @@ Return only the "passcode" item from the variable stored at "secret/creds":
 $ nomad var get -item=passcode secret/creds
 my-long-passcode
 ```
+
+[variable]: /docs/concepts/variables
+[ACL Policy]: /docs/other-specifications/acl-policy#variables

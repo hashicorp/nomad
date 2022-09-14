@@ -90,12 +90,16 @@
         "path": "operator/autopilot"
       },
       {
-        "title": "Raft",
-        "path": "operator/raft"
+        "title": "Keyring",
+        "path": "operator/keyring"
       },
       {
         "title": "License",
         "path": "operator/license"
+      },
+      {
+        "title": "Raft",
+        "path": "operator/raft"
       },
       {
         "title": "Scheduler",
@@ -154,6 +158,10 @@
   {
     "title": "Validate",
     "path": "validate"
+  },
+  {
+    "title": "Variables",
+    "path": "variables"
   },
   {
     "title": "Volumes",

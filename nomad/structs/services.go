@@ -47,7 +47,10 @@ const (
 	minCheckTimeout = 1 * time.Second
 )
 
-// ServiceCheck represents the Consul health check.
+// ServiceCheck represents a Nomad or Consul service health check.
+//
+// The fields available depend on the service provider the check is being
+// registered into.
 type ServiceCheck struct {
 	Name                   string              // Name of the check, defaults to a generated label
 	Type                   string              // Type of the check - tcp, http, docker and script
@@ -343,9 +346,11 @@ func (sc *ServiceCheck) validateNomad() error {
 	// below are temporary limitations on checks in nomad
 	// https://github.com/hashicorp/team-nomad/issues/354
 
-	// check_restart not yet supported on nomad
+	// check_restart.ignore_warnings is not a thing in Nomad (which has no warnings in checks)
 	if sc.CheckRestart != nil {
-		return fmt.Errorf("check_restart may only be set for Consul service checks")
+		if sc.CheckRestart.IgnoreWarnings {
+			return fmt.Errorf("ignore_warnings on check_restart only supported for Consul service checks")
+		}
 	}
 
 	// address_mode="driver" not yet supported on nomad

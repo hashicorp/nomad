@@ -114,13 +114,15 @@
         <span class="term">
           Client
         </span>
-        <LinkTo
-          @route="clients.client"
-          @model={{this.model.node}}
-          data-test-client-link
-        >
-          {{this.model.node.shortId}}
-        </LinkTo>
+        <Tooltip @text={{this.model.node.name}}>
+          <LinkTo
+            @route="clients.client"
+            @model={{this.model.node}}
+            data-test-client-link
+          >
+            {{this.model.node.shortId}}
+          </LinkTo>
+        </Tooltip>
       </span>
     </div>
   </div>

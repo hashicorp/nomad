@@ -8,7 +8,7 @@ description: |-
 
 # Command: var purge
 
-The `var purge` command permanently deletes an existing variable from Nomad's
+The `var purge` command permanently deletes an existing [variable][] from Nomad's
 variable storage.
 
 ## Usage
@@ -20,7 +20,8 @@ nomad var purge [options] <path>
 The `var purge` command requires the path to the variable.
 
 If ACLs are enabled, this command requires a token with the `variables:destroy`
-capability for the target variable's namespace.
+capability for the target variable's namespace and path. See the [ACL policy][]
+documentation for details.
 
 ## General Options
 
@@ -42,3 +43,6 @@ Purge the variable at the "secret/creds" path.
 $ nomad var purge -y secret/creds
 Successfully purged variable "secret/creds"!
 ```
+
+[variable]: /docs/concepts/variables
+[ACL Policy]: /docs/other-specifications/acl-policy#variables

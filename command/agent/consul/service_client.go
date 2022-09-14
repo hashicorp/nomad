@@ -419,11 +419,38 @@ type ServiceClient struct {
 	deregisterProbationExpiry time.Time
 
 	// checkWatcher restarts checks that are unhealthy.
-	checkWatcher *checkWatcher
+	checkWatcher *serviceregistration.CheckWatcher
 
 	// isClientAgent specifies whether this Consul client is being used
 	// by a Nomad client.
 	isClientAgent bool
+}
+
+// checkStatusGetter is the consul-specific implementation of serviceregistration.CheckStatusGetter
+type checkStatusGetter struct {
+	agentAPI         AgentAPI
+	namespacesClient *NamespacesClient
+}
+
+func (csg *checkStatusGetter) Get() (map[string]string, error) {
+	// Get the list of all namespaces so we can iterate them.
+	namespaces, err := csg.namespacesClient.List()
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]string)
+	for _, namespace := range namespaces {
+		resultsInNamespace, err := csg.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range resultsInNamespace {
+			results[k] = v.Status
+		}
+	}
+	return results, nil
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
@@ -450,9 +477,12 @@ func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, log
 		allocRegistrations:             make(map[string]*serviceregistration.AllocRegistration),
 		agentServices:                  make(map[string]struct{}),
 		agentChecks:                    make(map[string]struct{}),
-		checkWatcher:                   newCheckWatcher(logger, agentAPI, namespacesClient),
 		isClientAgent:                  isNomadClient,
 		deregisterProbationExpiry:      time.Now().Add(deregisterProbationPeriod),
+		checkWatcher: serviceregistration.NewCheckWatcher(logger, &checkStatusGetter{
+			agentAPI:         agentAPI,
+			namespacesClient: namespacesClient,
+		}),
 	}
 }
 

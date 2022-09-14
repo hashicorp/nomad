@@ -1,4 +1,4 @@
-package consul
+package serviceregistration
 
 import (
 	"context"
@@ -7,30 +7,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
-// checkRestartRecord is used by a testFakeCtx to record when restarts occur
+// restartRecord is used by a fakeWorkloadRestarter to record when restarts occur
 // due to a watched check.
-type checkRestartRecord struct {
+type restartRecord struct {
 	timestamp time.Time
 	source    string
 	reason    string
 	failure   bool
 }
 
-// fakeCheckRestarter is a test implementation of TaskRestarter.
-type fakeCheckRestarter struct {
+// fakeWorkloadRestarter is a test implementation of TaskRestarter.
+type fakeWorkloadRestarter struct {
 	// restarts is a slice of all of the restarts triggered by the checkWatcher
-	restarts []checkRestartRecord
+	restarts []restartRecord
 
 	// need the checkWatcher to re-Watch restarted tasks like TaskRunner
-	watcher *checkWatcher
+	watcher *CheckWatcher
 
 	// check to re-Watch on restarts
 	check     *structs.ServiceCheck
@@ -38,13 +37,12 @@ type fakeCheckRestarter struct {
 	taskName  string
 	checkName string
 
-	mu sync.Mutex
+	lock sync.Mutex
 }
 
-// newFakeCheckRestart creates a new TaskRestarter. It needs all of the
-// parameters checkWatcher.Watch expects.
-func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeCheckRestarter {
-	return &fakeCheckRestarter{
+// newFakeCheckRestart creates a new mock WorkloadRestarter.
+func newFakeWorkloadRestarter(w *CheckWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeWorkloadRestarter {
+	return &fakeWorkloadRestarter{
 		watcher:   w,
 		check:     c,
 		allocID:   allocID,
@@ -53,14 +51,15 @@ func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string,
 	}
 }
 
-// Restart implements part of the TaskRestarter interface needed for check
-// watching and is normally fulfilled by a TaskRunner.
+// Restart implements part of the TaskRestarter interface needed for check watching
+// and is normally fulfilled by a TaskRunner.
 //
 // Restarts are recorded in the []restarts field and re-Watch the check.
-func (c *fakeCheckRestarter) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	restart := checkRestartRecord{
+func (c *fakeWorkloadRestarter) Restart(_ context.Context, event *structs.TaskEvent, failure bool) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	restart := restartRecord{
 		timestamp: time.Now(),
 		source:    event.Type,
 		reason:    event.DisplayMessage,
@@ -73,10 +72,10 @@ func (c *fakeCheckRestarter) Restart(ctx context.Context, event *structs.TaskEve
 	return nil
 }
 
-// String for debugging
-func (c *fakeCheckRestarter) String() string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// String is useful for debugging.
+func (c *fakeWorkloadRestarter) String() string {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	s := fmt.Sprintf("%s %s %s restarts:\n", c.allocID, c.taskName, c.checkName)
 	for _, r := range c.restarts {
@@ -85,76 +84,55 @@ func (c *fakeCheckRestarter) String() string {
 	return s
 }
 
-// GetRestarts for testing in a threadsafe way
-func (c *fakeCheckRestarter) GetRestarts() []checkRestartRecord {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// GetRestarts for testing in a thread-safe way
+func (c *fakeWorkloadRestarter) GetRestarts() []restartRecord {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	o := make([]checkRestartRecord, len(c.restarts))
+	o := make([]restartRecord, len(c.restarts))
 	copy(o, c.restarts)
 	return o
 }
 
-// checkResponse is a response returned by the fakeChecksAPI after the given
-// time.
-type checkResponse struct {
+// response is a response returned by fakeCheckStatusGetter after a certain time
+type response struct {
 	at     time.Time
 	id     string
 	status string
 }
 
-// fakeChecksAPI implements the Checks() method for testing Consul.
-type fakeChecksAPI struct {
-	// responses is a map of check ids to their status at a particular
-	// time. checkResponses must be in chronological order.
-	responses map[string][]checkResponse
-
-	mu sync.Mutex
+// fakeCheckStatusGetter is a mock implementation of CheckStatusGetter
+type fakeCheckStatusGetter struct {
+	lock      sync.Mutex
+	responses map[string][]response
 }
 
-func newFakeChecksAPI() *fakeChecksAPI {
-	return &fakeChecksAPI{responses: make(map[string][]checkResponse)}
-}
+func (g *fakeCheckStatusGetter) Get() (map[string]string, error) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
 
-// add a new check status to Consul at the given time.
-func (c *fakeChecksAPI) add(id, status string, at time.Time) {
-	c.mu.Lock()
-	c.responses[id] = append(c.responses[id], checkResponse{at, id, status})
-	c.mu.Unlock()
-}
-
-func (c *fakeChecksAPI) ChecksWithFilterOpts(filter string, opts *api.QueryOptions) (map[string]*api.AgentCheck, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	now := time.Now()
-	result := make(map[string]*api.AgentCheck, len(c.responses))
-
-	// Use the latest response for each check
-	for k, vs := range c.responses {
+	result := make(map[string]string)
+	// use the newest response after now for the response
+	for k, vs := range g.responses {
 		for _, v := range vs {
 			if v.at.After(now) {
 				break
 			}
-			result[k] = &api.AgentCheck{
-				CheckID: k,
-				Name:    k,
-				Status:  v.status,
-			}
+			result[k] = v.status
 		}
 	}
 
 	return result, nil
 }
 
-// testWatcherSetup sets up a fakeChecksAPI and a real checkWatcher with a test
-// logger and faster poll frequency.
-func testWatcherSetup(t *testing.T) (*fakeChecksAPI, *checkWatcher) {
-	logger := testlog.HCLogger(t)
-	checksAPI := newFakeChecksAPI()
-	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), NewMockAgent(ossFeatures))
-	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
-	cw.pollFreq = 10 * time.Millisecond
-	return checksAPI, cw
+func (g *fakeCheckStatusGetter) add(checkID, status string, at time.Time) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	if g.responses == nil {
+		g.responses = make(map[string][]response)
+	}
+	g.responses[checkID] = append(g.responses[checkID], response{at, checkID, status})
 }
 
 func testCheck() *structs.ServiceCheck {
@@ -170,8 +148,22 @@ func testCheck() *structs.ServiceCheck {
 	}
 }
 
-// TestCheckWatcher_Skip asserts unwatched checks are ignored.
-func TestCheckWatcher_Skip(t *testing.T) {
+// testWatcherSetup sets up a fakeChecksAPI and a real checkWatcher with a test
+// logger and faster poll frequency.
+func testWatcherSetup(t *testing.T) (*fakeCheckStatusGetter, *CheckWatcher) {
+	logger := testlog.HCLogger(t)
+	getter := new(fakeCheckStatusGetter)
+	cw := NewCheckWatcher(logger, getter)
+	cw.pollFrequency = 10 * time.Millisecond
+	return getter, cw
+}
+
+func before() time.Time {
+	return time.Now().Add(-10 * time.Second)
+}
+
+// TestCheckWatcher_SkipUnwatched asserts unwatched checks are ignored.
+func TestCheckWatcher_SkipUnwatched(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a check with restarting disabled
@@ -179,38 +171,37 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	check.CheckRestart = nil
 
 	logger := testlog.HCLogger(t)
-	checksAPI := newFakeChecksAPI()
-	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), NewMockAgent(ossFeatures))
+	getter := new(fakeCheckStatusGetter)
 
-	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
+	cw := NewCheckWatcher(logger, getter)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 
 	// Check should have been dropped as it's not watched
-	if n := len(cw.checkUpdateCh); n != 0 {
-		t.Fatalf("expected 0 checks to be enqueued for watching but found %d", n)
-	}
+	enqueued := len(cw.checkUpdateCh)
+	must.Zero(t, enqueued, must.Sprintf("expected 0 checks to be enqueued for watching but found %d", enqueued))
 }
 
 // TestCheckWatcher_Healthy asserts healthy tasks are not restarted.
 func TestCheckWatcher_Healthy(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	now := before()
+	getter, cw := testWatcherSetup(t)
+
+	// Make both checks healthy from the beginning
+	getter.add("testcheck1", "passing", now)
+	getter.add("testcheck2", "passing", now)
 
 	check1 := testCheck()
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	check2 := testCheck()
 	check2.CheckRestart.Limit = 1
 	check2.CheckRestart.Grace = 0
-	restarter2 := newFakeCheckRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
+	restarter2 := newFakeWorkloadRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
 	cw.Watch("testalloc2", "testtask2", "testcheck2", check2, restarter2)
-
-	// Make both checks healthy from the beginning
-	fakeAPI.add("testcheck1", "passing", time.Time{})
-	fakeAPI.add("testcheck2", "passing", time.Time{})
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -218,26 +209,23 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called
-	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d:\n%s", n, restarter1)
-	}
-	if n := len(restarter2.restarts); n > 0 {
-		t.Errorf("expected check 2 to not be restarted but found %d:\n%s", n, restarter2)
-	}
+	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
+	must.Empty(t, restarter2.restarts, must.Sprint("expected check 2 to not be restarted"))
 }
 
 // TestCheckWatcher_Unhealthy asserts unhealthy tasks are restarted exactly once.
 func TestCheckWatcher_Unhealthy(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
-
-	check1 := testCheck()
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	now := before()
+	getter, cw := testWatcherSetup(t)
 
 	// Check has always been failing
-	fakeAPI.add("testcheck1", "critical", time.Time{})
+	getter.add("testcheck1", "critical", now)
+
+	check1 := testCheck()
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -245,7 +233,7 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was called exactly once
-	require.Len(t, restarter1.restarts, 1)
+	must.Len(t, 1, restarter1.restarts, must.Sprint("expected check to be restarted once"))
 }
 
 // TestCheckWatcher_HealthyWarning asserts checks in warning with
@@ -253,17 +241,18 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	now := before()
+	getter, cw := testWatcherSetup(t)
+
+	// Check is always in warning but that's ok
+	getter.add("testcheck1", "warning", now)
 
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 0
 	check1.CheckRestart.IgnoreWarnings = true
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
-
-	// Check is always in warning but that's ok
-	fakeAPI.add("testcheck1", "warning", time.Time{})
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -271,9 +260,7 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d", n)
-	}
+	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_Flapping asserts checks that flap from healthy to unhealthy
@@ -281,56 +268,53 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 func TestCheckWatcher_Flapping(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	getter, cw := testWatcherSetup(t)
 
 	check1 := testCheck()
 	check1.CheckRestart.Grace = 0
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	// Check flaps and is never failing for the full 200ms needed to restart
 	now := time.Now()
-	fakeAPI.add("testcheck1", "passing", now)
-	fakeAPI.add("testcheck1", "critical", now.Add(100*time.Millisecond))
-	fakeAPI.add("testcheck1", "passing", now.Add(250*time.Millisecond))
-	fakeAPI.add("testcheck1", "critical", now.Add(300*time.Millisecond))
-	fakeAPI.add("testcheck1", "passing", now.Add(450*time.Millisecond))
+	getter.add("testcheck1", "passing", now)
+	getter.add("testcheck1", "critical", now.Add(100*time.Millisecond))
+	getter.add("testcheck1", "passing", now.Add(250*time.Millisecond))
+	getter.add("testcheck1", "critical", now.Add(300*time.Millisecond))
+	getter.add("testcheck1", "passing", now.Add(450*time.Millisecond))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d\n%s", n, restarter1)
-	}
+	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_Unwatch asserts unwatching checks prevents restarts.
 func TestCheckWatcher_Unwatch(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	now := before()
+	getter, cw := testWatcherSetup(t)
+
+	// Always failing
+	getter.add("testcheck1", "critical", now)
 
 	// Unwatch immediately
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 100 * time.Millisecond
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 	cw.Unwatch("testcheck1")
-
-	// Always failing
-	fakeAPI.add("testcheck1", "critical", time.Time{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	if n := len(restarter1.restarts); n > 0 {
-		t.Errorf("expected check 1 to not be restarted but found %d\n%s", n, restarter1)
-	}
+	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_MultipleChecks asserts that when there are multiple checks
@@ -339,30 +323,33 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 func TestCheckWatcher_MultipleChecks(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	getter, cw := testWatcherSetup(t)
+
+	// check is critical, 3 passing; should only be 1 net restart
+	now := time.Now()
+	getter.add("testcheck1", "critical", before())
+	getter.add("testcheck1", "passing", now.Add(150*time.Millisecond))
+	getter.add("testcheck2", "critical", before())
+	getter.add("testcheck2", "passing", now.Add(150*time.Millisecond))
+	getter.add("testcheck3", "passing", time.Time{})
 
 	check1 := testCheck()
+	check1.Name = "testcheck1"
 	check1.CheckRestart.Limit = 1
-	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
 
 	check2 := testCheck()
+	check2.Name = "testcheck2"
 	check2.CheckRestart.Limit = 1
-	restarter2 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck2", check2)
+	restarter2 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck2", check2)
 	cw.Watch("testalloc1", "testtask1", "testcheck2", check2, restarter2)
 
 	check3 := testCheck()
+	check3.Name = "testcheck3"
 	check3.CheckRestart.Limit = 1
-	restarter3 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck3", check3)
+	restarter3 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck3", check3)
 	cw.Watch("testalloc1", "testtask1", "testcheck3", check3, restarter3)
-
-	// check 2 & 3 fail long enough to cause 1 restart, but only 1 should restart
-	now := time.Now()
-	fakeAPI.add("testcheck1", "critical", now)
-	fakeAPI.add("testcheck1", "passing", now.Add(150*time.Millisecond))
-	fakeAPI.add("testcheck2", "critical", now)
-	fakeAPI.add("testcheck2", "passing", now.Add(150*time.Millisecond))
-	fakeAPI.add("testcheck3", "passing", time.Time{})
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -388,17 +375,17 @@ func TestCheckWatcher_MultipleChecks(t *testing.T) {
 func TestCheckWatcher_Deadlock(t *testing.T) {
 	ci.Parallel(t)
 
-	fakeAPI, cw := testWatcherSetup(t)
+	getter, cw := testWatcherSetup(t)
 
 	// If TR.Restart blocks, restarting len(checkUpdateCh)+1 checks causes
 	// a deadlock due to checkWatcher.Run being blocked in
 	// checkRestart.apply and unable to process updates from the chan!
 	n := cap(cw.checkUpdateCh) + 1
 	checks := make([]*structs.ServiceCheck, n)
-	restarters := make([]*fakeCheckRestarter, n)
+	restarters := make([]*fakeWorkloadRestarter, n)
 	for i := 0; i < n; i++ {
 		c := testCheck()
-		r := newFakeCheckRestarter(cw,
+		r := newFakeWorkloadRestarter(cw,
 			fmt.Sprintf("alloc%d", i),
 			fmt.Sprintf("task%d", i),
 			fmt.Sprintf("check%d", i),
@@ -420,7 +407,7 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 
 	// Make them all fail
 	for _, r := range restarters {
-		fakeAPI.add(r.checkName, "critical", time.Time{})
+		getter.add(r.checkName, "critical", time.Time{})
 	}
 
 	// Ensure that restart was called exactly once on all checks
@@ -432,6 +419,6 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 }

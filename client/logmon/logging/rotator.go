@@ -38,10 +38,13 @@ type FileRotator struct {
 	MaxFiles int   // MaxFiles is the maximum number of rotated files allowed in a path
 	FileSize int64 // FileSize is the size a rotated file is allowed to grow
 
-	path             string // path is the path on the file system where the rotated set of files are opened
-	baseFileName     string // baseFileName is the base file name of the rotated files
-	logFileIdx       int    // logFileIdx is the current index of the rotated files
-	oldestLogFileIdx int    // oldestLogFileIdx is the index of the oldest log file in a path
+	path         string // path is the path on the file system where the rotated set of files are opened
+	baseFileName string // baseFileName is the base file name of the rotated files
+	logFileIdx   int    // logFileIdx is the current index of the rotated files
+
+	oldestLogFileIdx int // oldestLogFileIdx is the index of the oldest log file in a path
+	closed           bool
+	fileLock         sync.Mutex
 
 	currentFile *os.File // currentFile is the file that is currently getting written
 	currentWr   int64    // currentWr is the number of bytes written to the current file
@@ -52,9 +55,6 @@ type FileRotator struct {
 	logger      hclog.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
-
-	closed     bool
-	closedLock sync.Mutex
 }
 
 // NewFileRotator returns a new file rotator
@@ -176,8 +176,8 @@ func (f *FileRotator) nextFile() error {
 		break
 	}
 	// Purge old files if we have more files than MaxFiles
-	f.closedLock.Lock()
-	defer f.closedLock.Unlock()
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
 	if f.logFileIdx-f.oldestLogFileIdx >= f.MaxFiles && !f.closed {
 		select {
 		case f.purgeCh <- struct{}{}:
@@ -250,8 +250,8 @@ func (f *FileRotator) flushPeriodically() {
 
 // Close flushes and closes the rotator. It never returns an error.
 func (f *FileRotator) Close() error {
-	f.closedLock.Lock()
-	defer f.closedLock.Unlock()
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
 
 	// Stop the ticker and flush for one last time
 	f.flushTicker.Stop()
@@ -310,7 +310,10 @@ func (f *FileRotator) purgeOldFiles() {
 					f.logger.Error("error removing file", "filename", fname, "error", err)
 				}
 			}
+
+			f.fileLock.Lock()
 			f.oldestLogFileIdx = fIndexes[0]
+			f.fileLock.Unlock()
 		case <-f.doneCh:
 			return
 		}

@@ -19,8 +19,10 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -107,6 +109,168 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
+}
+
+// TestJobEndpoint_Register_NonOverlapping asserts that ClientStatus must be
+// terminal, not just DesiredStatus, for the resources used by a job to be
+// considered free for subsequent placements to use.
+//
+// See: https://github.com/hashicorp/nomad/issues/10440
+func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+	})
+	defer cleanupS1()
+	state := s1.fsm.State()
+
+	// Create a mock node with easy to check resources
+	node := mock.Node()
+	node.Resources = nil // Deprecated in 0.9
+	node.NodeResources.Cpu.CpuShares = 700
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	req := &structs.JobRegisterRequest{
+		Job: job.Copy(),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	must.NonZero(t, resp.Index)
+
+	// Assert placement
+	jobReq := &structs.JobSpecificRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	var alloc *structs.AllocListStub
+	testutil.Wait(t, func() (bool, error) {
+		resp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &resp))
+		if n := len(resp.Allocations); n != 1 {
+			return false, fmt.Errorf("expected 1 allocation but found %d:\n%v", n, resp.Allocations)
+		}
+
+		alloc = resp.Allocations[0]
+		return true, nil
+	})
+	must.Eq(t, alloc.NodeID, node.ID)
+	must.Eq(t, alloc.DesiredStatus, structs.AllocDesiredStatusRun)
+	must.Eq(t, alloc.ClientStatus, structs.AllocClientStatusPending)
+
+	// Stop
+	stopReq := &structs.JobDeregisterRequest{
+		JobID:        job.ID,
+		Purge:        false,
+		WriteRequest: req.WriteRequest,
+	}
+	var stopResp structs.JobDeregisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", stopReq, &stopResp))
+
+	// Assert new register blocked
+	req.Job = job.Copy()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	must.NonZero(t, resp.Index)
+
+	blockedEval := ""
+	testutil.Wait(t, func() (bool, error) {
+		// Assert no new allocs
+		allocResp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &allocResp))
+		if n := len(allocResp.Allocations); n != 1 {
+			return false, fmt.Errorf("expected 1 allocation but found %d:\n%v", n, allocResp.Allocations)
+		}
+
+		if alloc.ID != allocResp.Allocations[0].ID {
+			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		}
+
+		eval, err := state.EvalByID(nil, resp.EvalID)
+		must.NoError(t, err)
+		if eval == nil {
+			return false, fmt.Errorf("eval not applied: %s", resp.EvalID)
+		}
+		if eval.Status != structs.EvalStatusComplete {
+			return false, fmt.Errorf("expected eval to be complete but found: %s", eval.Status)
+		}
+		if eval.BlockedEval == "" {
+			return false, fmt.Errorf("expected a blocked eval to be created")
+		}
+		blockedEval = eval.BlockedEval
+		return true, nil
+	})
+
+	// Set ClientStatus=complete like a client would
+	stoppedAlloc := &structs.Allocation{
+		ID:     alloc.ID,
+		NodeID: alloc.NodeID,
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStateDead,
+			},
+		},
+		ClientStatus:     structs.AllocClientStatusComplete,
+		DeploymentStatus: nil, // should not have an impact
+		NetworkStatus:    nil, // should not have an impact
+	}
+	upReq := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{stoppedAlloc},
+		WriteRequest: req.WriteRequest,
+	}
+	var upResp structs.GenericResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", upReq, &upResp))
+
+	// Assert newer register's eval unblocked
+	testutil.Wait(t, func() (bool, error) {
+		eval, err := state.EvalByID(nil, blockedEval)
+		must.NoError(t, err)
+		must.NotNil(t, eval)
+		if eval.Status != structs.EvalStatusComplete {
+			return false, fmt.Errorf("expected blocked eval to be complete but found: %s", eval.Status)
+		}
+		return true, nil
+	})
+
+	// Assert new alloc placed
+	testutil.Wait(t, func() (bool, error) {
+		// Assert no new allocs
+		allocResp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &allocResp))
+		if n := len(allocResp.Allocations); n != 2 {
+			return false, fmt.Errorf("expected 2 allocs but found %d:\n%v", n, allocResp.Allocations)
+		}
+
+		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) bool {
+			return a.CreateIndex < b.CreateIndex
+		})
+
+		if alloc.ID != allocResp.Allocations[0].ID {
+			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		}
+
+		if cs := allocResp.Allocations[0].ClientStatus; cs != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
+		}
+
+		if cs := allocResp.Allocations[1].ClientStatus; cs != structs.AllocClientStatusPending {
+			return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
+		}
+		return true, nil
+	})
 }
 
 func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {

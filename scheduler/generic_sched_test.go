@@ -1596,6 +1596,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+		alloc.ClientStatus = structs.AllocClientStatusFailed // #10446
 		terminal = append(terminal, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))

@@ -46,6 +46,7 @@ type serviceHookConfig struct {
 type serviceHook struct {
 	allocID   string
 	jobID     string
+	groupName string
 	taskName  string
 	restarter serviceregistration.WorkloadRestarter
 	logger    log.Logger
@@ -84,6 +85,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 	h := &serviceHook{
 		allocID:           c.alloc.ID,
 		jobID:             c.alloc.JobID,
+		groupName:         c.alloc.TaskGroup,
 		taskName:          c.task.Name,
 		namespace:         c.namespace,
 		serviceRegWrapper: c.serviceRegWrapper,
@@ -221,6 +223,7 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	return &serviceregistration.WorkloadServices{
 		AllocID:       h.allocID,
 		JobID:         h.jobID,
+		Group:         h.groupName,
 		Task:          h.taskName,
 		Namespace:     h.namespace,
 		Restarter:     h.restarter,

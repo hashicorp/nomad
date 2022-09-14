@@ -347,7 +347,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason string) {
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.TerminalStatus() {
+		if alloc.ClientTerminalStatus() {
 			continue
 		}
 
