@@ -2979,7 +2979,8 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
+	for i := range cases {
+		c := cases[i]
 		t.Run(c.name, func(t *testing.T) {
 			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
 
