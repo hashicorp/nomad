@@ -51,7 +51,7 @@ const mockTask = {
 module('Integration | Component | task-sub-row', function (hooks) {
   setupRenderingTest(hooks);
   test('it renders', async function (assert) {
-    assert.expect(3);
+    assert.expect(2);
     this.set('task', mockTask);
     await render(hbs`<TaskSubRow @taskState={{this.task}} />`);
     assert.dom(this.element).hasText(`/ ${mockTask.name}`);
