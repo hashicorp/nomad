@@ -17,7 +17,7 @@ DOCKER_RUN_FLAGS=-it \
 		--volume "next-dir:/app/website-preview/.next" \
 		--volume "$(PWD)/.env:/app/.env" \
 		-e "REPO=nomad" \
-		-e "PREVIEW_MODE=developer"
+		-e "PREVIEW_MODE=io"
 
 
 # Default: run this if working on the website locally to run in watch mode.

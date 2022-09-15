@@ -29,23 +29,23 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/nomad/tutorials/get-started"
+        "href": "https://learn.hashicorp.com/collections/nomad/get-started"
       },
       {
         "title": "Running Nomad",
-        "href": "/nomad/tutorials/get-started/get-started-run"
+        "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-run"
       },
       {
         "title": "Jobs",
-        "href": "/nomad/tutorials/get-started/get-started-jobs"
+        "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-jobs"
       },
       {
         "title": "Web UI",
-        "href": "/nomad/tutorials/get-started/get-started-ui"
+        "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-ui"
       },
       {
         "title": "Next Steps",
-        "href": "/nomad/tutorials/get-started/get-started-learn-more"
+        "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more"
       }
     ]
   }
