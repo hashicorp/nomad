@@ -13,6 +13,6 @@ binary {
   nvd        = false
 
   secrets {
-    all = false
+    all = true
   }
 }
