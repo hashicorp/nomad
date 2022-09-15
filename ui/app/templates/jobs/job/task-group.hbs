@@ -218,7 +218,6 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                {{log "TASK" task}}
                   <TaskSubRow @namespan="8" @taskState={{task}} />
                 {{/each}}
               {{/if}}
