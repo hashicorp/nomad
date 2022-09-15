@@ -9,7 +9,8 @@
 		<LinkTo @route="allocations.allocation.task" @models={{array @allocation this.task}}>
 			{{this.task.name}}
 		</LinkTo>
-		<FlightIcon @name="logs" />
+		{{!-- TODO: in-page logs --}}
+		{{!-- <FlightIcon @name="logs" /> --}}
 	</td>
 	<td data-test-cpu class="is-1 has-text-centered">
 		{{#if this.task.isRunning}}

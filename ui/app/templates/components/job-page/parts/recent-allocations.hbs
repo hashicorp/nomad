@@ -1,13 +1,13 @@
 <div class="boxed-section">
   <div class="boxed-section-head">
     Recent Allocations
-    <span class="pull-right">
-      Show Tasks
+    <span class="pull-right is-padded">
       <Toggle
+        class="button is-borderless is-inline"
         @isActive={{this.showSubTasks}}
         @onToggle={{this.toggleShowSubTasks}}
         title="Show tasks of allocations"
-      />
+      >Show Tasks</Toggle>
     </span>
   </div>
   <div

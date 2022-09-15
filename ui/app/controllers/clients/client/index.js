@@ -15,6 +15,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class ClientController extends Controller.extend(
@@ -60,7 +61,7 @@ export default class ClientController extends Controller.extend(
   sortProperty = 'modifyIndex';
   sortDescending = true;
 
-  showSubTasks = false;
+  @localStorageProperty('nomadShowSubTasks', false) showSubTasks;
 
   @action
   toggleShowSubTasks(e) {
