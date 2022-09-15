@@ -498,12 +498,14 @@
         />
 
         <span class="is-padded">
-          Show Tasks
           <Toggle
+            class="button is-borderless is-inline"
             @isActive={{this.showSubTasks}}
             @onToggle={{this.toggleShowSubTasks}}
             title="Show tasks of allocations"
-          />
+          >
+            Show Tasks
+          </Toggle>
         </span>
       </div>
     </div>
@@ -521,7 +523,7 @@
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot" as |t|
+            @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
           >
             <t.head>
               <th class="is-narrow"></th>

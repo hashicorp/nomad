@@ -1,6 +1,6 @@
-.task-sub-row {
+table tbody .task-sub-row {
   td {
-    border-top-width: 0;
+    border-top: 2px solid white;
   }
   td:nth-child(1) {
     padding-left: 4rem;

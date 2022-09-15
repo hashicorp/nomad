@@ -57,6 +57,14 @@ export default class TaskGroupController extends Controller.extend(
     return ['shortId', 'name'];
   }
 
+  showSubTasks = false;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
+  }
+
   @computed('model.allocations.[]')
   get allocations() {
     return this.get('model.allocations') || [];

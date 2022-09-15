@@ -19,7 +19,7 @@
         @source={{this.sortedAllocations}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
       >
         <t.head>
           <th class="is-narrow"></th>
