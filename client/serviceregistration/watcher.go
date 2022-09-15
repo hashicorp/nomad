@@ -51,8 +51,10 @@ func (r *restarter) apply(ctx context.Context, now time.Time, status string) boo
 		}
 	}
 	switch status {
-	case "critical", "failure", "pending":
-	case "warning":
+	case "critical": // consul
+	case string(structs.CheckFailure): // nomad
+	case string(structs.CheckPending): // nomad
+	case "warning": // consul
 		if r.ignoreWarnings {
 			// Warnings are ignored, reset state and exit
 			healthy()
@@ -126,7 +128,26 @@ type checkWatchUpdate struct {
 	restart *restarter
 }
 
-type CheckWatcher struct {
+// A CheckWatcher watches for check failures and restarts tasks according to
+// their check_restart policy.
+type CheckWatcher interface {
+	// Run the CheckWatcher. Maintains a background process to continuously
+	// monitor active checks. Must be called before Watch or Unwatch. Must be
+	// called as a goroutine.
+	Run(ctx context.Context)
+
+	// Watch the given check. If the check status enters a failing state, the
+	// task associated with the check will be restarted according to its check_restart
+	// policy via wr.
+	Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter)
+
+	// Unwatch will cause the CheckWatcher to no longer monitor the check of given checkID.
+	Unwatch(checkID string)
+}
+
+// UniversalCheckWatcher is an implementation of CheckWatcher capable of watching
+// checks in the Nomad or Consul service providers.
+type UniversalCheckWatcher struct {
 	logger hclog.Logger
 	getter CheckStatusGetter
 
@@ -144,8 +165,8 @@ type CheckWatcher struct {
 	failedPreviousInterval bool
 }
 
-func NewCheckWatcher(logger hclog.Logger, getter CheckStatusGetter) *CheckWatcher {
-	return &CheckWatcher{
+func NewCheckWatcher(logger hclog.Logger, getter CheckStatusGetter) *UniversalCheckWatcher {
+	return &UniversalCheckWatcher{
 		logger:        logger.ResetNamed("watch.checks"),
 		getter:        getter,
 		pollFrequency: 1 * time.Second,
@@ -155,7 +176,7 @@ func NewCheckWatcher(logger hclog.Logger, getter CheckStatusGetter) *CheckWatche
 }
 
 // Watch a check and restart its task if unhealthy.
-func (w *CheckWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter) {
+func (w *UniversalCheckWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter) {
 	if !check.TriggersRestarts() {
 		return // check_restart not set; no-op
 	}
@@ -185,7 +206,7 @@ func (w *CheckWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 }
 
 // Unwatch a check.
-func (w *CheckWatcher) Unwatch(checkID string) {
+func (w *UniversalCheckWatcher) Unwatch(checkID string) {
 	select {
 	case w.checkUpdateCh <- checkWatchUpdate{
 		checkID: checkID,
@@ -195,7 +216,7 @@ func (w *CheckWatcher) Unwatch(checkID string) {
 	}
 }
 
-func (w *CheckWatcher) Run(ctx context.Context) {
+func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 	defer close(w.done)
 
 	// map of checkID to their restarter handle (contains only checks we are watching)
@@ -253,7 +274,7 @@ func (w *CheckWatcher) Run(ctx context.Context) {
 	}
 }
 
-func (w *CheckWatcher) interval(ctx context.Context, now time.Time, watched map[string]*restarter) {
+func (w *UniversalCheckWatcher) interval(ctx context.Context, now time.Time, watched map[string]*restarter) {
 	statuses, err := w.getter.Get()
 	if err != nil && !w.failedPreviousInterval {
 		w.failedPreviousInterval = true

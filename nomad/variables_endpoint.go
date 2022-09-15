@@ -169,6 +169,9 @@ func (sv *Variables) makeVariablesApplyResponse(
 		}
 		return &out, nil
 	}
+	if eResp.IsError() {
+		return &out, eResp.Error
+	}
 
 	// At this point, the response is necessarily a conflict.
 	// Prime output from the encrypted responses metadata

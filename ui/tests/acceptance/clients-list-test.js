@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | clients list', function (hooks) {
   setupApplicationTest(hooks);
@@ -27,6 +28,7 @@ module('Acceptance | clients list', function (hooks) {
   });
 
   test('/clients should list one page of clients', async function (assert) {
+    faker.seed(1);
     // Make sure to make more nodes than 1 page to assert that pagination is working
     const nodesCount = ClientsList.pageSize + 1;
     server.createList('node', nodesCount);
@@ -209,6 +211,7 @@ module('Acceptance | clients list', function (hooks) {
   });
 
   test('when there are no clients, there is an empty message', async function (assert) {
+    faker.seed(1);
     server.createList('agent', 1);
 
     await ClientsList.visit();

@@ -14,6 +14,7 @@ import {
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 const sumResources = (list, dimension) =>
   list.reduce((agg, val) => agg + (get(val, dimension) || 0), 0);
@@ -37,6 +38,7 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {
+    faker.seed(1);
     server.createList('node', 3);
     server.createList('allocation', 5);
 
