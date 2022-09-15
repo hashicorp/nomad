@@ -105,7 +105,7 @@ var ExecTaskStreamingBasicCases = []struct {
 	},
 	{
 		Name:    "tty: children processes",
-		Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
+		Command: "(( sleep 10 && echo from background ) & ); echo from main; exec sleep 1",
 		Tty:     true,
 		// when using tty; wait for lead process only, like `docker exec -it`
 		Stdout:   "from main\r\n",
