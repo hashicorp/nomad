@@ -71,7 +71,7 @@
               @context="job"
               @onClick={{action "gotoAllocation" row.model}} />
               {{#each row.model.states as |task|}}
-                <TaskSubRow @namespan="9" @taskState={{task}} @allocation={{row.model}} />
+                <TaskSubRow @namespan="9" @taskState={{task}} />
               {{/each}}
 
           </t.body>

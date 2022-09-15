@@ -568,7 +568,7 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @allocation={{row.model}} />
+                  <TaskSubRow @namespan="8" @taskState={{task}} />
                 {{/each}}
               {{/if}}
             </t.body>
