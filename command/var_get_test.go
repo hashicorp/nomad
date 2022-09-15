@@ -179,7 +179,7 @@ func TestVarGetCommand(t *testing.T) {
 
 		sv := testVariable()
 		sv.Path = "special/variable"
-		sv.Namespace = t.Name()
+		sv.Namespace = testNS
 		sv, _, err = client.Variables().Create(sv, nil)
 		require.NoError(t, err)
 		t.Cleanup(func() { client.Variables().Delete(sv.Path, nil) })
