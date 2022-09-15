@@ -9,7 +9,7 @@ description: Learn how to install Nomad.
 Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
--> If you are interested in trialing Nomad without installing it locally, see the
+\-> If you are interested in trialing Nomad without installing it locally, see the
 [Quickstart](/docs/install/quickstart) for options to get started with Nomad.
 
 <Tabs>
@@ -33,7 +33,7 @@ The output is a list of locations separated by colons. You can make Nomad
 available by moving the binary to one of the listed locations, or by adding
 Nomad's location to your `PATH`.
 
--> **Tip (Linux-based or Mac):** Permanently add a new location to your path by
+\-> **Tip (Linux-based or Mac):** Permanently add a new location to your path by
 editing your shell's settings file (usually called something like `~/.bashrc`,
 where the part of the file name after the `.` and before `rc` is the name of
 your shell). In that file you will see a line that starts with `export PATH=`,
@@ -42,7 +42,7 @@ binary to that list and save the file. Then reload your shell's configuration
 with the command `source ~/.bashrc`, replacing `bash` with the name of your
 shell.
 
--> **Tip (Windows):** Add a location to your path via the GUI by navigating to
+\-> **Tip (Windows):** Add a location to your path via the GUI by navigating to
 `Environment Variables` in your system settings, and looking for the variable
 called `PATH`. You will see a semicolon-separated list of locations. Add the
 Nomad binary's location to that list and then launch a new console window.
@@ -140,7 +140,7 @@ $ sudo yum -y install nomad
 </Tab>
 </Tabs>
 
--> **TIP:** Now that you have added the HashiCorp repository, you can install
+\-> **TIP:** Now that you have added the HashiCorp repository, you can install
 [Consul](https://learn.hashicorp.com/consul) and
 [Vault](https://learn.hashicorp.com/vault) with the same command.
 
@@ -191,7 +191,7 @@ installation.
 </Tab>
 </Tabs>
 
----
+- - -
 
 ## Verify the Installation
 
@@ -232,7 +232,7 @@ Other commands:
     version         Prints the Nomad version
 ```
 
----
+- - -
 
 ## Compiling from Source ((#from-source))
 
@@ -265,7 +265,11 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
    ```
 
 [consul-dev]: https://learn.hashicorp.com/consul/getting-started/agent#starting-the-agent
+
 [consul-download]: https://www.consul.io/downloads
+
 [destroy]: https://www.vagrantup.com/docs/cli/destroy
+
 [gh-7865]: https://github.com/hashicorp/nomad/issues/7865
-[gpg-key]: https://apt.releases.hashicorp.com/gpg 'HashiCorp GPG key'
+
+[gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
