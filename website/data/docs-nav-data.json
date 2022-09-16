@@ -1673,7 +1673,12 @@
             "href": "/plugins/drivers/community/pot"
           },
           {
-            "title": "Rkt <sup>Deprecated</sup> ",
+            "title": "Rkt",
+            "badge": {
+              "text": "Deprecated",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "href": "/plugins/drivers/community/rkt"
           },
           {
@@ -1728,7 +1733,12 @@
             "href": "/plugins/devices/nvidia"
           },
           {
-            "title": "USB <sup>Beta</sup>",
+            "title": "USB",
+            "badge": {
+              "text": "Beta",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "href": "/plugins/devices/community/usb"
           }
         ]
