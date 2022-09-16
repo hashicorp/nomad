@@ -1,12 +1,12 @@
 <tr class="task-sub-row"
 	{{keyboard-shortcut
 		enumerated=true
-		action=(action "gotoTask" @allocation this.task)
+		action=(action "gotoTask" this.task.allocation this.task)
 	}}
 >
 	<td colspan={{@namespan}}>
 		/
-		<LinkTo @route="allocations.allocation.task" @models={{array @allocation this.task}}>
+		<LinkTo @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>
 			{{this.task.name}}
 		</LinkTo>
 		{{!-- TODO: in-page logs --}}
