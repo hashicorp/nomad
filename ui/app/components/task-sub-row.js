@@ -61,10 +61,8 @@ export default class TaskSubRowComponent extends Component {
       if (this.stats) {
         try {
           yield this.stats.poll.linked().perform();
-          // this.set('statsError', false);
           this.statsError = false;
         } catch (error) {
-          // this.set('statsError', true);
           this.statsError = true;
         }
       }
