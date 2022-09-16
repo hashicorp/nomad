@@ -34,6 +34,7 @@ func WriteAtomicWithPerms(path string, contents []byte, dirPerms, filePerms os.F
 		os.Remove(tempPath)
 		return err
 	}
+	// Commits the current state of the file to disk
 	if err := fh.Sync(); err != nil {
 		fh.Close()
 		os.Remove(tempPath)
