@@ -7,7 +7,6 @@
 		}}
 	>
 	{{#if @task}}
-	{{log "TASK" @task}}
 		{{keyboard-commands this.keyCommands}}
 		<header>
 			<h1 class="title">
@@ -32,6 +31,15 @@
 				{{x-icon "cancel"}}
 			</button>
 		</header>
+
+		<section class="section is-full-width">
+			<TaskLog
+				@allocation={{@task.allocation}}
+				@task={{@task.name}}
+				@shouldFillHeight={{false}}
+			/>
+		</section>
+
 
 	{{/if}}
 	</div>

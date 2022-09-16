@@ -77,7 +77,6 @@ export default class TaskSubRowComponent extends Component {
   @tracked activeTaskForLogs = null;
 
   @action handleTaskLogsClick(task) {
-    console.log('clickin up on', task);
     this.activeTaskForLogs = task;
   }
 
