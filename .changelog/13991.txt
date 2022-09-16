@@ -1,3 +1,0 @@
-```release-note:bug
-ui: when creating a secure variable, check against your namespaces rather than assuming default
-```

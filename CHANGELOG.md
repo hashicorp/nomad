@@ -52,7 +52,6 @@ BUG FIXES:
 * rpc: check for spec changes in all regions when registering multiregion jobs [[GH-14519](https://github.com/hashicorp/nomad/issues/14519)]
 * ui: Remove extra space when displaying the version in the menu footer. [[GH-14457](https://github.com/hashicorp/nomad/issues/14457)]
 * ui: Stabilizes visual regression tests [[GH-14551](https://github.com/hashicorp/nomad/issues/14551)]
-* ui: when creating a secure variable, check against your namespaces rather than assuming default [[GH-13991](https://github.com/hashicorp/nomad/issues/13991)]
 
 ## 1.3.5 (August 31, 2022)
 
