@@ -6,8 +6,8 @@
 >
 	<td colspan={{@namespan}}>
 		<div class="name-grid">
-			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array @allocation this.task}}>{{this.task.name}}</LinkTo>
-			<button type="button" class="button is-logs-link is-borderless is-inline is-compact">
+			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>{{this.task.name}}</LinkTo>
+			<button type="button" class="logs-sidebar-trigger button is-borderless is-inline is-compact" onclick={{action "handleTaskLogsClick" this.task}}>
 				<FlightIcon @name="logs" />View Logs
 			</button>
 		</div>
@@ -77,3 +77,12 @@
 </tr>
 
 {{yield}}
+
+{{#if this.activeTaskForLogs}}
+	<TaskContextSidebar
+		@task={{this.activeTaskForLogs}}
+		@fns={{hash
+			closeSidebar=this.closeSidebar
+		}}
+	/>
+{{/if}}

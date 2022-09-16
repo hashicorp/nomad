@@ -10,7 +10,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   }
   keyCommands = [
     {
-      label: 'Close Evaluations Sidebar',
+      label: 'Close Service Sidebar',
       pattern: ['Escape'],
       action: () => this.args.fns.closeSidebar(),
     },
