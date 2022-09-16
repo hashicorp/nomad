@@ -13,6 +13,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
@@ -55,6 +56,14 @@ export default class TaskGroupController extends Controller.extend(
   @computed
   get searchProps() {
     return ['shortId', 'name'];
+  }
+
+  @localStorageProperty('nomadShowSubTasks', true) showSubTasks;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
   }
 
   @computed('model.allocations.[]')

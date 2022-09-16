@@ -41,6 +41,10 @@
     }
   }
 
+  &.with-collapsed-borders {
+    border-collapse: collapse;
+  }
+
   &.is-darkened {
     tbody tr:not(.is-selected) {
       background-color: $white-bis;

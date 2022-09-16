@@ -1,0 +1,79 @@
+<tr class="task-sub-row"
+	{{keyboard-shortcut
+		enumerated=true
+		action=(action "gotoTask" this.task.allocation this.task)
+	}}
+>
+	<td colspan={{@namespan}}>
+		/
+		<LinkTo @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>
+			{{this.task.name}}
+		</LinkTo>
+		{{!-- TODO: in-page logs --}}
+		{{!-- <FlightIcon @name="logs" /> --}}
+	</td>
+	<td data-test-cpu class="is-1 has-text-centered">
+		{{#if this.task.isRunning}}
+			{{#if (and (not this.cpu) this.fetchStats.isRunning)}}
+				...
+			{{else if this.statsError}}
+				<span
+					class="tooltip text-center"
+					role="tooltip"
+					aria-label="Couldn't collect stats"
+				>
+					{{x-icon "alert-triangle" class="is-warning"}}
+				</span>
+			{{else}}
+				<div
+					class="inline-chart is-small tooltip"
+					role="tooltip"
+					aria-label="{{format-hertz this.cpu.used}}
+						/
+						{{format-hertz this.taskStats.reservedCPU}}"
+				>
+					<progress
+						class="progress is-info is-small"
+						value="{{this.cpu.percent}}"
+						max="1"
+					>
+						{{this.cpu.percent}}
+					</progress>
+				</div>
+			{{/if}}
+		{{/if}}
+	</td>
+	<td data-test-mem class="is-1 has-text-centered">
+		{{#if this.task.isRunning}}
+			{{#if (and (not this.memory) this.fetchStats.isRunning)}}
+				...
+			{{else if this.statsError}}
+				<span
+					class="tooltip is-small text-center"
+					role="tooltip"
+					aria-label="Couldn't collect stats"
+				>
+					{{x-icon "alert-triangle" class="is-warning"}}
+				</span>
+			{{else}}
+				<div
+					class="inline-chart tooltip"
+					role="tooltip"
+					aria-label="{{format-bytes this.memory.used}}
+						/
+						{{format-bytes this.taskStats.reservedMemory start="MiB"}}"
+				>
+					<progress
+						class="progress is-danger is-small"
+						value="{{this.memory.percent}}"
+						max="1"
+					>
+						{{this.memory.percent}}
+					</progress>
+				</div>
+			{{/if}}
+		{{/if}}
+	</td>
+</tr>
+
+{{yield}}

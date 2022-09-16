@@ -1,0 +1,16 @@
+table tbody .task-sub-row {
+  td {
+    border-top: 2px solid white;
+  }
+  td:nth-child(1) {
+    padding-left: 4rem;
+    a {
+      margin-right: 1rem;
+    }
+
+    svg.flight-icon {
+      position: relative;
+      top: 3px;
+    }
+  }
+}

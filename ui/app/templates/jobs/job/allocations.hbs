@@ -46,7 +46,7 @@
           @source={{p.list}}
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|>
+          @class="with-foot with-collapsed-borders" as |t|>
           <t.head>
             <th class="is-narrow"></th>
             <t.sort-by @prop="shortId">ID</t.sort-by>
@@ -70,6 +70,10 @@
               @allocation={{row.model}}
               @context="job"
               @onClick={{action "gotoAllocation" row.model}} />
+              {{#each row.model.states as |task|}}
+                <TaskSubRow @namespan="9" @taskState={{task}} />
+              {{/each}}
+
           </t.body>
         </ListTable>
         <div class="table-foot">
