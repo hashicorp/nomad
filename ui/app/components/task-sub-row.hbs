@@ -5,12 +5,12 @@
 	}}
 >
 	<td colspan={{@namespan}}>
-		/
-		<LinkTo @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>
-			{{this.task.name}}
-		</LinkTo>
-		{{!-- TODO: in-page logs --}}
-		{{!-- <FlightIcon @name="logs" /> --}}
+		<div class="name-grid">
+			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array @allocation this.task}}>{{this.task.name}}</LinkTo>
+			<button type="button" class="button is-logs-link is-borderless is-inline is-compact">
+				<FlightIcon @name="logs" />View Logs
+			</button>
+		</div>
 	</td>
 	<td data-test-cpu class="is-1 has-text-centered">
 		{{#if this.task.isRunning}}
