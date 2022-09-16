@@ -27,7 +27,7 @@ export const client = async (
 
   let httpsAgent = new https.Agent({keepAlive: true});
 
-  if (NOMAD_CLIENT_CERT !== "") {
+  if (!!NOMAD_CLIENT_CERT) {
     httpsAgent = new https.Agent({
       keepAlive: true,
       cert: fs.readFileSync(NOMAD_CLIENT_CERT),
