@@ -40,6 +40,10 @@
         "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-jobs"
       },
       {
+        "title": "Clustering",
+        "href": "https://learn.hashicorp.com/tutorials/nomad/clustering"
+      },
+      {
         "title": "Web UI",
         "href": "https://learn.hashicorp.com/tutorials/nomad/get-started-ui"
       },
