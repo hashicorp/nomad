@@ -32,13 +32,11 @@
 			</button>
 		</header>
 
-		<section class="section is-full-width">
-			<TaskLog
-				@allocation={{@task.allocation}}
-				@task={{@task.name}}
-				@shouldFillHeight={{false}}
-			/>
-		</section>
+		<TaskLog
+			@allocation={{@task.allocation}}
+			@task={{@task.name}}
+			@shouldFillHeight={{false}}
+		/>
 
 
 	{{/if}}

@@ -65,7 +65,8 @@ $subNavOffset: 49px;
     gap: 2rem;
     border-bottom: 1px solid $grey-blue;
     padding-bottom: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 24px;
+    height: 50px;
 
     .title {
       margin-bottom: unset;
@@ -102,5 +103,18 @@ $subNavOffset: 49px;
         background-color: $grey-lighter;
       }
     }
+  }
+
+  // Instead of trying to calculate on the fly with JS, let's use vh and offset nav and headers above.
+  // We can make this a LOT more streamlined when CSS Container Queries are available.
+  $sidebarTopOffset: 161px;
+  $sidebarInnerPadding: 48px;
+  $sidebarHeaderOffset: 74px;
+  $cliHeaderOffset: 54.5px;
+  .cli-window {
+    height: calc(
+      100vh - $sidebarTopOffset - $sidebarInnerPadding - $sidebarHeaderOffset -
+        $cliHeaderOffset
+    );
   }
 }
