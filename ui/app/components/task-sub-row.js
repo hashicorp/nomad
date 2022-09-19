@@ -21,6 +21,9 @@ export default class TaskSubRowComponent extends Component {
     } else {
       this.fetchStats.cancelAll();
     }
+    if (this.args.active) {
+      this.activeTaskForLogs = this.task;
+    }
   }
 
   @alias('args.taskState') task;
@@ -78,10 +81,12 @@ export default class TaskSubRowComponent extends Component {
 
   @action handleTaskLogsClick(task) {
     this.activeTaskForLogs = task;
+    this.args.onSetActiveTask(task);
   }
 
   @action closeSidebar() {
     this.activeTaskForLogs = null;
+    this.args.onSetActiveTask(null);
   }
 
   //#endregion Logs Sidebar

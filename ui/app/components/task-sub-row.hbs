@@ -1,4 +1,4 @@
-<tr class="task-sub-row"
+<tr class="task-sub-row {{if @active "is-active"}}"
 	{{keyboard-shortcut
 		enumerated=true
 		action=(action "gotoTask" this.task.allocation this.task)
