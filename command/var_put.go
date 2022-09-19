@@ -333,6 +333,7 @@ func (c *VarPutCommand) Run(args []string) int {
 		renderSVAsUiTable(sv, c)
 		return 0
 	default:
+		c.Ui.Output(fmt.Sprintf("Successfully wrote variable to %q!", sv.Path))
 		return 0
 	}
 	c.Ui.Output(out)
