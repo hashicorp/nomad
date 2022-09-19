@@ -68,7 +68,7 @@
 
           {{#if this.showSubTasks}}
             {{#each row.model.states as |task|}}
-              <TaskSubRow @namespan="9" @taskState={{task}} />
+              <TaskSubRow @namespan="9" @taskState={{task}} @active={{eq @activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{@setActiveTaskQueryParam}} />
             {{/each}}
           {{/if}}
         </t.body>
