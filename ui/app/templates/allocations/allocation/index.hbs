@@ -274,6 +274,7 @@
       <div class="boxed-section-body is-full-bleed">
         <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
+            <th class="is-narrow"></th>
             <th>
               Name
             </th>
@@ -295,12 +296,14 @@
                 action=(fn this.handleServiceClick row.model)
               }}
             >
-              <td data-test-service-name>
+              <td class="is-narrow">
                 {{#if (eq row.model.provider "nomad")}}
                   <FlightIcon @name="nomad-color" />
                 {{else}}
                   <FlightIcon @name="consul-color" />
                 {{/if}}
+              </td>
+              <td data-test-service-name class="is-long-text">
                 {{row.model.name}}
               </td>
               <td data-test-service-port>
@@ -311,7 +314,7 @@
                   <span class="tag">{{tag}}</span>
                 {{/each}}
               </td>
-              <td data-test-service-health>
+              <td data-test-service-health class="is-2">
                 {{#if (eq row.model.provider "nomad")}}
                   <div class="inline-chart">
                     <ServiceStatusBar @isNarrow={{true}} @status={{row.model.mostRecentCheckStatus}} />

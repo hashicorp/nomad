@@ -31,11 +31,6 @@
 		{{@service.level}}
 	</td>
   <td>
-		<Tooltip @text={{@service.instances.0.node.name}}>
-			<LinkTo @route="clients.client" @model={{@service.instances.0.node.id}}>{{@service.instances.0.node.shortId}}</LinkTo>
-		</Tooltip>
-  </td>
-  <td>
     {{#each @service.tags as |tag|}}
 			<span class="tag">{{tag}}</span>
     {{/each}}
