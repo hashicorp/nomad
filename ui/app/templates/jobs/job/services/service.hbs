@@ -16,6 +16,7 @@
 	>
 		<t.head>
 			<th>Allocation</th>
+      <th>Client</th>
 			<th>IP Address &amp; Port</th>
 		</t.head>
 		<t.body as |row|>
@@ -28,6 +29,11 @@
 				>
 					<LinkTo @route="allocations.allocation" @model={{row.model.allocation}}>{{row.model.allocation.shortId}}</LinkTo>
 				</td>
+        <td>
+          <Tooltip @text={{row.model.node.name}}>
+            <LinkTo @route="clients.client" @model={{row.model.node.id}}>{{row.model.node.shortId}}</LinkTo>
+          </Tooltip>
+        </td>
 				<td>
 					{{row.model.address}}:{{row.model.port}}
 				</td>
