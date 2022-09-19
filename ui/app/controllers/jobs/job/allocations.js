@@ -41,9 +41,7 @@ export default class AllocationsController extends Controller.extend(
     {
       qpTaskGroup: 'taskGroup',
     },
-    {
-      activeTask: 'activeTask',
-    },
+    'activeTask',
   ];
 
   qpStatus = '';

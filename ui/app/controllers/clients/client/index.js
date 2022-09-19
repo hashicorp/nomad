@@ -47,6 +47,7 @@ export default class ClientController extends Controller.extend(
     {
       qpStatus: 'status',
     },
+    'activeTask',
   ];
 
   // Set in the route
@@ -57,6 +58,7 @@ export default class ClientController extends Controller.extend(
   qpStatus = '';
   currentPage = 1;
   pageSize = 8;
+  activeTask = null;
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
@@ -265,5 +267,14 @@ export default class ClientController extends Controller.extend(
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
+  }
+
+  @action
+  setActiveTaskQueryParam(task) {
+    if (task) {
+      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+    } else {
+      this.set('activeTask', null);
+    }
   }
 }
