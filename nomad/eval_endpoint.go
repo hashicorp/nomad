@@ -229,6 +229,27 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
 	}
+
+	const cancelDesc = "cancelled after more recent eval was processed"
+
+	cancelable := e.srv.evalBroker.Cancelable(1000)
+	if len(cancelable) > 0 {
+		for _, eval := range cancelable {
+			eval.Status = structs.EvalStatusCancelled
+			eval.StatusDescription = cancelDesc
+		}
+
+		update := &structs.EvalUpdateRequest{
+			Evals:        cancelable,
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+		_, _, err = e.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			e.logger.Error("eval cancel failed", "error", err, "method", "ack")
+			return err
+		}
+	}
+
 	return nil
 }
 

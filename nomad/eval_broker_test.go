@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -422,207 +424,113 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 	b.Enqueue(eval5)
 
 	stats := b.Stats()
-	if stats.TotalReady != 2 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 3 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 2, must.Sprintf("expected 2 ready: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 3, must.Sprintf("expected 3 blocked: %#v", stats))
 
 	// Dequeue should work
 	out, token, err := b.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != eval {
-		t.Fatalf("bad : %#v", out)
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, eval, must.Sprint("expected 1st eval"))
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 3 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 1, must.Sprintf("expected 1 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 1, must.Sprintf("expected 1 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 3, must.Sprintf("expected 3 blocked: %#v", stats))
 
 	// Ack out
 	err = b.Ack(eval.ID, token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 2 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 2 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 2, must.Sprintf("expected 2 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 0, must.Sprintf("expected 0 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 2, must.Sprintf("expected 2 blocked: %#v", stats))
 
 	// Dequeue should work
 	out, token, err = b.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != eval2 {
-		t.Fatalf("bad : %#v", out)
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, eval2, must.Sprint("expected 2nd eval"))
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 2 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 1, must.Sprintf("expected 1 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 1, must.Sprintf("expected 1 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 2, must.Sprintf("expected 2 blocked: %#v", stats))
 
 	// Ack out
 	err = b.Ack(eval2.ID, token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 2 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 2, must.Sprintf("expected 2 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 0, must.Sprintf("expected 0 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 1, must.Sprintf("expected 1 blocked: %#v", stats))
 
 	// Dequeue should work
 	out, token, err = b.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != eval3 {
-		t.Fatalf("bad : %#v", out)
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, eval3, must.Sprint("expected 3rd eval"))
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 1, must.Sprintf("expected 1 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 1, must.Sprintf("expected 1 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 1, must.Sprintf("expected 1 blocked: %#v", stats))
 
 	// Ack out
 	err = b.Ack(eval3.ID, token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 1, must.Sprintf("expected 1 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 0, must.Sprintf("expected 0 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 1, must.Sprintf("expected 1 blocked: %#v", stats))
 
 	// Dequeue should work
 	out, token, err = b.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != eval4 {
-		t.Fatalf("bad : %#v", out)
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, eval4, must.Sprint("expected 4th eval"))
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 0, must.Sprintf("expected 0 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 1, must.Sprintf("expected 1 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 1, must.Sprintf("expected 1 blocked: %#v", stats))
 
 	// Ack out
 	err = b.Ack(eval4.ID, token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 1, must.Sprintf("expected 1 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 0, must.Sprintf("expected 0 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 0, must.Sprintf("expected 0 blocked: %#v", stats))
 
 	// Dequeue should work
 	out, token, err = b.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != eval5 {
-		t.Fatalf("bad : %#v", out)
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, eval5, must.Sprint("expected 5th eval"))
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 0, must.Sprintf("expected 0 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 1, must.Sprintf("expected 1 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 0, must.Sprintf("expected 0 blocked: %#v", stats))
 
 	// Ack out
 	err = b.Ack(eval5.ID, token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Check the stats
 	stats = b.Stats()
-	if stats.TotalReady != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalUnacked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
-	if stats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v", stats)
-	}
+	must.Eq(t, stats.TotalReady, 0, must.Sprintf("expected 0 ready: %#v", stats))
+	must.Eq(t, stats.TotalUnacked, 0, must.Sprintf("expected 0 unacked: %#v", stats))
+	must.Eq(t, stats.TotalBlocked, 0, must.Sprintf("expected 0 blocked: %#v", stats))
 }
 
 func TestEvalBroker_Enqueue_Disable(t *testing.T) {
@@ -813,18 +721,18 @@ func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
 	b.SetEnabled(true)
 	NUM := 100
 
-	for i := 0; i < NUM; i++ {
+	for i := NUM; i > 0; i-- {
 		eval1 := mock.Eval()
 		eval1.CreateIndex = uint64(i)
 		eval1.ModifyIndex = uint64(i)
 		b.Enqueue(eval1)
 	}
 
-	for i := 0; i < NUM; i++ {
+	for i := 1; i < NUM; i++ {
 		out1, _, _ := b.Dequeue(defaultSched, time.Second)
-		if out1.CreateIndex != uint64(i) {
-			t.Fatalf("bad: %d %#v", i, out1)
-		}
+		must.Eq(t, out1.CreateIndex, uint64(i),
+			must.Sprintf("eval was not FIFO by CreateIndex"),
+		)
 	}
 }
 
@@ -1505,4 +1413,39 @@ func TestEvalBroker_NamespacedJobs(t *testing.T) {
 
 	require.Equal(1, len(b.blocked))
 
+}
+
+func TestEvalBroker_BlockedEvals_MarkForCancel(t *testing.T) {
+	ci.Parallel(t)
+
+	blocked := BlockedEvaluations{}
+
+	// evals are pushed on the blocked queue LIFO by CreateIndex
+	// order, so Push them in reverse order here to assert we're
+	// getting the correct order
+	for i := 100; i > 0; i -= 10 {
+		eval := mock.Eval()
+		eval.JobID = "example"
+		eval.CreateIndex = uint64(i)
+		eval.ModifyIndex = uint64(i)
+		heap.Push(&blocked, eval)
+	}
+
+	canceled := blocked.MarkForCancel(40)
+	must.Len(t, 4, canceled)
+	must.Len(t, 6, blocked)
+
+	got := []uint64{}
+	for _, eval := range blocked {
+		must.NotNil(t, eval)
+		got = append(got, eval.CreateIndex)
+	}
+	must.Eq(t, []uint64{100, 90, 80, 70, 60, 50}, got)
+
+	popped := canceled.PopN(2)
+	must.Len(t, 2, canceled)
+	must.Len(t, 2, popped)
+
+	must.Eq(t, popped[0].CreateIndex, 10)
+	must.Eq(t, popped[1].CreateIndex, 20)
 }

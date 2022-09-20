@@ -64,7 +64,11 @@ type EvalBroker struct {
 	jobEvals map[structs.NamespacedID]string
 
 	// blocked tracks the blocked evaluations by JobID in a priority queue
-	blocked map[structs.NamespacedID]PendingEvaluations
+	blocked map[structs.NamespacedID]BlockedEvaluations
+
+	// cancelable tracks previously blocked evaluations that are now safe for
+	// the Eval.Ack RPC to cancel in batches
+	cancelable PendingEvaluations
 
 	// ready tracks the ready jobs by scheduler in a priority queue
 	ready map[string]PendingEvaluations
@@ -139,7 +143,8 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		stats:                new(BrokerStats),
 		evals:                make(map[string]int),
 		jobEvals:             make(map[structs.NamespacedID]string),
-		blocked:              make(map[structs.NamespacedID]PendingEvaluations),
+		blocked:              make(map[structs.NamespacedID]BlockedEvaluations),
+		cancelable:           PendingEvaluations{},
 		ready:                make(map[string]PendingEvaluations),
 		unack:                make(map[string]*unackEval),
 		waiting:              make(map[string]chan struct{}),
@@ -559,6 +564,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 		return fmt.Errorf("Token does not match for Evaluation ID")
 	}
 	jobID := unack.Eval.JobID
+	oldestUnackedIndex := unack.Eval.ModifyIndex
 
 	// Ensure we were able to stop the timer
 	if !unack.NackTimer.Stop() {
@@ -588,6 +594,13 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	if blocked := b.blocked[namespacedID]; len(blocked) != 0 {
 		raw := heap.Pop(&blocked)
 		if len(blocked) > 0 {
+			// Any blocked evaluations with ModifyIndexes older than the
+			// just-ack'd evaluation are no longer useful, so it's safe to drop
+			// them. We do this *after* we've popped the highest priority
+			// evaluation as a belt-and-suspenders; we can process one extra
+			// evaluation uselessly but can skip many.
+			cancelable := blocked.MarkForCancel(oldestUnackedIndex)
+			b.cancelable = append(b.cancelable, cancelable...)
 			b.blocked[namespacedID] = blocked
 		} else {
 			delete(b.blocked, namespacedID)
@@ -737,7 +750,8 @@ func (b *EvalBroker) flush() {
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	b.evals = make(map[string]int)
 	b.jobEvals = make(map[structs.NamespacedID]string)
-	b.blocked = make(map[structs.NamespacedID]PendingEvaluations)
+	b.blocked = make(map[structs.NamespacedID]BlockedEvaluations)
+	b.cancelable = PendingEvaluations{}
 	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
@@ -841,6 +855,15 @@ func (b *EvalBroker) Stats() *BrokerStats {
 	return stats
 }
 
+// Cancelable retrieves a batch of previously-blocked evaluations that are now
+// stale and ready to mark for canceling. The eval RPC will call this with a
+// batch size set to avoid sending overly large raft messages.
+func (b *EvalBroker) Cancelable(batchSize int) []*structs.Evaluation {
+	b.l.RLock()
+	defer b.l.RUnlock()
+	return b.cancelable.PopN(batchSize)
+}
+
 // EmitStats is used to export metrics about the broker while enabled
 func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	timer, stop := helper.NewSafeTimer(period)
@@ -904,7 +927,7 @@ func (p PendingEvaluations) Less(i, j int) bool {
 	if p[i].JobID != p[j].JobID && p[i].Priority != p[j].Priority {
 		return !(p[i].Priority < p[j].Priority)
 	}
-	return p[i].CreateIndex < p[j].CreateIndex
+	return (p[i].CreateIndex < p[j].CreateIndex)
 }
 
 // Swap is for the sorting interface
@@ -933,4 +956,93 @@ func (p PendingEvaluations) Peek() *structs.Evaluation {
 		return nil
 	}
 	return p[n-1]
+}
+
+// PopN removes and returns the minimum N evaluations from the slice.
+func (p *PendingEvaluations) PopN(n int) []*structs.Evaluation {
+	if n > len(*p) {
+		n = len(*p)
+	}
+
+	popped := []*structs.Evaluation{}
+	for i := 0; i < n; i++ {
+		raw := heap.Pop(p)
+		eval := raw.(*structs.Evaluation)
+		popped = append(popped, eval)
+	}
+	return popped
+}
+
+// BlockedEvaluations are those evaluations blocked from being
+// enqueued while another evaluation for the same job is being
+// processed (is in JobEvals and/or pending)
+type BlockedEvaluations []*structs.Evaluation
+
+// Len is for the sorting interface
+func (p BlockedEvaluations) Len() int {
+	return len(p)
+}
+
+// Swap is for the sorting interface
+func (p BlockedEvaluations) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+// Less is for the sorting interface. We flip the check
+// so that the "min" in the min-heap is the element with the
+// highest priority
+func (p BlockedEvaluations) Less(i, j int) bool {
+	if p[i].JobID != p[j].JobID && p[i].Priority != p[j].Priority {
+		return !(p[i].Priority < p[j].Priority)
+	}
+	return !(p[i].CreateIndex < p[j].CreateIndex)
+}
+
+// Push is used to add a new evaluation to the slice
+func (p *BlockedEvaluations) Push(e interface{}) {
+	*p = append(*p, e.(*structs.Evaluation))
+}
+
+// Pop is used to remove an evaluation from the slice
+func (p *BlockedEvaluations) Pop() interface{} {
+	n := len(*p)
+	e := (*p)[n-1]
+	(*p)[n-1] = nil
+	*p = (*p)[:n-1]
+	return e
+}
+
+// MarkForCancel removes any evaluations older than the index from the blocked
+// list and returns a list of cancelable evals so that Eval.Ack RPCs can write
+// batched raft entries to cancel them. This must be called inside the broker's
+// lock.
+func (p *BlockedEvaluations) MarkForCancel(index uint64) PendingEvaluations {
+
+	// In common but pathological cases, we can have a large number of blocked
+	// evals but will want to cancel most of them. Using heap.Remove requires we
+	// re-sort for each eval we remove. Because the slice is already sorted, we
+	// can shift removed items to the left in a single pass and then truncate
+	// the slice.
+
+	cancelable := PendingEvaluations{}
+	startLen := len(*p) // starting length
+	j := 0              // position to move next eval to keep
+
+	for i := 0; i < len(*p); i++ {
+		eval := (*p)[i]
+		if eval.ModifyIndex >= index {
+			(*p)[j] = eval
+			j++
+		} else {
+			heap.Push(&cancelable, eval)
+			(*p)[i] = nil
+		}
+	}
+
+	// truncate the slice
+	if len(cancelable) > 0 {
+		*p = (*p)[:startLen-cancelable.Len()]
+	}
+
+	return cancelable
 }
