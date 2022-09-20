@@ -1,0 +1,3 @@
+```release-note:improvement
+eval broker: shed all but one blocked eval per job after successful ack
+```

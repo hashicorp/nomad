@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -118,9 +119,10 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	eval2.JobID = eval1.JobID
 
 	// Insert the evals into the state store
-	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2}); err != nil {
-		t.Fatal(err)
-	}
+	must.NoError(t, s1.fsm.State().UpsertEvals(
+		structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}))
+	must.NoError(t, s1.fsm.State().UpsertEvals(
+		structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval2}))
 
 	s1.evalBroker.Enqueue(eval1)
 	s1.evalBroker.Enqueue(eval2)
@@ -131,45 +133,29 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
-	if shutdown {
-		t.Fatalf("should not shutdown")
-	}
-	if token == "" {
-		t.Fatalf("should get token")
-	}
-	if waitIndex != eval1.ModifyIndex {
-		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
-	}
-
-	// Ensure we get a sane eval
-	if !reflect.DeepEqual(eval, eval1) {
-		t.Fatalf("bad: %#v %#v", eval, eval1)
-	}
+	must.False(t, shutdown, must.Sprint("should not be shutdown"))
+	must.NotEq(t, token, "", must.Sprint("should get a token"))
+	must.NotEq(t, eval1.ModifyIndex, waitIndex, must.Sprintf("bad wait index"))
+	must.Eq(t, eval, eval1)
 
 	// Update the modify index of the first eval
-	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}); err != nil {
-		t.Fatal(err)
-	}
+	must.NoError(t, s1.fsm.State().UpsertEvals(
+		structs.MsgTypeTestSetup, 1500, []*structs.Evaluation{eval1}))
 
 	// Send the Ack
 	w.sendAck(eval1, token)
 
-	// Attempt second dequeue
+	// Attempt second dequeue; it should succeed because the 2nd eval has a
+	// lower modify index than the snapshot used to schedule the 1st
+	// eval. Normally this can only happen if the worker is on a follower that's
+	// trailing behind in raft logs
 	eval, token, waitIndex, shutdown = w.dequeueEvaluation(10 * time.Millisecond)
-	if shutdown {
-		t.Fatalf("should not shutdown")
-	}
-	if token == "" {
-		t.Fatalf("should get token")
-	}
-	if waitIndex != 2000 {
-		t.Fatalf("bad wait index; got %d; want 2000", eval2.ModifyIndex)
-	}
 
-	// Ensure we get a sane eval
-	if !reflect.DeepEqual(eval, eval2) {
-		t.Fatalf("bad: %#v %#v", eval, eval2)
-	}
+	must.False(t, shutdown, must.Sprint("should not be shutdown"))
+	must.NotEq(t, token, "", must.Sprint("should get a token"))
+	must.Eq(t, waitIndex, 2000, must.Sprintf("bad wait index"))
+	must.Eq(t, eval, eval2)
+
 }
 
 func TestWorker_dequeueEvaluation_paused(t *testing.T) {
