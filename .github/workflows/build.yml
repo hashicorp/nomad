@@ -5,6 +5,7 @@ on:
     branches-ignore:
       - docs/**
       - backport/docs/**
+      - e2e-*
   workflow_dispatch:
     inputs:
       build-ref:
