@@ -233,7 +233,8 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
 	}
-	return nil
+
+	return cancelCancelableEvals(e.srv)
 }
 
 // Nack is used to negative acknowledge completion of a dequeued evaluation.
@@ -884,4 +885,36 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 			return nil
 		}}
 	return e.srv.blockingRPC(&opts)
+}
+
+// cancelCancelableEvals pulls a batch of cancelable evaluations from the eval
+// broker and updates their status to canceled.
+func cancelCancelableEvals(srv *Server) error {
+
+	const cancelDesc = "canceled after more recent eval was processed"
+
+	// We *can* send larger raft logs but rough benchmarks show that a smaller
+	// page size strikes a balance between throughput and time we block the FSM
+	// apply for other operations
+	cancelable := srv.evalBroker.Cancelable(structs.MaxUUIDsPerWriteRequest / 10)
+	if len(cancelable) > 0 {
+		for i, eval := range cancelable {
+			eval = eval.Copy()
+			eval.Status = structs.EvalStatusCancelled
+			eval.StatusDescription = cancelDesc
+			eval.UpdateModifyTime()
+			cancelable[i] = eval
+		}
+
+		update := &structs.EvalUpdateRequest{
+			Evals:        cancelable,
+			WriteRequest: structs.WriteRequest{Region: srv.Region()},
+		}
+		_, _, err := srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			srv.logger.Warn("eval cancel failed", "error", err, "method", "ack")
+			return err
+		}
+	}
+	return nil
 }
