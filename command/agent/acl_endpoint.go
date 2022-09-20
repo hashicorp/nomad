@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -142,7 +143,7 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 
 	if req.ContentLength != 0 {
 		if err := decodeBody(req, &args); err != nil {
-			return nil, CodedError(400, err.Error())
+			return nil, CodedError(400, fmt.Sprintf("failed to decode request body: %s", err))
 		}
 	}
 
