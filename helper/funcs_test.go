@@ -226,19 +226,6 @@ func TestCopyMapStringSliceString(t *testing.T) {
 	}
 }
 
-func TestCopyMapSliceInterface(t *testing.T) {
-	m := map[string]interface{}{
-		"foo": "bar",
-		"baz": 2,
-	}
-
-	c := CopyMapStringInterface(m)
-	require.True(t, reflect.DeepEqual(m, c))
-
-	m["foo"] = "zzz"
-	require.False(t, reflect.DeepEqual(m, c))
-}
-
 func TestMergeMapStringString(t *testing.T) {
 	type testCase struct {
 		map1     map[string]string

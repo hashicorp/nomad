@@ -615,9 +615,9 @@ func (s *Service) Copy() *Service {
 
 	ns.Connect = s.Connect.Copy()
 
-	ns.Meta = helper.CopyMapStringString(s.Meta)
-	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
-	ns.TaggedAddresses = helper.CopyMapStringString(s.TaggedAddresses)
+	ns.Meta = helper.CopyMap(s.Meta)
+	ns.CanaryMeta = helper.CopyMap(s.CanaryMeta)
+	ns.TaggedAddresses = helper.CopyMap(s.TaggedAddresses)
 
 	return ns
 }
@@ -1242,11 +1242,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 	nt := new(SidecarTask)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = helper.CopyMap(nt.Env)
 
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = helper.CopyMap(nt.Meta)
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
@@ -1708,7 +1708,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMapStringInterface(p.Config),
+		Config:                          helper.CopyMap(p.Config),
 	}
 }
 

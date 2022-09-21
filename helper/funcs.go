@@ -178,21 +178,6 @@ func CopySlice[S ~[]E, E Copyable[E]](s S) S {
 	return result
 }
 
-// CopyMapStringInterface creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
 // MergeMapStringString will merge two maps into one. If a duplicate key exists
 // the value in the second map will replace the value in the first map. If both
 // maps are empty or nil this returns an empty map.

@@ -1188,8 +1188,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
 					GetterSource:  *ta.GetterSource,
-					GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-					GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+					GetterOptions: helper.CopyMap(ta.GetterOptions),
+					GetterHeaders: helper.CopyMap(ta.GetterHeaders),
 					GetterMode:    *ta.GetterMode,
 					RelativeDest:  *ta.RelativeDest,
 				})
@@ -1392,9 +1392,9 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
 			Address:           s.Address,
-			Meta:              helper.CopyMapStringString(s.Meta),
-			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
-			TaggedAddresses:   helper.CopyMapStringString(s.TaggedAddresses),
+			Meta:              helper.CopyMap(s.Meta),
+			CanaryMeta:        helper.CopyMap(s.CanaryMeta),
+			TaggedAddresses:   helper.CopyMap(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
 		}
@@ -1500,7 +1500,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMapStringInterface(in.Config),
+		Config:                          helper.CopyMap(in.Config),
 	}
 }
 
@@ -1639,7 +1639,7 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
 		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
-		Config:              helper.CopyMapStringInterface(in.Config),
+		Config:              helper.CopyMap(in.Config),
 	}
 }
 
