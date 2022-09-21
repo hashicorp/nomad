@@ -2,7 +2,6 @@ package command
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -176,7 +175,7 @@ func Test_pathToURL(t *testing.T) {
 // TestOperatorAPICommand_ContentLength tests that requests have the proper
 // ContentLength set.
 //
-// Don't run in parallel since it messes with os.Stdin.
+// Don't run it in parallel as it modifies the package's Stdin variable.
 func TestOperatorAPICommand_ContentLength(t *testing.T) {
 	contentLength := make(chan int, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -184,23 +183,20 @@ func TestOperatorAPICommand_ContentLength(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Setup os.Stdin to a known value.
-	// The command stats stdin, so we can't mock it as another io.Reader.
-	// https://stackoverflow.com/a/46365584
+	// Setup a temp file to act as stdin.
 	input := []byte("test-input")
-	tmpfile, err := ioutil.TempFile("", "example")
+	fakeStdin, err := os.CreateTemp("", "fake-stdin")
 	require.NoError(t, err)
-	defer os.Remove(tmpfile.Name())
+	defer os.Remove(fakeStdin.Name())
 
-	_, err = tmpfile.Write(input)
+	_, err = fakeStdin.Write(input)
 	require.NoError(t, err)
-	_, err = tmpfile.Seek(0, 0)
+	_, err = fakeStdin.Seek(0, 0)
 	require.NoError(t, err)
 
-	oldStdin := os.Stdin
-	defer func() { os.Stdin = oldStdin }()
-
-	os.Stdin = tmpfile
+	// Override the package's Stdin variable for testing.
+	Stdin = fakeStdin
+	defer func() { Stdin = os.Stdin }()
 
 	// Setup command.
 	buf := bytes.NewBuffer(nil)
