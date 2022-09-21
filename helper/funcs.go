@@ -178,36 +178,6 @@ func CopySlice[S ~[]E, E Copyable[E]](s S) S {
 	return result
 }
 
-// CopyMapStringString creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringString(m map[string]string) map[string]string {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]string, len(m))
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
-// CopyMapStringStruct creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]struct{}, len(m))
-	for k := range m {
-		c[k] = struct{}{}
-	}
-	return c
-}
-
 // CopyMapStringInterface creates a copy of m.
 //
 // Deprecated; use CopyMap instead.
@@ -237,7 +207,7 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 		return m
 	}
 
-	result := CopyMapStringString(m)
+	result := CopyMap(m)
 
 	for k, v := range n {
 		result[k] = v

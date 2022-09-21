@@ -152,7 +152,7 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 	// external fields.
 	return &ServiceRegistration{
 		ServiceID:     s.ServiceID,
-		CheckIDs:      helper.CopyMapStringStruct(s.CheckIDs),
-		CheckOnUpdate: helper.CopyMapStringString(s.CheckOnUpdate),
+		CheckIDs:      helper.CopyMap(s.CheckIDs),
+		CheckOnUpdate: helper.CopyMap(s.CheckOnUpdate),
 	}
 }
