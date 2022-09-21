@@ -202,16 +202,14 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 	return result
 }
 
-// CopyMapStringSliceString creates a copy of m.
-//
-// todo: a deep value copy version of CopyMap.
-func CopyMapStringSliceString(m map[string][]string) map[string][]string {
+// CopyMapOfSlice creates a copy of m, making copies of each []V.
+func CopyMapOfSlice[K comparable, V any](m map[K][]V) map[K][]V {
 	l := len(m)
 	if l == 0 {
 		return nil
 	}
 
-	c := make(map[string][]string, l)
+	c := make(map[K][]V, l)
 	for k, v := range m {
 		c[k] = slices.Clone(v)
 	}

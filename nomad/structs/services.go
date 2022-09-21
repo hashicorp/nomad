@@ -92,7 +92,7 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	nsc := new(ServiceCheck)
 	*nsc = *sc
 	nsc.Args = slices.Clone(sc.Args)
-	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
+	nsc.Header = helper.CopyMapOfSlice(sc.Header)
 	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
 }

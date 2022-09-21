@@ -215,7 +215,7 @@ func TestCopyMapStringSliceString(t *testing.T) {
 		"z": nil,
 	}
 
-	c := CopyMapStringSliceString(m)
+	c := CopyMapOfSlice(m)
 	if !reflect.DeepEqual(c, m) {
 		t.Fatalf("%#v != %#v", m, c)
 	}
