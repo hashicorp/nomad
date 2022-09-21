@@ -101,33 +101,16 @@ func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
 	return s.List()
 }
 
-func SetToSliceString(set map[string]struct{}) []string {
-	flattened := make([]string, 0, len(set))
-	for x := range set {
-		flattened = append(flattened, x)
-	}
-	return flattened
-}
-
-// SliceStringIsSubset returns whether the smaller set of strings is a subset of
-// the larger. If the smaller slice is not a subset, the offending elements are
+// IsSubset returns whether the smaller set of items is a subset of
+// the larger. If the smaller set is not a subset, the offending elements are
 // returned.
-func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
-	largerSet := make(map[string]struct{}, len(larger))
-	for _, l := range larger {
-		largerSet[l] = struct{}{}
+func IsSubset[T comparable](larger, smaller []T) (bool, []T) {
+	l := set.From(larger)
+	if l.ContainsAll(smaller) {
+		return true, nil
 	}
-
-	subset := true
-	var offending []string
-	for _, s := range smaller {
-		if _, ok := largerSet[s]; !ok {
-			subset = false
-			offending = append(offending, s)
-		}
-	}
-
-	return subset, offending
+	s := set.From(smaller)
+	return false, s.Difference(l).List()
 }
 
 // SliceStringContains returns whether item exists at least once in list.

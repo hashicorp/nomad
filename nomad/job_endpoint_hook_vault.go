@@ -83,7 +83,7 @@ func (jobVaultHook) validatePolicies(
 		return nil
 	}
 
-	subset, offending := helper.SliceStringIsSubset(allowedPolicies, jobPolicies)
+	subset, offending := helper.IsSubset(allowedPolicies, jobPolicies)
 	if !subset {
 		return fmt.Errorf("Vault token doesn't allow access to the following policies: %s",
 			strings.Join(offending, ", "))

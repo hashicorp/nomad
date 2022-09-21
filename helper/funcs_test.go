@@ -78,19 +78,17 @@ func Test_CopyMap(t *testing.T) {
 	})
 }
 
-func TestSliceStringIsSubset(t *testing.T) {
+func TestIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}
 	s := []string{"d"}
 
-	sub, offending := SliceStringIsSubset(l, l[:1])
-	if !sub || len(offending) != 0 {
-		t.Fatalf("bad %v %v", sub, offending)
-	}
+	sub, offending := IsSubset(l, l[:1])
+	must.True(t, sub)
+	must.EmptySlice(t, offending)
 
-	sub, offending = SliceStringIsSubset(l, s)
-	if sub || len(offending) == 0 || offending[0] != "d" {
-		t.Fatalf("bad %v %v", sub, offending)
-	}
+	sub, offending = IsSubset(l, s)
+	must.False(t, sub)
+	must.Eq(t, []string{"d"}, offending)
 }
 
 func TestSliceStringContains(t *testing.T) {
@@ -209,17 +207,6 @@ func TestUniqueMapSliceValues(t *testing.T) {
 	exp := []string{"1", "2", "3"}
 	sort.Strings(act)
 	must.Eq(t, exp, act)
-}
-
-func TestSetToSliceString(t *testing.T) {
-	set := map[string]struct{}{
-		"foo": {},
-		"bar": {},
-		"baz": {},
-	}
-	expect := []string{"foo", "bar", "baz"}
-	got := SetToSliceString(set)
-	require.ElementsMatch(t, expect, got)
 }
 
 func TestCopyMapStringSliceString(t *testing.T) {
