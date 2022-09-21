@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -1473,7 +1474,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	ms := ru.ResourceUsage.MemoryStats
 
 	publishMetric := func(v uint64, reported, measured string) {
-		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+		if v != 0 || slices.Contains(ms.Measured, measured) {
 			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
 				float32(v), tr.baseLabels)
 		}

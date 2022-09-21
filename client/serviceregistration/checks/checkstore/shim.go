@@ -6,8 +6,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -67,7 +67,7 @@ func (s *shim) restore() {
 	}
 
 	for id, m := range results {
-		s.current[id] = helper.CopyMap(m)
+		s.current[id] = maps.Clone(m)
 	}
 }
 
@@ -114,7 +114,7 @@ func (s *shim) List(allocID string) map[structs.CheckID]*structs.CheckQueryResul
 		return nil
 	}
 
-	return helper.CopyMap(m)
+	return maps.Clone(m)
 }
 
 func (s *shim) Purge(allocID string) error {

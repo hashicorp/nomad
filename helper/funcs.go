@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -92,82 +94,28 @@ func Max[T constraints.Ordered](a, b T) T {
 	return b
 }
 
-// MapStringStringSliceValueSet returns the set of values in a map[string][]string
-func MapStringStringSliceValueSet(m map[string][]string) []string {
-	set := make(map[string]struct{})
+// UniqueMapSliceValues returns the union of values from each slice in a map[K][]V.
+func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
+	s := set.New[V](0)
 	for _, slice := range m {
-		for _, v := range slice {
-			set[v] = struct{}{}
-		}
+		s.InsertAll(slice)
 	}
-
-	flat := make([]string, 0, len(set))
-	for k := range set {
-		flat = append(flat, k)
-	}
-	return flat
+	return s.List()
 }
 
-func SliceStringToSet(s []string) map[string]struct{} {
-	m := make(map[string]struct{}, (len(s)+1)/2)
-	for _, k := range s {
-		m[k] = struct{}{}
-	}
-	return m
-}
-
-func SetToSliceString(set map[string]struct{}) []string {
-	flattened := make([]string, 0, len(set))
-	for x := range set {
-		flattened = append(flattened, x)
-	}
-	return flattened
-}
-
-// SliceStringIsSubset returns whether the smaller set of strings is a subset of
-// the larger. If the smaller slice is not a subset, the offending elements are
+// IsSubset returns whether the smaller set of items is a subset of
+// the larger. If the smaller set is not a subset, the offending elements are
 // returned.
-func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
-	largerSet := make(map[string]struct{}, len(larger))
-	for _, l := range larger {
-		largerSet[l] = struct{}{}
+func IsSubset[T comparable](larger, smaller []T) (bool, []T) {
+	l := set.From(larger)
+	if l.ContainsAll(smaller) {
+		return true, nil
 	}
-
-	subset := true
-	var offending []string
-	for _, s := range smaller {
-		if _, ok := largerSet[s]; !ok {
-			subset = false
-			offending = append(offending, s)
-		}
-	}
-
-	return subset, offending
+	s := set.From(smaller)
+	return false, s.Difference(l).List()
 }
 
-// SliceStringContains returns whether item exists at least once in list.
-//
-// Deprecated; use slices.Contains instead.
-func SliceStringContains(list []string, item string) bool {
-	for _, s := range list {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
-// SliceStringHasPrefix returns true if any string in list starts with prefix
-func SliceStringHasPrefix(list []string, prefix string) bool {
-	for _, s := range list {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-// StringHasPrefixInSlice returns true if string starts with any prefix in list
+// StringHasPrefixInSlice returns true if s starts with any prefix in list.
 func StringHasPrefixInSlice(s string, prefixes []string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(s, prefix) {
@@ -177,100 +125,15 @@ func StringHasPrefixInSlice(s string, prefixes []string) bool {
 	return false
 }
 
-func SliceSetDisjoint(first, second []string) (bool, []string) {
-	contained := make(map[string]struct{}, len(first))
-	for _, k := range first {
-		contained[k] = struct{}{}
+// IsDisjoint returns whether first and second are disjoint sets, and the set of
+// offending elements if not.
+func IsDisjoint[T comparable](first, second []T) (bool, []T) {
+	f, s := set.From(first), set.From(second)
+	intersection := f.Intersect(s)
+	if intersection.Size() > 0 {
+		return false, intersection.List()
 	}
-
-	offending := make(map[string]struct{})
-	for _, k := range second {
-		if _, ok := contained[k]; ok {
-			offending[k] = struct{}{}
-		}
-	}
-
-	if len(offending) == 0 {
-		return true, nil
-	}
-
-	flattened := make([]string, 0, len(offending))
-	for k := range offending {
-		flattened = append(flattened, k)
-	}
-	return false, flattened
-}
-
-// CompareSliceSetString returns true if the slices contain the same strings.
-// Order is ignored. The slice may be copied but is never altered. The slice is
-// assumed to be a set. Multiple instances of an entry are treated the same as
-// a single instance.
-func CompareSliceSetString(a, b []string) bool {
-	n := len(a)
-	if n != len(b) {
-		return false
-	}
-
-	// Copy a into a map and compare b against it
-	amap := make(map[string]struct{}, n)
-	for i := range a {
-		amap[a[i]] = struct{}{}
-	}
-
-	for i := range b {
-		if _, ok := amap[b[i]]; !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
-// CompareMapStringString returns true if the maps are equivalent. A nil and
-// empty map are considered not equal.
-func CompareMapStringString(a, b map[string]string) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for k, v := range a {
-		v2, ok := b[k]
-		if !ok {
-			return false
-		}
-		if v != v2 {
-			return false
-		}
-	}
-
-	// Already compared all known values in a so only test that keys from b
-	// exist in a
-	for k := range b {
-		if _, ok := a[k]; !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
-// CopyMap creates a copy of m. Struct values are not deep copies.
-//
-// If m is nil the return value is nil.
-func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
-	if m == nil {
-		return nil
-	}
-
-	result := make(M, len(m))
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
+	return true, nil
 }
 
 // DeepCopyMap creates a copy of m by calling Copy() on each value.
@@ -302,51 +165,6 @@ func CopySlice[S ~[]E, E Copyable[E]](s S) S {
 	return result
 }
 
-// CopyMapStringString creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringString(m map[string]string) map[string]string {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]string, len(m))
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
-// CopyMapStringStruct creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]struct{}, len(m))
-	for k := range m {
-		c[k] = struct{}{}
-	}
-	return c
-}
-
-// CopyMapStringInterface creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
-	if m == nil {
-		return nil
-	}
-
-	c := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
 // MergeMapStringString will merge two maps into one. If a duplicate key exists
 // the value in the second map will replace the value in the first map. If both
 // maps are empty or nil this returns an empty map.
@@ -361,7 +179,7 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 		return m
 	}
 
-	result := CopyMapStringString(m)
+	result := maps.Clone(m)
 
 	for k, v := range n {
 		result[k] = v
@@ -370,79 +188,17 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 	return result
 }
 
-// CopyMapStringInt creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringInt(m map[string]int) map[string]int {
+// CopyMapOfSlice creates a copy of m, making copies of each []V.
+func CopyMapOfSlice[K comparable, V any](m map[K][]V) map[K][]V {
 	l := len(m)
 	if l == 0 {
 		return nil
 	}
 
-	c := make(map[string]int, l)
+	c := make(map[K][]V, l)
 	for k, v := range m {
-		c[k] = v
+		c[k] = slices.Clone(v)
 	}
-	return c
-}
-
-// CopyMapStringFloat64 creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
-	l := len(m)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]float64, l)
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
-// CopyMapStringSliceString creates a copy of m.
-//
-// todo: a deep value copy version of CopyMap.
-func CopyMapStringSliceString(m map[string][]string) map[string][]string {
-	l := len(m)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string][]string, l)
-	for k, v := range m {
-		c[k] = CopySliceString(v)
-	}
-	return c
-}
-
-// CopySliceString creates a copy of s.
-//
-// Deprecated; use slices.Clone instead.
-func CopySliceString(s []string) []string {
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]string, l)
-	copy(c, s)
-	return c
-}
-
-// CopySliceInt creates a copy of s.
-//
-// Deprecated; use slices.Clone instead.
-func CopySliceInt(s []int) []int {
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]int, l)
-	copy(c, s)
 	return c
 }
 

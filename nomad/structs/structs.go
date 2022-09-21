@@ -45,6 +45,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -1691,7 +1692,7 @@ func (ne *NodeEvent) String() string {
 func (ne *NodeEvent) Copy() *NodeEvent {
 	c := new(NodeEvent)
 	*c = *ne
-	c.Details = helper.CopyMapStringString(ne.Details)
+	c.Details = maps.Clone(ne.Details)
 	return c
 }
 
@@ -1878,7 +1879,7 @@ func (m *DrainMetadata) Copy() *DrainMetadata {
 	}
 	c := new(DrainMetadata)
 	*c = *m
-	c.Meta = helper.CopyMapStringString(m.Meta)
+	c.Meta = maps.Clone(m.Meta)
 	return c
 }
 
@@ -2068,13 +2069,13 @@ func (n *Node) Copy() *Node {
 		return nil
 	}
 	nn := *n
-	nn.Attributes = helper.CopyMap(nn.Attributes)
+	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
-	nn.Links = helper.CopyMapStringString(nn.Links)
-	nn.Meta = helper.CopyMapStringString(nn.Meta)
+	nn.Links = maps.Clone(nn.Links)
+	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Events = helper.CopySlice(n.Events)
 	nn.Drivers = helper.DeepCopyMap(n.Drivers)
@@ -4252,7 +4253,7 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
+	nj.Datacenters = slices.Clone(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
 	nj.Multiregion = nj.Multiregion.Copy()
@@ -4266,7 +4267,7 @@ func (j *Job) Copy() *Job {
 	}
 
 	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = helper.CopyMapStringString(nj.Meta)
+	nj.Meta = maps.Clone(nj.Meta)
 	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
 	return nj
 }
@@ -4474,7 +4475,7 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 
 	task := group.LookupTask(taskName)
 	if task != nil {
-		meta = helper.CopyMapStringString(task.Meta)
+		meta = maps.Clone(task.Meta)
 	}
 
 	if meta == nil {
@@ -5080,8 +5081,8 @@ func (n *Namespace) Copy() *Namespace {
 	if n.Capabilities != nil {
 		c := new(NamespaceCapabilities)
 		*c = *n.Capabilities
-		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
-		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
+		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
 	}
 	if n.Meta != nil {
@@ -5339,7 +5340,7 @@ func (d *ParameterizedJobConfig) Validate() error {
 	}
 
 	// Check that the meta configurations are disjoint sets
-	disjoint, offending := helper.SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	disjoint, offending := helper.IsDisjoint(d.MetaRequired, d.MetaOptional)
 	if !disjoint {
 		_ = multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
 	}
@@ -5359,8 +5360,8 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 	}
 	nd := new(ParameterizedJobConfig)
 	*nd = *d
-	nd.MetaOptional = helper.CopySliceString(nd.MetaOptional)
-	nd.MetaRequired = helper.CopySliceString(nd.MetaRequired)
+	nd.MetaOptional = slices.Clone(nd.MetaOptional)
+	nd.MetaRequired = slices.Clone(nd.MetaRequired)
 	return nd
 }
 
@@ -6195,7 +6196,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.Tasks = tasks
 	}
 
-	ntg.Meta = helper.CopyMapStringString(ntg.Meta)
+	ntg.Meta = maps.Clone(ntg.Meta)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -7073,7 +7074,7 @@ func (t *Task) Copy() *Task {
 	}
 	nt := new(Task)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = maps.Clone(nt.Env)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -7091,7 +7092,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 
@@ -8567,8 +8568,8 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	}
 	return &TaskArtifact{
 		GetterSource:  ta.GetterSource,
-		GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+		GetterOptions: maps.Clone(ta.GetterOptions),
+		GetterHeaders: maps.Clone(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
 	}
@@ -9441,7 +9442,7 @@ func (d *DeploymentState) GoString() string {
 func (d *DeploymentState) Copy() *DeploymentState {
 	c := &DeploymentState{}
 	*c = *d
-	c.PlacedCanaries = helper.CopySliceString(d.PlacedCanaries)
+	c.PlacedCanaries = slices.Clone(d.PlacedCanaries)
 	return c
 }
 
@@ -9855,7 +9856,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
-	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
+	na.PreemptedAllocations = slices.Clone(a.PreemptedAllocations)
 	return na
 }
 
@@ -10584,13 +10585,13 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 	na := new(AllocMetric)
 	*na = *a
-	na.NodesAvailable = helper.CopyMapStringInt(na.NodesAvailable)
-	na.ClassFiltered = helper.CopyMapStringInt(na.ClassFiltered)
-	na.ConstraintFiltered = helper.CopyMapStringInt(na.ConstraintFiltered)
-	na.ClassExhausted = helper.CopyMapStringInt(na.ClassExhausted)
-	na.DimensionExhausted = helper.CopyMapStringInt(na.DimensionExhausted)
-	na.QuotaExhausted = helper.CopySliceString(na.QuotaExhausted)
-	na.Scores = helper.CopyMapStringFloat64(na.Scores)
+	na.NodesAvailable = maps.Clone(na.NodesAvailable)
+	na.ClassFiltered = maps.Clone(na.ClassFiltered)
+	na.ConstraintFiltered = maps.Clone(na.ConstraintFiltered)
+	na.ClassExhausted = maps.Clone(na.ClassExhausted)
+	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
+	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
+	na.Scores = maps.Clone(na.Scores)
 	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
 	return na
 }

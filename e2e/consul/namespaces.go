@@ -91,7 +91,7 @@ func (tc *ConsulNamespacesE2ETest) AfterAll(f *framework.F) {
 func (tc *ConsulNamespacesE2ETest) TestNamespacesExist(f *framework.F) {
 	// make sure our namespaces exist + default
 	namespaces := e2eutil.ListConsulNamespaces(f.T(), tc.Consul())
-	require.True(f.T(), helper.CompareSliceSetString(namespaces, append(consulNamespaces, "default")))
+	require.True(f.T(), helper.SliceSetEq(namespaces, append(consulNamespaces, "default")))
 }
 
 func (tc *ConsulNamespacesE2ETest) testConsulRegisterGroupServices(f *framework.F, token, nsA, nsB, nsC, nsZ string) {

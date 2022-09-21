@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // newConnect creates a new Consul AgentServiceConnect struct based on a Nomad
@@ -122,7 +122,7 @@ func connectSidecarRegistration(serviceID, allocID string, css *structs.ConsulSi
 	}
 
 	return &api.AgentServiceRegistration{
-		Tags:    helper.CopySliceString(css.Tags),
+		Tags:    slices.Clone(css.Tags),
 		Port:    cMapping.Value,
 		Address: cMapping.HostIP,
 		Proxy:   proxy,

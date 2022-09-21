@@ -58,6 +58,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -2740,7 +2741,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
-	m := helper.CopyMapStringString(resp.Tokens)
+	m := maps.Clone(resp.Tokens)
 	return m, nil
 }
 
