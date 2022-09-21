@@ -6,9 +6,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
+	"golang.org/x/exp/maps"
 )
 
 type pluginFingerprinter struct {
@@ -181,6 +181,6 @@ func structCSITopologyFromCSITopology(a *csi.Topology) *structs.CSITopology {
 	}
 
 	return &structs.CSITopology{
-		Segments: helper.CopyMapStringString(a.Segments),
+		Segments: maps.Clone(a.Segments),
 	}
 }

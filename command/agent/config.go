@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -334,9 +335,9 @@ func (c *ClientConfig) Copy() *ClientConfig {
 
 	nc := *c
 	nc.Servers = slices.Clone(c.Servers)
-	nc.Options = helper.CopyMap(c.Options)
-	nc.Meta = helper.CopyMap(c.Meta)
-	nc.ChrootEnv = helper.CopyMap(c.ChrootEnv)
+	nc.Options = maps.Clone(c.Options)
+	nc.Meta = maps.Clone(c.Meta)
+	nc.ChrootEnv = maps.Clone(c.ChrootEnv)
 	nc.Reserved = c.Reserved.Copy()
 	nc.NoHostUUID = pointer.Copy(c.NoHostUUID)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
@@ -1379,7 +1380,7 @@ func (c *Config) Copy() *Config {
 	nc.Version = c.Version.Copy()
 	nc.Files = slices.Clone(c.Files)
 	nc.TLSConfig = c.TLSConfig.Copy()
-	nc.HTTPAPIResponseHeaders = helper.CopyMap(c.HTTPAPIResponseHeaders)
+	nc.HTTPAPIResponseHeaders = maps.Clone(c.HTTPAPIResponseHeaders)
 	nc.Sentinel = c.Sentinel.Copy()
 	nc.Autopilot = c.Autopilot.Copy()
 	nc.Plugins = helper.CopySlice(c.Plugins)

@@ -6,8 +6,10 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/go-set"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 func Test_Min(t *testing.T) {
@@ -56,62 +58,35 @@ func Test_Max(t *testing.T) {
 	})
 }
 
-func Test_CopyMap(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var m map[string]int
-		result := CopyMap(m)
-		must.Nil(t, result)
-	})
-
-	t.Run("empty", func(t *testing.T) {
-		m := make(map[string]int, 10)
-		result := CopyMap(m)
-		must.MapEq(t, map[string]int{}, result)
-	})
-
-	t.Run("elements", func(t *testing.T) {
-		m := map[string]int{"a": 1, "b": 2}
-		result := CopyMap(m)
-		result["a"] = -1
-		must.MapEq(t, map[string]int{"a": -1, "b": 2}, result)
-		must.MapEq(t, map[string]int{"a": 1, "b": 2}, m) // not modified
-	})
-}
-
-func TestSliceStringIsSubset(t *testing.T) {
+func TestIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}
 	s := []string{"d"}
 
-	sub, offending := SliceStringIsSubset(l, l[:1])
-	if !sub || len(offending) != 0 {
-		t.Fatalf("bad %v %v", sub, offending)
-	}
+	sub, offending := IsSubset(l, l[:1])
+	must.True(t, sub)
+	must.EmptySlice(t, offending)
 
-	sub, offending = SliceStringIsSubset(l, s)
-	if sub || len(offending) == 0 || offending[0] != "d" {
-		t.Fatalf("bad %v %v", sub, offending)
-	}
+	sub, offending = IsSubset(l, s)
+	must.False(t, sub)
+	must.Eq(t, []string{"d"}, offending)
 }
 
-func TestSliceStringContains(t *testing.T) {
-	list := []string{"a", "b", "c"}
-	require.True(t, SliceStringContains(list, "a"))
-	require.True(t, SliceStringContains(list, "b"))
-	require.True(t, SliceStringContains(list, "c"))
-	require.False(t, SliceStringContains(list, "d"))
-}
+func TestIsDisjoint(t *testing.T) {
+	t.Run("yes", func(t *testing.T) {
+		a := []string{"a", "b", "c"}
+		b := []string{"d", "f"}
+		dis, offending := IsDisjoint(a, b)
+		must.True(t, dis)
+		must.EmptySlice(t, offending)
+	})
 
-func TestSliceStringHasPrefix(t *testing.T) {
-	list := []string{"alpha", "bravo", "charlie", "definitely", "most definitely"}
-	// At least one string in the slice above starts with the following test prefix strings
-	require.True(t, SliceStringHasPrefix(list, "a"))
-	require.True(t, SliceStringHasPrefix(list, "b"))
-	require.True(t, SliceStringHasPrefix(list, "c"))
-	require.True(t, SliceStringHasPrefix(list, "d"))
-	require.True(t, SliceStringHasPrefix(list, "mos"))
-	require.True(t, SliceStringHasPrefix(list, "def"))
-	require.False(t, SliceStringHasPrefix(list, "delta"))
-
+	t.Run("no", func(t *testing.T) {
+		a := []string{"a", "b", "c", "d", "e"}
+		b := []string{"b", "c", "f", "g"}
+		dis, offending := IsDisjoint(a, b)
+		must.False(t, dis)
+		must.True(t, set.From(offending).EqualSlice(offending))
+	})
 }
 
 func TestStringHasPrefixInSlice(t *testing.T) {
@@ -180,7 +155,7 @@ func TestCompareSliceSetString(t *testing.T) {
 	for i, tc := range cases {
 		tc := tc
 		t.Run(fmt.Sprintf("case-%da", i), func(t *testing.T) {
-			if res := CompareSliceSetString(tc.A, tc.B); res != tc.Result {
+			if res := SliceSetEq(tc.A, tc.B); res != tc.Result {
 				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
 					tc.Result, tc.A, tc.B, res,
 				)
@@ -189,7 +164,7 @@ func TestCompareSliceSetString(t *testing.T) {
 
 		// Function is commutative so compare B and A
 		t.Run(fmt.Sprintf("case-%db", i), func(t *testing.T) {
-			if res := CompareSliceSetString(tc.B, tc.A); res != tc.Result {
+			if res := SliceSetEq(tc.B, tc.A); res != tc.Result {
 				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
 					tc.Result, tc.B, tc.A, res,
 				)
@@ -198,19 +173,17 @@ func TestCompareSliceSetString(t *testing.T) {
 	}
 }
 
-func TestMapStringStringSliceValueSet(t *testing.T) {
+func TestUniqueMapSliceValues(t *testing.T) {
 	m := map[string][]string{
 		"foo": {"1", "2"},
 		"bar": {"3"},
 		"baz": nil,
 	}
 
-	act := MapStringStringSliceValueSet(m)
+	act := UniqueMapSliceValues(m)
 	exp := []string{"1", "2", "3"}
 	sort.Strings(act)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("Bad; got %v; want %v", act, exp)
-	}
+	must.Eq(t, exp, act)
 }
 
 func TestCopyMapStringSliceString(t *testing.T) {
@@ -220,7 +193,7 @@ func TestCopyMapStringSliceString(t *testing.T) {
 		"z": nil,
 	}
 
-	c := CopyMapStringSliceString(m)
+	c := CopyMapOfSlice(m)
 	if !reflect.DeepEqual(c, m) {
 		t.Fatalf("%#v != %#v", m, c)
 	}
@@ -231,17 +204,25 @@ func TestCopyMapStringSliceString(t *testing.T) {
 	}
 }
 
-func TestCopyMapSliceInterface(t *testing.T) {
-	m := map[string]interface{}{
-		"foo": "bar",
-		"baz": 2,
+func TestMergeMapStringString(t *testing.T) {
+	type testCase struct {
+		map1     map[string]string
+		map2     map[string]string
+		expected map[string]string
 	}
 
-	c := CopyMapStringInterface(m)
-	require.True(t, reflect.DeepEqual(m, c))
+	cases := []testCase{
+		{map[string]string{"foo": "bar"}, map[string]string{"baz": "qux"}, map[string]string{"foo": "bar", "baz": "qux"}},
+		{map[string]string{"foo": "bar"}, nil, map[string]string{"foo": "bar"}},
+		{nil, map[string]string{"baz": "qux"}, map[string]string{"baz": "qux"}},
+		{nil, nil, map[string]string{}},
+	}
 
-	m["foo"] = "zzz"
-	require.False(t, reflect.DeepEqual(m, c))
+	for _, c := range cases {
+		if output := MergeMapStringString(c.map1, c.map2); !maps.Equal(output, c.expected) {
+			t.Errorf("MergeMapStringString(%q, %q) -> %q != %q", c.map1, c.map2, output, c.expected)
+		}
+	}
 }
 
 func TestCleanEnvVar(t *testing.T) {

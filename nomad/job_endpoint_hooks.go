@@ -155,7 +155,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		}
 
 		// Flatten the signals
-		required := helper.MapStringStringSliceValueSet(tgSignals)
+		required := helper.UniqueMapSliceValues(tgSignals)
 		sigConstraint := getSignalConstraint(required)
 
 		found := false

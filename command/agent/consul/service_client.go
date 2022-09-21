@@ -14,14 +14,14 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/envoy"
-	"github.com/pkg/errors"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -185,12 +185,12 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 // unchanged.
 func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) {
 	if wanted.EnableTagOverride {
-		wanted.Tags = helper.CopySliceString(existing.Tags)
+		wanted.Tags = slices.Clone(existing.Tags)
 		// If the service registration also defines a sidecar service, use the ETO
 		// setting for the parent service to also apply to the sidecar.
 		if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
 			if sidecar != nil {
-				wanted.Connect.SidecarService.Tags = helper.CopySliceString(sidecar.Tags)
+				wanted.Connect.SidecarService.Tags = slices.Clone(sidecar.Tags)
 			}
 		}
 	}
@@ -468,8 +468,8 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 	// fields and that method uses these fields to populate the external fields.
 	return &ServiceRegistration{
 		serviceID:     s.serviceID,
-		checkIDs:      helper.CopyMapStringStruct(s.checkIDs),
-		CheckOnUpdate: helper.CopyMapStringString(s.CheckOnUpdate),
+		checkIDs:      maps.Clone(s.checkIDs),
+		CheckOnUpdate: maps.Clone(s.CheckOnUpdate),
 	}
 }
 
