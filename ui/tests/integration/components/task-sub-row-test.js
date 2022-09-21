@@ -54,7 +54,7 @@ module('Integration | Component | task-sub-row', function (hooks) {
     assert.expect(2);
     this.set('task', mockTask);
     await render(hbs`<TaskSubRow @taskState={{this.task}} />`);
-    assert.dom(this.element).hasText(`/ ${mockTask.name}`);
+    assert.dom(this.element).includesText(`/ ${mockTask.name}`);
     await componentA11yAudit(this.element, assert);
   });
 });
