@@ -176,7 +176,7 @@ func TestCompareSliceSetString(t *testing.T) {
 	for i, tc := range cases {
 		tc := tc
 		t.Run(fmt.Sprintf("case-%da", i), func(t *testing.T) {
-			if res := CompareSliceSetString(tc.A, tc.B); res != tc.Result {
+			if res := SliceSetEq(tc.A, tc.B); res != tc.Result {
 				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
 					tc.Result, tc.A, tc.B, res,
 				)
@@ -185,7 +185,7 @@ func TestCompareSliceSetString(t *testing.T) {
 
 		// Function is commutative so compare B and A
 		t.Run(fmt.Sprintf("case-%db", i), func(t *testing.T) {
-			if res := CompareSliceSetString(tc.B, tc.A); res != tc.Result {
+			if res := SliceSetEq(tc.B, tc.A); res != tc.Result {
 				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
 					tc.Result, tc.B, tc.A, res,
 				)

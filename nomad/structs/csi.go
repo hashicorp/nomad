@@ -197,13 +197,10 @@ func (o *CSIMountOptions) Equal(p *CSIMountOptions) bool {
 	if o == nil || p == nil {
 		return false
 	}
-
 	if o.FSType != p.FSType {
 		return false
 	}
-
-	return helper.CompareSliceSetString(
-		o.MountFlags, p.MountFlags)
+	return helper.SliceSetEq(o.MountFlags, p.MountFlags)
 }
 
 // CSIMountOptions implements the Stringer and GoStringer interfaces to prevent

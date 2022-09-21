@@ -110,7 +110,7 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(sc.Args, o.Args) {
+	if !helper.SliceSetEq(sc.Args, o.Args) {
 		return false
 	}
 
@@ -908,7 +908,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.CanaryTags, o.CanaryTags) {
+	if !helper.SliceSetEq(s.CanaryTags, o.CanaryTags) {
 		return false
 	}
 
@@ -940,7 +940,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -1133,7 +1133,7 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -1830,7 +1830,7 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.CompareSliceSetString(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
@@ -1865,7 +1865,7 @@ func (s *ConsulIngressService) Equals(o *ConsulIngressService) bool {
 		return false
 	}
 
-	return helper.CompareSliceSetString(s.Hosts, o.Hosts)
+	return helper.SliceSetEq(s.Hosts, o.Hosts)
 }
 
 func (s *ConsulIngressService) Validate(protocol string) error {

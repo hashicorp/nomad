@@ -138,7 +138,7 @@ func (s *ServiceRegistration) Equals(o *ServiceRegistration) bool {
 	if s.Port != o.Port {
 		return false
 	}
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 	return true
