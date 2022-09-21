@@ -37,21 +37,12 @@ jobs:
         run: |
           echo "::notice::Release v${{ github.event.inputs.version }} from branch ${{ github.ref_name }}"
 
-      - name: Install semver CLI
-        run: |
-          local_bin="${HOME}/.local/bin"
-          mkdir -p "${local_bin}"
-          curl -L --output "${local_bin}/semver" \
-            https://raw.githubusercontent.com/fsaintjacques/semver-tool/3.3.0/src/semver
-          chmod +x "${local_bin}/semver"
-          echo "${local_bin}" >> $GITHUB_PATH
-
-      - name: Validate release version
-        run: |
-          if [ "$(semver validate ${{ github.event.inputs.version }})" == "invalid" ]; then
-            echo "::error::Version ${{ github.event.inputs.version }} is invalid"
-            exit 1
-          fi
+      - name: Parse the version
+        id: version
+        uses: madhead/semver-utils@v2.4.0
+        with:
+          version: ${{ github.event.inputs.version }}
+          lenient: false
 
       - uses: actions/checkout@v2
 
@@ -101,8 +92,8 @@ jobs:
       - name: Update version file
         run: |
           NOMAD_VERSION="${{ github.event.inputs.version }}"
-          NOMAD_MAIN_VERSION=$(semver get release "$NOMAD_VERSION")
-          NOMAD_PRERELEASE_VERSION=$(semver get prerel "$NOMAD_VERSION")
+          NOMAD_MAIN_VERSION=${{ steps.version.outputs.release }}
+          NOMAD_PRERELEASE_VERSION=${{ steps.version.outputs.prerelease }}
 
           echo "updating version to ${NOMAD_MAIN_VERSION}-${NOMAD_PRERELEASE_VERSION}"
 
@@ -165,8 +156,8 @@ jobs:
           # Only bump the Version value if this is not a pre-release.
           # For final releases we want `nomad -version` to display the next
           # version to indicate that the current release is done.
-          if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
-            next_version=$(semver bump patch ${{ github.event.inputs.version }})
+          if [ -z "${{ steps.version.outputs.prerelease }}" ]; then
+            next_version=${{ steps.version.outputs.inc-patch }}
             sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${next_version}|g" version/version.go
           fi
           # Set the VersionPrerelease variable back to dev.
@@ -178,7 +169,7 @@ jobs:
         run: |
           # LAST_RELEASE is used to generate the new CHANGELOG entries, so it's
           # only updated for final releases.
-          if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
+          if [ -z "${{ steps.version.outputs.prerelease }}" ]; then
             sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s+v).*$|\1${{ github.event.inputs.version }}|g" GNUmakefile
             rm -fr GNUmakefile.bak
             git diff --color=always GNUmakefile
