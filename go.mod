@@ -64,7 +64,7 @@ require (
 	github.com/hashicorp/go-plugin v1.4.3
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
-	github.com/hashicorp/go-set v0.1.2
+	github.com/hashicorp/go-set v0.1.4
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.2
@@ -118,10 +118,10 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/goleak v1.1.12
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/exp v0.0.0-20220609121020-a51bd0440498
+	golang.org/x/exp v0.0.0-20220921164117-439092de6870
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1

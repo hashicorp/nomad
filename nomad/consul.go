@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -593,7 +594,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		for _, s := range listener.Services {
 			services = append(services, api.IngressService{
 				Name:  s.Name,
-				Hosts: helper.CopySliceString(s.Hosts),
+				Hosts: slices.Clone(s.Hosts),
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -608,7 +609,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		tls.Enabled = entry.TLS.Enabled
 		tls.TLSMinVersion = entry.TLS.TLSMinVersion
 		tls.TLSMaxVersion = entry.TLS.TLSMaxVersion
-		tls.CipherSuites = helper.CopySliceString(entry.TLS.CipherSuites)
+		tls.CipherSuites = slices.Clone(entry.TLS.CipherSuites)
 	}
 
 	return &api.IngressGatewayConfigEntry{

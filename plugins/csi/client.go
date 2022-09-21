@@ -11,11 +11,11 @@ import (
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"golang.org/x/exp/maps"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -327,7 +327,7 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	}
 
 	return &ControllerPublishVolumeResponse{
-		PublishContext: helper.CopyMapStringString(resp.PublishContext),
+		PublishContext: maps.Clone(resp.PublishContext),
 	}, nil
 }
 

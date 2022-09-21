@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/ipaddr"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -100,7 +101,7 @@ func (s *ServiceRegistration) Copy() *ServiceRegistration {
 
 	ns := new(ServiceRegistration)
 	*ns = *s
-	ns.Tags = helper.CopySliceString(ns.Tags)
+	ns.Tags = slices.Clone(ns.Tags)
 
 	return ns
 }
@@ -138,7 +139,7 @@ func (s *ServiceRegistration) Equals(o *ServiceRegistration) bool {
 	if s.Port != o.Port {
 		return false
 	}
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 	return true
