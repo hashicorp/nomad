@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,4 +107,66 @@ func TestOperatorAPICommand_Curl(t *testing.T) {
   http://127.0.0.1:1/url?filter=this+%3D%3D+%22that%22+or+this+%21%3D+%22foo%22&region=not+even+a+valid+region
 `
 	require.Equal(t, expected, buf.String())
+}
+
+func Test_pathToURL(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputConfig       *api.Config
+		inputPath         string
+		expectedOutputURL string
+	}{
+		{
+			name: "https address via config",
+			inputConfig: &api.Config{
+				Address:   "https://nomad.systems:4646",
+				TLSConfig: &api.TLSConfig{},
+			},
+			inputPath:         "/v1/jobs",
+			expectedOutputURL: "https://nomad.systems:4646/v1/jobs",
+		},
+		{
+			name: "http address via config",
+			inputConfig: &api.Config{
+				Address:   "http://nomad.systems:4646",
+				TLSConfig: &api.TLSConfig{},
+			},
+			inputPath:         "/v1/jobs",
+			expectedOutputURL: "http://nomad.systems:4646/v1/jobs",
+		},
+		{
+			name:              "https address via path",
+			inputConfig:       api.DefaultConfig(),
+			inputPath:         "https://nomad.systems:4646/v1/jobs",
+			expectedOutputURL: "https://nomad.systems:4646/v1/jobs",
+		},
+		{
+			name:              "http address via path",
+			inputConfig:       api.DefaultConfig(),
+			inputPath:         "http://nomad.systems:4646/v1/jobs",
+			expectedOutputURL: "http://nomad.systems:4646/v1/jobs",
+		},
+		{
+			name: "https inferred by tls config",
+			inputConfig: &api.Config{
+				Address: "http://127.0.0.1:4646",
+				TLSConfig: &api.TLSConfig{
+					CAPath: "/path/to/nowhere",
+				},
+			},
+			inputPath:         "/v1/jobs",
+			expectedOutputURL: "https://127.0.0.1:4646/v1/jobs",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput, err := pathToURL(tc.inputConfig, tc.inputPath)
+			must.NoError(t, err)
+			must.NotNil(t, actualOutput)
+			must.Eq(t, actualOutput.String(), tc.expectedOutputURL)
+		})
+	}
 }
