@@ -113,16 +113,6 @@ func IsSubset[T comparable](larger, smaller []T) (bool, []T) {
 	return false, s.Difference(l).List()
 }
 
-// SliceStringHasPrefix returns true if any string in list starts with prefix
-func SliceStringHasPrefix(list []string, prefix string) bool {
-	for _, s := range list {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
 // StringHasPrefixInSlice returns true if string starts with any prefix in list
 func StringHasPrefixInSlice(s string, prefixes []string) bool {
 	for _, prefix := range prefixes {

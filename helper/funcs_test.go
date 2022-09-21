@@ -91,19 +91,6 @@ func TestIsSubset(t *testing.T) {
 	must.Eq(t, []string{"d"}, offending)
 }
 
-func TestSliceStringHasPrefix(t *testing.T) {
-	list := []string{"alpha", "bravo", "charlie", "definitely", "most definitely"}
-	// At least one string in the slice above starts with the following test prefix strings
-	require.True(t, SliceStringHasPrefix(list, "a"))
-	require.True(t, SliceStringHasPrefix(list, "b"))
-	require.True(t, SliceStringHasPrefix(list, "c"))
-	require.True(t, SliceStringHasPrefix(list, "d"))
-	require.True(t, SliceStringHasPrefix(list, "mos"))
-	require.True(t, SliceStringHasPrefix(list, "def"))
-	require.False(t, SliceStringHasPrefix(list, "delta"))
-
-}
-
 func TestStringHasPrefixInSlice(t *testing.T) {
 	prefixes := []string{"a", "b", "c", "definitely", "most definitely"}
 	// The following strings all start with at least one prefix in the slice above
