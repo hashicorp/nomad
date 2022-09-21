@@ -218,20 +218,6 @@ func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	return c
 }
 
-// CopySliceInt creates a copy of s.
-//
-// Deprecated; use slices.Clone instead.
-func CopySliceInt(s []int) []int {
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]int, l)
-	copy(c, s)
-	return c
-}
-
 // CleanEnvVar replaces all occurrences of illegal characters in an environment
 // variable with the specified byte.
 func CleanEnvVar(s string, r byte) string {
