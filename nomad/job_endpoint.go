@@ -14,8 +14,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	"github.com/pkg/errors"
-
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -23,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -252,7 +252,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			// If we are given a root token it can access all policies
 			if !lib.StrContains(allowedPolicies, "root") {
 				flatPolicies := structs.VaultPoliciesSet(policies)
-				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
+				subset, offending := helper.IsSubset(allowedPolicies, flatPolicies)
 				if !subset {
 					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
 						strings.Join(offending, ", "))
@@ -2069,14 +2069,14 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		keys[k] = struct{}{}
 	}
 
-	required := helper.SliceStringToSet(job.ParameterizedJob.MetaRequired)
-	optional := helper.SliceStringToSet(job.ParameterizedJob.MetaOptional)
+	required := set.From(job.ParameterizedJob.MetaRequired)
+	optional := set.From(job.ParameterizedJob.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})
 	for k := range req.Meta {
-		_, req := required[k]
-		_, opt := optional[k]
+		req := required.Contains(k)
+		opt := optional.Contains(k)
 		if !req && !opt {
 			unpermitted[k] = struct{}{}
 		}

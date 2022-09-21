@@ -9,7 +9,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 func TestServiceSched_JobRegister(t *testing.T) {
@@ -1728,7 +1728,7 @@ func TestServiceSched_JobModify_Datacenters(t *testing.T) {
 	placed := map[string]*structs.Allocation{}
 	for node, placedAllocs := range plan.NodeAllocation {
 		require.True(
-			helper.SliceStringContains([]string{nodes[0].ID, nodes[1].ID}, node),
+			slices.Contains([]string{nodes[0].ID, nodes[1].ID}, node),
 			"allocation placed on ineligible node",
 		)
 		for _, alloc := range placedAllocs {

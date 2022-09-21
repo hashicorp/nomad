@@ -19,10 +19,6 @@ import (
 	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/v3/host"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -57,6 +53,10 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/v3/host"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -2680,7 +2680,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
-	m := helper.CopyMapStringString(resp.Tokens)
+	m := maps.Clone(resp.Tokens)
 	return m, nil
 }
 

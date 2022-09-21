@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -592,7 +593,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		for _, s := range listener.Services {
 			services = append(services, api.IngressService{
 				Name:  s.Name,
-				Hosts: helper.CopySliceString(s.Hosts),
+				Hosts: slices.Clone(s.Hosts),
 			})
 		}
 		listeners = append(listeners, api.IngressListener{

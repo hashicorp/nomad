@@ -6,7 +6,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/slices"
 )
 
 // CSISocketName is the filename that Nomad expects plugins to create inside the
@@ -168,7 +168,7 @@ func (o *CSIMountOptions) Copy() *CSIMountOptions {
 	}
 
 	no := *o
-	no.MountFlags = helper.CopySliceString(o.MountFlags)
+	no.MountFlags = slices.Clone(o.MountFlags)
 	return &no
 }
 

@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -359,7 +359,8 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 
 	nc := new(ClientTemplateConfig)
 	*nc = *c
-	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+
+	nc.FunctionDenylist = slices.Clone(nc.FunctionDenylist)
 
 	if c.BlockQueryWaitTime != nil {
 		nc.BlockQueryWaitTime = &*c.BlockQueryWaitTime
@@ -413,7 +414,7 @@ func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateCon
 	// Maintain backward compatibility for older clients
 	if len(b.FunctionBlacklist) > 0 {
 		for _, fn := range b.FunctionBlacklist {
-			if !helper.SliceStringContains(result.FunctionBlacklist, fn) {
+			if !slices.Contains(result.FunctionBlacklist, fn) {
 				result.FunctionBlacklist = append(result.FunctionBlacklist, fn)
 			}
 		}
@@ -421,7 +422,7 @@ func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateCon
 
 	if len(b.FunctionDenylist) > 0 {
 		for _, fn := range b.FunctionDenylist {
-			if !helper.SliceStringContains(result.FunctionDenylist, fn) {
+			if !slices.Contains(result.FunctionDenylist, fn) {
 				result.FunctionDenylist = append(result.FunctionDenylist, fn)
 			}
 		}
@@ -742,8 +743,8 @@ func (c *Config) Copy() *Config {
 
 	nc := *c
 	nc.Node = nc.Node.Copy()
-	nc.Servers = helper.CopySliceString(nc.Servers)
-	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.Servers = slices.Clone(nc.Servers)
+	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()

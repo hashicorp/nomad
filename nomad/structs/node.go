@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 )
 
 // CSITopology is a map of topological domains to topological segments.
@@ -50,7 +50,7 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 
 	return &CSITopology{
-		Segments: helper.CopyMapStringString(t.Segments),
+		Segments: maps.Clone(t.Segments),
 	}
 }
 
@@ -58,8 +58,7 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	if t == nil || o == nil {
 		return t == o
 	}
-
-	return helper.CompareMapStringString(t.Segments, o.Segments)
+	return maps.Equal(t.Segments, o.Segments)
 }
 
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
@@ -271,7 +270,7 @@ func (di *DriverInfo) Copy() *DriverInfo {
 
 	cdi := new(DriverInfo)
 	*cdi = *di
-	cdi.Attributes = helper.CopyMapStringString(di.Attributes)
+	cdi.Attributes = maps.Clone(di.Attributes)
 	return cdi
 }
 

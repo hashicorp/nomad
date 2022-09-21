@@ -30,6 +30,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 type OperatorDebugCommand struct {
@@ -325,7 +327,7 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 func (c *OperatorDebugCommand) queryOpts() *api.QueryOptions {
 	qo := new(api.QueryOptions)
 	*qo = *c.opts
-	qo.Params = helper.CopyMapStringString(c.opts.Params)
+	qo.Params = maps.Clone(c.opts.Params)
 	return qo
 }
 
@@ -1432,7 +1434,7 @@ func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, reg
 	// "leader" is a special case which Nomad handles in the API.  If "leader"
 	// appears in serverIDs, add it to membersFound and remove it from the list
 	// so that it isn't processed by the range loop
-	if helper.SliceStringContains(prefixes, "leader") {
+	if slices.Contains(prefixes, "leader") {
 		membersFound = append(membersFound, "leader")
 		helper.RemoveEqualFold(&prefixes, "leader")
 	}

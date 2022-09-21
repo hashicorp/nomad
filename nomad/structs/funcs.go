@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
@@ -366,41 +367,29 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
-	set := make(map[string]struct{})
-
+	s := set.New[string](10)
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			for _, p := range tp.Policies {
-				set[p] = struct{}{}
+			if tp != nil {
+				s.InsertAll(tp.Policies)
 			}
 		}
 	}
-
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return s.List()
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
 // returns a set of required namespaces
 func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
-	set := make(map[string]struct{})
-
+	s := set.New[string](10)
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			if tp.Namespace != "" {
-				set[tp.Namespace] = struct{}{}
+			if tp != nil && tp.Namespace != "" {
+				s.Insert(tp.Namespace)
 			}
 		}
 	}
-
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return s.List()
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
