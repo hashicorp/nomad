@@ -8,6 +8,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 )
 
 // CSISocketName is the filename that Nomad expects plugins to create inside the
@@ -845,7 +846,7 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 
 	// must be compatible with parameters set by from CreateVolumeResponse
 
-	if len(other.Parameters) != 0 && !helper.CompareMapStringString(v.Parameters, other.Parameters) {
+	if len(other.Parameters) != 0 && !maps.Equal(v.Parameters, other.Parameters) {
 		errs = multierror.Append(errs, errors.New(
 			"volume parameters cannot be updated"))
 	}

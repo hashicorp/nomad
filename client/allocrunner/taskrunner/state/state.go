@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"golang.org/x/exp/maps"
 )
 
 // LocalState is Task state which is persisted for use when restarting Nomad
@@ -103,9 +104,9 @@ func (h *HookState) Equal(o *HookState) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(h.Data, o.Data) {
+	if !maps.Equal(h.Data, o.Data) {
 		return false
 	}
 
-	return helper.CompareMapStringString(h.Env, o.Env)
+	return maps.Equal(h.Env, o.Env)
 }

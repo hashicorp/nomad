@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -928,15 +929,15 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.Meta, o.Meta) {
+	if !maps.Equal(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.CanaryMeta, o.CanaryMeta) {
+	if !maps.Equal(s.CanaryMeta, o.CanaryMeta) {
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.TaggedAddresses, o.TaggedAddresses) {
+	if !maps.Equal(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 
@@ -1204,7 +1205,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Env, o.Env) {
+	if !maps.Equal(t.Env, o.Env) {
 		return false
 	}
 
@@ -1212,7 +1213,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Meta, o.Meta) {
+	if !maps.Equal(t.Meta, o.Meta) {
 		return false
 	}
 

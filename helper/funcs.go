@@ -134,38 +134,6 @@ func IsDisjoint[T comparable](first, second []T) (bool, []T) {
 	return true, nil
 }
 
-// CompareMapStringString returns true if the maps are equivalent. A nil and
-// empty map are considered not equal.
-func CompareMapStringString(a, b map[string]string) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for k, v := range a {
-		v2, ok := b[k]
-		if !ok {
-			return false
-		}
-		if v != v2 {
-			return false
-		}
-	}
-
-	// Already compared all known values in a so only test that keys from b
-	// exist in a
-	for k := range b {
-		if _, ok := a[k]; !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
 // CopyMap creates a copy of m. Struct values are not deep copies.
 //
 // If m is nil the return value is nil.

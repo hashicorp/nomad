@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 func Test_Min(t *testing.T) {
@@ -253,7 +254,7 @@ func TestMergeMapStringString(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if output := MergeMapStringString(c.map1, c.map2); !CompareMapStringString(output, c.expected) {
+		if output := MergeMapStringString(c.map1, c.map2); !maps.Equal(output, c.expected) {
 			t.Errorf("MergeMapStringString(%q, %q) -> %q != %q", c.map1, c.map2, output, c.expected)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 )
 
 // CSITopology is a map of topological domains to topological segments.
@@ -58,8 +59,7 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	if t == nil || o == nil {
 		return t == o
 	}
-
-	return helper.CompareMapStringString(t.Segments, o.Segments)
+	return maps.Equal(t.Segments, o.Segments)
 }
 
 func (t *CSITopology) MatchFound(o []*CSITopology) bool {
