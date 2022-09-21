@@ -2740,7 +2740,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
-	m := helper.CopyMapStringString(resp.Tokens)
+	m := helper.CopyMap(resp.Tokens)
 	return m, nil
 }
 

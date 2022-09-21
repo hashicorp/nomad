@@ -181,6 +181,6 @@ func structCSITopologyFromCSITopology(a *csi.Topology) *structs.CSITopology {
 	}
 
 	return &structs.CSITopology{
-		Segments: helper.CopyMapStringString(a.Segments),
+		Segments: helper.CopyMap(a.Segments),
 	}
 }

@@ -335,7 +335,7 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 func (c *OperatorDebugCommand) queryOpts() *api.QueryOptions {
 	qo := new(api.QueryOptions)
 	*qo = *c.opts
-	qo.Params = helper.CopyMapStringString(c.opts.Params)
+	qo.Params = helper.CopyMap(c.opts.Params)
 	return qo
 }
 

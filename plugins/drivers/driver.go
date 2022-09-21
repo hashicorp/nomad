@@ -292,8 +292,8 @@ func (tc *TaskConfig) Copy() *TaskConfig {
 	}
 	c := new(TaskConfig)
 	*c = *tc
-	c.Env = helper.CopyMapStringString(c.Env)
-	c.DeviceEnv = helper.CopyMapStringString(c.DeviceEnv)
+	c.Env = helper.CopyMap(c.Env)
+	c.DeviceEnv = helper.CopyMap(c.DeviceEnv)
 	c.Resources = tc.Resources.Copy()
 	c.DNS = tc.DNS.Copy()
 

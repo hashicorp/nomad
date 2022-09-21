@@ -90,8 +90,8 @@ func (h *HookState) Copy() *HookState {
 
 	c := new(HookState)
 	*c = *h
-	c.Data = helper.CopyMapStringString(h.Data)
-	c.Env = helper.CopyMapStringString(h.Env)
+	c.Data = helper.CopyMap(h.Data)
+	c.Env = helper.CopyMap(h.Env)
 	return c
 }
 

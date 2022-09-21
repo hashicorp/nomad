@@ -51,7 +51,7 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 
 	return &CSITopology{
-		Segments: helper.CopyMapStringString(t.Segments),
+		Segments: helper.CopyMap(t.Segments),
 	}
 }
 
@@ -315,7 +315,7 @@ func (di *DriverInfo) Copy() *DriverInfo {
 
 	cdi := new(DriverInfo)
 	*cdi = *di
-	cdi.Attributes = helper.CopyMapStringString(di.Attributes)
+	cdi.Attributes = helper.CopyMap(di.Attributes)
 	return cdi
 }
 

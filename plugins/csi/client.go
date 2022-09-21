@@ -327,7 +327,7 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	}
 
 	return &ControllerPublishVolumeResponse{
-		PublishContext: helper.CopyMapStringString(resp.PublishContext),
+		PublishContext: helper.CopyMap(resp.PublishContext),
 	}, nil
 }
 

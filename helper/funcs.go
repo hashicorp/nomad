@@ -201,38 +201,6 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 	return result
 }
 
-// CopyMapStringInt creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringInt(m map[string]int) map[string]int {
-	l := len(m)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]int, l)
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
-// CopyMapStringFloat64 creates a copy of m.
-//
-// Deprecated; use CopyMap instead.
-func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
-	l := len(m)
-	if l == 0 {
-		return nil
-	}
-
-	c := make(map[string]float64, l)
-	for k, v := range m {
-		c[k] = v
-	}
-	return c
-}
-
 // CopyMapStringSliceString creates a copy of m.
 //
 // todo: a deep value copy version of CopyMap.

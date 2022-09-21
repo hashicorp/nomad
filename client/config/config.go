@@ -706,7 +706,7 @@ func (c *Config) Copy() *Config {
 	nc := *c
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
-	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.Options = helper.CopyMap(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()

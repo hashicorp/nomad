@@ -110,7 +110,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
 		c.AvailBandwidth = make(map[string]int)
 	} else {
-		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
+		c.AvailBandwidth = helper.CopyMap(idx.AvailBandwidth)
 	}
 	if len(idx.UsedPorts) > 0 {
 		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
@@ -121,7 +121,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
 		c.UsedBandwidth = make(map[string]int)
 	} else {
-		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+		c.UsedBandwidth = helper.CopyMap(idx.UsedBandwidth)
 	}
 
 	return c

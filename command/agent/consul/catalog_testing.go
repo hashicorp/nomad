@@ -214,7 +214,7 @@ func (c *MockAgent) ServicesWithFilterOpts(_ string, q *api.QueryOptions) (map[s
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
-			Meta:              helper.CopyMapStringString(v.Meta),
+			Meta:              helper.CopyMap(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,

@@ -96,7 +96,7 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 
 	// Running stop should shutdown logmon
 	stopReq := interfaces.TaskStopRequest{
-		ExistingState: helper.CopyMapStringString(resp.State),
+		ExistingState: helper.CopyMap(resp.State),
 	}
 	require.NoError(t, hook.Stop(context.Background(), &stopReq, nil))
 }

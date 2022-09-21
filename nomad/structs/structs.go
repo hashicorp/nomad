@@ -1691,7 +1691,7 @@ func (ne *NodeEvent) String() string {
 func (ne *NodeEvent) Copy() *NodeEvent {
 	c := new(NodeEvent)
 	*c = *ne
-	c.Details = helper.CopyMapStringString(ne.Details)
+	c.Details = helper.CopyMap(ne.Details)
 	return c
 }
 
@@ -1878,7 +1878,7 @@ func (m *DrainMetadata) Copy() *DrainMetadata {
 	}
 	c := new(DrainMetadata)
 	*c = *m
-	c.Meta = helper.CopyMapStringString(m.Meta)
+	c.Meta = helper.CopyMap(m.Meta)
 	return c
 }
 
@@ -2073,8 +2073,8 @@ func (n *Node) Copy() *Node {
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
-	nn.Links = helper.CopyMapStringString(nn.Links)
-	nn.Meta = helper.CopyMapStringString(nn.Meta)
+	nn.Links = helper.CopyMap(nn.Links)
+	nn.Meta = helper.CopyMap(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Events = helper.CopySlice(n.Events)
 	nn.Drivers = helper.DeepCopyMap(n.Drivers)
@@ -4266,7 +4266,7 @@ func (j *Job) Copy() *Job {
 	}
 
 	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = helper.CopyMapStringString(nj.Meta)
+	nj.Meta = helper.CopyMap(nj.Meta)
 	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
 	return nj
 }
@@ -4474,7 +4474,7 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 
 	task := group.LookupTask(taskName)
 	if task != nil {
-		meta = helper.CopyMapStringString(task.Meta)
+		meta = helper.CopyMap(task.Meta)
 	}
 
 	if meta == nil {
@@ -6195,7 +6195,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.Tasks = tasks
 	}
 
-	ntg.Meta = helper.CopyMapStringString(ntg.Meta)
+	ntg.Meta = helper.CopyMap(ntg.Meta)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -7073,7 +7073,7 @@ func (t *Task) Copy() *Task {
 	}
 	nt := new(Task)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = helper.CopyMap(nt.Env)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -7091,7 +7091,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = helper.CopyMap(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 
@@ -8567,8 +8567,8 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	}
 	return &TaskArtifact{
 		GetterSource:  ta.GetterSource,
-		GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+		GetterOptions: helper.CopyMap(ta.GetterOptions),
+		GetterHeaders: helper.CopyMap(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
 	}
@@ -10584,13 +10584,13 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 	na := new(AllocMetric)
 	*na = *a
-	na.NodesAvailable = helper.CopyMapStringInt(na.NodesAvailable)
-	na.ClassFiltered = helper.CopyMapStringInt(na.ClassFiltered)
-	na.ConstraintFiltered = helper.CopyMapStringInt(na.ConstraintFiltered)
-	na.ClassExhausted = helper.CopyMapStringInt(na.ClassExhausted)
-	na.DimensionExhausted = helper.CopyMapStringInt(na.DimensionExhausted)
-	na.QuotaExhausted = helper.CopySliceString(na.QuotaExhausted)
-	na.Scores = helper.CopyMapStringFloat64(na.Scores)
+	na.NodesAvailable = helper.CopyMap(na.NodesAvailable)
+	na.ClassFiltered = helper.CopyMap(na.ClassFiltered)
+	na.ConstraintFiltered = helper.CopyMap(na.ConstraintFiltered)
+	na.ClassExhausted = helper.CopyMap(na.ClassExhausted)
+	na.DimensionExhausted = helper.CopyMap(na.DimensionExhausted)
+	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
+	na.Scores = helper.CopyMap(na.Scores)
 	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
 	return na
 }
