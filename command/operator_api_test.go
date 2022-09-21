@@ -2,9 +2,11 @@ package command
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -168,5 +170,54 @@ func Test_pathToURL(t *testing.T) {
 			must.NotNil(t, actualOutput)
 			must.Eq(t, actualOutput.String(), tc.expectedOutputURL)
 		})
+	}
+}
+
+// TestOperatorAPICommand_ContentLength tests that requests have the proper
+// ContentLength set.
+//
+// Don't run in parallel since it messes with os.Stdin.
+func TestOperatorAPICommand_ContentLength(t *testing.T) {
+	contentLength := make(chan int, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentLength <- int(r.ContentLength)
+	}))
+	defer ts.Close()
+
+	// Setup os.Stdin to a known value.
+	// The command stats stdin, so we can't mock it as another io.Reader.
+	// https://stackoverflow.com/a/46365584
+	input := []byte("test-input")
+	tmpfile, err := ioutil.TempFile("", "example")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.Write(input)
+	require.NoError(t, err)
+	_, err = tmpfile.Seek(0, 0)
+	require.NoError(t, err)
+
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	os.Stdin = tmpfile
+
+	// Setup command.
+	buf := bytes.NewBuffer(nil)
+	ui := &cli.BasicUi{
+		ErrorWriter: buf,
+		Writer:      buf,
+	}
+	cmd := &OperatorAPICommand{Meta: Meta{Ui: ui}}
+
+	// Assert that a request has the expected content length.
+	exitCode := cmd.Run([]string{"-address=" + ts.URL, "/v1/jobs"})
+	require.Zero(t, exitCode, buf.String())
+
+	select {
+	case l := <-contentLength:
+		require.Equal(t, len(input), l)
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for request")
 	}
 }
