@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -706,7 +706,7 @@ func (c *Config) Copy() *Config {
 	nc := *c
 	nc.Node = nc.Node.Copy()
 	nc.Servers = slices.Clone(nc.Servers)
-	nc.Options = helper.CopyMap(nc.Options)
+	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()

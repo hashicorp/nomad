@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -135,21 +136,6 @@ func IsDisjoint[T comparable](first, second []T) (bool, []T) {
 	return true, nil
 }
 
-// CopyMap creates a copy of m. Struct values are not deep copies.
-//
-// If m is nil the return value is nil.
-func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
-	if m == nil {
-		return nil
-	}
-
-	result := make(M, len(m))
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
-}
-
 // DeepCopyMap creates a copy of m by calling Copy() on each value.
 //
 // If m is nil the return value is nil.
@@ -193,7 +179,7 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 		return m
 	}
 
-	result := CopyMap(m)
+	result := maps.Clone(m)
 
 	for k, v := range n {
 		result[k] = v

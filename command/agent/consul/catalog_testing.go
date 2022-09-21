@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -214,7 +214,7 @@ func (c *MockAgent) ServicesWithFilterOpts(_ string, q *api.QueryOptions) (map[s
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
-			Meta:              helper.CopyMap(v.Meta),
+			Meta:              maps.Clone(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,

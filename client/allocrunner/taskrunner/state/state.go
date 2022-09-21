@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"golang.org/x/exp/maps"
 )
@@ -90,8 +89,8 @@ func (h *HookState) Copy() *HookState {
 
 	c := new(HookState)
 	*c = *h
-	c.Data = helper.CopyMap(h.Data)
-	c.Env = helper.CopyMap(h.Env)
+	c.Data = maps.Clone(h.Data)
+	c.Env = maps.Clone(h.Env)
 	return c
 }
 

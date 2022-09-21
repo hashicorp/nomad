@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/exp/maps"
 )
 
@@ -51,7 +50,7 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 
 	return &CSITopology{
-		Segments: helper.CopyMap(t.Segments),
+		Segments: maps.Clone(t.Segments),
 	}
 }
 
@@ -315,7 +314,7 @@ func (di *DriverInfo) Copy() *DriverInfo {
 
 	cdi := new(DriverInfo)
 	*cdi = *di
-	cdi.Attributes = helper.CopyMap(di.Attributes)
+	cdi.Attributes = maps.Clone(di.Attributes)
 	return cdi
 }
 

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 // GetCheckQuery extracts the needed info from c to actually execute the check.
@@ -23,7 +23,7 @@ func GetCheckQuery(c *structs.ServiceCheck) *Query {
 		Protocol:    protocol,
 		Path:        c.Path,
 		Method:      c.Method,
-		Headers:     helper.CopyMap(c.Header),
+		Headers:     maps.Clone(c.Header),
 		Body:        c.Body,
 	}
 }

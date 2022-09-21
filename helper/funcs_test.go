@@ -58,28 +58,6 @@ func Test_Max(t *testing.T) {
 	})
 }
 
-func Test_CopyMap(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var m map[string]int
-		result := CopyMap(m)
-		must.Nil(t, result)
-	})
-
-	t.Run("empty", func(t *testing.T) {
-		m := make(map[string]int, 10)
-		result := CopyMap(m)
-		must.MapEq(t, map[string]int{}, result)
-	})
-
-	t.Run("elements", func(t *testing.T) {
-		m := map[string]int{"a": 1, "b": 2}
-		result := CopyMap(m)
-		result["a"] = -1
-		must.MapEq(t, map[string]int{"a": -1, "b": 2}, result)
-		must.MapEq(t, map[string]int{"a": 1, "b": 2}, m) // not modified
-	})
-}
-
 func TestIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}
 	s := []string{"d"}

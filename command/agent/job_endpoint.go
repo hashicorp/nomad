@@ -9,10 +9,10 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -1189,8 +1189,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
 					GetterSource:  *ta.GetterSource,
-					GetterOptions: helper.CopyMap(ta.GetterOptions),
-					GetterHeaders: helper.CopyMap(ta.GetterHeaders),
+					GetterOptions: maps.Clone(ta.GetterOptions),
+					GetterHeaders: maps.Clone(ta.GetterHeaders),
 					GetterMode:    *ta.GetterMode,
 					RelativeDest:  *ta.RelativeDest,
 				})
@@ -1393,9 +1393,9 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
 			Address:           s.Address,
-			Meta:              helper.CopyMap(s.Meta),
-			CanaryMeta:        helper.CopyMap(s.CanaryMeta),
-			TaggedAddresses:   helper.CopyMap(s.TaggedAddresses),
+			Meta:              maps.Clone(s.Meta),
+			CanaryMeta:        maps.Clone(s.CanaryMeta),
+			TaggedAddresses:   maps.Clone(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
 		}
@@ -1501,7 +1501,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMap(in.Config),
+		Config:                          maps.Clone(in.Config),
 	}
 }
 
@@ -1640,7 +1640,7 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
 		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
-		Config:              helper.CopyMap(in.Config),
+		Config:              maps.Clone(in.Config),
 	}
 }
 

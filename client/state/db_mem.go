@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 // MemDB implements a StateDB that stores data in memory and should only be
@@ -248,7 +248,7 @@ func (m *MemDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) err
 func (m *MemDB) GetCheckResults() (checks.ClientResults, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return helper.CopyMap(m.checks), nil
+	return maps.Clone(m.checks), nil
 }
 
 func (m *MemDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error {

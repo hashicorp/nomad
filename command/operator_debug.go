@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -335,7 +336,7 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 func (c *OperatorDebugCommand) queryOpts() *api.QueryOptions {
 	qo := new(api.QueryOptions)
 	*qo = *c.opts
-	qo.Params = helper.CopyMap(c.opts.Params)
+	qo.Params = maps.Clone(c.opts.Params)
 	return qo
 }
 

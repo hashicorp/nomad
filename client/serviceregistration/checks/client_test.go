@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
+	"golang.org/x/exp/maps"
 	"oss.indeed.com/go/libtime/libtimetest"
 )
 
@@ -220,7 +220,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		body, _ = io.ReadAll(r.Body)
-		headers = helper.CopyMap(r.Header)
+		headers = maps.Clone(r.Header)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()

@@ -45,6 +45,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -1691,7 +1692,7 @@ func (ne *NodeEvent) String() string {
 func (ne *NodeEvent) Copy() *NodeEvent {
 	c := new(NodeEvent)
 	*c = *ne
-	c.Details = helper.CopyMap(ne.Details)
+	c.Details = maps.Clone(ne.Details)
 	return c
 }
 
@@ -1878,7 +1879,7 @@ func (m *DrainMetadata) Copy() *DrainMetadata {
 	}
 	c := new(DrainMetadata)
 	*c = *m
-	c.Meta = helper.CopyMap(m.Meta)
+	c.Meta = maps.Clone(m.Meta)
 	return c
 }
 
@@ -2068,13 +2069,13 @@ func (n *Node) Copy() *Node {
 		return nil
 	}
 	nn := *n
-	nn.Attributes = helper.CopyMap(nn.Attributes)
+	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
-	nn.Links = helper.CopyMap(nn.Links)
-	nn.Meta = helper.CopyMap(nn.Meta)
+	nn.Links = maps.Clone(nn.Links)
+	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Events = helper.CopySlice(n.Events)
 	nn.Drivers = helper.DeepCopyMap(n.Drivers)
@@ -4266,7 +4267,7 @@ func (j *Job) Copy() *Job {
 	}
 
 	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = helper.CopyMap(nj.Meta)
+	nj.Meta = maps.Clone(nj.Meta)
 	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
 	return nj
 }
@@ -4474,7 +4475,7 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 
 	task := group.LookupTask(taskName)
 	if task != nil {
-		meta = helper.CopyMap(task.Meta)
+		meta = maps.Clone(task.Meta)
 	}
 
 	if meta == nil {
@@ -6195,7 +6196,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.Tasks = tasks
 	}
 
-	ntg.Meta = helper.CopyMap(ntg.Meta)
+	ntg.Meta = maps.Clone(ntg.Meta)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -7073,7 +7074,7 @@ func (t *Task) Copy() *Task {
 	}
 	nt := new(Task)
 	*nt = *t
-	nt.Env = helper.CopyMap(nt.Env)
+	nt.Env = maps.Clone(nt.Env)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -7091,7 +7092,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMap(nt.Meta)
+	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 
@@ -8567,8 +8568,8 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	}
 	return &TaskArtifact{
 		GetterSource:  ta.GetterSource,
-		GetterOptions: helper.CopyMap(ta.GetterOptions),
-		GetterHeaders: helper.CopyMap(ta.GetterHeaders),
+		GetterOptions: maps.Clone(ta.GetterOptions),
+		GetterHeaders: maps.Clone(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
 	}
@@ -10584,13 +10585,13 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 	na := new(AllocMetric)
 	*na = *a
-	na.NodesAvailable = helper.CopyMap(na.NodesAvailable)
-	na.ClassFiltered = helper.CopyMap(na.ClassFiltered)
-	na.ConstraintFiltered = helper.CopyMap(na.ConstraintFiltered)
-	na.ClassExhausted = helper.CopyMap(na.ClassExhausted)
-	na.DimensionExhausted = helper.CopyMap(na.DimensionExhausted)
+	na.NodesAvailable = maps.Clone(na.NodesAvailable)
+	na.ClassFiltered = maps.Clone(na.ClassFiltered)
+	na.ConstraintFiltered = maps.Clone(na.ConstraintFiltered)
+	na.ClassExhausted = maps.Clone(na.ClassExhausted)
+	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
 	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
-	na.Scores = helper.CopyMap(na.Scores)
+	na.Scores = maps.Clone(na.Scores)
 	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
 	return na
 }
