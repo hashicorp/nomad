@@ -101,14 +101,6 @@ func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
 	return s.List()
 }
 
-func SliceStringToSet(s []string) map[string]struct{} {
-	m := make(map[string]struct{}, (len(s)+1)/2)
-	for _, k := range s {
-		m[k] = struct{}{}
-	}
-	return m
-}
-
 func SetToSliceString(set map[string]struct{}) []string {
 	flattened := make([]string, 0, len(set))
 	for x := range set {

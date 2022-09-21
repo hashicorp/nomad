@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -2006,14 +2007,14 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		keys[k] = struct{}{}
 	}
 
-	required := helper.SliceStringToSet(job.ParameterizedJob.MetaRequired)
-	optional := helper.SliceStringToSet(job.ParameterizedJob.MetaOptional)
+	required := set.From(job.ParameterizedJob.MetaRequired)
+	optional := set.From(job.ParameterizedJob.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})
 	for k := range req.Meta {
-		_, req := required[k]
-		_, opt := optional[k]
+		req := required.Contains(k)
+		opt := optional.Contains(k)
 		if !req && !opt {
 			unpermitted[k] = struct{}{}
 		}
