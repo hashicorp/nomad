@@ -92,20 +92,13 @@ func Max[T constraints.Ordered](a, b T) T {
 	return b
 }
 
-// MapStringStringSliceValueSet returns the set of values in a map[string][]string
-func MapStringStringSliceValueSet(m map[string][]string) []string {
-	set := make(map[string]struct{})
+// UniqueMapSliceValues returns the union of values from each slice in a map[K][]V.
+func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
+	s := set.New[V](0)
 	for _, slice := range m {
-		for _, v := range slice {
-			set[v] = struct{}{}
-		}
+		s.InsertAll(slice)
 	}
-
-	flat := make([]string, 0, len(set))
-	for k := range set {
-		flat = append(flat, k)
-	}
-	return flat
+	return s.List()
 }
 
 func SliceStringToSet(s []string) map[string]struct{} {

@@ -198,19 +198,17 @@ func TestCompareSliceSetString(t *testing.T) {
 	}
 }
 
-func TestMapStringStringSliceValueSet(t *testing.T) {
+func TestUniqueMapSliceValues(t *testing.T) {
 	m := map[string][]string{
 		"foo": {"1", "2"},
 		"bar": {"3"},
 		"baz": nil,
 	}
 
-	act := MapStringStringSliceValueSet(m)
+	act := UniqueMapSliceValues(m)
 	exp := []string{"1", "2", "3"}
 	sort.Strings(act)
-	if !reflect.DeepEqual(act, exp) {
-		t.Fatalf("Bad; got %v; want %v", act, exp)
-	}
+	must.Eq(t, exp, act)
 }
 
 func TestSetToSliceString(t *testing.T) {
