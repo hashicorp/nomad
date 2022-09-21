@@ -18,6 +18,10 @@ import (
 	"github.com/posener/complete"
 )
 
+// Stdin represents the system's standard input, but it's declared as a
+// variable here to allow tests to override it with a regular file.
+var Stdin = os.Stdin
+
 type OperatorAPICommand struct {
 	Meta
 
@@ -141,13 +145,13 @@ func (c *OperatorAPICommand) Run(args []string) int {
 
 	// Opportunistically read from stdin and POST unless method has been
 	// explicitly set.
-	stat, _ := os.Stdin.Stat()
+	stat, _ := Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
 		verbose("* Reading request body from stdin.")
 
 		// Load stdin into a *bytes.Reader so that http.NewRequest can set the
 		// correct Content-Length value.
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := ioutil.ReadAll(Stdin)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading stdin: %v", err))
 			return 1
