@@ -7,7 +7,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // MockNamespaces is a mock implementation of NamespaceAPI.
@@ -20,8 +21,8 @@ var _ NamespaceAPI = (*MockNamespaces)(nil)
 // NewMockNamespaces creates a MockNamespaces with the given namespaces, and
 // will automatically add the "default" namespace if not included.
 func NewMockNamespaces(namespaces []string) *MockNamespaces {
-	list := helper.CopySliceString(namespaces)
-	if !helper.SliceStringContains(list, "default") {
+	list := slices.Clone(namespaces)
+	if !slices.Contains(list, "default") {
 		list = append(list, "default")
 	}
 	sort.Strings(list)
@@ -213,7 +214,7 @@ func (c *MockAgent) ServicesWithFilterOpts(_ string, q *api.QueryOptions) (map[s
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
-			Meta:              helper.CopyMapStringString(v.Meta),
+			Meta:              maps.Clone(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,

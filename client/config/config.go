@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -379,7 +379,7 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	*nc = *c
 
 	if len(c.FunctionDenylist) > 0 {
-		nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+		nc.FunctionDenylist = slices.Clone(nc.FunctionDenylist)
 	} else if c.FunctionDenylist != nil {
 		// Explicitly no functions denied (which is different than nil)
 		nc.FunctionDenylist = []string{}
@@ -705,8 +705,8 @@ func (c *Config) Copy() *Config {
 
 	nc := *c
 	nc.Node = nc.Node.Copy()
-	nc.Servers = helper.CopySliceString(nc.Servers)
-	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.Servers = slices.Clone(nc.Servers)
+	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()

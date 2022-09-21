@@ -167,7 +167,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		// is, we flatten the signals and build a constraint, then run the
 		// mutator.
 		if tgSignals, ok := signals[tg.Name]; ok {
-			required := helper.MapStringStringSliceValueSet(tgSignals)
+			required := helper.UniqueMapSliceValues(tgSignals)
 			sigConstraint := getSignalConstraint(required)
 			mutateConstraint(constraintMatcherFull, tg, sigConstraint)
 		}

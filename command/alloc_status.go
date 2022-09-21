@@ -10,10 +10,10 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/posener/complete"
+	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper"
 )
 
 type AllocStatusCommand struct {
@@ -595,7 +595,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 				// Nomad uses RSS as the top-level metric to report, for historical reasons,
 				// but it's not always measured (e.g. with cgroup-v2)
 				usage := ms.RSS
-				if usage == 0 && !helper.SliceStringContains(ms.Measured, "RSS") {
+				if usage == 0 && !slices.Contains(ms.Measured, "RSS") {
 					usage = ms.Usage
 				}
 				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(usage), memUsage)

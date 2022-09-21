@@ -20,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -74,8 +76,8 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
-	nsc.Args = helper.CopySliceString(sc.Args)
-	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
+	nsc.Args = slices.Clone(sc.Args)
+	nsc.Header = helper.CopyMapOfSlice(sc.Header)
 	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
 }
@@ -94,7 +96,7 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(sc.Args, o.Args) {
+	if !helper.SliceSetEq(sc.Args, o.Args) {
 		return false
 	}
 
@@ -297,13 +299,13 @@ func (sc *ServiceCheck) validate() error {
 
 	if sc.SuccessBeforePassing < 0 {
 		return fmt.Errorf("success_before_passing must be non-negative")
-	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.SuccessBeforePassing > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
 	}
 
 	if sc.FailuresBeforeCritical < 0 {
 		return fmt.Errorf("failures_before_critical must be non-negative")
-	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.FailuresBeforeCritical > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
@@ -502,8 +504,8 @@ func (s *Service) Copy() *Service {
 	}
 	ns := new(Service)
 	*ns = *s
-	ns.Tags = helper.CopySliceString(ns.Tags)
-	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
+	ns.Tags = slices.Clone(ns.Tags)
+	ns.CanaryTags = slices.Clone(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -514,9 +516,8 @@ func (s *Service) Copy() *Service {
 	}
 
 	ns.Connect = s.Connect.Copy()
-
-	ns.Meta = helper.CopyMapStringString(s.Meta)
-	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
+	ns.Meta = maps.Clone(s.Meta)
+	ns.CanaryMeta = maps.Clone(s.CanaryMeta)
 
 	return ns
 }
@@ -785,7 +786,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.CanaryTags, o.CanaryTags) {
+	if !helper.SliceSetEq(s.CanaryTags, o.CanaryTags) {
 		return false
 	}
 
@@ -805,15 +806,15 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.Meta, o.Meta) {
+	if !maps.Equal(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+	if !maps.Equal(s.CanaryMeta, o.CanaryMeta) {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -985,7 +986,7 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		return nil
 	}
 	return &ConsulSidecarService{
-		Tags:                   helper.CopySliceString(s.Tags),
+		Tags:                   slices.Clone(s.Tags),
 		Port:                   s.Port,
 		Proxy:                  s.Proxy.Copy(),
 		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
@@ -1006,7 +1007,7 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -1077,7 +1078,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Env, o.Env) {
+	if !maps.Equal(t.Env, o.Env) {
 		return false
 	}
 
@@ -1085,7 +1086,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Meta, o.Meta) {
+	if !maps.Equal(t.Meta, o.Meta) {
 		return false
 	}
 
@@ -1114,11 +1115,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 	nt := new(SidecarTask)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = maps.Clone(nt.Env)
 
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = maps.Clone(nt.Meta)
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
@@ -1246,6 +1247,8 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		LocalServiceAddress: p.LocalServiceAddress,
 		LocalServicePort:    p.LocalServicePort,
 		Expose:              p.Expose.Copy(),
+		Upstreams:           slices.Clone(p.Upstreams),
+		Config:              maps.Clone(p.Config),
 	}
 
 	if n := len(p.Upstreams); n > 0 {
@@ -1662,7 +1665,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMapStringInterface(p.Config),
+		Config:                          maps.Clone(p.Config),
 	}
 }
 
@@ -1773,7 +1776,7 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       c.Enabled,
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
-		CipherSuites:  helper.CopySliceString(c.CipherSuites),
+		CipherSuites:  slices.Clone(c.CipherSuites),
 	}
 }
 
@@ -1785,7 +1788,7 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.CompareSliceSetString(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
@@ -1820,7 +1823,7 @@ func (s *ConsulIngressService) Equals(o *ConsulIngressService) bool {
 		return false
 	}
 
-	return helper.CompareSliceSetString(s.Hosts, o.Hosts)
+	return helper.SliceSetEq(s.Hosts, o.Hosts)
 }
 
 func (s *ConsulIngressService) Validate(protocol string) error {
@@ -1911,7 +1914,7 @@ func (l *ConsulIngressListener) Validate() error {
 	}
 
 	protocols := []string{"tcp", "http", "http2", "grpc"}
-	if !helper.SliceStringContains(protocols, l.Protocol) {
+	if !slices.Contains(protocols, l.Protocol) {
 		return fmt.Errorf(`Consul Ingress Listener requires protocol of %s, got %q`, strings.Join(protocols, ", "), l.Protocol)
 	}
 

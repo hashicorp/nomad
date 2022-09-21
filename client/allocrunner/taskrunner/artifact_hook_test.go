@@ -16,10 +16,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 // Statically assert the artifact hook implements the expected interface
@@ -126,7 +126,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(file2, []byte{'1'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 
 	resp = interfaces.TaskPrestartResponse{}
 
@@ -146,7 +146,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// Stop the test server entirely and assert that re-running works
 	ts.Close()
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 	resp = interfaces.TaskPrestartResponse{}
 	err = artifactHook.Prestart(context.Background(), req, &resp)
 	require.NoError(t, err)
@@ -315,7 +315,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(file0, []byte{'0'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 
 	resp = interfaces.TaskPrestartResponse{}
 
