@@ -4252,7 +4252,7 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
+	nj.Datacenters = slices.Clone(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
 	nj.Multiregion = nj.Multiregion.Copy()
@@ -5080,8 +5080,8 @@ func (n *Namespace) Copy() *Namespace {
 	if n.Capabilities != nil {
 		c := new(NamespaceCapabilities)
 		*c = *n.Capabilities
-		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
-		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
+		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
 	}
 	if n.Meta != nil {
@@ -5359,8 +5359,8 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 	}
 	nd := new(ParameterizedJobConfig)
 	*nd = *d
-	nd.MetaOptional = helper.CopySliceString(nd.MetaOptional)
-	nd.MetaRequired = helper.CopySliceString(nd.MetaRequired)
+	nd.MetaOptional = slices.Clone(nd.MetaOptional)
+	nd.MetaRequired = slices.Clone(nd.MetaRequired)
 	return nd
 }
 
@@ -9441,7 +9441,7 @@ func (d *DeploymentState) GoString() string {
 func (d *DeploymentState) Copy() *DeploymentState {
 	c := &DeploymentState{}
 	*c = *d
-	c.PlacedCanaries = helper.CopySliceString(d.PlacedCanaries)
+	c.PlacedCanaries = slices.Clone(d.PlacedCanaries)
 	return c
 }
 
@@ -9855,7 +9855,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
-	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
+	na.PreemptedAllocations = slices.Clone(a.PreemptedAllocations)
 	return na
 }
 

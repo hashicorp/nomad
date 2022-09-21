@@ -379,7 +379,7 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	*nc = *c
 
 	if len(c.FunctionDenylist) > 0 {
-		nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+		nc.FunctionDenylist = slices.Clone(nc.FunctionDenylist)
 	} else if c.FunctionDenylist != nil {
 		// Explicitly no functions denied (which is different than nil)
 		nc.FunctionDenylist = []string{}
@@ -705,7 +705,7 @@ func (c *Config) Copy() *Config {
 
 	nc := *c
 	nc.Node = nc.Node.Copy()
-	nc.Servers = helper.CopySliceString(nc.Servers)
+	nc.Servers = slices.Clone(nc.Servers)
 	nc.Options = helper.CopyMap(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()

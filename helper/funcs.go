@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -212,22 +213,8 @@ func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 
 	c := make(map[string][]string, l)
 	for k, v := range m {
-		c[k] = CopySliceString(v)
+		c[k] = slices.Clone(v)
 	}
-	return c
-}
-
-// CopySliceString creates a copy of s.
-//
-// Deprecated; use slices.Clone instead.
-func CopySliceString(s []string) []string {
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]string, l)
-	copy(c, s)
 	return c
 }
 

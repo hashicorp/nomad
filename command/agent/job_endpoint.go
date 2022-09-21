@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string
@@ -1524,7 +1525,7 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		Enabled:       in.Enabled,
 		TLSMinVersion: in.TLSMinVersion,
 		TLSMaxVersion: in.TLSMaxVersion,
-		CipherSuites:  helper.CopySliceString(in.CipherSuites),
+		CipherSuites:  slices.Clone(in.CipherSuites),
 	}
 }
 
@@ -1571,7 +1572,7 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 
 	return &structs.ConsulIngressService{
 		Name:  in.Name,
-		Hosts: helper.CopySliceString(in.Hosts),
+		Hosts: slices.Clone(in.Hosts),
 	}
 }
 
@@ -1624,7 +1625,7 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 	}
 	return &structs.ConsulSidecarService{
 		Port:                   in.Port,
-		Tags:                   helper.CopySliceString(in.Tags),
+		Tags:                   slices.Clone(in.Tags),
 		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
 		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
 	}

@@ -91,7 +91,7 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
-	nsc.Args = helper.CopySliceString(sc.Args)
+	nsc.Args = slices.Clone(sc.Args)
 	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
 	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
@@ -602,8 +602,8 @@ func (s *Service) Copy() *Service {
 	}
 	ns := new(Service)
 	*ns = *s
-	ns.Tags = helper.CopySliceString(ns.Tags)
-	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
+	ns.Tags = slices.Clone(ns.Tags)
+	ns.CanaryTags = slices.Clone(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -1113,7 +1113,7 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		return nil
 	}
 	return &ConsulSidecarService{
-		Tags:                   helper.CopySliceString(s.Tags),
+		Tags:                   slices.Clone(s.Tags),
 		Port:                   s.Port,
 		Proxy:                  s.Proxy.Copy(),
 		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
@@ -1819,7 +1819,7 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       c.Enabled,
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
-		CipherSuites:  helper.CopySliceString(c.CipherSuites),
+		CipherSuites:  slices.Clone(c.CipherSuites),
 	}
 }
 

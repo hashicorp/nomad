@@ -21,7 +21,7 @@ var _ NamespaceAPI = (*MockNamespaces)(nil)
 // NewMockNamespaces creates a MockNamespaces with the given namespaces, and
 // will automatically add the "default" namespace if not included.
 func NewMockNamespaces(namespaces []string) *MockNamespaces {
-	list := helper.CopySliceString(namespaces)
+	list := slices.Clone(namespaces)
 	if !slices.Contains(list, "default") {
 		list = append(list, "default")
 	}
