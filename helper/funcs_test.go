@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/go-set"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -89,6 +90,24 @@ func TestIsSubset(t *testing.T) {
 	sub, offending = IsSubset(l, s)
 	must.False(t, sub)
 	must.Eq(t, []string{"d"}, offending)
+}
+
+func TestIsDisjoint(t *testing.T) {
+	t.Run("yes", func(t *testing.T) {
+		a := []string{"a", "b", "c"}
+		b := []string{"d", "f"}
+		dis, offending := IsDisjoint(a, b)
+		must.True(t, dis)
+		must.EmptySlice(t, offending)
+	})
+
+	t.Run("no", func(t *testing.T) {
+		a := []string{"a", "b", "c", "d", "e"}
+		b := []string{"b", "c", "f", "g"}
+		dis, offending := IsDisjoint(a, b)
+		must.False(t, dis)
+		must.True(t, set.From(offending).EqualSlice(offending))
+	})
 }
 
 func TestStringHasPrefixInSlice(t *testing.T) {

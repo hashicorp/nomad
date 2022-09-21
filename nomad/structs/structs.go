@@ -5339,7 +5339,7 @@ func (d *ParameterizedJobConfig) Validate() error {
 	}
 
 	// Check that the meta configurations are disjoint sets
-	disjoint, offending := helper.SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	disjoint, offending := helper.IsDisjoint(d.MetaRequired, d.MetaOptional)
 	if !disjoint {
 		_ = multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
 	}

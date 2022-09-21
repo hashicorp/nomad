@@ -123,28 +123,15 @@ func StringHasPrefixInSlice(s string, prefixes []string) bool {
 	return false
 }
 
-func SliceSetDisjoint(first, second []string) (bool, []string) {
-	contained := make(map[string]struct{}, len(first))
-	for _, k := range first {
-		contained[k] = struct{}{}
+// IsDisjoint returns whether first and second are disjoint sets, and the set of
+// offending elements if not.
+func IsDisjoint[T comparable](first, second []T) (bool, []T) {
+	f, s := set.From(first), set.From(second)
+	intersection := f.Intersect(s)
+	if intersection.Size() > 0 {
+		return false, intersection.List()
 	}
-
-	offending := make(map[string]struct{})
-	for _, k := range second {
-		if _, ok := contained[k]; ok {
-			offending[k] = struct{}{}
-		}
-	}
-
-	if len(offending) == 0 {
-		return true, nil
-	}
-
-	flattened := make([]string, 0, len(offending))
-	for k := range offending {
-		flattened = append(flattened, k)
-	}
-	return false, flattened
+	return true, nil
 }
 
 // CompareSliceSetString returns true if the slices contain the same strings.
