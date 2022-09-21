@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
+	"golang.org/x/exp/slices"
 )
 
 // jobVaultHook is an job registration admission controller for Vault blocks.
@@ -79,7 +80,7 @@ func (jobVaultHook) validatePolicies(
 	}
 
 	// If we are given a root token it can access all policies
-	if helper.SliceStringContains(allowedPolicies, "root") {
+	if slices.Contains(allowedPolicies, "root") {
 		return nil
 	}
 

@@ -409,13 +409,13 @@ func (sc *ServiceCheck) validateConsul() error {
 
 	if sc.SuccessBeforePassing < 0 {
 		return fmt.Errorf("success_before_passing must be non-negative")
-	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.SuccessBeforePassing > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
 	}
 
 	if sc.FailuresBeforeCritical < 0 {
 		return fmt.Errorf("failures_before_critical must be non-negative")
-	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.FailuresBeforeCritical > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
@@ -1956,7 +1956,7 @@ func (l *ConsulIngressListener) Validate() error {
 	}
 
 	protocols := []string{"tcp", "http", "http2", "grpc"}
-	if !helper.SliceStringContains(protocols, l.Protocol) {
+	if !slices.Contains(protocols, l.Protocol) {
 		return fmt.Errorf(`Consul Ingress Listener requires protocol of %s, got %q`, strings.Join(protocols, ", "), l.Protocol)
 	}
 

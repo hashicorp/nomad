@@ -91,14 +91,6 @@ func TestIsSubset(t *testing.T) {
 	must.Eq(t, []string{"d"}, offending)
 }
 
-func TestSliceStringContains(t *testing.T) {
-	list := []string{"a", "b", "c"}
-	require.True(t, SliceStringContains(list, "a"))
-	require.True(t, SliceStringContains(list, "b"))
-	require.True(t, SliceStringContains(list, "c"))
-	require.False(t, SliceStringContains(list, "d"))
-}
-
 func TestSliceStringHasPrefix(t *testing.T) {
 	list := []string{"alpha", "bravo", "charlie", "definitely", "most definitely"}
 	// At least one string in the slice above starts with the following test prefix strings

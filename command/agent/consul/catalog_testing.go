@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/slices"
 )
 
 // MockNamespaces is a mock implementation of NamespaceAPI.
@@ -21,7 +22,7 @@ var _ NamespaceAPI = (*MockNamespaces)(nil)
 // will automatically add the "default" namespace if not included.
 func NewMockNamespaces(namespaces []string) *MockNamespaces {
 	list := helper.CopySliceString(namespaces)
-	if !helper.SliceStringContains(list, "default") {
+	if !slices.Contains(list, "default") {
 		list = append(list, "default")
 	}
 	sort.Strings(list)

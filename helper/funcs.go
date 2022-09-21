@@ -113,18 +113,6 @@ func IsSubset[T comparable](larger, smaller []T) (bool, []T) {
 	return false, s.Difference(l).List()
 }
 
-// SliceStringContains returns whether item exists at least once in list.
-//
-// Deprecated; use slices.Contains instead.
-func SliceStringContains(list []string, item string) bool {
-	for _, s := range list {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
 // SliceStringHasPrefix returns true if any string in list starts with prefix
 func SliceStringHasPrefix(list []string, prefix string) bool {
 	for _, s := range list {
