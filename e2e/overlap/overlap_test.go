@@ -64,7 +64,7 @@ func TestOverlap(t *testing.T) {
 		if n := len(a); n == 0 {
 			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID1)
 		}
-		must.Eq(t, 1, len(a))
+		must.Len(t, 1, a)
 
 		origAlloc = a[0]
 		return origAlloc.ClientStatus == "running", fmt.Errorf("timed out before alloc %s for %s was running: %s",
