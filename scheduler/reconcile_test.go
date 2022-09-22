@@ -6101,3 +6101,56 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 		})
 	}
 }
+
+// TestReconciler_MRDDeployments makes sure MRD jobs with no current
+// deployments but with past deployments don't get deploymentPaused.
+func TestReconciler_MRDDeployments(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create an MRD job
+	job := mock.MultiregionJob()
+
+	var allocs []*structs.Allocation
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = uuid.Generate()
+	alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(0))
+	allocs = append(allocs, alloc)
+
+	type testCase struct {
+		allocReconciler *allocReconciler
+		wantPaused      bool
+	}
+
+	ar1 := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "", 50, true)
+	ar2 := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "", 50, true)
+
+	// oldDeployment isn't nil on ar1
+	ar1.oldDeployment = &structs.Deployment{
+		ID:                 uuid.Generate(),
+		Namespace:          "test",
+		JobID:              job.ID,
+		JobVersion:         job.Version,
+		JobModifyIndex:     job.ModifyIndex,
+		JobSpecModifyIndex: job.ModifyIndex,
+		JobCreateIndex:     job.CreateIndex,
+		IsMultiregion:      true,
+		TaskGroups:         nil,
+		Status:             structs.DeploymentStatusCancelled,
+		StatusDescription:  "",
+		EvalPriority:       50,
+		CreateIndex:        0,
+		ModifyIndex:        0,
+	}
+
+	testCases := []testCase{
+		{ar1, false},
+		{ar2, true},
+	}
+
+	for _, tt := range testCases {
+		tt.allocReconciler.Compute()
+		require.Equal(t, tt.allocReconciler.deploymentPaused, tt.wantPaused)
+	}
+}
