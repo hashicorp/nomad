@@ -265,6 +265,16 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	}
 }
 
+// computeDeploymentPaused is responsible for setting flags on the
+// allocReconciler that indicate the state of the deployment if one
+// is required. The flags that are managed are:
+//  1. deploymentFailed: Did the current deployment fail just as named.
+//  2. deploymentPaused: Multiregion job types that use deployments run
+//     the deployments later during the fan-out stage. When the deployment
+//     is created it will be in a pending state. If an invariant violation
+//     is detected by the deploymentWatcher during it will enter a paused
+//     state. This flag tells Compute we're paused or pending, so we should
+//     not make placements on the deployment.
 func (a *allocReconciler) computeDeploymentPaused() {
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
@@ -272,10 +282,10 @@ func (a *allocReconciler) computeDeploymentPaused() {
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 	if a.deployment == nil {
-		// When we create the deployment later, it will be in a pending
-		// state. But we also need to tell Compute we're paused, otherwise we
-		// make placements on the paused deployment.
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() || a.job.IsParameterized()) {
+		if a.job.IsMultiregion() &&
+			a.job.UsesDeployments() &&
+			!(a.job.IsPeriodic() || a.job.IsParameterized()) {
+
 			a.deploymentPaused = true
 		}
 	}
