@@ -1,16 +1,39 @@
 table tbody .task-sub-row {
   td {
     border-top: 2px solid white;
-  }
-  td:nth-child(1) {
-    padding-left: 4rem;
-    a {
-      margin-right: 1rem;
-    }
 
-    svg.flight-icon {
-      position: relative;
-      top: 3px;
+    .name-grid {
+      display: inline-grid;
+      grid-template-columns: auto 1fr;
+      margin-left: 4rem;
+      gap: 1rem;
+
+      .task-name {
+        display: block;
+        width: 150px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        &:before {
+          color: black;
+          content: '/';
+          display: inline-block;
+          margin-right: 0.5rem;
+          text-decoration: none;
+        }
+      }
+
+      .logs-sidebar-trigger {
+        color: $blue;
+        text-decoration: underline;
+        font-weight: normal;
+        svg {
+          color: black;
+          margin-right: 5px;
+          position: relative;
+          top: 3px;
+        }
+      }
     }
   }
 }

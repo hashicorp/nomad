@@ -3,7 +3,6 @@
     Recent Allocations
     <span class="pull-right is-padded">
       <Toggle
-        class="button is-borderless is-inline"
         @isActive={{this.showSubTasks}}
         @onToggle={{this.toggleShowSubTasks}}
         title="Show tasks of allocations"
@@ -69,7 +68,7 @@
 
           {{#if this.showSubTasks}}
             {{#each row.model.states as |task|}}
-              <TaskSubRow @namespan="9" @taskState={{task}} />
+              <TaskSubRow @namespan="9" @taskState={{task}} @active={{eq @activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{@setActiveTaskQueryParam}} />
             {{/each}}
           {{/if}}
         </t.body>

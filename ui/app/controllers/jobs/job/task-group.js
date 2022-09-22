@@ -43,6 +43,7 @@ export default class TaskGroupController extends Controller.extend(
     {
       qpClient: 'client',
     },
+    'activeTask',
   ];
 
   currentPage = 1;
@@ -52,6 +53,7 @@ export default class TaskGroupController extends Controller.extend(
   qpClient = '';
   sortProperty = 'modifyIndex';
   sortDescending = true;
+  activeTask = null;
 
   @computed
   get searchProps() {
@@ -185,5 +187,14 @@ export default class TaskGroupController extends Controller.extend(
       label: name,
       args: ['jobs.job.task-group', job, name],
     };
+  }
+
+  @action
+  setActiveTaskQueryParam(task) {
+    if (task) {
+      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+    } else {
+      this.set('activeTask', null);
+    }
   }
 }

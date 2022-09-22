@@ -56,3 +56,78 @@ $subNavOffset: 49px;
   padding: 10px;
   width: 100px;
 }
+
+.task-context-sidebar {
+  animation-name: slideFromRight;
+  animation-duration: 150ms;
+  animation-fill-mode: both;
+
+  header {
+    display: grid;
+    justify-content: left;
+    grid-template-columns: 1fr auto auto;
+    gap: 2rem;
+    border-bottom: 1px solid $grey-blue;
+    padding-bottom: 1rem;
+    margin-bottom: 24px;
+    height: 50px;
+
+    .title {
+      margin-bottom: unset;
+    }
+
+    .link {
+      align-self: center;
+    }
+
+    .state {
+      font-size: 1rem;
+      font-weight: normal;
+      margin-left: 1rem;
+      text-transform: capitalize;
+
+      &:before {
+        content: '';
+        display: inline-block;
+        height: 1rem;
+        width: 1rem;
+        margin-right: 5px;
+        border-radius: 4px;
+        position: relative;
+        top: 2px;
+      }
+
+      &.running:before {
+        background-color: $green;
+      }
+      &.dead:before {
+        background-color: $red;
+      }
+      &.pending:before {
+        background-color: $grey-lighter;
+      }
+    }
+  }
+
+  // Instead of trying to calculate on the fly with JS, let's use vh and offset nav and headers above.
+  // We can make this a LOT more streamlined when CSS Container Queries are available.
+  $sidebarTopOffset: 161px;
+  $sidebarInnerPadding: 48px;
+  $sidebarHeaderOffset: 74px;
+  $cliHeaderOffset: 54.5px;
+  .cli-window {
+    height: calc(
+      100vh - $sidebarTopOffset - $sidebarInnerPadding - $sidebarHeaderOffset -
+        $cliHeaderOffset
+    );
+  }
+}
+
+@keyframes slideFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
