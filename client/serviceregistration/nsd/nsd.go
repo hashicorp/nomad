@@ -110,8 +110,8 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 	for _, service := range workload.Services {
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
-				checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
-				s.checkWatcher.Watch(workload.AllocID, workload.Name(), checkID, check, workload.Restarter)
+				checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
+				s.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
 			}
 		}
 	}
@@ -147,7 +147,7 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 	// Stop check watcher
 	for _, service := range workload.Services {
 		for _, check := range service.Checks {
-			checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
+			checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
 			s.checkWatcher.Unwatch(checkID)
 		}
 	}
