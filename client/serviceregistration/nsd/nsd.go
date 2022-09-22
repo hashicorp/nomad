@@ -110,8 +110,8 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 	for _, service := range workload.Services {
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
-				checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
-				s.checkWatcher.Watch(workload.AllocID, workload.Name(), checkID, check, workload.Restarter)
+				checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
+				s.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
 			}
 		}
 	}
@@ -147,19 +147,19 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 	// Stop check watcher
 	for _, service := range workload.Services {
 		for _, check := range service.Checks {
-			checkID := string(structs.NomadCheckID(workload.AllocID, workload.Group, check))
+			checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
 			s.checkWatcher.Unwatch(checkID)
 		}
 	}
 
 	// Generate the consistent ID for this service, so we know what to remove.
-	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), serviceSpec)
+	id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), serviceSpec)
 
 	deleteArgs := structs.ServiceRegistrationDeleteByIDRequest{
 		ID: id,
 		WriteRequest: structs.WriteRequest{
 			Region:    s.cfg.Region,
-			Namespace: workload.Namespace,
+			Namespace: workload.ProviderNamespace,
 			AuthToken: s.cfg.NodeSecret,
 		},
 	}
@@ -178,14 +178,14 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 	// while ensuring the operator can see.
 	if strings.Contains(err.Error(), "service registration not found") {
 		s.log.Info("attempted to delete non-existent service registration",
-			"service_id", id, "namespace", workload.Namespace)
+			"service_id", id, "namespace", workload.ProviderNamespace)
 		return
 	}
 
 	// Log the error as there is nothing left to do, so the operator can see it
 	// and identify any problems.
 	s.log.Error("failed to delete service registration",
-		"error", err, "service_id", id, "namespace", workload.Namespace)
+		"error", err, "service_id", id, "namespace", workload.ProviderNamespace)
 }
 
 func (s *ServiceRegistrationHandler) UpdateWorkload(old, new *serviceregistration.WorkloadServices) error {
@@ -231,7 +231,7 @@ func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
 	newIDs := make(map[string]*structs.Service, len(newWork.Services))
 
 	for _, s := range newWork.Services {
-		newIDs[serviceregistration.MakeAllocServiceID(newWork.AllocID, newWork.Name(), s)] = s
+		newIDs[serviceregistration.MakeAllocServiceID(newWork.AllocInfo.AllocID, newWork.Name(), s)] = s
 	}
 
 	// Iterate through the old services in order to identify whether they can
@@ -240,7 +240,7 @@ func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
 
 		// Generate the service ID of the old service. If this is not found
 		// within the new mapping then we need to remove it.
-		oldID := serviceregistration.MakeAllocServiceID(oldWork.AllocID, oldWork.Name(), oldService)
+		oldID := serviceregistration.MakeAllocServiceID(oldWork.AllocInfo.AllocID, oldWork.Name(), oldService)
 		newSvc, ok := newIDs[oldID]
 		if !ok {
 			oldCopy.Services = append(oldCopy.Services, oldService)
@@ -319,12 +319,12 @@ func (s *ServiceRegistrationHandler) generateNomadServiceRegistration(
 	}
 
 	return &structs.ServiceRegistration{
-		ID:          serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), serviceSpec),
+		ID:          serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), serviceSpec),
 		ServiceName: serviceSpec.Name,
 		NodeID:      s.cfg.NodeID,
-		JobID:       workload.JobID,
-		AllocID:     workload.AllocID,
-		Namespace:   workload.Namespace,
+		JobID:       workload.AllocInfo.JobID,
+		AllocID:     workload.AllocInfo.AllocID,
+		Namespace:   workload.ProviderNamespace,
 		Datacenter:  s.cfg.Datacenter,
 		Tags:        tags,
 		Address:     ip,

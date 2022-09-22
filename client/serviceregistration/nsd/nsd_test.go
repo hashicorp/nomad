@@ -178,12 +178,14 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
@@ -232,12 +234,14 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -329,12 +333,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
@@ -362,12 +368,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 			},
 			expectedOldOutput: mockWorkload(),
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
@@ -398,12 +406,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -432,13 +442,15 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 				},
 			},
 			expectedOldOutput: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
-				Services:  []*structs.Service{},
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
+				Services:          []*structs.Service{},
 				Ports: []structs.AllocatedPortMapping{
 					{
 						Label:  "db",
@@ -453,12 +465,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 				},
 			},
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -491,12 +505,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -524,12 +540,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 			},
 			expectedOldOutput: mockWorkload(),
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-				Task:      "redis",
-				Group:     "cache",
-				JobID:     "example",
-				Canary:    false,
-				Namespace: "default",
+				AllocInfo: structs.AllocInfo{
+					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+					Task:    "redis",
+					Group:   "cache",
+					JobID:   "example",
+				},
+				Canary:            false,
+				ProviderNamespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -572,12 +590,14 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 
 func mockWorkload() *serviceregistration.WorkloadServices {
 	return &serviceregistration.WorkloadServices{
-		AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
-		Task:      "redis",
-		Group:     "cache",
-		JobID:     "example",
-		Canary:    false,
-		Namespace: "default",
+		AllocInfo: structs.AllocInfo{
+			AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
+			Task:    "redis",
+			Group:   "cache",
+			JobID:   "example",
+		},
+		Canary:            false,
+		ProviderNamespace: "default",
 		Services: []*structs.Service{
 			{
 				Name:        "redis-db",
