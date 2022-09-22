@@ -738,7 +738,7 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 		return fmt.Errorf("file path escapes capture directory")
 	}
 
-	return os.MkdirAll(joinedPath, 0755)
+	return escapingfs.EnsurePath(joinedPath, true)
 }
 
 // startMonitors starts go routines for each node and client
@@ -1273,27 +1273,27 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	filePath := filepath.Join(dirPath, filename)
 
 	// Ensure parent directories exist
-	err := os.MkdirAll(dirPath, os.ModePerm)
+	err := escapingfs.EnsurePath(dirPath, true)
 	if err != nil {
-		return fmt.Errorf("failed to create parent directories of \"%s\": %w", dirPath, err)
+		return fmt.Errorf("failed to create parent directories of %q: %w", dirPath, err)
 	}
 
 	// Ensure filename doesn't escape the sandbox of the capture directory
 	escapes := escapingfs.PathEscapesSandbox(c.collectDir, filePath)
 	if escapes {
-		return fmt.Errorf("file path \"%s\" escapes capture directory \"%s\"", filePath, c.collectDir)
+		return fmt.Errorf("file path %q escapes capture directory %q", filePath, c.collectDir)
 	}
 
 	// Create the file
 	fh, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to create file \"%s\", err: %w", filePath, err)
+		return fmt.Errorf("failed to create file %q, err: %w", filePath, err)
 	}
 	defer fh.Close()
 
 	_, err = fh.Write(data)
 	if err != nil {
-		return fmt.Errorf("Failed to write data to file \"%s\", err: %w", filePath, err)
+		return fmt.Errorf("Failed to write data to file %q, err: %w", filePath, err)
 	}
 	return nil
 }
@@ -1312,7 +1312,7 @@ func (c *OperatorDebugCommand) newFilePath(dir, file string) (string, error) {
 	filePath := filepath.Join(dirPath, filename)
 
 	// Ensure parent directories exist
-	err := os.MkdirAll(dirPath, os.ModePerm)
+	err := escapingfs.EnsurePath(dirPath, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to create parent directories of %q: %w", dirPath, err)
 	}
