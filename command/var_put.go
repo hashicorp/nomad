@@ -315,7 +315,8 @@ func (c *VarPutCommand) Run(args []string) int {
 		return 1
 	}
 
-	verbose(fmt.Sprintf("Created variable %q with modify index %v", sv.Path, sv.ModifyIndex))
+	successMsg := fmt.Sprintf(
+		"Created variable %q with modify index %v", sv.Path, sv.ModifyIndex)
 
 	var out string
 	switch c.outFmt {
@@ -330,11 +331,14 @@ func (c *VarPutCommand) Run(args []string) int {
 		}
 	case "table":
 		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
+		verbose(successMsg)
 		renderSVAsUiTable(sv, c)
 		return 0
 	default:
+		c.Ui.Output(successMsg)
 		return 0
 	}
+	verbose(successMsg)
 	c.Ui.Output(out)
 	return 0
 }
