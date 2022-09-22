@@ -95,7 +95,7 @@ export default class VariableFormComponent extends Component {
     if (!this.args.model?.isNew) {
       keyValues.pushObject(copy(EMPTY_KV));
     }
-    this.keyValues = keyValues;
+    set(this, 'keyValues', keyValues);
 
     this.JSONItems = stringifyObject([
       this.keyValues.reduce((acc, { key, value }) => {
@@ -332,7 +332,11 @@ export default class VariableFormComponent extends Component {
 
   //#region Unsaved Changes Confirmation
 
-  @computed('keyValues.@each.{key,value}', 'path')
+  @computed(
+    'args.model.{keyValues,path}',
+    'keyValues.@each.{key,value}',
+    'path'
+  )
   get hasUserModifiedAttributes() {
     const compactedBasicKVs = this.keyValues
       .map((kv) => ({ key: kv.key, value: kv.value }))
@@ -369,6 +373,7 @@ export default class VariableFormComponent extends Component {
   }
 
   willDestroy() {
+    super.willDestroy(...arguments);
     this.removeExitHandler();
   }
 
