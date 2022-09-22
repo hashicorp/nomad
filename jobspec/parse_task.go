@@ -370,6 +370,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 		valid := []string{
 			"source",
 			"options",
+			"headers",
 			"mode",
 			"destination",
 		}
