@@ -1,7 +1,7 @@
 // @ts-check
 
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
@@ -12,6 +12,7 @@ import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
 import notifyConflict from 'nomad-ui/utils/notify-conflict';
+import isEqual from 'lodash.isequal';
 
 const EMPTY_KV = {
   key: '',
@@ -43,6 +44,7 @@ export default class VariableFormComponent extends Component {
   constructor() {
     super(...arguments);
     set(this, 'path', this.args.model.path);
+    this.addExitHandler();
   }
 
   @action
@@ -182,7 +184,7 @@ export default class VariableFormComponent extends Component {
       if (!nonEmptyItems.length) {
         throw new Error('Please provide at least one key/value pair.');
       } else {
-        this.keyValues = nonEmptyItems;
+        set(this, 'keyValues', nonEmptyItems);
       }
 
       if (this.args.model?.isNew) {
@@ -206,6 +208,7 @@ export default class VariableFormComponent extends Component {
         destroyOnClick: false,
         timeout: 5000,
       });
+      this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       notifyConflict(this)(error);
@@ -326,4 +329,48 @@ export default class VariableFormComponent extends Component {
       this.args.model.pathLinkedEntities?.task
     );
   }
+
+  //#region Unsaved Changes Confirmation
+
+  @computed('keyValues.@each.{key,value}', 'path')
+  get hasUserModifiedAttributes() {
+    const compactedBasicKVs = this.keyValues
+      .map((kv) => ({ key: kv.key, value: kv.value }))
+      .filter((kv) => kv.key || kv.value);
+    const compactedPassedKVs = this.args.model.keyValues.filter(
+      (kv) => kv.key || kv.value
+    );
+    const unequal =
+      !isEqual(compactedBasicKVs, compactedPassedKVs) ||
+      !isEqual(this.path, this.args.model.path);
+    return unequal;
+  }
+
+  addExitHandler() {
+    this.router.on('routeWillChange', this, this.confirmExit);
+  }
+
+  removeExitHandler() {
+    this.router.off('routeWillChange', this, this.confirmExit);
+  }
+
+  confirmExit(transition) {
+    if (transition.isAborted) return;
+
+    if (this.hasUserModifiedAttributes) {
+      if (
+        !confirm(
+          'Your variable has unsaved changes. Are you sure you want to leave?'
+        )
+      ) {
+        transition.abort();
+      }
+    }
+  }
+
+  willDestroy() {
+    this.removeExitHandler();
+  }
+
+  //#endregion Unsaved Changes Confirmation
 }
