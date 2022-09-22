@@ -3,6 +3,7 @@ package consul
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -277,6 +278,7 @@ func injectNomadInfo(cfg map[string]interface{}, defaultTags map[string]string) 
 		tag := key + value
 		tags = append(tags, tag)
 	}
+	sort.Strings(tags) // mostly for test stability
 	cfg[configKey] = tags
 }
 
