@@ -135,15 +135,33 @@ server {
   a tradeoff as it lowers failure detection time of nodes at the tradeoff of
   false positives and increased load on the leader.
 
-- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the TTL applied to
-	heartbeats after a new leader is elected, since we no longer know the status
-	of all the heartbeats. This is specified using a label suffix like "30s" or
-	"1h".
+- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the initial TTL applied to
+  Client heartbeats after a new leader is elected. This TTL must be high enough
+  such that a Client previously connected to a now-unresponsive server will be
+  able to find a new healthy server through which to send heartbeats to the new
+  leader. The strict minimum value depends on the number of nodes in the cluster,
+  the value of `max_heartbeats_per_second`, `min_heartbeat_ttl`, and `heartbeat_grace`.
+  As the number of nodes in the cluster increases, the longer the TTL each client
+  is assigned. This value is uniformly randomized between the values computed by
+  these two formula:
 
-  ~> Lowering the `failover_heartbeat_ttl` is a tradeoff as it lowers failure
+```
+<min ttl> = max(((<num nodes> / <max_heartbeats_per_second>) + <heartbeat_grace>), <min_heartbeat_ttl>)
+<max ttl> = max(((2 * (<num nodes> / <max_heartbeats_per_second>)) + <heartbeat_grace>), <min_heartbeat_ttl>)
+```
+
+  The default value of `"5m"` is fine for small and medium sized clusters of fewer
+  than approximately 5k nodes - the value of `failover_heartbeat_ttl` must be
+  higher than `<max ttl>`, ideally with some extra padding for clusters growing
+  over time. If `<max ttl>` exceeds the failover heartbeat ttl, the cluster may
+  experience Clients being marked down unexpectedly after leader transitions - in
+  particular by Clients that were connected to a leader that has suddenly gone
+  offline.
+
+  Lowering the `failover_heartbeat_ttl` is a tradeoff as it lowers failure
   detection time of nodes at the tradeoff of false positives. False positives
-  could cause all clients to stop their allocations if a leadership transition
-  lasts longer than `heartbeat_grace + failover_heartbeat_ttl`.
+  will cause clients to be marked as node status down, and their allocations will
+  be marked as lost.
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
