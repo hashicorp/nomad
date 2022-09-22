@@ -332,6 +332,8 @@ export default class VariableFormComponent extends Component {
 
   //#region Unsaved Changes Confirmation
 
+  hasRemovedExitHandler = false;
+
   @computed(
     'args.model.{keyValues,path}',
     'keyValues.@each.{key,value}',
@@ -355,7 +357,10 @@ export default class VariableFormComponent extends Component {
   }
 
   removeExitHandler() {
-    this.router.off('routeWillChange', this, this.confirmExit);
+    if (!this.hasRemovedExitHandler) {
+      this.router.off('routeWillChange', this, this.confirmExit);
+      this.hasRemovedExitHandler = true;
+    }
   }
 
   confirmExit(transition) {
