@@ -5741,6 +5741,17 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 	return ret
 }
 
+// UsesDeployments returns a boolean indicating whether the job configuration
+// results in a deployment during scheduling.
+func (j *Job) UsesDeployments() bool {
+	switch j.Type {
+	case JobTypeService:
+		return true
+	default:
+		return false
+	}
+}
+
 // ScalingPolicyListStub is used to return a subset of scaling policy information
 // for the scaling policy list
 type ScalingPolicyListStub struct {
