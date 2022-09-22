@@ -49,6 +49,15 @@ behavior to reserve for a major Nomad release and *not* be backported. Please
 report any negative side effects encountered as [new
 issues.][gh_issue]
 
+#### `nomad eval status -json` Without Evaluation ID Removed
+
+Using `nomad eval status -json` without providing an evaluation ID was
+deprecated in Nomad 1.2.4 with the intent to remove in Nomad 1.4.0. This option
+has been removed. You can use `nomad eval list` to get a list of evaluations and
+can use `nomad eval list -json` to get that list in JSON format. The `nomad eval
+status <eval ID>` command will format a specific evaluation in JSON format if
+the `-json` flag is provided.
+
 ## Nomad 1.3.3
 
 Environments that don't support the use of [`uid`][template_uid] and
