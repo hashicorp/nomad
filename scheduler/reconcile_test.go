@@ -6007,6 +6007,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 		isMultiregion   bool
 		isPeriodic      bool
 		isParameterized bool
+		oldDeployment   bool
 		expected        bool
 	}
 
@@ -6023,6 +6024,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isMultiregion:   false,
 			isPeriodic:      false,
 			isParameterized: false,
+			oldDeployment:   false,
 			expected:        false,
 		},
 		{
@@ -6031,6 +6033,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isMultiregion:   true,
 			isPeriodic:      false,
 			isParameterized: false,
+			oldDeployment:   false,
 			expected:        true,
 		},
 		{
@@ -6039,6 +6042,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isMultiregion:   true,
 			isPeriodic:      true,
 			isParameterized: false,
+			oldDeployment:   false,
 			expected:        false,
 		},
 		{
@@ -6047,6 +6051,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isMultiregion:   true,
 			isPeriodic:      false,
 			isParameterized: true,
+			oldDeployment:   false,
 			expected:        false,
 		},
 		{
@@ -6055,15 +6060,35 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isMultiregion:   false,
 			isPeriodic:      false,
 			isParameterized: false,
+			oldDeployment:   false,
 			expected:        false,
 		},
 		{
 			name:            "multiregion batch job is not paused",
 			jobType:         structs.JobTypeBatch,
-			isMultiregion:   false,
+			isMultiregion:   true,
 			isPeriodic:      false,
 			isParameterized: false,
+			oldDeployment:   false,
 			expected:        false,
+		},
+		{
+			name:            "multiregion service job with previous deployment is not paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: false,
+			oldDeployment:   true,
+			expected:        false,
+		},
+		{
+			name:            "multiregion service job without previous deployment is paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: false,
+			oldDeployment:   false,
+			expected:        true,
 		},
 	}
 
@@ -6095,62 +6120,28 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
 				nil, nil, nil, "", job.Priority, true)
 
+			if tc.oldDeployment {
+				reconciler.oldDeployment = &structs.Deployment{
+					ID:                 uuid.Generate(),
+					Namespace:          "test",
+					JobID:              job.ID,
+					JobVersion:         job.Version,
+					JobModifyIndex:     job.ModifyIndex,
+					JobSpecModifyIndex: job.ModifyIndex,
+					JobCreateIndex:     job.CreateIndex,
+					IsMultiregion:      true,
+					TaskGroups:         nil,
+					Status:             structs.DeploymentStatusCancelled,
+					StatusDescription:  "",
+					EvalPriority:       50,
+					CreateIndex:        0,
+					ModifyIndex:        0,
+				}
+			}
+
 			_ = reconciler.Compute()
 
 			require.Equal(t, tc.expected, reconciler.deploymentPaused)
 		})
-	}
-}
-
-// TestReconciler_MRDDeployments makes sure MRD jobs with no current
-// deployments but with past deployments don't get deploymentPaused.
-func TestReconciler_MRDDeployments(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create an MRD job
-	job := mock.MultiregionJob()
-
-	var allocs []*structs.Allocation
-	alloc := mock.Alloc()
-	alloc.Job = job
-	alloc.JobID = job.ID
-	alloc.NodeID = uuid.Generate()
-	alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(0))
-	allocs = append(allocs, alloc)
-
-	type testCase struct {
-		allocReconciler *allocReconciler
-		wantPaused      bool
-	}
-
-	ar1 := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "", 50, true)
-	ar2 := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "", 50, true)
-
-	// oldDeployment isn't nil on ar1
-	ar1.oldDeployment = &structs.Deployment{
-		ID:                 uuid.Generate(),
-		Namespace:          "test",
-		JobID:              job.ID,
-		JobVersion:         job.Version,
-		JobModifyIndex:     job.ModifyIndex,
-		JobSpecModifyIndex: job.ModifyIndex,
-		JobCreateIndex:     job.CreateIndex,
-		IsMultiregion:      true,
-		TaskGroups:         nil,
-		Status:             structs.DeploymentStatusCancelled,
-		StatusDescription:  "",
-		EvalPriority:       50,
-		CreateIndex:        0,
-		ModifyIndex:        0,
-	}
-
-	testCases := []testCase{
-		{ar1, false},
-		{ar2, true},
-	}
-
-	for _, tt := range testCases {
-		tt.allocReconciler.Compute()
-		require.Equal(t, tt.allocReconciler.deploymentPaused, tt.wantPaused)
 	}
 }
