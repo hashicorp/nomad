@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -215,6 +216,9 @@ func (tv *TestVault) Stop() {
 	}
 
 	if err := tv.cmd.Process.Kill(); err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
 		tv.t.Errorf("err: %s", err)
 	}
 	if tv.waitCh != nil {
