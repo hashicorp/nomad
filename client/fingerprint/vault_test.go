@@ -39,4 +39,21 @@ func TestVaultFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, response.Attributes, "vault.version")
 	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
 	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
+
+	tv.Stop()
+
+	err = fp.Fingerprint(request, &response)
+	if err != nil {
+		t.Fatalf("Failed to fingerprint: %s", err)
+	}
+
+	if !response.Detected {
+		t.Fatalf("should still show as detected")
+	}
+
+	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
+	assertNodeAttributeContains(t, response.Attributes, "vault.version")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
+
 }
