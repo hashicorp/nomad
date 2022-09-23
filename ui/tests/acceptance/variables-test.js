@@ -590,6 +590,73 @@ module('Acceptance | variables', function (hooks) {
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });
+
+    test('warns you if you try to leave with an unsaved form', async function (assert) {
+      // Arrange Test Set-up
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+      const originalWindowConfirm = window.confirm;
+      let confirmFired = false;
+      let leave = true;
+      window.confirm = function () {
+        confirmFired = true;
+        return leave;
+      };
+      // End Test Set-up
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-gutter-link="jobs"]');
+      assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
+      assert.equal(
+        currentURL(),
+        '/jobs?namespace=*',
+        'Opted to leave, ended up on desired page'
+      );
+
+      // Reset checks
+      confirmFired = false;
+      leave = false;
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-gutter-link="jobs"]');
+      assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting%20Variable@default/edit',
+        'Opted to stay, did not leave page'
+      );
+
+      // Reset checks
+      confirmFired = false;
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-json-toggle]');
+      assert.notOk(
+        confirmFired,
+        'Confirm did not fire when only transitioning queryParams'
+      );
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting%20Variable@default/edit?view=json',
+        'Stayed on page, queryParams changed'
+      );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+      // Restore the original window.confirm implementation
+      window.confirm = originalWindowConfirm;
+    });
   });
 
   module('delete flow', function () {
