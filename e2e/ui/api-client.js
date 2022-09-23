@@ -58,7 +58,7 @@ export const client = async (
       }
     },
     (reason) => {
-      throw new Error(reason.response.data);
+      throw new Error(`${method.toUpperCase()} ${url} -- ${reason.response.data}`);
     }
   );
 };
