@@ -364,8 +364,7 @@ export default class VariableFormComponent extends Component {
   }
 
   confirmExit(transition) {
-    const queryParamUpdateOnly = transition.to.name === transition.from.name;
-    if (transition.isAborted || queryParamUpdateOnly) return;
+    if (transition.isAborted || transition.queryParamsOnly) return;
 
     if (this.hasUserModifiedAttributes) {
       if (
@@ -374,6 +373,8 @@ export default class VariableFormComponent extends Component {
         )
       ) {
         transition.abort();
+      } else {
+        this.removeExitHandler();
       }
     }
   }
