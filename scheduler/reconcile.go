@@ -892,6 +892,8 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 		if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
 			a.deployment.Status = structs.DeploymentStatusPending
 			a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+			// do not create placements for MRD when deployment is pending
+			a.result.place = []allocPlaceResult{}
 		}
 		a.result.deployment = a.deployment
 	}

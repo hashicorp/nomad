@@ -6002,13 +6002,14 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 	ci.Parallel(t)
 
 	type testCase struct {
-		name            string
-		jobType         string
-		isMultiregion   bool
-		isPeriodic      bool
-		isParameterized bool
-		oldDeployment   bool
-		expected        bool
+		name               string
+		jobType            string
+		isMultiregion      bool
+		isPeriodic         bool
+		isParameterized    bool
+		oldDeployment      bool
+		expected           bool
+		expectedPlacements int
 	}
 
 	multiregionCfg := mock.MultiregionJob().Multiregion
@@ -6019,76 +6020,84 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:            "single region service is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   false,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        false,
+			name:               "single region service is not paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      false,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           false,
+			expectedPlacements: 1,
 		},
 		{
-			name:            "multiregion service is paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        true,
+			name:               "multiregion service is paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      true,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           true,
+			expectedPlacements: 0,
 		},
 		{
-			name:            "multiregion periodic service is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      true,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        false,
+			name:               "multiregion periodic service is not paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      true,
+			isPeriodic:         true,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           false,
+			expectedPlacements: 1,
 		},
 		{
-			name:            "multiregion parameterized service is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: true,
-			oldDeployment:   false,
-			expected:        false,
+			name:               "multiregion parameterized service is not paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      true,
+			isPeriodic:         false,
+			isParameterized:    true,
+			oldDeployment:      false,
+			expected:           false,
+			expectedPlacements: 1,
 		},
 		{
-			name:            "single region batch job is not paused",
-			jobType:         structs.JobTypeBatch,
-			isMultiregion:   false,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        false,
+			name:               "single region batch job is not paused",
+			jobType:            structs.JobTypeBatch,
+			isMultiregion:      false,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           false,
+			expectedPlacements: 1,
 		},
 		{
-			name:            "multiregion batch job is not paused",
-			jobType:         structs.JobTypeBatch,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        false,
+			name:               "multiregion batch job is not paused",
+			jobType:            structs.JobTypeBatch,
+			isMultiregion:      true,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           false,
+			expectedPlacements: 1,
 		},
 		{
-			name:            "multiregion service job with previous deployment is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   true,
-			expected:        false,
+			name:               "multiregion service job with previous deployment is not paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      true,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      true,
+			expected:           false,
+			expectedPlacements: 0, // MRD jobs with pending deployments should not get placements!
 		},
 		{
-			name:            "multiregion service job without previous deployment is paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: false,
-			oldDeployment:   false,
-			expected:        true,
+			name:               "multiregion service job without previous deployment is paused",
+			jobType:            structs.JobTypeService,
+			isMultiregion:      true,
+			isPeriodic:         false,
+			isParameterized:    false,
+			oldDeployment:      false,
+			expected:           true,
+			expectedPlacements: 0,
 		},
 	}
 
@@ -6098,8 +6107,10 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			if tc.jobType == structs.JobTypeService {
 				job = mock.Job()
+				job.TaskGroups[0].Count = 1
 			} else if tc.jobType == structs.JobTypeBatch {
 				job = mock.BatchJob()
+				job.TaskGroups[0].Count = 1
 			}
 
 			require.NotNil(t, job, "invalid job type", tc.jobType)
@@ -6142,6 +6153,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			_ = reconciler.Compute()
 
 			require.Equal(t, tc.expected, reconciler.deploymentPaused)
+			require.Len(t, reconciler.result.place, tc.expectedPlacements)
 		})
 	}
 }
