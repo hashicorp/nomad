@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -42,7 +43,17 @@ func NewGetter(config *config.ArtifactConfig) *Getter {
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
+func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) (returnErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			stack := string(debug.Stack())
+			if strings.Contains(stack, "go-getter") {
+				fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
+				fmt.Println("recovered from %v", r)
+			}
+		}
+		returnErr = fmt.Errorf("getter panic")
+	}()
 	ggURL, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
