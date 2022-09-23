@@ -364,7 +364,8 @@ export default class VariableFormComponent extends Component {
   }
 
   confirmExit(transition) {
-    if (transition.isAborted) return;
+    const queryParamUpdateOnly = transition.to.name === transition.from.name;
+    if (transition.isAborted || queryParamUpdateOnly) return;
 
     if (this.hasUserModifiedAttributes) {
       if (
