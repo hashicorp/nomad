@@ -1904,7 +1904,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Derive the child job and commit it via Raft - with initial status
 	dispatchJob := parameterizedJob.Copy()
-	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
+	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, args.IdPrefixTemplate, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()

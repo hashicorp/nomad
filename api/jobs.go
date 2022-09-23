@@ -431,12 +431,13 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 }
 
 func (j *Jobs) Dispatch(jobID string, meta map[string]string,
-	payload []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	payload []byte, idPrefixTemplate string, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
 	var resp JobDispatchResponse
 	req := &JobDispatchRequest{
-		JobID:   jobID,
-		Meta:    meta,
-		Payload: payload,
+		JobID:            jobID,
+		Meta:             meta,
+		Payload:          payload,
+		IdPrefixTemplate: idPrefixTemplate,
 	}
 	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
 	if err != nil {
@@ -1342,9 +1343,10 @@ type DesiredUpdates struct {
 }
 
 type JobDispatchRequest struct {
-	JobID   string
-	Payload []byte
-	Meta    map[string]string
+	JobID            string
+	Payload          []byte
+	Meta             map[string]string
+	IdPrefixTemplate string
 }
 
 type JobDispatchResponse struct {
