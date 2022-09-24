@@ -1486,7 +1486,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 				}
 				var resp structs.ACLTokenUpsertResponse
 				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
-				must.Greater(t, resp.Index, 0)
+				must.Positive(t, resp.Index)
 
 				// Get the token out from the response.
 				created := resp.Tokens[0]
