@@ -77,13 +77,16 @@ func TestCACreateCommand(t *testing.T) {
 			cmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
 			require.Equal(t, 0, cmd.Run(tc.args), ui.ErrorWriter.String())
 			require.Equal(t, "", ui.ErrorWriter.String())
-
-			cert, _ := testutil.ExpectFiles(t, tc.caPath, tc.keyPath)
-			require.True(t, cert.BasicConstraintsValid)
-			require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
-			require.True(t, cert.IsCA)
-			require.Equal(t, cert.AuthorityKeyId, cert.SubjectKeyId)
-			tc.extraCheck(t, cert)
+			// is a valid key
+			key := testutil.IsValidSigner(t, tc.keyPath)
+			require.True(t, key)
+			// is a valid ca expects the ca
+			ca := testutil.IsValidCertificate(t, tc.caPath)
+			require.True(t, ca.BasicConstraintsValid)
+			require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, ca.KeyUsage)
+			require.True(t, ca.IsCA)
+			require.Equal(t, ca.AuthorityKeyId, ca.SubjectKeyId)
+			tc.extraCheck(t, ca)
 			require.NoError(t, os.Remove(tc.caPath))
 			require.NoError(t, os.Remove(tc.keyPath))
 		}))
