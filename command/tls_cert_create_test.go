@@ -183,7 +183,8 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 			require.Equal(t, 0, cmd.Run(tc.args))
 			require.Equal(t, "", ui.ErrorWriter.String())
 
-			cert, _ := testutil.ExpectFiles(t, tc.certPath, tc.keyPath)
+			// is a valid cert expects the cert
+			cert := testutil.IsValidCertificate(t, tc.certPath)
 			require.Equal(t, tc.expectCN, cert.Subject.CommonName)
 			require.True(t, cert.BasicConstraintsValid)
 			require.Equal(t, x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment, cert.KeyUsage)

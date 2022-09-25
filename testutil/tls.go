@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"crypto"
 	"crypto/x509"
 	"io/fs"
 	"os"
@@ -11,12 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ExpectFiles(t *testing.T, caPath, keyPath string) (*x509.Certificate, crypto.Signer) {
+// Assert CA file exists and is a valid CA Returns the CA
+func IsValidCertificate(t *testing.T, caPath string) *x509.Certificate {
 	t.Helper()
 
 	require.FileExists(t, caPath)
-	require.FileExists(t, keyPath)
+	caData, err := os.ReadFile(caPath)
+	require.NoError(t, err)
 
+	ca, err := tlsutil.ParseCert(string(caData))
+	require.NoError(t, err)
+	require.NotNil(t, ca)
+
+	return ca
+}
+
+// Assert key file exists and is a valid signer returns a bool
+func IsValidSigner(t *testing.T, keyPath string) bool {
+	t.Helper()
+
+	require.FileExists(t, keyPath)
 	fi, err := os.Stat(keyPath)
 	if err != nil {
 		t.Fatal("should not happen", err)
@@ -25,20 +38,14 @@ func ExpectFiles(t *testing.T, caPath, keyPath string) (*x509.Certificate, crypt
 		t.Fatalf("private key file %s: permissions: want: %o; have: %o", keyPath, want, have)
 	}
 
-	caData, err := os.ReadFile(caPath)
-	require.NoError(t, err)
 	keyData, err := os.ReadFile(keyPath)
 	require.NoError(t, err)
-
-	ca, err := tlsutil.ParseCert(string(caData))
-	require.NoError(t, err)
-	require.NotNil(t, ca)
 
 	signer, err := tlsutil.ParseSigner(string(keyData))
 	require.NoError(t, err)
 	require.NotNil(t, signer)
 
-	return ca, signer
+	return true
 }
 
 // switchToTempDir is meant to be used in a defer statement like:
