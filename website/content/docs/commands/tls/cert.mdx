@@ -23,8 +23,8 @@ $ nomad tls cert create -server
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.
 ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-==> Server Certificate saved to global-server-nomad-0.pem
-==> Server Certificate key saved to global-server-nomad-0-key.pem
+==> Server Certificate saved to global-server-nomad.pem
+==> Server Certificate key saved to global-server-nomad-key.pem
 ```
 
 Create a certificate for clients:
@@ -32,8 +32,8 @@ Create a certificate for clients:
 ```shell-session
 $ nomad tls cert create -client
 ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-==> Client Certificate saved to global-client-nomad-0.pem
-==> Client Certificate key saved to global-client-nomad-0-key.pem
+==> Client Certificate saved to global-client-nomad.pem
+==> Client Certificate key saved to global-client-nomad-key.pem
 ```
 
 Create a certificate for cli:
@@ -41,8 +41,8 @@ Create a certificate for cli:
 ```shell-session
 $ nomad tls cert create -cli
 ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-==> Cli Certificate saved to global-cli-nomad-0.pem
-==> Cli Certificate key saved to global-cli-nomad-0-key.pem
+==> Cli Certificate saved to global-cli-nomad.pem
+==> Cli Certificate key saved to global-cli-nomad-key.pem
 ```
 
 ## Usage
