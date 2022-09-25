@@ -60,8 +60,8 @@ $ nomad tls cert create -server
 ==> Server Certificate key saved to: global-server-nomad-key.pem
 $ nomad tls cert create -client
 ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-==> Client Certificate saved to global-client-nomad-0.pem
-==> Client Certificate key saved to global-client-nomad-0-key.pem
+==> Client Certificate saved to global-client-nomad.pem
+==> Client Certificate key saved to global-client-nomad-key.pem
 
 Certificate Create Options:
   -additional-dnsname
@@ -209,20 +209,23 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 
 	var pkFileName, certFileName string
-	max := 10000
-	for i := 0; i <= max; i++ {
-		tmpCert := fmt.Sprintf("%s-%d.pem", prefix, i)
-		tmpPk := fmt.Sprintf("%s-%d-key.pem", prefix, i)
-		if fileDoesNotExist(tmpCert) && fileDoesNotExist(tmpPk) {
-			certFileName = tmpCert
-			pkFileName = tmpPk
-			break
-		}
-		if i == max {
-			c.Ui.Error("Could not find a filename that doesn't already exist")
-			return 1
-		}
+
+	tmpCert := fmt.Sprintf("%s.pem", prefix)
+	tmpPk := fmt.Sprintf("%s-key.pem", prefix)
+
+	// Check if the CA file already exists
+	if !(fileDoesNotExist(tmpCert)) {
+		c.Ui.Error(fmt.Sprintf("Certificate File '%s' already exists", tmpCert))
+		return 1
 	}
+	// Check if the Key file file already exists
+	if !(fileDoesNotExist(tmpPk)) {
+		c.Ui.Error(fmt.Sprintf("Key File '%s' already exists", tmpPk))
+		return 1
+	}
+
+	certFileName = tmpCert
+	pkFileName = tmpPk
 
 	caFile := strings.Replace(c.ca, "#DOMAIN#", c.domain, 1)
 	keyFile := strings.Replace(c.key, "#DOMAIN#", c.domain, 1)

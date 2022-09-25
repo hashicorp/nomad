@@ -28,8 +28,8 @@ Create a certificate
     and all ACL tokens. Do not distribute them to production hosts
     that are not server nodes. Store them as securely as CA keys.
   ==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-  ==> Server Certificate saved to global-server-nomad-0.pem
-  ==> Server Certificate key saved to global-server-nomad-0-key.pem
+  ==> Server Certificate saved to global-server-nomad.pem
+  ==> Server Certificate key saved to global-server-nomad-key.pem
 
 Create a certificate with your own CA:
 
