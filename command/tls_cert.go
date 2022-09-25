@@ -42,6 +42,15 @@ Create a certificate with your own CA:
   ==> Server Certificate saved to global-server-nomad-1.pem
   ==> Server Certificate key saved to global-server-nomad-1-key.pem
 
+See Certificate information
+
+  $ nomad tls cert info global-server-nomad.pem
+  Issuer CN     Nomad Agent CA 58896012363767591697986789371079092261
+  Common Name   CN=server.global.nomad
+  Expiry Date   2023-09-25 22:32:55 +0000 UTC
+  DNS Names     [server.global.nomad localhost]
+  IP Addresses  [127.0.0.1]
+
 For more examples, ask for subcommand help or view the documentation.
 
 `

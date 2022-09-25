@@ -25,6 +25,12 @@ Create a CA
   $ nomad tls ca create
   ==> CA Certificate saved to: nomad-agent-ca.pem
   ==> CA Certificate key saved to: nomad-agent-ca-key.pem
+  $ nomad tls ca info nomad-agent-ca.pem
+  nomad-agent-ca.pem
+  Issuer CN              Nomad Agent CA 58896012363767591697986789371079092261
+  Common Name            CN=Nomad Agent CA 58896012363767591697986789371079092261,O=HashiCorp Inc.,...
+  Expiry Date            2027-09-24 22:24:08 +0000 UTC
+  Permitted DNS Domains  []
 
 For more examples, ask for subcommand help or view the documentation.
 
