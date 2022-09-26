@@ -283,34 +283,44 @@ func (a *allocReconciler) computeDeploymentPausedAndFailed() {
 	}
 
 	// compute MRD jobs
-	a.computeMRDDeploymentPaused()
+	a.computeMultiregionDeploymentPaused()
 }
 
-// computeMRDDeploymentPaused sets deployment options that are specific to
-// multi-region jobs
-func (a *allocReconciler) computeMRDDeploymentPaused() {
-	// consider only jobs without current deployment
+// computeMultiregionDeploymentPaused sets deployment options that are specific
+// to multi-region jobs
+func (a *allocReconciler) computeMultiregionDeploymentPaused() {
+	if !a.job.IsMultiregion() || !a.job.UsesDeployments() {
+		return
+	}
+
+	// For multi-region jobs we only need to update deploymentPaused when there
+	// are no active deployments. If there is an active deployment, the eval
+	// will be handled like any other job eval.
 	if a.deployment != nil {
 		return
 	}
 
-	// consider only jobs that are MRD
-	if !a.job.IsMultiregion() {
+	if a.oldDeployment == nil {
+		if a.job.Version == 0 {
+			a.deploymentPaused = true
+		}
 		return
 	}
 
-	// consider only just that use deployments
-	if !a.job.UsesDeployments() {
-		return
-	}
-
-	// this condition covers against the following cases:
-	// - node updates, when we have a previous deployment (we don't want deployment to be paused)
-	// - stop -purge operation, when job version is 0
-	// - job updates, when current job version is strictly greater than the old one
-	if a.oldDeployment == nil || a.job.Version > a.oldDeployment.JobVersion || a.job.Version == 0 {
+	if a.job.Version > a.oldDeployment.JobVersion {
 		a.deploymentPaused = true
+		return
 	}
+
+	if a.job.Version == 0 && a.job.ModifyIndex == a.oldDeployment.JobModifyIndex {
+		a.deploymentPaused = true
+		return
+	}
+
+	// At this point the job did not change, so the eval being processed is for
+	// something else, like a node-update, so don't consider the deployment as
+	// paused to allow allocations to be placed.
+	a.deploymentPaused = false
 }
 
 // cancelUnneededDeployments cancels any deployment that is not needed. If the
@@ -915,8 +925,6 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 		if a.job.IsMultiregion() && a.job.UsesDeployments() {
 			a.deployment.Status = structs.DeploymentStatusPending
 			a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
-			// do not create placements for MRD when deployment is pending
-			a.result.place = []allocPlaceResult{}
 		}
 		a.result.deployment = a.deployment
 	}
