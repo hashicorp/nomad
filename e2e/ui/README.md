@@ -106,7 +106,7 @@ Please follow these steps to get up and running:
 Prerequisites:
 
 - Docker Desktop is installed and running on your machine.
-- Playwright is (installed)[https://playwright.dev/docs/intro] on your local machine
+- Playwright is [installed](https://playwright.dev/docs/intro) on your local machine
 
 1. Set your `NOMAD_TOKEN` and `NOMAD_ADDR`. From the previous instructions, set an environment variable `NOMAD_TOKEN` to the value of the `Secret ID` when you bootstrapped ACL tokens (this should be a management token). Also, set a `NOMAD_ADDR` that represents the IP Address of your local machine as mentioned in Step 4 of the previous section.
 
