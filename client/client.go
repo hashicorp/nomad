@@ -379,7 +379,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		cpusetManager:        cgutil.NewCpusetManager(cfg.CgroupParent, logger.Named("cpuset_manager")),
-		getter:               getter.NewGetter(cfg.Artifact),
+		getter:               getter.NewGetter(logger.Named("artifact_getter"), cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 

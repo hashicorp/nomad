@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 
 	"github.com/hashicorp/go-cleanhttp"
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/interfaces"
@@ -22,6 +24,8 @@ const (
 
 // Getter wraps go-getter calls in an artifact configuration.
 type Getter struct {
+	logger hclog.Logger
+
 	// httpClient is a shared HTTP client for use across all http/https
 	// Getter instantiations. The HTTP client is designed to be
 	// thread-safe, and using a pooled transport will help reduce excessive
@@ -32,8 +36,9 @@ type Getter struct {
 
 // NewGetter returns a new Getter instance. This function is called once per
 // client and shared across alloc and task runners.
-func NewGetter(config *config.ArtifactConfig) *Getter {
+func NewGetter(logger hclog.Logger, config *config.ArtifactConfig) *Getter {
 	return &Getter{
+		logger: logger,
 		httpClient: &http.Client{
 			Transport: cleanhttp.DefaultPooledTransport(),
 		},
@@ -42,7 +47,19 @@ func NewGetter(config *config.ArtifactConfig) *Getter {
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
+func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) (returnErr error) {
+	// Recover from panics to avoid crashing the entire Nomad client due to
+	// artifact download failures, such as bugs in go-getter.
+	defer func() {
+		if r := recover(); r != nil {
+			g.logger.Error("panic while downloading artifact",
+				"artifact", artifact.GetterSource,
+				"error", r,
+				"stack", string(debug.Stack()))
+			returnErr = fmt.Errorf("getter panic: %v", r)
+		}
+	}()
+
 	ggURL, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
