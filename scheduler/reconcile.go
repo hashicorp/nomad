@@ -214,7 +214,7 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		return a.result
 	}
 
-	a.computeDeploymentPaused()
+	a.computeDeploymentPausedAndFailed()
 	deploymentComplete := a.computeDeploymentComplete(m)
 	a.computeDeploymentUpdates(deploymentComplete)
 
@@ -265,7 +265,7 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	}
 }
 
-// computeDeploymentPaused is responsible for setting flags on the
+// computeDeploymentPausedAndFailed is responsible for setting flags on the
 // allocReconciler that indicate the state of the deployment if one
 // is required. The flags that are managed are:
 //  1. deploymentFailed: Did the current deployment fail just as named.
@@ -275,18 +275,36 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 //     is detected by the deploymentWatcher during it will enter a paused
 //     state. This flag tells Compute we're paused or pending, so we should
 //     not make placements on the deployment.
-func (a *allocReconciler) computeDeploymentPaused() {
+func (a *allocReconciler) computeDeploymentPausedAndFailed() {
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
 			a.deployment.Status == structs.DeploymentStatusPending
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
-	if a.deployment == nil && (a.oldDeployment == nil || a.job.Version > a.oldDeployment.JobVersion || a.job.Version == 0) {
-		if a.job.IsMultiregion() &&
-			a.job.UsesDeployments() &&
-			!(a.job.IsPeriodic() || a.job.IsParameterized()) {
-			a.deploymentPaused = true
-		}
+
+	// compute MRD jobs
+	a.computeMRDDeploymentPaused()
+}
+
+// computeMRDDeploymentPaused sets deployment options that are specific to
+// multi-region jobs
+func (a *allocReconciler) computeMRDDeploymentPaused() {
+	// consider only jobs without current deployment
+	if a.deployment != nil {
+		return
+	}
+
+	// consider only jobs that are MRD and that use deployments
+	if !(a.job.IsMultiregion() && a.job.UsesDeployments() && !(a.job.IsPeriodic() || a.job.IsParameterized())) {
+		return
+	}
+
+	// this condition covers against the following cases:
+	// - node updates, when we have a previous deployment (we don't want deployment to be paused)
+	// - stop -purge operation, when job version is 0
+	// - job updates, when current job version is strictly greater than the old one
+	if a.oldDeployment == nil || a.job.Version > a.oldDeployment.JobVersion || a.job.Version == 0 {
+		a.deploymentPaused = true
 	}
 }
 

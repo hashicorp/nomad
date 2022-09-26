@@ -6008,7 +6008,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 		isPeriodic         bool
 		isParameterized    bool
 		oldDeployment      bool
-		expected           bool
+		expectedPaused     bool
 		expectedPlacements int
 	}
 
@@ -6026,7 +6026,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           false,
+			expectedPaused:     false,
 			expectedPlacements: 1,
 		},
 		{
@@ -6036,7 +6036,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           true,
+			expectedPaused:     true,
 			expectedPlacements: 0,
 		},
 		{
@@ -6046,7 +6046,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         true,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           false,
+			expectedPaused:     false,
 			expectedPlacements: 1,
 		},
 		{
@@ -6056,7 +6056,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    true,
 			oldDeployment:      false,
-			expected:           false,
+			expectedPaused:     false,
 			expectedPlacements: 1,
 		},
 		{
@@ -6066,7 +6066,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           false,
+			expectedPaused:     false,
 			expectedPlacements: 1,
 		},
 		{
@@ -6076,7 +6076,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           false,
+			expectedPaused:     false,
 			expectedPlacements: 1,
 		},
 		{
@@ -6086,8 +6086,8 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      true,
-			expected:           false,
-			expectedPlacements: 0, // MRD jobs with pending deployments should not get placements!
+			expectedPaused:     false,
+			expectedPlacements: 1,
 		},
 		{
 			name:               "multiregion service job without previous deployment is paused",
@@ -6096,7 +6096,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			isPeriodic:         false,
 			isParameterized:    false,
 			oldDeployment:      false,
-			expected:           true,
+			expectedPaused:     true,
 			expectedPlacements: 0,
 		},
 	}
@@ -6132,6 +6132,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				nil, nil, nil, "", job.Priority, true)
 
 			if tc.oldDeployment {
+				job.Version = 1
 				reconciler.oldDeployment = &structs.Deployment{
 					ID:                 uuid.Generate(),
 					Namespace:          "test",
@@ -6152,7 +6153,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			_ = reconciler.Compute()
 
-			require.Equal(t, tc.expected, reconciler.deploymentPaused)
+			require.Equal(t, tc.expectedPaused, reconciler.deploymentPaused)
 			require.Len(t, reconciler.result.place, tc.expectedPlacements)
 		})
 	}
