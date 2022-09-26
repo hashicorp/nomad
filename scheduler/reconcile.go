@@ -912,7 +912,7 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 	if a.deployment == nil {
 		a.deployment = structs.NewDeployment(a.job, a.evalPriority)
 		// in multiregion jobs, most deployments start in a pending state
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
+		if a.job.IsMultiregion() && a.job.UsesDeployments() {
 			a.deployment.Status = structs.DeploymentStatusPending
 			a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
 			// do not create placements for MRD when deployment is pending

@@ -6087,10 +6087,8 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			if tc.jobType == structs.JobTypeService {
 				job = mock.Job()
-				job.TaskGroups[0].Count = 1
 			} else if tc.jobType == structs.JobTypeBatch {
 				job = mock.BatchJob()
-				job.TaskGroups[0].Count = 1
 			}
 
 			require.NotNil(t, job, "invalid job type", tc.jobType)
@@ -6106,6 +6104,9 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			if tc.isParameterized {
 				job.ParameterizedJob = parameterizedCfg
 			}
+
+			// no need for 10
+			job.TaskGroups[0].Count = 1
 
 			reconciler := NewAllocReconciler(
 				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
@@ -6131,7 +6132,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				}
 			}
 
-			_ = reconciler.Compute()
+			reconciler.Compute()
 
 			require.Equal(t, tc.expectedPaused, reconciler.deploymentPaused)
 			require.Len(t, reconciler.result.place, tc.expectedPlacements)
