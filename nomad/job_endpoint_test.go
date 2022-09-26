@@ -181,6 +181,16 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 	var stopResp structs.JobDeregisterResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", stopReq, &stopResp))
 
+	// Wait until the Stop is complete
+	testutil.Wait(t, func() (bool, error) {
+		eval, err := state.EvalByID(nil, stopResp.EvalID)
+		must.NoError(t, err)
+		if eval == nil {
+			return false, fmt.Errorf("eval not applied: %s", resp.EvalID)
+		}
+		return eval.Status == structs.EvalStatusComplete, fmt.Errorf("expected eval to be complete but found: %s", eval.Status)
+	})
+
 	// Assert new register blocked
 	req.Job = job.Copy()
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
