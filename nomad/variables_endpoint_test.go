@@ -328,7 +328,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
-		must.Equals(t, sv1.Items, applyResp.Output.Items)
+		must.Eq(t, sv1.Items, applyResp.Output.Items)
 
 		svHold = applyResp.Output
 	})
@@ -353,7 +353,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
-		must.Equals(t, sv.Items, applyResp.Output.Items)
+		must.Eq(t, sv.Items, applyResp.Output.Items)
 
 		svHold = applyResp.Output
 	})
@@ -380,8 +380,8 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
-		must.Equals(t, svHold.VariableMetadata, applyResp.Conflict.VariableMetadata)
-		must.Equals(t, svHold.Items, applyResp.Conflict.Items)
+		must.Eq(t, svHold.VariableMetadata, applyResp.Conflict.VariableMetadata)
+		must.Eq(t, svHold.Items, applyResp.Conflict.Items)
 	})
 
 	sv3 := mock.Variable()
@@ -404,7 +404,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
-		must.Equals(t, sv3.Items, applyResp.Output.Items)
+		must.Eq(t, sv3.Items, applyResp.Output.Items)
 		svHold = applyResp.Output
 	})
 
@@ -449,7 +449,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
-		must.Equals(t, sv.Items, applyResp.Output.Items)
+		must.Eq(t, sv.Items, applyResp.Output.Items)
 	})
 }
 

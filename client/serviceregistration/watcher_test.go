@@ -209,8 +209,8 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called
-	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
-	must.Empty(t, restarter2.restarts, must.Sprint("expected check 2 to not be restarted"))
+	must.SliceEmpty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
+	must.SliceEmpty(t, restarter2.restarts, must.Sprint("expected check 2 to not be restarted"))
 }
 
 // TestCheckWatcher_Unhealthy asserts unhealthy tasks are restarted exactly once.
@@ -260,7 +260,7 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
+	must.SliceEmpty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_Flapping asserts checks that flap from healthy to unhealthy
@@ -288,7 +288,7 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
+	must.SliceEmpty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_Unwatch asserts unwatching checks prevents restarts.
@@ -314,7 +314,7 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 	cw.Run(ctx)
 
 	// Ensure restart was never called on check 1
-	must.Empty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
+	must.SliceEmpty(t, restarter1.restarts, must.Sprint("expected check 1 to not be restarted"))
 }
 
 // TestCheckWatcher_MultipleChecks asserts that when there are multiple checks

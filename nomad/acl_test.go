@@ -489,7 +489,5 @@ func TestResolveClaims(t *testing.T) {
 	policies, err := srv.resolvePoliciesForClaims(claims)
 	must.NoError(t, err)
 	must.Len(t, 3, policies)
-	must.Contains(t, policies, policy1)
-	must.Contains(t, policies, policy2)
-	must.Contains(t, policies, policy3)
+	must.SliceContainsAll(t, policies, []*structs.ACLPolicy{policy1, policy2, policy3})
 }
