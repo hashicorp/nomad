@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type IsolationTest struct {
+type PIDsNamespacing struct {
 	framework.TC
 
 	jobIDs []string
@@ -22,21 +22,21 @@ type IsolationTest struct {
 
 func init() {
 	framework.AddSuites(&framework.TestSuite{
-		Component:   "Isolation",
+		Component:   "PIDS",
 		CanRunLocal: true,
 		Cases: []framework.TestCase{
-			new(IsolationTest),
+			new(PIDsNamespacing),
 		},
 	})
 }
 
-func (tc *IsolationTest) BeforeAll(f *framework.F) {
+func (tc *PIDsNamespacing) BeforeAll(f *framework.F) {
 	t := f.T()
 	e2eutil.WaitForLeader(t, tc.Nomad())
 	e2eutil.WaitForNodesReady(t, tc.Nomad(), 1)
 }
 
-func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -66,7 +66,7 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F)
 	require.Contains(t, out, "my pid is 1\n")
 }
 
-func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_host(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_ExecDriver_PIDNamespacing_host(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -96,7 +96,7 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_host(f *framewo
 	require.NotContains(t, out, "my pid is 1\n")
 }
 
-func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_AllocExec(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_ExecDriver_PIDNamespacing_AllocExec(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -151,7 +151,7 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_AllocExec(f *fr
 	require.Len(t, lines, 3)
 }
 
-func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_JavaDriver_PIDNamespacing(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -181,7 +181,7 @@ func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing(f *framework.F)
 	require.Contains(t, out, "my pid is 1\n")
 }
 
-func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing_host(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_JavaDriver_PIDNamespacing_host(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -211,7 +211,7 @@ func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing_host(f *framewo
 	require.NotContains(t, out, "my pid is 1\n")
 }
 
-func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing_AllocExec(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_JavaDriver_PIDNamespacing_AllocExec(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
@@ -266,7 +266,7 @@ func (tc *IsolationTest) TestIsolation_JavaDriver_PIDNamespacing_AllocExec(f *fr
 	require.Len(t, lines, 3)
 }
 
-func (tc *IsolationTest) TestIsolation_RawExecDriver_NoPIDNamespacing(f *framework.F) {
+func (tc *PIDsNamespacing) TestIsolation_RawExecDriver_NoPIDNamespacing(f *framework.F) {
 	t := f.T()
 
 	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
