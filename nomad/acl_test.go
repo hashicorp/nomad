@@ -130,5 +130,4 @@ func TestResolveSecretToken(t *testing.T) {
 	if assert.NotNil(t, respToken) {
 		assert.NotEmpty(t, respToken.AccessorID)
 	}
-
 }

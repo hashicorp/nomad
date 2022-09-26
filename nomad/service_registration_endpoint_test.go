@@ -1334,7 +1334,7 @@ func TestServiceRegistration_chooseErr(t *testing.T) {
 	sr := (*ServiceRegistration)(nil)
 	try := func(input []*structs.ServiceRegistration, parameter string) {
 		result, err := sr.choose(input, parameter)
-		must.Empty(t, result)
+		must.SliceEmpty(t, result)
 		must.ErrorIs(t, err, structs.ErrMalformedChooseParameter)
 	}
 

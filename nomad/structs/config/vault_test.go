@@ -101,7 +101,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSServerName:        "1",
 	}
 
-	must.Equals(t, c1, c2)
+	must.Equal(t, c1, c2)
 
 	c3 := &VaultConfig{
 		Enabled:              pointer.Of(true),
@@ -137,5 +137,5 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSServerName:        "1",
 	}
 
-	must.NotEquals(t, c3, c4)
+	must.NotEqual(t, c3, c4)
 }

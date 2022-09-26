@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
@@ -115,7 +116,7 @@ func TestBucket_DedupeWrites(t *testing.T) {
 
 	// Assert there was at least 1 write
 	origWrites := db.BoltDB().Stats().TxStats.Write
-	require.NotZero(origWrites)
+	must.Positive(t, origWrites)
 
 	// Write the same values again and expect no new writes
 	require.NoError(db.Update(func(tx *Tx) error {
