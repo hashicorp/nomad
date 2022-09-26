@@ -169,7 +169,13 @@ Below is a table documenting common node properties:
       <td>
         <code>{'${attr.cpu.numcores}'}</code>
       </td>
-      <td>Number of CPU cores on the client</td>
+      <td>Number of CPU cores on the client. May differ from how many cores are available for reservation due to OS or configuration. See <code>cpu.reservablecores</code>.</td>
+    </tr>
+    <tr>
+      <td>
+        <code>{'${attr.cpu.reservablecores}'}</code>
+      </td>
+      <td>Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with <code>resources.cores</code> set.</td>
     </tr>
     <tr>
       <td>
