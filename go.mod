@@ -19,7 +19,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.84
 	github.com/container-storage-interface/spec v1.4.0
-	github.com/containerd/go-cni v1.1.6
+	github.com/containerd/go-cni v1.1.7
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.1.1
 	github.com/coreos/go-iptables v0.6.0
