@@ -69,7 +69,7 @@ runner. Typically you'll need to set `-bind` to your host's IP address
 
 This guide contains documentation about contributing to the UI E2E tests using Playwright.
 
-If you're looking for information about using Playwright, please instead refer to the (Playwright documentation)[https://playwright.dev/docs/writing-tests].
+If you're looking for information about using Playwright, please instead refer to the [Playwright documentation](https://playwright.dev/docs/writing-tests).
 
 ### Running the test suite
 
