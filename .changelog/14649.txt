@@ -1,3 +1,3 @@
 ```release-note:bug
-scheduler: Fixed a bug where MRD jobs wouldn't get deployments even if they previously had one
+scheduler: Fixed a bug where multi-region jobs wouldn't get deployments even if they previously had one
 ```
