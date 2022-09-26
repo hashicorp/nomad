@@ -35,6 +35,7 @@ module('Acceptance | task logs', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
