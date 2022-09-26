@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -168,5 +169,51 @@ func Test_pathToURL(t *testing.T) {
 			must.NotNil(t, actualOutput)
 			must.Eq(t, actualOutput.String(), tc.expectedOutputURL)
 		})
+	}
+}
+
+// TestOperatorAPICommand_ContentLength tests that requests have the proper
+// ContentLength set.
+//
+// Don't run it in parallel as it modifies the package's Stdin variable.
+func TestOperatorAPICommand_ContentLength(t *testing.T) {
+	contentLength := make(chan int, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentLength <- int(r.ContentLength)
+	}))
+	defer ts.Close()
+
+	// Setup a temp file to act as stdin.
+	input := []byte("test-input")
+	fakeStdin, err := os.CreateTemp("", "fake-stdin")
+	require.NoError(t, err)
+	defer os.Remove(fakeStdin.Name())
+
+	_, err = fakeStdin.Write(input)
+	require.NoError(t, err)
+	_, err = fakeStdin.Seek(0, 0)
+	require.NoError(t, err)
+
+	// Override the package's Stdin variable for testing.
+	Stdin = fakeStdin
+	defer func() { Stdin = os.Stdin }()
+
+	// Setup command.
+	buf := bytes.NewBuffer(nil)
+	ui := &cli.BasicUi{
+		ErrorWriter: buf,
+		Writer:      buf,
+	}
+	cmd := &OperatorAPICommand{Meta: Meta{Ui: ui}}
+
+	// Assert that a request has the expected content length.
+	exitCode := cmd.Run([]string{"-address=" + ts.URL, "/v1/jobs"})
+	require.Zero(t, exitCode, buf.String())
+
+	select {
+	case l := <-contentLength:
+		require.Equal(t, len(input), l)
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for request")
 	}
 }
