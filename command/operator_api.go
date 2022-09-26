@@ -1,9 +1,11 @@
 package command
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +17,10 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
+
+// Stdin represents the system's standard input, but it's declared as a
+// variable here to allow tests to override it with a regular file.
+var Stdin = os.Stdin
 
 type OperatorAPICommand struct {
 	Meta
@@ -31,7 +37,7 @@ Usage: nomad operator api [options] <path>
   api is a utility command for accessing Nomad's HTTP API and is inspired by
   the popular curl command line tool. Nomad's operator api command populates
   Nomad's standard environment variables into their appropriate HTTP headers.
-  If the 'path' does not begin with "http" then $NOMAD_ADDR will be used. 
+  If the 'path' does not begin with "http" then $NOMAD_ADDR will be used.
 
   The 'path' can be in one of the following forms:
 
@@ -139,10 +145,18 @@ func (c *OperatorAPICommand) Run(args []string) int {
 
 	// Opportunistically read from stdin and POST unless method has been
 	// explicitly set.
-	stat, _ := os.Stdin.Stat()
+	stat, _ := Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
 		verbose("* Reading request body from stdin.")
-		c.body = os.Stdin
+
+		// Load stdin into a *bytes.Reader so that http.NewRequest can set the
+		// correct Content-Length value.
+		b, err := ioutil.ReadAll(Stdin)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error reading stdin: %v", err))
+			return 1
+		}
+		c.body = bytes.NewReader(b)
 		if c.method == "" {
 			c.method = "POST"
 		}
