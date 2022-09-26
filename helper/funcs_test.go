@@ -64,7 +64,7 @@ func TestIsSubset(t *testing.T) {
 
 	sub, offending := IsSubset(l, l[:1])
 	must.True(t, sub)
-	must.EmptySlice(t, offending)
+	must.SliceEmpty(t, offending)
 
 	sub, offending = IsSubset(l, s)
 	must.False(t, sub)
@@ -77,7 +77,7 @@ func TestIsDisjoint(t *testing.T) {
 		b := []string{"d", "f"}
 		dis, offending := IsDisjoint(a, b)
 		must.True(t, dis)
-		must.EmptySlice(t, offending)
+		must.SliceEmpty(t, offending)
 	})
 
 	t.Run("no", func(t *testing.T) {
