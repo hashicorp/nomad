@@ -1,0 +1,3 @@
+```release-note:improvement
+fingerprint: Add node attribute for number of reservable cores: `cpu.num_reservable_cores`
+```
