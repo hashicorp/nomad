@@ -281,7 +281,7 @@ func (a *allocReconciler) computeDeploymentPaused() {
 			a.deployment.Status == structs.DeploymentStatusPending
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
-	if a.deployment == nil && a.oldDeployment == nil {
+	if a.deployment == nil && (a.oldDeployment == nil || a.job.Version > a.oldDeployment.JobVersion || a.job.Version == 0) {
 		if a.job.IsMultiregion() &&
 			a.job.UsesDeployments() &&
 			!(a.job.IsPeriodic() || a.job.IsParameterized()) {
