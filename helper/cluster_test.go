@@ -23,7 +23,7 @@ func TestCluster_RandomStagger(t *testing.T) {
 
 	for _, tc := range cases {
 		result := RandomStagger(tc.input)
-		must.GreaterEq(t, result, 0)
-		must.LessEq(t, result, abs(tc.input))
+		must.GreaterEq(t, 0, result)
+		must.LessEq(t, abs(tc.input), result)
 	}
 }
