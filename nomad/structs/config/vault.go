@@ -188,6 +188,11 @@ func (c *VaultConfig) Copy() *VaultConfig {
 	return nc
 }
 
+// Equal is a rename of Equals.
+func (c *VaultConfig) Equal(b *VaultConfig) bool {
+	return c.Equals(b)
+}
+
 // Equals compares two Vault configurations and returns a boolean indicating
 // if they are equal.
 func (c *VaultConfig) Equals(b *VaultConfig) bool {
