@@ -43,6 +43,7 @@ module('Acceptance | application errors ', function (hooks) {
   });
 
   test('the 403 error page links to the ACL tokens page', async function (assert) {
+    assert.expect(3);
     const job = server.db.jobs[0];
 
     server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
@@ -62,6 +63,7 @@ module('Acceptance | application errors ', function (hooks) {
   });
 
   test('the no leader error state gets its own error message', async function (assert) {
+    assert.expect(2);
     server.pretender.get('/v1/jobs', () => [500, {}, 'No cluster leader']);
 
     await JobsList.visit();
