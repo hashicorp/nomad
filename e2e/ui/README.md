@@ -75,7 +75,13 @@ If you're looking for information about using Playwright, please instead refer t
 
 In order to get the test suite running in an environment similar to what will happen in our CI pipeline, we'll be using the `./run.sh` bash script.
 
-This script, spins up a Docker container that will be used to run our Playwright scripts. The key note to keep in mind here is that, in local development, you'll be spinning up a Nomad server on your local machine and spinning up a container that will run our test scripts which means that you'll need to specify an address for the Nomad agent to bind for network services (in order to get access to the HTTP interface which allows us to use our `./api-client` to set-up and tear down testing arrangements).
+This script spins up a Docker container that will be used to run our Playwright
+scripts. Keep in mind here is that, in local development, you'll be spinning up
+a Nomad server on your local machine but spinning up a container to run our test
+scripts. This means that you'll need to specify an address for the Nomad agent
+to bind for network services (in order to get access to the HTTP interface which
+allows us to use our `./api-client` to set-up and tear down testing
+arrangements).
 
 Please follow these steps to get up and running:
 
