@@ -81,7 +81,7 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
 		}
 	}
-	resp.AddAttribute("cpu.num_reservable_cores", strconv.Itoa(len(reservableCores)))
+	resp.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservableCores)))
 
 	tt := int(stats.TotalTicksAvailable())
 	if cfg.CpuCompute > 0 {
