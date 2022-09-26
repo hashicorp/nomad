@@ -439,10 +439,12 @@ This ensures Clients have some additional time to failover even if they were
 told to heartbeat after the maximum interval.
 
 The actual value used should take into consideration how much tolerance your
-system has for a delay in noticing crashed Clients. A `failover_heartbeat_ttl`
-of 30 minutes may give even the largest cluster ample time to heartbeat after
-an election, but could cause a 30 minute outage for services on crashed Clients
-instead of a 30 second outage if `failover_heartbeat_ttl`.
+system has for a delay in noticing crashed Clients. For example a
+`failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
+largest clusters ample time to heartbeat after an election.  However if the
+election was due to a datacenter-wide failure affecting Clients, it will be 30
+minutes before Nomad recognizes that they are `down` and reschedules their
+work.
 
 [encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
