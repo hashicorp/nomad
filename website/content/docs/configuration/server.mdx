@@ -375,7 +375,7 @@ and rescheduled.
 The various heartbeat related parameters allow you to tune the following
 tradeoffs:
 
-- The longer the heartbeat period, the longer a down Client's workload will
+- The longer the heartbeat period, the longer a `down` Client's workload will
   take to be rescheduled.
 - The shorter the heartbeat period, the more likely transient network issues,
   leader elections, and other temporary issues could cause a perfectly
@@ -400,15 +400,15 @@ Other factors modify this base TTL:
   [thundering herd][herd] problem where a large number of clients attempt to
   heartbeat at exactly the same time.
 - [`min_heartbeat_ttl`](#min_heartbeat_ttl) is used as the lower bound to
-  prevent small clusters from needlessly heartbeating extremely quickly.
+  prevent small clusters from sending excessive heartbeats.
 - [`heartbeat_grace`](#heartbeat_grace) is the amount of _extra_ time the
   leader will wait for a heartbeat beyond the base heartbeat.
 - After a leader election all Clients are given up to `failover_heartbeat_ttl`
   to successfully heartbeat. This gives Clients time to discover a functioning
   Server in case they were directly connected to a leader that crashed.
 
-Given the default values for heartbeat parameters, different sized clusters
-will use the following TTLs for the heartbeats. Note that the `Server TTL`
+For example, given the default values for heartbeat parameters, different sized 
+clusters will use the following TTLs for the heartbeats. Note that the `Server TTL`
 simply adds the `heartbeat_grace` parameter to the TTL Clients are given.
 
 | Clients | Client TTL  | Server TTL  | Safe after elections |
@@ -424,8 +424,8 @@ Regardless of size, all clients will have a Server TTL of
 than the maximum Client TTL for your cluster size in order to prevent marking
 live Clients as `down`.
 
-For clusters over 5000 Clients it is recommended to increase
-`failover_heartbeat_ttl` using the following:
+For clusters over 5000 Clients you should increase `failover_heartbeat_ttl` 
+using the following formula:
 
 ```
 (2 * (<number of Clients> / <max_heartbeats_per_second>)) + (10 * <min_heartbeat_ttl>)
