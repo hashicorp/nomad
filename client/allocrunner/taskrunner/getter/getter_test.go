@@ -16,6 +16,7 @@ import (
 	"time"
 
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -56,6 +57,19 @@ func noopTaskEnv(taskDir string) interfaces.EnvReplacer {
 	}
 }
 
+// panicReplacer is a version of taskenv.TaskEnv.ReplaceEnv that panics.
+type panicReplacer struct{}
+
+func (panicReplacer) ReplaceEnv(_ string) string {
+	panic("panic")
+}
+func (panicReplacer) ClientPath(_ string, _ bool) (string, bool) {
+	panic("panic")
+}
+func panicTaskEnv() interfaces.EnvReplacer {
+	return panicReplacer{}
+}
+
 // upperReplacer is a version of taskenv.TaskEnv.ReplaceEnv that upper-cases
 // the given input.
 type upperReplacer struct {
@@ -72,7 +86,7 @@ func (u upperReplacer) ClientPath(p string, join bool) (string, bool) {
 }
 
 func TestGetter_getClient(t *testing.T) {
-	getter := NewGetter(&clientconfig.ArtifactConfig{
+	getter := NewGetter(hclog.NewNullLogger(), &clientconfig.ArtifactConfig{
 		HTTPReadTimeout: time.Minute,
 		HTTPMaxBytes:    100_000,
 		GCSTimeout:      1 * time.Minute,
@@ -434,6 +448,15 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		o := s.Mode()
 		require.Equalf(t, p, o, "%s expected %o found %o", file, p, o)
 	}
+}
+
+// TestGetArtifact_handlePanic tests that a panic during the getter execution
+// does not cause its goroutine to crash.
+func TestGetArtifact_handlePanic(t *testing.T) {
+	getter := TestDefaultGetter(t)
+	err := getter.GetArtifact(panicTaskEnv(), &structs.TaskArtifact{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "panic")
 }
 
 func TestGetGetterUrl_Queries(t *testing.T) {
