@@ -118,38 +118,25 @@ server {
   example section](#configuring-scheduler-config) for more details
   `default_scheduler_config` was introduced in Nomad 0.10.4.
 
-- `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
-  grace period beyond the heartbeat TTL of nodes to account for network and
-  processing delays as well as clock skew. This is specified using a label
-  suffix like "30s" or "1h".
-
-- `license_path` `(string: "")` - Specifies the path to load a Nomad Enterprise
-  license from. This must be an absolute path (`/opt/nomad/license.hclic`). The
-  license can also be set by setting `NOMAD_LICENSE_PATH` or by setting
-  `NOMAD_LICENSE` as the entire license value. `license_path` has the highest
-  precedence, followed by `NOMAD_LICENSE` and then `NOMAD_LICENSE_PATH`.
+- `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
+  beyond the heartbeat TTL of Clients to account for network and processing
+  delays and clock skew. This is specified using a label suffix like "30s" or
+  "1h". See [Client Heartbeats](#client-heartbeats) below for details.
 
 - `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
-  node heartbeats. This is used as a floor to prevent excessive updates. This is
-  specified using a label suffix like "30s" or "1h". Lowering the minimum TTL is
-  a tradeoff as it lowers failure detection time of nodes at the tradeoff of
-  false positives and increased load on the leader.
+  Client heartbeats. This is used as a floor to prevent excessive updates. This
+  is specified using a label suffix like "30s" or "1h". See [Client
+  Heartbeats](#client-heartbeats) below for details.
 
-- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the TTL applied to
-	heartbeats after a new leader is elected, since we no longer know the status
-	of all the heartbeats. This is specified using a label suffix like "30s" or
-	"1h".
-
-  ~> Lowering the `failover_heartbeat_ttl` is a tradeoff as it lowers failure
-  detection time of nodes at the tradeoff of false positives. False positives
-  could cause all clients to stop their allocations if a leadership transition
-  lasts longer than `heartbeat_grace + failover_heartbeat_ttl`.
+- `failover_heartbeat_ttl` `(string: "5m")` - The time by which all Clients
+  must heartbeat after a Server leader election. This is specified using a label
+  suffix like "30s" or "1h". See [Client Heartbeats](#client-heartbeats) below
+  for details.
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. Increasing the maximum heartbeats per
-  second is a tradeoff as it lowers failure detection time of nodes at the
-  tradeoff of false positives and increased load on the leader.
+  increased to meet the target rate. See [Client
+  Heartbeats](#client-heartbeats) below for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
@@ -159,6 +146,12 @@ server {
   scheduler threads to run. This can be as many as one per core, or `0` to
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
+
+- `license_path` `(string: "")` - Specifies the path to load a Nomad Enterprise
+  license from. This must be an absolute path (`/opt/nomad/license.hclic`). The
+  license can also be set by setting `NOMAD_LICENSE_PATH` or by setting
+  `NOMAD_LICENSE` as the entire license value. `license_path` has the highest
+  precedence, followed by `NOMAD_LICENSE` and then `NOMAD_LICENSE_PATH`.
 
 - `plan_rejection_tracker` <code>([PlanRejectionTracker](#plan_rejection_tracker-parameters))</code> -
   Configuration for the plan rejection tracker that the Nomad leader uses to
@@ -369,6 +362,90 @@ server {
 }
 ```
 
+## Client Heartbeats ((#client-heartbeats))
+
+~> This is an advanced topic. It is most beneficial to clusters over 1,000
+   nodes or with unreliable networks or nodes (eg some edge deployments).
+
+Nomad Clients periodically heartbeat to Nomad Servers to confirm they are
+operating as expected. Nomad Clients which do not heartbeat in the specified
+amount of time are considered `down` and their allocations are marked as `lost`
+or `disconnected` (if [`max_client_disconnect`][max_client_disconnect] is set)
+and rescheduled.
+
+The various heartbeat related parameters allow you to tune the following
+tradeoffs:
+
+- The longer the heartbeat period, the longer a `down` Client's workload will
+  take to be rescheduled.
+- The shorter the heartbeat period, the more likely transient network issues,
+  leader elections, and other temporary issues could cause a perfectly
+  functional Client and its workloads to be marked as `down` and the work
+  rescheduled.
+
+While Nomad Clients can connect to any Server, all heartbeats are forwarded to
+the leader for processing. Since this heartbeat processing consumes resources,
+Nomad adjusts the rate at which Clients heartbeat based on cluster size. The
+goal is to try to keep the resource cost of processing heartbeats constant
+regardless of cluster size.
+
+The base formula for determining how often a Client must heartbeat is:
+
+```
+<number of Clients> / <max_heartbeats_per_second> 
+```
+
+Other factors modify this base TTL:
+
+- A random factor up to `2x` is added to the base TTL to prevent the
+  [thundering herd][herd] problem where a large number of clients attempt to
+  heartbeat at exactly the same time.
+- [`min_heartbeat_ttl`](#min_heartbeat_ttl) is used as the lower bound to
+  prevent small clusters from sending excessive heartbeats.
+- [`heartbeat_grace`](#heartbeat_grace) is the amount of _extra_ time the
+  leader will wait for a heartbeat beyond the base heartbeat.
+- After a leader election all Clients are given up to `failover_heartbeat_ttl`
+  to successfully heartbeat. This gives Clients time to discover a functioning
+  Server in case they were directly connected to a leader that crashed.
+
+For example, given the default values for heartbeat parameters, different sized 
+clusters will use the following TTLs for the heartbeats. Note that the `Server TTL`
+simply adds the `heartbeat_grace` parameter to the TTL Clients are given.
+
+| Clients | Client TTL  | Server TTL  | Safe after elections |
+| ------- | ----------- | ----------- | -------------------- |
+| 10      | 10s - 20s   | 20s - 30s   | yes                  |
+| 100     | 10s - 20s   | 20s - 30s   | yes                  |
+| 1000    | 20s - 40s   | 30s - 50s   | yes                  |
+| 5000    | 100s - 200s | 110s - 210s | yes                  |
+| 10000   | 200s - 400s | 210s - 410s | NO (see below)       |
+
+Regardless of size, all clients will have a Server TTL of
+`failover_heartbeat_ttl` after a leader election. It should always be larger
+than the maximum Client TTL for your cluster size in order to prevent marking
+live Clients as `down`.
+
+For clusters over 5000 Clients you should increase `failover_heartbeat_ttl` 
+using the following formula:
+
+```
+(2 * (<number of Clients> / <max_heartbeats_per_second>)) + (10 * <min_heartbeat_ttl>)
+
+# For example with 6000 Clients:
+(2 * (6000 / 50)) + (10 * 10) = 340s (5m40s)
+```
+
+This ensures Clients have some additional time to failover even if they were
+told to heartbeat after the maximum interval.
+
+The actual value used should take into consideration how much tolerance your
+system has for a delay in noticing crashed Clients. For example a
+`failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
+largest clusters ample time to heartbeat after an election.  However if the
+election was due to a datacenter-wide failure affecting Clients, it will be 30
+minutes before Nomad recognizes that they are `down` and reschedules their
+work.
+
 [encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
 [update-scheduler-config]: /api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
@@ -378,3 +455,5 @@ server {
 [`nomad operator keygen`]: /docs/commands/operator/keygen
 [search]: /docs/configuration/search
 [encryption key]: /docs/operations/key-management
+[max_client_disconnect]: /docs/job-specification/group#max-client-disconnect
+[herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
