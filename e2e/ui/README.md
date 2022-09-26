@@ -114,7 +114,7 @@ Prerequisites:
 
 #### Writing your own tests
 
-Writing test code can be a little daunting. I recommend using (Playwright's Test Generator)[https://playwright.dev/docs/codegen-intro] to generate your test code.
+Writing test code can be a little daunting. I recommend using [Playwright's Test Generator](https://playwright.dev/docs/codegen-intro) to generate your test code.
 
 1. Run `npx playwright codegen $NOMAD_ADDR/ui`. (Note: a headless Chromium browser and Playwright inspector window will open).
 2. In the Chromium (browser) window, click around the test suite as if you're a user.
