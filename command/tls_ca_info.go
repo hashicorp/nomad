@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -71,7 +71,7 @@ func (c *TLSCAInfoCommand) Run(args []string) int {
 	}
 	if len(args) == 1 {
 		file = args[0]
-		certFile, err = ioutil.ReadFile(file)
+		certFile, err = os.ReadFile(file)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading CA file: %v", err))
 			return 1
