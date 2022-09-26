@@ -121,21 +121,22 @@ server {
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
   beyond the heartbeat TTL of Clients to account for network and processing
   delays and clock skew. This is specified using a label suffix like "30s" or
-  "1h". See [below](#client-heartbeats) for details.
+  "1h". See [Client Heartbeats](#client-heartbeats) below for details.
 
 - `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
   Client heartbeats. This is used as a floor to prevent excessive updates. This
-  is specified using a label suffix like "30s" or "1h". See
-  [below](#client-heartbeats) for details.
+  is specified using a label suffix like "30s" or "1h". See [Client
+  Heartbeats](#client-heartbeats) below for details.
 
 - `failover_heartbeat_ttl` `(string: "5m")` - The time by which all Clients
   must heartbeat after a Server leader election. This is specified using a label
-  suffix like "30s" or "1h". See [below](#client-heartbeats) for details.
+  suffix like "30s" or "1h". See [Client Heartbeats](#client-heartbeats) below
+  for details.
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. See [below](#client-heartbeats) for
-  details.
+  increased to meet the target rate. See [Client
+  Heartbeats](#client-heartbeats) below for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
