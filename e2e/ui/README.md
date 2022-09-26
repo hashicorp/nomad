@@ -119,4 +119,4 @@ Writing test code can be a little daunting. I recommend using [Playwright's Test
 1. Run `npx playwright codegen $NOMAD_ADDR/ui`. (Note: a headless Chromium browser and Playwright inspector window will open).
 2. In the Chromium (browser) window, click around the test suite as if you're a user.
 3. Copy the test code generated in the Playwright inspector video.
-4. Run the tests using `npx playwright test $YOUR_TEST_FILE`. You'll likely fail tests when this runs, because Playwright will use generated classnames for HTML elements that are associated with the previous build of the UI using the Ember server. If you have a failure, change your test selectors to be based on text or CSS selectors using the (guides)[https://playwright.dev/docs/selectors].
+4. Run the tests using `npx playwright test $YOUR_TEST_FILE`. The tests will likely fail when this runs, because Playwright will use generated classnames for HTML elements that are associated with the previous build of the UI using the Ember server. If you have a failure, change your test selectors to be based on text or CSS selectors using the [guides](https://playwright.dev/docs/selectors).
