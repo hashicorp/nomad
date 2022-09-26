@@ -6,6 +6,7 @@ package getter
 import (
 	"testing"
 
+	"github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
@@ -14,5 +15,5 @@ import (
 func TestDefaultGetter(t *testing.T) *Getter {
 	getterConf, err := clientconfig.ArtifactConfigFromAgent(config.DefaultArtifactConfig())
 	require.NoError(t, err)
-	return NewGetter(getterConf)
+	return NewGetter(hclog.NewNullLogger(), getterConf)
 }
