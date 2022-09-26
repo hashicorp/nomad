@@ -294,8 +294,13 @@ func (a *allocReconciler) computeMRDDeploymentPaused() {
 		return
 	}
 
-	// consider only jobs that are MRD and that use deployments
-	if !(a.job.IsMultiregion() && a.job.UsesDeployments() && !(a.job.IsPeriodic() || a.job.IsParameterized())) {
+	// consider only jobs that are MRD
+	if !a.job.IsMultiregion() {
+		return
+	}
+
+	// consider only just that use deployments
+	if !a.job.UsesDeployments() {
 		return
 	}
 
