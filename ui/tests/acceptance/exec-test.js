@@ -7,6 +7,8 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 import KEYS from 'nomad-ui/utils/keys';
+import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | exec', function (hooks) {
   setupApplicationTest(hooks);
@@ -15,6 +17,8 @@ module('Acceptance | exec', function (hooks) {
   hooks.beforeEach(async function () {
     window.localStorage.clear();
     window.sessionStorage.clear();
+
+    faker.seed(1);
 
     server.create('agent');
     server.create('node');
@@ -94,6 +98,8 @@ module('Acceptance | exec', function (hooks) {
     assert.equal(Exec.taskGroups[0].tasks.length, firstTaskGroup.tasks.length);
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
+
+    await percySnapshot(assert);
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
@@ -290,6 +296,8 @@ module('Acceptance | exec', function (hooks) {
         allocationId.split('-')[0]
       } /bin/bash`
     );
+
+    await percySnapshot(assert);
   });
 
   test('an allocation can be specified', async function (assert) {
