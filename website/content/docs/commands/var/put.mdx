@@ -36,6 +36,17 @@ enabled, this command requires the `variables:write` capability for the
 destination namespace and path. See the [ACL policy][] documentation for
 details.
 
+## Restrictions
+
+Variable paths are restricted to [RFC3986][] URL-safe characters that don't
+conflict with the use of the characters `@` and `.` in template blocks. This
+includes alphanumeric characters and the special characters `-`, `_`, `~`, and
+`/`. Paths may be up to 128 bytes long. The following regex matches the allowed
+paths: `^[a-zA-Z0-9-_~/]{1,128}$`
+
+Variable items are restricted to 16KiB in size. This limit is calculated by
+taking the sum of the length in bytes of all of the unencrypted keys and values.
+
 ## General Options
 
 @include 'general_options.mdx'
@@ -90,3 +101,4 @@ $ echo "abcd1234" | vault var put secret/foo bar=-
 
 [variable]: /docs/concepts/variables
 [ACL Policy]: /docs/other-specifications/acl-policy#variables
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2

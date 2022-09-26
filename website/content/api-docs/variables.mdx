@@ -150,6 +150,18 @@ The table below shows this endpoint's support for [blocking queries] and
   0, the variable is only created if it does not already exist. This paradigm
   allows check-and-set style updates.
 
+## Restrictions
+
+Variable paths are restricted to [RFC3986][] URL-safe characters that don't
+conflict with the use of the characters `@` and `.` in template blocks. This
+includes alphanumeric characters and the special characters `-`, `_`, `~`, and
+`/`. Paths may be up to 128 bytes long. The following regex matches the allowed
+paths: `^[a-zA-Z0-9-_~/]{1,128}$`
+
+Variable items are restricted to 16KiB in size. This limit is calculated by
+taking the sum of the length in bytes of all of the unencrypted keys and values
+in the `Items` field.
+
 ### Sample Request
 
 ```shell-session
@@ -287,3 +299,4 @@ the response will include only metadata and not the `Items` field:
 [`nomad var`]: /docs/commands/var
 [blocking queries]: /api-docs#blocking-queries
 [required ACLs]: /api-docs#acls
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2
