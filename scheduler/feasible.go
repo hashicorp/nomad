@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	memdb "github.com/hashicorp/go-memdb"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -57,7 +57,7 @@ type FeasibleIterator interface {
 	Reset()
 }
 
-// JobContextualIterator is an iterator that can have the job and task group set
+// ContextualIterator is an iterator that can have the job and task group set
 // on it.
 type ContextualIterator interface {
 	SetJob(*structs.Job)
@@ -878,7 +878,7 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -914,7 +914,7 @@ func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interf
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -982,7 +982,7 @@ func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(ctx Context, lVal, rVal interface{}) bool {
+func checkSetContainsAll(_ Context, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
