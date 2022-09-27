@@ -819,10 +819,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		if !lFound || !rFound {
-			return false
-		}
-		return checkOrder(operand, lVal, rVal)
+		return lFound && rFound && checkOrder(operand, lVal, rVal)
 	case structs.ConstraintAttributeIsSet:
 		return lFound
 	case structs.ConstraintAttributeIsNotSet:
@@ -873,11 +870,11 @@ func checkOrder(operand string, lVal, rVal any) bool {
 
 // checkIntegralOrder compares lVal and rVal as integers if possible, or false otherwise.
 func checkIntegralOrder(op, lVal, rVal string) (bool, bool) {
-	left, lErr := strconv.Atoi(lVal)
+	left, lErr := strconv.ParseInt(lVal, 10, 64)
 	if lErr != nil {
 		return false, false
 	}
-	right, rErr := strconv.Atoi(rVal)
+	right, rErr := strconv.ParseInt(rVal, 10, 64)
 	if rErr != nil {
 		return false, false
 	}
