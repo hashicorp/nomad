@@ -636,6 +636,22 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 		return err
 	}
 
+	// If the node has been GC'd or is down, we can't send it a node
+	// unpublish. We need to assume the node has unpublished at its
+	// end. If it hasn't, any controller unpublish will potentially
+	// hang or error and need to be retried.
+	if claim.NodeID != "" {
+		node, err := snap.NodeByID(memdb.NewWatchSet(), claim.NodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || node.Status == structs.NodeStatusDown {
+			v.logger.Debug("skipping node unpublish for down or GC'd node")
+			claim.State = structs.CSIVolumeClaimStateNodeDetached
+			return v.checkpointClaim(vol, claim)
+		}
+	}
+
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
