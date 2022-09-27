@@ -7,6 +7,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -568,8 +569,8 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			// setup: create an alloc that will claim our volume
 			alloc := mock.BatchAlloc()
-			alloc.NodeID = node.ID
-			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.NodeID = tc.nodeID
+			alloc.ClientStatus = structs.AllocClientStatusRunning
 
 			otherAlloc := mock.BatchAlloc()
 			otherAlloc.NodeID = tc.otherNodeID
@@ -579,7 +580,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
 				[]*structs.Allocation{alloc, otherAlloc}))
 
-			// setup: claim the volume for our alloc
+			// setup: claim the volume for our to-be-failed alloc
 			claim := &structs.CSIVolumeClaim{
 				AllocationID:   alloc.ID,
 				NodeID:         node.ID,
@@ -617,12 +618,21 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 				},
 			}
 
+			alloc = alloc.Copy()
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+			index++
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc}))
+
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
 
-			vol, volErr := state.CSIVolumeByID(nil, ns, volID)
-			require.NoError(t, volErr)
-			require.NotNil(t, vol)
+			snap, snapErr := state.Snapshot()
+			must.NoError(t, snapErr)
+
+			vol, volErr := snap.CSIVolumeByID(nil, ns, volID)
+			must.NoError(t, volErr)
+			must.NotNil(t, vol)
 
 			if tc.expectedErrMsg == "" {
 				require.NoError(t, err)
