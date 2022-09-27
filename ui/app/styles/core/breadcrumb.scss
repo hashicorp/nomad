@@ -31,4 +31,23 @@
   dl dt {
     font-size: small;
   }
+
+  & > ul > li {
+    position: relative;
+    .ember-power-select-trigger {
+      &[aria-expanded='true'] {
+        width: 150px;
+        // margin-bottom: -30px;
+      }
+    }
+
+    // .peers {
+    //   position: absolute;
+    //   right: 0;
+    //   top: 100%;
+    //   border: 3px solid red;
+    //   background: black;
+    //   z-index: 100;
+    // }
+  }
 }

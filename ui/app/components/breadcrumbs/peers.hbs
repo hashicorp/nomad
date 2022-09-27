@@ -1,0 +1,9 @@
+<PowerSelect
+  data-test-peer-selecter
+  @tagName="div"
+  @options={{@peers}}
+  @selected={{this.selectedPeer}}
+  @onChange={{action this.selectPeer}} as |peer|>
+  <span class="ember-power-select-prefix">{{yield}}</span>
+  {{peer.label}}
+</PowerSelect>

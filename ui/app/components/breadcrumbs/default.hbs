@@ -1,5 +1,6 @@
 {{! template-lint-disable no-unknown-arguments-for-builtin-components }}
 <li data-test-breadcrumb-default
+  class="{{if @crumb.peers "has-peers"}}"
   {{(modifier
     this.maybeKeyboardShortcut
     label="Go up a level"
@@ -18,7 +19,14 @@
           {{@crumb.title}}
         </dt>
         <dd>
-          {{@crumb.label}}
+          {{#if @crumb.peers}}
+            <Breadcrumbs::Peers @peers={{@crumb.peers}}>
+              {{@crumb.label}}
+            </Breadcrumbs::Peers>
+          {{else}}
+            {{@crumb.label}}
+          {{/if}}
+
         </dd>
       </dl>
     {{else}}
