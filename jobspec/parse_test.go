@@ -604,6 +604,13 @@ func TestParse(t *testing.T) {
 										GetterOptions: nil,
 										RelativeDest:  stringToPtr("var/foo"),
 									},
+									{
+										GetterSource: stringToPtr("https://example.com/file.txt"),
+										GetterHeaders: map[string]string{
+											"User-Agent":    "nomad",
+											"X-Nomad-Alloc": "alloc",
+										},
+									},
 								},
 							},
 						},
