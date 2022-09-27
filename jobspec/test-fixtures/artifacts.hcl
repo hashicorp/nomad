@@ -20,6 +20,15 @@ job "binstore-storagelocker" {
         source      = "http://foo.com/bam"
         destination = "var/foo"
       }
+
+      artifact {
+        source = "https://example.com/file.txt"
+
+        headers {
+          User-Agent    = "nomad"
+          X-Nomad-Alloc = "alloc"
+        }
+      }
     }
   }
 }
