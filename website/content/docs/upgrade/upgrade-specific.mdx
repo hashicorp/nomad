@@ -64,6 +64,12 @@ Nomad clients no longer have their Consul and Vault fingerprints cleared when
 connectivity is lost with Consul and Vault. To intentionally remove Consul and
 Vault from a client node, you will need to restart the Nomad client agent.
 
+#### Numeric Operand Comparisons in Constraints
+
+Prior to Nomad 1.4.0 the `<, <=, >, >=` operators in a constraint would always
+compare the operands lexically. This behavior has been changed so that the comparison
+is done numerically if both operands are integers or floats.
+
 ## Nomad 1.3.3
 
 Environments that don't support the use of [`uid`][template_uid] and

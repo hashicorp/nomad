@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -818,7 +819,10 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		return lFound && rFound && checkLexicalOrder(operand, lVal, rVal)
+		if !lFound || !rFound {
+			return false
+		}
+		return checkOrder(operand, lVal, rVal)
 	case structs.ConstraintAttributeIsSet:
 		return lFound
 	case structs.ConstraintAttributeIsNotSet:
@@ -850,27 +854,65 @@ func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.A
 	return checkAttributeConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
-// checkLexicalOrder is used to check for lexical ordering
-func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
-	// Ensure the values are strings
-	lStr, ok := lVal.(string)
-	if !ok {
+// checkOrder returns the result of (lVal operand rVal). The comparison is
+// done as integers if possible, or floats if possible, and lexically otherwise.
+func checkOrder(operand string, lVal, rVal any) bool {
+	left, leftOK := lVal.(string)
+	right, rightOK := rVal.(string)
+	if !leftOK || !rightOK {
 		return false
 	}
-	rStr, ok := rVal.(string)
-	if !ok {
-		return false
+	if result, ok := checkIntegralOrder(operand, left, right); ok {
+		return result
 	}
+	if result, ok := checkFloatOrder(operand, left, right); ok {
+		return result
+	}
+	return checkLexicalOrder(operand, left, right)
+}
 
+// checkIntegralOrder compares lVal and rVal as integers if possible, or false otherwise.
+func checkIntegralOrder(op, lVal, rVal string) (bool, bool) {
+	left, lErr := strconv.Atoi(lVal)
+	if lErr != nil {
+		return false, false
+	}
+	right, rErr := strconv.Atoi(rVal)
+	if rErr != nil {
+		return false, false
+	}
+	return compareOrder(op, left, right), true
+}
+
+// checkFloatOrder compares lVal and rVal as floats if possible, or false otherwise.
+func checkFloatOrder(op, lVal, rVal string) (bool, bool) {
+	left, lErr := strconv.ParseFloat(lVal, 64)
+	if lErr != nil {
+		return false, false
+	}
+	right, rErr := strconv.ParseFloat(rVal, 64)
+	if rErr != nil {
+		return false, false
+	}
+	return compareOrder(op, left, right), true
+}
+
+// checkLexicalOrder compares lVal and rVal lexically.
+func checkLexicalOrder(op string, lVal, rVal string) bool {
+	return compareOrder[string](op, lVal, rVal)
+}
+
+// compareOrder returns the result of the expression (left op right)
+func compareOrder[T constraints.Ordered](op string, left, right T) bool {
 	switch op {
 	case "<":
-		return lStr < rStr
+		return left < right
 	case "<=":
-		return lStr <= rStr
+		return left <= right
 	case ">":
-		return lStr > rStr
+		return left > right
 	case ">=":
-		return lStr >= rStr
+		return left >= right
 	default:
 		return false
 	}
@@ -903,13 +945,13 @@ func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interfac
 	}
 
 	// Parse the constraints
-	constraints := parse(constraintStr)
-	if constraints == nil {
+	c := parse(constraintStr)
+	if c == nil {
 		return false
 	}
 
 	// Check the constraints against the version
-	return constraints.Check(vers)
+	return c.Check(vers)
 }
 
 // checkAttributeVersionMatch is used to compare a version on the
@@ -938,13 +980,13 @@ func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal
 	}
 
 	// Parse the constraints
-	constraints := parse(constraintStr)
-	if constraints == nil {
+	c := parse(constraintStr)
+	if c == nil {
 		return false
 	}
 
 	// Check the constraints against the version
-	return constraints.Check(vers)
+	return c.Check(vers)
 }
 
 // checkRegexpMatch is used to compare a value on the
@@ -1485,13 +1527,13 @@ func newVersionConstraintParser(ctx Context) verConstraintParser {
 			return c
 		}
 
-		constraints, err := version.NewConstraint(cstr)
+		constraint, err := version.NewConstraint(cstr)
 		if err != nil {
 			return nil
 		}
-		cache[cstr] = constraints
+		cache[cstr] = constraint
 
-		return constraints
+		return constraint
 	}
 }
 
@@ -1503,12 +1545,12 @@ func newSemverConstraintParser(ctx Context) verConstraintParser {
 			return c
 		}
 
-		constraints, err := semver.NewConstraint(cstr)
+		constraint, err := semver.NewConstraint(cstr)
 		if err != nil {
 			return nil
 		}
-		cache[cstr] = constraints
+		cache[cstr] = constraint
 
-		return constraints
+		return constraint
 	}
 }
