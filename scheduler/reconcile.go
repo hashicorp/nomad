@@ -300,25 +300,32 @@ func (a *allocReconciler) computeMultiregionDeploymentPaused() {
 		return
 	}
 
+	// if job is registered for the first time, we pause the deployment.
 	if a.oldDeployment == nil {
+		if a.job.Version != 0 { // FIXME what about when job version is 0
+			return
+		}
 		a.deploymentPaused = true
 		return
 	}
 
+	// job update
 	if a.job.Version > a.oldDeployment.JobVersion {
 		a.deploymentPaused = true
-		return
 	}
 
-	if a.job.Version == 0 && a.job.ModifyIndex > a.oldDeployment.JobModifyIndex {
+	// oldDeployment != nil && job.Version <= oldDeployment.JobVersion, job.Version == 0
+	// This is possible in two scenarios:
+	// - job register after global purge
+	// - node update when job version is 0
+	// If it's the former, we want deployment paused
+	if a.oldDeployment.Status == structs.DeploymentStatusSuccessful {
 		a.deploymentPaused = true
-		return
 	}
 
 	// At this point the job did not change, so the eval being processed is for
 	// something else, like a node-update, so don't consider the deployment as
 	// paused to allow allocations to be placed.
-	a.deploymentPaused = false
 }
 
 // cancelUnneededDeployments cancels any deployment that is not needed. If the
