@@ -568,8 +568,8 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			// setup: create an alloc that will claim our volume
 			alloc := mock.BatchAlloc()
-			alloc.NodeID = node.ID
-			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.NodeID = tc.nodeID
+			alloc.ClientStatus = structs.AllocClientStatusRunning
 
 			otherAlloc := mock.BatchAlloc()
 			otherAlloc.NodeID = tc.otherNodeID
@@ -579,7 +579,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
 				[]*structs.Allocation{alloc, otherAlloc}))
 
-			// setup: claim the volume for our alloc
+			// setup: claim the volume for our to-be-failed alloc
 			claim := &structs.CSIVolumeClaim{
 				AllocationID:   alloc.ID,
 				NodeID:         node.ID,
@@ -617,10 +617,19 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 				},
 			}
 
+			alloc = alloc.Copy()
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+			index++
+			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc}))
+
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
 
-			vol, volErr := state.CSIVolumeByID(nil, ns, volID)
+			snap, snapErr := state.Snapshot()
+			require.NoError(t, snapErr)
+
+			vol, volErr := snap.CSIVolumeByID(nil, ns, volID)
 			require.NoError(t, volErr)
 			require.NotNil(t, vol)
 
