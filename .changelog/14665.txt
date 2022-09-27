@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: warn a user before they leave a Variables form page with unsaved information
-```
