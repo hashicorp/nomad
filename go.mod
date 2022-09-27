@@ -40,7 +40,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/hashicorp/consul-template v0.29.3-0.20220922183329-be2fb1f1eb46
+	github.com/hashicorp/consul-template v0.29.3-0.20220927195834-fecdf6c3f550
 	github.com/hashicorp/consul/api v1.15.2
 	github.com/hashicorp/consul/sdk v0.11.0
 	github.com/hashicorp/cronexpr v1.1.1
