@@ -2459,7 +2459,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 			}
 		}
 		return true
-	}, time.Second*1, 10*time.Millisecond, "invalid claims should be marked for GC")
+	}, time.Second*5, 10*time.Millisecond, "invalid claims should be marked for GC")
 
 }
 
