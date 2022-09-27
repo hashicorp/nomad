@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@playwright/test": "^1.22.1",
+    "@replayio/playwright": "0.2.13",
     "axios": "^0.27.2"
   },
   "type": "module"
