@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where a volume that was successfully unmounted by the client but then failed controller unpublishing would not be marked free until garbage collection ran.
+```
