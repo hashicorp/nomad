@@ -64,3 +64,59 @@ runner. Typically you'll need to set `-bind` to your host's IP address
 [reverse proxy]: https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui
 [./input/proxy.nomad]: https://github.com/hashicorp/nomad/tree/main/e2e/ui/input/proxy.nomad
 [`NOMAD_*` environment variables]: https://developer.hashicorp.com/nomad/docs/commands#command-contexts
+
+## Contributing
+
+This guide contains documentation about contributing to the UI E2E tests using Playwright.
+
+If you're looking for information about using Playwright, please instead refer to the [Playwright documentation](https://playwright.dev/docs/writing-tests).
+
+### Running the test suite
+
+In order to get the test suite running in an environment similar to what will happen in our CI pipeline, we'll be using the `./run.sh` bash script.
+
+This script spins up a Docker container that will be used to run our Playwright
+scripts. Keep in mind here is that, in local development, you'll be spinning up
+a Nomad server on your local machine but spinning up a container to run our test
+scripts. This means that you'll need to specify an address for the Nomad agent
+to bind for network services (in order to get access to the HTTP interface which
+allows us to use our `./api-client` to set-up and tear down testing
+arrangements).
+
+Please follow these steps to get up and running:
+
+#### Spin up a Nomad Server
+
+(Optional Step 0): If you're looking to test local UI changes, build the UI by changing directories to get to the root of the Nomad repository and run `make dev-ui`.
+
+1. Spin up a Nomad server that has ACLs enabled AND configures a bind address to `0.0.0.0` which will set the IP address of the default private network.
+
+`nomad agent -dev -config=$YOUR_CONFIG.hcl -bind=0.0.0.0`
+
+2. Bootstrap ACLs
+
+`nomad acl bootstrap`
+
+3. Copy the `Secret ID` of the `stdout` of running the `bootstrap` command.
+
+4. Run `ifconfig` and look at the `stdout` for `en0`. This refers to your physical network interface. Grab the address associated with `inet` which is the address of your host which we'll require as an environment variable in our Playwright scripts to query the Nomad server on your local machine from the Docker container running our Playwright scripts.
+
+#### Running the test suite
+
+Prerequisites:
+
+- Docker Desktop is installed and running on your machine.
+- Playwright is [installed](https://playwright.dev/docs/intro) on your local machine
+
+1. Set your `NOMAD_TOKEN` and `NOMAD_ADDR`. From the previous instructions, set an environment variable `NOMAD_TOKEN` to the value of the `Secret ID` when you bootstrapped ACL tokens (this should be a management token). Also, set a `NOMAD_ADDR` that represents the IP Address of your local machine as mentioned in Step 4 of the previous section.
+
+2. Run `./run.sh` from the root of the `nomad/e2e/ui` directory.
+
+#### Writing your own tests
+
+Writing test code can be a little daunting. I recommend using [Playwright's Test Generator](https://playwright.dev/docs/codegen-intro) to generate your test code.
+
+1. Run `npx playwright codegen $NOMAD_ADDR/ui`. (Note: a headless Chromium browser and Playwright inspector window will open).
+2. In the Chromium (browser) window, click around the test suite as if you're a user.
+3. Copy the test code generated in the Playwright inspector video.
+4. Run the tests using `npx playwright test $YOUR_TEST_FILE`. The tests will likely fail when this runs, because Playwright will use generated classnames for HTML elements that are associated with the previous build of the UI using the Ember server. If you have a failure, change your test selectors to be based on text or CSS selectors using the [guides](https://playwright.dev/docs/selectors).
