@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1128,45 +1129,65 @@ func TestCheckConstraint(t *testing.T) {
 	}
 }
 
-func TestCheckLexicalOrder(t *testing.T) {
+func TestCheckOrder(t *testing.T) {
 	ci.Parallel(t)
 
-	type tcase struct {
+	cases := []struct {
 		op         string
-		lVal, rVal interface{}
-		result     bool
-	}
-	cases := []tcase{
+		lVal, rVal any
+		exp        bool
+	}{
 		{
 			op:   "<",
 			lVal: "bar", rVal: "foo",
-			result: true,
+			exp: true,
 		},
 		{
 			op:   "<=",
 			lVal: "foo", rVal: "foo",
-			result: true,
+			exp: true,
 		},
 		{
 			op:   ">",
 			lVal: "bar", rVal: "foo",
-			result: false,
+			exp: false,
 		},
 		{
 			op:   ">=",
 			lVal: "bar", rVal: "bar",
-			result: true,
+			exp: true,
 		},
 		{
 			op:   ">",
-			lVal: 1, rVal: "foo",
-			result: false,
+			lVal: "1", rVal: "foo",
+			exp: false,
+		},
+		{
+			op:   "<",
+			lVal: "10", rVal: "1",
+			exp: false,
+		},
+		{
+			op:   "<",
+			lVal: "1", rVal: "10",
+			exp: true,
+		},
+		{
+			op:   "<",
+			lVal: "10.5", rVal: "1.5",
+			exp: false,
+		},
+		{
+			op:   "<",
+			lVal: "1.5", rVal: "10.5",
+			exp: true,
 		},
 	}
 	for _, tc := range cases {
-		if res := checkLexicalOrder(tc.op, tc.lVal, tc.rVal); res != tc.result {
-			t.Fatalf("TC: %#v, Result: %v", tc, res)
-		}
+		name := fmt.Sprintf("%v %s %v", tc.lVal, tc.op, tc.rVal)
+		t.Run(name, func(t *testing.T) {
+			must.Eq(t, tc.exp, checkOrder(tc.op, tc.lVal, tc.rVal))
+		})
 	}
 }
 
