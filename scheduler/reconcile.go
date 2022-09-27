@@ -301,9 +301,7 @@ func (a *allocReconciler) computeMultiregionDeploymentPaused() {
 	}
 
 	if a.oldDeployment == nil {
-		if a.job.Version == 0 {
-			a.deploymentPaused = true
-		}
+		a.deploymentPaused = true
 		return
 	}
 
@@ -312,7 +310,7 @@ func (a *allocReconciler) computeMultiregionDeploymentPaused() {
 		return
 	}
 
-	if a.job.Version == 0 && a.job.ModifyIndex == a.oldDeployment.JobModifyIndex {
+	if a.job.Version == 0 && a.job.ModifyIndex > a.oldDeployment.JobModifyIndex {
 		a.deploymentPaused = true
 		return
 	}
