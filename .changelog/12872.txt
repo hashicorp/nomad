@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: added visual regression tests for top-level UI routes
-```
