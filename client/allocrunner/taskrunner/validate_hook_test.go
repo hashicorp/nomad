@@ -25,6 +25,11 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 		t.Fatalf("expected error running as root with exec")
 	}
 
+	// Try to run an allowlisted user with exec.
+	config.DefaultUserAllowlist = "allow-fubar"
+	task.User = "allow-fubar"
+	require.NoError(t, validateTask(task, taskEnv, conf))
+
 	// Try to run a non-blacklisted user with exec.
 	task.User = "foobar"
 	require.NoError(t, validateTask(task, taskEnv, conf))

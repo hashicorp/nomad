@@ -48,10 +48,21 @@ func validateTask(task *structs.Task, taskEnv *taskenv.TaskEnv, conf *config.Con
 		[]string{"user.denylist", "user.blacklist"},
 		config.DefaultUserDenylist,
 	)
+
+	allowedUsers := conf.ReadStringListAlternativeToMapDefault(
+		[]string{"user.allowlist", "user.whitelist"},
+		config.DefaultUserAllowlist,
+	)
+
+	// if you are on the allowlist, you are allowed
+	// if you are not on the allowlist, check the denylist
+	// if you are on the denylist, you are disallowed
 	checkDrivers := conf.ReadStringListToMapDefault("user.checked_drivers", config.DefaultUserCheckedDrivers)
 	if _, driverMatch := checkDrivers[task.Driver]; driverMatch {
-		if _, unallowed := unallowedUsers[task.User]; unallowed {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("running as user %q is disallowed", task.User))
+		if _, allowed := allowedUsers[task.User]; !allowed {
+			if _, unallowed := unallowedUsers[task.User]; unallowed {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("running as user %q is disallowed", task.User))
+			}
 		}
 	}
 

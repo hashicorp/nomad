@@ -39,6 +39,10 @@ var (
 		"Administrator",
 	}, ",")
 
+	// DefaultUserAllowlist is the default set of users that tasks are
+	// allowed to run as when using a driver in "user.checked_drivers"
+	DefaultUserAllowlist = strings.Join([]string{}, ",")
+
 	// DefaultUserCheckedDrivers is the set of drivers we apply the user
 	// denylist onto. For virtualized drivers it often doesn't make sense to
 	// make this stipulation so by default they are ignored.
