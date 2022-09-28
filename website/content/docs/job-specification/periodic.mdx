@@ -86,6 +86,10 @@ when the following daylight saving time behavior is _desired:_
 - When falling back, periodic jobs scheduled for the duplicated hour (eg 1:30am
   in `America/New_York`) will be _run twice_ for that day (eg November 3rd).
 
+See the [multiregion] documentation for additional considerations when
+configuring time zones for periodic jobs.
+
 [batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
 [dst]: #daylight-saving-time
+[multiregion]: /docs/job-specification/multiregion#periodic-time-zones
