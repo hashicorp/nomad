@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
+	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -184,7 +185,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	if consul {
 		var err error
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
-			c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
+			c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
 		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
@@ -513,6 +514,7 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Permissions(t *testing.T) {
+	clienttestutil.RequireRoot(t)
 	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
