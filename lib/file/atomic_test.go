@@ -21,7 +21,7 @@ func TestWriteAtomic(t *testing.T) {
 
 	// Write
 	expected := []byte("hello")
-	require.NoError(t, WriteAtomic(path, expected))
+	require.NoError(t, WriteAtomicWithPerms(path, expected, 0700, 0600))
 
 	// Read and verify
 	actual, err := os.ReadFile(path)
