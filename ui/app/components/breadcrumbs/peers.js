@@ -8,6 +8,7 @@ export default class BreadcrumbsPeersComponent extends Component {
   selectedPeer = {};
   selectPeer(peer) {
     const [routeName, ...models] = peer.args;
+    console.log('about to transition to', routeName, models);
     this.router.transitionTo(routeName, ...models);
   }
 }

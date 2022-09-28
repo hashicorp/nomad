@@ -36,6 +36,7 @@
     position: relative;
     & > .peer-dropdown-container {
       padding-left: 0.75em;
+      padding-right: 0.75em;
     }
     .ember-power-select-trigger {
       background-color: transparent;
@@ -46,6 +47,7 @@
       padding-bottom: 0;
       // outline: none;
       box-shadow: none;
+      padding-right: 24px;
 
       &:focus {
         border-bottom: 1px solid white;
@@ -58,6 +60,7 @@
 
       .ember-power-select-prefix {
         color: unset;
+        font-size: 16px;
       }
       .ember-power-select-selected-item {
         margin-left: 0;

@@ -13,6 +13,10 @@ export default class LifecycleChart extends Component {
   @computed('tasks.@each.lifecycle', 'taskStates.@each.state')
   get lifecyclePhases() {
     const tasksOrStates = this.taskStates || this.tasks;
+    console.log(
+      'phases for 1',
+      tasksOrStates.map((x) => x.get('allocation').get('shortId'))
+    );
     const lifecycles = {
       'prestart-ephemerals': [],
       'prestart-sidecars': [],
@@ -61,11 +65,13 @@ export default class LifecycleChart extends Component {
   }
 
   @sort('taskStates', function (a, b) {
+    console.log('+++TS', a);
     return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
   })
   sortedLifecycleTaskStates;
 
   @sort('tasks', function (a, b) {
+    console.log('!!!SLT', a);
     return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
   })
   sortedLifecycleTasks;
@@ -81,5 +87,5 @@ const lifecycleNameSortPrefix = {
 };
 
 function getTaskSortPrefix(task) {
-  return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
+  return `${lifecycleNameSortPrefix[task?.lifecycleName]}-${task?.name}`;
 }

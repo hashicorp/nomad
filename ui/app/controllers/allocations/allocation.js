@@ -16,6 +16,42 @@ export default class AllocationsAllocationController extends Controller {
     return job;
   }
 
+  get allocationPeers() {
+    return this.job.taskGroups
+      .filterBy('name', this.allocation.taskGroup.name)
+      .reduce((allocs, group) => {
+        return allocs.concat(
+          group.allocations.rejectBy('id', this.allocation.id).map((alloc) => {
+            return {
+              label: alloc.shortId,
+              args: ['allocations.allocation', alloc.id],
+            };
+          })
+        );
+      }, []);
+
+    // console.log('getting allocpeers', this.allocation, this.store.peekAll('allocation'));
+    // return this.store
+    //   .peekAll('allocation')
+    //   .rejectBy('id', this.allocation?.id)
+    //   .map((alloc) => {
+    //     return {
+    //       label: alloc.shortId,
+    //       args: ['allocations.allocation', alloc.id],
+    //     };
+    //   });
+  }
+
+  get taskGroupPeers() {
+    const groupsWithinJob = this.job.taskGroups.map((group) => {
+      return {
+        label: group.name,
+        args: ['jobs.job.task-group', this.job.idWithNamespace, group.name],
+      };
+    });
+    return groupsWithinJob.length > 1 ? groupsWithinJob : null;
+  }
+
   get jobNamespace() {
     const jobNamespaceId = this.job.belongsTo('namespace').id();
 
@@ -40,11 +76,13 @@ export default class AllocationsAllocationController extends Controller {
           job.idWithNamespace,
           allocation.taskGroupName,
         ],
+        peers: this.taskGroupPeers,
       },
       {
         title: 'Allocation',
         label: allocation.shortId,
         args: ['allocations.allocation', allocation],
+        peers: this.allocationPeers,
       },
     ];
   }
