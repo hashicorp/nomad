@@ -1303,15 +1303,6 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.MemoryMaxMB = *in.MemoryMaxMB
 	}
 
-	// COMPAT(0.10): Only being used to issue warnings
-	if in.IOPS != nil {
-		out.IOPS = *in.IOPS
-	}
-
-	if len(in.Networks) != 0 {
-		out.Networks = ApiNetworkResourceToStructs(in.Networks)
-	}
-
 	if len(in.Devices) > 0 {
 		out.Devices = []*structs.RequestedDevice{}
 		for _, d := range in.Devices {

@@ -360,54 +360,6 @@ OUTER:
 				taskResources.Memory.MemoryMaxMB = int64(task.Resources.MemoryMaxMB)
 			}
 
-			// Check if we need a network resource
-			if len(task.Resources.Networks) > 0 {
-				ask := task.Resources.Networks[0].Copy()
-				offer, err := netIdx.AssignTaskNetwork(ask)
-				if offer == nil {
-					// If eviction is not enabled, mark this node as exhausted and continue
-					if !iter.evict {
-						iter.ctx.Metrics().ExhaustedNode(option.Node,
-							fmt.Sprintf("network: %s", err))
-						netIdx.Release()
-						continue OUTER
-					}
-
-					// Look for preemptible allocations to satisfy the network resource for this task
-					preemptor.SetCandidates(proposed)
-
-					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
-					if netPreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Debug("preemption not possible ", "network_resource", ask)
-						netIdx.Release()
-						continue OUTER
-					}
-					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
-
-					// First subtract out preempted allocations
-					proposed = structs.RemoveAllocs(proposed, netPreemptions)
-
-					// Reset the network index and try the offer again
-					netIdx.Release()
-					netIdx = structs.NewNetworkIndex()
-					netIdx.SetNode(option.Node)
-					netIdx.AddAllocs(proposed)
-
-					offer, err = netIdx.AssignTaskNetwork(ask)
-					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
-						netIdx.Release()
-						continue OUTER
-					}
-				}
-
-				// Reserve this to prevent another task from colliding
-				netIdx.AddReserved(offer)
-
-				// Update the network ask to the offer
-				taskResources.Networks = []*structs.NetworkResource{offer}
-			}
-
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
 				offer, sumAffinities, err := devAllocator.AssignDevice(req)
@@ -464,7 +416,7 @@ OUTER:
 				// set of all reserved CPUs on the node
 				allocatedCPUSet := cpuset.New()
 				for _, alloc := range proposed {
-					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.ComparableResources().Flattened.Cpu.ReservedCores...))
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores...))
 				}
 
 				// add any cores that were reserved for other tasks
