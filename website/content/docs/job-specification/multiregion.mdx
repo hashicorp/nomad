@@ -67,7 +67,7 @@ a time. When each region completes its local deployment, it enters a `blocked`
 state where it waits until the last region has completed the deployment. The
 final region will unblock the regions to mark them as `successful`.
 
-## Multiregion Parameterized Job Dispatch
+## Parameterized Job Dispatch
 
 Job dispatching is region specific. While a [parameterized job] can be 
 registered in multiple [federated regions] like any other job, a parameterized
@@ -75,6 +75,14 @@ job operates much like a function definition that takes variable input.
 Operators are expected to invoke the job by invoking [`job dispatch`] 
 from the CLI or the [HTTP API] and provide the appropriate dispatch options
 for that region.
+
+## Periodic Job Time Zones
+
+Multiregion periodic jobs share [time zone] configuration, with UTC being the
+default. Operators should be mindful of this when registering multiregion jobs.
+For example, a periodc configuration specifies that the job should run every
+night at midnight New York time, may result in an undesirable execution time
+if one of the target regions is set to Tokyo time.
 
 ## `multiregion` Parameters
 
@@ -276,3 +284,4 @@ group "worker" {
 [parameterized job]: /docs/job-specification/parameterized
 [`job dispatch`]: /docs/commands/job/dispatch
 [HTTP API]: /api-docs/jobs#dispatch-job
+[time zone]: /docs/job-specification/periodic#time_zone
