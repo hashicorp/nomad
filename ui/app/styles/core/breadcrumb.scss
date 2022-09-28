@@ -34,10 +34,36 @@
 
   & > ul > li {
     position: relative;
+    & > .peer-dropdown-container {
+      padding-left: 0.75em;
+    }
     .ember-power-select-trigger {
+      background-color: transparent;
+      border: none;
+      height: auto;
+      padding-top: 0;
+      padding-left: 0;
+      padding-bottom: 0;
+      // outline: none;
+      box-shadow: none;
+
+      &:focus {
+        border-bottom: 1px solid white;
+      }
+
       &[aria-expanded='true'] {
-        width: 150px;
+        // width: 150px;
         // margin-bottom: -30px;
+      }
+
+      .ember-power-select-prefix {
+        color: unset;
+      }
+      .ember-power-select-selected-item {
+        margin-left: 0;
+      }
+      .ember-power-select-status-icon {
+        border-top-color: white;
       }
     }
 

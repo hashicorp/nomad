@@ -10,6 +10,27 @@
     exclusive=true
   )}}
 >
+
+{{#if @crumb.peers}}
+  <span class="peer-dropdown-container">
+    {{#if @crumb.title}}
+      <dl>
+        <dt>
+          {{@crumb.title}}
+        </dt>
+        <dd>
+          <Breadcrumbs::Peers @peers={{@crumb.peers}}>
+            {{@crumb.label}}
+          </Breadcrumbs::Peers>
+        </dd>
+      </dl>
+    {{else}}
+      <Breadcrumbs::Peers @peers={{@crumb.peers}}>
+        {{@crumb.label}}
+      </Breadcrumbs::Peers>
+    {{/if}}
+  </span>
+{{else}}
   <LinkTo
     @params={{@crumb.args}}
     data-test-breadcrumb={{@crumb.args.firstObject}}>
@@ -19,18 +40,12 @@
           {{@crumb.title}}
         </dt>
         <dd>
-          {{#if @crumb.peers}}
-            <Breadcrumbs::Peers @peers={{@crumb.peers}}>
-              {{@crumb.label}}
-            </Breadcrumbs::Peers>
-          {{else}}
-            {{@crumb.label}}
-          {{/if}}
-
+          {{@crumb.label}}
         </dd>
       </dl>
     {{else}}
       {{@crumb.label}}
     {{/if}}
   </LinkTo>
+{{/if}}
 </li>
