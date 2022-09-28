@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -300,16 +301,19 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 func TestTaskRunner_Restore_Running(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("requires bash")
+	}
 
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
+	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
-		"run_for": "2s",
+		"command": "bash",
+		"args":    []string{"-c", "sleep 2"},
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
 	// Run the first TaskRunner
