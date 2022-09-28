@@ -47,6 +47,9 @@ client connection issues or internal errors, are indicated by exit code 1.
 When ACLs are enabled, this command requires a token with the `dispatch-job`
 capability for the job's namespace.
 
+See the [multiregion] documentation for additional considerations when
+dispatching parameterized jobs.
+
 ## General Options
 
 @include 'general_options.mdx'
@@ -140,3 +143,4 @@ Job "video-encode/dispatch-1485379325-cb38d00d" already dispatched with idempote
 
 [eval status]: /docs/commands/eval/status
 [parameterized job]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'
+[multiregion]: /docs/job-specification/multiregion#parameterized-dispatch
