@@ -8,12 +8,8 @@ import (
 	"github.com/hashicorp/go-uuid"
 )
 
-// WriteAtomic writes the given contents to a temporary file in the same
-// directory, does an fsync and then renames the file to its real path
-func WriteAtomic(path string, contents []byte) error {
-	return WriteAtomicWithPerms(path, contents, 0700, 0600)
-}
-
+// WriteAtomicWithPerms creates a temp file with specific permissions and then renames and
+// moves it to the path.
 func WriteAtomicWithPerms(path string, contents []byte, dirPerms, filePerms os.FileMode) error {
 
 	uuid, err := uuid.GenerateUUID()
@@ -22,30 +18,33 @@ func WriteAtomicWithPerms(path string, contents []byte, dirPerms, filePerms os.F
 	}
 	tempPath := fmt.Sprintf("%s-%s.tmp", path, uuid)
 
+	// Make a directory within the current one.
 	if err := os.MkdirAll(filepath.Dir(path), dirPerms); err != nil {
 		return err
 	}
+
+	// File opened with write only permissions. Will be created if it does not exist
+	// file is given specific permissions
 	fh, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, filePerms)
 	if err != nil {
 		return err
 	}
+
+	defer os.RemoveAll(tempPath) // clean up
+
 	if _, err := fh.Write(contents); err != nil {
 		fh.Close()
-		os.Remove(tempPath)
 		return err
 	}
 	// Commits the current state of the file to disk
 	if err := fh.Sync(); err != nil {
 		fh.Close()
-		os.Remove(tempPath)
 		return err
 	}
 	if err := fh.Close(); err != nil {
-		os.Remove(tempPath)
 		return err
 	}
 	if err := os.Rename(tempPath, path); err != nil {
-		os.Remove(tempPath)
 		return err
 	}
 	return nil
