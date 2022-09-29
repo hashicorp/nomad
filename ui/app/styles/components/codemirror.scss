@@ -129,3 +129,18 @@ $dark-bright: lighten($dark, 15%);
     background-color: $dark-2;
   }
 }
+
+.job-from-url {
+  display: block;
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 1rem;
+  & > label {
+    grid-column: -1 / 1;
+  }
+  input {
+    padding: 0.25rem;
+    width: 100%;
+  }
+}

@@ -41,6 +41,22 @@ export default class JobEditor extends Component {
     }
   }
 
+  _newSpecURL = '';
+  /**
+   * Performs a fetch to the passed URL and returns the content back as raw text
+   * @param {string} url
+   */
+  @action async fetchFromURL(event) {
+    event.preventDefault();
+    if (this._newSpecURL) {
+      const spec = await fetch(this._newSpecURL).then((response) =>
+        response.text()
+      );
+      this.updateCode(spec);
+      this._newSpecURL = '';
+    }
+  }
+
   _context = null;
   parseError = null;
   planError = null;

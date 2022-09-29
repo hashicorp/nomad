@@ -63,6 +63,13 @@
       />
     </div>
   </div>
+
+  <form class="job-from-url" {{on "submit" this.fetchFromURL}}>
+    <label for="url-input">Or, fetch a valid Nomad job spec from a URL</label>
+    <Input id="url-input" @type="url" placeholder="https://example.com/job.nomad" @value={{this._newSpecURL}}
+    />
+    <button type="submit">Fetch</button>
+  </form>
   <div class="content is-associative">
     <button
       class="button is-primary {{if this.plan.isRunning 'is-loading'}}"
