@@ -145,7 +145,7 @@ module('Acceptance | variables', function (hooks) {
   });
 
   test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
-    assert.expect(23);
+    assert.expect(29);
     allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
 
@@ -313,6 +313,45 @@ module('Acceptance | variables', function (hooks) {
     assert
       .dom('[data-test-task-stat="variables"]')
       .doesNotExist('Link from Variable-less Job to Variable does not exist');
+
+    // Related Entities during the Variable creation process
+    await Variables.visitNew();
+    assert
+      .dom('.related-entities.notification')
+      .doesNotExist('Related Entities notification is not present by default');
+    await typeIn('[data-test-path-input]', 'foo/bar');
+    assert
+      .dom('.related-entities.notification')
+      .doesNotExist(
+        'Related Entities notification is not present when path is generic'
+      );
+    document.querySelector('[data-test-path-input]').value = ''; // clear path input
+    await typeIn('[data-test-path-input]', 'nomad/jobs/abc');
+    assert
+      .dom('.related-entities.notification')
+      .exists(
+        'Related Entities notification is present when path is job-oriented'
+      );
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by job',
+        'Related Entities notification is job-oriented'
+      );
+    await typeIn('[data-test-path-input]', '/def');
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by group',
+        'Related Entities notification is group-oriented'
+      );
+    await typeIn('[data-test-path-input]', '/ghi');
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by task',
+        'Related Entities notification is task-oriented'
+      );
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
