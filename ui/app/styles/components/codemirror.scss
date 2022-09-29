@@ -129,3 +129,23 @@ $dark-bright: lighten($dark, 15%);
     background-color: $dark-2;
   }
 }
+
+label.job-spec-upload {
+  display: block;
+  cursor: pointer;
+  background-color: #eee;
+  margin-top: -1.5rem;
+  margin-bottom: 1.5rem;
+
+  input {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    display: none;
+  }
+
+  span {
+    display: block;
+    padding: 0.5rem 1rem;
+  }
+}

@@ -63,6 +63,12 @@
       />
     </div>
   </div>
+
+  <label class="job-spec-upload">
+    <input type="file" onchange={{action this.uploadJobSpec}} />
+    <span>Attach a job spec by clicking here or dragging &amp; dropping a file to the editor above</span>
+  </label>
+
   <div class="content is-associative">
     <button
       class="button is-primary {{if this.plan.isRunning 'is-loading'}}"
