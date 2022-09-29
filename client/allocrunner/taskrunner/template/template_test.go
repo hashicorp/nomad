@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -27,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2515,10 +2515,10 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	ci.Parallel(t)
 
-	cu, err := user.Current()
+	cu, err := users.Current()
 	require.NoError(t, err)
 
-	cg, err := user.LookupGroupId(cu.Gid)
+	cg, err := users.LookupGroupId(cu.Gid)
 	require.NoError(t, err)
 
 	file := "my.tmpl"

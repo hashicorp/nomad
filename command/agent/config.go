@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -23,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -1082,7 +1082,7 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 			// come up and fail unexpectedly to run jobs
 			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
 		}
-		u, err := user.Current()
+		u, err := users.Current()
 		if err != nil {
 			return nil, fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root: %v", err)
