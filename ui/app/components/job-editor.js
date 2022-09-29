@@ -117,4 +117,14 @@ export default class JobEditor extends Component {
       window.scrollTo(0, 0);
     }
   }
+
+  @action uploadJobSpec(event) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.updateCode(reader.result);
+    };
+
+    const [file] = event.target.files;
+    reader.readAsText(file);
+  }
 }
