@@ -168,6 +168,10 @@ export default class VariableFormComponent extends Component {
     this.save(e, true);
   }
 
+  @action setModelPath() {
+    this.args.model.set('path', this.path);
+  }
+
   @action
   async save(e, overwrite = false) {
     if (e.type === 'submit') {
