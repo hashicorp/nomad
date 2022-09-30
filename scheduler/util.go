@@ -585,7 +585,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
 			return true
-		} else if !ar.Devices.Equals(&br.Devices) {
+		} else if !ar.Devices.Equal(&br.Devices) {
 			return true
 		}
 	}
@@ -644,11 +644,11 @@ func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
 		return true
 	}
 
-	if !connectA.Gateway.Equals(connectB.Gateway) {
+	if !connectA.Gateway.Equal(connectB.Gateway) {
 		return true
 	}
 
-	if !connectA.SidecarTask.Equals(connectB.SidecarTask) {
+	if !connectA.SidecarTask.Equal(connectB.SidecarTask) {
 		return true
 	}
 

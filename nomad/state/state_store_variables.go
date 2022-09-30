@@ -206,7 +206,7 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 		sv.CreateIndex = existing.CreateIndex
 		sv.CreateTime = existing.CreateTime
 
-		if existing.Equals(*sv) {
+		if existing.Equal(*sv) {
 			// Skip further writing in the state store if the entry is not actually
 			// changed. Nevertheless, the input's ModifyIndex should be reset
 			// since the TXN API returns a copy in the response.

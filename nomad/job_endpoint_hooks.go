@@ -193,7 +193,7 @@ type constraintMatcher uint
 const (
 	// constraintMatcherFull ensures that a constraint is only considered found
 	// when they match totally. This check is performed using the
-	// structs.Constraint Equals function.
+	// structs.Constraint Equal function.
 	constraintMatcherFull constraintMatcher = iota
 
 	// constraintMatcherLeft ensure that a constraint is considered found if
@@ -214,7 +214,7 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	switch matcher {
 	case constraintMatcherFull:
 		for _, c := range taskGroup.Constraints {
-			if c.Equals(constraint) {
+			if c.Equal(constraint) {
 				found = true
 				break
 			}

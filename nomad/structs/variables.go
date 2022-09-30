@@ -24,7 +24,7 @@ const (
 	// Reply: VariablesListResponse
 	VariablesListRPCMethod = "Variables.List"
 
-	// VariablesGetServiceRPCMethod is the RPC method for fetching a variable
+	// VariablesReadRPCMethod is the RPC method for fetching a variable
 	// according to its namepace and path.
 	//
 	// Args: VariablesByNameRequest
@@ -83,34 +83,34 @@ func (svi VariableItems) Size() uint64 {
 	return out
 }
 
-// Equals checks both the metadata and items in a VariableDecrypted struct
-func (v1 VariableDecrypted) Equals(v2 VariableDecrypted) bool {
-	return v1.VariableMetadata.Equals(v2.VariableMetadata) &&
-		v1.Items.Equals(v2.Items)
+// Equal checks both the metadata and items in a VariableDecrypted struct
+func (v1 VariableDecrypted) Equal(v2 VariableDecrypted) bool {
+	return v1.VariableMetadata.Equal(v2.VariableMetadata) &&
+		v1.Items.Equal(v2.Items)
 }
 
-// Equals is a convenience method to provide similar equality checking syntax
+// Equal is a convenience method to provide similar equality checking syntax
 // for metadata and the VariablesData or VariableItems struct
-func (sv VariableMetadata) Equals(sv2 VariableMetadata) bool {
+func (sv VariableMetadata) Equal(sv2 VariableMetadata) bool {
 	return sv == sv2
 }
 
-// Equals performs deep equality checking on the cleartext items of a
+// Equal performs deep equality checking on the cleartext items of a
 // VariableDecrypted. Uses reflect.DeepEqual
-func (i1 VariableItems) Equals(i2 VariableItems) bool {
+func (i1 VariableItems) Equal(i2 VariableItems) bool {
 	return reflect.DeepEqual(i1, i2)
 }
 
-// Equals checks both the metadata and encrypted data for a VariableEncrypted
+// Equal checks both the metadata and encrypted data for a VariableEncrypted
 // struct
-func (v1 VariableEncrypted) Equals(v2 VariableEncrypted) bool {
-	return v1.VariableMetadata.Equals(v2.VariableMetadata) &&
-		v1.VariableData.Equals(v2.VariableData)
+func (v1 VariableEncrypted) Equal(v2 VariableEncrypted) bool {
+	return v1.VariableMetadata.Equal(v2.VariableMetadata) &&
+		v1.VariableData.Equal(v2.VariableData)
 }
 
-// Equals performs deep equality checking on the encrypted data part of a
+// Equal performs deep equality checking on the encrypted data part of a
 // VariableEncrypted
-func (d1 VariableData) Equals(d2 VariableData) bool {
+func (d1 VariableData) Equal(d2 VariableData) bool {
 	return d1.KeyID == d2.KeyID &&
 		bytes.Equal(d1.Data, d2.Data)
 }

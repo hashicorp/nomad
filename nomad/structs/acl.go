@@ -333,9 +333,9 @@ func (a *ACLRole) Canonicalize() {
 	}
 }
 
-// Equals performs an equality check on the two service registrations. It
+// Equal performs an equality check on the two service registrations. It
 // handles nil objects.
-func (a *ACLRole) Equals(o *ACLRole) bool {
+func (a *ACLRole) Equal(o *ACLRole) bool {
 	if a == nil || o == nil {
 		return a == o
 	}

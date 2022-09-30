@@ -625,7 +625,7 @@ func TestACLRole_Equals(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.composedACLRole.Equals(tc.inputACLRole)
+			actualOutput := tc.composedACLRole.Equal(tc.inputACLRole)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}

@@ -335,7 +335,7 @@ func TestStateStore_DeleteACLRolesByID(t *testing.T) {
 	}
 
 	require.Len(t, aclRoles, 1, "incorrect number of ACL roles found")
-	require.True(t, aclRoles[0].Equals(mockedACLRoles[1]))
+	require.True(t, aclRoles[0].Equal(mockedACLRoles[1]))
 
 	// Delete the final remaining ACL role. This should succeed and modify the
 	// table index.

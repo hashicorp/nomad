@@ -139,7 +139,7 @@ func (s *StateStore) upsertACLRoleTxn(
 		// If the role already exists, check whether the update contains any
 		// difference. If it doesn't, we can avoid a state update as wel as
 		// updates to any blocking queries.
-		if existing.Equals(role) {
+		if existing.Equal(role) {
 			return false, nil
 		}
 

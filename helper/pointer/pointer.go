@@ -29,7 +29,7 @@ type Primitive interface {
 //
 // May only be used on pointers to primitive types, where the comparison is
 // guaranteed to be sensible. For complex types (i.e. structs) consider implementing
-// an Equals method.
+// an Equal method.
 func Eq[P Primitive](a, b *P) bool {
 	if a == nil || b == nil {
 		return a == b
