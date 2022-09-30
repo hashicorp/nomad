@@ -19,8 +19,8 @@ have been written to the state store of the server nodes.
 * Note: parameterized or periodic batch jobs don't create an Evaluation at
   registration, only once dispatched.
 * Note: The scheduler is very fast! This means that once the CLI gets a
-  response it can immediately start making blocking queries to get information
-  about the next steps, but those are happening _asynchronously_.
+  response it can immediately start making queries to get information
+  about the next steps.
 * Note: This workflow is different for Multi-Region Deployments (found in Nomad
   Enterprise). That will be documented separately.
 
@@ -102,7 +102,7 @@ steps:
   creates new Allocations in this step. But note that _these Allocations are not
   yet persisted to the state store_.
 * Feasibility Check: For each Allocation it needs, the scheduler iterates over
-  Nodes until it finds 2 Nodes that match the Allocation's resource requirements
+  Nodes until it finds up to 2 Nodes that match the Allocation's resource requirements
   and constraints.
   * Note: for system jobs or jobs with with `spread` blocks, the scheduler has
     to check all Nodes.
