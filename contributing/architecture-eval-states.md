@@ -10,7 +10,7 @@ solid arrows. The dashed arrows represent when a new evaluation is created. The
 parenthetical labels on those arrows are the `TriggeredBy` field for the new
 evaluation.
 
-The states are:
+The status values are:
 
 * `pending` evaluations either are queued to be scheduled, are still being
   processed in the scheduler, or are being applied by the plan applier and not

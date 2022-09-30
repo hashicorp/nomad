@@ -13,7 +13,7 @@ Allocations on the clients. The process can be broken into 4 parts:
 ## Job Registration
 
 Creating or updating a Job is a _synchronous_ API operation. By the time the
-response has return to the API consumer, the Job and an Evaluation for that Job
+response has returned to the API consumer, the Job and an Evaluation for that Job
 have been written to the state store of the server nodes.
 
 * Note: parameterized or periodic batch jobs don't create an Evaluation at
@@ -102,7 +102,7 @@ monitor the health of allocations and create new Evaluations to continue the
 update.
 
 If the scheduler cannot place all Allocations, it will create a new Evaluation
-in the "blocked" state and submit it to the leader. The Eval Broker will
+in the `blocked` state and submit it to the leader. The Eval Broker will
 re-enque that Evaluation once cluster state has changed. (This process is the
 first green box in the sequence diagram below.)
 
@@ -117,12 +117,12 @@ Plan to the leader. The leader needs to validate this plan and serialize it:
 
 The leader processes the plan in the plan applier. If the plan is valid, the
 plan applier will write the Allocations (and Deployment) update to the state
-store. If not, it will reject the plan. (The plan submit process is the second
+store. If not, it will reject the plan and the scheduler will try to create a new plan with a refreshed state. If the scheduler fails to submit a valid plan too many times it submits a `blocked` Evaluation that is triggered by `max-plan-attempts` type. (The plan submit process is the second
 green box in the sequence diagram below.)
 
 Once the scheduler has a response from the leader, it will tell the Eval Broker
 to Ack the Evaluation (if it successfully submitted the plan) or Nack the
-Evaluation (if it failed to do so).
+Evaluation (if it failed to do so) so that another scheduler can try processing it.
 
 The diagram below shows the scheduling phase, including submitting plans to the
 planner. Note that at the end of this phase, Allocations (and Deployment) have

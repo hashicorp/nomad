@@ -63,7 +63,7 @@ The list below covers each trigger and what can trigger it.
   reaps failed Evaluations and creates 1 new Evaluation for these, with a delay.
 * **max-plan-attempts**: The scheduler will retry Evaluations that are rejected
   by the plan applier with a new cluster state snapshot. If the scheduler
-  exceeds the maximum number of retries, ti will create 1 new Evaluation in the
+  exceeds the maximum number of retries, it will create 1 new Evaluation in the
   `blocked` state.
 * **alloc-failure**: If an Allocation fails and exceeds its maximum
   [`restart` attempts][], Nomad creates 1 new Evaluation.
@@ -78,7 +78,7 @@ The list below covers each trigger and what can trigger it.
   longer than the [`max_client_disconnect`][] window, the scheduler will create
   1 Evaluation.
 * **reconnect**: When a Node in the `disconnected` state reconnects, Nomad will
-  create 1 Evaluation.
+  create 1 Evaluation per job with an allocation on the reconnected Node.
 
 ## Follow-up Evaluations
 
@@ -89,9 +89,9 @@ cluster. This can result in a large number of Evaluations when the cluster is in
 an unstable state with frequent changes.
 
 Consider the following example where a node running 1 system job and 2 service
-jobs missing its heartbeat and is marked lost. The Evaluation for the system job
-is successfully planned. One of the system jobs no longer meets constraints. The
-other system job is successfully scheduled but the resulting plan is rejected
+jobs misses its heartbeat and is marked lost. The Evaluation for the system job
+is successfully planned. One of the service jobs no longer meets constraints. The
+other service job is successfully scheduled but the resulting plan is rejected
 because the scheduler has fallen behind in raft replication. A total of 6
 Evaluations are created.
 
@@ -136,8 +136,8 @@ group has `count = 3` and the following `update` block:
 
 ```hcl
 update {
-  max_parallel      = 1
-  canary            = 1
+  max_parallel = 1
+  canary       = 1
 }
 ```
 
