@@ -108,18 +108,11 @@ flowchart TD
     failed([service 2\nfailed\nmax-plan-attempts])
     followup([service 2\nfailed-follow-up])
 
-
     %% style classes
     classDef eval fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
     classDef other fill:#d5f6ea,stroke:#1d9467
-
     class event other;
-    class system eval;
-    class service1 eval;
-    class service2 eval;
-    class blocked eval;
-    class failed eval;
-    class followup eval;
+    class system,service1,service2,blocked,failed,followup eval;
 
     event --> system
     event --> service1
@@ -161,16 +154,8 @@ flowchart TD
     %% style classes
     classDef eval fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
     classDef other fill:#d5f6ea,stroke:#1d9467
-
-    class registerEvent other
-    class alloc1health other
-    class alloc2health other
-    class alloc3health other
-
-    class register eval
-    class dwPostCanary eval
-    class dwPostAlloc2 eval
-    class dwPostAlloc3 eval
+    class registerEvent,alloc1health,alloc2health,alloc3health other
+    class register,dwPostCanary,dwPostAlloc2,dwPostAlloc3 eval
 
     registerEvent --> register
     register --> wait1

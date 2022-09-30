@@ -1,4 +1,4 @@
-# Architecture: Evaluation States
+# Architecture: Evaluation Status
 
 The [Scheduling in Nomad][] internals documentation covers the path that an
 evaluation takes through the leader, worker, and plan applier. But it doesn't
@@ -37,15 +37,10 @@ flowchart LR
     canceled([canceled])
 
     %% style classes
-    classDef state fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
+    classDef status fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
     classDef other fill:#d5f6ea,stroke:#1d9467
-
     class event other;
-    class pending state;
-    class blocked state;
-    class complete state;
-    class failed state;
-    class canceled state;
+    class pending,blocked,complete,failed,canceled status;
 
     event -. "job-register
       job-deregister
@@ -78,20 +73,21 @@ flowchart LR
 ```
 
 But it's hard to get a full picture of the evaluation lifecycle purely from the
-`Status` fields, because evaluations have several "quasi-states" which aren't
-represented as explicit states in the state store:
+`Status` fields, because evaluations have several "quasi-statuses" which aren't
+represented as explicit statuses in the state store:
 
-* `scheduling` is the state where an eval is being processed by the scheduler
+* `scheduling` is the status where an eval is being processed by the scheduler
   worker.
-* `applying` is the state where the resulting plan for the eval is being applied
-  in the plan applier on the leader.
+* `applying` is the status where the resulting plan for the eval is being
+  applied in the plan applier on the leader.
 * `delayed` is an enqueued eval that will be dequeued some time in the future.
 * `deleted` is when an eval is removed from the state store entirely.
 
-By adding these states to the diagram (the dashed nodes), you can see where the
-same `Status` transition might result in different `PreviousEval`, `NextEval`,
-or `BlockedEval` set. You can also see where the "chain" of evaluations is
-broken when new evals are created for preemptions or by the deployment watcher.
+By adding these statuses to the diagram (the dashed nodes), you can see where
+the same `Status` transition might result in different `PreviousEval`,
+`NextEval`, or `BlockedEval` set. You can also see where the "chain" of
+evaluations is broken when new evals are created for preemptions or by the
+deployment watcher.
 
 
 ```mermaid
@@ -99,41 +95,27 @@ flowchart LR
 
     event((Cluster\nEvent))
 
-    %% states
+    %% statuss
     pending([pending])
     blocked([blocked])
     complete([complete])
     failed([failed])
     canceled([canceled])
 
-    style pending stroke-width:4px
-    style blocked stroke-width:4px
-    style complete stroke-width:4px
-    style failed stroke-width:4px
-    style canceled stroke-width:4px
-
-    %% quasi-states
+    %% quasi-statuss
     deleted([deleted])
     delayed([delayed])
     scheduling([scheduling])
     applying([applying])
 
     %% style classes
-    classDef state fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
-    classDef quasistate fill:#d5f6ea,stroke-dasharray: 5 5,stroke:#1d9467
+    classDef status fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
+    classDef quasistatus fill:#d5f6ea,stroke-dasharray: 5 5,stroke:#1d9467
     classDef other fill:#d5f6ea,stroke:#1d9467
 
     class event other;
-    class pending state;
-    class blocked state;
-    class complete state;
-    class failed state;
-    class canceled state;
-
-    class deleted quasistate;
-    class delayed quasistate;
-    class scheduling quasistate;
-    class applying quasistate;
+    class pending,blocked,complete,failed,canceled status;
+    class deleted,delayed,scheduling,applying quasistatus;
 
     event -- "job-register
       job-deregister

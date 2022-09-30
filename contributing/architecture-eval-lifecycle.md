@@ -53,10 +53,15 @@ sequenceDiagram
     deactivate leaderFSM
 
     leaderRpc ->> leaderFSM: write Evaluation
+
     activate leaderFSM
     leaderFSM ->> workerFSM: replicate Evaluation to followers
     workerFSM -->> leaderFSM: ok
     leaderFSM -->> leaderRpc: ok
+
+    Note right of leaderFSM: EvalBroker.Enqueue
+    Note right of leaderFSM: (see Scheduling below)
+
     deactivate leaderFSM
 
     leaderRpc -->> httpAPI: Job.Register response
@@ -69,17 +74,28 @@ sequenceDiagram
 
 ## Scheduling
 
-A goroutine on the Nomad leader called the Eval Broker runs a continuous
-blocking query for Evaluations on the state store. Those Evaluations are
-enqueued in the broker.
+A long-lived goroutine on the Nomad leader called the Eval Broker maintains a
+queue of Evaluations previously written to the state store and enqueued via the
+`EvalBroker.Enqueue` method. (When a leader transition occurs, the leader
+queries all the Evaluations in the state store and enqueues them in its new Eval
+Broker.)
 
-Schedulers are goroutines running on all server nodes. Typically this will be
-one per core on followers and 1/4 that number on the leader. The schedulers poll
-for Evaluations from the Eval Broker with the `Eval.Dequeue` RPC.
+Scheduler workers are long-lived goroutines running on all server
+nodes. Typically this will be one per core on followers and 1/4 that number on
+the leader. The workers poll for Evaluations from the Eval Broker with the
+`Eval.Dequeue` RPC. Once a worker has an evaluation, it instantiates a scheduler
+for that evaluation (of type `service`, `system`, `sysbatch`, `batch`, or
+`core`).
 
-Once a scheduler has an evaluation, it takes a snapshot of that server node's
-state store so that it has a consistent current view of the cluster state. The
-scheduler executes 3 main steps:
+Because a worker is running one scheduler at a time, Nomad's documentation often
+refers to "workers" and "schedulers" interchangeably, but the worker is the
+long-lived goroutine and the scheduler is the struct that contains the code and
+state around processing a single evaluation. The scheduler mutates itself and is
+thrown away once the evaluation is processed.
+
+The scheduler takes a snapshot of that server node's state store so that it has
+a consistent current view of the cluster state. The scheduler executes 3 main
+steps:
 
 * Reconcile: compare the cluster state and job specification to determine what
   changes need to be made -- starting or stopping Allocations. The scheduler
@@ -117,8 +133,11 @@ Plan to the leader. The leader needs to validate this plan and serialize it:
 
 The leader processes the plan in the plan applier. If the plan is valid, the
 plan applier will write the Allocations (and Deployment) update to the state
-store. If not, it will reject the plan and the scheduler will try to create a new plan with a refreshed state. If the scheduler fails to submit a valid plan too many times it submits a `blocked` Evaluation that is triggered by `max-plan-attempts` type. (The plan submit process is the second
-green box in the sequence diagram below.)
+store. If not, it will reject the plan and the scheduler will try to create a
+new plan with a refreshed state. If the scheduler fails to submit a valid plan
+too many times it submits a `blocked` Evaluation that is triggered by
+`max-plan-attempts` type. (The plan submit process is the second green box in
+the sequence diagram below.)
 
 Once the scheduler has a response from the leader, it will tell the Eval Broker
 to Ack the Evaluation (if it successfully submitted the plan) or Nack the
@@ -138,16 +157,16 @@ sequenceDiagram
     participant workerFSM as Worker State Store
     participant sched as Scheduler
 
-    broker ->> leaderFSM: blocking query for new evals
+    leaderRpc ->> leaderFSM: write Evaluation (see above)
+    leaderFSM ->> broker: EvalBroker.Enqueue
     activate broker
-    leaderFSM -->> broker: new Evaluation
     broker -->> broker: enqueue eval
+    broker -->> leaderFSM: ok
     deactivate broker
 
     sched ->> broker: Eval.Dequeue (blocks until work available)
     activate sched
     broker -->> sched: Evaluation
-
 
     Note right of workerFSM: Schedulers run on all servers
     Note right of workerFSM: So this may query the leader state store directly
@@ -295,6 +314,11 @@ _pull_ new allocations (and changes to allocations), so a new allocation will be
 in the `pending` state until it's been pulled down by a Client and the
 allocation has been instantiated.
 
+Once the Allocation is running and healthy, the Client will send a
+`Node.UpdateAlloc` RPC back to the server so that info can be persisted in the
+state store. This is the allocation health data the Deployment Watcher is
+querying for above.
+
 ```mermaid
 sequenceDiagram
 
@@ -318,6 +342,10 @@ sequenceDiagram
     deactivate followerRpc
 
     client ->> allocrunner: Create or update allocation runners
+
+    client ->> followerRpc: Node.UpdateAlloc
+    Note right of followerRpc: will be forwarded to leader
+
     deactivate client
 ```
 

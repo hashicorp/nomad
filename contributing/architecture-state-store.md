@@ -12,7 +12,7 @@ This architecture has a few implications:
   state. You can never generate random IDs or assign wall-clock timestamps in
   the state store. These values must be provided as parameters from the RPC
   handler.
-  
+
       ```go
       # Incorrect: generating a timestamp in the state store is not deterministic.
       func (s *StateStore) UpsertObject(...) {
@@ -20,7 +20,7 @@ This architecture has a few implications:
           obj.CreateTime = time.Now()
           # ...
       }
-   
+
       # Correct: non-deterministic values should be passed as inputs:
       func (s *StateStore) UpsertObject(..., timestamp time.Time) {
           # ...
@@ -33,7 +33,7 @@ This architecture has a few implications:
   mutated, because mutating the object modifies it outside the raft
   workflow. The result can be servers having inconsistent state, transactions
   breaking, or even server panics.
-  
+
       ```go
       # Incorrect: job is mutated without copying.
       job, err := state.JobByID(ws, namespace, id)
@@ -51,21 +51,14 @@ endpoints. See the [RPC Endpoint Checklist][].
 ```mermaid
 flowchart TD
 
-    %% style classes
-    classDef leader fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
-    classDef other fill:#d5f6ea,stroke:#1d9467
-
     %% entities
 
     ext(("API\nclient"))
     any("Any node
       (client or server)")
-    class any other;
     follower(Follower)
-    class follower other;
 
     rpcLeader("RPC handler (on leader)")
-    class rpcLeader leader;
 
     writes("writes go thru raft
         raftApply(MessageType, entry) in nomad/rpc.go
@@ -84,19 +77,21 @@ flowchart TD
     click writes href "https://github.com/hashicorp/nomad/tree/main/nomad/state" _blank
 
     raft("hashicorp/raft")
-    class raft leader;
 
     bolt("boltdb")
-    class bolt leader;
 
     fsm("Application-specific
       Finite State Machine (FSM)
       (aka State Store)")
-    class fsm leader;
     click writes href "https://github.com/hashicorp/nomad/tree/main/nomad/fsm.go" _blank
 
     memdb("hashicorp/go-memdb")
-    class memdb leader;
+
+    %% style classes
+    classDef leader fill:#d5f6ea,stroke-width:4px,stroke:#1d9467
+    classDef other fill:#d5f6ea,stroke:#1d9467
+    class any,follower other;
+    class rpcLeader,raft,bolt,fsm,memdb leader;
 
     %% flows
 
