@@ -94,7 +94,7 @@ state around processing a single evaluation. The scheduler mutates itself and is
 thrown away once the evaluation is processed.
 
 The scheduler takes a snapshot of that server node's state store so that it has
-a consistent current view of the cluster state. The scheduler executes 3 main
+a constant current view of the cluster state. The scheduler executes 3 main
 steps:
 
 * Reconcile: compare the cluster state and job specification to determine what
