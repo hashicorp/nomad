@@ -982,6 +982,10 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
 
+		ev := structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
+			SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+		tr.UpdateState(structs.TaskStatePending, ev)
+
 		select {
 		case result := <-resultCh:
 			return result
