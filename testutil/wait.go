@@ -3,6 +3,7 @@ package testutil
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -17,22 +18,29 @@ type errorFn func(error)
 func Wait(t *testing.T, test testFn) {
 	t.Helper()
 	retries := 500 * TestMultiplier()
-	for retries > 0 {
+	warn := int64(float64(retries) * 0.75)
+	for tries := retries; tries > 0; {
 		time.Sleep(10 * time.Millisecond)
-		retries--
+		tries--
 
 		success, err := test()
 		if success {
 			return
 		}
 
-		if retries == 0 {
+		switch tries {
+		case 0:
 			if err == nil {
 				t.Fatalf("timeout waiting for test function to succeed (you should probably return a helpful error instead of nil!)")
 			} else {
 				t.Fatalf("timeout: %v", err)
 			}
+		case warn:
+			pc, _, _, _ := runtime.Caller(1)
+			f := runtime.FuncForPC(pc)
+			t.Logf("%d/%d retries reached for %s (err=%v)", warn, retries, f.Name(), err)
 		}
+
 	}
 }
 
