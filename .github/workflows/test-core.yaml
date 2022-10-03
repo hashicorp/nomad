@@ -146,7 +146,7 @@ jobs:
         run: |
           make bootstrap
           make generate-all
-          hc-install install -version ${{env.VAULT_VERSION}} vault
-          hc-install install -version ${{env.CONSUL_VERSION}} consul
+          sudo hc-install install -version ${{env.VAULT_VERSION}} -path /usr/local/bin/vault vault
+          sudo hc-install install -version ${{env.CONSUL_VERSION}} -path /usr/local/bin/vault consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
