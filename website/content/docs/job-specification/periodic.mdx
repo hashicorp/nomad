@@ -48,6 +48,10 @@ consistent evaluation when Nomad spans multiple time zones.
   be parsable by Golang's
   [LoadLocation](https://golang.org/pkg/time/#LoadLocation).
 
+- `enabled` `(bool: true)` - Specifies if this job should run. This not only
+  prevents this job from running on the `cron` schedule but prevents force
+  launches.
+
 ## `periodic` Examples
 
 The following examples only show the `periodic` stanzas. Remember that the
