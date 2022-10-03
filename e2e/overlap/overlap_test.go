@@ -20,7 +20,7 @@ func TestOverlap(t *testing.T) {
 	nomadClient := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomadClient)
 
-	// Wait for at least 1 node to be ready and get its ID
+	// Wait for at least 1 feasible node to be ready and get its ID
 	var node *api.Node
 	testutil.Wait(t, func() (bool, error) {
 		nodesList, _, err := nomadClient.Nodes().List(nil)
@@ -29,11 +29,21 @@ func TestOverlap(t *testing.T) {
 		}
 
 		for _, n := range nodesList {
-			if n.Status == "ready" {
-				node, _, err = nomadClient.Nodes().Info(n.ID, nil)
-				must.NoError(t, err)
-				return true, nil
+			if n.Status != "ready" {
+				continue
 			}
+			if n.SchedulingEligibility != "eligible" {
+				continue
+			}
+
+			node, _, err = nomadClient.Nodes().Info(n.ID, nil)
+			must.NoError(t, err)
+
+			if node.Attributes["kernel.name"] != "linux" {
+				continue
+			}
+
+			return true, nil
 		}
 
 		return false, fmt.Errorf("no nodes ready before timeout; need at least 1 ready")
