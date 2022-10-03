@@ -10,6 +10,13 @@ Allocations on the clients. The process can be broken into 4 parts:
 * [Deployment Watcher](#deployment-watcher)
 * [Client Allocs](#client-allocs)
 
+Note that in all the diagrams below, writing to the State Store is considered
+atomic. This means the Nomad leader has replicated to all the followers, and all
+the servers have applied the raft log entry to their local FSM. So long as
+`raftApply` returns without an error, we have a guarantee that all servers will
+be able to retrieve the entry from their state store at some point in the
+future.
+
 ## Job Registration
 
 Creating or updating a Job is a _synchronous_ API operation. By the time the
@@ -34,8 +41,7 @@ sequenceDiagram
     participant cli as CLI
     participant httpAPI as HTTP API
     participant leaderRpc as Leader RPC
-    participant leaderFSM as Leader State Store
-    participant workerFSM as Worker State Store
+    participant stateStore as State Store
 
     user ->> cli: nomad job run
     activate cli
@@ -44,25 +50,20 @@ sequenceDiagram
 
     activate leaderRpc
 
-    leaderRpc ->> leaderFSM: write Job
-    activate leaderFSM
-    leaderFSM ->> workerFSM: replicate Job to followers
+    leaderRpc ->> stateStore: write Job
+    activate stateStore
+    stateStore -->> leaderRpc: ok
+    deactivate stateStore
 
-    workerFSM -->> leaderFSM: ok
-    leaderFSM -->> leaderRpc: ok
-    deactivate leaderFSM
+    leaderRpc ->> stateStore: write Evaluation
 
-    leaderRpc ->> leaderFSM: write Evaluation
+    activate stateStore
+    stateStore -->> leaderRpc: ok
 
-    activate leaderFSM
-    leaderFSM ->> workerFSM: replicate Evaluation to followers
-    workerFSM -->> leaderFSM: ok
-    leaderFSM -->> leaderRpc: ok
+    Note right of stateStore: EvalBroker.Enqueue
+    Note right of stateStore: (see Scheduling below)
 
-    Note right of leaderFSM: EvalBroker.Enqueue
-    Note right of leaderFSM: (see Scheduling below)
-
-    deactivate leaderFSM
+    deactivate stateStore
 
     leaderRpc -->> httpAPI: Job.Register response
     deactivate leaderRpc
@@ -151,28 +152,24 @@ been persisted to the state store.
 sequenceDiagram
 
     participant leaderRpc as Leader RPC
-    participant leaderFSM as Leader State Store
+    participant stateStore as State Store
     participant planner as Planner
     participant broker as Eval Broker
-    participant workerFSM as Worker State Store
     participant sched as Scheduler
 
-    leaderRpc ->> leaderFSM: write Evaluation (see above)
-    leaderFSM ->> broker: EvalBroker.Enqueue
+    leaderRpc ->> stateStore: write Evaluation (see above)
+    stateStore ->> broker: EvalBroker.Enqueue
     activate broker
     broker -->> broker: enqueue eval
-    broker -->> leaderFSM: ok
+    broker -->> stateStore: ok
     deactivate broker
 
     sched ->> broker: Eval.Dequeue (blocks until work available)
     activate sched
     broker -->> sched: Evaluation
 
-    Note right of workerFSM: Schedulers run on all servers
-    Note right of workerFSM: So this may query the leader state store directly
-
-    sched ->> workerFSM: query to get job and cluster state
-    workerFSM -->> sched: results
+    sched ->> stateStore: query to get job and cluster state
+    stateStore -->> sched: results
 
     sched -->> sched: Reconcile (how many allocs are needed?)
     deactivate sched
@@ -193,12 +190,10 @@ sequenceDiagram
             Note left of sched: Not enough room! (But we can submit a partial plan)
             sched ->> leaderRpc: Eval.Upsert (blocked)
             activate leaderRpc
-            leaderRpc ->> leaderFSM: write Evaluation
-            activate leaderFSM
-            leaderFSM ->> workerFSM: replicate Evaluation to followers
-            workerFSM -->> leaderFSM: ok
-            leaderFSM -->> leaderRpc: ok
-            deactivate leaderFSM
+            leaderRpc ->> stateStore: write Evaluation
+            activate stateStore
+            stateStore -->> leaderRpc: ok
+            deactivate stateStore
             leaderRpc --> sched: ok
             deactivate leaderRpc
         end
@@ -217,12 +212,10 @@ sequenceDiagram
 
             planner ->> leaderRpc: Allocations.Upsert + Deployment.Upsert
             activate leaderRpc
-            leaderRpc ->> leaderFSM: write Allocations and Deployment
-            activate leaderFSM
-            leaderFSM ->> workerFSM: replicate Allocations and Deployment to followers
-            workerFSM -->> leaderFSM: ok
-            leaderFSM -->> leaderRpc: ok
-            deactivate leaderFSM
+            leaderRpc ->> stateStore: write Allocations and Deployment
+            activate stateStore
+            stateStore -->> leaderRpc: ok
+            deactivate stateStore
             leaderRpc -->> planner: ok
             deactivate leaderRpc
             planner -->> sched: ok
@@ -239,12 +232,10 @@ sequenceDiagram
 
     sched ->> broker: Eval.Ack (Eval.Nack if failed)
     activate broker
-    broker ->> leaderFSM: complete Evaluation
-    activate leaderFSM
-    leaderFSM ->> workerFSM: replicate Evaluation to followers
-    workerFSM -->> leaderFSM: ok
-    leaderFSM -->> broker: ok
-    deactivate leaderFSM
+    broker ->> stateStore: complete Evaluation
+    activate stateStore
+    stateStore -->> broker: ok
+    deactivate stateStore
     broker -->> sched: ok
     deactivate broker
     deactivate sched
@@ -276,17 +267,16 @@ schedulers process those as they do normally.
 sequenceDiagram
 
     participant leaderRpc as Leader RPC
-    participant leaderFSM as Leader State Store
+    participant stateStore as State Store
     participant dw as Deployment Watcher
-    participant workerFSM as Worker State Store
 
-    dw ->> leaderFSM: blocking query for new Deployments
+    dw ->> stateStore: blocking query for new Deployments
     activate dw
-    leaderFSM -->> dw: new Deployment
+    stateStore -->> dw: new Deployment
     dw -->> dw: start watcher
 
-    dw ->> leaderFSM: blocking query for Allocation health
-    leaderFSM -->> dw: Allocation health updates
+    dw ->> stateStore: blocking query for Allocation health
+    stateStore -->> dw: Allocation health updates
     dw ->> dw: next step?
 
     Note right of dw: Update state and create evaluations for next batch...
@@ -294,12 +284,10 @@ sequenceDiagram
 
     dw ->> leaderRpc: Deployment.Upsert + Evaluation.Upsert
     activate leaderRpc
-    leaderRpc ->> leaderFSM: write Deployment and Evaluations
-    activate leaderFSM
-    leaderFSM ->> workerFSM: replicate Deployment + Evaluation to followers
-    workerFSM -->> leaderFSM: ok
-    leaderFSM -->> leaderRpc: ok
-    deactivate leaderFSM
+    leaderRpc ->> stateStore: write Deployment and Evaluations
+    activate stateStore
+    stateStore -->> leaderRpc: ok
+    deactivate stateStore
     leaderRpc -->> dw: ok
     deactivate leaderRpc
     deactivate dw
@@ -323,7 +311,7 @@ querying for above.
 sequenceDiagram
 
     participant followerRpc as Follower RPC
-    participant followerFSM as Follower State Store
+    participant stateStore as State Store
 
     participant client as Client
     participant allocrunner as Allocation Runner
@@ -333,11 +321,11 @@ sequenceDiagram
 
     Note right of client: this query can be stale
 
-    followerRpc ->> followerFSM: query for Allocations
+    followerRpc ->> stateStore: query for Allocations
     activate followerRpc
-    activate followerFSM
-    followerFSM -->> followerRpc: Allocations
-    deactivate followerFSM
+    activate stateStore
+    stateStore -->> followerRpc: Allocations
+    deactivate stateStore
     followerRpc -->> client: Allocations
     deactivate followerRpc
 
