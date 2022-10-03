@@ -1,0 +1,7 @@
+.realtime-event {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  dt {
+    font-weight: bold;
+  }
+}

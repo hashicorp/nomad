@@ -153,7 +153,9 @@ class Log extends EmberObject.extend(Evented) {
 export default Log;
 
 export function logger(urlProp, params, logFetch) {
+  console.log('okay uhhh', urlProp, params, logFetch);
   return computed(urlProp, params, function () {
+    console.log('in-complete', this, params, urlProp);
     return Log.create({
       logFetch: logFetch.call(this),
       params: this.get(params),

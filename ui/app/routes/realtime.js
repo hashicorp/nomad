@@ -3,6 +3,12 @@ import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 
+class MockAbortController {
+  abort() {
+    /* noop */
+  }
+  signal = null;
+}
 export default class RealtimeRoute extends Route {
   @service token;
   get secret() {
@@ -10,23 +16,21 @@ export default class RealtimeRoute extends Route {
   }
 
   async model() {
-    // const data = await fetch('/v1/event/stream', {});
-    // const streamResponse = this.token.authorizedRequest(
-    //   '/v1/event/stream',
-    //   {
-    //     method: 'GET',
-    //   }
-    // );
+    const aborter = window.AbortController
+      ? new AbortController()
+      : new MockAbortController();
 
     const stream = StreamLogger.create({
-      url: '/v1/event/stream',
-      logFetch: (url) => this.token.authorizedRequest('/v1/event/stream'),
+      // url: '/v1/event/stream',
+      logFetch: () =>
+        this.token.authorizedRequest('/v1/event/stream', {
+          signal: aborter.signal,
+        }),
       params: {},
     });
 
     console.log('tokin', this.token);
     console.log('yeah ok', stream);
-    stream.start();
     return stream;
   }
 }
