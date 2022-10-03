@@ -3,7 +3,9 @@ package command
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -19,10 +21,11 @@ type FormatCommand struct {
 
 	diagWr hcl.DiagnosticWriter
 	parser *hclparse.Parser
+	files  []string
 }
 
 type FormatArgs struct {
-	Files     []string
+	Paths     []string
 	Check     bool
 	Overwrite bool
 }
@@ -40,7 +43,13 @@ func (f *FormatCommand) RunContext(ctx context.Context, args *FormatArgs) int {
 
 	f.diagWr = hcl.NewDiagnosticTextWriter(os.Stderr, f.parser.Files(), uint(w), color)
 
-	for _, file := range args.Files {
+	if err := f.findFiles(args); err != nil {
+		f.Ui.Error("Failed to find files to format:")
+		f.Ui.Error(err.Error())
+		f.Ui.Error(commandErrorText(f))
+	}
+
+	for _, file := range f.files {
 		if err := f.processFile(file, args); err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -59,6 +68,8 @@ func (*FormatCommand) Help() string {
 Usage: nomad fmt [flags] paths ...
 
 	Formats Nomad agent configuration and job file to a canonical format.
+	If a path is a directory, it will recursively format all files
+	with .nomad and .hcl extensions in the directory.
 
 Format Options:
 
@@ -104,9 +115,39 @@ func (f *FormatCommand) Run(args []string) int {
 		return 1
 	}
 
-	fmtArgs.Files = flags.Args()
+	fmtArgs.Paths = flags.Args()
 
 	return f.RunContext(ctx, fmtArgs)
+}
+
+func (f *FormatCommand) findFiles(args *FormatArgs) error {
+	for _, path := range args.Paths {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("while stating %s: %w", path, err)
+		}
+
+		if !fi.IsDir() {
+			f.files = append(f.files, path)
+			continue
+		}
+
+		if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if !d.IsDir() && (filepath.Ext(path) == ".nomad" || filepath.Ext(path) == ".hcl") {
+				f.files = append(f.files, path)
+			}
+
+			return nil
+		}); err != nil {
+			return fmt.Errorf("while walking through %s: %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 func (f *FormatCommand) processFile(filepath string, args *FormatArgs) error {
