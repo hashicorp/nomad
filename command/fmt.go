@@ -47,6 +47,7 @@ func (f *FormatCommand) RunContext(ctx context.Context, args *FormatArgs) int {
 		f.Ui.Error("Failed to find files to format:")
 		f.Ui.Error(err.Error())
 		f.Ui.Error(commandErrorText(f))
+		return 1
 	}
 
 	for _, file := range f.files {

@@ -4,5 +4,5 @@ server {
 }
 
 consul {
-  address = 1.2.3.4 : 8500
+  address = 1.2.3.4:8500
 }
