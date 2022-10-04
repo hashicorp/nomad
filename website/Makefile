@@ -1,4 +1,13 @@
+######################################################
+# NOTE: This file is managed by the Digital Team's   #
+# Terraform configuration @ hashicorp/mktg-terraform #
+######################################################
+
 .DEFAULT_GOAL := website
+
+# Set the preview mode for the website shell to "developer" or "io"
+PREVIEW_MODE ?= io
+REPO ?= nomad
 
 # Enable setting alternate docker tool, e.g. 'make DOCKER_CMD=podman'
 DOCKER_CMD ?= docker
@@ -16,9 +25,8 @@ DOCKER_RUN_FLAGS=-it \
 		--volume "$(PWD)/redirects.js:/app/redirects.js" \
 		--volume "next-dir:/app/website-preview/.next" \
 		--volume "$(PWD)/.env:/app/.env" \
-		-e "REPO=nomad" \
-		-e "PREVIEW_MODE=io"
-
+		-e "REPO=$(REPO)" \
+		-e "PREVIEW_MODE=$(PREVIEW_MODE)"
 
 # Default: run this if working on the website locally to run in watch mode.
 .PHONY: website
