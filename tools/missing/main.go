@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"gophers.dev/pkgs/ignore"
 	"gopkg.in/yaml.v2"
 )
 
@@ -42,7 +41,9 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer ignore.Close(f)
+	defer func() {
+		_ = f.Close()
+	}()
 
 	coverage, err := inMatrix(f)
 	if err != nil {
