@@ -98,17 +98,17 @@ export default class RealtimeController extends Controller {
     });
   }
 
-  @action logEvent(event) {
-    const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
-    console.table({
-      Index,
-      Topic,
-      Type,
-      Key,
-      Namespace,
-      FilterKeys,
-    });
-    console.log('Payload', Payload);
-    console.log('******************************************************');
-  }
+  // @action logEvent(event) {
+  //   const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
+  //   console.table({
+  //     Index,
+  //     Topic,
+  //     Type,
+  //     Key,
+  //     Namespace,
+  //     FilterKeys,
+  //   });
+  //   console.log('Payload', Payload);
+  //   console.log('******************************************************');
+  // }
 }

@@ -10,27 +10,24 @@ class MockAbortController {
   signal = null;
 }
 export default class RealtimeRoute extends Route {
-  @service token;
-  get secret() {
-    return window.localStorage.nomadTokenSecret;
-  }
-
-  async model() {
-    const aborter = window.AbortController
-      ? new AbortController()
-      : new MockAbortController();
-
-    const stream = StreamLogger.create({
-      // url: '/v1/event/stream',
-      logFetch: () =>
-        this.token.authorizedRequest('/v1/event/stream', {
-          signal: aborter.signal,
-        }),
-      params: {},
-    });
-
-    console.log('tokin', this.token);
-    console.log('yeah ok', stream);
-    return stream;
-  }
+  // @service token;
+  // get secret() {
+  //   return window.localStorage.nomadTokenSecret;
+  // }
+  // async model() {
+  //   const aborter = window.AbortController
+  //     ? new AbortController()
+  //     : new MockAbortController();
+  //   const stream = StreamLogger.create({
+  //     // url: '/v1/event/stream',
+  //     logFetch: () =>
+  //       this.token.authorizedRequest('/v1/event/stream', {
+  //         signal: aborter.signal,
+  //       }),
+  //     params: {},
+  //   });
+  //   console.log('tokin', this.token);
+  //   console.log('yeah ok', stream);
+  //   return stream;
+  // }
 }

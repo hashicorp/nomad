@@ -1,44 +1,38 @@
 // @ts-check
 import Component from '@glimmer/component';
-import { logger } from 'nomad-ui/utils/classes/log';
-import RSVP from 'rsvp';
-import timeout from 'nomad-ui/utils/timeout';
-
-class MockAbortController {
-  abort() {
-    /* noop */
-  }
-  signal = null;
-}
+import { inject as service } from '@ember/service';
+import { action } from '@ember/object';
 
 export default class EventStreamComponent extends Component {
-  // clientTimeout = 1000;
-  // get logUrl() {
-  //   return 'v1/event/stream';
-  // }
-  // get logParams() {
-  //   return {};
-  // }
-  // @logger(this.logUrl, this.logParams, function logFetch() {
-  //   const aborter = window.AbortController
-  //     ? new AbortController()
-  //     : new MockAbortController();
-  //   // Capture the state of useServer at logger create time to avoid a race
-  //   // between the stdout logger and stderr logger running at once.
-  //   return (url) =>
-  //     RSVP.race([
-  //       this.token.authorizedRequest(url, { signal: aborter.signal }),
-  //       timeout(this.clientTimeout),
-  //     ]).then(
-  //       (response) => {
-  //         return response;
-  //       },
-  //       (error) => {
-  //         aborter.abort();
-  //         this.set('noConnection', true);
-  //         throw error;
-  //       }
-  //     );
-  // })
-  // logger;
+  @service events;
+
+  constructor() {
+    super(...arguments);
+    this.events.start();
+  }
+
+  get stream() {
+    // console.log('gettin stream', this.events.stream);
+    return this.events.stream;
+  }
+
+  @action logEvent(event) {
+    console.clear();
+    const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
+    console.table({
+      Index,
+      Topic,
+      Type,
+      Key,
+      Namespace,
+      // FilterKeys,
+    });
+    console.log('Payload');
+    console.log(Payload[Topic]);
+    console.log('Same-Time Buds');
+    console.table(this.stream.filterBy('Index', Index));
+    console.log('Same-Entity Buds');
+    console.table(this.stream.filterBy('Key', Key));
+    console.log('******************************************************');
+  }
 }

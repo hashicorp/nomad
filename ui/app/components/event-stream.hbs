@@ -1,5 +1,17 @@
-aaa
- {{@logger.output}}
-zzz
-
 {{yield}}
+
+<button {{on "click" this.events.stop}}>Shut down everything</button>
+
+{{#each this.stream as |event|}}
+  <hr />
+    <dl class="realtime-event" onclick={{action "logEvent" event}}>
+      <dt>Index:</dt>
+      <dd>{{event.Index}}</dd>
+      <dt>Topic:</dt>
+      <dd>{{event.Topic}}</dd>
+      <dt>Type:</dt>
+      <dd>{{event.Type}}</dd>
+      <dt>Key:</dt>
+      <dd>{{event.Key}}</dd>
+    </dl>
+{{/each}}

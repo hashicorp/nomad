@@ -1,17 +1,17 @@
 <Breadcrumb @crumb={{hash label="Realtime" args=(array "realtime")}} />
 <PageLayout>
 
-  <button class="button is-white" onclick={{action "startStream"}} type="button">
+  {{!-- <button class="button is-white" onclick={{action "startStream"}} type="button">
     {{x-icon "media-play"}}
   </button>
   <button class="button is-white" onclick={{action "stopStream"}} type="button">
     {{x-icon "media-pause"}}
-  </button>
+  </button> --}}
 
 	{{!-- {{log "In template" this.stream}} --}}
-  {{!-- <EventStream @model={{this.model}} @logger={{this.logger}}/> --}}
+  aaa<EventStream />bbb
   {{!-- {{log "STREAMO" this.stream this.stream.0}} --}}
-  {{#each this.stream as |event|}}
+  {{!-- {{#each this.stream as |event|}}
   <hr />
     {{log "EVENT" event}}
     <dl class="realtime-event" onclick={{action "logEvent" event}}>
@@ -24,7 +24,7 @@
       <dt>Key:</dt>
       <dd>{{event.Key}}</dd>
     </dl>
-  {{/each}}
+  {{/each}} --}}
   {{outlet}}
 
 </PageLayout>
