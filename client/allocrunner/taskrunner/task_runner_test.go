@@ -1268,7 +1268,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	tg := alloc.Job.TaskGroups[0]
 	tg.RestartPolicy.Attempts = 2
 	tg.RestartPolicy.Interval = 1 * time.Minute
-	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Delay = 1 * time.Millisecond
 	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
 
 	task := tg.Tasks[0]
@@ -1283,7 +1283,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 		Type:     structs.ServiceCheckTCP,
 		Interval: 1 * time.Millisecond,
 		CheckRestart: &structs.CheckRestart{
-			Limit: 2,
+			Limit: 1,
 			Grace: 1 * time.Millisecond,
 		},
 	}
@@ -2549,11 +2549,10 @@ func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 
 // testWaitForTaskToDie waits for the task to die or fails the test
 func testWaitForTaskToDie(t *testing.T, tr *TaskRunner) {
-	testutil.WaitForResult(func() (bool, error) {
+	t.Helper()
+	testutil.Wait(t, func() (bool, error) {
 		ts := tr.TaskState()
 		return ts.State == structs.TaskStateDead, fmt.Errorf("expected task to be dead, got %v", ts.State)
-	}, func(err error) {
-		require.NoError(t, err)
 	})
 }
 
