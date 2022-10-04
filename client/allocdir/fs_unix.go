@@ -40,14 +40,17 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	nobody := users.Nobody()
-
-	uid, err := getUid(&nobody)
+	nobody, err := users.Nobody()
 	if err != nil {
 		return err
 	}
 
-	gid, err := getGid(&nobody)
+	uid, err := getUid(nobody)
+	if err != nil {
+		return err
+	}
+
+	gid, err := getGid(nobody)
 	if err != nil {
 		return err
 	}

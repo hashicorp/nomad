@@ -1,7 +1,6 @@
 package users
 
 import (
-	"fmt"
 	"os/user"
 	"sync"
 )
@@ -12,22 +11,23 @@ var lock *sync.Mutex
 
 // nobody is a cached copy of the nobody user, which is going to be looked-up
 // frequently and is unlikely to be modified on the underlying system.
-var nobody user.User
+var nobody *user.User
 
 // Nobody returns User data for the "nobody" user on the system, bypassing the
 // locking / file read / NSS lookup.
-func Nobody() user.User {
-	// original is immutable via copy by value
-	return nobody
+func Nobody() (*user.User, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	if nobody != nil {
+		return nobody, nil
+	}
+	u, err := Lookup("nobody")
+	nobody = u
+	return u, err
 }
 
 func init() {
 	lock = new(sync.Mutex)
-	u, err := Lookup("nobody")
-	if err != nil {
-		panic(fmt.Sprintf("unable to lookup the nobody user: %v", err))
-	}
-	nobody = *u
 }
 
 // Lookup username while holding a global process lock.
