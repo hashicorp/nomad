@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -41,6 +43,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -297,7 +300,9 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 }
 
 // TestTaskRunner_Restore_Running asserts restoring a running task does not
-// rerun the task.
+// rerun the task. It does this by running a task that outputs the time and
+// asserting that after the task runner is shutdown and restored, no new log
+// output appears.
 func TestTaskRunner_Restore_Running(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -311,10 +316,13 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "bash",
-		"args":    []string{"-c", "sleep 2"},
+		"args":    []string{"-c", `date +%N; echo ok; sleep 999`},
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
+
+	// Must store task handle between runners
+	conf.StateDB = state.NewMemDB(conf.Logger)
 
 	// Run the first TaskRunner
 	origTR, err := NewTaskRunner(conf)
@@ -322,8 +330,21 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	go origTR.Run()
 	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	// Wait for it to be running
-	testWaitForTaskToStart(t, origTR)
+	// Wait for it to log output
+	var contents []byte
+	stdoutFn := filepath.Join(conf.TaskDir.LogDir, "web.stdout.0")
+	testutil.Wait(t, func() (bool, error) {
+		contents, err = os.ReadFile(stdoutFn)
+		if err != nil {
+			return false, fmt.Errorf("error reading command output: %w", err)
+		}
+		if !bytes.HasSuffix(contents, []byte("ok\n")) {
+			return false, fmt.Errorf(`expected "ok\n" suffix but found: %s`, string(contents))
+		}
+		return true, nil
+	})
+
+	must.Eq(t, "running", origTR.TaskState().State)
 
 	// Cause TR to exit without shutting down task
 	origTR.Shutdown()
@@ -338,13 +359,22 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	go newTR.Run()
 	defer newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	// Wait for new task runner to exit when the process does
-	testWaitForTaskToDie(t, newTR)
+	// Assert no new output even after a wait
+	wait := 2 * time.Second
+	t.Logf("ensuring log output does not change for %s", wait)
+	for end := time.Now().Add(wait); time.Now().Before(end); {
+		newContents, err := os.ReadFile(stdoutFn)
+		must.NoError(t, err)
+		if !bytes.Equal(contents, newContents) {
+			t.Fatalf("unexpected task log mismatch after task runner restore:\n%s", newContents)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	// Assert that the process was only started once
 	started := 0
 	state := newTR.TaskState()
-	require.Equal(structs.TaskStateDead, state.State)
+	must.Eq(t, "running", state.State)
 	for _, ev := range state.Events {
 		if ev.Type == structs.TaskStarted {
 			started++
