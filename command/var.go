@@ -36,7 +36,7 @@ Usage: nomad var <subcommand> [options] [args]
 
   Users can create new variables; list, inspect, and delete existing
   variables, and more. For a full guide on variables see:
-  https://www.nomadproject.io/guides/vars.html
+  https://www.nomadproject.io/docs/concepts/variables
 
   Create a variable specification file:
 
