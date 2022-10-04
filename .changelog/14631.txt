@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Added `-id-prefix-template` option to `nomad job dispatch`
+```
