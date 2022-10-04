@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
-	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -305,7 +304,6 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 // output appears.
 func TestTaskRunner_Restore_Running(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("requires bash")
 	}
@@ -316,17 +314,15 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "bash",
-		"args":    []string{"-c", `date +%N; echo ok; sleep 999`},
+		"args":    []string{"-c", `echo ok; sleep 999`},
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
-
-	// Must store task handle between runners
-	conf.StateDB = state.NewMemDB(conf.Logger)
 
 	// Run the first TaskRunner
 	origTR, err := NewTaskRunner(conf)
-	require.NoError(err)
+	must.NoError(t, err)
 	go origTR.Run()
 	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
@@ -338,10 +334,8 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 		if err != nil {
 			return false, fmt.Errorf("error reading command output: %w", err)
 		}
-		if !bytes.HasSuffix(contents, []byte("ok\n")) {
-			return false, fmt.Errorf(`expected "ok\n" suffix but found: %s`, string(contents))
-		}
-		return true, nil
+		return bytes.Equal(contents, []byte("ok\n")), fmt.Errorf(
+			`expected "ok\n" but found: %s`, string(contents))
 	})
 
 	must.Eq(t, "running", origTR.TaskState().State)
@@ -351,16 +345,16 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 
 	// Start a new TaskRunner and make sure it does not rerun the task
 	newTR, err := NewTaskRunner(conf)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Do the Restore
-	require.NoError(newTR.Restore())
+	must.NoError(t, newTR.Restore())
 
 	go newTR.Run()
 	defer newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Assert no new output even after a wait
-	wait := 2 * time.Second
+	wait := time.Duration(testutil.TestMultiplier()) * time.Second
 	t.Logf("ensuring log output does not change for %s", wait)
 	for end := time.Now().Add(wait); time.Now().Before(end); {
 		newContents, err := os.ReadFile(stdoutFn)
@@ -380,7 +374,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 			started++
 		}
 	}
-	assert.Equal(t, 1, started)
+	must.Eq(t, 1, started)
 }
 
 // TestTaskRunner_Restore_Dead asserts that restoring a dead task will place it
