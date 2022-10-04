@@ -21,7 +21,7 @@ func Nobody() (*user.User, error) {
 	if nobody != nil {
 		return nobody, nil
 	}
-	u, err := Lookup("nobody")
+	u, err := user.Lookup("nobody")
 	nobody = u
 	return u, err
 }
