@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/aws/aws-sdk-go v1.37.26
 	github.com/stretchr/testify v1.7.1
-	gophers.dev/pkgs/ignore v0.3.1
 	gopkg.in/yaml.v2 v2.2.8
 )
 
