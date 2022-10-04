@@ -57,6 +57,9 @@ Dispatch Options:
     Optional identifier used to prevent more than one instance of the job from
     being dispatched.
 
+  -id-prefix-template
+    Optional prefix template for dispatched job IDs.
+
   -verbose
     Display full information.
 `
