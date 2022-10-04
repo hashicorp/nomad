@@ -1281,10 +1281,10 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	task.Services[0].Checks[0] = &structs.ServiceCheck{
 		Name:     "test-restarts",
 		Type:     structs.ServiceCheckTCP,
-		Interval: 50 * time.Millisecond,
+		Interval: 1 * time.Millisecond,
 		CheckRestart: &structs.CheckRestart{
 			Limit: 2,
-			Grace: 100 * time.Millisecond,
+			Grace: 1 * time.Millisecond,
 		},
 	}
 	task.Services[0].Provider = structs.ServiceProviderConsul
