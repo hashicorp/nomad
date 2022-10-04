@@ -69,6 +69,9 @@ dispatching parameterized jobs.
 - `-idempotency-token`: Optional identifier used to prevent more than one
   instance of the job from being dispatched.
 
+
+- `-id-prefix-template`: Optional prefix template for dispatched job IDs.
+
 - `-verbose`: Show full information.
 
 ## Examples
@@ -139,6 +142,21 @@ Dispatch with the same idempotency token:
 ```shell-session
 $ nomad job dispatch -idempotency-token=prod video-encode video-config.json
 Job "video-encode/dispatch-1485379325-cb38d00d" already dispatched with idempotency token "prod".
+```
+
+Dispatch with an id prefix:
+
+```shell-session
+$ nomad job dispatch -id-prefix-template=config1 video-encode video-config1.json
+Jb
+Dispatched Job ID = video-encode/dispatch-config1-1485379325-cb38d00d
+Evaluation ID     = 31199841
+
+==> Monitoring evaluation "31199841"
+    Evaluation triggered by job "example/dispatch-config1-1485379325-cb38d00d"
+    Allocation "8254b85f" created: node "82ff9c50", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "31199841" finished with status "complete"
 ```
 
 [eval status]: /docs/commands/eval/status
