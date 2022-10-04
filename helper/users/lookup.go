@@ -7,7 +7,7 @@ import (
 
 // lock is used to serialize all user lookup at the process level, because
 // some NSS implementations are not concurrency safe
-var lock *sync.Mutex
+var lock sync.Mutex
 
 // nobody is a cached copy of the nobody user, which is going to be looked-up
 // frequently and is unlikely to be modified on the underlying system.
@@ -24,10 +24,6 @@ func Nobody() (*user.User, error) {
 	u, err := Lookup("nobody")
 	nobody = u
 	return u, err
-}
-
-func init() {
-	lock = new(sync.Mutex)
 }
 
 // Lookup username while holding a global process lock.
