@@ -147,7 +147,7 @@ func TestNamespacesFiltering(t *testing.T) {
 
 	out, err = e2eutil.Command("nomad", "job", "stop", jobA)
 	must.Eq(t, fmt.Sprintf("No job(s) with prefix or id %q found\n", jobA), out)
-	must.ContainsString(t, err.Error(), "exit status 1")
+	must.StrContains(t, err.Error(), "exit status 1")
 
 	err = e2eutil.StopJob(jobA, "-namespace", "NamespaceA")
 	require.NoError(t, err, "could not stop job in namespace")
