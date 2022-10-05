@@ -5,8 +5,12 @@ import notifyError from 'nomad-ui/utils/notify-error';
 export default class ClientRoute extends Route {
   @service store;
 
-  model() {
-    return super.model(...arguments).catch(notifyError(this));
+  async model() {
+    try {
+      return super.model(...arguments);
+    } catch (e) {
+      notifyError(this)(e);
+    }
   }
 
   afterModel(model) {

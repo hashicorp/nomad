@@ -7,13 +7,17 @@ export default class VariablesVariableRoute extends Route.extend(
   withForbiddenState
 ) {
   @service store;
-  model(params) {
-    return this.store
-      .findRecord('variable', decodeURIComponent(params.id), {
+
+  async model(params) {
+    try {
+      return this.store.findRecord('variable', decodeURIComponent(params.id), {
         reload: true,
-      })
-      .catch(notifyForbidden(this));
+      });
+    } catch (e) {
+      notifyForbidden(this)(e);
+    }
   }
+
   setupController(controller) {
     super.setupController(controller);
     controller.set('params', this.paramsFor('variables.variable'));

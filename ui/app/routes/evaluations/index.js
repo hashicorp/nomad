@@ -28,7 +28,7 @@ export default class EvaluationsIndexRoute extends Route {
     },
   };
 
-  model({
+  async model({
     nextToken,
     pageSize,
     searchTerm,
@@ -90,7 +90,7 @@ export default class EvaluationsIndexRoute extends Route {
       return null;
     };
 
-    this.store.findAll('namespace');
+    await this.store.findAll('namespace');
 
     return this.store.query('evaluation', {
       namespace,
