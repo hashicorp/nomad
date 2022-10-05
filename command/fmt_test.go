@@ -1,7 +1,11 @@
 package command
 
 import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -10,21 +14,115 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFmtNomadJob(t *testing.T) {
+func TestFmtCommand(t *testing.T) {
 	ci.Parallel(t)
 
-	ui := cli.NewMockUi()
+	const inSuffix = ".in.hcl"
+	const expectedSuffix = ".out.hcl"
+	tests := []string{"nomad", "job"}
 
+	tmpDir := t.TempDir()
+
+	for _, testName := range tests {
+		t.Run(testName, func(t *testing.T) {
+			inFile := filepath.Join("testdata", "fmt", testName+inSuffix)
+			expectedFile := filepath.Join("testdata", "fmt", testName+expectedSuffix)
+			fmtFile := filepath.Join(tmpDir, testName+".hcl")
+
+			input, err := os.ReadFile(inFile)
+			require.NoError(t, err)
+
+			expected, err := os.ReadFile(expectedFile)
+			require.NoError(t, err)
+
+			require.NoError(t, os.WriteFile(fmtFile, input, 0644))
+
+			ui := cli.NewMockUi()
+			cmd := &FormatCommand{
+				Meta: Meta{Ui: ui},
+			}
+
+			code := cmd.Run([]string{fmtFile})
+			assert.Equal(t, 0, code)
+
+			actual, err := os.ReadFile(fmtFile)
+			require.NoError(t, err)
+
+			assert.Equal(t, string(expected), string(actual))
+		})
+	}
+}
+
+func TestFmtCommand_FromStdin(t *testing.T) {
+	ci.Parallel(t)
+
+	stdinFake := bytes.NewBuffer(fmtFixture.input)
+
+	ui := cli.NewMockUi()
 	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
+		Meta:  Meta{Ui: ui},
+		stdin: stdinFake,
 	}
 
-	if code := cmd.Run([]string{"testdata/example-basic.nomad", "testdata/example-vault.nomad"}); code != 0 {
+	if code := cmd.Run([]string{"-"}); code != 0 {
 		t.Fatalf("expected code 0, got %d", code)
 	}
+
+	assert.Contains(t, ui.OutputWriter.String(), string(fmtFixture.golden))
 }
 
-func TestFmtNomadJobDontOverwrite(t *testing.T) {
+func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
+	tmpDir := fmtFixtureWriteDir(t)
+
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err)
+	defer os.Chdir(cwd)
+
+	ui := cli.NewMockUi()
+	cmd := &FormatCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	code := cmd.Run([]string{})
+
+	assert.Equal(t, 0, code)
+	assert.Equal(t, fmt.Sprintf("%s\n", fmtFixture.filename), ui.OutputWriter.String())
+}
+
+func TestFmtCommand_FromDirectoryArgument(t *testing.T) {
+	tmpDir := fmtFixtureWriteDir(t)
+
+	ui := cli.NewMockUi()
+	cmd := &FormatCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	code := cmd.Run([]string{tmpDir})
+
+	assert.Equal(t, 0, code)
+	assert.Equal(t, fmt.Sprintf("%s\n", filepath.Join(tmpDir, fmtFixture.filename)), ui.OutputWriter.String())
+}
+
+func TestFmtCommand_FromFileArgument(t *testing.T) {
+	tmpDir := fmtFixtureWriteDir(t)
+
+	ui := cli.NewMockUi()
+	cmd := &FormatCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	path := filepath.Join(tmpDir, fmtFixture.filename)
+
+	code := cmd.Run([]string{path})
+
+	assert.Equal(t, 0, code)
+	assert.Equal(t, fmt.Sprintf("%s\n", path), ui.OutputWriter.String())
+}
+
+func TestFmtCommand_FileDoesNotExist(t *testing.T) {
 	ci.Parallel(t)
 
 	ui := cli.NewMockUi()
@@ -32,75 +130,40 @@ func TestFmtNomadJobDontOverwrite(t *testing.T) {
 		Meta: Meta{Ui: ui},
 	}
 
-	assert.Equal(t, 0, cmd.Run([]string{"-overwrite=false", "testdata/example-basic.nomad"}))
-
-	fileBytes, err := os.ReadFile("testdata/example-basic.nomad")
-	require.NoError(t, err)
-
-	assert.Contains(t, ui.OutputWriter.String(), string(fileBytes))
+	code := cmd.Run([]string{"file/does/not/exist.hcl"})
+	assert.Equal(t, 1, code)
 }
 
-func TestFmtFileDoesNotExist(t *testing.T) {
+func TestFmtCommand_InvalidSyntax(t *testing.T) {
 	ci.Parallel(t)
+
+	stdinFake := bytes.NewBufferString(`client {enabled true }`)
 
 	ui := cli.NewMockUi()
 	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
+		Meta:  Meta{Ui: ui},
+		stdin: stdinFake,
 	}
 
-	assert.Equal(t, 1, cmd.Run([]string{"file/does/not/exist.hcl"}))
+	code := cmd.Run([]string{"-"})
+	assert.Equal(t, 1, code)
 }
 
-func TestFmtWrongHCLFile(t *testing.T) {
-	ci.Parallel(t)
+func fmtFixtureWriteDir(t *testing.T) string {
+	dir := t.TempDir()
 
-	ui := cli.NewMockUi()
-
-	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
-	}
-
-	bytes, err := os.ReadFile("testdata/fmt/bad-nomad.hcl")
+	err := ioutil.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
 	require.NoError(t, err)
 
-	f, err := os.CreateTemp("", "nomad-fmt-")
-	require.NoError(t, err)
-
-	_, err = f.Write(bytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, 0, cmd.Run([]string{f.Name()}))
-
-	expectedBytes, err := os.ReadFile("testdata/fmt/bad-nomad-after-fmt.hcl")
-	require.NoError(t, err)
-
-	bytesAfterFmt, err := os.ReadFile(f.Name())
-	require.NoError(t, err)
-
-	assert.Equal(t, expectedBytes, bytesAfterFmt, "HCL file was not formatted, but it should be")
+	return dir
 }
 
-func TestFmtWrongHCLFileWithCheck(t *testing.T) {
-	ci.Parallel(t)
-
-	ui := cli.NewMockUi()
-	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
-	}
-
-	bytes, err := os.ReadFile("testdata/fmt/bad-nomad.hcl")
-	require.NoError(t, err)
-
-	f, err := os.CreateTemp("", "nomad-fmt-")
-	require.NoError(t, err)
-
-	_, err = f.Write(bytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, cmd.Run([]string{"-check", f.Name()}))
-
-	bytesAfterFmt, err := os.ReadFile(f.Name())
-	require.NoError(t, err)
-
-	assert.Equal(t, bytes, bytesAfterFmt, "HCL file was formatted, but it should not be")
+var fmtFixture = struct {
+	filename string
+	input    []byte
+	golden   []byte
+}{
+	filename: "nomad.hcl",
+	input:    []byte(`client   {enabled = true}`),
+	golden:   []byte(`client { enabled = true }`),
 }
