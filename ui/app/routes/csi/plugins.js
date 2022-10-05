@@ -6,9 +6,11 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 export default class PluginsRoute extends Route.extend(WithForbiddenState) {
   @service store;
 
-  model() {
-    return this.store
-      .query('plugin', { type: 'csi' })
-      .catch(notifyForbidden(this));
+  async model() {
+    try {
+      return this.store.query('plugin', { type: 'csi' });
+    } catch (e) {
+      notifyForbidden(this)(e);
+    }
   }
 }

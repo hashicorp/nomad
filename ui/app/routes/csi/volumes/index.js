@@ -1,5 +1,4 @@
 import { inject as service } from '@ember/service';
-import RSVP from 'rsvp';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import { watchQuery, watchAll } from 'nomad-ui/utils/properties/watch';
@@ -19,13 +18,18 @@ export default class IndexRoute extends Route.extend(
     },
   };
 
-  model(params) {
-    return RSVP.hash({
-      volumes: this.store
-        .query('volume', { type: 'csi', namespace: params.qpNamespace })
-        .catch(notifyForbidden(this)),
-      namespaces: this.store.findAll('namespace'),
-    });
+  async model(params) {
+    try {
+      return {
+        volumes: await this.store.query('volume', {
+          type: 'csi',
+          namespace: params.qpNamespace,
+        }),
+        namespaces: await this.store.findAll('namespace'),
+      };
+    } catch (e) {
+      notifyForbidden(this)(e);
+    }
   }
 
   startWatchers(controller) {
