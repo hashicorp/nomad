@@ -1,7 +1,6 @@
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import EmberError from '@ember/error';
-import { resolve, all } from 'rsvp';
 import {
   watchRecord,
   watchRelationship,
@@ -13,7 +12,7 @@ import { inject as service } from '@ember/service';
 export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   @service store;
 
-  model({ name }) {
+  async model({ name }) {
     const job = this.modelFor('jobs.job');
 
     // If there is no job, then there is no task group.
@@ -22,25 +21,32 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
 
     // If the job is a partial (from the list request) it won't have task
     // groups. Reload the job to ensure task groups are present.
-    const reload = job.get('isPartial') ? job.reload() : resolve();
-    return reload
-      .then(() => {
-        const taskGroup = job.get('taskGroups').findBy('name', name);
-        if (!taskGroup) {
-          const err = new EmberError(
-            `Task group ${name} for job ${job.get('name')} not found`
-          );
-          err.code = '404';
-          throw err;
-        }
+    const isPartialJob = job.get('isPartial');
 
-        // Refresh job allocations before-hand (so page sort works on load)
-        return all([
-          job.hasMany('allocations').reload(),
-          job.get('scaleState'),
-        ]).then(() => taskGroup);
-      })
-      .catch(notifyError(this));
+    try {
+      if (isPartialJob) {
+        await job.reload();
+      }
+
+      const taskGroup = await job.get('taskGroups').findBy('name', name);
+
+      if (!taskGroup) {
+        const err = new EmberError(
+          `Task group ${name} for job ${job.get('name')} not found`
+        );
+        err.code = '404';
+        throw err;
+      }
+
+      await Promise.all([
+        job.hasMany('allocations').reload(),
+        job.get('scaleState'),
+      ]);
+
+      return taskGroup;
+    } catch (e) {
+      notifyError(this)(e);
+    }
   }
 
   startWatchers(controller, model) {
