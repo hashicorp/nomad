@@ -35,9 +35,7 @@ func TestOverlap(t *testing.T) {
 	must.NoError(t, err)
 	defer e2eutil.WaitForJobStopped(t, nomadClient, jobID1)
 
-	// Capture node so we can ensure 2nd job is blocked by first
 	var origAlloc *api.AllocationListStub
-	var node *api.Node
 	testutil.Wait(t, func() (bool, error) {
 		a, _, err := nomadClient.Jobs().Allocations(jobID1, false, nil)
 		must.NoError(t, err)
@@ -47,15 +45,13 @@ func TestOverlap(t *testing.T) {
 		must.Len(t, 1, a)
 
 		origAlloc = a[0]
-		if origAlloc.ClientStatus != "running" {
-			return false, fmt.Errorf("timed out before alloc %s for %s was running: %s",
-				origAlloc.ID, jobID1, origAlloc.ClientStatus)
-		}
-
-		node, _, err = nomadClient.Nodes().Info(origAlloc.NodeID, nil)
-		must.NoError(t, err)
-		return true, nil
+		return origAlloc.ClientStatus == "running", fmt.Errorf("timed out before alloc %s for %s was running: %s",
+			origAlloc.ID, jobID1, origAlloc.ClientStatus)
 	})
+
+	// Capture node so we can ensure 2nd job is blocked by first
+	node, _, err := nomadClient.Nodes().Info(origAlloc.NodeID, nil)
+	must.NoError(t, err)
 
 	// Stop job but don't wait for ClientStatus terminal
 	_, _, err = nomadClient.Jobs().Deregister(jobID1, false, nil)
