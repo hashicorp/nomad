@@ -277,6 +277,9 @@ func (e *Encrypter) activeKeySetLocked() (*keyset, error) {
 	if err != nil {
 		return nil, err
 	}
+	if keyMeta == nil {
+		return nil, fmt.Errorf("keyring has not been initialized yet")
+	}
 
 	return e.keysetByIDLocked(keyMeta.KeyID)
 }
