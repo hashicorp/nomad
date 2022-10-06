@@ -430,6 +430,10 @@
         ]
       },
       {
+        "title": "fmt",
+        "path": "commands/fmt"
+      },
+      {
         "title": "job",
         "routes": [
           {
