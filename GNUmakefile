@@ -243,6 +243,7 @@ hclfmt: ## Format HCL files with hclfmt
 	        -o -name '.next' -prune \
 	        -o -path './ui/dist' -prune \
 	        -o -path './website/out' -prune \
+	        -o -path './command/testdata' -prune \
 	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
 	      -print0 | xargs -0 hclfmt -w
 
