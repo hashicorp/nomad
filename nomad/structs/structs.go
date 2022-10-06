@@ -769,6 +769,7 @@ type JobDispatchRequest struct {
 	Payload []byte
 	Meta    map[string]string
 	WriteRequest
+	IdPrefixTemplate string
 }
 
 // JobValidateRequest is used to validate a job
@@ -5367,8 +5368,13 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 
 // DispatchedID returns an ID appropriate for a job dispatched against a
 // particular parameterized job
-func DispatchedID(templateID string, t time.Time) string {
+func DispatchedID(templateID, idPrefixTemplate string, t time.Time) string {
 	u := uuid.Generate()[:8]
+
+	if idPrefixTemplate != "" {
+		return fmt.Sprintf("%s%s%s-%d-%s", templateID, DispatchLaunchSuffix, idPrefixTemplate, t.Unix(), u)
+	}
+
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
