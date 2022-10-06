@@ -4537,6 +4537,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		JobModifyIndex:    j.JobModifyIndex,
 		SubmitTime:        j.SubmitTime,
 		JobSummary:        summary,
+		Meta:              j.Meta,
 	}
 }
 
@@ -4721,6 +4722,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
+	Meta              map[string]string
 }
 
 // JobSummary summarizes the state of the allocations of a job
