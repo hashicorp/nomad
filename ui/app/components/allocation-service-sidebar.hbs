@@ -66,11 +66,13 @@
 						</a>
 					</span>
 					{{#if @service.tags.length}}
-						<span class="pair">
+						<span class="pair is-wrappable">
 							<span class="term">
 								Tags
 							</span>
-							{{join ", " @service.tags}}
+              {{#each @service.tags as |tag|}}
+                <span class="tag">{{tag}}</span>
+              {{/each}}
 						</span>
 					{{/if}}
 					<span class="pair">
