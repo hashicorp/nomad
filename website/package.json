@@ -7,7 +7,9 @@
     "node": "14.x - 16.x",
     "npm": ">=7.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "next": "^12.3.1"
+  },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.3.0",
     "dart-linkcheck": "2.0.15",
