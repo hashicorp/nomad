@@ -294,10 +294,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
 	// Create the first root key if it doesn't already exist
-	err := s.initializeKeyring()
-	if err != nil {
-		return err
-	}
+	go s.initializeKeyring(stopCh)
 
 	// Initialize the ClusterID
 	_, _ = s.ClusterID()
@@ -1966,18 +1963,48 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	return config
 }
 
+var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
+
 // initializeKeyring creates the first root key if the leader doesn't
 // already have one. The metadata will be replicated via raft and then
 // the followers will get the key material from their own key
 // replication.
-func (s *Server) initializeKeyring() error {
-
+func (s *Server) initializeKeyring(stopCh <-chan struct{}) error {
 	store := s.fsm.State()
 	keyMeta, err := store.GetActiveRootKeyMeta(nil)
 	if err != nil {
 		return err
 	}
 	if keyMeta != nil {
+		return nil
+	}
+
+	s.logger.Named("core").Trace("verifying cluster is ready to initialize keyring")
+
+	versionCheck := func() bool {
+		members := s.serf.Members()
+		for _, member := range members {
+			build := member.Tags["build"]
+			memberVersion := version.Must(version.NewVersion(build))
+			if memberVersion.LessThan(minVersionKeyring) {
+				return false
+			}
+		}
+		return true
+	}
+
+	for {
+		select {
+		case <-stopCh:
+			return nil
+		default:
+		}
+		if versionCheck() {
+			break
+		}
+	}
+	// we might have lost leadershuip during the version check
+	if !s.IsLeader() {
 		return nil
 	}
 
