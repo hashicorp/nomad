@@ -8159,6 +8159,10 @@ const (
 
 	// TaskClientReconnected indicates that the client running the task disconnected.
 	TaskClientReconnected = "Reconnected"
+
+	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
+	// shutdown delay before being TaskKilled
+	TaskWaitingShuttingDownDelay = "Waiting for shutdown delay"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
