@@ -12,7 +12,7 @@ should_pull=true
 # Clone the dev-portal project, if needed
 if [ ! -d "$PREVIEW_DIR" ]; then
     echo "⏳ Cloning the $REPO_TO_CLONE repo, this might take a while..."
-    git clone --depth=1 --branch=brk.fix/product-repo-previews https://github.com/hashicorp/$REPO_TO_CLONE.git "$PREVIEW_DIR"
+    git clone --depth=1 https://github.com/hashicorp/$REPO_TO_CLONE.git "$PREVIEW_DIR"
     should_pull=false
 fi
 
