@@ -382,6 +382,11 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 }
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
+	// Allow jobs not requiring any network resources
+	if c.networkMode == "none" {
+		return true
+	}
+
 	if !c.hasNetwork(option) {
 
 		// special case - if the client is running a version older than 0.12 but
