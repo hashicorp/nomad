@@ -1986,7 +1986,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) error {
 		for _, member := range members {
 			build := member.Tags["build"]
 			memberVersion := version.Must(version.NewVersion(build))
-			if memberVersion.LessThan(minVersionKeyring) {
+			if memberVersion.Core().LessThan(minVersionKeyring) {
 				return false
 			}
 		}
