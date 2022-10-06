@@ -17,6 +17,10 @@
     margin-right: 2em;
     white-space: nowrap;
 
+    &.is-wrappable {
+      white-space: normal;
+    }
+
     .term {
       font-weight: $weight-semibold;
       margin-right: 0.5em;
