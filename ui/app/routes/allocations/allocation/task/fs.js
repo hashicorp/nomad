@@ -14,8 +14,9 @@ export default class FsRoute extends Route {
     }${decodedPath}`;
 
     try {
-      const [statJson] = await Promise.all([
+      const [statJson, directoryEntries] = await Promise.all([
         allocation.stat(pathWithTaskName),
+        allocation.ls(pathWithTaskName),
         taskState.get('allocation.node'),
       ]);
 
@@ -24,7 +25,7 @@ export default class FsRoute extends Route {
           path: decodedPath,
           taskState,
           isFile: false,
-          directoryEntries: await allocation.ls(pathWithTaskName),
+          directoryEntries,
         };
       } else {
         return {

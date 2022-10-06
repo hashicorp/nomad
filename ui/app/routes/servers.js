@@ -15,9 +15,14 @@ export default class ServersRoute extends Route.extend(WithForbiddenState) {
 
   async model() {
     try {
+      const [nodes, agents] = await Promise.all([
+        this.store.findAll('node'),
+        this.store.findAll('agent'),
+      ]);
+
       return {
-        nodes: await this.store.findAll('node'),
-        agents: await this.store.findAll('agent'),
+        nodes,
+        agents,
       };
     } catch (e) {
       notifyForbidden(this)(e);

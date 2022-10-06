@@ -9,8 +9,9 @@ export default class FsRoute extends Route {
     if (!allocation) return;
 
     try {
-      const [statJson] = await Promise.all([
+      const [statJson, directoryEntries] = await Promise.all([
         allocation.stat(decodedPath),
+        allocation.ls(decodedPath),
         allocation.get('node'),
       ]);
 
@@ -19,7 +20,7 @@ export default class FsRoute extends Route {
           path: decodedPath,
           allocation,
           isFile: false,
-          directoryEntries: await allocation.ls(decodedPath),
+          directoryEntries,
         };
       } else {
         return {

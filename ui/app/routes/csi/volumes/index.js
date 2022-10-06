@@ -20,12 +20,17 @@ export default class IndexRoute extends Route.extend(
 
   async model(params) {
     try {
-      return {
-        volumes: await this.store.query('volume', {
+      const [volumes, namespaces] = await Promise.all([
+        this.store.query('volume', {
           type: 'csi',
           namespace: params.qpNamespace,
         }),
-        namespaces: await this.store.findAll('namespace'),
+        this.store.findAll('namespace'),
+      ]);
+
+      return {
+        volumes,
+        namespaces,
       };
     } catch (e) {
       notifyForbidden(this)(e);

@@ -19,10 +19,15 @@ export default class IndexRoute extends Route.extend(
   };
 
   async model(params) {
+    const [jobs, namespaces] = await Promise.all([
+      this.store.query('job', { namespace: params.qpNamespace }),
+      this.store.findAll('namespace'),
+    ]);
+
     try {
       return {
-        jobs: await this.store.query('job', { namespace: params.qpNamespace }),
-        namespaces: await this.store.findAll('namespace'),
+        jobs,
+        namespaces,
       };
     } catch (e) {
       notifyForbidden(this)(e);

@@ -11,14 +11,20 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
 
   async model() {
     try {
-      return {
-        jobs: await this.store.findAll('job'),
-        allocations: await this.store.query('allocation', {
+      const [jobs, allocations, nodes] = await Promise.all([
+        this.store.findAll('job'),
+        this.store.query('allocation', {
           resources: true,
           task_states: false,
           namespace: '*',
         }),
-        nodes: await this.store.query('node', { resources: true }),
+        this.store.query('node', { resources: true }),
+      ]);
+
+      return {
+        jobs,
+        allocations,
+        nodes,
       };
     } catch (e) {
       notifyForbidden(this)(e);
