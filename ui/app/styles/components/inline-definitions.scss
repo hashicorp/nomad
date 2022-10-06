@@ -19,6 +19,9 @@
 
     &.is-wrappable {
       white-space: normal;
+      .tag {
+        vertical-align: middle;
+      }
     }
 
     .term {
