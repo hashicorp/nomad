@@ -1,17 +1,15 @@
-## 1.4.0 (Unreleased)
+## 1.4.0 (October 04, 2022)
 
 FEATURES:
 
 * **ACL Roles:** Added support for ACL Roles. [[GH-14320](https://github.com/hashicorp/nomad/issues/14320)]
-* **Nomad Native Service Discovery**: Add built-in support for checks on Nomad services [[GH-13715](https://github.com/hashicorp/nomad/issues/13715)]
 * **Variables:** Added support for storing encrypted configuration values. [[GH-13000](https://github.com/hashicorp/nomad/issues/13000)]
-* **UI Services table:** Display task-level services in addition to group-level services. [[GH-14199](https://github.com/hashicorp/nomad/issues/14199)]
+* [ui] Services table: Display task-level services in addition to group-level services. [[GH-14199](https://github.com/hashicorp/nomad/issues/14199)]
 
 BREAKING CHANGES:
 
 * audit (Enterprise): fixed inconsistency in event filter logic [[GH-14212](https://github.com/hashicorp/nomad/issues/14212)]
 * core: remove support for raft protocol version 2 [[GH-13467](https://github.com/hashicorp/nomad/issues/13467)]
-* cli: `eval status -json` no longer supports listing all evals in JSON. Use `eval list -json`. [[GH-14651](https://github.com/hashicorp/nomad/issues/14651)]
 
 SECURITY:
 
@@ -22,13 +20,15 @@ IMPROVEMENTS:
 * acl: ACL tokens can now be created with an expiration TTL. [[GH-14320](https://github.com/hashicorp/nomad/issues/14320)]
 * api: return a more descriptive error when /v1/acl/bootstrap fails to decode request body [[GH-14629](https://github.com/hashicorp/nomad/issues/14629)]
 * autopilot: upgrade to raft-autopilot library [[GH-14441](https://github.com/hashicorp/nomad/issues/14441)]
-* build: Update go toolchain to 1.19 [[GH-14132](https://github.com/hashicorp/nomad/issues/14132)]
+* build: Update go toolchain to 1.18.5 [[GH-13539](https://github.com/hashicorp/nomad/issues/13539)]
+* build: update Go to version go1.18.2 [[GH-13036](https://github.com/hashicorp/nomad/issues/13036)]
 * cli: Removed deprecated network quota fields from `quota status` output [[GH-14468](https://github.com/hashicorp/nomad/issues/14468)]
 * cli: `acl policy info` output format has changed to improve readability with large policy documents [[GH-14140](https://github.com/hashicorp/nomad/issues/14140)]
 * cli: `operator debug` now writes newline-delimited JSON files for large collections [[GH-14610](https://github.com/hashicorp/nomad/issues/14610)]
 * cli: ignore `-hcl2-strict` when -hcl1 is set. [[GH-14426](https://github.com/hashicorp/nomad/issues/14426)]
 * cli: warn destructive update only when count is greater than 1 [[GH-13103](https://github.com/hashicorp/nomad/issues/13103)]
 * client: Add built-in support for checks on nomad services [[GH-13715](https://github.com/hashicorp/nomad/issues/13715)]
+* client: re-enable nss-based user lookups [[GH-14742](https://github.com/hashicorp/nomad/issues/14742)]
 * connect: add namespace, job, and group to Envoy stats [[GH-14311](https://github.com/hashicorp/nomad/issues/14311)]
 * connect: add nomad environment variables to envoy bootstrap [[GH-12959](https://github.com/hashicorp/nomad/issues/12959)]
 * consul: Allow interpolation of task environment values into Consul Service Mesh configuration [[GH-14445](https://github.com/hashicorp/nomad/issues/14445)]
@@ -47,9 +47,15 @@ IMPROVEMENTS:
 * server: Log when a node's eligibility changes [[GH-14125](https://github.com/hashicorp/nomad/issues/14125)]
 * ui: Display different message when trying to exec into a job with no task running. [[GH-14071](https://github.com/hashicorp/nomad/issues/14071)]
 * ui: add service discovery, along with health checks, to job and allocation routes [[GH-14408](https://github.com/hashicorp/nomad/issues/14408)]
+* ui: added visual regression tests for top-level UI routes [[GH-12872](https://github.com/hashicorp/nomad/issues/12872)]
 * ui: adds a sidebar to show in-page logs for a given task, accessible via job, client, or task group routes [[GH-14612](https://github.com/hashicorp/nomad/issues/14612)]
 * ui: allow deep-dive clicks to tasks from client, job, and task group routes. [[GH-14592](https://github.com/hashicorp/nomad/issues/14592)]
 * ui: attach timestamps and a visual indicator on failure to health checks in the Web UI [[GH-14677](https://github.com/hashicorp/nomad/issues/14677)]
+* ui: warn a user before they leave a Variables form page with unsaved information [[GH-14665](https://github.com/hashicorp/nomad/issues/14665)]
+
+DEPRECATIONS:
+
+* cli: `eval status -json` no longer supports listing all evals in JSON. Use `eval list -json`. [[GH-14651](https://github.com/hashicorp/nomad/issues/14651)]
 
 BUG FIXES:
 
@@ -67,9 +73,11 @@ BUG FIXES:
 * jobspec: Fixed a bug where an `artifact` with `headers` configuration would fail to parse when using HCLv1 [[GH-14637](https://github.com/hashicorp/nomad/issues/14637)]
 * metrics: Update client `node_scheduling_eligibility` value with server heartbeats. [[GH-14483](https://github.com/hashicorp/nomad/issues/14483)]
 * quotas (Enterprise): Fixed a server crashing panic when updating and checking a quota concurrently.
-* rpc (Enterprise): check for spec changes in all regions when registering multiregion jobs [[GH-14519](https://github.com/hashicorp/nomad/issues/14519)]
-* scheduler (Enterprise): Fixed bug where the scheduler would treat multiregion jobs as paused for job types that don't use deployments [[GH-14659](https://github.com/hashicorp/nomad/issues/14659)]
+* rpc: check for spec changes in all regions when registering multiregion jobs [[GH-14519](https://github.com/hashicorp/nomad/issues/14519)]
+* scheduler: Fixed bug where the scheduler would treat multiregion jobs as paused for job types that don't use deployments [[GH-14659](https://github.com/hashicorp/nomad/issues/14659)]
+* template: Fixed a bug where the `splay` timeout was not being applied when `change_mode` was set to `script`. [[GH-14749](https://github.com/hashicorp/nomad/issues/14749)]
 * ui: Remove extra space when displaying the version in the menu footer. [[GH-14457](https://github.com/hashicorp/nomad/issues/14457)]
+* ui: Stabilizes visual regression tests [[GH-14551](https://github.com/hashicorp/nomad/issues/14551)]
 
 ## 1.3.5 (August 31, 2022)
 
