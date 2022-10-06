@@ -15,6 +15,21 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.4.0
 
+#### Possible Panic During Upgrades
+
+Nomad 1.4.0 initializes a keyring on the leader if one has not been previously
+created, which writes a new raft entry. Users have reported that the keyring
+initialization can cause a panic on older servers during upgrades. Following the
+documented [upgrade process][] closely will reduce the risk of this panic. But
+if a server with version 1.4.0 or higher becomes leader while servers with
+versions before 1.4.0 are still in the cluster, the older servers will panic.
+
+The most likely scenario for this is if the leader is still on a version before
+1.4.0 and is netsplit from the rest of the cluster or the server is restarted
+without upgrading, and one of the 1.4.0 servers becomes the leader.
+
+You can recover from the panic by immediately upgrading the old servers.
+
 #### Raft Protocol Version 2 Unsupported
 
 Raft protocol version 2 was deprecated in Nomad v1.3.0, and is being removed
@@ -1514,3 +1529,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
 [gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
 [gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
+[upgrade process]: /docs/upgrade#upgrade-process
