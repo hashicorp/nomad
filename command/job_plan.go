@@ -391,6 +391,10 @@ type namespaceIdPair struct {
 // * 0: No allocations created or destroyed.
 // * 1: Allocations created or destroyed.
 func getExitCode(resp *api.JobPlanResponse) int {
+	if resp.Diff.Type == "None" {
+		return 0
+	}
+
 	// Check for changes
 	for _, d := range resp.Annotations.DesiredTGUpdates {
 		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate+d.Canary > 0 {
