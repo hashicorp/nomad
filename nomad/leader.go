@@ -1969,17 +1969,21 @@ var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
 // already have one. The metadata will be replicated via raft and then
 // the followers will get the key material from their own key
 // replication.
-func (s *Server) initializeKeyring(stopCh <-chan struct{}) error {
+func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
+
+	logger := s.logger.Named("keyring")
+
 	store := s.fsm.State()
 	keyMeta, err := store.GetActiveRootKeyMeta(nil)
 	if err != nil {
-		return err
+		logger.Error("failed to get active key: %v", err)
+		return
 	}
 	if keyMeta != nil {
-		return nil
+		return
 	}
 
-	s.logger.Named("core").Trace("verifying cluster is ready to initialize keyring")
+	logger.Trace("verifying cluster is ready to initialize keyring")
 
 	versionCheck := func() bool {
 		members := s.serf.Members()
@@ -1996,7 +2000,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) error {
 	for {
 		select {
 		case <-stopCh:
-			return nil
+			return
 		default:
 		}
 		if versionCheck() {
@@ -2005,31 +2009,33 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) error {
 	}
 	// we might have lost leadershuip during the version check
 	if !s.IsLeader() {
-		return nil
+		return
 	}
 
-	s.logger.Named("core").Trace("initializing keyring")
+	logger.Trace("initializing keyring")
 
 	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey.Meta.SetActive()
 	if err != nil {
-		return fmt.Errorf("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring: %v", err)
+		return
 	}
 
 	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
-		return fmt.Errorf("could not add initial key to keyring: %v", err)
+		logger.Error("could not add initial key to keyring: %v", err)
+		return
 	}
 
 	if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
 		structs.KeyringUpdateRootKeyMetaRequest{
 			RootKeyMeta: rootKey.Meta,
 		}); err != nil {
-		return fmt.Errorf("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring: %v", err)
+		return
 	}
 
-	s.logger.Named("core").Info("initialized keyring", "id", rootKey.Meta.KeyID)
-	return nil
+	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)
 }
 
 func (s *Server) generateClusterID() (string, error) {
