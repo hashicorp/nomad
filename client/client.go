@@ -298,6 +298,9 @@ type Client struct {
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
 
+	// fingerprintManager is the FingerprintManager registered by the client
+	fingerprintManager *FingerprintManager
+
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
@@ -441,14 +444,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	fingerprintManager := NewFingerprintManager(
+	c.fingerprintManager = NewFingerprintManager(
 		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
 
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if err := fingerprintManager.Run(); err != nil {
+	if err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
@@ -742,6 +745,8 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	if shouldReloadTLS {
 		return c.reloadTLSConnections(newConfig.TLSConfig)
 	}
+
+	c.fingerprintManager.Reload()
 
 	return nil
 }
