@@ -1984,26 +1984,13 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	}
 
 	logger.Trace("verifying cluster is ready to initialize keyring")
-
-	versionCheck := func() bool {
-		members := s.serf.Members()
-		for _, member := range members {
-			build := member.Tags["build"]
-			memberVersion := version.Must(version.NewVersion(build))
-			if memberVersion.Core().LessThan(minVersionKeyring) {
-				return false
-			}
-		}
-		return true
-	}
-
 	for {
 		select {
 		case <-stopCh:
 			return
 		default:
 		}
-		if versionCheck() {
+		if ServersMeetMinimumVersion(s.serf.Members(), minVersionKeyring, true) {
 			break
 		}
 	}
