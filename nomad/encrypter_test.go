@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	version "github.com/hashicorp/go-version"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -313,26 +311,4 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	require.Equal(t, alloc.ID, got.AllocationID)
 	require.Equal(t, alloc.JobID, got.JobID)
 	require.Equal(t, "web", got.TaskName)
-}
-
-func TestEncrypter_VersionCheck(t *testing.T) {
-
-	validVersions := []string{"1.4.0", "1.4.1", "1.5.2", "1.4.0-dev", "1.4.0-beta.1"}
-	invalidVersions := []string{"1.3.5", "1.3.5-dev"}
-
-	for _, v := range validVersions {
-		memberVersion := version.Must(version.NewVersion(v))
-
-		must.True(t, memberVersion.Core().GreaterThanOrEqual(minVersionKeyring),
-			must.Sprintf("expected %v >= 1.4.0", v),
-		)
-	}
-
-	for _, v := range invalidVersions {
-		memberVersion := version.Must(version.NewVersion(v))
-		must.True(t, memberVersion.Core().LessThan(minVersionKeyring),
-			must.Sprintf("expected %v < 1.4.0", v),
-		)
-	}
-
 }
