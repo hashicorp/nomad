@@ -37,9 +37,11 @@ export HCP_PROJECT_ID=[YOUR_PROJECT_ID]
 packer build hashistack.pkr.hcl
 
 ```
+This will create an HCP Packer bucket called "hashistack" with a "production" channel.  
+You will need to set the current iteration of the new channel to the one you just built.
 
 
-If you aren't using HCP packer, use the following command to build the AMI:
+BUT... If you aren't using HCP packer, use the following command to build the AMI:
 
 ```bash
 $ packer build packer.json
