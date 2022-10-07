@@ -24,11 +24,30 @@ publicly available Amazon machine image (AMI) by default. The AMI can be customi
 through modifications to the [build configuration script](../shared/scripts/setup.sh) 
 and [packer.json](packer.json).
 
-Use the following command to build the AMI:
+
+The packer step has been updated to use HCP packer and an HCL template as opposed to the JSON.
+In order to use HCP packer, set the following environment variables:
+export HCP_ORGANIZATION_ID=
+
+```bash
+export HCP_ORGANIZATION=[YOUR_HCP_ORGANIZATION]
+export HCP_CLIENT_SECRET=[YOUR_CLIENT_SECRET]
+export HCP_CLIENT_ID=[YOUR_CLIENT_IDx
+export HCP_PROJECT_ID
+
+```
+
+
+If you aren't using HCP packer, use the following command to build the AMI:
 
 ```bash
 $ packer build packer.json
 ```
+Then, set the value of 'USE_HCP_PACKER' to false (it defaults to true) as well as the 'ami' variable to indicate the ami you just built.
+
+
+
+=
 
 ## Provision a cluster with Terraform
 
