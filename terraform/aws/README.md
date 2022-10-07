@@ -27,7 +27,6 @@ and [packer.json](packer.json).
 
 The packer step has been updated to use HCP packer and an HCL template as opposed to the JSON.
 In order to use HCP packer, set the following environment variables:
-export HCP_ORGANIZATION_ID=
 
 ```bash
 export HCP_ORGANIZATION=[YOUR_HCP_ORGANIZATION]
