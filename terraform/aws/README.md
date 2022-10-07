@@ -31,8 +31,8 @@ In order to use HCP packer, set the following environment variables:
 ```bash
 export HCP_ORGANIZATION=[YOUR_HCP_ORGANIZATION]
 export HCP_CLIENT_SECRET=[YOUR_CLIENT_SECRET]
-export HCP_CLIENT_ID=[YOUR_CLIENT_IDx
-export HCP_PROJECT_ID
+export HCP_CLIENT_ID=[YOUR_CLIENT_ID]
+export HCP_PROJECT_ID=[YOUR_PROJECT_ID]
 
 ```
 
