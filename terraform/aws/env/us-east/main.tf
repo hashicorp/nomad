@@ -4,16 +4,16 @@ provider "aws" {
 
 
 data "hcp_packer_iteration" "hashistack-image" {
-  5   bucket_name = "nomad-demo"
-  6   channel     = "production"
-  7 }
-  8
-  9 data "hcp_packer_image" "hashistack-image" {
- 10   bucket_name    = "nomad-demo"
- 11   cloud_provider = "aws"
- 12   iteration_id   = data.hcp_packer_iteration.hashistack-image.ulid
- 13   region         = "us-east-1"
- 14 }
+    bucket_name = "nomad-demo"
+    channel     = "production"
+  }
+ 
+  data "hcp_packer_image" "hashistack-image" {
+    bucket_name    = "nomad-demo"
+    cloud_provider = "aws"
+    iteration_id   = data.hcp_packer_iteration.hashistack-image.ulid
+    region         = "us-east-1"
+  }
 
 
 module "hashistack" {
