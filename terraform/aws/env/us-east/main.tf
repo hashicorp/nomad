@@ -8,12 +8,12 @@ data "hcp_packer_iteration" "hashistack_image" {
     channel     = "production"
   }
  
-  data "hcp_packer_image" "hashistack_image" {
-    bucket_name    = "hashistack"
-    cloud_provider = "aws"
-    iteration_id   = data.hcp_packer_iteration.hashistack_image.ulid
-    region         = "us-east-1"
-  }
+data "hcp_packer_image" "hashistack_image" {
+  bucket_name    = "hashistack"
+  cloud_provider = "aws"
+  iteration_id   = data.hcp_packer_iteration.hashistack_image.ulid
+  region         = "us-east-1"
+}
 
 
 module "hashistack" {
@@ -21,7 +21,7 @@ module "hashistack" {
 
   name                   = var.name
   region                 = var.region
-  ami                    = hcp_packer_image.hashistack_image.cloud_image_id
+  ami                    = ${hcp_packer_image.hashistack_image.cloud_image_id}
   server_instance_type   = var.server_instance_type
   client_instance_type   = var.client_instance_type
   key_name               = var.key_name
