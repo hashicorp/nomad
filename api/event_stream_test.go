@@ -11,6 +11,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestTopic_String(t *testing.T) {
+	testutil.Parallel(t)
+
+	testCases := []struct {
+		inputTopic     Topic
+		expectedOutput string
+	}{
+		{
+			inputTopic:     TopicDeployment,
+			expectedOutput: "Deployment",
+		},
+		{
+			inputTopic:     TopicEvaluation,
+			expectedOutput: "Evaluation",
+		},
+		{
+			inputTopic:     TopicAllocation,
+			expectedOutput: "Allocation",
+		},
+		{
+			inputTopic:     TopicJob,
+			expectedOutput: "Job",
+		},
+		{
+			inputTopic:     TopicNode,
+			expectedOutput: "Node",
+		},
+		{
+			inputTopic:     TopicService,
+			expectedOutput: "Service",
+		},
+		{
+			inputTopic:     TopicAll,
+			expectedOutput: "*",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.expectedOutput, func(t *testing.T) {
+			actualOutput := tc.inputTopic.String()
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
 func TestEvent_Stream(t *testing.T) {
 	testutil.Parallel(t)
 
