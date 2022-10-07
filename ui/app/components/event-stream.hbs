@@ -2,6 +2,18 @@
 
 <button {{on "click" this.events.stop}}>Shut down everything</button>
 
+<section class="entities"
+{{did-insert this.fetchEntities}}>
+  {{#each-in this.entities as |entity values|}}
+    <h2>{{entity}}</h2>
+    <ul>
+      {{#each values as |value|}}
+        <li>{{value.id}}</li>
+      {{/each}}
+    </ul>
+  {{/each-in}}
+</section>
+
 {{#each this.stream as |event|}}
   <hr />
     <dl class="realtime-event" onclick={{action "logEvent" event}}>

@@ -36,7 +36,7 @@ export default class EventsService extends Service {
       res.body
         .pipeThrough(new TextDecoderStream())
         .pipeThrough(this.splitStream('\n'))
-        // .pipeThrough(upperCaseStream())
+        .pipeThrough(this.parseStream())
         .pipeTo(this.appendToStream());
     });
   }
@@ -48,26 +48,44 @@ export default class EventsService extends Service {
   }
 
   appendToStream() {
-    // console.log('appending', this.stream);
+    console.log('appendToStream()');
     let stream = this.stream;
     const context = this;
     return new WritableStream({
       write(chunk) {
-        // console.log('gonna write', JSON.parse(chunk), typeof chunk);
-        JSON.parse(chunk).Events?.forEach((event) => stream.push(event));
-        context.stream = [...stream];
-        // console.log('afterwards', context.stream);
+        if (chunk.Events) {
+          chunk.Events.forEach((event) => stream.push(event));
+        }
 
-        // console.log('chunk', chunk);
+        // Dedupe our stream by its events' "key" and "Index" fields
+        context.stream = stream.reduce((acc, event) => {
+          if (
+            !acc.find((e) => e.Key === event.Key && e.Index === event.Index)
+          ) {
+            acc.push(event);
+          }
+          return acc;
+        }, []);
       },
     });
   }
 
-  //
+  // JSON.parses our chunks' events
+  parseStream() {
+    console.log('parseStream');
+    return new TransformStream({
+      transform(chunk, controller) {
+        controller.enqueue(JSON.parse(chunk));
+      },
+    });
+  }
+
   splitStream(delimiter) {
+    console.log('splitStream()');
     let buffer = '';
     return new TransformStream({
       transform(chunk, controller) {
+        console.log('splitStream.transform', new Date().toLocaleTimeString());
         buffer += chunk;
         let parts = buffer.split(delimiter);
         buffer = parts.pop();
