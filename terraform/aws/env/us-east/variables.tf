@@ -11,8 +11,8 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "ami" {
-}
+#variable "ami" {
+#}
 
 variable "server_instance_type" {
   description = "The AWS instance type to use for servers."
