@@ -178,7 +178,7 @@ resource "aws_instance" "server" {
   ami                    = var.ami
   instance_type          = var.server_instance_type
   #key_name               = aws_key_pair.nomaddemo_server[count.index].key_name
-  key_name                ="DavesTestKeys"
+  key_name                = var.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
 
