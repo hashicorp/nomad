@@ -6681,7 +6681,7 @@ func (tg *TaskGroup) validateServices() error {
 
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
-				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
+				if service.Connect == nil && check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
 					mErr.Errors = append(mErr.Errors,
 						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
 				}
