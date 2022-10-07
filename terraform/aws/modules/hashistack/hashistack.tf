@@ -157,28 +157,10 @@ resource "aws_security_group" "primary" {
   }
 }
 
-#resource "tls_private_key" "nomaddemo_server" {
-#  algorithm = "RSA"
-#  count=var.server_count
-#}
-
-#locals {
-#  count=4
-#  private_key_filename = "ssh-key-${count.index}.pem"
-#  private_key_filename2 = "ssh-key2-${count.index}.pem"
-#}
-
-#resource "aws_key_pair" "nomaddemo_server" {
-#  key_name   = "ssh-key_server-${count.index}.pem"
-#  public_key = tls_private_key.nomaddemo_server[count.index].public_key_openssh
-#  count=var.server_count
-#}
-
 resource "aws_instance" "server" {
   ami                    = var.ami
   instance_type          = var.server_instance_type
-  #key_name               = aws_key_pair.nomaddemo_server[count.index].key_name
-  key_name                = var.key_name
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
 
@@ -197,7 +179,7 @@ resource "aws_instance" "server" {
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
   }
-  #user_data = templatefile("../../env/us-east/user-data-server.sh",
+
   user_data = templatefile("${path.root}/user-data-server.sh",
     {
       server_count = var.server_count
@@ -214,22 +196,10 @@ resource "aws_instance" "server" {
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
-#resource "tls_private_key" "nomaddemo_client" {
-#  algorithm = "RSA"
-#  count=var.client_count
-#}
-
-#resource "aws_key_pair" "nomaddemo_client" {
-#  key_name   = "ssh-key_client-${count.index}.pem"
-#  public_key = tls_private_key.nomaddemo_client[count.index].public_key_openssh
-#  count=var.client_count
-#}
-
 resource "aws_instance" "client" {
   ami                    = var.ami
   instance_type          = var.client_instance_type
-  #key_name               = aws_key_pair.nomaddemo_client[count.index].key_name
-  key_name                = "DavesTestKeys"
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
@@ -256,7 +226,7 @@ resource "aws_instance" "client" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-  #user_data = templatefile("../../env/us-east/user-data-client.sh",
+
   user_data = templatefile("${path.root}/user-data-client.sh",
     {
       region = var.region
