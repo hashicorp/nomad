@@ -11,8 +11,13 @@ variable "region" {
   default     = "us-east-1"
 }
 
-#variable "ami" {
-#}
+variable "USE_HCP_PACKER"{
+  default     = true
+}
+
+variable "ami" {
+  default ="12345"
+}
 
 variable "server_instance_type" {
   description = "The AWS instance type to use for servers."
@@ -23,6 +28,7 @@ variable "client_instance_type" {
   description = "The AWS instance type to use for clients."
   default     = "t2.micro"
 }
+
 
 variable "root_block_device_size" {
   description = "The volume size of the root block device."

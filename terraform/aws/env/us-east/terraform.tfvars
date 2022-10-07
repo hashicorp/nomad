@@ -18,11 +18,17 @@ name = "nomad"
 # `region` ("us-east-1") - sets the AWS region to build your cluster in.
 region = "us-east-1"
 
-# `ami` (required) - The base AMI for the created nodes, This AMI must exist in
+###########################
+# Packer support 
+
+# Set this variable to true if using HCP packer as the source of your image.  
+USE_HCP_PACKER=true
+
+# `ami` - Set this ONLY if not using HCP packer to the base AMI for the created nodes, This AMI must exist in
 # the requested region for this environment to build properly.
 #  - If it is not provided here, it will be requested interactively.
 #ami = "ami-00a885023319a49e0"
-#TODO:  Pull from packer
+##########################
 
 # `server_instance_type` ("t2.medium"), `client_instance_type` ("t2.medium"),
 # `server_count` (3),`client_count` (4) - These options control instance size
@@ -31,9 +37,9 @@ region = "us-east-1"
 # * For the GPU demos, we used p3.2xlarge client instances.
 # * For the Spark demos, you will need at least 4 t2.medium client
 #   instances.
-#server_instance_type = "t2.medium"
+server_instance_type = "t2.small"
 server_count         = "2"
-#client_instance_type = "t2.medium"
+client_instance_type = "t2.small"
 client_count         = "2"
 
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set

@@ -21,7 +21,7 @@ module "hashistack" {
 
   name                   = var.name
   region                 = var.region
-  ami                    = data.hcp_packer_image.hashistack_image.cloud_image_id
+  ami                    = var.USE_HCP_PACKER ? data.hcp_packer_image.hashistack_image.cloud_image_id: ami
   server_instance_type   = var.server_instance_type
   client_instance_type   = var.client_instance_type
   key_name               = var.key_name
