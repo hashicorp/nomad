@@ -45,9 +45,6 @@ $ packer build packer.json
 Then, set the value of 'USE_HCP_PACKER' to false (it defaults to true) as well as the 'ami' variable to indicate the ami you just built.
 
 
-
-=
-
 ## Provision a cluster with Terraform
 
 `cd` to an environment subdirectory:
