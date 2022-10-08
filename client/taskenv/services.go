@@ -183,27 +183,4 @@ func interpolateTaskResources(taskEnv *TaskEnv, resources *structs.Resources) {
 		resources.Devices[i].Name = taskEnv.ReplaceEnv(resources.Devices[i].Name)
 		// do not interpolate constraints & affinities
 	}
-
-	for i := 0; i < len(resources.Networks); i++ {
-		resources.Networks[i].CIDR = taskEnv.ReplaceEnv(resources.Networks[i].CIDR)
-		resources.Networks[i].Device = taskEnv.ReplaceEnv(resources.Networks[i].Device)
-		resources.Networks[i].IP = taskEnv.ReplaceEnv(resources.Networks[i].IP)
-		resources.Networks[i].Mode = taskEnv.ReplaceEnv(resources.Networks[i].Mode)
-
-		if resources.Networks[i].DNS != nil {
-			resources.Networks[i].DNS.Options = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Options)
-			resources.Networks[i].DNS.Searches = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Searches)
-			resources.Networks[i].DNS.Servers = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Servers)
-		}
-
-		for p := 0; p < len(resources.Networks[i].DynamicPorts); p++ {
-			resources.Networks[i].DynamicPorts[p].HostNetwork = taskEnv.ReplaceEnv(resources.Networks[i].DynamicPorts[p].HostNetwork)
-			resources.Networks[i].DynamicPorts[p].Label = taskEnv.ReplaceEnv(resources.Networks[i].DynamicPorts[p].Label)
-		}
-
-		for p := 0; p < len(resources.Networks[i].ReservedPorts); p++ {
-			resources.Networks[i].ReservedPorts[p].HostNetwork = taskEnv.ReplaceEnv(resources.Networks[i].ReservedPorts[p].HostNetwork)
-			resources.Networks[i].ReservedPorts[p].Label = taskEnv.ReplaceEnv(resources.Networks[i].ReservedPorts[p].Label)
-		}
-	}
 }

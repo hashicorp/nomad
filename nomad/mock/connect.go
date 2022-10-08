@@ -224,10 +224,6 @@ func BatchConnectJob() *structs.Job {
 				Resources: &structs.Resources{
 					CPU:      500,
 					MemoryMB: 256,
-					Networks: []*structs.NetworkResource{{
-						MBits:        50,
-						DynamicPorts: []structs.Port{{Label: "port1"}},
-					}},
 				},
 			}},
 			Services: []*structs.Service{{
@@ -311,13 +307,6 @@ func BatchConnectAlloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "mock-connect-batch-job",
-		TaskResources: map[string]*structs.Resources{
-			"connect-proxy-testconnect": {
-				CPU:      500,
-				MemoryMB: 256,
-			},
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"connect-proxy-testconnect": {
@@ -353,41 +342,6 @@ func BatchAlloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-			DiskMB:   150,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
-				},
-			},
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      500,
-				MemoryMB: 256,
-				Networks: []*structs.NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-					},
-				},
-			},
-		},
-		SharedResources: &structs.Resources{
-			DiskMB: 150,
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {

@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/slices"
 )
@@ -571,11 +572,6 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		}
 
-		// Inspect the network to see if the dynamic ports are different
-		if networkUpdated(at.Resources.Networks, bt.Resources.Networks) {
-			return true
-		}
-
 		// Inspect the non-network resources
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
@@ -585,7 +581,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
 			return true
-		} else if !ar.Devices.Equals(&br.Devices) {
+		} else if !helper.SlicesEqual(ar.Devices, br.Devices) {
 			return true
 		}
 	}
@@ -897,8 +893,6 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 					networks = tr.Networks
 					devices = tr.Devices
 				}
-			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks and devices back
@@ -912,8 +906,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Update the allocation
 		newAlloc.EvalID = eval.ID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,
@@ -1184,8 +1177,6 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 					networks = tr.Networks
 					devices = tr.Devices
 				}
-			} else if tr, ok := existing.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks back
@@ -1199,8 +1190,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 		// Update the allocation
 		newAlloc.EvalID = evalID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,

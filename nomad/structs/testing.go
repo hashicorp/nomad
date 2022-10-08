@@ -202,15 +202,6 @@ func MockJob() *Job {
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*NetworkResource{
-								{
-									MBits: 50,
-									DynamicPorts: []Port{
-										{Label: "http"},
-										{Label: "admin"},
-									},
-								},
-							},
 						},
 						Meta: map[string]string{
 							"foo": "bar",

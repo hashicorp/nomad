@@ -15,41 +15,6 @@ func Alloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-			DiskMB:   150,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
-				},
-			},
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      500,
-				MemoryMB: 256,
-				Networks: []*structs.NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-					},
-				},
-			},
-		},
-		SharedResources: &structs.Resources{
-			DiskMB: 150,
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {
@@ -84,10 +49,7 @@ func Alloc() *structs.Allocation {
 
 func AllocWithoutReservedPort() *structs.Allocation {
 	alloc := Alloc()
-	alloc.Resources.Networks[0].ReservedPorts = nil
-	alloc.TaskResources["web"].Networks[0].ReservedPorts = nil
 	alloc.AllocatedResources.Tasks["web"].Networks[0].ReservedPorts = nil
-
 	return alloc
 }
 
@@ -101,16 +63,12 @@ func AllocForNode(n *structs.Node) *structs.Allocation {
 	alloc.NodeID = n.ID
 
 	// Set node IP address.
-	alloc.Resources.Networks[0].IP = nodeIP
-	alloc.TaskResources["web"].Networks[0].IP = nodeIP
 	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
 
 	// Set dynamic port to a random value.
-	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 
 	return alloc
-
 }
 
 func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
@@ -123,12 +81,9 @@ func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
 	alloc.NodeID = n.ID
 
 	// Set node IP address.
-	alloc.Resources.Networks[0].IP = nodeIP
-	alloc.TaskResources["web"].Networks[0].IP = nodeIP
 	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
 
 	// Set dynamic port to a random value.
-	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 
 	return alloc
@@ -169,41 +124,6 @@ func SystemAlloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-			DiskMB:   150,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
-				},
-			},
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      500,
-				MemoryMB: 256,
-				Networks: []*structs.NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-					},
-				},
-			},
-		},
-		SharedResources: &structs.Resources{
-			DiskMB: 150,
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {

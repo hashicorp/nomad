@@ -2099,11 +2099,6 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
-	// Network Resources diff
-	if nDiffs := networkResourceDiffs(r.Networks, other.Networks, contextual); nDiffs != nil {
-		diff.Objects = append(diff.Objects, nDiffs...)
-	}
-
 	// Requested Devices diff
 	if nDiffs := requestedDevicesDiffs(r.Devices, other.Devices, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)

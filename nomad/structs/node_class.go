@@ -40,7 +40,7 @@ func (n *Node) ComputeClass() error {
 
 // HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
-func (n Node) HashInclude(field string, v interface{}) (bool, error) {
+func (*Node) HashInclude(field string, _ any) (bool, error) {
 	switch field {
 	case "Datacenter", "Attributes", "Meta", "NodeClass", "NodeResources":
 		return true, nil
@@ -51,7 +51,7 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 
 // HashIncludeMap is used to denylist uniquely identifying node map keys from being
 // included in the computed node class.
-func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
+func (*Node) HashIncludeMap(field string, k, _ any) (bool, error) {
 	key, ok := k.(string)
 	if !ok {
 		return false, fmt.Errorf("map key %v not a string", k)
@@ -67,7 +67,7 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 
 // HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
-func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
+func (*NodeResources) HashInclude(field string, _ any) (bool, error) {
 	switch field {
 	case "Devices":
 		return true, nil
@@ -78,7 +78,7 @@ func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
 
 // HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
-func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, error) {
+func (*NodeDeviceResource) HashInclude(field string, _ any) (bool, error) {
 	switch field {
 	case "Vendor", "Type", "Name", "Attributes":
 		return true, nil
@@ -89,7 +89,7 @@ func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, erro
 
 // HashIncludeMap is used to denylist uniquely identifying node map keys from being
 // included in the computed node class.
-func (n NodeDeviceResource) HashIncludeMap(field string, k, v interface{}) (bool, error) {
+func (*NodeDeviceResource) HashIncludeMap(field string, k, _ any) (bool, error) {
 	key, ok := k.(string)
 	if !ok {
 		return false, fmt.Errorf("map key %v not a string", k)

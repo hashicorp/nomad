@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -1925,19 +1926,6 @@ type Node struct {
 	// reserved from scheduling.
 	ReservedResources *NodeReservedResources
 
-	// Resources is the available resources on the client.
-	// For example 'cpu=2' 'memory=2048'
-	// COMPAT(0.10): Remove after 0.10
-	Resources *Resources
-
-	// Reserved is the set of resources that are reserved,
-	// and should be subtracted from the total resources for
-	// the purposes of scheduling. This may be provide certain
-	// high-watermark tolerances or because of external schedulers
-	// consuming resources.
-	// COMPAT(0.10): Remove after 0.10
-	Reserved *Resources
-
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
@@ -2073,8 +2061,6 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = maps.Clone(nn.Links)
 	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
@@ -2096,66 +2082,6 @@ func (n *Node) TerminalStatus() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// ComparableReservedResources returns the reserved resouces on the node
-// handling upgrade paths. Reserved networks must be handled separately. After
-// 0.11 calls to this should be replaced with:
-// node.ReservedResources.Comparable()
-//
-// COMPAT(0.11): Remove in 0.11
-func (n *Node) ComparableReservedResources() *ComparableResources {
-	// See if we can no-op
-	if n.Reserved == nil && n.ReservedResources == nil {
-		return nil
-	}
-
-	// Node already has 0.9+ behavior
-	if n.ReservedResources != nil {
-		return n.ReservedResources.Comparable()
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(n.Reserved.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(n.Reserved.MemoryMB),
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(n.Reserved.DiskMB),
-		},
-	}
-}
-
-// ComparableResources returns the resouces on the node
-// handling upgrade paths. Networking must be handled separately. After 0.11
-// calls to this should be replaced with: node.NodeResources.Comparable()
-//
-// // COMPAT(0.11): Remove in 0.11
-func (n *Node) ComparableResources() *ComparableResources {
-	// Node already has 0.9+ behavior
-	if n.NodeResources != nil {
-		return n.NodeResources.Comparable()
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(n.Resources.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(n.Resources.MemoryMB),
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(n.Resources.DiskMB),
-		},
 	}
 }
 
@@ -2228,51 +2154,72 @@ type NodeStubFields struct {
 	OS        bool
 }
 
-// Resources is used to define the resources available
-// on a client
+const (
+	BytesInMegabyte = 1024 * 1024
+)
+
+// DefaultResources is a small resources object that contains the default
+// resources requests that we will provide to an object.
+func DefaultResources() *Resources {
+	return &Resources{
+		CPU:      api.ResourcesDefaultCPU,
+		Cores:    api.ResourcesDefaultCores,
+		MemoryMB: api.ResourcesDefaultMemoryMB,
+	}
+}
+
+// MinResources is a small resources object that contains the absolute minimum
+// resources that we will provide to an object.
+func MinResources() *Resources {
+	return &Resources{
+		CPU:      api.ResourcesMinCPU,
+		Cores:    api.ResourcesMinCores,
+		MemoryMB: api.ResourcesMinMemoryMB,
+	}
+}
+
+// Resources is used to define the resources that can be requested in a task.
 type Resources struct {
 	CPU         int
 	Cores       int
 	MemoryMB    int
 	MemoryMaxMB int
 	DiskMB      int
-	IOPS        int // COMPAT(0.10): Only being used to issue warnings
-	Networks    Networks
-	Devices     ResourceDevices
+	Devices     RequestedDevices
 }
 
-const (
-	BytesInMegabyte = 1024 * 1024
-)
-
-// DefaultResources is a small resources object that contains the
-// default resources requests that we will provide to an object.
-// ---  THIS FUNCTION IS REPLICATED IN api/resources.go and should
-// be kept in sync.
-func DefaultResources() *Resources {
-	return &Resources{
-		CPU:      100,
-		Cores:    0,
-		MemoryMB: 300,
-	}
+func (r *Resources) Canonicalize() {
+	return // todo
 }
 
-// MinResources is a small resources object that contains the
-// absolute minimum resources that we will provide to an object.
-// This should not be confused with the defaults which are
-// provided in Canonicalize() ---  THIS FUNCTION IS REPLICATED IN
-// api/resources.go and should be kept in sync.
-func MinResources() *Resources {
-	return &Resources{
-		CPU:      1,
-		Cores:    0,
-		MemoryMB: 10,
+func (r *Resources) Merge(o *Resources) {
+	return // todo
+}
+
+func (r *Resources) Equal(o *Resources) bool {
+	if r == nil || o == nil {
+		return r == o
 	}
+	switch {
+	case r.CPU != o.CPU:
+		return false
+	case r.Cores != o.Cores:
+		return false
+	case r.MemoryMB != o.MemoryMB:
+		return false
+	case r.MemoryMaxMB != o.MemoryMaxMB:
+		return false
+	case r.DiskMB != o.DiskMB:
+		return false
+	case !helper.SlicesEqual(r.Devices, o.Devices):
+		return false
+	}
+	return true
 }
 
 // DiskInBytes returns the amount of disk resources in bytes.
 func (r *Resources) DiskInBytes() int64 {
-	return int64(r.DiskMB * BytesInMegabyte)
+	return int64(r.DiskMB) * BytesInMegabyte
 }
 
 func (r *Resources) Validate() error {
@@ -2282,10 +2229,6 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Task can only ask for 'cpu' or 'cores' resource, not both."))
 	}
 
-	if err := r.MeetsMinResources(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
-	}
-
 	// Ensure the task isn't asking for disk resources
 	if r.DiskMB > 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
@@ -2293,7 +2236,7 @@ func (r *Resources) Validate() error {
 
 	for i, d := range r.Devices {
 		if err := d.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("device %d failed validation: %v", i+1, err))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Device %d failed validation: %v", i+1, err))
 		}
 	}
 
@@ -2304,179 +2247,19 @@ func (r *Resources) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// Merge merges this resource with another resource.
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) Merge(other *Resources) {
-	if other.CPU != 0 {
-		r.CPU = other.CPU
-	}
-	if other.Cores != 0 {
-		r.Cores = other.Cores
-	}
-	if other.MemoryMB != 0 {
-		r.MemoryMB = other.MemoryMB
-	}
-	if other.MemoryMaxMB != 0 {
-		r.MemoryMaxMB = other.MemoryMaxMB
-	}
-	if other.DiskMB != 0 {
-		r.DiskMB = other.DiskMB
-	}
-	if len(other.Networks) != 0 {
-		r.Networks = other.Networks
-	}
-	if len(other.Devices) != 0 {
-		r.Devices = other.Devices
-	}
-}
-
-// Equals Resources.
-//
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) Equals(o *Resources) bool {
-	if r == o {
-		return true
-	}
-	if r == nil || o == nil {
-		return false
-	}
-	return r.CPU == o.CPU &&
-		r.Cores == o.Cores &&
-		r.MemoryMB == o.MemoryMB &&
-		r.MemoryMaxMB == o.MemoryMaxMB &&
-		r.DiskMB == o.DiskMB &&
-		r.IOPS == o.IOPS &&
-		r.Networks.Equals(&o.Networks) &&
-		r.Devices.Equals(&o.Devices)
-}
-
-// ResourceDevices are part of Resources.
-//
-// COMPAT(0.10): Remove in 0.10.
-type ResourceDevices []*RequestedDevice
-
-// Equals ResourceDevices as set keyed by Name.
-//
-// COMPAT(0.10): Remove in 0.10
-func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
-	if d == o {
-		return true
-	}
-	if d == nil || o == nil {
-		return false
-	}
-	if len(*d) != len(*o) {
-		return false
-	}
-	m := make(map[string]*RequestedDevice, len(*d))
-	for _, e := range *d {
-		m[e.Name] = e
-	}
-	for _, oe := range *o {
-		de, ok := m[oe.Name]
-		if !ok || !de.Equals(oe) {
-			return false
-		}
-	}
-	return true
-}
-
-// Canonicalize the Resources struct.
-//
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) Canonicalize() {
-	// Ensure that an empty and nil slices are treated the same to avoid scheduling
-	// problems since we use reflect DeepEquals.
-	if len(r.Networks) == 0 {
-		r.Networks = nil
-	}
-	if len(r.Devices) == 0 {
-		r.Devices = nil
-	}
-
-	for _, n := range r.Networks {
-		n.Canonicalize()
-	}
-}
-
-// MeetsMinResources returns an error if the resources specified are less than
-// the minimum allowed.
-// This is based on the minimums defined in the Resources type
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) MeetsMinResources() error {
-	var mErr multierror.Error
-	minResources := MinResources()
-	if r.CPU < minResources.CPU && r.Cores == 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is %d; got %d", minResources.CPU, r.CPU))
-	}
-	if r.MemoryMB < minResources.MemoryMB {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	return mErr.ErrorOrNil()
-}
-
 // Copy returns a deep copy of the resources
 func (r *Resources) Copy() *Resources {
 	if r == nil {
 		return nil
 	}
-	newR := new(Resources)
-	*newR = *r
-
-	// Copy the network objects
-	newR.Networks = r.Networks.Copy()
-
-	// Copy the devices
-	if r.Devices != nil {
-		n := len(r.Devices)
-		newR.Devices = make([]*RequestedDevice, n)
-		for i := 0; i < n; i++ {
-			newR.Devices[i] = r.Devices[i].Copy()
-		}
+	return &Resources{
+		CPU:         r.CPU,
+		Cores:       r.Cores,
+		MemoryMB:    r.MemoryMB,
+		MemoryMaxMB: r.MemoryMaxMB,
+		DiskMB:      r.DiskMB,
+		Devices:     helper.CopySlice(r.Devices),
 	}
-
-	return newR
-}
-
-// NetIndex finds the matching net index using device name
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) NetIndex(n *NetworkResource) int {
-	return r.Networks.NetIndex(n)
-}
-
-// Add adds the resources of the delta to this, potentially
-// returning an error if not possible.
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) Add(delta *Resources) {
-	if delta == nil {
-		return
-	}
-
-	r.CPU += delta.CPU
-	r.MemoryMB += delta.MemoryMB
-	if delta.MemoryMaxMB > 0 {
-		r.MemoryMaxMB += delta.MemoryMaxMB
-	} else {
-		r.MemoryMaxMB += delta.MemoryMB
-	}
-	r.DiskMB += delta.DiskMB
-
-	for _, n := range delta.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := r.NetIndex(n)
-		if idx == -1 {
-			r.Networks = append(r.Networks, n.Copy())
-		} else {
-			r.Networks[idx].Add(n)
-		}
-	}
-}
-
-// GoString returns the string representation of the Resources struct.
-//
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) GoString() string {
-	return fmt.Sprintf("*%#v", *r)
 }
 
 // NodeNetworkResource is used to describe a fingerprinted network of a node
@@ -2745,6 +2528,8 @@ func (ns Networks) NetIndex(n *NetworkResource) int {
 	return -1
 }
 
+type RequestedDevices []*RequestedDevice
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -2770,7 +2555,7 @@ type RequestedDevice struct {
 	Affinities Affinities
 }
 
-func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
+func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
 	if r == o {
 		return true
 	}
@@ -3574,21 +3359,6 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	}
 
 	return c
-}
-
-// OldTaskResources returns the pre-0.9.0 map of task resources
-func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
-	m := make(map[string]*Resources, len(a.Tasks))
-	for name, res := range a.Tasks {
-		m[name] = &Resources{
-			CPU:         int(res.Cpu.CpuShares),
-			MemoryMB:    int(res.Memory.MemoryMB),
-			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
-			Networks:    res.Networks,
-		}
-	}
-
-	return m
 }
 
 func (a *AllocatedResources) Canonicalize() {
@@ -6553,41 +6323,6 @@ func (tg *TaskGroup) validateNetworks() error {
 		}
 	}
 
-	// Check for duplicate tasks or port labels, and no duplicated static ports
-	for _, task := range tg.Tasks {
-		if task.Resources == nil {
-			continue
-		}
-
-		for _, net := range task.Resources.Networks {
-			for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
-				if other, ok := portLabels[port.Label]; ok {
-					mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
-				}
-
-				if port.Value != 0 {
-					hostNetwork := port.HostNetwork
-					if hostNetwork == "" {
-						hostNetwork = "default"
-					}
-					staticPorts, ok := staticPortsIndex[hostNetwork]
-					if !ok {
-						staticPorts = make(map[int]string)
-					}
-					if other, ok := staticPorts[port.Value]; ok {
-						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
-						mErr.Errors = append(mErr.Errors, err)
-					} else if port.Value > math.MaxUint16 {
-						err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
-						mErr.Errors = append(mErr.Errors, err)
-					} else {
-						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
-						staticPortsIndex[hostNetwork] = staticPorts
-					}
-				}
-			}
-		}
-	}
 	return mErr.ErrorOrNil()
 }
 
@@ -7159,9 +6894,8 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	// If Resources are nil initialize them to defaults, otherwise canonicalize
 	if t.Resources == nil {
 		t.Resources = DefaultResources()
-	} else {
-		t.Resources.Canonicalize()
 	}
+	t.Resources.Canonicalize()
 
 	if t.RestartPolicy == nil {
 		t.RestartPolicy = tg.RestartPolicy
@@ -7456,18 +7190,6 @@ func validateServices(t *Task, tgNetworks Networks) error {
 		}
 	}
 
-	// COMPAT(0.13)
-	// Append the set of task port labels. (Note that network resources on the
-	// task resources are deprecated, but we must let them continue working; a
-	// warning will be emitted on job submission).
-	if t.Resources != nil {
-		for _, network := range t.Resources.Networks {
-			for portLabel := range network.PortLabels() {
-				portLabels[portLabel] = struct{}{}
-			}
-		}
-	}
-
 	// Iterate over a sorted list of keys to make error listings stable
 	keys := make([]string, 0, len(servicePorts))
 	for p := range servicePorts {
@@ -7499,15 +7221,6 @@ func validateServices(t *Task, tgNetworks Networks) error {
 
 func (t *Task) Warnings() error {
 	var mErr multierror.Error
-
-	// Validate the resources
-	if t.Resources != nil && t.Resources.IOPS != 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
-	}
-
-	if t.Resources != nil && len(t.Resources.Networks) != 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("task network resources have been deprecated as of Nomad 0.12.0. Please configure networking via group network block."))
-	}
 
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Warnings(); err != nil {
@@ -9651,25 +9364,6 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
-	// COMPAT(0.11): Remove in 0.11
-	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group. Dynamic ports will be set by
-	// the scheduler.
-	Resources *Resources
-
-	// SharedResources are the resources that are shared by all the tasks in an
-	// allocation
-	// Deprecated: use AllocatedResources.Shared instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	SharedResources *Resources
-
-	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources. Dynamic ports will be
-	// set by the scheduler.
-	// Deprecated: use AllocatedResources.Tasks instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	TaskResources map[string]*Resources
-
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
 
@@ -9817,28 +9511,7 @@ func (a *Allocation) CopySkipJob() *Allocation {
 // Allocations or receiving Allocations from Nomad agents potentially on an
 // older version of Nomad.
 func (a *Allocation) Canonicalize() {
-	if a.AllocatedResources == nil && a.TaskResources != nil {
-		ar := AllocatedResources{}
-
-		tasks := make(map[string]*AllocatedTaskResources, len(a.TaskResources))
-		for name, tr := range a.TaskResources {
-			atr := AllocatedTaskResources{}
-			atr.Cpu.CpuShares = int64(tr.CPU)
-			atr.Memory.MemoryMB = int64(tr.MemoryMB)
-			atr.Networks = tr.Networks.Copy()
-
-			tasks[name] = &atr
-		}
-		ar.Tasks = tasks
-
-		if a.SharedResources != nil {
-			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
-			ar.Shared.Networks = a.SharedResources.Networks.Copy()
-		}
-
-		a.AllocatedResources = &ar
-	}
-
+	// conversions for upgrade path goes here
 	a.Job.Canonicalize()
 }
 
@@ -9854,17 +9527,6 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.AllocatedResources = na.AllocatedResources.Copy()
-	na.Resources = na.Resources.Copy()
-	na.SharedResources = na.SharedResources.Copy()
-
-	if a.TaskResources != nil {
-		tr := make(map[string]*Resources, len(na.TaskResources))
-		for task, resource := range na.TaskResources {
-			tr[task] = resource.Copy()
-		}
-		na.TaskResources = tr
-	}
-
 	na.Metrics = na.Metrics.Copy()
 	na.DeploymentStatus = na.DeploymentStatus.Copy()
 
@@ -10252,46 +9914,6 @@ func (a *Allocation) ShouldMigrate() bool {
 // This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
-}
-
-// ComparableResources returns the resources on the allocation
-// handling upgrade paths. After 0.11 calls to this should be replaced with:
-// alloc.AllocatedResources.Comparable()
-//
-// COMPAT(0.11): Remove in 0.11
-func (a *Allocation) ComparableResources() *ComparableResources {
-	// Alloc already has 0.9+ behavior
-	if a.AllocatedResources != nil {
-		return a.AllocatedResources.Comparable()
-	}
-
-	var resources *Resources
-	if a.Resources != nil {
-		resources = a.Resources
-	} else if a.TaskResources != nil {
-		resources = new(Resources)
-		resources.Add(a.SharedResources)
-		for _, taskResource := range a.TaskResources {
-			resources.Add(taskResource)
-		}
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(resources.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB:    int64(resources.MemoryMB),
-				MemoryMaxMB: int64(resources.MemoryMaxMB),
-			},
-			Networks: resources.Networks,
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(resources.DiskMB),
-		},
-	}
 }
 
 // LookupTask by name from the Allocation. Returns nil if the Job is not set, the
@@ -11488,9 +11110,6 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	// Normalize the job
 	newAlloc.Job = nil
 
-	// Strip the resources as it can be rebuilt.
-	newAlloc.Resources = nil
-
 	newAlloc.DesiredStatus = AllocDesiredStatusStop
 	newAlloc.DesiredDescription = desiredDesc
 
@@ -11526,10 +11145,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	// after removing preempted allocations
 	if alloc.AllocatedResources != nil {
 		newAlloc.AllocatedResources = alloc.AllocatedResources
-	} else {
-		// COMPAT Remove in version 0.11
-		newAlloc.TaskResources = alloc.TaskResources
-		newAlloc.SharedResources = alloc.SharedResources
 	}
 
 	// Append this alloc to slice for this node
@@ -11540,9 +11155,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 
 // AppendUnknownAlloc marks an allocation as unknown.
 func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the resources as they can be rebuilt.
-	alloc.Resources = nil
-
 	existing := p.NodeAllocation[alloc.NodeID]
 	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }

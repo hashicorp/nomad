@@ -44,13 +44,10 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 	// to do extra work
 	driverCaps := make(map[string]struct{})
 	for _, task := range tg.Tasks {
-		// the task's netmode defaults to the the task group but can be overridden
+		// the task's net--mode defaults to the the task group but can be overridden
 		taskNetMode := tgNetMode
-		if len(task.Resources.Networks) > 0 && task.Resources.Networks[0].Mode != "" {
-			taskNetMode = task.Resources.Networks[0].Mode
-		}
 
-		// netmode host should always work to support backwards compat
+		// net-mode host should always work to support backwards compatibility
 		if taskNetMode == "host" {
 			continue
 		}

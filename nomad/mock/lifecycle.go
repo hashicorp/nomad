@@ -87,7 +87,6 @@ func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
 				Resources: &structs.Resources{CPU: 100, MemoryMB: 256},
 			},
 		)
-		alloc.TaskResources[task.Name] = &structs.Resources{CPU: 100, MemoryMB: 256}
 		alloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
 			Cpu:    structs.AllocatedCpuResources{CpuShares: 100},
 			Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
@@ -103,31 +102,6 @@ func LifecycleAlloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"init": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"side": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"poststart": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {
@@ -387,31 +361,6 @@ func LifecycleAllocWithPoststopDeploy() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"init": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"side": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"post": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {
@@ -463,31 +412,6 @@ func LifecycleAllocWithPoststartDeploy() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789xyz",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
-
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"init": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"side": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"post": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-		},
-
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
 				"web": {

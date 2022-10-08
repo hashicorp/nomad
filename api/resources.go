@@ -49,28 +49,33 @@ func (r *Resources) Canonicalize() {
 	}
 }
 
-// DefaultResources is a small resources object that contains the
-// default resources requests that we will provide to an object.
-// ---  THIS FUNCTION IS REPLICATED IN nomad/structs/structs.go
-// and should be kept in sync.
+const (
+	ResourcesDefaultCPU      = 100
+	ResourcesDefaultCores    = 0
+	ResourcesDefaultMemoryMB = 300
+	ResourcesMinCPU          = 1
+	ResourcesMinCores        = 0
+	ResourcesMinMemoryMB     = 10
+)
+
+// DefaultResources is a small resources object that contains the default
+// resources requests that we will provide to an object.
 func DefaultResources() *Resources {
 	return &Resources{
-		CPU:      pointerOf(100),
-		Cores:    pointerOf(0),
-		MemoryMB: pointerOf(300),
+		CPU:      pointerOf(ResourcesDefaultCPU),
+		Cores:    pointerOf(ResourcesDefaultCores),
+		MemoryMB: pointerOf(ResourcesDefaultMemoryMB),
 	}
 }
 
-// MinResources is a small resources object that contains the
-// absolute minimum resources that we will provide to an object.
-// This should not be confused with the defaults which are
-// provided in DefaultResources() ---  THIS LOGIC IS REPLICATED
-// IN nomad/structs/structs.go and should be kept in sync.
+// MinResources is a small resources object that contains the absolute minimum
+// resources that Nomad will provide to an object. This should not be confused
+// with the defaults which are provided in DefaultResources().
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      pointerOf(1),
-		Cores:    pointerOf(0),
-		MemoryMB: pointerOf(10),
+		CPU:      pointerOf(ResourcesMinCPU),
+		Cores:    pointerOf(ResourcesMinCores),
+		MemoryMB: pointerOf(ResourcesMinMemoryMB),
 	}
 }
 

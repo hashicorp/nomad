@@ -822,25 +822,6 @@ func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, ind
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
-	for _, alloc := range req.Alloc {
-		// COMPAT(0.11): Remove in 0.11
-		// Calculate the total resources of allocations. It is pulled out in the
-		// payload to avoid encoding something that can be computed, but should be
-		// denormalized prior to being inserted into MemDB.
-		if alloc.Resources == nil {
-			alloc.Resources = new(structs.Resources)
-			for _, task := range alloc.TaskResources {
-				alloc.Resources.Add(task)
-			}
-
-			// Add the shared resources
-			alloc.Resources.Add(alloc.SharedResources)
-		}
-
-		// Handle upgrade path
-		alloc.Canonicalize()
-	}
-
 	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err

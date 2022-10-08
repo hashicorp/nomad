@@ -1209,7 +1209,7 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !t.Resources.Equals(o.Resources) {
+	if !t.Resources.Equal(o.Resources) {
 		return false
 	}
 

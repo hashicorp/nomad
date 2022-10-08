@@ -330,11 +330,6 @@ func BatchJob() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      100,
 							MemoryMB: 100,
-							Networks: []*structs.NetworkResource{
-								{
-									MBits: 50,
-								},
-							},
 						},
 						Meta: map[string]string{
 							"foo": "bar",
@@ -392,12 +387,6 @@ func SystemJob() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*structs.NetworkResource{
-								{
-									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}},
-								},
-							},
 						},
 						LogConfig: structs.DefaultLogConfig(),
 					},
@@ -504,15 +493,6 @@ func MaxParallelJob() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*structs.NetworkResource{
-								{
-									MBits: 50,
-									DynamicPorts: []structs.Port{
-										{Label: "http"},
-										{Label: "admin"},
-									},
-								},
-							},
 						},
 						Meta: map[string]string{
 							"foo": "bar",
