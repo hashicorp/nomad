@@ -32,7 +32,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/fsouza/go-dockerclient v1.8.2
+	github.com/fsouza/go-dockerclient v1.8.3
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.9

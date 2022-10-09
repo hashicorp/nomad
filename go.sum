@@ -464,8 +464,8 @@ github.com/frankban/quicktest v1.14.0 h1:+cqqvzZV87b4adx/5ayVOaYZ2CrvM4ejQvUdBzP
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
-github.com/fsouza/go-dockerclient v1.8.2 h1:8A2/xvHxpe5ivfQ2XDJ5EpLBTaxmsFZUJpfX1zSORRY=
-github.com/fsouza/go-dockerclient v1.8.2/go.mod h1:oenNB8JjNKY4o8I/sug4Qah9si/7OxH4MjL+u7oBxP8=
+github.com/fsouza/go-dockerclient v1.8.3 h1:ckb6sG98D607PNQo012YEhQ8hvuRHx7RISIJM5tjkQM=
+github.com/fsouza/go-dockerclient v1.8.3/go.mod h1:oenNB8JjNKY4o8I/sug4Qah9si/7OxH4MjL+u7oBxP8=
 github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa/go.mod h1:KnogPXtdwXqoenmZCw6S+25EAm2MkxbG0deNDu4cbSA=
 github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7/go.mod h1:NR3MbYisc3/PwhQ00EMzDiPmrwpPxAn5GI05/YaO1SY=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
