@@ -1278,9 +1278,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 	expected = `Check check-a invalid: refers to non-existent task task-b`
 	require.Contains(t, err.Error(), expected)
 
-	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
-	require.Contains(t, err.Error(), expected)
-
 	tg = &TaskGroup{
 		Name: "group-a",
 		Services: []*Service{

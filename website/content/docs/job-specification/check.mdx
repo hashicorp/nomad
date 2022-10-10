@@ -134,11 +134,11 @@ job "example" {
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
 
-- `task` `(string: <required>)` - Specifies the task associated with this
+- `task` `(string: "")` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
-  `check_restart` stanzas will apply to the specified task. For `checks` on group
-  level `services` only. Inherits the [`service.task`][service_task] value if not
-  set. May only be set for script or gRPC checks.
+  `check_restart` stanzas will apply to the specified task. Inherits
+  the [`service.task`][service_task] value if not set. Must be unset
+  or equivelent to `service.task` in task-level services.
 
 - `timeout` `(string: <required>)` - Specifies how long to wait for a health check
   query to succeed. This is specified using a label suffix like "30s" or "1h". This
