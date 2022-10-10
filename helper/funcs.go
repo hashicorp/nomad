@@ -415,22 +415,22 @@ func IsMethodHTTP(s string) bool {
 	return true
 }
 
-// EqualsFunc represents a type implementing the Equals method.
-type EqualsFunc[A any] interface {
-	Equals(A) bool
+// EqualFunc represents a type implementing the Equal method.
+type EqualFunc[A any] interface {
+	Equal(A) bool
 }
 
-// ElementsEquals returns true if slices a and b contain the same elements (in
-// no particular order) using the Equals function defined on their type for
+// ElementsEqual returns true if slices a and b contain the same elements (in
+// no particular order) using the Equal function defined on their type for
 // comparison.
-func ElementsEquals[T EqualsFunc[T]](a, b []T) bool {
+func ElementsEqual[T EqualFunc[T]](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
 	}
 OUTER:
 	for _, item := range a {
 		for _, other := range b {
-			if item.Equals(other) {
+			if item.Equal(other) {
 				continue OUTER
 			}
 		}
@@ -442,8 +442,8 @@ OUTER:
 // SliceSetEq returns true if slices a and b contain the same elements (in no
 // particular order), using '==' for comparison.
 //
-// Note: for pointers, consider implementing an Equals method and using
-// ElementsEquals instead.
+// Note: for pointers, consider implementing an Equal method and using
+// ElementsEqual instead.
 func SliceSetEq[T comparable](a, b []T) bool {
 	lenA, lenB := len(a), len(b)
 	if lenA != lenB {

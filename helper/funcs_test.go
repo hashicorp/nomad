@@ -448,7 +448,7 @@ type employee struct {
 	name string
 }
 
-func (e *employee) Equals(o *employee) bool {
+func (e *employee) Equal(o *employee) bool {
 	return e.id == o.id // name can be different
 }
 
@@ -456,29 +456,29 @@ func Test_ElementsEquals(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		a := []*employee(nil)
 		var b []*employee
-		must.True(t, ElementsEquals(a, b))
-		must.True(t, ElementsEquals(b, a))
+		must.True(t, ElementsEqual(a, b))
+		must.True(t, ElementsEqual(b, a))
 	})
 
 	t.Run("different sizes", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{1, "mitchell"}, {2, "armon"}}
-		must.False(t, ElementsEquals(a, b))
-		must.False(t, ElementsEquals(b, a))
+		must.False(t, ElementsEqual(a, b))
+		must.False(t, ElementsEqual(b, a))
 	})
 
 	t.Run("equal", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
-		must.True(t, ElementsEquals(a, b))
-		must.True(t, ElementsEquals(b, a))
+		must.True(t, ElementsEqual(a, b))
+		must.True(t, ElementsEqual(b, a))
 	})
 
 	t.Run("different", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
-		must.False(t, ElementsEquals(a, b))
-		must.False(t, ElementsEquals(b, a))
+		must.False(t, ElementsEqual(a, b))
+		must.False(t, ElementsEqual(b, a))
 	})
 }
 

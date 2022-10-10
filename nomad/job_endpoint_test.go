@@ -1680,7 +1680,7 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Assert constraint was not overridden by the server
 	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
 	require.Len(t, outConstraints, 1)
-	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equals(outConstraints[0]))
+	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {

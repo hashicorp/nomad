@@ -48,7 +48,7 @@ var (
 		"java",
 	}, ",")
 
-	// A mapping of directories on the host OS to attempt to embed inside each
+	// DefaultChrootEnv is a mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	DefaultChrootEnv = map[string]string{
 		"/bin":            "/bin",
@@ -461,8 +461,8 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return wc
 }
 
-// Equals returns the result of reflect.DeepEqual
-func (wc *WaitConfig) Equals(other *WaitConfig) bool {
+// Equal returns the result of reflect.DeepEqual
+func (wc *WaitConfig) Equal(other *WaitConfig) bool {
 	return reflect.DeepEqual(wc, other)
 }
 
@@ -471,7 +471,7 @@ func (wc *WaitConfig) IsEmpty() bool {
 	if wc == nil {
 		return true
 	}
-	return wc.Equals(&WaitConfig{})
+	return wc.Equal(&WaitConfig{})
 }
 
 // Validate returns an error  if the receiver is nil or empty or if Min is greater
@@ -596,8 +596,8 @@ func (rc *RetryConfig) Copy() *RetryConfig {
 	return nrc
 }
 
-// Equals returns the result of reflect.DeepEqual
-func (rc *RetryConfig) Equals(other *RetryConfig) bool {
+// Equal returns the result of reflect.DeepEqual
+func (rc *RetryConfig) Equal(other *RetryConfig) bool {
 	return reflect.DeepEqual(rc, other)
 }
 
@@ -607,7 +607,7 @@ func (rc *RetryConfig) IsEmpty() bool {
 		return true
 	}
 
-	return rc.Equals(&RetryConfig{})
+	return rc.Equal(&RetryConfig{})
 }
 
 // Validate returns an error if the receiver is nil or empty, or if Backoff

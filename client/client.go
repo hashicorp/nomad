@@ -1571,7 +1571,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.Resources.Networks = updateNetworks(
 			response.Resources.Networks,
 			newConfig)
-		if !newConfig.Node.Resources.Equals(response.Resources) {
+		if !newConfig.Node.Resources.Equal(response.Resources) {
 			newConfig.Node.Resources.Merge(response.Resources)
 			nodeHasChanged = true
 		}
@@ -1583,7 +1583,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.NodeResources.Networks = updateNetworks(
 			response.NodeResources.Networks,
 			newConfig)
-		if !newConfig.Node.NodeResources.Equals(response.NodeResources) {
+		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}

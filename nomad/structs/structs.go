@@ -2330,10 +2330,10 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
-// Equals Resources.
+// Equal Resources.
 //
 // COMPAT(0.10): Remove in 0.10
-func (r *Resources) Equals(o *Resources) bool {
+func (r *Resources) Equal(o *Resources) bool {
 	if r == o {
 		return true
 	}
@@ -2346,8 +2346,8 @@ func (r *Resources) Equals(o *Resources) bool {
 		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
-		r.Networks.Equals(&o.Networks) &&
-		r.Devices.Equals(&o.Devices)
+		r.Networks.Equal(&o.Networks) &&
+		r.Devices.Equal(&o.Devices)
 }
 
 // ResourceDevices are part of Resources.
@@ -2355,10 +2355,10 @@ func (r *Resources) Equals(o *Resources) bool {
 // COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
-// Equals ResourceDevices as set keyed by Name.
+// Equal ResourceDevices as set keyed by Name.
 //
 // COMPAT(0.10): Remove in 0.10
-func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
+func (d *ResourceDevices) Equal(o *ResourceDevices) bool {
 	if d == o {
 		return true
 	}
@@ -2374,7 +2374,7 @@ func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	}
 	for _, oe := range *o {
 		de, ok := m[oe.Name]
-		if !ok || !de.Equals(oe) {
+		if !ok || !de.Equal(oe) {
 			return false
 		}
 	}
@@ -2491,7 +2491,7 @@ type NodeNetworkResource struct {
 	Addresses []NodeNetworkAddress // not valid for cni, for bridge there will only be 1 ip
 }
 
-func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
+func (n *NodeNetworkResource) Equal(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
@@ -2622,7 +2622,7 @@ func (n *NetworkResource) Hash() uint32 {
 	return crc32.ChecksumIEEE(data)
 }
 
-func (n *NetworkResource) Equals(other *NetworkResource) bool {
+func (n *NetworkResource) Equal(other *NetworkResource) bool {
 	return n.Hash() == other.Hash()
 }
 
@@ -2770,7 +2770,7 @@ type RequestedDevice struct {
 	Affinities Affinities
 }
 
-func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
+func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
 	if r == o {
 		return true
 	}
@@ -2779,8 +2779,8 @@ func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
 	}
 	return r.Name == o.Name &&
 		r.Count == o.Count &&
-		r.Constraints.Equals(&o.Constraints) &&
-		r.Affinities.Equals(&o.Affinities)
+		r.Constraints.Equal(&o.Constraints) &&
+		r.Affinities.Equal(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -2967,7 +2967,7 @@ func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *Node
 	return 0, nil
 }
 
-func (n *NodeResources) Equals(o *NodeResources) bool {
+func (n *NodeResources) Equal(o *NodeResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -2976,16 +2976,16 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 		return false
 	}
 
-	if !n.Cpu.Equals(&o.Cpu) {
+	if !n.Cpu.Equal(&o.Cpu) {
 		return false
 	}
-	if !n.Memory.Equals(&o.Memory) {
+	if !n.Memory.Equal(&o.Memory) {
 		return false
 	}
-	if !n.Disk.Equals(&o.Disk) {
+	if !n.Disk.Equal(&o.Disk) {
 		return false
 	}
-	if !n.Networks.Equals(&o.Networks) {
+	if !n.Networks.Equal(&o.Networks) {
 		return false
 	}
 
@@ -3001,8 +3001,8 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
-// Equals equates Networks as a set
-func (ns *Networks) Equals(o *Networks) bool {
+// Equal equates Networks as a set
+func (ns *Networks) Equal(o *Networks) bool {
 	if ns == o {
 		return true
 	}
@@ -3015,7 +3015,7 @@ func (ns *Networks) Equals(o *Networks) bool {
 SETEQUALS:
 	for _, ne := range *ns {
 		for _, oe := range *o {
-			if ne.Equals(oe) {
+			if ne.Equal(oe) {
 				continue SETEQUALS
 			}
 		}
@@ -3034,7 +3034,7 @@ func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 		idMap[*d.ID()] = d
 	}
 	for _, otherD := range d2 {
-		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
+		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equal(otherD) {
 			return false
 		}
 	}
@@ -3052,7 +3052,7 @@ func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
 		netMap[n.Device] = n
 	}
 	for _, otherN := range n2 {
-		if n, ok := netMap[otherN.Device]; !ok || !n.Equals(otherN) {
+		if n, ok := netMap[otherN.Device]; !ok || !n.Equal(otherN) {
 			return false
 		}
 	}
@@ -3105,7 +3105,7 @@ func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 	}
 }
 
-func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
+func (n *NodeCpuResources) Equal(o *NodeCpuResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3153,7 +3153,7 @@ func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
 	}
 }
 
-func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
+func (n *NodeMemoryResources) Equal(o *NodeMemoryResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3184,7 +3184,7 @@ func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
 	}
 }
 
-func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
+func (n *NodeDiskResources) Equal(o *NodeDiskResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3236,8 +3236,8 @@ func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	return true
 }
 
-// Equals returns if this Device ID is the same as the passed ID.
-func (id *DeviceIdTuple) Equals(o *DeviceIdTuple) bool {
+// Equal returns if this Device ID is the same as the passed ID.
+func (id *DeviceIdTuple) Equal(o *DeviceIdTuple) bool {
 	if id == nil && o == nil {
 		return true
 	} else if id == nil || o == nil {
@@ -3291,7 +3291,7 @@ func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
 	return &nn
 }
 
-func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
+func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3327,7 +3327,7 @@ func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
 		idMap[d.ID] = d
 	}
 	for _, otherD := range o.Instances {
-		if d, ok := idMap[otherD.ID]; !ok || !d.Equals(otherD) {
+		if d, ok := idMap[otherD.ID]; !ok || !d.Equal(otherD) {
 			return false
 		}
 	}
@@ -3352,7 +3352,7 @@ type NodeDevice struct {
 	Locality *NodeDeviceLocality
 }
 
-func (n *NodeDevice) Equals(o *NodeDevice) bool {
+func (n *NodeDevice) Equal(o *NodeDevice) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3367,7 +3367,7 @@ func (n *NodeDevice) Equals(o *NodeDevice) bool {
 		return false
 	} else if n.HealthDescription != o.HealthDescription {
 		return false
-	} else if !n.Locality.Equals(o.Locality) {
+	} else if !n.Locality.Equal(o.Locality) {
 		return false
 	}
 
@@ -3395,7 +3395,7 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
-func (n *NodeDeviceLocality) Equals(o *NodeDeviceLocality) bool {
+func (n *NodeDeviceLocality) Equal(o *NodeDeviceLocality) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3885,7 +3885,7 @@ func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
 	}
 
 	for i, o := range a {
-		if o.ID().Equals(d.ID()) {
+		if o.ID().Equal(d.ID()) {
 			return i
 		}
 	}
@@ -6869,7 +6869,7 @@ func (c *CheckRestart) Copy() *CheckRestart {
 	return nc
 }
 
-func (c *CheckRestart) Equals(o *CheckRestart) bool {
+func (c *CheckRestart) Equal(o *CheckRestart) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -6918,7 +6918,7 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
-func (l *LogConfig) Equals(o *LogConfig) bool {
+func (l *LogConfig) Equal(o *LogConfig) bool {
 	if l == nil || o == nil {
 		return l == o
 	}
@@ -7904,7 +7904,7 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return nwc
 }
 
-func (wc *WaitConfig) Equals(o *WaitConfig) bool {
+func (wc *WaitConfig) Equal(o *WaitConfig) bool {
 	if wc.Min == nil && o.Min != nil {
 		return false
 	}
@@ -8739,17 +8739,12 @@ type Constraint struct {
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
 }
 
-// Equals checks if two constraints are equal.
-func (c *Constraint) Equals(o *Constraint) bool {
+// Equal checks if two constraints are equal.
+func (c *Constraint) Equal(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
 			c.RTarget == o.RTarget &&
 			c.Operand == o.Operand
-}
-
-// Equal is like Equals but with one less s.
-func (c *Constraint) Equal(o *Constraint) bool {
-	return c.Equals(o)
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -8829,8 +8824,8 @@ func (c *Constraint) Validate() error {
 
 type Constraints []*Constraint
 
-// Equals compares Constraints as a set
-func (xs *Constraints) Equals(ys *Constraints) bool {
+// Equal compares Constraints as a set
+func (xs *Constraints) Equal(ys *Constraints) bool {
 	if xs == ys {
 		return true
 	}
@@ -8843,7 +8838,7 @@ func (xs *Constraints) Equals(ys *Constraints) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equals(y) {
+			if x.Equal(y) {
 				continue SETEQUALS
 			}
 		}
@@ -8860,17 +8855,13 @@ type Affinity struct {
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
 }
 
-// Equals checks if two affinities are equal.
-func (a *Affinity) Equals(o *Affinity) bool {
+// Equal checks if two affinities are equal.
+func (a *Affinity) Equal(o *Affinity) bool {
 	return a == o ||
 		a.LTarget == o.LTarget &&
 			a.RTarget == o.RTarget &&
 			a.Operand == o.Operand &&
 			a.Weight == o.Weight
-}
-
-func (a *Affinity) Equal(o *Affinity) bool {
-	return a.Equals(o)
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -8956,8 +8947,8 @@ type Spread struct {
 
 type Affinities []*Affinity
 
-// Equals compares Affinities as a set
-func (xs *Affinities) Equals(ys *Affinities) bool {
+// Equal compares Affinities as a set
+func (xs *Affinities) Equal(ys *Affinities) bool {
 	if xs == ys {
 		return true
 	}
@@ -8970,7 +8961,7 @@ func (xs *Affinities) Equals(ys *Affinities) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equals(y) {
+			if x.Equal(y) {
 				continue SETEQUALS
 			}
 		}

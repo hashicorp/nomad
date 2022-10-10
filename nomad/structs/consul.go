@@ -16,8 +16,8 @@ func (c *Consul) Copy() *Consul {
 	}
 }
 
-// Equals returns whether c and o are the same.
-func (c *Consul) Equals(o *Consul) bool {
+// Equal returns whether c and o are the same.
+func (c *Consul) Equal(o *Consul) bool {
 	if c == nil || o == nil {
 		return c == o
 	}

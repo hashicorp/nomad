@@ -411,7 +411,7 @@ func TestHTTP_Variables(t *testing.T) {
 				require.NotNil(t, obj)
 				conflict, ok := obj.(*structs.VariableDecrypted)
 				require.True(t, ok, "Expected *structs.VariableDecrypted, got %T", obj)
-				require.True(t, sv.Equals(*conflict))
+				require.True(t, sv.Equal(*conflict))
 
 				// Check for the index
 				require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))

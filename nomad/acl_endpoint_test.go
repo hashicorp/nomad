@@ -1959,7 +1959,7 @@ func TestACL_UpsertRoles(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertRolesRPCMethod, aclRoleReq3, &aclRoleResp3)
 	require.NoError(t, err)
 	require.Len(t, aclRoleResp3.ACLRoles, 1)
-	require.True(t, aclRole1.Equals(aclRoleResp3.ACLRoles[0]))
+	require.True(t, aclRole1.Equal(aclRoleResp3.ACLRoles[0]))
 
 	// Perform an update of the ACL role by removing a policy and changing the
 	// name.
@@ -1979,7 +1979,7 @@ func TestACL_UpsertRoles(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertRolesRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
 	require.Len(t, aclRoleResp4.ACLRoles, 1)
-	require.True(t, aclRole1Copy.Equals(aclRoleResp4.ACLRoles[0]))
+	require.True(t, aclRole1Copy.Equal(aclRoleResp4.ACLRoles[0]))
 	require.Greater(t, aclRoleResp4.ACLRoles[0].ModifyIndex, aclRoleResp3.ACLRoles[0].ModifyIndex)
 
 	// Create another ACL role that will fail validation. Attempting to upsert
@@ -2073,7 +2073,7 @@ func TestACL_DeleteRolesByID(t *testing.T) {
 	}
 
 	require.Len(t, aclRolesLookup, 1)
-	require.True(t, aclRolesLookup[0].Equals(aclRoles[1]))
+	require.True(t, aclRolesLookup[0].Equal(aclRoles[1]))
 
 	// Try to delete the previously deleted ACL role, this should fail.
 	aclRoleReq3 := &structs.ACLRolesDeleteByIDRequest{
@@ -2368,7 +2368,7 @@ func TestACL_GetRoleByID(t *testing.T) {
 	var aclRoleResp3 structs.ACLRoleByIDResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByIDRPCMethod, aclRoleReq3, &aclRoleResp3)
 	require.NoError(t, err)
-	require.True(t, aclRoleResp3.ACLRole.Equals(aclRoles[0]))
+	require.True(t, aclRoleResp3.ACLRole.Equal(aclRoles[0]))
 
 	aclRoleReq4 := &structs.ACLRoleByIDRequest{
 		RoleID: aclRoles[1].ID,
@@ -2380,7 +2380,7 @@ func TestACL_GetRoleByID(t *testing.T) {
 	var aclRoleResp4 structs.ACLRoleByIDResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByIDRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
-	require.True(t, aclRoleResp4.ACLRole.Equals(aclRoles[1]))
+	require.True(t, aclRoleResp4.ACLRole.Equal(aclRoles[1]))
 
 	// Generate and upsert an ACL Token which links to only one of the two
 	// roles within state.
@@ -2473,7 +2473,7 @@ func TestACL_GetRoleByName(t *testing.T) {
 	var aclRoleResp3 structs.ACLRoleByNameResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq3, &aclRoleResp3)
 	require.NoError(t, err)
-	require.True(t, aclRoleResp3.ACLRole.Equals(aclRoles[0]))
+	require.True(t, aclRoleResp3.ACLRole.Equal(aclRoles[0]))
 
 	aclRoleReq4 := &structs.ACLRoleByNameRequest{
 		RoleName: aclRoles[1].Name,
@@ -2485,7 +2485,7 @@ func TestACL_GetRoleByName(t *testing.T) {
 	var aclRoleResp4 structs.ACLRoleByNameResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq4, &aclRoleResp4)
 	require.NoError(t, err)
-	require.True(t, aclRoleResp4.ACLRole.Equals(aclRoles[1]))
+	require.True(t, aclRoleResp4.ACLRole.Equal(aclRoles[1]))
 
 	// Generate and upsert an ACL Token which links to only one of the two
 	// roles within state.
