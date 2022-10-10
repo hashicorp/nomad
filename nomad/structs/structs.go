@@ -6681,10 +6681,6 @@ func (tg *TaskGroup) validateServices() error {
 
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
-				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
-					mErr.Errors = append(mErr.Errors,
-						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
-				}
 				if check.AddressMode == AddressModeDriver {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %q invalid: cannot use address_mode=\"driver\", only checks defined in a \"task\" service block can use this mode", service.Name))
 				}
