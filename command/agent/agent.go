@@ -589,7 +589,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.Servers = agentConfig.Client.Servers
-	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
 

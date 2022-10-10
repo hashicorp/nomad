@@ -196,9 +196,6 @@ type Config struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int
 
-	// LogLevel is the level of the logs to putout
-	LogLevel string
-
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
@@ -720,7 +717,6 @@ func DefaultConfig() *Config {
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
-		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
