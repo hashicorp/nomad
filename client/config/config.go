@@ -3,8 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -93,9 +91,6 @@ type Config struct {
 
 	// AllocDir is where we store data for allocations
 	AllocDir string
-
-	// LogOutput is the destination for logs
-	LogOutput io.Writer
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
@@ -722,7 +717,6 @@ func DefaultConfig() *Config {
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
-		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
