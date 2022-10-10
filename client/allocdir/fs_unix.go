@@ -1,4 +1,4 @@
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package allocdir
 
@@ -40,17 +40,14 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	nobody, err := users.Nobody()
+	nobody := users.Nobody()
+
+	uid, err := getUid(&nobody)
 	if err != nil {
 		return err
 	}
 
-	uid, err := getUid(nobody)
-	if err != nil {
-		return err
-	}
-
-	gid, err := getGid(nobody)
+	gid, err := getGid(&nobody)
 	if err != nil {
 		return err
 	}
