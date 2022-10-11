@@ -7,9 +7,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/logmon/proto"
-	"github.com/hashicorp/nomad/plugins/base"
 	"google.golang.org/grpc"
+
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/logging/legacy/proto"
 )
 
 var bin = getBin()

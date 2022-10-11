@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/logmon/proto"
+
+	"github.com/hashicorp/nomad/plugins/logging/legacy/proto"
 )
 
 type logmonServer struct {

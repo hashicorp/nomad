@@ -204,7 +204,7 @@ var (
 			"type":   hclspec.NewAttr("type", "string", false),
 			"config": hclspec.NewBlockAttrs("config", "string", false),
 		})), hclspec.NewLiteral(`{
-			type = "json-file" 
+			type = "json-file"
 			config = {
 				max-file = "2"
 				max-size = "2m"

@@ -20,6 +20,9 @@ const (
 
 	// PluginTypeDevice implements the device plugin interface
 	PluginTypeDevice = "device"
+
+	// PluginTypeLogging implements the logging plugin interface
+	PluginTypeLogging = "logging"
 )
 
 var (

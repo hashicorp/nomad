@@ -13,9 +13,10 @@ import (
 	// into their command logic. This is because they are run as separate
 	// processes along side of a task. By early importing them we can avoid
 	// additional code being imported and thus reserving memory.
-	_ "github.com/hashicorp/nomad/client/logmon"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
+	_ "github.com/hashicorp/nomad/plugins/logging/legacy"
+	_ "github.com/hashicorp/nomad/plugins/logging/logmon/shipper"
 
 	// Don't move any other code imports above the import block above!
 	"github.com/hashicorp/nomad/command"

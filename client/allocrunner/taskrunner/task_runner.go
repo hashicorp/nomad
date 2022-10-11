@@ -26,6 +26,7 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/loggingmanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
@@ -231,6 +232,9 @@ type TaskRunner struct {
 	// handlers
 	driverManager drivermanager.Manager
 
+	// loggingManager is used to dispense logging plugins
+	loggingManager loggingmanager.Manager
+
 	// dynamicRegistry is where dynamic plugins should be registered.
 	dynamicRegistry dynamicplugins.Registry
 
@@ -309,6 +313,9 @@ type Config struct {
 	// handlers
 	DriverManager drivermanager.Manager
 
+	// LoggingManager is used to dispense logging plugins
+	LoggingManager loggingmanager.Manager
+
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
@@ -382,6 +389,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
 		devicemanager:          config.DeviceManager,
 		driverManager:          config.DriverManager,
+		loggingManager:         config.LoggingManager,
 		maxEvents:              defaultMaxEvents,
 		serversContactedCh:     config.ServersContactedCh,
 		startConditionMetCh:    config.StartConditionMetCh,

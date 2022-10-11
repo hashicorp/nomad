@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/loggingmanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
@@ -313,6 +314,8 @@ type Client struct {
 	// drivermanager is responsible for managing driver plugins
 	drivermanager drivermanager.Manager
 
+	loggingmanager loggingmanager.Manager
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -498,6 +501,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	// Setup the logging plugin manager
+	loggingManagerConfig := &loggingmanager.Config{
+		Logger:       c.logger,
+		Loader:       cfg.PluginSingletonLoader,
+		PluginConfig: cfg.NomadPluginConfig(),
+		State:        c.stateDB,
+	}
+	c.loggingmanager = loggingmanager.New(loggingManagerConfig)
+	c.pluginManagers.RegisterAndRun(c.loggingmanager)
 
 	// Set up the service registration wrapper using the Consul and Nomad
 	// implementations. The Nomad implementation is only ever used on the
@@ -1210,6 +1223,7 @@ func (c *Client) restoreState() error {
 			CpusetManager:       c.cpusetManager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
+			LoggingManager:      c.loggingmanager,
 			ServersContactedCh:  c.serversContactedCh,
 			ServiceRegWrapper:   c.serviceRegWrapper,
 			CheckStore:          c.checkStore,
@@ -2554,6 +2568,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		LoggingManager:      c.loggingmanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
 		CheckStore:          c.checkStore,
 		RPCClient:           c,

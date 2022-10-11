@@ -11,11 +11,10 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	logmon "github.com/hashicorp/nomad/plugins/logging/legacy"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,7 +26,9 @@ const (
 	logmonReattachKey = "reattach_config"
 )
 
-// logmonHook launches logmon and manages task logging
+// logmonHook launches logmon and manages task logging. This is the legacy
+// logmon interface that only exists to reattach to running pre-logging-plugin
+// logmons
 type logmonHook struct {
 	runner *TaskRunner
 
@@ -129,12 +130,15 @@ func (h *logmonHook) Prestart(ctx context.Context,
 			return err
 		}
 
-		rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
-		jsonCfg, err := json.Marshal(rCfg)
-		if err != nil {
-			return err
+		if h.logmonPluginClient != nil {
+			rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
+			jsonCfg, err := json.Marshal(rCfg)
+			if err != nil {
+				return err
+			}
+			resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
 		}
-		resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
+
 		return nil
 	}
 }
@@ -166,14 +170,10 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 
 	}
 
-	// create a new client in initial starts, failed reattachment, or if we detect exits
+	// this hook only supports backwards compatibiity with the pre-plugins
+	// logmon, so we don't create a new logmon if one doesn't already exist
 	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
-		if err := h.launchLogMon(nil); err != nil {
-			// Retry errors launching logmon as logmon may have crashed on start and
-			// subsequent attempts will start a new one.
-			h.logger.Error("failed to launch logmon process", "error", err)
-			return structs.NewRecoverableError(err, true)
-		}
+		return nil
 	}
 
 	err := h.logmon.Start(&logmon.LogConfig{

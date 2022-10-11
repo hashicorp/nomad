@@ -4,13 +4,15 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
+	"golang.org/x/exp/maps"
+
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	logmstate "github.com/hashicorp/nomad/client/pluginmanager/loggingmanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // MemDB implements a StateDB that stores data in memory and should only be
@@ -40,6 +42,9 @@ type MemDB struct {
 
 	// dynamicmanager -> registry-state
 	dynamicManagerPs *dynamicplugins.RegistryState
+
+	// loggingmanager -> plugin-state
+	loggingManagerPs *logmstate.PluginState
 
 	logger hclog.Logger
 
@@ -231,6 +236,21 @@ func (m *MemDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) 
 	defer m.mu.Unlock()
 	m.dynamicManagerPs = ps
 	return nil
+}
+
+func (m *MemDB) PutLoggingPluginState(ps *logmstate.PluginState) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.loggingManagerPs = ps
+	return nil
+}
+
+// GetLoggingPluginState stores the logging plugin manager's plugin state or returns an
+// error.
+func (m *MemDB) GetLoggingPluginState() (*logmstate.PluginState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.loggingManagerPs, nil
 }
 
 func (m *MemDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) error {

@@ -78,6 +78,18 @@ var (
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
+
+		// disable_log_rotation indicates to the Nomad client whether to pass it
+		// a FIFO that will be read by a logging plugin, or whether it should
+		// just write to disk. If true, the Nomad client doesn't start logging
+		// plugins processes and it's the responsibility of the task (or an
+		// out-of-band process) to rotate logs.
+		"disable_log_rotation": hclspec.NewAttr("disable_log_rotation", "bool", false),
+
+		// null_log indicates that the task driver should send the task's output
+		// streams to /dev/null. If this is set to true, disable_log_rotation is
+		// also treated as true.
+		"null_log": hclspec.NewAttr("null_log", "bool", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -151,6 +163,9 @@ type Config struct {
 	// AllowCaps configures which Linux Capabilities are enabled for tasks
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
+
+	DisableLogRotation bool `codec:"disable_log_rotation"`
+	NullLog            bool `codec:"null_log"`
 }
 
 func (c *Config) validate() error {
@@ -707,4 +722,12 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	}
 
 	return handle.exec.ExecStreaming(ctx, command, tty, stream)
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config.DisableLogRotation,
+	}
 }

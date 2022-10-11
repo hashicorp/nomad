@@ -1,4 +1,4 @@
-package logmon
+package loglib
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/logmon/logging"
 )
 
 const (
@@ -19,84 +19,6 @@ const (
 	// data is written after this tolerance, we will not capture it.
 	processOutputCloseTolerance = 2 * time.Second
 )
-
-type LogConfig struct {
-	// LogDir is the host path where logs are to be written to
-	LogDir string
-
-	// StdoutLogFile is the path relative to LogDir for stdout logging
-	StdoutLogFile string
-
-	// StderrLogFile is the path relative to LogDir for stderr logging
-	StderrLogFile string
-
-	// StdoutFifo is the path on the host to the stdout pipe
-	StdoutFifo string
-
-	// StderrFifo is the path on the host to the stderr pipe
-	StderrFifo string
-
-	// MaxFiles is the max rotated files allowed
-	MaxFiles int
-
-	// MaxFileSizeMB is the max log file size in MB allowed before rotation occures
-	MaxFileSizeMB int
-}
-
-type LogMon interface {
-	Start(*LogConfig) error
-	Stop() error
-}
-
-func NewLogMon(logger hclog.Logger) LogMon {
-	return &logmonImpl{
-		logger: logger,
-	}
-}
-
-type logmonImpl struct {
-	logger hclog.Logger
-	tl     *TaskLogger
-	lock   sync.Mutex
-}
-
-func (l *logmonImpl) Start(cfg *LogConfig) error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	// first time Start has been called
-	if l.tl == nil {
-		return l.start(cfg)
-	}
-
-	// stdout and stderr have been closed, this happens during task restarts
-	// restart the TaskLogger
-	if !l.tl.IsRunning() {
-		l.tl.Close()
-		return l.start(cfg)
-	}
-
-	// if the TaskLogger has been created and is currently running, noop
-	return nil
-}
-
-func (l *logmonImpl) start(cfg *LogConfig) error {
-	tl, err := NewTaskLogger(cfg, l.logger)
-	if err != nil {
-		return err
-	}
-	l.tl = tl
-	return nil
-}
-
-func (l *logmonImpl) Stop() error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if l.tl != nil {
-		l.tl.Close()
-	}
-	return nil
-}
 
 type TaskLogger struct {
 	config *LogConfig
@@ -108,12 +30,9 @@ type TaskLogger struct {
 	lre *logRotatorWrapper
 }
 
-// IsRunning will return true as long as one rotator wrapper is still running
-func (tl *TaskLogger) IsRunning() bool {
-	lroRunning := tl.lro != nil && tl.lro.isRunning()
-	lreRunning := tl.lre != nil && tl.lre.isRunning()
-
-	return lroRunning && lreRunning
+func (tl *TaskLogger) Wait() {
+	tl.lro.isDone()
+	tl.lre.isDone()
 }
 
 func (tl *TaskLogger) Close() {
@@ -139,7 +58,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 	tl := &TaskLogger{config: cfg}
 
 	logFileSize := int64(cfg.MaxFileSizeMB * 1024 * 1024)
-	lro, err := logging.NewFileRotator(cfg.LogDir, cfg.StdoutLogFile,
+	lro, err := NewFileRotator(cfg.LogDir, cfg.StdoutLogFile,
 		cfg.MaxFiles, logFileSize, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout logfile for %q: %v", cfg.StdoutLogFile, err)
@@ -152,7 +71,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 
 	tl.lro = wrapperOut
 
-	lre, err := logging.NewFileRotator(cfg.LogDir, cfg.StderrLogFile,
+	lre, err := NewFileRotator(cfg.LogDir, cfg.StderrLogFile,
 		cfg.MaxFiles, logFileSize, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stderr logfile for %q: %v", cfg.StderrLogFile, err)
@@ -180,6 +99,11 @@ type logRotatorWrapper struct {
 
 	processOutReader io.ReadCloser
 	openCompleted    chan struct{}
+}
+
+// isRunning will block until the reader is closed
+func (l *logRotatorWrapper) isDone() {
+	<-l.hasFinishedCopied
 }
 
 // isRunning will return true until the reader is closed
@@ -272,9 +196,12 @@ func (l *logRotatorWrapper) Close() {
 	go func() {
 		defer close(closeDone)
 
-		// we must wait until reader is opened before we can close it, and cannot inteerrupt an in-flight open request
-		// The Close function uses processOutputCloseTolerance to protect against long running open called
-		// and then request will be interrupted and file will be closed on process shutdown
+		// we must wait until reader is opened before we can close it, and
+		// cannot inteerrupt an in-flight open request
+		//
+		// The Close function uses processOutputCloseTolerance to protect
+		// against long running open called and then request will be interrupted
+		// and file will be closed on process shutdown
 		<-l.openCompleted
 
 		if l.processOutReader != nil {

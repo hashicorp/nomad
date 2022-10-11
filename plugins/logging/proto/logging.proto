@@ -1,0 +1,51 @@
+syntax = "proto3";
+package hashicorp.nomad.plugins.logging;
+option go_package = "proto";
+
+// LoggingPlugin is the API exposed by logging plugins
+service LoggingPlugin {
+  rpc Start(StartRequest) returns (StartResponse) {}
+  rpc Stop(StopRequest) returns (StopResponse) {}
+
+  // Fingerprint allows the logging plugin to return its capabilities and
+  // acknowledge that it's ready to start log shipping. Right now this is empty
+  // and will only be called once by the log plugin manager at startup, but
+  // future versions may need to fingerprint periodically.
+  rpc Fingerprint(FingerprintRequest) returns (stream FingerprintResponse) {}
+}
+
+message StartRequest {
+    string job_id = 1;
+    string alloc_id = 2;
+    string group_name = 3;
+    string task_name = 4;
+    string log_dir = 5;
+    string stdout_file_name = 6;
+    string stderr_file_name = 7;
+    string stdout_fifo = 8;
+    string stderr_fifo = 9;
+    uint32 max_files = 10;
+    uint32 max_file_size_mb = 11;
+}
+
+message StartResponse {}
+
+message StopRequest {
+    string job_id = 1;
+    string alloc_id = 2;
+    string group_name = 3;
+    string task_name = 4;
+    string log_dir = 5;
+    string stdout_file_name = 6;
+    string stderr_file_name = 7;
+    string stdout_fifo = 8;
+    string stderr_fifo = 9;
+}
+
+message StopResponse {}
+
+// FingerprintRequest is used to get the capabilities of the logging plugin.
+message FingerprintRequest {}
+
+// FingerprintResponse returns the logging plugin's capabilities.
+message FingerprintResponse {}

@@ -8,14 +8,16 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/boltdd"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
+
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	logmstate "github.com/hashicorp/nomad/client/pluginmanager/loggingmanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	"github.com/hashicorp/nomad/helper/boltdd"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"go.etcd.io/bbolt"
 )
 
 /*
@@ -43,6 +45,9 @@ drivermanager/
 
 dynamicplugins/
 |--> registry_state -> *dynamicplugins.RegistryState
+
+loggingmanager/
+|--> plugin_state -> *logmstate.PluginState
 */
 
 var (
@@ -99,6 +104,10 @@ var (
 	// dynamicPluginBucketName is the bucket name containing all dynamic plugin
 	// registry data. each dynamic plugin registry will have its own subbucket.
 	dynamicPluginBucketName = []byte("dynamicplugins")
+
+	// loggingPluginBucketName is the bucket name containing all logging plugin
+	// manager related data
+	loggingPluginBucketName = []byte("logging_plugins")
 
 	// registryStateKey is the key at which dynamic plugin registry state is stored
 	registryStateKey = []byte("registry_state")
@@ -709,6 +718,52 @@ func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryS
 		if err := dynamicBkt.Get(registryStateKey, ps); err != nil {
 			if !boltdd.IsErrNotFound(err) {
 				return fmt.Errorf("failed to read dynamic plugin registry state: %v", err)
+			}
+
+			// Key not found, reset ps to nil
+			ps = nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ps, nil
+}
+
+// PutLoggingPluginState stores the logging plugin manager's plugin state or
+// returns an error.
+func (s *BoltStateDB) PutLoggingPluginState(ps *logmstate.PluginState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		pluginBkt, err := tx.CreateBucketIfNotExists(loggingPluginBucketName)
+		if err != nil {
+			return err
+		}
+
+		return pluginBkt.Put(managerPluginStateKey, ps)
+	})
+}
+
+// GetLoggingPluginState stores the logging plugin manager's plugin state or returns an
+// error.
+func (s *BoltStateDB) GetLoggingPluginState() (*logmstate.PluginState, error) {
+	var ps *logmstate.PluginState
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		pluginBkt := tx.Bucket(loggingPluginBucketName)
+		if pluginBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		// Restore Plugin State if it exists
+		ps = &logmstate.PluginState{}
+		if err := pluginBkt.Get(managerPluginStateKey, ps); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read logging plugin manager state: %v", err)
 			}
 
 			// Key not found, reset ps to nil

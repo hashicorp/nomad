@@ -63,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
 		newLogMonHook(tr, hookLogger),
+		newLoggingHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
 		newArtifactHook(tr, tr.getter, hookLogger),

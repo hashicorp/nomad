@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/drivers/java"
 	"github.com/hashicorp/nomad/drivers/qemu"
 	"github.com/hashicorp/nomad/drivers/rawexec"
+	"github.com/hashicorp/nomad/plugins/logging/logmon"
+	"github.com/hashicorp/nomad/plugins/logging/rotatelogs"
 )
 
 // This file is where all builtin plugins should be registered in the catalog.
@@ -17,4 +19,6 @@ func init() {
 	Register(qemu.PluginID, qemu.PluginConfig)
 	Register(java.PluginID, java.PluginConfig)
 	RegisterDeferredConfig(docker.PluginID, docker.PluginConfig, docker.PluginLoader)
+	Register(logmon.PluginID, logmon.PluginConfig)
+	Register(rotatelogs.PluginID, rotatelogs.PluginConfig)
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/nomad/client/logmon/proto"
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
+	"github.com/hashicorp/nomad/plugins/logging/legacy/proto"
 )
 
 type logmonClient struct {

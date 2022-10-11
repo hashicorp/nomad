@@ -9,12 +9,13 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLogmon_Start_rotate(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/loggingmanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -72,6 +73,9 @@ type Config struct {
 
 	// DriverManager handles dispensing of driver plugins
 	DriverManager drivermanager.Manager
+
+	// LogggingManager handles dispensing of logging plugins
+	LoggingManager loggingmanager.Manager
 
 	// CpusetManager configures the cpuset cgroup if supported by the platform
 	CpusetManager cgutil.CpusetManager

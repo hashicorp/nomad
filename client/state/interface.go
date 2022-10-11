@@ -5,6 +5,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	logmstate "github.com/hashicorp/nomad/client/pluginmanager/loggingmanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -83,6 +84,14 @@ type StateDB interface {
 
 	// PutDynamicPluginRegistryState is used to store the dynamic plugin manager's state.
 	PutDynamicPluginRegistryState(state *dynamicplugins.RegistryState) error
+
+	// GetLoggingPluginState is used to retrieve the logging plugin manager's
+	// plugin state.
+	GetLoggingPluginState() (*logmstate.PluginState, error)
+
+	// PutLoggingPluginState is used to store the logging plugin manager's
+	// plugin state.
+	PutLoggingPluginState(state *logmstate.PluginState) error
 
 	// PutCheckResult sets the query result for the check implied in qr.
 	PutCheckResult(allocID string, qr *structs.CheckQueryResult) error

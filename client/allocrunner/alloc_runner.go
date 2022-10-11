@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/loggingmanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -167,6 +168,9 @@ type allocRunner struct {
 	// event handlers
 	driverManager drivermanager.Manager
 
+	// loggingManager is responsible for dispensing logging plugins
+	loggingManager loggingmanager.Manager
+
 	// serversContactedCh is passed to TaskRunners so they can detect when
 	// servers have been contacted for the first time in case of a failed
 	// restore.
@@ -233,6 +237,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		cpusetManager:            config.CpusetManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
+		loggingManager:           config.LoggingManager,
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
@@ -288,6 +293,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			CSIManager:          ar.csiManager,
 			DeviceManager:       ar.devicemanager,
 			DriverManager:       ar.driverManager,
+			LoggingManager:      ar.loggingManager,
 			ServersContactedCh:  ar.serversContactedCh,
 			StartConditionMetCh: ar.taskCoordinator.StartConditionForTask(task),
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
