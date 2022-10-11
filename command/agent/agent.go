@@ -534,7 +534,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// Setup the logging
 	c.Logger = a.logger
-	c.LogOutput = a.logOutput
 
 	// If we are running a server, append both its bind and advertise address so
 	// we are able to at least talk to the local server even if that isn't
@@ -590,7 +589,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.Servers = agentConfig.Client.Servers
-	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
 

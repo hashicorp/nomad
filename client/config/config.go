@@ -3,8 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -93,9 +91,6 @@ type Config struct {
 
 	// AllocDir is where we store data for allocations
 	AllocDir string
-
-	// LogOutput is the destination for logs
-	LogOutput io.Writer
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
@@ -200,9 +195,6 @@ type Config struct {
 	// GCMaxAllocs is the maximum number of allocations a node can have
 	// before garbage collection is triggered.
 	GCMaxAllocs int
-
-	// LogLevel is the level of the logs to putout
-	LogLevel string
 
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
@@ -722,11 +714,9 @@ func DefaultConfig() *Config {
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
-		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
-		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
