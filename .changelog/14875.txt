@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: improve memory usage for docker_logger
+```
