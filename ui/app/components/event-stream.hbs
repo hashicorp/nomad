@@ -2,16 +2,43 @@
 
 <button {{on "click" this.events.stop}}>Shut down everything</button>
 
+<section class="timeline">
+  {{#each this.streamIndexes as |index|}}
+    <span>{{index}}</span>
+  {{/each}}
+</section>
+
 <section class="entities"
 {{did-insert this.fetchEntities}}>
-  {{#each-in this.entities as |entity values|}}
+{{!-- <svg>
+  <g>
+    <circle
+      {{did-insert this.addCircle}}
+      {{did-update this.updateCircle}}
+      {{will-destroy this.removeCircle}}
+    />
+  </g>
+</svg> --}}
+  {{!-- {{#each-in this.entities as |entity values|}}
     <h2>{{entity}}</h2>
     <ul>
       {{#each values as |value|}}
         <li>{{value.id}}</li>
       {{/each}}
     </ul>
-  {{/each-in}}
+  {{/each-in}} --}}
+
+  {{#each this.entities.clients as |client|}}
+    <h2>{{client.id}} - ({{client.allocations.length}})</h2>
+    <h3>Last updated: {{client.lastRaftIndex}} ({{format-ts client.lastUpdated}})</h3>
+    
+    <ul>
+      {{#each client.allocations as |alloc|}}
+        <li>{{alloc.id}}: {{alloc.clientStatus}}</li>
+      {{/each}}
+    </ul>
+
+  {{/each}}
 </section>
 
 {{#each this.stream as |event|}}

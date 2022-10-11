@@ -1,39 +1,103 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { alias } from '@ember/object/computed';
+import MutableArray from '@ember/array/mutable';
+import { A } from '@ember/array';
+import RSVP from 'rsvp';
+
+/**
+ * @typedef {import('../services/events.js').Event} Event
+ */
+
+/**
+ * @typedef Entity
+ * @type {Object}
+ * @property {string} id
+ * @property {number} lastUpdated
+ * @property {number} lastRaftIndex
+ * @property {Event[]} streamEvents
+ */
+
+/**
+ * @typedef Client
+ * @property {MutableArray} allocations
+ */
 
 export default class EventStreamComponent extends Component {
   @service events;
   @service store;
 
-  constructor() {
-    super(...arguments);
+  /**
+   * @param  {[]} args
+   */
+  constructor(...args) {
+    super(...args);
     this.events.start();
   }
 
-  @tracked clients = [];
-  @tracked servers = [];
-  @tracked allocations = [];
-  @tracked jobs = [];
+  /**
+   * @type {MutableArray<Client & Entity>}
+   */
+  @tracked clients = A([]);
 
+  /**
+   * @type {MutableArray<Entity>}
+   */
+  @tracked servers = A([]);
+
+  /**
+   * @type {MutableArray<Entity>}
+   */
+  @tracked allocations = A([]);
+
+  /**
+   * @type {MutableArray<Entity>}
+   */
+  @tracked jobs = A([]);
+
+  @computed('stream.[]', 'clients', 'servers', 'allocations', 'jobs')
   get entities() {
     const { clients, servers, allocations, jobs } = this;
+    console.log(
+      'entities recompute',
+      this.stream,
+      clients,
+      servers,
+      allocations,
+      jobs
+    );
+    if (clients.length) {
+      this.amendClients(clients);
+    }
     return { clients, servers, allocations, jobs };
   }
 
   @action
   async fetchEntities() {
-    this.clients = await this.store.findAll('node');
-    this.servers = await this.store.findAll('agent');
-    this.allocations = await this.store.findAll('allocation');
-    this.jobs = await this.store.findAll('job');
+    const entities = RSVP.hash({
+      jobs: this.store.findAll('job'),
+      allocations: this.store.findAll('allocation'),
+      clients: this.store.findAll('node'),
+      servers: this.store.findAll('agent'),
+    })
+      .catch((error) => {
+        console.log('Error fetching entities', error);
+      })
+      .then((entities) => {
+        this.jobs = entities.jobs;
+        this.allocations = entities.allocations;
+        this.clients = entities.clients;
+        this.servers = entities.servers;
+      });
   }
 
-  get stream() {
-    // console.log('gettin stream', this.events.stream);
-    return this.events.stream;
+  @alias('events.stream') stream;
+
+  get streamIndexes() {
+    return this.stream.mapBy('Index').uniq();
   }
 
   @action logEvent(event) {
@@ -55,4 +119,86 @@ export default class EventStreamComponent extends Component {
     console.table(this.stream.filterBy('Key', Key));
     console.log('******************************************************');
   }
+
+  eventsNotInEntities = {
+    clients: [],
+    servers: [],
+    allocations: [],
+    jobs: [],
+  };
+
+  //#region Entity Processing
+
+  /**
+   *
+   * @param {MutableArray<Client & Entity>} clients
+   */
+  amendClients(clients) {
+    clients.forEach((client) => {
+      client.lastUpdated = 150;
+
+      /**
+       * @type {MutableArray<Event>}
+       */
+      const clientAllocationEvents = this.stream.filterBy(
+        'Payload.Allocation.NodeID',
+        client.id
+      );
+
+      // Sometimes an event stream may have an event for an allocation that's been otherwise garbage-collected
+      // Let's not try to reload over and over again when we come across this. Save a record of it to a hash and ignore it.
+      const eventedAllocationsNotInClient = clientAllocationEvents
+        .uniqBy('Key')
+        .reject((event) =>
+          this.eventsNotInEntities.allocations.includes(event.Key)
+        )
+        .filter((event) => !client.allocations.mapBy('id').includes(event.Key))
+        .mapBy('Key');
+
+      if (eventedAllocationsNotInClient.length) {
+        console.log(
+          'found a new alloc! gonna refetch',
+          eventedAllocationsNotInClient
+        );
+        this.eventsNotInEntities.allocations.push(
+          ...eventedAllocationsNotInClient
+        );
+        this.fetchEntities(); // TODO: change to fetchClients?
+        return false;
+      }
+
+      // If an alloc event indicates a different clientStatus than the client.allocation's status, amend the client's allocation's status
+      const lastAllocStatuses = clientAllocationEvents
+        .sortBy('Index')
+        .reverse()
+        .uniqBy('Key');
+      lastAllocStatuses.forEach((event) => {
+        const alloc = client.allocations.findBy('id', event.Key);
+        if (
+          alloc &&
+          alloc.clientStatus !== event.Payload.Allocation.ClientStatus
+        ) {
+          alloc.clientStatus = event.Payload.Allocation.ClientStatus;
+        }
+      });
+      // if (lastAllocStatuses.any((event) => {
+      //   console.log('match?', event.Payload.Allocation.ClientStatus, client.allocations.findBy('id', event.Key)?.clientStatus);
+      //   return client.allocations.findBy('id', event.Key) && event.Payload.Allocation?.ClientStatus !== client.allocations.findBy('id', event.Key)?.clientStatus;
+      // })) {
+      //   console.log('client status is different than alloc status, refetching');
+      //   debugger;
+      //   this.entitiesInFlight = true;
+      //   this.fetchEntities(); // TODO: change to fetchClients?
+      //   return false;
+      // }
+
+      client.streamEvents = [...clientAllocationEvents];
+      console.log('cS', client.streamEvents);
+      client.lastUpdated =
+        client.streamEvents.lastObject?.Payload.Allocation.ModifyTime / 1000000;
+      client.lastRaftIndex = client.streamEvents.lastObject?.Index;
+    });
+  }
+
+  //#endregion Entity Processing
 }

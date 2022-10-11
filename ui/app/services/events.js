@@ -4,6 +4,15 @@ import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
+/**
+ * @typedef Event
+ * @type {Object}
+ * @property {number} Index
+ * @property {string} Topic
+ * @property {string} Type
+ * @property {{string: string}[]} Key
+ */
+
 class MOCK_ABORT_CONTROLLER {
   abort() {
     /* noop */
@@ -14,6 +23,9 @@ class MOCK_ABORT_CONTROLLER {
 export default class EventsService extends Service {
   @service token;
 
+  /**
+   * @type {Event[]}
+   */
   @tracked
   stream = [];
 
