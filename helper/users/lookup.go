@@ -9,16 +9,6 @@ import (
 // some NSS implementations are not concurrency safe
 var lock sync.Mutex
 
-// nobody is a cached copy of the nobody user, which is going to be looked-up
-// frequently and is unlikely to be modified on the underlying system.
-var nobody user.User
-
-// Nobody returns User data for the "nobody" user on the system, bypassing the
-// locking / file read / NSS lookup.
-func Nobody() user.User {
-	return nobody
-}
-
 // Lookup username while holding a global process lock.
 func Lookup(username string) (*user.User, error) {
 	lock.Lock()
