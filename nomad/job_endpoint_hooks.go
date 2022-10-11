@@ -3,23 +3,23 @@ package nomad
 import (
 	"fmt"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
-	// vaultConstraintLTarget is the lefthand side of the Vault constraint
-	// injected when Vault policies are used. If an existing constraint
-	// with this target exists it overrides the injected constraint.
-	vaultConstraintLTarget = "${attr.vault.version}"
+	attrVaultVersion      = `${attr.vault.version}`
+	attrConsulVersion     = `${attr.consul.version}`
+	attrNomadVersion      = `${attr.nomad.version}`
+	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
 )
 
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
 	// Vault token
 	vaultConstraint = &structs.Constraint{
-		LTarget: vaultConstraintLTarget,
+		LTarget: attrVaultVersion,
 		RTarget: ">= 0.6.1",
 		Operand: structs.ConstraintSemver,
 	}
@@ -29,7 +29,7 @@ var (
 	// Consul version is pinned to a minimum of that which introduced the
 	// namespace feature.
 	consulServiceDiscoveryConstraint = &structs.Constraint{
-		LTarget: "${attr.consul.version}",
+		LTarget: attrConsulVersion,
 		RTarget: ">= 1.7.0",
 		Operand: structs.ConstraintSemver,
 	}
@@ -40,9 +40,20 @@ var (
 	// we need to ensure task groups are placed where they can run
 	// successfully.
 	nativeServiceDiscoveryConstraint = &structs.Constraint{
-		LTarget: "${attr.nomad.service_discovery}",
+		LTarget: attrNomadServiceDisco,
 		RTarget: "true",
 		Operand: "=",
+	}
+
+	// nativeServiceDiscoveryChecksConstraint is the constraint injected into task
+	// groups that utilize Nomad's native service discovery checks feature. This
+	// is needed, as operators can have versions of Nomad pre-v1.4 mixed into a
+	// cluster with v1.4 servers, causing jobs to be placed on incompatible
+	// clients.
+	nativeServiceDiscoveryChecksConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.4.0",
+		Operand: structs.ConstraintSemver,
 	}
 )
 
@@ -149,7 +160,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	// Hot path
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		len(nativeServiceDisco) == 0 && len(consulServiceDisco) == 0 {
+		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
 		return j, nil, nil
 	}
 
@@ -173,8 +184,13 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		}
 
 		// If the task group utilises Nomad service discovery, run the mutator.
-		if ok := nativeServiceDisco[tg.Name]; ok {
+		if nativeServiceDisco.Basic.Contains(tg.Name) {
 			mutateConstraint(constraintMatcherFull, tg, nativeServiceDiscoveryConstraint)
+		}
+
+		// If the task group utilizes NSD checks, run the mutator.
+		if nativeServiceDisco.Checks.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherFull, tg, nativeServiceDiscoveryChecksConstraint)
 		}
 
 		// If the task group utilises Consul service discovery, run the mutator.
