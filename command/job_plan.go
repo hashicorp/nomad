@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
+	"github.com/shoenig/go-conceal"
 )
 
 const (
@@ -225,7 +226,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	// Set the vault token.
 	if vaultToken != "" {
-		job.VaultToken = pointer.Of(vaultToken)
+		job.VaultToken = conceal.New(vaultToken)
 	}
 
 	//  Set the vault namespace.
@@ -246,8 +247,17 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return c.multiregionPlan(client, job, opts, diff, verbose)
 	}
 
+	// Setup write options
+	wo := new(api.WriteOptions)
+	if !job.VaultToken.Empty() {
+		wo.SetHeader("X-Vault-Token", job.VaultToken.Unveil())
+	}
+	if !job.ConsulToken.Empty() {
+		wo.SetHeader("X-Consul-Token", job.ConsulToken.Unveil())
+	}
+
 	// Submit the job
-	resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
+	resp, _, err := client.Jobs().PlanOpts(job, opts, wo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255

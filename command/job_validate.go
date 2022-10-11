@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
+	"github.com/shoenig/go-conceal"
 )
 
 type JobValidateCommand struct {
@@ -165,7 +166,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = pointer.Of(vaultToken)
+		job.VaultToken = conceal.New(vaultToken)
 	}
 
 	if vaultNamespace != "" {

@@ -134,8 +134,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	return out, nil
 }
 
-func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request, jobName string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -910,8 +909,8 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Datacenters:    job.Datacenters,
 		Payload:        job.Payload,
 		Meta:           job.Meta,
-		ConsulToken:    *job.ConsulToken,
-		VaultToken:     *job.VaultToken,
+		ConsulToken:    job.ConsulToken.Unveil(),
+		VaultToken:     job.VaultToken.Unveil(),
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),

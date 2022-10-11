@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
+	"github.com/shoenig/go-conceal"
 )
 
 var (
@@ -268,7 +269,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if consulToken != "" {
-		job.ConsulToken = pointer.Of(consulToken)
+		job.ConsulToken = conceal.New(consulToken)
 	}
 
 	if consulNamespace != "" {
@@ -282,7 +283,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = pointer.Of(vaultToken)
+		job.VaultToken = conceal.New(vaultToken)
 	}
 
 	if vaultNamespace != "" {

@@ -122,6 +122,19 @@ type WriteOptions struct {
 	IdempotencyToken string
 }
 
+// SetHeader sets a header key:value pair on o.
+//
+// o must not be nil and key must not be empty.
+func (w *WriteOptions) SetHeader(key, value string) {
+	if w == nil || key == "" {
+		return
+	}
+	if w.Headers == nil {
+		w.Headers = make(map[string]string)
+	}
+	w.Headers[key] = value
+}
+
 // QueryMeta is used to return meta data about a query
 type QueryMeta struct {
 	// LastIndex. This can be used as a WaitIndex to perform
@@ -1125,18 +1138,18 @@ func (o *QueryOptions) WithContext(ctx context.Context) *QueryOptions {
 }
 
 // Context returns the context used for canceling HTTP requests related to this write
-func (o *WriteOptions) Context() context.Context {
-	if o != nil && o.ctx != nil {
-		return o.ctx
+func (w *WriteOptions) Context() context.Context {
+	if w != nil && w.ctx != nil {
+		return w.ctx
 	}
 	return context.Background()
 }
 
 // WithContext creates a copy of the write options using the provided context to cancel related HTTP requests
-func (o *WriteOptions) WithContext(ctx context.Context) *WriteOptions {
+func (w *WriteOptions) WithContext(ctx context.Context) *WriteOptions {
 	o2 := new(WriteOptions)
-	if o != nil {
-		*o2 = *o
+	if w != nil {
+		*o2 = *w
 	}
 	o2.ctx = ctx
 	return o2

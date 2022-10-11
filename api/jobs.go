@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/cronexpr"
+	"github.com/shoenig/go-conceal"
 )
 
 const (
@@ -865,8 +866,8 @@ type Job struct {
 	Reschedule       *ReschedulePolicy       `hcl:"reschedule,block"`
 	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
 	Meta             map[string]string       `hcl:"meta,block"`
-	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
-	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+	ConsulToken      *conceal.Text           `mapstructure:"consul_token" hcl:"consul_token,optional"`
+	VaultToken       *conceal.Text           `mapstructure:"vault_token" hcl:"vault_token,optional"`
 
 	/* Fields set by server, not sourced from job config file */
 
@@ -935,13 +936,13 @@ func (j *Job) Canonicalize() {
 		j.AllAtOnce = pointerOf(false)
 	}
 	if j.ConsulToken == nil {
-		j.ConsulToken = pointerOf("")
+		j.ConsulToken = conceal.New("")
 	}
 	if j.ConsulNamespace == nil {
 		j.ConsulNamespace = pointerOf("")
 	}
 	if j.VaultToken == nil {
-		j.VaultToken = pointerOf("")
+		j.VaultToken = conceal.New("")
 	}
 	if j.VaultNamespace == nil {
 		j.VaultNamespace = pointerOf("")
@@ -1031,7 +1032,7 @@ func (jc *JobChildrenSummary) Sum() int {
 	return int(jc.Pending + jc.Running + jc.Dead)
 }
 
-// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroupSummary summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
 	Queued   int
