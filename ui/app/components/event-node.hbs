@@ -6,7 +6,6 @@
   height={{this.height}}
 ></rect> --}}
 
-
 <circle
   class="event-node"
   cx={{this.x}}
@@ -15,4 +14,6 @@
   data-type={{@data.Type}}
   data-topic={{@data.Topic}}
   {{action @logEvent @data}}
-/>
+ />
+
+ {{!-- {{log "NODE" @data.x}} --}}

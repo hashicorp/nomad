@@ -54,7 +54,10 @@ export default class EventsGraphComponent extends Component {
   // ];
 
   get data() {
-    return this.args.data;
+    return this.args.data.map((d) => {
+      d.x = 5;
+      return d;
+    });
   }
 
   get xBand() {
@@ -97,6 +100,7 @@ export default class EventsGraphComponent extends Component {
     this.graph = d3.select(el).call(this.zoom);
 
     this.transformXAxis();
+    this.forceDirectedGraph();
   }
 
   @action
@@ -144,4 +148,104 @@ export default class EventsGraphComponent extends Component {
     this.zoomTransform = event.transform;
     this.graph.selectAll('.x-axis').call(this.transformXAxis);
   }
+
+  //#region Force Layout
+  nodeBuffer = 3;
+  // get simulation() {
+  //   const sim = d3
+  //     .forceSimulation()
+  //     .force('charge', d3.forceManyBody().strength(-1))
+  //     .force(
+  //       'xPos',
+  //       d3
+  //         .forceX((d) => d.x)
+  //         .strength((d) => {
+  //           return 1;
+  //           // return d.saturation === 1 || d.comparisonSaturation === 1
+  //           //   ? 1
+  //           //   : 0.01; // try our best to centre the sat:1 / sat:0 items
+  //         })
+  //     )
+  //     .force('yPos', d3.forceY((d) => d.y).strength(1.5))
+  //     .force(
+  //       'collide',
+  //       d3
+  //         .forceCollide((d) => {
+  //           console.log('forceCollide', d);
+  //           return 3;
+  //           return d.radius * 1.0 + this.nodeBuffer
+  //         })
+  //         .strength(1.5)
+  //         .iterations(20)
+  //     )
+  //     // .force('box_force', box_force)
+  //     // .velocityDecay(0.9);
+  //     // .alphaDecay(0.0003);
+  //     .alphaDecay(0.15)
+  //     .alphaMin(0.000001);
+
+  //   return sim;
+  // }
+
+  get simulation() {
+    return d3
+      .forceSimulation()
+      .force('charge', d3.forceManyBody().strength(-1))
+      .force('xPos', d3.forceX((d) => d.x).strength(1))
+      .force('yPos', d3.forceY((d) => d.y).strength(1));
+    // .force('collide', d3.forceCollide((d) => d.r * 1.2).strength(1));
+  }
+
+  // simulation.nodes(traits).on('tick', ticked);
+
+  @action
+  ticked() {
+    // console.log('ticked', this.data);
+    console.log(
+      'ticked',
+      this.graph.selectAll('circle'),
+      this.simulation.nodes
+    );
+    this.graph.selectAll('circle').attr('cx', (d, b, c) => {
+      // console.log('dee', d,b,c);
+      if (d) {
+        return d.x;
+      }
+    });
+    // .attr('cx', (d) => d.x).attr('cy', (d) => d.y);
+  }
+
+  @action
+  forceDirectedGraph() {
+    console.log('fDG', this.simulation, this.graph);
+    this.simulation.nodes(this.data).on('tick', this.ticked);
+    this.graph
+      .selectAll('circle')
+      .transition()
+      .duration(1200)
+      .delay((_d, i) => 2000 + i * 10)
+      .attrTween('r', (d) => {
+        console.log('tweenr', d);
+        let i = d3.interpolate(0, d.radius);
+        return function (t) {
+          return (d.r = i(t));
+        };
+      });
+  }
+
+  // ticked() {
+  //   // nodes.attr('transform', function(d) {
+  //   //   let x = Math.max(d.radius, Math.min(width - d.radius, d.x));
+  //   //   let y = Math.max(d.radius, Math.min(height - d.radius, d.y));
+  //   //   return 'translate(' + x + ',' + y + ')';
+  //   // });
+  //   this.nodes.attr('transform', (d: any) => {
+  //     if (d.x && d.y) {
+  //       return `translate(${d.x},${d.y})`;
+  //     }
+  //     return '';
+  //   });
+  // }
+
+  //#endregion Force Layout
 }
