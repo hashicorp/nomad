@@ -20,49 +20,17 @@ func TestOverlap(t *testing.T) {
 	nomadClient := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomadClient)
 
-	// Wait for at least 1 feasible node to be ready and get its ID
-	var node *api.Node
-	testutil.Wait(t, func() (bool, error) {
-		nodesList, _, err := nomadClient.Nodes().List(nil)
-		if err != nil {
-			return false, fmt.Errorf("error listing nodes: %v", err)
-		}
-
-		for _, n := range nodesList {
-			if n.Status != "ready" {
-				continue
-			}
-			if n.SchedulingEligibility != "eligible" {
-				continue
-			}
-
-			node, _, err = nomadClient.Nodes().Info(n.ID, nil)
-			must.NoError(t, err)
-
-			if node.Attributes["kernel.name"] != "linux" {
-				continue
-			}
-
-			return true, nil
-		}
-
-		return false, fmt.Errorf("no nodes ready before timeout; need at least 1 ready")
-	})
-
-	// Force job to fill one exact node
 	getJob := func() (*api.Job, string) {
 		job, err := e2eutil.Parse2(t, "testdata/overlap.nomad")
 		must.NoError(t, err)
 		jobID := *job.ID + uuid.Short()
 		job.ID = &jobID
-		job.Datacenters = []string{node.Datacenter}
-		job.Constraints[1].RTarget = node.ID
-		availCPU := int(node.NodeResources.Cpu.CpuShares - int64(node.ReservedResources.Cpu.CpuShares))
-		job.TaskGroups[0].Tasks[0].Resources.CPU = &availCPU
 		return job, *job.ID
 	}
 	job1, jobID1 := getJob()
 
+	// Register initial job that should block subsequent job's placement until
+	// its shutdown_delay is up.
 	_, _, err := nomadClient.Jobs().Register(job1, nil)
 	must.NoError(t, err)
 	defer e2eutil.WaitForJobStopped(t, nomadClient, jobID1)
@@ -81,6 +49,10 @@ func TestOverlap(t *testing.T) {
 			origAlloc.ID, jobID1, origAlloc.ClientStatus)
 	})
 
+	// Capture node so we can ensure 2nd job is blocked by first
+	node, _, err := nomadClient.Nodes().Info(origAlloc.NodeID, nil)
+	must.NoError(t, err)
+
 	// Stop job but don't wait for ClientStatus terminal
 	_, _, err = nomadClient.Jobs().Deregister(jobID1, false, nil)
 	must.NoError(t, err)
@@ -94,9 +66,13 @@ func TestOverlap(t *testing.T) {
 			a.ID, ds, cs)
 	})
 
-	// Start replacement job and assert it is blocked
+	// Start replacement job on same node and assert it is blocked
 	job2, jobID2 := getJob()
+	job2.Constraints = append(job2.Constraints, api.NewConstraint("${node.unique.id}", "=", origAlloc.NodeID))
 	job2.TaskGroups[0].Tasks[0].ShutdownDelay = 0 // no need on the followup
+	availCPU := int(node.NodeResources.Cpu.CpuShares - int64(node.ReservedResources.Cpu.CpuShares))
+	job2.TaskGroups[0].Tasks[0].Resources.CPU = &availCPU // require job1 to free resources
+
 	resp, _, err := nomadClient.Jobs().Register(job2, nil)
 	must.NoError(t, err)
 	defer e2eutil.WaitForJobStopped(t, nomadClient, jobID2)
@@ -113,8 +89,8 @@ func TestOverlap(t *testing.T) {
 	// Wait for job1's ShutdownDelay for origAlloc.ClientStatus to go terminal
 	sleepyTime := minStopTime.Sub(time.Now())
 	if sleepyTime > 0 {
-		t.Logf("Sleeping for the rest of the shutdown_delay (%.3s/%s)",
-			sleepyTime, job1.TaskGroups[0].Tasks[0].ShutdownDelay)
+		t.Logf("Followup job %s blocked. Sleeping for the rest of %s's shutdown_delay (%.3s/%s)",
+			*job2.ID, *job1.ID, sleepyTime, job1.TaskGroups[0].Tasks[0].ShutdownDelay)
 		time.Sleep(sleepyTime)
 	}
 

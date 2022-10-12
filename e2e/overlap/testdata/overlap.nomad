@@ -1,15 +1,10 @@
 job "overlap" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
   type        = "service"
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
-  }
-
-  constraint {
-    attribute = "${node.unique.id}"
-    value     = "<<Must be filled in by test>>"
   }
 
   group "overlap" {
@@ -27,8 +22,7 @@ job "overlap" {
       }
 
       resources {
-        # Must be filled in by test
-        cpu    = "0"
+        cpu    = "500"
         memory = "50"
       }
     }
