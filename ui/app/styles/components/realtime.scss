@@ -17,3 +17,69 @@
     margin-left: 1rem;
   }
 }
+
+.timeline {
+  list-style: none;
+  position: relative;
+  z-index: 100;
+  display: grid;
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
+  gap: 1rem;
+  width: 100%;
+  overflow: auto;
+  .column {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+
+    .client-node {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background-color: $grey-blue;
+      text-align: center;
+      line-height: 64px;
+      overflow: hidden;
+      &.vacant {
+        opacity: 0.3;
+      }
+    }
+
+    .events {
+      display: grid;
+      gap: 2px;
+      grid-template-columns: repeat(auto-fill, minmax(24px, 1fr));
+      grid-template-rows: repeat(auto-fill, minmax(24px, 1fr));
+      .event {
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        overflow: hidden;
+        background: black;
+        color: white;
+        align-items: center;
+        justify-content: center;
+
+        &.Job {
+          background: blue;
+        }
+        &.Node {
+          background: brown;
+        }
+        &.Evaluation {
+          background: purple;
+        }
+        &.Deployment {
+          background: green;
+        }
+        &.Allocation {
+          background: yellow;
+          stroke: black;
+        }
+        &.Service {
+          background: orange;
+        }
+      }
+    }
+  }
+}

@@ -22,6 +22,7 @@ export default class Node extends Model {
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
   @attr('string') version;
+  @attr('number') createIndex;
 
   // Available from single response
   @attr('string') httpAddr;

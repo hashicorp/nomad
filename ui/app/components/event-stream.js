@@ -61,14 +61,6 @@ export default class EventStreamComponent extends Component {
   @computed('stream.[]', 'clients', 'servers', 'allocations', 'jobs')
   get entities() {
     const { clients, servers, allocations, jobs } = this;
-    console.log(
-      'entities recompute',
-      this.stream,
-      clients,
-      servers,
-      allocations,
-      jobs
-    );
     if (clients.length) {
       this.amendClients(clients);
     }
@@ -156,10 +148,6 @@ export default class EventStreamComponent extends Component {
         .mapBy('Key');
 
       if (eventedAllocationsNotInClient.length) {
-        console.log(
-          'found a new alloc! gonna refetch',
-          eventedAllocationsNotInClient
-        );
         this.eventsNotInEntities.allocations.push(
           ...eventedAllocationsNotInClient
         );
@@ -181,19 +169,8 @@ export default class EventStreamComponent extends Component {
           alloc.clientStatus = event.Payload.Allocation.ClientStatus;
         }
       });
-      // if (lastAllocStatuses.any((event) => {
-      //   console.log('match?', event.Payload.Allocation.ClientStatus, client.allocations.findBy('id', event.Key)?.clientStatus);
-      //   return client.allocations.findBy('id', event.Key) && event.Payload.Allocation?.ClientStatus !== client.allocations.findBy('id', event.Key)?.clientStatus;
-      // })) {
-      //   console.log('client status is different than alloc status, refetching');
-      //   debugger;
-      //   this.entitiesInFlight = true;
-      //   this.fetchEntities(); // TODO: change to fetchClients?
-      //   return false;
-      // }
 
       client.streamEvents = [...clientAllocationEvents];
-      console.log('cS', client.streamEvents);
       client.lastUpdated =
         client.streamEvents.lastObject?.Payload.Allocation.ModifyTime / 1000000;
       client.lastRaftIndex = client.streamEvents.lastObject?.Index;
@@ -201,4 +178,8 @@ export default class EventStreamComponent extends Component {
   }
 
   //#endregion Entity Processing
+
+  scrollToEnd(element) {
+    element.scrollLeft = element.scrollWidth;
+  }
 }

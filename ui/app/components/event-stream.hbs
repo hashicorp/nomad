@@ -2,9 +2,47 @@
 
 <button {{on "click" this.events.stop}}>Shut down everything</button>
 
-<section class="timeline">
+<section class="timeline" {{did-insert this.scrollToEnd}}
+{{did-update this.scrollToEnd this.streamIndexes this.clients}}
+>
   {{#each this.streamIndexes as |index|}}
-    <span>{{index}}</span>
+    <div class="column">
+      <div class="clients">
+        {{#each this.entities.clients as |client|}}
+          {{#if (find-by 'Index' index client.streamEvents)}}
+            <div class="client-node">
+              <h2>{{client.name}}</h2>
+            </div>
+          {{else}}
+            <div class="client-node vacant">
+              <h2>{{client.name}}</h2>
+            </div>
+          {{/if}}
+        {{/each}}
+      </div>
+      <div class="events">
+        {{#each (filter-by "Index" index this.stream) as |event|}}
+          <span class="event {{event.Topic}}" onclick={{action "logEvent" event}}>
+            {{#if (eq event.Topic "Job")}}
+              <FlightIcon @name="briefcase" />
+            {{else if (eq event.Topic "Node")}}
+              <FlightIcon @name="server" />
+            {{else if (eq event.Topic "Evaluation")}}
+              <FlightIcon @name="running" />
+            {{else if (eq event.Topic "Deployment")}}
+              <FlightIcon @name="rocket" />
+            {{else if (eq event.Topic "Allocation")}}
+              <FlightIcon @name="bookmark" />
+            {{else if (eq event.Topic "Service")}}
+              <FlightIcon @name="api" />
+            {{/if}}
+          </span>
+        {{/each}}
+      </div>
+      <footer>
+        <span>{{index}}</span>
+      </footer>
+    </div>
   {{/each}}
 </section>
 
@@ -29,7 +67,7 @@
   {{/each-in}} --}}
 
   {{#each this.entities.clients as |client|}}
-    <h2>{{client.id}} - ({{client.allocations.length}})</h2>
+    <h2>{{client.name}} - ({{client.allocations.length}})</h2>
     <h3>Last updated: {{client.lastRaftIndex}} ({{format-ts client.lastUpdated}})</h3>
     
     <ul>
