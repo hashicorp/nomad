@@ -1,0 +1,43 @@
+<svg class="events-graph"
+  viewBox="0 0 {{this.width}} {{this.height}}"
+  {{did-insert this.initializeGraph}}
+  {{window-resize this.onResize}}
+>
+  {{!-- <defs>
+    <clipPath>
+      <rect
+        class="mask"
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        rx="2px"
+        ry="2px"
+      ></rect>
+    </clipPath>
+  </defs> --}}
+  <g class="bars">
+  {{#each this.data as |bar|}}
+    <EventNode
+      @data={{bar}}
+      @xScale={{this.xBand}}
+      @yScale={{this.yBand}}
+      @height={{this.height}}
+      @logEvent={{@logEvent}}
+    />
+    {{!-- <rect
+      class="bar {{bar.name}}"
+      x={{fn this.multiply i}}
+      y={{50}}
+      width={{1}}
+      height={{bar.value}}
+    ></rect> --}}
+  {{/each}}
+  </g>
+  <g class="x-axis"
+    {{did-insert this.initializeXAxis}}
+    {{did-update this.transformXAxis this.data}}
+  ></g>
+</svg>
+
+{{yield}}

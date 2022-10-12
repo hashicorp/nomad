@@ -1,6 +1,8 @@
 {{yield}}
 
-<button {{on "click" this.events.stop}}>Shut down everything</button>
+<button type="button" {{on "click" this.events.stop}}>Shut down everything</button>
+
+<EventsGraph @data={{this.stream}} @logEvent={{this.logEvent}} />
 
 <section class="timeline" {{did-insert this.scrollToEnd}}
 {{did-update this.scrollToEnd this.streamIndexes this.clients}}

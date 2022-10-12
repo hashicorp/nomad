@@ -92,26 +92,6 @@ export default class EventStreamComponent extends Component {
     return this.stream.mapBy('Index').uniq();
   }
 
-  @action logEvent(event) {
-    console.clear();
-    const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
-    console.table({
-      Index,
-      Topic,
-      Type,
-      Key,
-      Namespace,
-      // FilterKeys,
-    });
-    console.log('Payload');
-    console.log(Payload[Topic]);
-    console.log('Same-Time Buds');
-    console.table(this.stream.filterBy('Index', Index));
-    console.log('Same-Entity Buds');
-    console.table(this.stream.filterBy('Key', Key));
-    console.log('******************************************************');
-  }
-
   eventsNotInEntities = {
     clients: [],
     servers: [],
@@ -158,6 +138,7 @@ export default class EventStreamComponent extends Component {
       // If an alloc event indicates a different clientStatus than the client.allocation's status, amend the client's allocation's status
       const lastAllocStatuses = clientAllocationEvents
         .sortBy('Index')
+
         .reverse()
         .uniqBy('Key');
       lastAllocStatuses.forEach((event) => {
@@ -181,5 +162,25 @@ export default class EventStreamComponent extends Component {
 
   scrollToEnd(element) {
     element.scrollLeft = element.scrollWidth;
+  }
+
+  @action logEvent(event) {
+    console.clear();
+    const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
+    console.table({
+      Index,
+      Topic,
+      Type,
+      Key,
+      Namespace,
+      // FilterKeys,
+    });
+    console.log('Payload');
+    console.log(Payload[Topic]);
+    console.log('Same-Time Buds');
+    console.table(this.stream.filterBy('Index', Index));
+    console.log('Same-Entity Buds');
+    console.table(this.stream.filterBy('Key', Key));
+    console.log('******************************************************');
   }
 }

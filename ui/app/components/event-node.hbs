@@ -1,0 +1,18 @@
+{{!-- <rect
+  class="bar {{@data.name}}"
+  x={{this.x}}
+  y={{this.y}}
+  width={{this.width}}
+  height={{this.height}}
+></rect> --}}
+
+
+<circle
+  class="event-node"
+  cx={{this.x}}
+  cy={{this.y}}
+  r={{this.width}}
+  data-type={{@data.Type}}
+  data-topic={{@data.Topic}}
+  {{action @logEvent @data}}
+/>

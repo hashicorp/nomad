@@ -83,3 +83,36 @@
     }
   }
 }
+
+// #region Events Graph
+.events-graph {
+  width: 100%;
+  height: 600px;
+
+  .event-node {
+    fill: none;
+
+    stroke-width: 2px;
+
+    &[data-topic='Job'] {
+      fill: blue;
+    }
+    &[data-topic='Node'] {
+      fill: brown;
+    }
+    &[data-topic='Evaluation'] {
+      fill: purple;
+    }
+    &[data-topic='Deployment'] {
+      fill: green;
+    }
+    &[data-topic='Allocation'] {
+      fill: yellow;
+    }
+    &[data-topic='Service'] {
+      fill: orange;
+    }
+  }
+}
+
+// #endregion Events Graph
