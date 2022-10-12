@@ -1,4 +1,4 @@
-{{yield}}
+{{keyboard-commands this.keyCommands}}
 
 <button type="button" {{on "click" this.events.stop}}>Shut down everything</button>
 
@@ -94,3 +94,16 @@
       <dd>{{event.Key}}</dd>
     </dl>
 {{/each}}
+
+
+
+<EventSidebar
+  @event={{this.activeEvent}}
+  @timePeers={{this.activeTimePeers}}
+  @entityPeers={{this.activeEntityPeers}}
+  @fns={{hash
+    closeSidebar=this.closeSidebar
+    logEvent=this.logEvent
+  }}
+/>
+

@@ -1,7 +1,7 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import MutableArray from '@ember/array/mutable';
@@ -164,23 +164,50 @@ export default class EventStreamComponent extends Component {
     element.scrollLeft = element.scrollWidth;
   }
 
+  @tracked activeEvent = null;
+  @tracked activeTimePeers = null;
+  @tracked activeEntityPeers = null;
+
+  @action closeSidebar() {
+    this.activeEvent = null;
+    this.activeTimePeers = null;
+    this.activeEntityPeers = null;
+  }
+
+  keyCommands = [
+    {
+      label: 'Close Event Sidebar',
+      pattern: ['Escape'],
+      action: () => this.closeSidebar(),
+    },
+  ];
+
   @action logEvent(event) {
-    console.clear();
-    const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
-    console.table({
-      Index,
-      Topic,
-      Type,
-      Key,
-      Namespace,
-      // FilterKeys,
-    });
-    console.log('Payload');
-    console.log(Payload[Topic]);
-    console.log('Same-Time Buds');
-    console.table(this.stream.filterBy('Index', Index));
-    console.log('Same-Entity Buds');
-    console.table(this.stream.filterBy('Key', Key));
-    console.log('******************************************************');
+    console.log('loggin EVENT', event);
+    this.activeEvent = event;
+    this.activeTimePeers = this.stream
+      .filterBy('Index', event.Index)
+      .without(event);
+    this.activeEntityPeers = this.stream
+      .filterBy('Key', event.Key)
+      .without(event);
+    console.log(this.activeTimePeers.length, this.activeEntityPeers.length);
+    // console.clear();
+    // const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
+    // console.table({
+    //   Index,
+    //   Topic,
+    //   Type,
+    //   Key,
+    //   Namespace,
+    //   // FilterKeys,
+    // });
+    // console.log('Payload');
+    // console.log(Payload[Topic]);
+    // console.log('Same-Time Buds');
+    // console.table(this.stream.filterBy('Index', Index));
+    // console.log('Same-Entity Buds');
+    // console.table(this.stream.filterBy('Key', Key));
+    // console.log('******************************************************');
   }
 }

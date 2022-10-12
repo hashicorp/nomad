@@ -1,0 +1,63 @@
+<div
+	class="sidebar event-sidebar {{if this.isSideBarOpen "open"}}"
+	{{on-click-outside
+		@fns.closeSidebar
+		capture=true
+	}}
+>
+  {{#if @event}}
+    <header class="detail-header">
+      <h1 class="title">
+        {{@event.Type}}
+      </h1>
+			<button
+				data-test-close-service-sidebar
+				class="button is-borderless"
+				type="button"
+				{{on "click" @fns.closeSidebar}}
+			>
+				{{x-icon "cancel"}}
+			</button>
+    </header>
+    <dl class="realtime-event">
+      <dt>Index:</dt>
+      <dd>{{@event.Index}}</dd>
+      <dt>Topic:</dt>
+      <dd>{{@event.Topic}}</dd>
+      <dt>Type:</dt>
+      <dd>{{@event.Type}}</dd>
+      <dt>Key:</dt>
+      <dd>{{@event.Key}}</dd>
+    </dl>
+    <hr />
+    <div class="boxed-section is-small">
+      <div class="boxed-section-body is-dark is-full-bleed">
+        <pre class="cli-window"><code>{{stringify-object @event.Payload whitespace=2}}</code></pre>
+      </div>
+    </div>
+    <hr />
+    {{#if @timePeers.length}}
+      <h2>Events at the same time</h2>
+      {{#each @timePeers as |peer|}}
+        <button
+          class="button is-info is-inverted"
+          type="button"
+          {{on "click" (fn @fns.logEvent peer)}}>
+          {{peer.Type}} (<em>{{peer.Key}}</em>)
+        </button>
+      {{/each}}
+    {{/if}}
+    <hr />
+    {{#if @entityPeers.length}}
+      <h2>Events on the same key, at a different time</h2>
+      {{#each @entityPeers as |peer|}}
+        <button
+          class="button is-info is-inverted"
+          type="button"
+          {{on "click" (fn @fns.logEvent peer)}}>
+          {{peer.Type}} (<em>Raft Index: {{peer.Index}}</em>)
+        </button>
+      {{/each}}
+    {{/if}}
+  {{/if}}
+</div>
