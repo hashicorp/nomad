@@ -3873,6 +3873,68 @@ func (s *StateStore) AllocsByNodeTerminal(ws memdb.WatchSet, node string, termin
 	return out, nil
 }
 
+// AllocsByJobAndLastDeployment returns allocations by job id for latest
+// deployment
+func (s *StateStore) AllocsByJobAndLastDeployment(ws memdb.WatchSet, namespace, jobID string, anyCreateIndex bool) ([]*structs.Allocation, error) {
+	txn := s.db.ReadTxn()
+
+	// Get the job
+	var job *structs.Job
+	rawJob, err := txn.First("jobs", "id", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if rawJob != nil {
+		job = rawJob.(*structs.Job)
+	}
+
+	// Get an iterator over the deployments
+	iter, err := txn.Get("deployment", "job", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	var latestDeployment *structs.Deployment
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		d := raw.(*structs.Deployment)
+		if latestDeployment == nil || latestDeployment.CreateIndex < d.CreateIndex {
+			latestDeployment = d
+		}
+	}
+
+	// Get an iterator over the node allocations
+	iter, err = txn.Get("allocs", "job", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		alloc := raw.(*structs.Allocation)
+		// If the allocation belongs to a job with the same ID but a different
+		// create index and we are not getting all the allocations whose Jobs
+		// matches the same Job ID *and* it doesn't belong to the latest
+		// deployment then we skip it
+		if !anyCreateIndex && job != nil && alloc.Job.CreateIndex != job.CreateIndex && alloc.DeploymentID != latestDeployment.ID {
+			continue
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+	return out, nil
+}
+
 // AllocsByJob returns allocations by job id
 func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, anyCreateIndex bool) ([]*structs.Allocation, error) {
 	txn := s.db.ReadTxn()

@@ -1440,9 +1440,18 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the allocations
-			allocs, err := state.AllocsByJob(ws, args.RequestNamespace(), args.JobID, args.All)
-			if err != nil {
-				return err
+			var allocs []*structs.Allocation
+			var err error
+			if !args.LastDeployment {
+				allocs, err = state.AllocsByJob(ws, args.RequestNamespace(), args.JobID, args.All)
+				if err != nil {
+					return err
+				}
+			} else {
+				allocs, err = state.AllocsByJobAndLastDeployment(ws, args.RequestNamespace(), args.JobID, args.All)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Convert to stubs
