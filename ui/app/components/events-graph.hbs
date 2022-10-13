@@ -1,3 +1,5 @@
+<button type="button" {{on "click" this.runSimulation}}>RUN SIMULATION</button>
+
 <svg class="events-graph"
   viewBox="0 0 {{this.width}} {{this.height}}"
   {{did-insert this.initializeGraph}}
@@ -17,9 +19,10 @@
     </clipPath>
   </defs> --}}
   <g class="nodes">
-  {{#each this.data as |node|}}
+  {{#each this.nodes as |node|}}
     <EventNode
       @data={{node}}
+      @offset={{node.offset}}
       @xScale={{this.xBand}}
       @yScale={{this.yBand}}
       @height={{this.height}}

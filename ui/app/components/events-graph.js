@@ -2,8 +2,9 @@
 
 import Component from '@glimmer/component';
 import d3 from 'd3';
-import { action, computed } from '@ember/object';
+import { action, set, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { next } from '@ember/runloop';
 
 export default class EventsGraphComponent extends Component {
   @tracked
@@ -54,6 +55,7 @@ export default class EventsGraphComponent extends Component {
   // ];
 
   get data() {
+    console.count('data');
     return this.args.data.map((d) => {
       d.x = 5;
       return d;
@@ -63,7 +65,7 @@ export default class EventsGraphComponent extends Component {
   get xBand() {
     let scale = d3
       .scaleBand()
-      .domain(this.data.map((d) => d.Index))
+      .domain(this.args.data.map((d) => d.Index))
       .range([this.margin.left, this.width - this.margin.right])
       .padding(0.75);
 
@@ -77,14 +79,10 @@ export default class EventsGraphComponent extends Component {
     return scale;
   }
 
-  multiply(n) {
-    return n * 50;
-  }
-
   get yBand() {
     return d3
       .scaleLinear()
-      .domain([0, d3.max(this.data, (d) => d.value)])
+      .domain([0, d3.max(this.args.data, (d) => d.value)])
       .nice()
       .range([this.height - this.margin.bottom, this.margin.top]);
   }
@@ -100,6 +98,11 @@ export default class EventsGraphComponent extends Component {
     this.graph = d3.select(el).call(this.zoom);
 
     this.transformXAxis();
+    // this.forceDirectedGraph();
+  }
+
+  @action runSimulation() {
+    console.log('running simulation');
     this.forceDirectedGraph();
   }
 
@@ -187,50 +190,77 @@ export default class EventsGraphComponent extends Component {
   //   return sim;
   // }
 
-  get simulation() {
-    return d3
-      .forceSimulation()
-      .force('charge', d3.forceManyBody().strength(-1))
-      .force('xPos', d3.forceX((d) => d.x).strength(1))
-      .force('yPos', d3.forceY((d) => d.y).strength(1));
-    // .force('collide', d3.forceCollide((d) => d.r * 1.2).strength(1));
-  }
+  // get simulation() {
+  //   return d3
+  //     .forceSimulation(this.data)
+  //     .alphaDecay(0.15)
+  //     .force('charge', d3.forceManyBody().strength(-1))
+  //     .force('xPos', d3.forceX((d) => d.x).strength(1))
+  //     .force('yPos', d3.forceY((d) => d.y).strength(1));
+  //   // .force('collide', d3.forceCollide((d) => d.r * 1.2).strength(1));
+  // }
 
   // simulation.nodes(traits).on('tick', ticked);
 
   @action
-  ticked() {
-    // console.log('ticked', this.data);
-    console.log(
-      'ticked',
-      this.graph.selectAll('circle'),
-      this.simulation.nodes
-    );
-    this.graph.selectAll('circle').attr('cx', (d, b, c) => {
-      // console.log('dee', d,b,c);
-      if (d) {
-        return d.x;
-      }
+  ticked(simulation) {
+    console.log('ticked', simulation.alpha());
+    // let nodes = simulation.nodes();
+    // this.nodes = nodes.map((node) => {
+    //   set(node, 'offset', 150);
+    //   return node;
+    // });
+
+    simulation.nodes().forEach((node) => {
+      set(node, 'offset', 150 * simulation.alpha());
+      // TODO: demo
+      // set(node, 'y', this.height / 2 - this.xBand.bandwidth(node.Index) / 2 * (simulation.alpha() * 20));
+      // set(node, 'y', this.height / 2 - this.xBand.bandwidth(node.Index) / 2);
+      // set(node, 'x', this.xBand(this.args.data.Index));
+      // set(node, 'r', this.xBand.bandwidth(node.Index));
     });
     // .attr('cx', (d) => d.x).attr('cy', (d) => d.y);
   }
 
+  // get nodes() {
+  //   console.log('nodes recompute', this.simulation.nodes());
+  //   return this.simulation.nodes();
+  // }
+
+  @tracked nodes;
+
   @action
   forceDirectedGraph() {
-    console.log('fDG', this.simulation, this.graph);
-    this.simulation.nodes(this.data).on('tick', this.ticked);
-    this.graph
-      .selectAll('circle')
-      .transition()
-      .duration(1200)
-      .delay((_d, i) => 2000 + i * 10)
-      .attrTween('r', (d) => {
-        console.log('tweenr', d);
-        let i = d3.interpolate(0, d.radius);
-        return function (t) {
-          return (d.r = i(t));
-        };
-      });
+    console.log('fDG', this.data, this.graph);
+
+    // this.simulation.nodes()[5].y = 100;
+
+    const simulation = d3
+      .forceSimulation(this.data)
+      .alphaDecay(0.15)
+      .force('charge', d3.forceManyBody().strength(-1))
+      .force('xPos', d3.forceX((d) => d.x).strength(1))
+      .force('yPos', d3.forceY((d) => d.y).strength(1));
+
+    // this.nodes = simulation.nodes();
+    // this.nodes.forEach((node) => node.offset = -150);
+    simulation.nodes(this.data).on('tick', () => {
+      this.ticked(simulation);
+      set(this, 'nodes', simulation.nodes());
+    });
+
+    // this.graph
+    //   .selectAll('circle')
+    //   .transition()
+    //   .duration(1200)
+    //   .delay((_d, i) => 2000 + i * 10)
+    //   .attrTween('r', (d) => {
+    //     console.log('tweenr', d);
+    //     let i = d3.interpolate(0, d.radius);
+    //     return function (t) {
+    //       return (d.r = i(t));
+    //     };
+    //   });
   }
 
   // ticked() {

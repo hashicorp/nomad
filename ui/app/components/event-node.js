@@ -2,12 +2,8 @@ import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 
 export default class EventNodeComponent extends Component {
-  get width() {
+  get r() {
     return this.args.xScale.bandwidth(this.args.data.Index);
-  }
-
-  get height() {
-    return this.args.yScale(0) - this.args.yScale(this.args.data.value);
   }
 
   get x() {
@@ -16,6 +12,7 @@ export default class EventNodeComponent extends Component {
 
   get y() {
     // return this.args.yScale(this.args.data.value);
-    return this.args.height / 2 - this.width / 2;
+    console.log('why', this.args.height, this.r, this.args.offset);
+    return this.args.height / 2 - this.r / 2 + this.args.offset;
   }
 }
