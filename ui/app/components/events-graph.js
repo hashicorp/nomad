@@ -23,41 +23,11 @@ export default class EventsGraphComponent extends Component {
   @tracked
   graph = null;
 
-  // // TODO: TEMP
-  // @tracked
-  // data = [
-  //   { name: 'E', value: 0.12702 },
-  //   { name: 'T', value: 0.09056 },
-  //   { name: 'A', value: 0.08167 },
-  //   { name: 'O', value: 0.07507 },
-  //   { name: 'I', value: 0.06966 },
-  //   { name: 'N', value: 0.06749 },
-  //   { name: 'S', value: 0.06327 },
-  //   { name: 'H', value: 0.06094 },
-  //   { name: 'R', value: 0.05987 },
-  //   { name: 'D', value: 0.04253 },
-  //   { name: 'L', value: 0.04025 },
-  //   { name: 'C', value: 0.02782 },
-  //   { name: 'U', value: 0.02758 },
-  //   { name: 'M', value: 0.02406 },
-  //   { name: 'W', value: 0.0236 },
-  //   { name: 'F', value: 0.02288 },
-  //   { name: 'G', value: 0.02015 },
-  //   { name: 'Y', value: 0.01974 },
-  //   { name: 'P', value: 0.01929 },
-  //   { name: 'B', value: 0.01492 },
-  //   { name: 'V', value: 0.00978 },
-  //   { name: 'K', value: 0.00772 },
-  //   { name: 'J', value: 0.00153 },
-  //   { name: 'X', value: 0.0015 },
-  //   { name: 'Q', value: 0.00095 },
-  //   { name: 'Z', value: 0.00074 },
-  // ];
-
   get data() {
     console.count('data');
-    return this.args.data.map((d) => {
-      d.x = 5;
+    return this.args.data.map((d, i) => {
+      // d.x = 1;
+      d.startY = 0;
       return d;
     });
   }
@@ -137,7 +107,7 @@ export default class EventsGraphComponent extends Component {
     svg.call(
       d3
         .zoom()
-        .scaleExtent([1, 8])
+        .scaleExtent([1, 20])
         .translateExtent(extent)
         .extent(extent)
         .on('zoom', this.refitDataToZoom)
@@ -150,6 +120,7 @@ export default class EventsGraphComponent extends Component {
   refitDataToZoom(event) {
     this.zoomTransform = event.transform;
     this.graph.selectAll('.x-axis').call(this.transformXAxis);
+    this.restartSimulation();
   }
 
   //#region Force Layout
@@ -204,43 +175,93 @@ export default class EventsGraphComponent extends Component {
 
   @action
   ticked(simulation) {
-    console.log('ticked', simulation.alpha());
+    // console.log('ticked', simulation.alpha());
     // let nodes = simulation.nodes();
     // this.nodes = nodes.map((node) => {
     //   set(node, 'offset', 150);
     //   return node;
     // });
 
-    simulation.nodes().forEach((node) => {
-      set(node, 'offset', 150 * simulation.alpha());
-      // TODO: demo
-      // set(node, 'y', this.height / 2 - this.xBand.bandwidth(node.Index) / 2 * (simulation.alpha() * 20));
-      // set(node, 'y', this.height / 2 - this.xBand.bandwidth(node.Index) / 2);
-      // set(node, 'x', this.xBand(this.args.data.Index));
-      // set(node, 'r', this.xBand.bandwidth(node.Index));
-    });
-    // .attr('cx', (d) => d.x).attr('cy', (d) => d.y);
+    this.graph
+      .selectAll('circle')
+      .data(this.data)
+      .each((d, i, g) => {
+        if (i === 10) {
+          // console.log("eye",d,d.y, g[i].getAttribute('cy'));
+        }
+        set(simulation.nodes()[i], 'yMod', d.y);
+        // set(simulation.nodes()[i], 'xMod', d.x);
+      });
   }
 
-  // get nodes() {
-  //   console.log('nodes recompute', this.simulation.nodes());
-  //   return this.simulation.nodes();
-  // }
-
   @tracked nodes;
+
+  @action restartSimulation() {
+    if (!this.simulation) {
+      this.forceDirectedGraph();
+    } else {
+      this.simulation.nodes(this.data);
+      this.simulation.alpha(0.01);
+      console.log('about to restart the', this.simulation);
+      this.simulation.restart();
+    }
+  }
+
+  @action
+  custom_collider(alpha) {
+    // console.log('collider',alpha, this.yBand);
+    let radius = this.graph.select('circle').node()
+      ? this.graph.select('circle').node().getAttribute('r')
+      : 0;
+    // console.log('radius', radius);
+    this.simulation.nodes().forEach((node, i, g) => {
+      // console.log('gee', node.Index, g[5]);
+      const peers = g.filter((d) => d.Index === node.Index);
+      // console.log("peers for", node.Index, peers);
+      if (peers.length > 1 && peers.indexOf(node) > 0) {
+        node.y = peers.indexOf(node) * (i % 2 ? -radius : +radius);
+        set(node, 'y', node.y);
+      } else {
+        set(node, 'y', 0);
+      }
+      // node.y = radius * i;
+    });
+    // let windowBorders = 20;
+    // let leftWindowBorders = 20;
+    // if (width > 500) {
+    //   windowBorders = 50;
+    //   leftWindowBorders = 100;
+    // }
+    // for (var i = 0, n = this.simulation.nodes().length; i < n; ++i) {
+    //   let curr_node = traits[i];
+    //   curr_node.x = Math.max(
+    //     curr_node.radius + leftWindowBorders,
+    //     Math.min(width - curr_node.radius - windowBorders, curr_node.x)
+    //   );
+    //   curr_node.y = Math.max(
+    //     curr_node.radius + windowBorders,
+    //     Math.min(height - curr_node.radius - windowBorders, curr_node.y)
+    //   );
+    // }
+  }
 
   @action
   forceDirectedGraph() {
     console.log('fDG', this.data, this.graph);
 
-    // this.simulation.nodes()[5].y = 100;
-
     const simulation = d3
       .forceSimulation(this.data)
-      .alphaDecay(0.15)
-      .force('charge', d3.forceManyBody().strength(-1))
-      .force('xPos', d3.forceX((d) => d.x).strength(1))
-      .force('yPos', d3.forceY((d) => d.y).strength(1));
+      .alpha(0.01)
+      // .alphaDecay(0.05)
+      // .force('charge', d3.forceManyBody().strength(1))
+      // .force("center", d3.forceCenter().strength(1))
+      // .force('xPos', d3.forceX((d) => d.x).strength(1))
+      .force('yPos', d3.forceY((d) => d.startY).strength(1))
+      .force('custom_collider', this.custom_collider);
+    // .force('collide', d3.forceCollide((d) => 5).strength(1));
+    // .force('collide', d3.forceCollide((d) => this.zoomTransform.k * 5).strength(10))
+
+    this.simulation = simulation;
 
     // this.nodes = simulation.nodes();
     // this.nodes.forEach((node) => node.offset = -150);

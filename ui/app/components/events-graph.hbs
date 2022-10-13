@@ -1,8 +1,9 @@
-<button type="button" {{on "click" this.runSimulation}}>RUN SIMULATION</button>
+<button type="button" {{on "click" this.restartSimulation}}>RUN SIMULATION</button>
 
 <svg class="events-graph"
   viewBox="0 0 {{this.width}} {{this.height}}"
   {{did-insert this.initializeGraph}}
+  {{did-update this.restartSimulation this.data}}
   {{window-resize this.onResize}}
 >
   {{!-- <defs>
@@ -22,6 +23,8 @@
   {{#each this.nodes as |node|}}
     <EventNode
       @data={{node}}
+      @yMod={{node.yMod}}
+      @xMod={{node.yMod}}
       @offset={{node.offset}}
       @xScale={{this.xBand}}
       @yScale={{this.yBand}}

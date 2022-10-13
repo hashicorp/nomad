@@ -10,9 +10,12 @@ export default class EventNodeComponent extends Component {
     return this.args.xScale(this.args.data.Index);
   }
 
+  @computed('args.data.yMod')
   get y() {
+    // console.log('yupdate', this.args.data.yMod);
+    // return this.args.vy;
     // return this.args.yScale(this.args.data.value);
-    console.log('why', this.args.height, this.r, this.args.offset);
-    return this.args.height / 2 - this.r / 2 + this.args.offset;
+    // console.log('why', this.args.height, this.r, this.args.offset);
+    return this.args.height / 2 - this.r / 2 + (this.args.data.yMod || 0);
   }
 }
