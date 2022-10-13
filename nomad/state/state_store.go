@@ -3925,9 +3925,9 @@ func (s *StateStore) AllocsByJobAndLastDeployment(ws memdb.WatchSet, namespace, 
 		alloc := raw.(*structs.Allocation)
 		// If the allocation belongs to a job with the same ID but a different
 		// create index and we are not getting all the allocations whose Jobs
-		// matches the same Job ID *and* it doesn't belong to the latest
+		// matches the same Job ID *or* it doesn't belong to the latest
 		// deployment then we skip it
-		if !anyCreateIndex && job != nil && alloc.Job.CreateIndex != job.CreateIndex && alloc.DeploymentID != latestDeployment.ID {
+		if !anyCreateIndex && job != nil && alloc.Job.CreateIndex != job.CreateIndex || alloc.DeploymentID != latestDeployment.ID {
 			continue
 		}
 		out = append(out, raw.(*structs.Allocation))
