@@ -86,7 +86,16 @@ export default class EventStreamComponent extends Component {
       });
   }
 
-  @alias('events.stream') stream;
+  // @alias('events.stream') stream;
+
+  @computed('args.enabledTopics.[]', 'events.stream')
+  get stream() {
+    console.log('enabledTopics', this.args.enabledTopics);
+    return this.events.stream.filter((event) => {
+      // console.log('ev', event.Topic, this.args.enabledTopics);
+      return this.args.enabledTopics.includes(event.Topic);
+    });
+  }
 
   get streamIndexes() {
     return this.stream.mapBy('Index').uniq();

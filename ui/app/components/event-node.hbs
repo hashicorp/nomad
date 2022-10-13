@@ -7,13 +7,15 @@
 ></rect> --}}
 
 <circle
-  class="event-node"
+  class="event-node {{if @data.highlight "highlight"}}  {{if @data.blur "blur"}}"
   cx={{this.x}}
   cy={{this.y}}
   r={{this.r}}
   data-type={{@data.Type}}
   data-topic={{@data.Topic}}
   {{action @logEvent @data}}
+  {{on "mouseenter" this.onMouseEnter}}
+  {{on "mouseleave" this.onMouseLeave}}
  />
 
  {{!-- {{log "NODE" @data.x}} --}}

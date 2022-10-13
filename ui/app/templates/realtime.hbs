@@ -1,5 +1,13 @@
 <Breadcrumb @crumb={{hash label="Realtime" args=(array "realtime")}} />
 <PageLayout>
-  <EventStream />
+  <div class="stream-selections">
+    {{#each this.topics as |topic|}}
+      <label class="{{topic.label}}">
+        <input type="checkbox" checked={{topic.value}} onchange={{action this.toggleTopic topic.label}} />
+        <span>{{topic.label}}</span>
+      </label>
+    {{/each}}
+  </div>
+  <EventStream @enabledTopics={{this.enabledTopics}} />
   {{outlet}}
 </PageLayout>

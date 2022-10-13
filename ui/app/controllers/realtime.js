@@ -2,13 +2,54 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 export default class RealtimeController extends Controller {
   @service token;
 
   @tracked stream = ['fork'];
+
+  @tracked topics = [
+    {
+      label: 'Evaluation',
+      value: true,
+    },
+    {
+      label: 'Allocation',
+      value: true,
+    },
+    {
+      label: 'Job',
+      value: true,
+    },
+    {
+      label: 'Node',
+      value: true,
+    },
+    {
+      label: 'Service',
+      value: true,
+    },
+    {
+      label: 'Deployment',
+      value: true,
+    },
+  ];
+
+  get enabledTopics() {
+    console.log('ET TOP');
+    return this.topics.filter((t) => t.value === true).map((t) => t.label);
+  }
+
+  @action toggleTopic(topic) {
+    console.log('toggling', topic);
+    this.topics.find((t) => t.label === topic).value = !this.topics.find(
+      (t) => t.label === topic
+    ).value;
+    this.topics = [...this.topics];
+  }
+
   // @tracked stream = "foo";
 
   // get stream() {

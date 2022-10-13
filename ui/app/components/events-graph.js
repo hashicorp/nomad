@@ -24,7 +24,7 @@ export default class EventsGraphComponent extends Component {
   graph = null;
 
   get data() {
-    console.count('data');
+    // console.count('data');
     return this.args.data.map((d, i) => {
       // d.x = 1;
       d.startY = 0;
@@ -299,4 +299,27 @@ export default class EventsGraphComponent extends Component {
   // }
 
   //#endregion Force Layout
+
+  @action highlightEvent(event) {
+    console.log('highlightEvent', event);
+    set(event, 'highlight', true);
+    this.nodes
+      .reject((d) => d.Key === event.Key)
+      .forEach((d) => {
+        set(d, 'blur', true);
+      });
+    this.nodes
+      .filter((d) => d.Key === event.Key)
+      .forEach((d) => {
+        set(d, 'highlight', true);
+      });
+  }
+  @action blurEvent(event) {
+    console.log('blurEvent', event);
+    set(event, 'highlight', false);
+    this.nodes.forEach((d) => {
+      set(d, 'highlight', false);
+      set(d, 'blur', false);
+    });
+  }
 }

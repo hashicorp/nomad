@@ -84,6 +84,13 @@
   }
 }
 
+$JobColour: #4e79a7;
+$NodeColour: #f28e2c;
+$EvaluationColour: #e15759;
+$DeploymentColour: #76b7b2;
+$AllocationColour: #59a14f;
+$ServiceColour: #edc949;
+
 // #region Events Graph
 .events-graph {
   width: 100%;
@@ -92,27 +99,74 @@
   .event-node {
     fill: none;
 
-    stroke-width: 2px;
+    stroke-width: 4px;
 
     &[data-topic='Job'] {
-      fill: blue;
+      fill: $JobColour;
     }
     &[data-topic='Node'] {
-      fill: brown;
+      fill: $NodeColour;
     }
     &[data-topic='Evaluation'] {
-      fill: purple;
+      fill: $EvaluationColour;
     }
     &[data-topic='Deployment'] {
-      fill: green;
+      fill: $DeploymentColour;
     }
     &[data-topic='Allocation'] {
-      fill: yellow;
+      fill: $AllocationColour;
     }
     &[data-topic='Service'] {
-      fill: orange;
+      fill: $ServiceColour;
+    }
+
+    &.blur {
+      opacity: 0.15;
+    }
+
+    &.highlight {
+      stroke: black;
     }
   }
 }
 
 // #endregion Events Graph
+
+.stream-selections {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(6, 1fr);
+  padding: 1rem;
+
+  label {
+    display: block;
+    padding: 0.25rem;
+    border: 1px solid;
+    cursor: pointer;
+
+    &.Job {
+      color: $JobColour;
+      border-color: $JobColour;
+    }
+    &.Node {
+      color: $NodeColour;
+      border-color: $NodeColour;
+    }
+    &.Evaluation {
+      color: $EvaluationColour;
+      border-color: $EvaluationColour;
+    }
+    &.Deployment {
+      color: $DeploymentColour;
+      border-color: $DeploymentColour;
+    }
+    &.Allocation {
+      color: $AllocationColour;
+      border-color: $AllocationColour;
+    }
+    &.Service {
+      color: $ServiceColour;
+      border-color: $ServiceColour;
+    }
+  }
+}

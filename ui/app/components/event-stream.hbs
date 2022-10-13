@@ -4,7 +4,7 @@
 
 <EventsGraph @data={{this.stream}} @logEvent={{this.logEvent}} />
 
-<section class="timeline" {{did-insert this.scrollToEnd}}
+{{!-- <section class="timeline" {{did-insert this.scrollToEnd}}
 {{did-update this.scrollToEnd this.streamIndexes this.clients}}
 >
   {{#each this.streamIndexes as |index|}}
@@ -46,7 +46,7 @@
       </footer>
     </div>
   {{/each}}
-</section>
+</section> --}}
 
 <section class="entities"
 {{did-insert this.fetchEntities}}>

@@ -1,5 +1,3 @@
-<button type="button" {{on "click" this.restartSimulation}}>RUN SIMULATION</button>
-
 <svg class="events-graph"
   viewBox="0 0 {{this.width}} {{this.height}}"
   {{did-insert this.initializeGraph}}
@@ -30,6 +28,8 @@
       @yScale={{this.yBand}}
       @height={{this.height}}
       @logEvent={{@logEvent}}
+      @highlightEvent={{this.highlightEvent}}
+      @blurEvent={{this.blurEvent}}
     />
   {{/each}}
   </g>
