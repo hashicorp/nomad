@@ -58,6 +58,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/allocations"):
 		jobName := strings.TrimSuffix(path, "/allocations")
 		return s.jobAllocations(resp, req, jobName)
+	case strings.HasSuffix(path, "/allocations/latestDeployment"):
+		jobName := strings.TrimSuffix(path, "/allocations/latestDeployment")
+		return s.jobAllocationsForLastDeployment(resp, req, jobName)
 	case strings.HasSuffix(path, "/evaluations"):
 		jobName := strings.TrimSuffix(path, "/evaluations")
 		return s.jobEvaluations(resp, req, jobName)
@@ -232,6 +235,37 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	args := structs.JobSpecificRequest{
 		JobID: jobName,
 		All:   allAllocs,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobAllocationsResponse
+	if err := s.agent.RPC("Job.Allocations", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Allocations == nil {
+		out.Allocations = make([]*structs.AllocListStub, 0)
+	}
+	for _, alloc := range out.Allocations {
+		alloc.SetEventDisplayMessages()
+	}
+	return out.Allocations, nil
+}
+
+func (s *HTTPServer) jobAllocationsForLastDeployment(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
+
+	args := structs.JobSpecificRequest{
+		JobID:          jobName,
+		All:            allAllocs,
+		LastDeployment: true,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
