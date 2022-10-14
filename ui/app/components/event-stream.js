@@ -195,15 +195,13 @@ export default class EventStreamComponent extends Component {
   ];
 
   @action logEvent(event) {
-    console.log('loggin EVENT', event);
+    // console.log('loggin EVENT', event);
     this.activeEvent = event;
-    this.activeTimePeers = this.stream
-      .filterBy('Index', event.Index)
-      .without(event);
-    this.activeEntityPeers = this.stream
-      .filterBy('Key', event.Key)
-      .without(event);
-    console.log(this.activeTimePeers.length, this.activeEntityPeers.length);
+    this.activeTimePeers = this.stream.filterBy('Index', event.Index);
+    // .without(event);
+    this.activeEntityPeers = this.stream.filterBy('Key', event.Key);
+    // .without(event);
+    // console.log(this.activeTimePeers.length, this.activeEntityPeers.length);
     // console.clear();
     // const { Index, Topic, Type, Key, Payload, Namespace, FilterKeys } = event;
     // console.table({

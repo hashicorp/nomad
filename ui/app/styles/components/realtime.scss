@@ -187,3 +187,45 @@ $ServiceColour: #edc949;
     }
   }
 }
+
+.event-sidebar {
+  .peers {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-flow: wrap;
+
+    button {
+      &.Job {
+        color: $JobColour;
+        border-color: $JobColour;
+      }
+      &.Node {
+        color: $NodeColour;
+        border-color: $NodeColour;
+      }
+      &.Evaluation {
+        color: $EvaluationColour;
+        border-color: $EvaluationColour;
+      }
+      &.Deployment {
+        color: $DeploymentColour;
+        border-color: $DeploymentColour;
+      }
+      &.Allocation {
+        color: $AllocationColour;
+        border-color: $AllocationColour;
+      }
+      &.Service {
+        color: $ServiceColour;
+        border-color: $ServiceColour;
+      }
+    }
+
+    button.is-disabled {
+      border-color: #ddd !important;
+      color: #999 !important;
+      background: #ddd !important;
+    }
+  }
+}

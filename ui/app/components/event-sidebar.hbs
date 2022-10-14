@@ -11,7 +11,6 @@
         {{@event.Type}}
       </h1>
 			<button
-				data-test-close-service-sidebar
 				class="button is-borderless"
 				type="button"
 				{{on "click" @fns.closeSidebar}}
@@ -36,28 +35,32 @@
       </div>
     </div>
     <hr />
-    {{#if @timePeers.length}}
+    {{#if (gt @timePeers.length 1)}}
       <h2>Events at the same time</h2>
-      {{#each @timePeers as |peer|}}
-        <button
-          class="button is-info is-inverted"
-          type="button"
-          {{on "click" (fn @fns.logEvent peer)}}>
-          {{peer.Type}} (<em>{{peer.Key}}</em>)
-        </button>
-      {{/each}}
+      <div class="peers">
+        {{#each @timePeers as |peer|}}
+          <button
+            class="button is-info is-inverted peer {{peer.Topic}} {{if (eq peer @event) "is-disabled"}}"
+            type="button"
+            {{on "click" (fn @fns.logEvent peer)}}>
+            {{peer.Type}} (<em>{{peer.Key}}</em>)
+          </button>
+        {{/each}}
+      </div>
     {{/if}}
     <hr />
-    {{#if @entityPeers.length}}
+    {{#if (gt @entityPeers.length 1)}}
       <h2>Events on the same key, at a different time</h2>
-      {{#each @entityPeers as |peer|}}
-        <button
-          class="button is-info is-inverted"
-          type="button"
-          {{on "click" (fn @fns.logEvent peer)}}>
-          {{peer.Type}} (<em>Raft Index: {{peer.Index}}</em>)
-        </button>
-      {{/each}}
+      <div class="peers">
+        {{#each @entityPeers as |peer|}}
+          <button
+            class="button is-info is-inverted peer {{peer.Topic}} {{if (eq peer @event) "is-disabled"}}"
+            type="button"
+            {{on "click" (fn @fns.logEvent peer)}}>
+            {{peer.Type}} (<em>Raft Index: {{peer.Index}}</em>)
+          </button>
+        {{/each}}
+      </div>
     {{/if}}
   {{/if}}
 </div>
