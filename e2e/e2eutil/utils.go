@@ -1,9 +1,11 @@
 package e2eutil
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
+	"text/template"
 	"time"
 
 	api "github.com/hashicorp/nomad/api"
@@ -304,3 +306,59 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		require.NoError(t, err, "failed to wait on deployment")
 	})
 }
+
+// DumpEvals for a job. This is intended to be used during test development or
+// prior to exiting a test after an assertion failed.
+func DumpEvals(c *api.Client, jobID string) string {
+	evals, _, err := c.Jobs().Evaluations(jobID, nil)
+	if err != nil {
+		return fmt.Sprintf("error retrieving evals for job %q: %s", jobID, err)
+	}
+	if len(evals) == 0 {
+		return fmt.Sprintf("no evals found for job %q", jobID)
+	}
+	buf := bytes.NewBuffer(nil)
+	for i, e := range evals {
+		err := EvalTemplate.Execute(buf, map[string]interface{}{
+			"Index": i + 1,
+			"Total": len(evals),
+			"Eval":  e,
+		})
+		if err != nil {
+			fmt.Fprintf(buf, "error rendering eval: %s\n", err)
+		}
+	}
+	return buf.String()
+}
+
+var EvalTemplate = template.Must(template.New("dump_eval").Parse(
+	`{{.Index}}/{{.Total}} Job {{.Eval.JobID}} Eval {{.Eval.ID}}
+  Type:         {{.Eval.Type}}
+  TriggeredBy:  {{.Eval.TriggeredBy}}
+  Deployment:   {{.Eval.DeploymentID}}
+  Status:       {{.Eval.Status}} ({{.Eval.StatusDescription}})
+  NextEval:     {{.Eval.NextEval}}
+  PrevEval:     {{.Eval.PreviousEval}}
+  BlockedEval:  {{.Eval.BlockedEval}}
+  {{- range $k, $v := .Eval.FailedTGAllocs}}
+    Failed Group: {{$k}}
+      NodesEvaluated: {{$v.NodesEvaluated}}
+  		NodesFiltered:  {{$v.NodesFiltered}}
+  		NodesAvailable: {{range $dc, $n := $v.NodesAvailable}}{{$dc}}:{{$n}} {{end}}
+  		NodesExhausted: {{$v.NodesExhausted}}
+  		ClassFiltered:  {{len $v.ClassFiltered}}
+  		ConstraintFilt: {{len $v.ConstraintFiltered}}
+  		DimensionExhst: {{range $d, $n := $v.DimensionExhausted}}{{$d}}:{{$n}} {{end}}
+  		ResourcesExhst: {{range $r, $n := $v.ResourcesExhausted}}{{$r}}:{{$n}} {{end}}
+  		QuotaExhausted: {{range $i, $q := $v.QuotaExhausted}}{{$q}} {{end}}
+  		CoalescedFail:  {{$v.CoalescedFailures}}
+  		ScoreMetaDAta:  {{len $v.ScoreMetaData}}
+  		AllocationTime: {{$v.AllocationTime}}
+  {{- else}}
+   -- No placement failures --
+  {{- end}}
+  QueuedAllocs: {{range $k, $n := .Eval.QueuedAllocations}}{{$k}}:{{$n}} {{end}}
+  SnapshotIdx:  {{.Eval.SnapshotIndex}}
+  CreateIndex:  {{.Eval.CreateIndex}}
+  ModifyIndex:  {{.Eval.ModifyIndex}}
+`))
