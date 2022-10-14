@@ -227,6 +227,10 @@ export default class Job extends Model {
     return this.store.adapterFor('job').stop(this);
   }
 
+  purge() {
+    return this.store.adapterFor('job').purge(this);
+  }
+
   plan() {
     assert('A job must be parsed before planned', this._newDefinitionJSON);
     return this.store.adapterFor('job').plan(this);
