@@ -182,7 +182,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Check if we need to setup a heartbeat
 	if !args.Node.TerminalStatus() {
-		ttl, err := n.srv.resetHeartbeatTimer(args.Node.ID)
+		ttl, err := n.srv.nodeHeartbeat.ResetTimer(args.Node.ID)
 		if err != nil {
 			n.logger.Error("heartbeat reset failed", "error", err)
 			return err
@@ -377,7 +377,7 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 		nodeID := node.ID
 
 		// Clear the heartbeat timer if any
-		n.srv.clearHeartbeatTimer(nodeID)
+		_ = n.srv.nodeHeartbeat.ClearTimer(nodeID)
 
 		// Create the evaluations for this node
 		evalIDs, evalIndex, err := n.createNodeEvals(node, index)
@@ -556,7 +556,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		}
 
 	default:
-		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
+		ttl, err := n.srv.nodeHeartbeat.ResetTimer(args.NodeID)
 		if err != nil {
 			n.logger.Error("heartbeat reset failed", "error", err)
 			return err

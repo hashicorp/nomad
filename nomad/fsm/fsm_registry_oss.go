@@ -1,7 +1,7 @@
 //go:build !ent
 // +build !ent
 
-package nomad
+package fsm
 
 import (
 	"github.com/hashicorp/go-msgpack/codec"
@@ -9,12 +9,12 @@ import (
 )
 
 // registerLogAppliers is a no-op for open-source only FSMs.
-func (n *nomadFSM) registerLogAppliers() {}
+func (n *FSM) registerLogAppliers() {}
 
 // registerSnapshotRestorers is a no-op for open-source only FSMs.
-func (n *nomadFSM) registerSnapshotRestorers() {}
+func (n *FSM) registerSnapshotRestorers() {}
 
 // persistEnterpriseTables is a no-op for open-source only FSMs.
-func (s *nomadSnapshot) persistEnterpriseTables(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+func (s *nomadSnapshot) persistEnterpriseTables(_ raft.SnapshotSink, _ *codec.Encoder) error {
 	return nil
 }

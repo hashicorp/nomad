@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/evalbroker"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -373,7 +374,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// This MUST be done after the initial barrier to ensure the latest Nodes
 	// are available to be initialized. Otherwise initialization may use stale
 	// data.
-	if err := s.initializeHeartbeatTimers(); err != nil {
+	if err := s.nodeHeartbeat.InitializeTimers(); err != nil {
 		s.logger.Error("heartbeat timer setup failed", "error", err)
 		return err
 	}
@@ -899,7 +900,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			return
 		default:
 			// Scan for a failed evaluation
-			eval, token, err := s.evalBroker.Dequeue([]string{failedQueue}, time.Second)
+			eval, token, err := s.evalBroker.Dequeue([]string{evalbroker.FailedQueue}, time.Second)
 			if err != nil {
 				return
 			}
@@ -1200,7 +1201,7 @@ func (s *Server) revokeLeadership() error {
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
-	if err := s.clearAllHeartbeatTimers(); err != nil {
+	if err := s.nodeHeartbeat.ClearAllTimers(); err != nil {
 		s.logger.Error("clearing heartbeat timers failed", "error", err)
 		return err
 	}

@@ -1,4 +1,4 @@
-package nomad
+package periodic
 
 import (
 	"container/heap"
@@ -13,15 +13,21 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// PeriodicDispatch is used to track and launch periodic jobs. It maintains the
-// set of periodic jobs and creates derived jobs and evaluations per
-// instantiation which is determined by the periodic spec.
-type PeriodicDispatch struct {
-	dispatcher JobEvalDispatcher
-	enabled    bool
+// Dispatcher is used to track and launch periodic jobs. It maintains the set of
+// periodic jobs and creates derived jobs and evaluations per instantiation
+// which is determined by the periodic spec.
+type Dispatcher struct {
+	enabled bool
+
+	//
+	state *state.StateStore
+
+	//
+	raftApplyFn func(structs.MessageType, interface{}) (interface{}, uint64, error)
 
 	tracked map[structs.NamespacedID]*structs.Job
 	heap    *periodicHeap
@@ -32,20 +38,26 @@ type PeriodicDispatch struct {
 	l        sync.RWMutex
 }
 
-// JobEvalDispatcher is an interface to submit jobs and have evaluations created
-// for them.
-type JobEvalDispatcher interface {
-	// DispatchJob takes a job a new, untracked job and creates an evaluation
-	// for it and returns the eval.
-	DispatchJob(job *structs.Job) (*structs.Evaluation, error)
+// NewDispatcher returns a periodic dispatcher that is used to track and launch periodic
+// jobs.
+func NewDispatcher(
+	logger log.Logger,
+	raftApplyFn func(structs.MessageType, interface{}) (interface{}, uint64, error)) *Dispatcher {
 
-	// RunningChildren returns whether the passed job has any running children.
-	RunningChildren(job *structs.Job) (bool, error)
+	return &Dispatcher{
+		raftApplyFn: raftApplyFn,
+		tracked:     make(map[structs.NamespacedID]*structs.Job),
+		heap:        NewPeriodicHeap(),
+		updateCh:    make(chan struct{}, 1),
+		logger:      logger.Named("periodic"),
+	}
 }
 
-// DispatchJob creates an evaluation for the passed job and commits both the
+func (d *Dispatcher) SetStateStore(s *state.StateStore) { d.state = s }
+
+// dispatchJob creates an evaluation for the passed job and commits both the
 // evaluation and the job to the raft log. It returns the eval.
-func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
+func (d *Dispatcher) dispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:          uuid.Generate(),
@@ -68,7 +80,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 			Namespace: job.Namespace,
 		},
 	}
-	fsmErr, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	fsmErr, index, err := d.raftApplyFn(structs.JobRegisterRequestType, req)
 	if err, ok := fsmErr.(error); ok && err != nil {
 		return nil, err
 	}
@@ -79,40 +91,19 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	eval.CreateIndex = index
 	eval.ModifyIndex = index
 
-	// COMPAT(1.1): Remove in 1.1.0 - 0.12.1 introduced atomic eval job registration
-	if !ServersMeetMinimumVersion(s.Members(), minJobRegisterAtomicEvalVersion, false) {
-		// Create a new evaluation
-		eval.JobModifyIndex = index
-		update := &structs.EvalUpdateRequest{
-			Evals: []*structs.Evaluation{eval},
-		}
-
-		// Commit this evaluation via Raft
-		// There is a risk of partial failure where the JobRegister succeeds
-		// but that the EvalUpdate does not, before Nomad 0.12.1
-		_, evalIndex, err := s.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			return nil, err
-		}
-
-		// Update its indexes.
-		eval.CreateIndex = evalIndex
-		eval.ModifyIndex = evalIndex
-	}
-
 	return eval, nil
 }
 
 // RunningChildren checks whether the passed job has any running children.
-func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
-	state, err := s.fsm.State().Snapshot()
+func (d *Dispatcher) runningChildren(job *structs.Job) (bool, error) {
+	stateSnapshot, err := d.state.Snapshot()
 	if err != nil {
 		return false, err
 	}
 
 	ws := memdb.NewWatchSet()
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
-	iter, err := state.JobsByIDPrefix(ws, job.Namespace, prefix)
+	iter, err := stateSnapshot.JobsByIDPrefix(ws, job.Namespace, prefix)
 	if err != nil {
 		return false, err
 	}
@@ -127,7 +118,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		}
 
 		// Get the childs evaluations.
-		evals, err := state.EvalsByJob(ws, child.Namespace, child.ID)
+		evals, err := stateSnapshot.EvalsByJob(ws, child.Namespace, child.ID)
 		if err != nil {
 			return false, err
 		}
@@ -138,7 +129,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 				return true, nil
 			}
 
-			allocs, err := state.AllocsByEval(ws, eval.ID)
+			allocs, err := stateSnapshot.AllocsByEval(ws, eval.ID)
 			if err != nil {
 				return false, err
 			}
@@ -155,47 +146,35 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 	return false, nil
 }
 
-// NewPeriodicDispatch returns a periodic dispatcher that is used to track and
-// launch periodic jobs.
-func NewPeriodicDispatch(logger log.Logger, dispatcher JobEvalDispatcher) *PeriodicDispatch {
-	return &PeriodicDispatch{
-		dispatcher: dispatcher,
-		tracked:    make(map[structs.NamespacedID]*structs.Job),
-		heap:       NewPeriodicHeap(),
-		updateCh:   make(chan struct{}, 1),
-		logger:     logger.Named("periodic"),
-	}
-}
-
 // SetEnabled is used to control if the periodic dispatcher is enabled. It
 // should only be enabled on the active leader. Disabling an active dispatcher
 // will stop any launched go routine and flush the dispatcher.
-func (p *PeriodicDispatch) SetEnabled(enabled bool) {
-	p.l.Lock()
-	defer p.l.Unlock()
-	wasRunning := p.enabled
-	p.enabled = enabled
+func (d *Dispatcher) SetEnabled(enabled bool) {
+	d.l.Lock()
+	defer d.l.Unlock()
+	wasRunning := d.enabled
+	d.enabled = enabled
 
 	// If we are transitioning from enabled to disabled, stop the daemon and
 	// flush.
 	if !enabled && wasRunning {
-		p.stopFn()
-		p.flush()
+		d.stopFn()
+		d.flush()
 	} else if enabled && !wasRunning {
 		// If we are transitioning from disabled to enabled, run the daemon.
 		ctx, cancel := context.WithCancel(context.Background())
-		p.stopFn = cancel
-		go p.run(ctx, p.updateCh)
+		d.stopFn = cancel
+		go d.run(ctx, d.updateCh)
 	}
 }
 
 // Tracked returns the set of tracked job IDs.
-func (p *PeriodicDispatch) Tracked() []*structs.Job {
-	p.l.RLock()
-	defer p.l.RUnlock()
-	tracked := make([]*structs.Job, len(p.tracked))
+func (d *Dispatcher) Tracked() []*structs.Job {
+	d.l.RLock()
+	defer d.l.RUnlock()
+	tracked := make([]*structs.Job, len(d.tracked))
 	i := 0
-	for _, job := range p.tracked {
+	for _, job := range d.tracked {
 		tracked[i] = job
 		i++
 	}
@@ -205,12 +184,12 @@ func (p *PeriodicDispatch) Tracked() []*structs.Job {
 // Add begins tracking of a periodic job. If it is already tracked, it acts as
 // an update to the jobs periodic spec. The method returns whether the job was
 // added and any error that may have occurred.
-func (p *PeriodicDispatch) Add(job *structs.Job) error {
-	p.l.Lock()
-	defer p.l.Unlock()
+func (d *Dispatcher) Add(job *structs.Job) error {
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	// Do nothing if not enabled
-	if !p.enabled {
+	if !d.enabled {
 		return nil
 	}
 
@@ -222,10 +201,10 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		ID:        job.ID,
 		Namespace: job.Namespace,
 	}
-	_, tracked := p.tracked[tuple]
+	_, tracked := d.tracked[tuple]
 	if disabled {
 		if tracked {
-			p.removeLocked(tuple)
+			d.removeLocked(tuple)
 		}
 
 		// If the job is disabled and we aren't tracking it, do nothing.
@@ -233,26 +212,26 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	}
 
 	// Add or update the job.
-	p.tracked[tuple] = job
+	d.tracked[tuple] = job
 	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
 	if err != nil {
 		return fmt.Errorf("failed adding job %s: %v", job.NamespacedID(), err)
 	}
 	if tracked {
-		if err := p.heap.Update(job, next); err != nil {
+		if err := d.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
 		}
-		p.logger.Debug("updated periodic job", "job", job.NamespacedID())
+		d.logger.Debug("updated periodic job", "job", job.NamespacedID())
 	} else {
-		if err := p.heap.Push(job, next); err != nil {
+		if err := d.heap.Push(job, next); err != nil {
 			return fmt.Errorf("failed to add job %v: %v", job.ID, err)
 		}
-		p.logger.Debug("registered periodic job", "job", job.NamespacedID())
+		d.logger.Debug("registered periodic job", "job", job.NamespacedID())
 	}
 
 	// Signal an update.
 	select {
-	case p.updateCh <- struct{}{}:
+	case d.updateCh <- struct{}{}:
 	default:
 	}
 
@@ -261,10 +240,10 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 // Remove stops tracking the passed job. If the job is not tracked, it is a
 // no-op.
-func (p *PeriodicDispatch) Remove(namespace, jobID string) error {
-	p.l.Lock()
-	defer p.l.Unlock()
-	return p.removeLocked(structs.NamespacedID{
+func (d *Dispatcher) Remove(namespace, jobID string) error {
+	d.l.Lock()
+	defer d.l.Unlock()
+	return d.removeLocked(structs.NamespacedID{
 		ID:        jobID,
 		Namespace: namespace,
 	})
@@ -272,40 +251,40 @@ func (p *PeriodicDispatch) Remove(namespace, jobID string) error {
 
 // Remove stops tracking the passed job. If the job is not tracked, it is a
 // no-op. It assumes this is called while a lock is held.
-func (p *PeriodicDispatch) removeLocked(jobID structs.NamespacedID) error {
+func (d *Dispatcher) removeLocked(jobID structs.NamespacedID) error {
 	// Do nothing if not enabled
-	if !p.enabled {
+	if !d.enabled {
 		return nil
 	}
 
-	job, tracked := p.tracked[jobID]
+	job, tracked := d.tracked[jobID]
 	if !tracked {
 		return nil
 	}
 
-	delete(p.tracked, jobID)
-	if err := p.heap.Remove(job); err != nil {
+	delete(d.tracked, jobID)
+	if err := d.heap.Remove(job); err != nil {
 		return fmt.Errorf("failed to remove tracked job %q (%s): %v", jobID.ID, jobID.Namespace, err)
 	}
 
 	// Signal an update.
 	select {
-	case p.updateCh <- struct{}{}:
+	case d.updateCh <- struct{}{}:
 	default:
 	}
 
-	p.logger.Debug("deregistered periodic job", "job", job.NamespacedID())
+	d.logger.Debug("deregistered periodic job", "job", job.NamespacedID())
 	return nil
 }
 
 // ForceRun causes the periodic job to be evaluated immediately and returns the
 // subsequent eval.
-func (p *PeriodicDispatch) ForceRun(namespace, jobID string) (*structs.Evaluation, error) {
-	p.l.Lock()
+func (d *Dispatcher) ForceRun(namespace, jobID string) (*structs.Evaluation, error) {
+	d.l.Lock()
 
 	// Do nothing if not enabled
-	if !p.enabled {
-		p.l.Unlock()
+	if !d.enabled {
+		d.l.Unlock()
 		return nil, fmt.Errorf("periodic dispatch disabled")
 	}
 
@@ -313,35 +292,35 @@ func (p *PeriodicDispatch) ForceRun(namespace, jobID string) (*structs.Evaluatio
 		ID:        jobID,
 		Namespace: namespace,
 	}
-	job, tracked := p.tracked[tuple]
+	job, tracked := d.tracked[tuple]
 	if !tracked {
-		p.l.Unlock()
+		d.l.Unlock()
 		return nil, fmt.Errorf("can't force run non-tracked job %q (%s)", jobID, namespace)
 	}
 
-	p.l.Unlock()
-	return p.createEval(job, time.Now().In(job.Periodic.GetLocation()))
+	d.l.Unlock()
+	return d.createEval(job, time.Now().In(job.Periodic.GetLocation()))
 }
 
 // shouldRun returns whether the long lived run function should run.
-func (p *PeriodicDispatch) shouldRun() bool {
-	p.l.RLock()
-	defer p.l.RUnlock()
-	return p.enabled
+func (d *Dispatcher) shouldRun() bool {
+	d.l.RLock()
+	defer d.l.RUnlock()
+	return d.enabled
 }
 
 // run is a long-lived function that waits till a job's periodic spec is met and
 // then creates an evaluation to run the job.
-func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
+func (d *Dispatcher) run(ctx context.Context, updateCh <-chan struct{}) {
 	var launchCh <-chan time.Time
-	for p.shouldRun() {
-		job, launch := p.nextLaunch()
+	for d.shouldRun() {
+		job, launch := d.nextLaunch()
 		if launch.IsZero() {
 			launchCh = nil
 		} else {
 			launchDur := launch.Sub(time.Now().In(job.Periodic.GetLocation()))
 			launchCh = time.After(launchDur)
-			p.logger.Debug("scheduled periodic job launch", "launch_delay", launchDur, "job", job.NamespacedID())
+			d.logger.Debug("scheduled periodic job launch", "launch_delay", launchDur, "job", job.NamespacedID())
 		}
 
 		select {
@@ -350,57 +329,57 @@ func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 		case <-updateCh:
 			continue
 		case <-launchCh:
-			p.dispatch(job, launch)
+			d.dispatch(job, launch)
 		}
 	}
 }
 
 // dispatch creates an evaluation for the job and updates its next launchtime
 // based on the passed launch time.
-func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
-	p.l.Lock()
+func (d *Dispatcher) dispatch(job *structs.Job, launchTime time.Time) {
+	d.l.Lock()
 
 	nextLaunch, err := job.Periodic.Next(launchTime)
 	if err != nil {
-		p.logger.Error("failed to parse next periodic launch", "job", job.NamespacedID(), "error", err)
-	} else if err := p.heap.Update(job, nextLaunch); err != nil {
-		p.logger.Error("failed to update next launch of periodic job", "job", job.NamespacedID(), "error", err)
+		d.logger.Error("failed to parse next periodic launch", "job", job.NamespacedID(), "error", err)
+	} else if err := d.heap.Update(job, nextLaunch); err != nil {
+		d.logger.Error("failed to update next launch of periodic job", "job", job.NamespacedID(), "error", err)
 	}
 
 	// If the job prohibits overlapping and there are running children, we skip
 	// the launch.
 	if job.Periodic.ProhibitOverlap {
-		running, err := p.dispatcher.RunningChildren(job)
+		running, err := d.runningChildren(job)
 		if err != nil {
-			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
-			p.l.Unlock()
+			d.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
+			d.l.Unlock()
 			return
 		}
 
 		if running {
-			p.logger.Debug("skipping launch of periodic job because job prohibits overlap", "job", job.NamespacedID())
-			p.l.Unlock()
+			d.logger.Debug("skipping launch of periodic job because job prohibits overlap", "job", job.NamespacedID())
+			d.l.Unlock()
 			return
 		}
 	}
 
-	p.logger.Debug(" launching job", "job", job.NamespacedID(), "launch_time", launchTime)
-	p.l.Unlock()
-	p.createEval(job, launchTime)
+	d.logger.Debug(" launching job", "job", job.NamespacedID(), "launch_time", launchTime)
+	d.l.Unlock()
+	d.createEval(job, launchTime)
 }
 
 // nextLaunch returns the next job to launch and when it should be launched. If
 // the next job can't be determined, an error is returned. If the dispatcher is
 // stopped, a nil job will be returned.
-func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time) {
+func (d *Dispatcher) nextLaunch() (*structs.Job, time.Time) {
 	// If there is nothing wait for an update.
-	p.l.RLock()
-	defer p.l.RUnlock()
-	if p.heap.Length() == 0 {
+	d.l.RLock()
+	defer d.l.RUnlock()
+	if d.heap.Length() == 0 {
 		return nil, time.Time{}
 	}
 
-	nextJob := p.heap.Peek()
+	nextJob := d.heap.Peek()
 	if nextJob == nil {
 		return nil, time.Time{}
 	}
@@ -410,15 +389,15 @@ func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time) {
 
 // createEval instantiates a job based on the passed periodic job and submits an
 // evaluation for it. This should not be called with the lock held.
-func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) (*structs.Evaluation, error) {
-	derived, err := p.deriveJob(periodicJob, time)
+func (d *Dispatcher) createEval(periodicJob *structs.Job, time time.Time) (*structs.Evaluation, error) {
+	derived, err := d.deriveJob(periodicJob, time)
 	if err != nil {
 		return nil, err
 	}
 
-	eval, err := p.dispatcher.DispatchJob(derived)
+	eval, err := d.dispatchJob(derived)
 	if err != nil {
-		p.logger.Error("failed to dispatch job", "job", periodicJob.NamespacedID(), "error", err)
+		d.logger.Error("failed to dispatch job", "job", periodicJob.NamespacedID(), "error", err)
 		return nil, err
 	}
 
@@ -427,16 +406,16 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 
 // deriveJob instantiates a new job based on the passed periodic job and the
 // launch time.
-func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
+func (d *Dispatcher) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived *structs.Job, err error) {
 
 	// Have to recover in case the job copy panics.
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Error("deriving child job from periodic job failed; deregistering from periodic runner",
+			d.logger.Error("deriving child job from periodic job failed; deregistering from periodic runner",
 				"job", periodicJob.NamespacedID(), "error", r)
 
-			p.Remove(periodicJob.Namespace, periodicJob.ID)
+			d.Remove(periodicJob.Namespace, periodicJob.ID)
 			derived = nil
 			err = fmt.Errorf("Failed to create a copy of the periodic job %q (%s): %v",
 				periodicJob.ID, periodicJob.Namespace, r)
@@ -447,7 +426,7 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	// non-periodic in initial status
 	derived = periodicJob.Copy()
 	derived.ParentID = periodicJob.ID
-	derived.ID = p.derivedJobID(periodicJob, time)
+	derived.ID = d.derivedJobID(periodicJob, time)
 	derived.Name = derived.ID
 	derived.Periodic = nil
 	derived.Status = ""
@@ -457,13 +436,13 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 
 // deriveJobID returns a job ID based on the parent periodic job and the launch
 // time.
-func (p *PeriodicDispatch) derivedJobID(periodicJob *structs.Job, time time.Time) string {
+func (d *Dispatcher) derivedJobID(periodicJob *structs.Job, time time.Time) string {
 	return fmt.Sprintf("%s%s%d", periodicJob.ID, structs.PeriodicLaunchSuffix, time.Unix())
 }
 
 // LaunchTime returns the launch time of the job. This is only valid for
 // jobs created by PeriodicDispatch and will otherwise return an error.
-func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
+func (d *Dispatcher) LaunchTime(jobID string) (time.Time, error) {
 	index := strings.LastIndex(jobID, structs.PeriodicLaunchSuffix)
 	if index == -1 {
 		return time.Time{}, fmt.Errorf("couldn't parse launch time from eval: %v", jobID)
@@ -478,11 +457,11 @@ func (p *PeriodicDispatch) LaunchTime(jobID string) (time.Time, error) {
 }
 
 // flush clears the state of the PeriodicDispatcher
-func (p *PeriodicDispatch) flush() {
-	p.updateCh = make(chan struct{}, 1)
-	p.tracked = make(map[structs.NamespacedID]*structs.Job)
-	p.heap = NewPeriodicHeap()
-	p.stopFn = nil
+func (d *Dispatcher) flush() {
+	d.updateCh = make(chan struct{}, 1)
+	d.tracked = make(map[structs.NamespacedID]*structs.Job)
+	d.heap = NewPeriodicHeap()
+	d.stopFn = nil
 }
 
 // periodicHeap wraps a heap and gives operations other than Push/Pop.

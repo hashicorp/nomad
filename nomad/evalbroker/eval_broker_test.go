@@ -1,4 +1,4 @@
-package nomad
+package evalbroker
 
 import (
 	"encoding/json"

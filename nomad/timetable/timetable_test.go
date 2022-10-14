@@ -1,4 +1,4 @@
-package nomad
+package timetable
 
 import (
 	"bytes"

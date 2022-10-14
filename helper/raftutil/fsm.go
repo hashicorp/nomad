@@ -2,13 +2,16 @@ package raftutil
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/blockedevals"
+	"github.com/hashicorp/nomad/nomad/evalbroker"
+	"github.com/hashicorp/nomad/nomad/fsm"
+	"github.com/hashicorp/nomad/nomad/periodic"
 	"io"
 	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -20,7 +23,7 @@ type nomadFSM interface {
 	raft.FSM
 	State() *state.StateStore
 	Restore(io.ReadCloser) error
-	RestoreWithFilter(io.ReadCloser, *nomad.FSMFilter) error
+	RestoreWithFilter(io.ReadCloser, *fsm.Filter) error
 }
 
 type FSMHelper struct {
@@ -74,14 +77,15 @@ func NewFSM(p string) (*FSMHelper, error) {
 
 func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 	// use dummy non-enabled FSM dependencies
-	periodicDispatch := nomad.NewPeriodicDispatch(logger, nil)
-	blockedEvals := nomad.NewBlockedEvals(nil, logger)
-	evalBroker, err := nomad.NewEvalBroker(1, 1, 1, 1)
+	periodicDispatch := periodic.NewDispatcher(logger, nil)
+	periodicDispatch.SetStateStore(nil)
+	blockedEvals := blockedevals.New(nil, logger)
+	evalBroker, err := evalbroker.New(1, 1, 1, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	fsmConfig := &nomad.FSMConfig{
+	fsmConfig := &fsm.Config{
 		EvalBroker: evalBroker,
 		Periodic:   periodicDispatch,
 		Blocked:    blockedEvals,
@@ -89,7 +93,7 @@ func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 		Region:     "default",
 	}
 
-	return nomad.NewFSM(fsmConfig)
+	return fsm.NewFSM(fsmConfig)
 }
 
 func (f *FSMHelper) Close() {

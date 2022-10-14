@@ -1,4 +1,4 @@
-package nomad
+package evalbroker
 
 import (
 	"container/heap"
@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	// failedQueue is the queue we add Evaluations to once
+	// FailedQueue is the queue we add Evaluations to once
 	// they've reached the deliveryLimit. This allows the leader to
 	// set the status to failed.
-	failedQueue = "_failed"
+	FailedQueue = "_failed"
 )
 
 var (
@@ -51,7 +51,7 @@ type EvalBroker struct {
 	deliveryLimit int
 
 	enabled         bool
-	enabledNotifier *broker.GenericNotifier
+	EnabledNotifier *broker.GenericNotifier
 
 	stats *BrokerStats
 
@@ -120,14 +120,13 @@ type unackEval struct {
 // priority queue
 type PendingEvaluations []*structs.Evaluation
 
-// NewEvalBroker creates a new evaluation broker. This is parameterized
-// with the timeout used for messages that are not acknowledged before we
-// assume a Nack and attempt to redeliver as well as the deliveryLimit
-// which prevents a failing eval from being endlessly delivered. The
-// initialNackDelay is the delay before making a Nacked evaluation available
-// again for the first Nack and subsequentNackDelay is the compounding delay
-// after the first Nack.
-func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
+// New creates a new evaluation broker. This is parameterized with the timeout
+// used for messages that are not acknowledged before we assume a Nack and
+// attempt to redeliver as well as the deliveryLimit which prevents a failing
+// eval from being endlessly delivered. The initialNackDelay is the delay
+// before making a Nacked evaluation available again for the first Nack and
+// subsequentNackDelay is the compounding delay after the first Nack.
+func New(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
 	if timeout < 0 {
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
@@ -135,7 +134,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		nackTimeout:          timeout,
 		deliveryLimit:        deliveryLimit,
 		enabled:              false,
-		enabledNotifier:      broker.NewGenericNotifier(),
+		EnabledNotifier:      broker.NewGenericNotifier(),
 		stats:                new(BrokerStats),
 		evals:                make(map[string]int),
 		jobEvals:             make(map[structs.NamespacedID]string),
@@ -183,7 +182,7 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 	}
 
 	// Notify all subscribers to state changes of the broker enabled value.
-	b.enabledNotifier.Notify("eval broker enabled status changed to " + strconv.FormatBool(enabled))
+	b.EnabledNotifier.Notify("eval broker enabled status changed to " + strconv.FormatBool(enabled))
 }
 
 // Enqueue is used to enqueue a new evaluation
@@ -569,7 +568,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	b.stats.TotalUnacked -= 1
 	queue := unack.Eval.Type
 	if b.evals[evalID] > b.deliveryLimit {
-		queue = failedQueue
+		queue = FailedQueue
 	}
 	bySched := b.stats.ByScheduler[queue]
 	bySched.Unacked -= 1
@@ -637,7 +636,7 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	// Check if we've hit the delivery limit, and re-enqueue
 	// in the failedQueue
 	if dequeues := b.evals[evalID]; dequeues >= b.deliveryLimit {
-		b.enqueueLocked(unack.Eval, failedQueue)
+		b.enqueueLocked(unack.Eval, FailedQueue)
 	} else {
 		e := unack.Eval
 		e.Wait = b.nackReenqueueDelay(e, dequeues)

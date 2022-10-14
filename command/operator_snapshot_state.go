@@ -3,12 +3,12 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/fsm"
 	"os"
 	"strings"
 
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/helper/raftutil"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/posener/complete"
 )
 
@@ -61,7 +61,7 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	filter, err := nomad.NewFSMFilter(filterExpr.String())
+	filter, err := fsm.NewFilter(filterExpr.String())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid filter expression %q: %s", filterExpr, err))
 		return 1

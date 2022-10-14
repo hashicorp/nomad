@@ -36,8 +36,14 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/nomad/blockedevals"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
+	"github.com/hashicorp/nomad/nomad/evalbroker"
+	"github.com/hashicorp/nomad/nomad/fsm"
+	"github.com/hashicorp/nomad/nomad/heartbeat"
+	"github.com/hashicorp/nomad/nomad/periodic"
+	nomadRaft "github.com/hashicorp/nomad/nomad/raft"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -106,7 +112,7 @@ type Server struct {
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
 	raft          *raft.Raft
-	raftLayer     *RaftLayer
+	raftLayer     *nomadRaft.RPCLayer
 	raftStore     *raftboltdb.BoltStore
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
@@ -123,7 +129,7 @@ type Server struct {
 	autopilot *autopilot.Autopilot
 
 	// fsm is the state machine used with Raft
-	fsm *nomadFSM
+	fsm *fsm.FSM
 
 	// rpcListener is used to listen for incoming connections
 	rpcListener net.Listener
@@ -192,11 +198,11 @@ type Server struct {
 
 	// BlockedEvals is used to manage evaluations that are blocked on node
 	// capacity changes.
-	blockedEvals *BlockedEvals
+	blockedEvals *blockedevals.BlockedEvals
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
-	evalBroker *EvalBroker
+	evalBroker *evalbroker.EvalBroker
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when
@@ -225,15 +231,15 @@ type Server struct {
 	encrypter *Encrypter
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
-	periodicDispatcher *PeriodicDispatch
+	periodicDispatcher *periodic.Dispatcher
 
 	// planner is used to mange the submitted allocation plans that are waiting
 	// to be accessed by the leader
 	*planner
 
-	// nodeHeartbeater is used to track expiration times of node heartbeats. If it
+	// nodeHeartbeat is used to track expiration times of node heartbeats. If it
 	// detects an expired node, the node status is updated to be 'down'.
-	*nodeHeartbeater
+	nodeHeartbeat heartbeat.Heartbeat
 
 	// consulCatalog is used for discovering other Nomad Servers via Consul
 	consulCatalog consul.CatalogAPI
@@ -316,7 +322,7 @@ type endpoints struct {
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
 
 	// Create an eval broker
-	evalBroker, err := NewEvalBroker(
+	evalBroker, err := evalbroker.New(
 		config.EvalNackTimeout,
 		config.EvalNackInitialReenqueueDelay,
 		config.EvalNackSubsequentReenqueueDelay,
@@ -362,7 +368,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		readyForConsistentReads: &atomic.Bool{},
 		eventCh:                 make(chan serf.Event, 256),
 		evalBroker:              evalBroker,
-		blockedEvals:            NewBlockedEvals(evalBroker, logger),
+		blockedEvals:            blockedevals.New(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
 		aclCache:                aclCache,
 		workersEventCh:          make(chan interface{}, 1),
@@ -380,12 +386,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, err
 	}
 	s.planner = planner
-
-	// Create the node heartbeater
-	s.nodeHeartbeater = newNodeHeartbeater(s)
-
-	// Create the periodic dispatcher for launching periodic jobs.
-	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
@@ -414,6 +414,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 	s.encrypter = encrypter
 
+	// Create the periodic dispatcher for launching periodic jobs.
+	s.periodicDispatcher = periodic.NewDispatcher(s.logger, s.raftApply)
+
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
@@ -427,6 +430,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to start Raft", "error", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
+
+	s.periodicDispatcher.SetStateStore(s.fsm.State())
 
 	// Initialize the wan Serf
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
@@ -461,9 +466,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, fmt.Errorf("failed to create volume watcher: %v", err)
 	}
 
+	heartbeatConfig := heartbeat.NodeHeartBeaterConfig{
+		Region:                 s.Region(),
+		MaxHeartbeatsPerSecond: s.config.MaxHeartbeatsPerSecond,
+		FailoverHeartbeatTTL:   s.config.FailoverHeartbeatTTL,
+		MinHeartbeatTTL:        s.config.MinHeartbeatTTL,
+		HeartbeatGrace:         s.config.HeartbeatGrace,
+		Logger:                 s.logger,
+		NodeStatusRPCFn:        s.staticEndpoints.Node.UpdateStatus,
+		State:                  s.fsm.State(),
+		IsLeaderFn:             s.IsLeader,
+	}
+	s.nodeHeartbeat = heartbeat.NewNodeHeartBeater(&heartbeatConfig)
+
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
-	go s.evalBroker.enabledNotifier.Run(s.shutdownCh)
+	go s.evalBroker.EnabledNotifier.Run(s.shutdownCh)
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()
@@ -498,7 +516,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	go s.vault.EmitStats(time.Second, s.shutdownCh)
 
 	// Emit metrics
-	go s.heartbeatStats()
+	go s.nodeHeartbeat.EmitStats(5*time.Second, s.shutdownCh)
 
 	// Emit raft and state store metrics
 	go s.EmitRaftStats(10*time.Second, s.shutdownCh)
@@ -1026,7 +1044,7 @@ func (s *Server) setupBootstrapHandler() error {
 		return nil
 	}
 
-	// Hacky replacement for old ConsulSyncer Periodic Handler.
+	// Hacky replacement for old ConsulSyncer Dispatcher Handler.
 	go func() {
 		lastOk := true
 		sync := time.NewTimer(0)
@@ -1189,7 +1207,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	}
 
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer = NewRaftLayer(s.serverRpcAdvertise, wrapper)
+	s.raftLayer = nomadRaft.NewRPCLayer(s.serverRpcAdvertise, wrapper)
 	return nil
 }
 
@@ -1298,7 +1316,7 @@ func (s *Server) setupRaft() error {
 	}()
 
 	// Create the FSM
-	fsmConfig := &FSMConfig{
+	fsmConfig := &fsm.Config{
 		EvalBroker:        s.evalBroker,
 		Periodic:          s.periodicDispatcher,
 		Blocked:           s.blockedEvals,
@@ -1308,7 +1326,7 @@ func (s *Server) setupRaft() error {
 		EventBufferSize:   s.config.EventBufferSize,
 	}
 	var err error
-	s.fsm, err = NewFSM(fsmConfig)
+	s.fsm, err = fsm.NewFSM(fsmConfig)
 	if err != nil {
 		return err
 	}
@@ -1427,7 +1445,7 @@ func (s *Server) setupRaft() error {
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
-			tmpFsm, err := NewFSM(fsmConfig)
+			tmpFsm, err := fsm.NewFSM(fsmConfig)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}

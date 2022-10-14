@@ -1,4 +1,4 @@
-package nomad
+package blockedevals
 
 import "github.com/hashicorp/nomad/nomad/structs"
 

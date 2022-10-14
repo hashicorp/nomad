@@ -1,4 +1,4 @@
-package nomad
+package periodic
 
 import (
 	"fmt"

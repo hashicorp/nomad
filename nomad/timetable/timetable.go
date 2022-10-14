@@ -1,4 +1,4 @@
-package nomad
+package timetable
 
 import (
 	"sort"
@@ -10,16 +10,16 @@ import (
 
 // TimeTable is used to associate a Raft index with a timestamp.
 // This is used so that we can quickly go from a timestamp to an
-// index or visa versa.
+// index or vice versa.
 type TimeTable struct {
 	granularity time.Duration
 	limit       time.Duration
-	table       []TimeTableEntry
+	table       []Entry
 	l           sync.RWMutex
 }
 
-// TimeTableEntry is used to track a time and index
-type TimeTableEntry struct {
+// Entry is used to track a time and index
+type Entry struct {
 	Index uint64
 	Time  time.Time
 }
@@ -35,7 +35,7 @@ func NewTimeTable(granularity time.Duration, limit time.Duration) *TimeTable {
 	t := &TimeTable{
 		granularity: granularity,
 		limit:       limit,
-		table:       make([]TimeTableEntry, 1, size),
+		table:       make([]Entry, 1, size),
 	}
 	return t
 }
@@ -51,7 +51,7 @@ func (t *TimeTable) Serialize(enc *codec.Encoder) error {
 // and restore the state
 func (t *TimeTable) Deserialize(dec *codec.Decoder) error {
 	// Decode the table
-	var table []TimeTableEntry
+	var table []Entry
 	if err := dec.Decode(&table); err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (t *TimeTable) Witness(index uint64, when time.Time) {
 
 	// Grow the table if we haven't reached the size
 	if len(t.table) < cap(t.table) {
-		t.table = append(t.table, TimeTableEntry{})
+		t.table = append(t.table, Entry{})
 	}
 
 	// Add this entry

@@ -1,4 +1,4 @@
-package nomad
+package fsm
 
 import (
 	"bytes"

@@ -144,7 +144,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	// The log line is trace, because the default worker timeout is 500ms which
 	// produces a large amount of logging.
 	if !e.srv.evalBroker.Enabled() {
-		message := e.srv.evalBroker.enabledNotifier.WaitForChange(args.Timeout)
+		message := e.srv.evalBroker.EnabledNotifier.WaitForChange(args.Timeout)
 		e.logger.Trace("eval broker wait for un-pause", "message", message)
 		return nil
 	}

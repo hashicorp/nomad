@@ -1,4 +1,4 @@
-package nomad
+package blockedevals
 
 import (
 	"sync"
@@ -7,7 +7,9 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/evalbroker"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/timetable"
 )
 
 const (
@@ -33,7 +35,7 @@ type BlockedEvals struct {
 	// logger is the logger to use by the blocked eval tracker.
 	logger hclog.Logger
 
-	evalBroker *EvalBroker
+	evalBroker *evalbroker.EvalBroker
 	enabled    bool
 	stats      *BlockedStats
 	l          sync.RWMutex
@@ -75,7 +77,7 @@ type BlockedEvals struct {
 
 	// timetable is used to correlate indexes with their insertion time. This
 	// allows us to prune based on time.
-	timetable *TimeTable
+	timetable *timetable.TimeTable
 
 	// stopCh is used to stop any created goroutines.
 	stopCh chan struct{}
@@ -94,9 +96,9 @@ type wrappedEval struct {
 	token string
 }
 
-// NewBlockedEvals creates a new blocked eval tracker that will enqueue
-// unblocked evals into the passed broker.
-func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
+// New creates a new blocked eval tracker that will enqueue unblocked evals
+// into the passed broker.
+func New(evalBroker *evalbroker.EvalBroker, logger hclog.Logger) *BlockedEvals {
 	return &BlockedEvals{
 		logger:           logger.Named("blocked_evals"),
 		evalBroker:       evalBroker,
@@ -140,7 +142,7 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	}
 }
 
-func (b *BlockedEvals) SetTimetable(timetable *TimeTable) {
+func (b *BlockedEvals) SetTimetable(timetable *timetable.TimeTable) {
 	b.l.Lock()
 	b.timetable = timetable
 	b.l.Unlock()
