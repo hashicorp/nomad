@@ -197,6 +197,11 @@ type Config struct {
 	TLSConfig *TLSConfig
 
 	Headers http.Header
+
+	// UnixSocketPath is set when NOMAD_ADDR points to a socket path. Parsing URL
+	// for socket paths is an undefined hellscape, so they have to be provided
+	// directly.
+	UnixSocketPath string
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
@@ -474,6 +479,20 @@ func NewClient(config *Config) (*Client, error) {
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
 			return nil, err
 		}
+	}
+
+	if strings.HasPrefix(config.Address, "unix://") {
+		sockPath := strings.TrimPrefix(config.Address, "unix://")
+		sockTransport := &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", sockPath)
+			},
+		}
+		// reset the address to an http address so the API client doesn't get
+		// confused
+		config.Address = "http://localhost"
+		config.UnixSocketPath = sockPath
+		httpClient.Transport = sockTransport
 	}
 
 	client := &Client{

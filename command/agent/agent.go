@@ -66,10 +66,11 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger     log.InterceptLogger
-	auditor    event.Auditor
-	httpLogger log.Logger
-	logOutput  io.Writer
+	logger       log.InterceptLogger
+	auditor      event.Auditor
+	httpLogger   log.Logger
+	socketLogger log.Logger
+	logOutput    io.Writer
 
 	// EnterpriseAgent holds information and methods for enterprise functionality
 	EnterpriseAgent *EnterpriseAgent
@@ -130,6 +131,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	// Create the loggers
 	a.logger = logger
 	a.httpLogger = a.logger.ResetNamed("http")
+	a.socketLogger = a.logger.ResetNamed("socket+http")
 
 	// Global logger should match internal logger as much as possible
 	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)

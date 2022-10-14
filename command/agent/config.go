@@ -182,6 +182,8 @@ type Config struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	APISocketPath string `hcl:"api_socket_path"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -1488,6 +1490,10 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	for k, v := range b.HTTPAPIResponseHeaders {
 		result.HTTPAPIResponseHeaders[k] = v
+	}
+
+	if b.APISocketPath != "" {
+		result.APISocketPath = b.APISocketPath
 	}
 
 	result.Limits = c.Limits.Merge(b.Limits)

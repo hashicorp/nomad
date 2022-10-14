@@ -118,6 +118,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+	flags.StringVar(&cmdConfig.APISocketPath, "api-socket-path", "", "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -653,6 +654,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-vault-tls-server-name":         complete.PredictAnything,
 		"-acl-enabled":                   complete.PredictNothing,
 		"-acl-replication-token":         complete.PredictAnything,
+		"-api-socket-path":               complete.PredictAnything,
 	}
 }
 
@@ -763,6 +765,7 @@ func (c *Command) Run(args []string) int {
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
+	info["socket path"] = c.getAPISocketPath()
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
@@ -1246,6 +1249,15 @@ func (c *Command) getAdvertiseAddrSynopsis() string {
 	}
 
 	return b.String()
+}
+
+// getAPISocketPath returns a string that describes the path to the API socket
+// the agent is listening on if enabled
+func (c *Command) getAPISocketPath() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.APISocketPath == "" {
+		return "« unset »"
+	}
+	return c.agent.config.APISocketPath
 }
 
 func (c *Command) Synopsis() string {

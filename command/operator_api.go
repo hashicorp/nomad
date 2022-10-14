@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -105,7 +106,7 @@ func (*OperatorAPICommand) Name() string { return "operator api" }
 
 func (c *OperatorAPICommand) Run(args []string) int {
 	var dryrun bool
-	var filter string
+	var filter, socketPath string
 	headerFlags := newHeaderFlags()
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -114,6 +115,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	flags.StringVar(&filter, "filter", "", "")
 	flags.BoolVar(&c.verboseFlag, "verbose", false, "")
 	flags.StringVar(&c.method, "X", "", "")
+	flags.StringVar(&socketPath, "abstract-unix-socket", "", "")
 	flags.Var(headerFlags, "H", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -173,6 +175,9 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
+	if socketPath != "" {
+		config.UnixSocketPath = socketPath
+	}
 
 	path, err := pathToURL(config, args[0])
 	if err != nil {
@@ -203,6 +208,13 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
+	}
+
+	if config.UnixSocketPath != "" {
+		verbose(fmt.Sprintf("* Sending request to unix socket %q...", config.UnixSocketPath))
+		transport.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+			return net.Dial("unix", config.UnixSocketPath)
+		}
 	}
 
 	if err := api.ConfigureTLS(client, config.TLSConfig); err != nil {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -162,9 +163,56 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
 
+		var unixListener net.Listener
+		socketPath := config.APISocketPath
+		if socketPath != "" {
+			if err := os.RemoveAll(socketPath); err != nil {
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to clean up existing unix-socket at %q: %v", socketPath, err))
+				continue
+			}
+			// make path if need be
+			if err := os.MkdirAll(path.Dir(socketPath), 0770); err != nil { // todo: make perms configurable
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to create directory for unix-socket at %q: %v", path.Dir(socketPath), err))
+				continue
+			}
+			unixListener, err = net.Listen("unix", socketPath)
+			if err != nil {
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to start unix-socket HTTP listener at %q: %v", socketPath, err))
+				continue
+			}
+		}
+
+		// Create the server
+		srv2 := &HTTPServer{
+			agent:      agent,
+			mux:        http.NewServeMux(),
+			listener:   ln,
+			listenerCh: make(chan struct{}),
+			logger:     agent.socketLogger,
+			Addr:       ln.Addr().String(),
+			wsUpgrader: wsUpgrader,
+		}
+		srv2.registerHandlers(config.EnableDebug)
+
+		// Create HTTP server with timeouts
+		udsHttpServer := http.Server{
+			Addr:    srv2.Addr,
+			Handler: handlers.CompressHandler(srv2.mux), //todo: maybe not compress
+			// ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
+			ConnState: makeConnState(false, handshakeTimeout, maxConns, srv2.logger),
+			ErrorLog:  newHTTPServerLogger(srv2.logger),
+		}
+
 		go func() {
 			defer close(srv.listenerCh)
 			httpServer.Serve(ln)
+		}()
+
+		go func() {
+			defer os.RemoveAll(socketPath)
+			if unixListener != nil {
+				udsHttpServer.Serve(unixListener)
+			}
 		}()
 
 		srvs = append(srvs, srv)
