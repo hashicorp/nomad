@@ -127,7 +127,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	}
 
 	nodeName := ""
-	if allocs, _, err := client.Jobs().Allocations("job2_sfx", false, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations("job2_sfx", false, false, nil); err == nil {
 		if len(allocs) > 0 {
 			nodeName = allocs[0].NodeName
 		} else {

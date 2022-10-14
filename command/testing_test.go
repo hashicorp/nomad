@@ -186,7 +186,7 @@ func waitForCheckStatus(t *testing.T, client *api.Client, allocID, status string
 
 func getAllocFromJob(t *testing.T, client *api.Client, jobID string) string {
 	var allocID string
-	if allocations, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+	if allocations, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 		if len(allocations) > 0 {
 			allocID = allocations[0].ID
 		}

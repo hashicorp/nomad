@@ -38,7 +38,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scheduler_system/input/system_job0.nomad", jobID, "")
 
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 	require.True(t, len(allocs) >= 3)
 
@@ -55,7 +55,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 
 	// Assert all jobs still running
 	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, true, nil)
+	allocs, _, err = jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocs)
@@ -87,7 +87,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 
 	// Get updated allocations
 	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, false, nil)
+	allocs, _, err = jobs.Allocations(jobID, false, false, nil)
 	require.NoError(t, err)
 
 	// Wait for allocs to start
@@ -95,7 +95,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
 	// Get latest alloc status now that they are no longer pending
-	allocs, _, err = jobs.Allocations(jobID, false, nil)
+	allocs, _, err = jobs.Allocations(jobID, false, false, nil)
 	require.NoError(t, err)
 
 	var foundPreviousAlloc bool

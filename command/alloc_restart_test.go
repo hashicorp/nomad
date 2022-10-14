@@ -82,7 +82,7 @@ func TestAllocRestartCommand_Fails(t *testing.T) {
 
 	// get an alloc id
 	allocId1 := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocId1 = allocs[0].ID
 		}
@@ -121,7 +121,7 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 
 	// get an alloc id
 	allocID := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocID = allocs[0].ID
 		}

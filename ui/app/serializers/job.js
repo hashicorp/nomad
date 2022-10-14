@@ -81,6 +81,13 @@ export default class JobSerializer extends ApplicationSerializer {
           related: buildURL(`${jobURL}/allocations`, { namespace }),
         },
       },
+      allocationsLastDeployment: {
+        links: {
+          related: buildURL(`${jobURL}/allocations/latestDeployment`, {
+            namespace,
+          }),
+        },
+      },
       versions: {
         links: {
           related: buildURL(`${jobURL}/versions`, { namespace, diffs: true }),

@@ -380,7 +380,7 @@ func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 // but use a dead allocation if no running allocations are found
 func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStub, error) {
 	var runningAllocs []*api.AllocationListStub
-	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
+	allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error querying job %q: %w", jobID, err)
 	}

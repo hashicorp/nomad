@@ -152,7 +152,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	// get an alloc id
 	allocID := ""
 	nodeName := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocID = allocs[0].ID
 			nodeName = allocs[0].NodeName

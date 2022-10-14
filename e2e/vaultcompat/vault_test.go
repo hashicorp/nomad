@@ -350,7 +350,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 	//var allocID string
 	testutil.WaitForResult(func() (bool, error) {
 		// Get the allocations for the job
-		allocs, _, err := j.Allocations(*job.ID, false, nil)
+		allocs, _, err := j.Allocations(*job.ID, false, false, nil)
 		if err != nil {
 			return false, err
 		}

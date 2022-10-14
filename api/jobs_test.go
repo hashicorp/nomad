@@ -1566,7 +1566,7 @@ func TestJobs_Allocations(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Looking up by a nonexistent job returns nothing
-	allocs, qm, err := jobs.Allocations("job1", true, nil)
+	allocs, qm, err := jobs.Allocations("job1", true, false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

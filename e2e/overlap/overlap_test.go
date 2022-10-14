@@ -69,7 +69,7 @@ func TestOverlap(t *testing.T) {
 
 	var origAlloc *api.AllocationListStub
 	testutil.Wait(t, func() (bool, error) {
-		a, _, err := nomadClient.Jobs().Allocations(jobID1, false, nil)
+		a, _, err := nomadClient.Jobs().Allocations(jobID1, false, false, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
 			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID1)
@@ -127,7 +127,7 @@ func TestOverlap(t *testing.T) {
 
 	// Assert replacement job unblocked and running
 	testutil.Wait(t, func() (bool, error) {
-		a, _, err := nomadClient.Jobs().Allocations(jobID2, false, nil)
+		a, _, err := nomadClient.Jobs().Allocations(jobID2, false, false, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
 			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID2)

@@ -108,7 +108,7 @@ func TestFS_Logs(t *testing.T) {
 
 	allocID := ""
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, _, err := jobs.Allocations(*job.ID, true, &QueryOptions{WaitIndex: index})
+		allocs, _, err := jobs.Allocations(*job.ID, true, false, &QueryOptions{WaitIndex: index})
 		if err != nil {
 			return false, err
 		}

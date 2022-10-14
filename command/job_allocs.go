@@ -32,6 +32,10 @@ Allocs Options:
     Display all allocations matching the job ID, even those from an older
     instance of the job.
 
+  -last-deploy
+	Display allocations matching the job ID that belong to the last
+	deployment.
+
   -json
     Output the allocations in a JSON format.
 
@@ -51,10 +55,11 @@ func (c *JobAllocsCommand) Synopsis() string {
 func (c *JobAllocsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
-			"-all":     complete.PredictNothing,
+			"-json":        complete.PredictNothing,
+			"-t":           complete.PredictAnything,
+			"-verbose":     complete.PredictNothing,
+			"-all":         complete.PredictNothing,
+			"-last-deploy": complete.PredictNothing,
 		})
 }
 
@@ -76,13 +81,14 @@ func (c *JobAllocsCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobAllocsCommand) Name() string { return "job allocs" }
 
 func (c *JobAllocsCommand) Run(args []string) int {
-	var json, verbose, all bool
+	var json, verbose, all, lastDeploy bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&all, "all", false, "")
+	flags.BoolVar(&lastDeploy, "last-deploy", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
@@ -127,7 +133,7 @@ func (c *JobAllocsCommand) Run(args []string) int {
 	jobID = jobs[0].ID
 	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 
-	allocs, _, err := client.Jobs().Allocations(jobID, all, q)
+	allocs, _, err := client.Jobs().Allocations(jobID, all, lastDeploy, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving allocations: %s", err))
 		return 1

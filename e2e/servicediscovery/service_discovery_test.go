@@ -133,7 +133,7 @@ func testMultiProvider(t *testing.T) {
 
 	// Check the allocations have the expected.
 	require.Eventually(t, func() bool {
-		allocStubs, _, err := nomadClient.Jobs().Allocations(jobID, true, nil)
+		allocStubs, _, err := nomadClient.Jobs().Allocations(jobID, true, false, nil)
 		if err != nil {
 			return false
 		}

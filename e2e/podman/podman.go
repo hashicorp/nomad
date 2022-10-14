@@ -40,7 +40,7 @@ func (tc *PodmanTest) TestRedisDeployment(f *framework.F) {
 	require.Equal(t, 1, len(ds))
 
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	var allocIDs []string
@@ -52,7 +52,7 @@ func (tc *PodmanTest) TestRedisDeployment(f *framework.F) {
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
 	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, true, nil)
+	allocs, _, err = jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	require.Len(t, allocs, 1)

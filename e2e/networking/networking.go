@@ -54,7 +54,7 @@ func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedHostname(f *framework.F
 		"job should be running with 1 alloc")
 
 	// Grab the allocations for the job.
-	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, nil)
+	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, false, nil)
 	f.NoError(err, "failed to get allocs for job")
 	f.Len(allocs, 1, "job should have one alloc")
 
@@ -78,7 +78,7 @@ func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedHostnameInterpolation(f
 		"job should be running with 1 alloc")
 
 	// Grab the allocations for the job.
-	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, nil)
+	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, false, nil)
 	f.NoError(err, "failed to get allocs for job")
 	f.Len(allocs, 1, "job should have one alloc")
 

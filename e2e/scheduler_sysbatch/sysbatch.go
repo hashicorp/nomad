@@ -44,7 +44,7 @@ func (tc *SysBatchSchedulerTest) TestJobRunBasic(f *framework.F) {
 
 	// get our allocations for this sysbatch job
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	// make sure this is job is being run on "all" the linux clients
@@ -66,7 +66,7 @@ func (tc *SysBatchSchedulerTest) TestJobStopEarly(f *framework.F) {
 
 	// get our allocations for this sysbatch job
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	// make sure this is job is being run on "all" the linux clients
@@ -92,7 +92,7 @@ func (tc *SysBatchSchedulerTest) TestJobReplaceRunning(f *framework.F) {
 
 	// get out allocations for this sysbatch job
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	// make sure this is job is being run on "all" the linux clients
@@ -134,7 +134,7 @@ func (tc *SysBatchSchedulerTest) TestJobReplaceDead(f *framework.F) {
 
 	// get the allocations for this sysbatch job
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, false, nil)
 	require.NoError(t, err)
 
 	// make sure this is job is being run on "all" the linux clients
@@ -197,7 +197,7 @@ func (tc *SysBatchSchedulerTest) TestJobRunPeriodic(f *framework.F) {
 	var allocs []*api.AllocationListStub
 	require.True(t, assert.Eventually(t, func() bool {
 		var err error
-		allocs, _, err = jobs.Allocations(cronJobID, false, nil)
+		allocs, _, err = jobs.Allocations(cronJobID, false, false, nil)
 		require.NoError(t, err)
 		return len(allocs) >= 3
 	}, 30*time.Second, time.Second))
@@ -232,7 +232,7 @@ func (tc *SysBatchSchedulerTest) TestJobRunDispatch(f *framework.F) {
 	var allocs []*api.AllocationListStub
 	require.True(t, assert.Eventually(t, func() bool {
 		var err error
-		allocs, _, err = jobs.Allocations(dispatchID, false, nil)
+		allocs, _, err = jobs.Allocations(dispatchID, false, false, nil)
 		require.NoError(t, err)
 		return len(allocs) >= 3
 	}, 30*time.Second, time.Second))

@@ -88,7 +88,7 @@ func AgentRestart(client *api.Client, nodeID string) (string, error) {
 		time.Sleep(1 * time.Second)
 		retries--
 
-		allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
+		allocStubs, _, err := client.Jobs().Allocations(jobID, true, false, nil)
 		if err != nil {
 			reasonErr = err
 			continue

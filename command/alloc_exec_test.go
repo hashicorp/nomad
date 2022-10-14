@@ -110,7 +110,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 
 		// get an alloc id
 		allocId1 := ""
-		if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 			if len(allocs) > 0 {
 				allocId1 = allocs[0].ID
 			}
@@ -190,7 +190,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 	allocId := ""
 
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
+		allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil)
 		if err != nil {
 			return false, fmt.Errorf("failed to get allocations: %v", err)
 		}

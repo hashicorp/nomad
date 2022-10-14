@@ -84,7 +84,7 @@ func TestAllocStop_Run(t *testing.T) {
 
 	// get an alloc id
 	allocID := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocID = allocs[0].ID
 		}

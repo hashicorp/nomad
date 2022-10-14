@@ -332,7 +332,7 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 	}
 
 	// Query the allocations
-	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, q)
+	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, false, q)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}

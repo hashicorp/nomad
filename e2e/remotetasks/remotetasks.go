@@ -146,7 +146,7 @@ func (tc *RemoteTasksTest) TestECSDrain(f *framework.F) {
 	var newAlloc *api.AllocationListStub
 	qopts := &api.QueryOptions{}
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, resp, err := tc.Nomad().Jobs().Allocations(jobID, false, qopts)
+		allocs, resp, err := tc.Nomad().Jobs().Allocations(jobID, false, false, qopts)
 		if err != nil {
 			return false, fmt.Errorf("error retrieving allocations for job: %w", err)
 		}
@@ -225,7 +225,7 @@ func (tc *RemoteTasksTest) TestECSDeployment(f *framework.F) {
 	// Wait for new alloc to be running
 	var newAlloc *api.AllocationListStub
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, nil)
+		allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, false, nil)
 		if err != nil {
 			return false, err
 		}
@@ -423,7 +423,7 @@ func registerECSJobs(t *testing.T, nomadClient *api.Client, jobID string) (*api.
 
 	var allocs []*api.AllocationListStub
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, _, err = nomadClient.Jobs().Allocations(jobID, false, nil)
+		allocs, _, err = nomadClient.Jobs().Allocations(jobID, false, false, nil)
 		if err != nil {
 			return false, err
 		}

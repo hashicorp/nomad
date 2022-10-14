@@ -232,9 +232,15 @@ func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*J
 }
 
 // Allocations is used to return the allocs for a given job ID.
-func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
+func (j *Jobs) Allocations(jobID string, allAllocs bool, latestDeployment bool, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
 	var resp []*AllocationListStub
-	u, err := url.Parse("/v1/job/" + url.PathEscape(jobID) + "/allocations")
+	urlPath := "/allocations"
+
+	if latestDeployment {
+		urlPath += "/latestDeployment"
+	}
+
+	u, err := url.Parse("/v1/job/" + url.PathEscape(jobID) + urlPath)
 	if err != nil {
 		return nil, nil, err
 	}

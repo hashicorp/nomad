@@ -93,7 +93,7 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 		require.NoError(t, err)
 	})
 
-	allocs, _, err := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
+	allocs, _, err := jobs.Allocations(jobID, false, false, &api.QueryOptions{WaitIndex: idx})
 	require.NoError(t, err)
 	return allocs
 }
@@ -114,7 +114,7 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jo
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(time.Second)
 
-		allocs, _, err = jobs.Allocations(jobID, false, nil)
+		allocs, _, err = jobs.Allocations(jobID, false, false, nil)
 		if len(allocs) == 0 {
 			evals, _, err = nomadClient.Jobs().Evaluations(jobID, nil)
 			return false, fmt.Errorf("no allocations for job %v", jobID)
@@ -197,7 +197,7 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 
 // WaitForJobStopped stops a job and waits for all of its allocs to terminate.
 func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
-	allocs, _, err := nomadClient.Jobs().Allocations(job, true, nil)
+	allocs, _, err := nomadClient.Jobs().Allocations(job, true, false, nil)
 	require.NoError(t, err, "error getting allocations for job %q", job)
 	ids := AllocIDsFromAllocationListStubs(allocs)
 	_, _, err = nomadClient.Jobs().Deregister(job, true, nil)
