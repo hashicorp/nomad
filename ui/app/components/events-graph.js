@@ -93,7 +93,19 @@ export default class EventsGraphComponent extends Component {
     const axis = d3.select(this.xAxisElement);
     axis
       .attr('transform', `translate(0,${this.height - this.margin.bottom})`)
-      .call(d3.axisBottom(this.xBand).tickSizeOuter(0));
+      .call(
+        d3
+          .axisBottom(this.xBand)
+          .tickValues(
+            this.xBand
+              .domain()
+              .filter(
+                (d, i) => !(i % parseInt(10 * (1 / this.zoomTransform?.k || 1)))
+              )
+          )
+          .tickSizeOuter(0)
+          .tickSizeInner(-this.height)
+      );
   }
 
   @action

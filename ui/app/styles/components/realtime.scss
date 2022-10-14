@@ -96,6 +96,15 @@ $ServiceColour: #edc949;
   width: 100%;
   height: 600px;
 
+  .x-axis {
+    .tick {
+      line {
+        opacity: 0.1;
+        stroke-dasharray: 8px 2px;
+      }
+    }
+  }
+
   .event-node {
     fill: none;
 
