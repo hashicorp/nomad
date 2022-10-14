@@ -1,5 +1,13 @@
 <Breadcrumb @crumb={{hash label="Realtime" args=(array "realtime")}} />
 <PageLayout>
+  <div class="stream-query">
+    <input
+      type="text"
+      value={{this.query}}
+      placeholder="Search"
+      oninput={{action (mut this.query) value="target.value"}}
+      />
+  </div>
   <div class="stream-selections">
     {{#each this.topics as |topic|}}
       <label class="{{topic.label}}">
@@ -8,6 +16,6 @@
       </label>
     {{/each}}
   </div>
-  <EventStream @enabledTopics={{this.enabledTopics}} />
+  <EventStream @enabledTopics={{this.enabledTopics}} @query={{this.query}} />
   {{outlet}}
 </PageLayout>

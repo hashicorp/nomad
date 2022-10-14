@@ -100,7 +100,7 @@ export default class EventsGraphComponent extends Component {
             this.xBand
               .domain()
               .filter(
-                (d, i) => !(i % parseInt(10 * (1 / this.zoomTransform?.k || 1)))
+                (d, i) => !(i % parseInt(5 * (1 / this.zoomTransform?.k || 1)))
               )
           )
           .tickSizeOuter(0)

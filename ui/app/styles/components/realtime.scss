@@ -141,6 +141,14 @@ $ServiceColour: #edc949;
 
 // #endregion Events Graph
 
+.stream-query {
+  background-color: #eee;
+  padding: 1rem;
+  input {
+    width: 100%;
+  }
+}
+
 .stream-selections {
   display: grid;
   gap: 0.5rem;
