@@ -124,7 +124,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	allNamespaces := c.allNamespaces()
+	allNamespaces := c.allNamespaces(client)
 
 	// Invoke list mode if no job ID.
 	if len(args) == 0 {

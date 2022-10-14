@@ -132,7 +132,7 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	// preriodicJobs is sorted by job ID
 	// so if there is a job whose ID is equal to jobID then it must be the first item
 	if len(periodicJobs) > 1 && periodicJobs[0].ID != jobID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs, c.allNamespaces())))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs, c.allNamespaces(client))))
 		return 1
 	}
 	jobID = periodicJobs[0].ID

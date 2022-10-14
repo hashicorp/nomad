@@ -116,13 +116,20 @@ func (c *UiCommand) Run(args []string) int {
 		return 1
 	}
 
+	clientConfig, err := c.clientConfig()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client config: %v", err))
+		return 1
+	}
+
 	// Set query params if necessary
 	qp := url.Query()
-	if ns := c.clientConfig().Namespace; ns != "" {
-		qp.Add("namespace", ns)
+
+	if clientConfig.Namespace != "" {
+		qp.Add("namespace", clientConfig.Namespace)
 	}
-	if region := c.clientConfig().Region; region != "" {
-		qp.Add("region", region)
+	if clientConfig.Region != "" {
+		qp.Add("region", clientConfig.Region)
 	}
 	url.RawQuery = qp.Encode()
 

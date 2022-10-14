@@ -500,6 +500,11 @@ func (c *Client) Address() string {
 	return c.config.Address
 }
 
+//
+func (c *Client) Namespace() string {
+	return c.config.Namespace
+}
+
 // SetRegion sets the region to forward API requests to.
 func (c *Client) SetRegion(region string) {
 	c.config.Region = region

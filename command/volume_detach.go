@@ -126,7 +126,7 @@ func (c *VolumeDetachCommand) Run(args []string) int {
 			return 1
 		}
 		if len(vols) > 1 {
-			if (volID != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
+			if (volID != vols[0].ID) || (c.allNamespaces(client) && vols[0].ID == vols[1].ID) {
 				sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
 				out, err := csiFormatSortedVolumes(vols)
 				if err != nil {

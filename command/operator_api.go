@@ -164,11 +164,15 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		c.method = "GET"
 	}
 
-	config := c.clientConfig()
+	config, err := c.clientConfig()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client config: %v", err))
+		return 1
+	}
 
 	// NewClient mutates or validates Config.Address, so call it to match
 	// the behavior of other commands.
-	_, err := api.NewClient(config)
+	_, err = api.NewClient(config)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1

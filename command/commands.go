@@ -249,6 +249,51 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"context": func() (cli.Command, error) {
+			return &ContextCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context create": func() (cli.Command, error) {
+			return &ContextCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context default": func() (cli.Command, error) {
+			return &ContextDefaultCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context default set": func() (cli.Command, error) {
+			return &ContextDefaultSetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context default unset": func() (cli.Command, error) {
+			return &ContextDefaultUnsetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context delete": func() (cli.Command, error) {
+			return &ContextDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context info": func() (cli.Command, error) {
+			return &ContextInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context list": func() (cli.Command, error) {
+			return &ContextListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"context update": func() (cli.Command, error) {
+			return &ContextUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{

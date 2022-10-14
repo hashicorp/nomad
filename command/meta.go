@@ -52,6 +52,11 @@ type Meta struct {
 	// token is used for ACLs to access privileged information
 	token string
 
+	// context is the name of a context to load which will form the Nomad
+	// client configuration base. If no name is set, any default context will
+	// be used.
+	context string
+
 	caCert        string
 	caPath        string
 	clientCert    string
@@ -83,7 +88,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.tlsServerName, "tls-server-name", "", "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
 		f.StringVar(&m.token, "token", "", "")
-
+		f.StringVar(&m.context, "context", "", "")
 	}
 
 	f.SetOutput(&uiErrorWriter{ui: m.Ui})
@@ -111,6 +116,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-tls-server-name": complete.PredictNothing,
 		"-tls-skip-verify": complete.PredictNothing,
 		"-token":           complete.PredictAnything,
+		"-context-name":    complete.PredictAnything,
 	}
 }
 
@@ -119,8 +125,35 @@ type ApiClientFactory func() (*api.Client, error)
 
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
-func (m *Meta) clientConfig() *api.Config {
+func (m *Meta) clientConfig() (*api.Config, error) {
+
 	config := api.DefaultConfig()
+
+	// Grab a handle on the context storage.
+	ctxStorage, err := newMetaContextStorage()
+	if err != nil {
+		return nil, err
+	}
+
+	var ctxConfig *MetaContextConfig
+
+	// Identify whether any context file should be used. A named file takes
+	// precedence over the default.
+	if m.context != "" {
+		ctxConfig, err = ctxStorage.Get(m.context)
+	} else {
+		ctxConfig, err = ctxStorage.GetDefault()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Overlay any context configuration found on the API configuration. This
+	// results in the context config taking precedence over the API default
+	// config, but allows use to continue using the API object.
+	if ctxConfig != nil {
+		ctxConfig.Context.overlayAPIConfig(config)
+	}
 
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
@@ -162,15 +195,19 @@ func (m *Meta) clientConfig() *api.Config {
 		config.TLSConfig.Insecure = m.insecure
 	}
 
-	return config
+	return config, nil
 }
 
 func (m *Meta) Client() (*api.Client, error) {
-	return api.NewClient(m.clientConfig())
+	clientConfig, err := m.clientConfig()
+	if err != nil {
+		return nil, err
+	}
+	return api.NewClient(clientConfig)
 }
 
-func (m *Meta) allNamespaces() bool {
-	return m.clientConfig().Namespace == api.AllNamespacesNamespace
+func (m *Meta) allNamespaces(c *api.Client) bool {
+	return c.Namespace() == api.AllNamespacesNamespace
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
@@ -227,6 +264,12 @@ const (
 func generalOptionsUsage(usageOpts usageOptsFlags) string {
 
 	helpText := `
+  -context=<name>
+    The name of a context configuration to use. If not set, the CLI will look
+    for a default context. Values within the context will override the
+    corresponding environment variable value, but take a lower precedence than
+    values set by CLI flags.
+
   -address=<addr>
     The address of the Nomad server.
     Overrides the NOMAD_ADDR environment variable if set.
