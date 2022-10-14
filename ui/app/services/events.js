@@ -36,21 +36,53 @@ export default class EventsService extends Service {
       : new MOCK_ABORT_CONTROLLER();
   }
 
+  @action startFile() {
+    console.log('starting file');
+    this.stop(); //stops streaming in
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const lines = event.target.result.split('\n');
+      const context = this;
+      context.stream = [];
+      lines.forEach((line) => {
+        if (line) {
+          const event = JSON.parse(line);
+          context.stream.push(event);
+          console.log('pushed', event);
+        }
+      });
+    };
+    const read = reader.readAsText(this.file);
+    console.log('read?', read);
+  }
+
   /**
    * Starts a new event stream and populates our stream array
    */
   start() {
     console.log('Events Service starting');
-    this.request = this.token.authorizedRequest('/v1/event/stream', {
-      signal: this.controller.signal,
-    });
-    return this.request.then((res) => {
-      res.body
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(this.splitStream('\n'))
-        .pipeThrough(this.parseStream())
-        .pipeTo(this.appendToStream());
-    });
+    if (this.file) {
+      this.startFile();
+    } else {
+      this.request = this.token.authorizedRequest('/v1/event/stream', {
+        signal: this.controller.signal,
+      });
+      return this.request.then((res) => {
+        res.body
+          .pipeThrough(new TextDecoderStream())
+          .pipeThrough(this.splitStream('\n'))
+          .pipeThrough(this.parseStream())
+          .pipeTo(this.appendToStream());
+      });
+    }
+  }
+
+  @tracked file = null;
+
+  @action uploadFile(file) {
+    console.log('upload file lol');
+    this.file = file;
+    this.start();
   }
 
   @action

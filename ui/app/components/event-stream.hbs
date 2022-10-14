@@ -2,6 +2,17 @@
 
 <EventsGraph @data={{this.stream}} @logEvent={{this.logEvent}} />
 
+<div class="upload-events">
+  <input id="FileInput"
+       type="file"
+       onchange={{action this.onChangeFile}}
+>
+</div>
+
+<hr />
+~~~~~~~~~~ HC SVNT DRACONES ~~~~~~~~~~~~~~~
+<hr />
+
 <button type="button" {{on "click" this.events.stop}}>Shut down everything</button>
 
 {{!-- <section class="timeline" {{did-insert this.scrollToEnd}}

@@ -194,6 +194,11 @@ export default class EventStreamComponent extends Component {
     },
   ];
 
+  @action
+  onChangeFile(e) {
+    this.events.uploadFile(e.target.files[0]);
+  }
+
   @action logEvent(event) {
     // console.log('loggin EVENT', event);
     this.activeEvent = event;
