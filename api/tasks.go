@@ -678,31 +678,32 @@ func (l *TaskLifecycle) Empty() bool {
 
 // Task is a single process in a task group.
 type Task struct {
-	Name            string                 `hcl:"name,label"`
-	Driver          string                 `hcl:"driver,optional"`
-	User            string                 `hcl:"user,optional"`
-	Lifecycle       *TaskLifecycle         `hcl:"lifecycle,block"`
-	Config          map[string]interface{} `hcl:"config,block"`
-	Constraints     []*Constraint          `hcl:"constraint,block"`
-	Affinities      []*Affinity            `hcl:"affinity,block"`
-	Env             map[string]string      `hcl:"env,block"`
-	Services        []*Service             `hcl:"service,block"`
-	Resources       *Resources             `hcl:"resources,block"`
-	RestartPolicy   *RestartPolicy         `hcl:"restart,block"`
-	Meta            map[string]string      `hcl:"meta,block"`
-	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
-	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
-	Vault           *Vault                 `hcl:"vault,block"`
-	Templates       []*Template            `hcl:"template,block"`
-	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
-	VolumeMounts    []*VolumeMount         `hcl:"volume_mount,block"`
-	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin,block"`
-	Leader          bool                   `hcl:"leader,optional"`
-	ShutdownDelay   time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
-	Kind            string                 `hcl:"kind,optional"`
-	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
+	Name              string                 `hcl:"name,label"`
+	Driver            string                 `hcl:"driver,optional"`
+	User              string                 `hcl:"user,optional"`
+	Lifecycle         *TaskLifecycle         `hcl:"lifecycle,block"`
+	Config            map[string]interface{} `hcl:"config,block"`
+	Constraints       []*Constraint          `hcl:"constraint,block"`
+	Affinities        []*Affinity            `hcl:"affinity,block"`
+	Env               map[string]string      `hcl:"env,block"`
+	Services          []*Service             `hcl:"service,block"`
+	Resources         *Resources             `hcl:"resources,block"`
+	RestartPolicy     *RestartPolicy         `hcl:"restart,block"`
+	Meta              map[string]string      `hcl:"meta,block"`
+	KillTimeout       *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
+	LogConfig         *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
+	Artifacts         []*TaskArtifact        `hcl:"artifact,block"`
+	Vault             *Vault                 `hcl:"vault,block"`
+	Templates         []*Template            `hcl:"template,block"`
+	DispatchPayload   *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
+	VolumeMounts      []*VolumeMount         `hcl:"volume_mount,block"`
+	CSIPluginConfig   *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin,block"`
+	Leader            bool                   `hcl:"leader,optional"`
+	ShutdownDelay     time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	KillSignal        string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
+	Kind              string                 `hcl:"kind,optional"`
+	ScalingPolicies   []*ScalingPolicy       `hcl:"scaling,block"`
+	EmitWorkloadToken bool                   `hcl:"emit_workload_token,optional"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
