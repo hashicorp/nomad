@@ -101,15 +101,12 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (canRead bool, err error) {
 
 	canRead = false
-	var aclObj *acl.ACL
 
 	// Perform the ACL token resolution.
-	if aclObj, err = sv.srv.ResolveToken(args.AuthToken); err != nil {
-		return
-	} else if aclObj != nil {
+	if sv.srv.GetConfig().ACLEnabled {
 		hasPerm := func(perm string) bool {
-			return aclObj.AllowVariableOperation(args.Var.Namespace,
-				args.Var.Path, perm)
+			aclObj, err := sv.handleMixedAuthEndpointWrite(args.AuthToken, args.Var.Namespace, perm, args.Var.Path)
+			return err == nil && aclObj.AllowVariableOperation(args.Var.Namespace, args.Var.Path, perm)
 		}
 		canRead = hasPerm(acl.VariablesCapabilityRead)
 
@@ -356,7 +353,7 @@ func (s *Variables) listAllVariables(
 		return err
 	}
 
-	// allowFunc checks whether the caller has the read-job capability on the
+	// allowFunc checks whether the caller has the list capability on the
 	// passed namespace.
 	allowFunc := func(ns string) bool {
 		return aclObj.AllowVariableOperation(ns, "", acl.PolicyList)
@@ -476,20 +473,24 @@ func (sv *Variables) decrypt(v *structs.VariableEncrypted) (*structs.VariableDec
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
 // either be called by external clients or by workload identity
 func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) (*acl.ACL, error) {
+	return sv.handleMixedAuthEndpointWrite(args.AuthToken, args.RequestNamespace(), cap, pathOrPrefix)
+}
+
+func (sv *Variables) handleMixedAuthEndpointWrite(token, namespace, cap, pathOrPrefix string) (*acl.ACL, error) {
 
 	// Perform the initial token resolution.
-	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
+	aclObj, err := sv.srv.ResolveToken(token)
 	if err == nil {
 		// Perform our ACL validation. If the object is nil, this means ACLs
 		// are not enabled, otherwise trigger the allowed namespace function.
 		if aclObj != nil {
-			if !aclObj.AllowVariableOperation(args.RequestNamespace(), pathOrPrefix, cap) {
+			if !aclObj.AllowVariableOperation(namespace, pathOrPrefix, cap) {
 				return nil, structs.ErrPermissionDenied
 			}
 		}
 		return aclObj, nil
 	}
-	if helper.IsUUID(args.AuthToken) {
+	if helper.IsUUID(token) {
 		// early return for ErrNotFound or other errors if it's formed
 		// like an ACLToken.SecretID
 		return nil, err
@@ -497,7 +498,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 
 	// Attempt to verify the token as a JWT with a workload
 	// identity claim
-	claims, err := sv.srv.VerifyClaim(args.AuthToken)
+	claims, err := sv.srv.VerifyClaim(token)
 	if err != nil {
 		metrics.IncrCounter([]string{
 			"nomad", "variables", "invalid_allocation_identity"}, 1)
@@ -507,7 +508,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 
 	// The workload identity gets access to paths that match its
 	// identity, without having to go thru the ACL system
-	err = sv.authValidatePrefix(claims, args.RequestNamespace(), pathOrPrefix)
+	err = sv.authValidatePrefix(claims, namespace, pathOrPrefix)
 	if err == nil {
 		return aclObj, nil
 	}
@@ -519,7 +520,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 		return nil, err // this only returns an error when the state store has gone wrong
 	}
 	if aclObj != nil && aclObj.AllowVariableOperation(
-		args.RequestNamespace(), pathOrPrefix, cap) {
+		namespace, pathOrPrefix, cap) {
 		return aclObj, nil
 	}
 	return nil, structs.ErrPermissionDenied
