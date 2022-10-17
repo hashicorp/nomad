@@ -50,6 +50,7 @@ Successfuly deleted 1 evaluation
 ```
 
 Delete all evaluations with status `pending` for the `example` job:
+
 ```shell-session
 $ nomad eval delete -filter='Stauts == "pending" and JobID == "example"'
 Do you want to list evals (3) before deletion? [y/N] y
@@ -66,10 +67,11 @@ Successfuly deleted 3 evaluations
 
 Delete all evaluations for the `system` and `service` whilst skipping all
 prompts:
+
 ```shell-session
 $ nomad eval delete -filter='Scheduler == "system" or Scheduler == "service"' -yes
 Successfuly deleted 23 evaluations
 ```
 
-[scheduler_get_config]: /docs/commands/operator/scheduler-get-config
-[scheduler_set_config]: /docs/commands/operator/scheduler-set-config
+[scheduler_get_config]: /docs/commands/operator/scheduler/get-config
+[scheduler_set_config]: /docs/commands/operator/scheduler/set-config
