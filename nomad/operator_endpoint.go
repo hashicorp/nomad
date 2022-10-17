@@ -247,7 +247,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	}
 
 	// All servers should be at or above 0.8.0 to apply this operatation
-	if !ServersMeetMinimumVersion(op.srv.Members(), minAutopilotVersion, false) {
+	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minAutopilotVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update autopilot config", minAutopilotVersion)
 	}
 
@@ -315,7 +315,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	}
 
 	// All servers should be at or above 0.9.0 to apply this operation
-	if !ServersMeetMinimumVersion(op.srv.Members(), minSchedulerConfigVersion, false) {
+	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minSchedulerConfigVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
 	}
 
