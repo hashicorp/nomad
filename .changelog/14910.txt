@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where Nomad version checking for one-time tokens was enforced across regions
+```
