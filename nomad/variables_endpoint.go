@@ -48,7 +48,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	if !ServersMeetMinimumVersion(
 		sv.srv.serf.Members(), sv.srv.Region(), minVersionKeyring, true) {
-		return fmt.Errorf("all servers must be running version 1.4.0 or later to apply variables")
+		return fmt.Errorf("all servers must be running version %v or later to apply variables", minVersionKeyring)
 	}
 
 	canRead, err := svePreApply(sv, args, args.Var)
