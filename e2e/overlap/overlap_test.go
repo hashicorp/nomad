@@ -106,10 +106,13 @@ func TestOverlap(t *testing.T) {
 
 	// Assert replacement job unblocked and running
 	testutil.Wait(t, func() (bool, error) {
+		time.Sleep(time.Second)
+
 		a, _, err := nomadClient.Jobs().Allocations(jobID2, false, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
-			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID2)
+			evalOut := e2eutil.DumpEvals(nomadClient, jobID2)
+			return false, fmt.Errorf("timed out before an allocation was found for %s; Evals:\n%s", jobID2, evalOut)
 		}
 		must.Len(t, 1, a)
 
