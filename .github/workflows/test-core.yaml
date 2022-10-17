@@ -61,6 +61,7 @@ jobs:
           cache-key-suffix: -compile
       - name: Run make dev
         run: |
+          echo GOBIN is ${{env.GOBIN}}
           make bootstrap
           make dev
   tests-api:
