@@ -148,7 +148,7 @@ func TestServersMeetMinimumVersionExcludingFailed(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		result := ServersMeetMinimumVersion(tc.members, tc.ver, false)
+		result := ServersMeetMinimumVersion(tc.members, AllRegions, tc.ver, false)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.ver.String(), tc)
 		}
@@ -186,7 +186,7 @@ func TestServersMeetMinimumVersionIncludingFailed(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		result := ServersMeetMinimumVersion(tc.members, tc.ver, true)
+		result := ServersMeetMinimumVersion(tc.members, AllRegions, tc.ver, true)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.ver.String(), tc)
 		}
@@ -224,7 +224,7 @@ func TestServersMeetMinimumVersionSuffix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		result := ServersMeetMinimumVersion(tc.members, tc.ver, true)
+		result := ServersMeetMinimumVersion(tc.members, AllRegions, tc.ver, true)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.ver.String(), tc)
 		}
