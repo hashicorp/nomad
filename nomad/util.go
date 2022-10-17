@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -143,40 +144,23 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	return true, parts
 }
 
+const AllRegions = ""
+
 // ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
 // given Nomad version. The checkFailedServers parameter specifies whether version
 // for the failed servers should be verified.
-func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version, checkFailedServers bool) bool {
+func ServersMeetMinimumVersion(members []serf.Member, region string, minVersion *version.Version, checkFailedServers bool) bool {
 	for _, member := range members {
-		if valid, parts := isNomadServer(member); valid && (parts.Status == serf.StatusAlive || (checkFailedServers && parts.Status == serf.StatusFailed)) {
+		valid, parts := isNomadServer(member)
+		if valid &&
+			(parts.Region == region || region == AllRegions) &&
+			(parts.Status == serf.StatusAlive || (checkFailedServers && parts.Status == serf.StatusFailed)) {
 			// Check if the versions match - version.LessThan will return true for
 			// 0.8.0-rc1 < 0.8.0, so we want to ignore the metadata
-			versionsMatch := slicesMatch(minVersion.Segments(), parts.Build.Segments())
+			versionsMatch := slices.Equal(minVersion.Segments(), parts.Build.Segments())
 			if parts.Build.LessThan(minVersion) && !versionsMatch {
 				return false
 			}
-		}
-	}
-
-	return true
-}
-
-func slicesMatch(a, b []int) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil {
-		return false
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
 		}
 	}
 
