@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/slices"
@@ -104,14 +105,16 @@ type NamespaceAPI interface {
 // - agent:read
 // - service:write
 type AgentAPI interface {
-	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
-	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
 	CheckRegister(check *api.AgentCheckRegistration) error
 	CheckDeregisterOpts(checkID string, q *api.QueryOptions) error
-	Self() (map[string]map[string]interface{}, error)
+	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
+	UpdateTTLOpts(id, output, status string, q *api.QueryOptions) error
+
 	ServiceRegister(service *api.AgentServiceRegistration) error
 	ServiceDeregisterOpts(serviceID string, q *api.QueryOptions) error
-	UpdateTTLOpts(id, output, status string, q *api.QueryOptions) error
+	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
+
+	Self() (map[string]map[string]interface{}, error)
 }
 
 // ConfigAPI is the consul/api.ConfigEntries API subset used by Nomad Server.
@@ -215,25 +218,11 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case !reflect.DeepEqual(wanted.TaggedAddresses, existing.TaggedAddresses):
 		return true
-	case tagsDifferent(wanted.Tags, existing.Tags):
+	case !helper.SliceSetEq(wanted.Tags, existing.Tags):
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
 		return true
 	}
-	return false
-}
-
-func tagsDifferent(a, b []string) bool {
-	if len(a) != len(b) {
-		return true
-	}
-
-	for i, valueA := range a {
-		if b[i] != valueA {
-			return true
-		}
-	}
-
 	return false
 }
 
@@ -244,9 +233,9 @@ func tagsDifferent(a, b []string) bool {
 // comparing them to the parent service tags.
 func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
 	if len(wanted) == 0 {
-		return tagsDifferent(parent, sidecar)
+		return !helper.SliceSetEq(parent, sidecar)
 	}
-	return tagsDifferent(wanted, sidecar)
+	return !helper.SliceSetEq(wanted, sidecar)
 }
 
 // proxyUpstreamsDifferent determines if the sidecar_service.proxy.upstreams
@@ -366,7 +355,7 @@ func (o *operations) empty() bool {
 	}
 }
 
-func (o operations) String() string {
+func (o *operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
 }
 

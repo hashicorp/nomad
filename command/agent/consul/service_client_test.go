@@ -270,39 +270,6 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	})
 }
 
-func TestSyncLogic_tagsDifferent(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("nil nil", func(t *testing.T) {
-		require.False(t, tagsDifferent(nil, nil))
-	})
-
-	t.Run("empty nil", func(t *testing.T) {
-		// where reflect.DeepEqual does not work
-		require.False(t, tagsDifferent([]string{}, nil))
-	})
-
-	t.Run("empty empty", func(t *testing.T) {
-		require.False(t, tagsDifferent([]string{}, []string{}))
-	})
-
-	t.Run("set empty", func(t *testing.T) {
-		require.True(t, tagsDifferent([]string{"A"}, []string{}))
-	})
-
-	t.Run("set nil", func(t *testing.T) {
-		require.True(t, tagsDifferent([]string{"A"}, nil))
-	})
-
-	t.Run("different content", func(t *testing.T) {
-		require.True(t, tagsDifferent([]string{"A"}, []string{"B"}))
-	})
-
-	t.Run("different lengths", func(t *testing.T) {
-		require.True(t, tagsDifferent([]string{"A"}, []string{"A", "B"}))
-	})
-}
-
 func TestSyncLogic_sidecarTagsDifferent(t *testing.T) {
 	ci.Parallel(t)
 
@@ -386,7 +353,7 @@ func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
 		existing := &api.AgentService{Tags: []string{"a", "b"}}
 		sidecar := &api.AgentService{Tags: []string{"a", "b"}}
 		maybeTweakTags(asr, existing, sidecar)
-		require.False(t, !tagsDifferent([]string{"original"}, asr.Tags))
+		must.NotEq(t, []string{"original"}, asr.Tags)
 	}
 
 	try(&api.AgentServiceRegistration{
