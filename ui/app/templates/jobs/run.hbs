@@ -1,13 +1,5 @@
 <Breadcrumb @crumb={{hash label="Run" args=(array "jobs.run")}} />
 {{page-title "Run a job"}}
 <section class="section">
-  <header class="run-job-header">
-    <h1 class="title is-3">Run a job</h1>
-    <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.</p>
-    <label class="job-spec-upload">
-      <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
-      <span class="button">Upload a job spec file</span>
-    </label>
-  </header>
-    <JobEditor @job={{this.model}} @context="new" @onSubmit={{action this.onSubmit}} />
+  <JobEditor @job={{this.model}} @context="new" @onSubmit={{action this.onSubmit}} />
 </section>
