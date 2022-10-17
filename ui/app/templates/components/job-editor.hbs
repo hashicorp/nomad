@@ -18,26 +18,6 @@
 {{/if}}
 
 {{#if (eq this.stage "editor")}}
-  {{#if (and this.showEditorMessage (eq this.context "new"))}}
-    <div class="notification is-info">
-      <div class="columns">
-        <div class="column">
-          <h3 class="title is-4" data-test-editor-help-title>Run a Job</h3>
-          <p data-test-editor-help-message>Paste or author HCL or JSON to submit
-            to your cluster. A plan will be requested before the job is
-            submitted.</p>
-        </div>
-        <div class="column is-centered is-minimum">
-          <button
-            class="button is-info"
-            onclick={{toggle-action "showEditorMessage" this}}
-            data-test-editor-help-dismiss
-            type="button"
-          >Okay</button>
-        </div>
-      </div>
-    </div>
-  {{/if}}
   <div class="boxed-section">
     <div class="boxed-section-head">
       Job Definition
@@ -63,11 +43,6 @@
       />
     </div>
   </div>
-
-  <label class="job-spec-upload">
-    <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
-    <span>Attach a job spec by clicking here or dragging &amp; dropping a file to the editor above</span>
-  </label>
 
   <div class="content is-associative">
     <button
