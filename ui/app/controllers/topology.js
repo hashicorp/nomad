@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -63,7 +64,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     ];
   }
 
-  @computed('nodes.[]', 'selectionClass')
+  @computed('model.nodes', 'nodes.[]', 'selectionClass')
   get optionsClass() {
     const classes = Array.from(new Set(this.model.nodes.mapBy('nodeClass')))
       .compact()
@@ -81,7 +82,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     return classes.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
-  @computed('nodes.[]', 'selectionDatacenter')
+  @computed('model.nodes', 'nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
       new Set(this.model.nodes.mapBy('datacenter'))
@@ -99,7 +100,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
-  @computed('nodes.[]', 'selectionVersion')
+  @computed('model.nodes', 'nodes.[]', 'selectionVersion')
   get optionsVersion() {
     const versions = Array.from(
       new Set(this.model.nodes.mapBy('version'))
