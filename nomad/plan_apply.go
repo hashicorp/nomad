@@ -219,7 +219,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 	now := time.Now().UTC().UnixNano()
 
-	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node

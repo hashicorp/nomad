@@ -749,7 +749,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
 		case <-oneTimeTokenGC.C:
-			if !ServersMeetMinimumVersion(s.Members(), minOneTimeAuthenticationTokenVersion, false) {
+			if !ServersMeetMinimumVersion(s.Members(), s.Region(), minOneTimeAuthenticationTokenVersion, false) {
 				continue
 			}
 
@@ -1578,7 +1578,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 		return config
 	}
 
-	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minAutopilotVersion, false) {
 		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
@@ -1605,7 +1605,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	if config != nil {
 		return config
 	}
-	if !ServersMeetMinimumVersion(s.Members(), minSchedulerConfigVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), s.Region(), minSchedulerConfigVersion, false) {
 		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
 		return nil
 	}
@@ -1620,7 +1620,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 }
 
 func (s *Server) generateClusterID() (string, error) {
-	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
 		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}
