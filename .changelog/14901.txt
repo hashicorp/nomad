@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Fixed a bug where keyring initialization is blocked by un-upgraded federated regions
+```

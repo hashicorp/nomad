@@ -1990,7 +1990,15 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 			return
 		default:
 		}
-		if ServersMeetMinimumVersion(s.serf.Members(), minVersionKeyring, true) {
+
+		members := s.serf.Members()
+		regionMembers := []serf.Member{}
+		for _, member := range members {
+			if member.Tags["region"] == s.Region() {
+				regionMembers = append(regionMembers, member)
+			}
+		}
+		if ServersMeetMinimumVersion(regionMembers, minVersionKeyring, true) {
 			break
 		}
 	}
