@@ -61,7 +61,9 @@ jobs:
           cache-key-suffix: -compile
       - name: Run make dev
         run: |
+          echo GOROOT is ${GOROOT}
           echo GOBIN is ${{env.GOBIN}}
+          go env
           make bootstrap
           make dev
   tests-api:
