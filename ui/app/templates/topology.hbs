@@ -466,8 +466,8 @@
             <div class="toolbar-item">
               {{#if this.model.nodes.length}}
                 <SearchBox
+                  @inputClass="node-search"
                   @searchTerm={{mut this.searchTerm}}
-                  {{!-- @onChange={{action this.buildTopology}} --}}
                   @placeholder="Search clients..."
                 />
               {{/if}}
