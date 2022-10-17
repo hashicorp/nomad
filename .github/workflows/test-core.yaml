@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # needs tags for checkproto
-      - uses: magnetikonline/action-golang-cache@v1
+      - uses: magnetikonline/action-golang-cache@v3
         with:
           go-version: ${{env.GO_VERSION}}
           cache-key-suffix: -checks
@@ -54,14 +54,12 @@ jobs:
     runs-on: ${{matrix.os}}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v2
-      - uses: magnetikonline/action-golang-cache@v1
+      - uses: actions/checkout@v3
+      - uses: magnetikonline/action-golang-cache@v3
         with:
           go-version: ${{env.GO_VERSION}}
           cache-key-suffix: -compile
       - name: Run make dev
-        env:
-          GOBIN: ${{env.GOROOT}}/bin # windows kludge
         run: |
           make bootstrap
           make dev
@@ -69,8 +67,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v2
-      - uses: magnetikonline/action-golang-cache@v1
+      - uses: actions/checkout@v3
+      - uses: magnetikonline/action-golang-cache@v3
         with:
           go-version: ${{env.GO_VERSION}}
           cache-key-suffix: -api
@@ -135,8 +133,8 @@ jobs:
           - scheduler/...
           - testutil/...
     steps:
-      - uses: actions/checkout@v2
-      - uses: magnetikonline/action-golang-cache@v1
+      - uses: actions/checkout@v3
+      - uses: magnetikonline/action-golang-cache@v3
         with:
           go-version: ${{env.GO_VERSION}}
           cache-key-suffix: -pkgs
