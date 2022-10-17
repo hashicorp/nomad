@@ -46,6 +46,11 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		args.Var.Namespace = targetNS
 	}
 
+	if !ServersMeetMinimumVersion(
+		sv.srv.serf.Members(), sv.srv.Region(), minVersionKeyring, true) {
+		return fmt.Errorf("all servers must be running version %v or later to apply variables", minVersionKeyring)
+	}
+
 	canRead, err := svePreApply(sv, args, args.Var)
 	if err != nil {
 		return err
