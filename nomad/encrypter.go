@@ -474,7 +474,7 @@ START:
 					// new leader has not yet replicated the key from
 					// the old leader before the transition. Ask all
 					// the other servers if they have it.
-					krr.logger.Debug("failed to fetch key from current leader",
+					krr.logger.Warn("failed to fetch key from current leader, trying peers",
 						"key", keyID, "error", err)
 					getReq.AllowStale = true
 					for _, peer := range krr.getAllPeers() {
@@ -494,7 +494,7 @@ START:
 					krr.logger.Error("failed to add key", "key", keyID, "error", err)
 					goto ERR_WAIT
 				}
-				krr.logger.Trace("added key", "key", keyID)
+				krr.logger.Info("added key", "key", keyID)
 			}
 		}
 	}
