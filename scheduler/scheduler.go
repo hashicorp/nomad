@@ -134,8 +134,9 @@ type Planner interface {
 	// that on leader changes, the evaluation will be reblocked properly.
 	ReblockEval(*structs.Evaluation) error
 
-	// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
-	// given Nomad version. The checkFailedServers parameter specifies whether version
-	// for the failed servers should be verified.
+	// ServersMeetMinimumVersion returns whether the Nomad servers in the
+	// worker's region are at least on the given Nomad version. The
+	// checkFailedServers parameter specifies whether version for the failed
+	// servers should be verified.
 	ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool
 }
