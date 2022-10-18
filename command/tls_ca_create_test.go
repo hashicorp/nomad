@@ -40,7 +40,7 @@ func TestCACreateCommand(t *testing.T) {
 				"-days=365",
 				"-name-constraint=true",
 				"-domain=foo",
-				"-additional-name-constraint=bar",
+				"-additional-domain=bar",
 			},
 			"foo-agent-ca.pem",
 			"foo-agent-ca-key.pem",

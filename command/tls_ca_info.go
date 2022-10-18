@@ -85,6 +85,7 @@ func (c *TLSCAInfoCommand) Run(args []string) int {
 	}
 	// Format the certificate info
 	basic := []string{
+		fmt.Sprintf("Serial Number|%s", certInfo.SerialNumber),
 		fmt.Sprintf("Issuer CN|%s", certInfo.Issuer.CommonName),
 		fmt.Sprintf("Common Name|%s", certInfo.Subject),
 		fmt.Sprintf("Expiry Date|%s", certInfo.NotAfter),
