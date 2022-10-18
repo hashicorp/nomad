@@ -297,6 +297,83 @@ func TestACLToken_IsExpired(t *testing.T) {
 	}
 }
 
+func TestACLToken_RoleSubset(t *testing.T) {
+	testCases := []struct {
+		name           string
+		inputToken     *ACLToken
+		inputRoleIDs   []string
+		expectedOutput bool
+	}{
+		{
+			name: "management token",
+			inputToken: &ACLToken{
+				Type: ACLManagementToken,
+			},
+			inputRoleIDs:   []string{"foo", "bar", "baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request all subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"foo", "bar", "baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request partial subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"foo", "baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request one subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request no subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"new"},
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputToken.RoleSubset(tc.inputRoleIDs)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
 func TestACLRole_SetHash(t *testing.T) {
 	testCases := []struct {
 		name           string
