@@ -376,6 +376,12 @@ type ACLConfig struct {
 	PolicyTTL    time.Duration
 	PolicyTTLHCL string `hcl:"policy_ttl" json:"-"`
 
+	// RoleTTL controls how long we cache ACL roles. This controls how stale
+	// they can be when we are enforcing policies. Defaults to "30s".
+	// Reducing this impacts performance by forcing more frequent resolution.
+	RoleTTL    time.Duration
+	RoleTTLHCL string `hcl:"role_ttl" json:"-"`
+
 	// ReplicationToken is used by servers to replicate tokens and policies
 	// from the authoritative region. This must be a valid management token
 	// within the authoritative region.
@@ -1250,6 +1256,7 @@ func DefaultConfig() *Config {
 			Enabled:   false,
 			TokenTTL:  30 * time.Second,
 			PolicyTTL: 30 * time.Second,
+			RoleTTL:   30 * time.Second,
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
@@ -1754,6 +1761,12 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	}
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
+	}
+	if b.RoleTTL != 0 {
+		result.RoleTTL = b.RoleTTL
+	}
+	if b.RoleTTLHCL != "" {
+		result.RoleTTLHCL = b.RoleTTLHCL
 	}
 	if b.TokenMinExpirationTTL != 0 {
 		result.TokenMinExpirationTTL = b.TokenMinExpirationTTL
