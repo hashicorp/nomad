@@ -59,6 +59,8 @@ func IsValidSigner(t *testing.T, keyPath string) bool {
 // directory immediately and defer switching back in one line of test
 // code.
 func SwitchToTempDir(t *testing.T, testDir string) func() {
+	t.Helper()
+
 	previousDirectory, err := os.Getwd()
 	require.NoError(t, err)
 	require.NoError(t, os.Chdir(testDir))
