@@ -275,14 +275,29 @@ func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {
 	if c.checks[check.Namespace] == nil {
 		c.checks[check.Namespace] = make(map[string]*api.AgentCheckRegistration)
 	}
+
 	c.checks[check.Namespace][check.ID] = check
 
 	// Be nice and make checks reachable-by-service
 	serviceCheck := check.AgentServiceCheck
+
 	if c.services[check.Namespace] == nil {
 		c.services[check.Namespace] = make(map[string]*api.AgentServiceRegistration)
 	}
-	c.services[check.Namespace][check.ServiceID].Checks = append(c.services[check.Namespace][check.ServiceID].Checks, &serviceCheck)
+
+	// replace existing check if one with same id already exists
+	replace := false
+	for i := 0; i < len(c.services[check.Namespace][check.ServiceID].Checks); i++ {
+		if c.services[check.Namespace][check.ServiceID].Checks[i].CheckID == check.CheckID {
+			c.services[check.Namespace][check.ServiceID].Checks[i] = &check.AgentServiceCheck
+			replace = true
+			break
+		}
+	}
+
+	if !replace {
+		c.services[check.Namespace][check.ServiceID].Checks = append(c.services[check.Namespace][check.ServiceID].Checks, &serviceCheck)
+	}
 	return nil
 }
 
