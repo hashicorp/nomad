@@ -984,8 +984,10 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 // checks from a service. It returns a service registration object with the
 // service and check IDs populated.
 func (c *ServiceClient) serviceRegs(
-	ops *operations, service *structs.Service, workload *serviceregistration.WorkloadServices) (
-	*serviceregistration.ServiceRegistration, error) {
+	ops *operations,
+	service *structs.Service,
+	workload *serviceregistration.WorkloadServices,
+) (*serviceregistration.ServiceRegistration, error) {
 
 	// Get the services ID
 	id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), service)
@@ -1101,6 +1103,7 @@ func (c *ServiceClient) serviceRegs(
 		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
+		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1109,17 +1112,48 @@ func (c *ServiceClient) serviceRegs(
 	if err != nil {
 		return nil, err
 	}
+
 	for _, registration := range checkRegs {
 		sreg.CheckIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
+		serviceReg.Checks = append(serviceReg.Checks, apiCheckRegistrationToCheck(registration))
 	}
 
 	return sreg, nil
 }
 
+// apiCheckRegistrationToCheck converts a check registration to a check, so that
+// we can include them in the initial service registration. It is expected the
+// Nomad-conversion (e.g. turning script checks into ttl checks) has already been
+// applied.
+func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServiceCheck {
+	return &api.AgentServiceCheck{
+		CheckID:                r.ID,
+		Name:                   r.Name,
+		Interval:               r.Interval,
+		Timeout:                r.Timeout,
+		TTL:                    r.TTL,
+		HTTP:                   r.HTTP,
+		Header:                 maps.Clone(r.Header),
+		Method:                 r.Method,
+		Body:                   r.Body,
+		TCP:                    r.TCP,
+		Status:                 r.Status,
+		TLSSkipVerify:          r.TLSSkipVerify,
+		GRPC:                   r.GRPC,
+		GRPCUseTLS:             r.GRPCUseTLS,
+		SuccessBeforePassing:   r.SuccessBeforePassing,
+		FailuresBeforeCritical: r.FailuresBeforeCritical,
+	}
+}
+
 // checkRegs creates check registrations for the given service
-func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
-	workload *serviceregistration.WorkloadServices, sreg *serviceregistration.ServiceRegistration) ([]*api.AgentCheckRegistration, error) {
+func (c *ServiceClient) checkRegs(
+	serviceID string,
+	service *structs.Service,
+	workload *serviceregistration.WorkloadServices,
+	sreg *serviceregistration.ServiceRegistration,
+) ([]*api.AgentCheckRegistration, error) {
 
 	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
@@ -1574,6 +1608,9 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		ServiceID: serviceID,
 		Namespace: normalizeNamespace(namespace),
 	}
+	chkReg.AgentServiceCheck.CheckID = checkID
+	chkReg.AgentServiceCheck.Name = check.Name
+
 	chkReg.Status = check.InitialStatus
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
