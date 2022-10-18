@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"golang.org/x/crypto/blake2b"
@@ -230,6 +231,27 @@ func (a *ACLToken) IsExpired(t time.Time) bool {
 	}
 
 	return a.ExpirationTime.Before(t) || t.IsZero()
+}
+
+// RoleSubset checks if a given set of role IDs are assigned to the ACL token.
+func (a *ACLToken) RoleSubset(roleIDs []string) bool {
+
+	// Hot-path: management tokens allows access to all roles.
+	if a.Type == ACLManagementToken {
+		return true
+	}
+
+	// Generate a set of role IDs that the token is assigned.
+	roleSet := set.FromFunc(a.Roles, func(roleLink *ACLTokenRoleLink) string { return roleLink.ID })
+
+	// Iterate the role IDs within the request and check whether these are
+	// present within the token assignment.
+	for _, roleID := range roleIDs {
+		if !roleSet.Contains(roleID) {
+			return false
+		}
+	}
+	return true
 }
 
 // ACLRole is an abstraction for the ACL system which allows the grouping of
