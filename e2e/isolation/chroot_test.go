@@ -17,6 +17,7 @@ func TestChrootFS(t *testing.T) {
 
 	t.Run("testTaskEnvChroot", testExecUsesChroot)
 	t.Run("testTaskImageChroot", testImageUsesChroot)
+	t.Run("testDownloadChrootExec", testDownloadChrootExec)
 }
 
 func testExecUsesChroot(t *testing.T) {
@@ -73,4 +74,29 @@ func testImageUsesChroot(t *testing.T) {
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/local\b)`), logs)
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/secrets\b)`), logs)
 	must.StrContains(t, logs, "/bin")
+}
+
+func testDownloadChrootExec(t *testing.T) {
+	nomad := e2eutil.NomadClient(t)
+
+	jobID := "dl-chroot-exec" + uuid.Short()
+	jobIDs := []string{jobID}
+	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+
+	// start job
+	e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_dl_exec.nomad", jobID, "")
+
+	// get allocation
+	allocations, err := e2eutil.AllocsForJob(jobID, "")
+	must.NoError(t, err)
+	must.Len(t, 1, allocations)
+	allocID := allocations[0]["ID"]
+
+	// wait for allocation stopped
+	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
+
+	// assert log contents
+	logs, err := e2eutil.AllocTaskLogs(allocID, "run-script", e2eutil.LogsStdOut)
+	must.NoError(t, err)
+	must.StrContains(t, logs, "this output is from a script")
 }
