@@ -19,6 +19,7 @@ acl {
   enabled    = true
   token_ttl  = "30s"
   policy_ttl = "60s"
+  role_ttl   = "60s"
 }
 ```
 
@@ -40,6 +41,12 @@ acl {
   cached ACL policies. This does not affect servers, since they do not cache policies.
   Setting this value lower reduces how stale a policy can be, but increases
   the request load against servers. If a client cannot reach a server, for example
+  because of an outage, the TTL will be ignored and the cached value used.
+
+- `role_ttl` `(string: "30s")` - Specifies the maximum time-to-live (TTL) for
+  cached ACL roles. This does not affect servers, since they do not cache roles.
+  Setting this value lower reduces how stale a role can be, but increases the
+  request load against servers. If a client cannot reach a server, for example
   because of an outage, the TTL will be ignored and the cached value used.
 
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
