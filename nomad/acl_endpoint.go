@@ -1097,6 +1097,13 @@ func (a *ACL) UpsertRoles(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_roles"}, time.Now())
 
+	// ACL roles can only be used once all servers, in all federated regions
+	// have been upgraded to 1.4.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
+			minACLRoleVersion)
+	}
+
 	// Only tokens with management level permissions can create ACL roles.
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -1232,6 +1239,13 @@ func (a *ACL) DeleteRolesByID(
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_roles"}, time.Now())
+
+	// ACL roles can only be used once all servers, in all federated regions
+	// have been upgraded to 1.4.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
+			minACLRoleVersion)
+	}
 
 	// Only tokens with management level permissions can create ACL roles.
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {

@@ -49,6 +49,11 @@ var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
 
 var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.0"))
 
+// minACLRoleVersion is the Nomad version at which the ACL role table was
+// introduced. It forms the minimum version all federated servers must meet
+// before the feature can be used.
+var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
+
 // minNomadServiceRegistrationVersion is the Nomad version at which the service
 // registrations table was introduced. It forms the minimum version all local
 // servers must meet before the feature can be used.
