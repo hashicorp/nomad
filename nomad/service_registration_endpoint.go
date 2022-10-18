@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -43,6 +44,13 @@ func (s *ServiceRegistration) Upsert(
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
+
+	// Nomad service registrations can only be used once all servers, in the
+	// local region, have been upgraded to 1.3.0 or greater.
+	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion)
+	}
 
 	// This endpoint is only callable by nodes in the cluster. Therefore,
 	// perform a node lookup using the secret ID to confirm the caller is a
@@ -98,6 +106,13 @@ func (s *ServiceRegistration) DeleteByID(
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "delete_id"}, time.Now())
+
+	// Nomad service registrations can only be used once all servers, in the
+	// local region, have been upgraded to 1.3.0 or greater.
+	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion)
+	}
 
 	// Perform the ACL token resolution.
 	aclObj, err := s.srv.ResolveToken(args.AuthToken)
