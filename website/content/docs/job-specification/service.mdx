@@ -137,7 +137,7 @@ Connect][connect] integration.
 - `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
-  [documentation](https://www.consul.io/docs/concepts/anti-entropy#enable-tag-override)
+  [documentation](https://developer.hashicorp.com/consul/docs/concepts/anti-entropy#enable-tag-override)
   for more information. Only available where `provider = "consul"`.
 
 - `address` `(string: <optional>)` - Specifies a custom address to advertise in
@@ -501,8 +501,8 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 [check]: /docs/job-specification/check
 [check_restart_stanza]: /docs/job-specification/check_restart
-[consul_grpc]: https://www.consul.io/api-docs/agent/check#grpc
-[consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
+[consul_grpc]: https://developer.hashicorp.com/consul/api-docs/agent/check#grpc
+[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
 [service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
@@ -516,4 +516,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [service_task]: /docs/job-specification/service#task-1
 [network_mode]: /docs/job-specification/network#mode
 [on_update]: /docs/job-specification/service#on_update
-[tagged_addresses]: https://www.consul.io/docs/discovery/services#tagged-addresses
+[tagged_addresses]: https://developer.hashicorp.com/consul/docs/discovery/services#tagged-addresses
