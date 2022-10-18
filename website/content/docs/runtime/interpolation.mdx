@@ -65,35 +65,35 @@ driver.
 
 | Variable                  | Description                                 | Example Value                          |
 | ------------------------- | ------------------------------------------- | -------------------------------------- |
-| `{'${node.unique.id}'}`   | 36 character unique client identifier       | `9afa5da1-8f39-25a2-48dc-ba31fd7c0023` |
-| `{'${node.region}'}`      | Client's region                             | `global`                               |
-| `{'${node.datacenter}'}`  | Client's datacenter                         | `dc1`                                  |
-| `{'${node.unique.name}'}` | Client's name                               | `nomad-client-10-1-2-4`                |
-| `{'${node.class}'}`       | Client's class                              | `linux-64bit`                          |
-| `${'{'}attr.{'}'}`        | Property given by `property` on the client  | `{'${attr.cpu.arch} => amd64'}`        |
-| `${'{'}meta.{'}'}`        | Metadata value given by `key` on the client | `{'${meta.foo} => bar'}`               |
+| `${node.unique.id}`   | 36 character unique client identifier       | `9afa5da1-8f39-25a2-48dc-ba31fd7c0023` |
+| `${node.region}`      | Client's region                             | `global`                               |
+| `${node.datacenter}`  | Client's datacenter                         | `dc1`                                  |
+| `${node.unique.name}` | Client's name                               | `nomad-client-10-1-2-4`                |
+| `${node.class}`       | Client's class                              | `linux-64bit`                          |
+| `${attr.<property>}`        | Property given by `property` on the client  | `${attr.cpu.arch} => amd64`        |
+| `${meta.<key>}`        | Metadata value given by `key` on the client | `${meta.foo} => bar`               |
 
 Below is a table documenting common node properties:
 
 | Property                                               | Description                                                                                                                                            |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `{'${attr.cpu.arch}'}`                                 | CPU architecture of the client (e.g. `amd64`, `386`)                                                                                              |
-| `{'${attr.cpu.numcores}'}`                             | Number of CPU cores on the client. May differ from how many cores are available for reservation due to OS or configuration. See `cpu.reservablecores`. |
-| `{'${attr.cpu.reservablecores}'}`                      | Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.          |
-| `{'${attr.cpu.totalcompute}'}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                |
-| `{'${attr.consul.datacenter}'}`                        | The Consul datacenter of the client (if Consul is found)                                                                                               |
-| `${'{'}attr.driver.{'}'}`                              | See the [task drivers](/docs/drivers) for property documentation                                                                                       |
-| `{'${attr.unique.hostname}'}`                          | Hostname of the client                                                                                                                                 |
-| `{'${attr.unique.network.ip-address}'}`                | The IP address fingerprinted by the client and from which task ports are allocated                                                                     |
-| `{'${attr.kernel.arch}'}`                              | Kernel architecture of the client (e.g. `x86_64`, `aarch64`)                                                                                           |
-| `{'${attr.kernel.name}'}`                              | Kernel of the client (e.g. `linux`, `darwin`)                                                                                                          |
-| `{'${attr.kernel.version}'}`                           | Version of the client kernel (e.g. `3.19.0-25-generic`, `15.0.0`)                                                                                 |
-| `{'${attr.platform.aws.ami-id}'}`                      | AMI ID of the client (if on AWS EC2)                                                                                                                   |
-| `{'${attr.platform.aws.instance-life-cycle}'}`         | Instance lifecycle (e.g. spot, on-demand) of the client (if on AWS EC2)                                                                                |
-| `{'${attr.platform.aws.instance-type}'}`               | Instance type of the client (if on AWS EC2)                                                                                                            |
-| `{'${attr.platform.aws.placement.availability-zone}'}` | Availability Zone of the client (if on AWS EC2)                                                                                                        |
-| `{'${attr.os.name}'}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                               |
-| `{'${attr.os.version}'}`                               | Version of the client OS                                                                                                                               |
+| `${attr.cpu.arch}`                                 | CPU architecture of the client (e.g. `amd64`, `386`)                                                                                              |
+| `${attr.cpu.numcores}`                             | Number of CPU cores on the client. May differ from how many cores are available for reservation due to OS or configuration. See `cpu.reservablecores`. |
+| `${attr.cpu.reservablecores}`                      | Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.          |
+| `${attr.cpu.totalcompute}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                |
+| `${attr.consul.datacenter}`                        | The Consul datacenter of the client (if Consul is found)                                                                                               |
+| `${attr.driver.<property>}`                              | See the [task drivers](/docs/drivers) for property documentation                                                                                       |
+| `${attr.unique.hostname}`                          | Hostname of the client                                                                                                                                 |
+| `${attr.unique.network.ip-address}`                | The IP address fingerprinted by the client and from which task ports are allocated                                                                     |
+| `${attr.kernel.arch}`                              | Kernel architecture of the client (e.g. `x86_64`, `aarch64`)                                                                                           |
+| `${attr.kernel.name}`                              | Kernel of the client (e.g. `linux`, `darwin`)                                                                                                          |
+| `${attr.kernel.version}`                           | Version of the client kernel (e.g. `3.19.0-25-generic`, `15.0.0`)                                                                                 |
+| `${attr.platform.aws.ami-id}`                      | AMI ID of the client (if on AWS EC2)                                                                                                                   |
+| `${attr.platform.aws.instance-life-cycle}`         | Instance lifecycle (e.g. spot, on-demand) of the client (if on AWS EC2)                                                                                |
+| `${attr.platform.aws.instance-type}`               | Instance type of the client (if on AWS EC2)                                                                                                            |
+| `${attr.platform.aws.placement.availability-zone}` | Availability Zone of the client (if on AWS EC2)                                                                                                        |
+| `${attr.os.name}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                               |
+| `${attr.os.version}`                               | Version of the client OS                                                                                                                               |
 
 The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 
