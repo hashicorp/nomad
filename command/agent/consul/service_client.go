@@ -29,6 +29,12 @@ const (
 	// services (both agent and task entries).
 	nomadServicePrefix = "_nomad"
 
+	// nomadServerPrefix is the prefix that scopes Nomad registered Servers.
+	nomadServerPrefix = nomadServicePrefix + "-server-"
+
+	// nomadClientPrefix is the prefix that scopes Nomad registered Clients.
+	nomadClientPrefix = nomadServicePrefix + "-client-"
+
 	// nomadTaskPrefix is the prefix that scopes Nomad registered services
 	// for tasks.
 	nomadTaskPrefix = nomadServicePrefix + "-task-"
@@ -130,10 +136,7 @@ type ConfigAPI interface {
 // ACL requirements
 // - acl:write (server only)
 type ACLsAPI interface {
-	// We are looking up by [operator token] SecretID, which implies we need
-	// to use this method instead of the normal TokenRead, which can only be
-	// used to lookup tokens by their AccessorID.
-	TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.QueryMeta, error)
+	TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.QueryMeta, error) // for lookup via operator token
 	PolicyRead(policyID string, q *api.QueryOptions) (*api.ACLPolicy, *api.QueryMeta, error)
 	RoleRead(roleID string, q *api.QueryOptions) (*api.ACLRole, *api.QueryMeta, error)
 	TokenCreate(partial *api.ACLToken, q *api.WriteOptions) (*api.ACLToken, *api.WriteMeta, error)
@@ -169,6 +172,11 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 		// We do so by over-writing the nomad service registration by the value
 		// of the tags that Consul contains, if enable_tag_override = true.
 		maybeTweakTags(wanted, existing, sidecar)
+
+		// Also, purge tagged address fields of nomad agent services.
+		maybeTweakTaggedAddresses(wanted, existing)
+
+		// Okay now it is safe to compare.
 		return different(wanted, existing, sidecar)
 
 	default:
@@ -176,6 +184,11 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 		// on the queue. This happens when service has been added / removed / modified
 		// and implies the Consul agent should be sync'd with nomad, because
 		// nomad is the ultimate source of truth for the service definition.
+
+		// But do purge tagged address fields of nomad agent services.
+		// maybeTweakTaggedAddresses(wanted, existing)
+
+		// Okay now it is safe to compare.
 		return different(wanted, existing, sidecar)
 	}
 }
@@ -196,6 +209,15 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 	}
 }
 
+// maybeTweakTaggedAddresses will remove the .TaggedAddresses fields from existing
+// if wanted represents a Nomad agent (Client or Server). We do this because Consul
+// sets the TaggedAddress on these legacy registrations for us
+func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *api.AgentService) {
+	if isNomadAgent(wanted.ID) && len(wanted.TaggedAddresses) == 0 {
+		existing.TaggedAddresses = nil
+	}
+}
+
 // different compares the wanted state of the service registration with the actual
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
@@ -213,7 +235,7 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case wanted.EnableTagOverride != existing.EnableTagOverride:
 		return true
-	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
+	case !maps.Equal(wanted.Meta, existing.Meta):
 		return true
 	case tagsDifferent(wanted.Tags, existing.Tags):
 		return true
@@ -1887,4 +1909,19 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Shouldn't happen due to validation, but enforce invariants
 		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
 	}
+}
+
+// isNomadClient returns true if id represents a Nomad Client registration.
+func isNomadClient(id string) bool {
+	return strings.HasPrefix(id, nomadClientPrefix)
+}
+
+// isNomadServer returns true if id represents a Nomad Server registration.
+func isNomadServer(id string) bool {
+	return strings.HasPrefix(id, nomadServerPrefix)
+}
+
+// isNomadAgent returns true if id represents a Nomad Client or Server registration.
+func isNomadAgent(id string) bool {
+	return isNomadClient(id) || isNomadServer(id)
 }

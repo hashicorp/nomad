@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,7 +84,7 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 		reason syncReason,
 		tweak tweaker) {
 		result := agentServiceUpdateRequired(reason, tweak(wanted()), existing, sidecar)
-		require.Equal(t, exp, result)
+		must.Eq(t, exp, result)
 	}
 
 	t.Run("matching", func(t *testing.T) {
