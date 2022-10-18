@@ -78,6 +78,8 @@ $ curl \
     ],
     "AccessMode": "multi-node-single-writer",
     "AttachmentMode": "file-system",
+    "CurrentReaders": 2,
+    "CurrentWriters": 1,
     "Schedulable": true,
     "PluginID": "plugin-id1",
     "Provider": "ebs",
@@ -220,7 +222,7 @@ $ curl \
               "VaultError": "",
               "TaskSignalReason": "",
               "TaskSignal": "",
-              "DriverMessage": "Downloading image redis:3.2"
+              "DriverMessage": "Downloading image redis:7"
             },
             {
               "Type": "Started",
@@ -781,5 +783,5 @@ $ curl \
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /docs/job-specification/csi_plugin
-[csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
+[csi_plugins_internals]: /docs/concepts/plugins/csi#csi-plugins
 [Create Volume]: #create-volume

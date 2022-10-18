@@ -1,0 +1,40 @@
+---
+layout: docs
+page_title: 'Commands: operator gossip keyring remove'
+description: |
+  Remove a new gossip encryption key
+---
+
+# Command: operator gossip keyring remove
+
+The `operator gossip keyring remove` command removes the given key
+from the cluster. This operation may only be performed on keys which
+are not currently the primary key.
+
+This command can only be run against server nodes. It returns 0 if all nodes
+reply and there are no errors. If any node fails to reply or reports failure,
+the exit code will be 1.
+
+If ACLs are enabled, this command requires a token with the `agent:write`
+capability.
+
+## Usage
+
+```plaintext
+nomad operator gossip keyring remove [options] <key>
+```
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+```shell-session
+$ nomad operator gossip keyring remove HD5Y61iE+neTxd1n6TnXhCPViPIUq5QpWq8WW8012XA=
+Removing gossip encryption key...
+error: Unexpected response code: 500 (3/3 nodes reported failure)
+
+$ nomad operator gossip keyring remove AOUfjGff+MrTBzNU7NCOTmYajKRkGv8r2ToxheWd+jk=
+Removing gossip encryption key...
+```

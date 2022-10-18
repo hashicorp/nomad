@@ -8,7 +8,7 @@ import (
 )
 
 // enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
-func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
+func (j *Job) enforceSubmitJob(override bool, job *structs.Job, nomadACLToken *structs.ACLToken, ns *structs.Namespace) (error, error) {
 	return nil, nil
 }
 
@@ -37,4 +37,13 @@ func (j *Job) multiregionStop(job *structs.Job, args *structs.JobDeregisterReque
 // interpolateMultiregionFields interpolates a job for a specific region
 func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
 	return nil
+}
+
+// multiregionSpecChanged checks to see if the job spec has changed. If the job is multiregion,
+// it checks all regions to determine if any deployed jobs instances have been stopped or
+// otherwise differ from the incoming jobspec. Since multiregion jobs require coordinated
+// deployments and synchronized job versions across all regions, a change in one requires
+// redeployment of all.
+func (j *Job) multiregionSpecChanged(existingJob *structs.Job, args *structs.JobRegisterRequest) (bool, error) {
+	return existingJob.SpecChanged(args.Job), nil
 }

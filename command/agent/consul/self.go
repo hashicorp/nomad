@@ -37,9 +37,10 @@ func Namespaces(info Self) bool {
 // feature returns whether the indicated feature is enabled by Consul and the
 // associated License.
 // possible values as of v1.9.5+ent:
-//   Automated Backups, Automated Upgrades, Enhanced Read Scalability,
-//   Network Segments, Redundancy Zone, Advanced Network Federation,
-//   Namespaces, SSO, Audit Logging
+//
+//	Automated Backups, Automated Upgrades, Enhanced Read Scalability,
+//	Network Segments, Redundancy Zone, Advanced Network Federation,
+//	Namespaces, SSO, Audit Logging
 func feature(name string, info Self) bool {
 	lic, licOK := info["Stats"]["license"].(map[string]interface{})
 	if !licOK {

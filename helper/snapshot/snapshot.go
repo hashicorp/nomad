@@ -138,13 +138,22 @@ func (s *Snapshot) Close() error {
 	return os.Remove(s.file.Name())
 }
 
-// Verify takes the snapshot from the reader and verifies its contents.
-func Verify(in io.Reader) (*raft.SnapshotMeta, error) {
-	return CopySnapshot(in, ioutil.Discard)
+type Discard struct {
+	io.Writer
 }
 
-// CopySnapshot copies the snapshot content from snapshot archive to dest
-func CopySnapshot(in io.Reader, dest io.Writer) (*raft.SnapshotMeta, error) {
+func (dc Discard) Close() error { return nil }
+
+// Verify takes the snapshot from the reader and verifies its contents.
+func Verify(in io.Reader) (*raft.SnapshotMeta, error) {
+	return CopySnapshot(in, Discard{Writer: io.Discard})
+}
+
+// CopySnapshot copies the snapshot content from snapshot archive to dest.
+// It will close the destination once complete.
+func CopySnapshot(in io.Reader, dest io.WriteCloser) (*raft.SnapshotMeta, error) {
+	defer dest.Close()
+
 	// Wrap the reader in a gzip decompressor.
 	decomp, err := gzip.NewReader(in)
 	if err != nil {

@@ -8,6 +8,11 @@ export default class TaskGroup extends ApplicationSerializer {
   mapToArray = ['Volumes'];
 
   normalize(typeHash, hash) {
+    if (hash.Services) {
+      hash.Services.forEach((service) => {
+        service.GroupName = hash.Name;
+      });
+    }
     // Provide EphemeralDisk to each task
     hash.Tasks.forEach((task) => {
       task.EphemeralDisk = copy(hash.EphemeralDisk);

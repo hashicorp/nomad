@@ -15,6 +15,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -191,63 +192,55 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	})
 	defer cleanup()
 
-	node := c1.config.Node
-	{
-		// Ensure the mock driver is registered on the client
-		testutil.WaitForResult(func() (bool, error) {
-			c1.configLock.Lock()
-			defer c1.configLock.Unlock()
+	// Ensure the mock driver is registered on the client
+	testutil.WaitForResult(func() (bool, error) {
+		node := c1.Node()
 
-			// assert that the driver is set on the node attributes
-			mockDriverInfoAttr := node.Attributes["driver.mock_driver"]
-			if mockDriverInfoAttr == "" {
-				return false, fmt.Errorf("mock driver is empty when it should be set on the node attributes")
-			}
+		// assert that the driver is set on the node attributes
+		mockDriverInfoAttr := node.Attributes["driver.mock_driver"]
+		if mockDriverInfoAttr == "" {
+			return false, fmt.Errorf("mock driver is empty when it should be set on the node attributes")
+		}
 
-			mockDriverInfo := node.Drivers["mock_driver"]
+		mockDriverInfo := node.Drivers["mock_driver"]
 
-			// assert that the Driver information for the node is also set correctly
-			if mockDriverInfo == nil {
-				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
-			}
-			if !mockDriverInfo.Detected {
-				return false, fmt.Errorf("mock driver should be set as detected")
-			}
-			if !mockDriverInfo.Healthy {
-				return false, fmt.Errorf("mock driver should be set as healthy")
-			}
-			if mockDriverInfo.HealthDescription == "" {
-				return false, fmt.Errorf("mock driver description should not be empty")
-			}
-			return true, nil
-		}, func(err error) {
-			t.Fatalf("err: %v", err)
-		})
-	}
+		// assert that the Driver information for the node is also set correctly
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
+		}
+		if !mockDriverInfo.Detected {
+			return false, fmt.Errorf("mock driver should be set as detected")
+		}
+		if !mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver should be set as healthy")
+		}
+		if mockDriverInfo.HealthDescription == "" {
+			return false, fmt.Errorf("mock driver description should not be empty")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
-	{
-		testutil.WaitForResult(func() (bool, error) {
-			c1.configLock.Lock()
-			defer c1.configLock.Unlock()
-			mockDriverInfo := node.Drivers["mock_driver"]
-			// assert that the Driver information for the node is also set correctly
-			if mockDriverInfo == nil {
-				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
-			}
-			if mockDriverInfo.Detected {
-				return false, fmt.Errorf("mock driver should not be set as detected")
-			}
-			if mockDriverInfo.Healthy {
-				return false, fmt.Errorf("mock driver should not be set as healthy")
-			}
-			if mockDriverInfo.HealthDescription == "" {
-				return false, fmt.Errorf("mock driver description should not be empty")
-			}
-			return true, nil
-		}, func(err error) {
-			t.Fatalf("err: %v", err)
-		})
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverInfo := c1.Node().Drivers["mock_driver"]
+		// assert that the Driver information for the node is also set correctly
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
+		}
+		if mockDriverInfo.Detected {
+			return false, fmt.Errorf("mock driver should not be set as detected")
+		}
+		if mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver should not be set as healthy")
+		}
+		if mockDriverInfo.HealthDescription == "" {
+			return false, fmt.Errorf("mock driver description should not be empty")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 // TestClient_MixedTLS asserts that when a server is running with TLS enabled
@@ -507,7 +500,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 
 	// Delete one allocation
-	if err := state.DeleteEval(103, nil, []string{alloc1.ID}); err != nil {
+	if err := state.DeleteEval(103, nil, []string{alloc1.ID}, false); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -744,8 +737,9 @@ func TestClient_Init(t *testing.T) {
 	config.Node = mock.Node()
 
 	client := &Client{
-		config: config,
-		logger: testlog.HCLogger(t),
+		config:        config,
+		logger:        testlog.HCLogger(t),
+		cpusetManager: new(cgutil.NoopCpusetManager),
 	}
 
 	if err := client.init(); err != nil {
@@ -1115,17 +1109,18 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	})
 
 	// initial check
+	conf := client.GetConfig()
 	expectedResources := &structs.NodeResources{
 		// computed through test client initialization
-		Networks:     client.configCopy.Node.NodeResources.Networks,
-		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
-		Disk:         client.configCopy.Node.NodeResources.Disk,
+		Networks:     conf.Node.NodeResources.Networks,
+		NodeNetworks: conf.Node.NodeResources.NodeNetworks,
+		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
 		Cpu: structs.NodeCpuResources{
 			CpuShares:          123,
-			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
-			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
 		Devices: []*structs.NodeDeviceResource{
@@ -1136,7 +1131,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources, client.configCopy.Node.NodeResources)
+	assert.EqualValues(t, expectedResources, conf.Node.NodeResources)
 
 	// overrides of values
 
@@ -1157,17 +1152,19 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	})
 
+	conf = client.GetConfig()
+
 	expectedResources2 := &structs.NodeResources{
 		// computed through test client initialization
-		Networks:     client.configCopy.Node.NodeResources.Networks,
-		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
-		Disk:         client.configCopy.Node.NodeResources.Disk,
+		Networks:     conf.Node.NodeResources.Networks,
+		NodeNetworks: conf.Node.NodeResources.NodeNetworks,
+		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
 		Cpu: structs.NodeCpuResources{
 			CpuShares:          123,
-			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
-			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
 		Devices: []*structs.NodeDeviceResource{
@@ -1182,7 +1179,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources2, client.configCopy.Node.NodeResources)
+	assert.EqualValues(t, expectedResources2, conf.Node.NodeResources)
 
 }
 

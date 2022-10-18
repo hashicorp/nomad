@@ -1,0 +1,3 @@
+```release-note:bug
+servicedisco: Fixed a bug where non-unique services would escape job validation
+```

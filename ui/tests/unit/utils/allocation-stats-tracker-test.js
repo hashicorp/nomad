@@ -54,6 +54,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
       },
       MemoryStats: {
         RSS: (step + 400) * 1024 * 1024,
+        Usage: (step + 400) * 1024 * 1024,
       },
     },
     Tasks: {
@@ -64,6 +65,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
           },
           MemoryStats: {
             RSS: (step + 100) * 1024 * 1024,
+            Usage: (step + 100) * 1024 * 1024,
           },
         },
         Timestamp: refDate + step,
@@ -75,6 +77,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
           },
           MemoryStats: {
             RSS: (step + 50) * 1024 * 1024,
+            Usage: (step + 50) * 1024 * 1024,
           },
         },
         Timestamp: refDate + step * 10,
@@ -86,6 +89,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
           },
           MemoryStats: {
             RSS: (step + 51) * 1024 * 1024,
+            Usage: (step + 51) * 1024 * 1024,
           },
         },
         Timestamp: refDate + step * 100,
@@ -251,7 +255,6 @@ module('Unit | Util | AllocationStatsTracker', function () {
       ],
       'One frame of memory'
     );
-
     assert.deepEqual(
       tracker.get('tasks'),
       [

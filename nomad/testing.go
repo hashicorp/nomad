@@ -53,6 +53,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true
+	config.DataDir = t.TempDir()
 	config.EnableEventBroker = true
 	config.BootstrapExpect = 1
 	nodeNum := atomic.AddInt32(&nodeNumber, 1)

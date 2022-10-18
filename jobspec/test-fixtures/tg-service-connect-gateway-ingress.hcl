@@ -23,7 +23,9 @@ job "connect_gateway_ingress" {
           }
           ingress {
             tls {
-              enabled = true
+              enabled         = true
+              tls_min_version = "TLSv1_2"
+              cipher_suites   = ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"]
             }
 
             listener {

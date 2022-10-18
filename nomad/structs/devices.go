@@ -61,7 +61,7 @@ func NewDeviceAccounter(n *Node) *DeviceAccounter {
 func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	for _, a := range allocs {
 		// Filter any terminal allocation
-		if a.TerminalStatus() {
+		if a.ClientTerminalStatus() {
 			continue
 		}
 

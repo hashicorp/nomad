@@ -9,8 +9,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -585,7 +585,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
 			return true
-		} else if !ar.Devices.Equals(&br.Devices) {
+		} else if !ar.Devices.Equal(&br.Devices) {
 			return true
 		}
 	}
@@ -644,11 +644,11 @@ func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
 		return true
 	}
 
-	if !connectA.Gateway.Equals(connectB.Gateway) {
+	if !connectA.Gateway.Equal(connectB.Gateway) {
 		return true
 	}
 
-	if !connectA.SidecarTask.Equals(connectB.SidecarTask) {
+	if !connectA.SidecarTask.Equal(connectB.SidecarTask) {
 		return true
 	}
 
@@ -860,7 +860,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !helper.SliceStringContains(job.Datacenters, node.Datacenter) {
+		if !slices.Contains(job.Datacenters, node.Datacenter) {
 			continue
 		}
 
@@ -1148,7 +1148,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !helper.SliceStringContains(newJob.Datacenters, node.Datacenter) {
+		if !slices.Contains(newJob.Datacenters, node.Datacenter) {
 			return false, true, nil
 		}
 

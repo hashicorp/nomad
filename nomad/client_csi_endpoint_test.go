@@ -541,8 +541,9 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 		require.NoError(t, err, "could not setup test client")
 	}
 
-	node1 := c1.Node()
-	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node1 := c1.UpdateConfig(func(c *config.Config) {
+		c.Node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	}).Node
 
 	req := &structs.NodeRegisterRequest{
 		Node:         node1,
@@ -568,7 +569,9 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}
 
 	// update w/ plugin
-	node1.CSIControllerPlugins = plugins
+	node1 = c1.UpdateConfig(func(c *config.Config) {
+		c.Node.CSIControllerPlugins = plugins
+	}).Node
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	cleanup := func() {

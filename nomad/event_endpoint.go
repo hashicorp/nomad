@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -28,7 +28,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleJsonResultError(err, helper.Int64ToPtr(500), encoder)
+		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
@@ -36,7 +36,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	if args.Region != e.srv.config.Region {
 		err := e.forwardStreamingRPC(args.Region, "Event.Stream", args, conn)
 		if err != nil {
-			handleJsonResultError(err, helper.Int64ToPtr(500), encoder)
+			handleJsonResultError(err, pointer.Of(int64(500)), encoder)
 		}
 		return
 	}
@@ -52,7 +52,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	// Get the servers broker and subscribe
 	publisher, err := e.srv.State().EventBroker()
 	if err != nil {
-		handleJsonResultError(err, helper.Int64ToPtr(500), encoder)
+		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		subscription, subErr = publisher.Subscribe(subReq)
 	}
 	if subErr != nil {
-		handleJsonResultError(subErr, helper.Int64ToPtr(500), encoder)
+		handleJsonResultError(subErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 	defer subscription.Unsubscribe()
@@ -141,7 +141,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleJsonResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		handleJsonResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 

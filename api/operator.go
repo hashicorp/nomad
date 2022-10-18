@@ -134,6 +134,10 @@ type SchedulerConfiguration struct {
 	// management ACL token
 	RejectJobRegistration bool
 
+	// PauseEvalBroker stops the leader evaluation broker process from running
+	// until the configuration is updated and written to the Nomad servers.
+	PauseEvalBroker bool
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64

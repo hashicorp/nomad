@@ -228,7 +228,8 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
+	for i := range cases {
+		tc := cases[i]
 		t.Run(tc.desc, func(t *testing.T) {
 			require := require.New(t)
 

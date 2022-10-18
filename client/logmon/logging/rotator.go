@@ -38,10 +38,13 @@ type FileRotator struct {
 	MaxFiles int   // MaxFiles is the maximum number of rotated files allowed in a path
 	FileSize int64 // FileSize is the size a rotated file is allowed to grow
 
-	path             string // path is the path on the file system where the rotated set of files are opened
-	baseFileName     string // baseFileName is the base file name of the rotated files
-	logFileIdx       int    // logFileIdx is the current index of the rotated files
-	oldestLogFileIdx int    // oldestLogFileIdx is the index of the oldest log file in a path
+	path         string // path is the path on the file system where the rotated set of files are opened
+	baseFileName string // baseFileName is the base file name of the rotated files
+	logFileIdx   int    // logFileIdx is the current index of the rotated files
+
+	oldestLogFileIdx int // oldestLogFileIdx is the index of the oldest log file in a path
+	closed           bool
+	fileLock         sync.Mutex
 
 	currentFile *os.File // currentFile is the file that is currently getting written
 	currentWr   int64    // currentWr is the number of bytes written to the current file
@@ -52,9 +55,6 @@ type FileRotator struct {
 	logger      hclog.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
-
-	closed     bool
-	closedLock sync.Mutex
 }
 
 // NewFileRotator returns a new file rotator
@@ -96,7 +96,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 			f.flushBuffer()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
-				f.logger.Error("error creating next file", "err", err)
+				f.logger.Error("error creating next file", "error", err)
 				return 0, err
 			}
 		}
@@ -144,7 +144,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
-			f.logger.Error("error writing to file", "err", err)
+			f.logger.Error("error writing to file", "error", err)
 
 			// As bufio writer does not automatically recover in case of any
 			// io error, we need to recover from it manually resetting the
@@ -176,8 +176,8 @@ func (f *FileRotator) nextFile() error {
 		break
 	}
 	// Purge old files if we have more files than MaxFiles
-	f.closedLock.Lock()
-	defer f.closedLock.Unlock()
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
 	if f.logFileIdx-f.oldestLogFileIdx >= f.MaxFiles && !f.closed {
 		select {
 		case f.purgeCh <- struct{}{}:
@@ -250,8 +250,8 @@ func (f *FileRotator) flushPeriodically() {
 
 // Close flushes and closes the rotator. It never returns an error.
 func (f *FileRotator) Close() error {
-	f.closedLock.Lock()
-	defer f.closedLock.Unlock()
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
 
 	// Stop the ticker and flush for one last time
 	f.flushTicker.Stop()
@@ -277,7 +277,7 @@ func (f *FileRotator) purgeOldFiles() {
 			var fIndexes []int
 			files, err := ioutil.ReadDir(f.path)
 			if err != nil {
-				f.logger.Error("error getting directory listing", "err", err)
+				f.logger.Error("error getting directory listing", "error", err)
 				return
 			}
 			// Inserting all the rotated files in a slice
@@ -286,7 +286,7 @@ func (f *FileRotator) purgeOldFiles() {
 					fileIdx := strings.TrimPrefix(fi.Name(), fmt.Sprintf("%s.", f.baseFileName))
 					n, err := strconv.Atoi(fileIdx)
 					if err != nil {
-						f.logger.Error("error extracting file index", "err", err)
+						f.logger.Error("error extracting file index", "error", err)
 						continue
 					}
 					fIndexes = append(fIndexes, n)
@@ -307,10 +307,13 @@ func (f *FileRotator) purgeOldFiles() {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
 				err := os.RemoveAll(fname)
 				if err != nil {
-					f.logger.Error("error removing file", "filename", fname, "err", err)
+					f.logger.Error("error removing file", "filename", fname, "error", err)
 				}
 			}
+
+			f.fileLock.Lock()
 			f.oldestLogFileIdx = fIndexes[0]
+			f.fileLock.Unlock()
 		case <-f.doneCh:
 			return
 		}

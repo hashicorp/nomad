@@ -30,11 +30,12 @@ const (
 //
 // Currently the things that are annotated are:
 // * Task group changes will be annotated with:
-//    * Count up and count down changes
-//    * Update counts (creates, destroys, migrates, etc)
+//   - Count up and count down changes
+//   - Update counts (creates, destroys, migrates, etc)
+//
 // * Task changes will be annotated with:
-//    * forces create/destroy update
-//    * forces in-place update
+//   - forces create/destroy update
+//   - forces in-place update
 func Annotate(diff *structs.JobDiff, annotations *structs.PlanAnnotations) error {
 	tgDiffs := diff.TaskGroups
 	if len(tgDiffs) == 0 {

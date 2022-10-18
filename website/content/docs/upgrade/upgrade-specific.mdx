@@ -13,6 +13,112 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.4.0
+
+#### Possible Panic During Upgrades
+
+Nomad 1.4.0 initializes a keyring on the leader if one has not been previously
+created, which writes a new raft entry. Users have reported that the keyring
+initialization can cause a panic on older servers during upgrades. Following the
+documented [upgrade process][] closely will reduce the risk of this panic. But
+if a server with version 1.4.0 or higher becomes leader while servers with
+versions before 1.4.0 are still in the cluster, the older servers will panic.
+
+The most likely scenario for this is if the leader is still on a version before
+1.4.0 and is netsplit from the rest of the cluster or the server is restarted
+without upgrading, and one of the 1.4.0 servers becomes the leader.
+
+You can recover from the panic by immediately upgrading the old servers.
+
+#### Raft Protocol Version 2 Unsupported
+
+Raft protocol version 2 was deprecated in Nomad v1.3.0, and is being removed
+in Nomad v1.4.0. In Nomad 1.3.0, the default raft protocol version was updated
+to version 3, and in Nomad 1.4.0 Nomad requires the use of raft protocol version
+3. If [`raft_protocol`] version is explicitly set, it must now be set to `3`.
+For more information see the [Upgrading to Raft Protocol 3] guide.
+
+#### Audit logs filtering logic changed
+
+Audit Log filtering in previous versions of Nomad handled `stages` and
+`operations` filters as `OR` filters. If _either_ condition was met, the logs
+would be filtered. As of 1.4.0, `stages` and `operations` are treated as `AND
+filters`. Logs will only be filtered if all filter conditions match.
+
+#### Prevent Overlapping New Allocations with Stopping Allocations
+
+Prior to Nomad 1.4.0 the scheduler would consider the resources used by
+allocations that are in the process of stopping to be free for new allocations
+to use. This could cause newer allocations to crash when they try to use TCP
+ports or memory used by an allocation in the process of stopping. The new and
+stopping [allocations would "overlap" improperly.][alloc_overlap]
+
+[Nomad 1.4.0 fixes this behavior][gh_10446] so that an allocation's resources
+are only considered free for reuse once the client node the allocation was
+running on reports it has stopped. Technically speaking: only once the
+`Allocation.ClientStatus` has reached a terminal state (`complete`, `failed`,
+or `lost`).
+
+Despite this being a bug fix, it is considered a significant enough change in
+behavior to reserve for a major Nomad release and *not* be backported. Please
+report any negative side effects encountered as [new
+issues.][gh_issue]
+
+#### `nomad eval status -json` Without Evaluation ID Removed
+
+Using `nomad eval status -json` without providing an evaluation ID was
+deprecated in Nomad 1.2.4 with the intent to remove in Nomad 1.4.0. This option
+has been removed. You can use `nomad eval list` to get a list of evaluations and
+can use `nomad eval list -json` to get that list in JSON format. The `nomad eval
+status <eval ID>` command will format a specific evaluation in JSON format if
+the `-json` flag is provided.
+
+#### Removing Vault/Consul from Clients
+
+Nomad clients no longer have their Consul and Vault fingerprints cleared when
+connectivity is lost with Consul and Vault. To intentionally remove Consul and
+Vault from a client node, you will need to restart the Nomad client agent.
+
+#### Numeric Operand Comparisons in Constraints
+
+Prior to Nomad 1.4.0 the `<, <=, >, >=` operators in a constraint would always
+compare the operands lexically. This behavior has been changed so that the comparison
+is done numerically if both operands are integers or floats.
+
+## Nomad 1.3.3
+
+Environments that don't support the use of [`uid`][template_uid] and
+[`gid`][template_gid] in `template` blocks, such as Windows clients, may
+experience task failures with the following message after upgrading to Nomad
+1.3.3:
+
+```
+Template failed: error rendering "(dynamic)" => "...": failed looking up user: managing file ownership is not supported on Windows
+```
+
+It is recommended to avoid this version of Nomad in such environments.
+
+## Nomad 1.3.2, 1.2.9, 1.1.15
+
+#### Client `max_kill_timeout` now enforced
+
+Nomad versions since v0.9 have incorrectly ignored the Client [`max_kill_timeout`][max_kill_timeout]
+configuration option. This bug has been fixed in Nomad versions v.1.3.2,
+v1.2.9, and v1.1.15. Job submitters should be aware that a Task's [`kill_timeout`][kill_timeout]
+will be reduced to the Client's `max_kill_timeout` if the value exceeds the maximum.
+
+## Nomad 1.3.1, 1.2.8, 1.1.14
+
+#### Default `artifact` limits
+
+Nomad 1.3.1, 1.2.8, and 1.1.14 introduced mechanisms to limit the size of
+`artifact` downloads and how long these operations can take. The limits are
+defined in the new [`artifact`client configuration][client_artifact] and have
+predefined default values.
+
+While the defaults set are fairly large, it is recommended to double-check them
+prior to upgrading your Nomad clients to make sure they fit your needs.
+
 ## Nomad 1.3.0
 
 #### Raft Protocol Version 2 Deprecation
@@ -21,7 +127,7 @@ Raft protocol version 2 will be removed from Nomad in the next major
 release of Nomad, 1.4.0.
 
 In Nomad 1.3.0, the default raft protocol version has been updated to
-3. If the [`raft_protocol_version`] is not explicitly set, upgrading a
+3. If the [`raft_protocol`] version is not explicitly set, upgrading a
 server will automatically upgrade that server's raft protocol. See the
 [Upgrading to Raft Protocol 3] guide.
 
@@ -1362,6 +1468,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [api_jobs_parse]: /api-docs/jobs#parse-job
 [cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 [cgroup_parent]: /docs/configuration/client#cgroup_parent
+[client_artifact]: /docs/configuration/client#artifact-parameters
 [cores]: /docs/job-specification/resources#cores
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
@@ -1382,10 +1489,10 @@ deleted and then Nomad 0.3.0 can be launched.
 [plugin-stanza]: /docs/configuration/plugin
 [plugins]: /plugins/drivers/community
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
-[preemption]: /docs/internals/scheduling/preemption
+[preemption]: /docs/concepts/scheduling/preemption
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
 [`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
-[`raft_protocol_version`]: /docs/configuration/server#raft_protocol
+[`raft_protocol`]: /docs/configuration/server#raft_protocol
 [`raft protocol`]: /docs/configuration/server#raft_protocol
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
@@ -1396,6 +1503,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [vault_grace]: /docs/job-specification/template
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
+[template_gid]: /docs/job-specification/template#gid
+[template_uid]: /docs/job-specification/template#uid
 [pki]: https://www.vaultproject.io/docs/secrets/pki
 [`volume create`]: /docs/commands/volume/create
 [`volume register`]: /docs/commands/volume/register
@@ -1415,3 +1524,9 @@ deleted and then Nomad 0.3.0 can be launched.
 [`Local`]: https://www.consul.io/docs/security/acl/acl-tokens#token-attributes
 [anon_token]: https://www.consul.io/docs/security/acl/acl-tokens#special-purpose-tokens
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
+[kill_timeout]: /docs/job-specification/task#kill_timeout
+[max_kill_timeout]: /docs/configuration/client#max_kill_timeout
+[alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
+[gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
+[gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
+[upgrade process]: /docs/upgrade#upgrade-process

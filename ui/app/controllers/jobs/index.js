@@ -1,9 +1,8 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { action, computed } from '@ember/object';
+import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
@@ -165,7 +164,7 @@ export default class IndexController extends Controller.extend(
     }));
   }
 
-  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
+  @computed('qpNamespace', 'model.namespaces.[]')
   get optionsNamespaces() {
     const availableNamespaces = this.model.namespaces.map((namespace) => ({
       key: namespace.name,
@@ -181,7 +180,7 @@ export default class IndexController extends Controller.extend(
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', this.system.cachedNamespace || '*');
+        this.set('qpNamespace', '*');
       });
     }
 
@@ -251,11 +250,6 @@ export default class IndexController extends Controller.extend(
   @alias('listSearched') sortedJobs;
 
   isShowingDeploymentDetails = false;
-
-  @action
-  cacheNamespace(namespace) {
-    set(this, 'system.cachedNamespace', namespace);
-  }
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));

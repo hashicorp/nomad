@@ -35,6 +35,8 @@ export default class TaskLog extends Component {
   isStreaming = true;
   streamMode = 'streaming';
 
+  shouldFillHeight = true;
+
   @alias('userSettings.logMode') mode;
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')

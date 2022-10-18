@@ -21,10 +21,10 @@ func TestConfig_ParseHCL(t *testing.T) {
 		{
 			"basic image",
 			`config {
-				image = "redis:3.2"
+				image = "redis:7"
 			}`,
 			&TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Devices:          []DockerDevice{},
 				Mounts:           []DockerMount{},
 				MountsList:       []DockerMount{},
@@ -196,7 +196,7 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 
 	cfgStr := `
 config {
-  image = "redis:3.2"
+  image = "redis:7"
   image_pull_timeout = "15m"
   advertise_ipv6_address = true
   args = ["command_arg1", "command_arg2"]
@@ -223,6 +223,9 @@ config {
   entrypoint = ["/bin/bash", "-c"]
   extra_hosts = ["127.0.0.1  localhost.example.com"]
   force_pull = true
+  healthchecks {
+    disable = true
+  }
   hostname = "self.example.com"
   interactive = true
   ipc_mode = "host"
@@ -342,7 +345,7 @@ config {
 }`
 
 	expected := &TaskConfig{
-		Image:             "redis:3.2",
+		Image:             "redis:7",
 		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
@@ -376,6 +379,7 @@ config {
 		Entrypoint:       []string{"/bin/bash", "-c"},
 		ExtraHosts:       []string{"127.0.0.1  localhost.example.com"},
 		ForcePull:        true,
+		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
 		Interactive:      true,
 		IPCMode:          "host",

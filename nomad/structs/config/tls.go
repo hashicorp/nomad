@@ -125,16 +125,6 @@ func (k *KeyLoader) GetClientCertificate(*tls.CertificateRequestInfo) (*tls.Cert
 	return k.certificate, nil
 }
 
-func (k *KeyLoader) Copy() *KeyLoader {
-	if k == nil {
-		return nil
-	}
-
-	new := KeyLoader{}
-	new.certificate = k.certificate
-	return &new
-}
-
 // GetKeyLoader returns the keyloader for a TLSConfig object. If the keyloader
 // has not been initialized, it will first do so.
 func (t *TLSConfig) GetKeyLoader() *KeyLoader {
@@ -162,8 +152,12 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.CAFile = t.CAFile
 	new.CertFile = t.CertFile
 
+	// Shallow copy the key loader as its GetOutgoingCertificate method is what
+	// is used by the HTTP server to retrieve the certificate. If we create a new
+	// KeyLoader struct, the HTTP server will still be calling the old
+	// GetOutgoingCertificate method.
 	t.keyloaderLock.Lock()
-	new.KeyLoader = t.KeyLoader.Copy()
+	new.KeyLoader = t.KeyLoader
 	t.keyloaderLock.Unlock()
 
 	new.KeyFile = t.KeyFile

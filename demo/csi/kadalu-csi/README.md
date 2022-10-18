@@ -9,7 +9,7 @@ Refer to the actual job files before proceeding with this demo and change the
 configuration as required. Follow along with the commands according to your
 configuration.
 
-Locally tested against Nomad v1.1.4.
+Locally tested against Nomad v1.3.1
 
 ## Local Development
 
@@ -92,7 +92,7 @@ Verify the CSI plugin status.
 $ nomad plugin status kadalu-csi
 ID                   = kadalu-csi
 Provider             = kadalu
-Version              = 0.8.6
+Version              = 0.8.15
 Controllers Healthy  = 1
 Controllers Expected = 1
 Nodes Healthy        = 1

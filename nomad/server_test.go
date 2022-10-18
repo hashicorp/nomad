@@ -214,6 +214,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	config := DefaultConfig()
 	config.VaultConfig.Enabled = &tr
 	config.VaultConfig.Token = uuid.Generate()
+	config.VaultConfig.Namespace = "nondefault"
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)
@@ -221,6 +222,10 @@ func TestServer_Reload_Vault(t *testing.T) {
 
 	if !s1.vault.Running() {
 		t.Fatalf("Vault client should be running")
+	}
+
+	if s1.vault.GetConfig().Namespace != "nondefault" {
+		t.Fatalf("Vault client did not get new namespace")
 	}
 }
 

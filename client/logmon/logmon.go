@@ -280,7 +280,7 @@ func (l *logRotatorWrapper) Close() {
 		if l.processOutReader != nil {
 			err := l.processOutReader.Close()
 			if err != nil && !strings.Contains(err.Error(), "file already closed") {
-				l.logger.Warn("error closing read-side of process output pipe", "err", err)
+				l.logger.Warn("error closing read-side of process output pipe", "error", err)
 			}
 		}
 

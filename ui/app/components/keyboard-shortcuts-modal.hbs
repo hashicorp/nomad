@@ -1,0 +1,70 @@
+{{#if this.keyboard.shortcutsVisible}}
+  {{keyboard-commands (array this.escapeCommand)}}
+  <div class="keyboard-shortcuts"
+      {{on-click-outside
+        (toggle "keyboard.shortcutsVisible" this)
+      }}
+  >
+    <header>
+      <button
+        {{autofocus}}
+        class="button is-borderless dismiss"
+        type="button"
+        {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
+        aria-label="Dismiss"
+      >
+        {{x-icon "cancel"}}
+      </button>
+      <h2>Keyboard Shortcuts</h2>
+      <p>Click a key pattern to re-bind it to a shortcut of your choosing.</p>
+    </header>
+    <ul class="commands-list">
+      {{#each this.commands as |command|}}
+        <li data-test-command-label={{command.label}}>
+          <strong>{{command.label}}</strong>
+            <span class="keys">
+              {{#if command.recording}}
+                <span class="recording">Recording; ESC to cancel.</span>
+              {{else}}
+                {{#if command.custom}}
+                  <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
+                {{/if}}
+              {{/if}}
+
+              <button data-test-rebinder disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+                {{#each command.pattern as |key|}}
+                  <span>{{clean-keycommand key}}</span>
+                {{/each}}
+              </button>
+            </span>
+        </li>
+      {{/each}}
+    </ul>
+    <footer>
+      <strong>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</strong>
+      <Toggle
+        data-test-enable-shortcuts-toggle
+        @isActive={{this.keyboard.enabled}}
+        @onToggle={{this.toggleListener}}
+        title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
+      />
+    </footer>
+  </div>
+{{/if}}
+
+{{#if (and this.keyboard.enabled this.keyboard.displayHints)}}
+  {{#each this.hints as |hint|}}
+    <span
+      {{did-insert (fn this.tetherToElement hint.element hint)}}
+      {{will-destroy (fn this.untetherFromElement hint)}}
+      data-test-keyboard-hint
+      data-shortcut={{hint.pattern}}
+      class="{{if hint.menuLevel "menu-level"}}"
+      aria-hidden="true"
+    >
+      {{#each hint.pattern as |key|}}
+        <span>{{key}}</span>
+      {{/each}}
+    </span>
+  {{/each}}
+{{/if}}

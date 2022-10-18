@@ -2,6 +2,7 @@ package fingerprint
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/nomad/lib/cpuset"
 
@@ -62,7 +63,7 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 
 	var numCores int
 	if numCores = stats.CPUNumCores(); numCores > 0 {
-		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
+		resp.AddAttribute("cpu.numcores", strconv.Itoa(numCores))
 		f.logger.Debug("detected core count", "cores", numCores)
 	}
 
@@ -80,6 +81,7 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
 		}
 	}
+	resp.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservableCores)))
 
 	tt := int(stats.TotalTicksAvailable())
 	if cfg.CpuCompute > 0 {

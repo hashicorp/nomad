@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1302,7 +1302,7 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	ci.Parallel(t)
 	vconfig := &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
@@ -1334,7 +1334,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 
 func TestVaultClient_MarkForRevocation(t *testing.T) {
 	vconfig := &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
@@ -1362,7 +1362,7 @@ func TestVaultClient_MarkForRevocation(t *testing.T) {
 func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	ci.Parallel(t)
 	vconfig := &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
@@ -1408,7 +1408,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
 	ci.Parallel(t)
 	vconfig := &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
@@ -1673,7 +1673,7 @@ func TestVaultClient_RevokeDaemon_Bounded(t *testing.T) {
 
 	// Disable client until we can change settings for testing
 	conf := v.Config.Copy()
-	conf.Enabled = helper.BoolToPtr(false)
+	conf.Enabled = pointer.Of(false)
 
 	const (
 		batchSize = 100
@@ -1702,7 +1702,7 @@ func TestVaultClient_RevokeDaemon_Bounded(t *testing.T) {
 	client.maxRevokeBatchSize = batchSize
 	client.revocationIntv = 3 * time.Millisecond
 	conf = v.Config.Copy()
-	conf.Enabled = helper.BoolToPtr(true)
+	conf.Enabled = pointer.Of(true)
 	require.NoError(t, client.SetConfig(conf))
 
 	client.SetActive(true)

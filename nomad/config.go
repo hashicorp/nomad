@@ -8,9 +8,11 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -32,11 +34,6 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrapped indicates if Server has bootstrapped or not.
-	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
-	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
-	Bootstrapped int32
-
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
 	// bring up a collection of nodes.
@@ -200,6 +197,30 @@ type Config struct {
 	// one-time tokens.
 	OneTimeTokenGCInterval time.Duration
 
+	// ACLTokenExpirationGCInterval is how often we dispatch a job to GC
+	// expired ACL tokens.
+	ACLTokenExpirationGCInterval time.Duration
+
+	// ACLTokenExpirationGCThreshold controls how "old" an expired ACL token
+	// must be to be collected by GC.
+	ACLTokenExpirationGCThreshold time.Duration
+
+	// RootKeyGCInterval is how often we dispatch a job to GC
+	// encryption key metadata
+	RootKeyGCInterval time.Duration
+
+	// RootKeyGCThreshold is how "old" encryption key metadata must be
+	// to be eligible for GC.
+	RootKeyGCThreshold time.Duration
+
+	// RootKeyRotationThreshold is how "old" an active key can be
+	// before it's rotated
+	RootKeyRotationThreshold time.Duration
+
+	// VariablesRekeyInterval is how often we dispatch a job to
+	// rekey any variables associated with a key in the Rekeying state
+	VariablesRekeyInterval time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -235,6 +256,17 @@ type Config struct {
 	// the baseline in which to wait before retrying a failed evaluation. The
 	// additional delay is selected from this range randomly.
 	EvalFailedFollowupDelayRange time.Duration
+
+	// NodePlanRejectionEnabled controls if node rejection tracker is enabled.
+	NodePlanRejectionEnabled bool
+
+	// NodePlanRejectionThreshold is the number of times a node must have a
+	// plan rejection before it is set as ineligible.
+	NodePlanRejectionThreshold int
+
+	// NodePlanRejectionWindow is the time window used to track plan
+	// rejections for nodes.
+	NodePlanRejectionWindow time.Duration
 
 	// MinHeartbeatTTL is the minimum time between heartbeats.
 	// This is used as a floor to prevent excessive updates.
@@ -281,6 +313,14 @@ type Config struct {
 	// ReplicationToken is the ACL Token Secret ID used to fetch from
 	// the Authoritative Region.
 	ReplicationToken string
+
+	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
+	// ACL token expiration.
+	ACLTokenMinExpirationTTL time.Duration
+
+	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
+	// for ACL token expiration.
+	ACLTokenMaxExpirationTTL time.Duration
 
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration
@@ -355,6 +395,36 @@ type Config struct {
 	DeploymentQueryRateLimit float64
 }
 
+func (c *Config) Copy() *Config {
+	if c == nil {
+		return nil
+	}
+
+	nc := *c
+
+	// Can't deep copy interfaces
+	// LogOutput io.Writer
+	// Logger log.InterceptLogger
+	// PluginLoader loader.PluginCatalog
+	// PluginSingletonLoader loader.PluginCatalog
+
+	nc.RPCAddr = pointer.Copy(c.RPCAddr)
+	nc.ClientRPCAdvertise = pointer.Copy(c.ClientRPCAdvertise)
+	nc.ServerRPCAdvertise = pointer.Copy(c.ServerRPCAdvertise)
+	nc.RaftConfig = pointer.Copy(c.RaftConfig)
+	nc.SerfConfig = pointer.Copy(c.SerfConfig)
+	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
+	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TLSConfig = c.TLSConfig.Copy()
+	nc.SentinelConfig = c.SentinelConfig.Copy()
+	nc.AutopilotConfig = c.AutopilotConfig.Copy()
+	nc.LicenseConfig = c.LicenseConfig.Copy()
+	nc.SearchConfig = c.SearchConfig.Copy()
+
+	return &nc
+}
+
 // DefaultConfig returns the default configuration. Only used as the basis for
 // merging agent or test parameters.
 func DefaultConfig() *Config {
@@ -389,6 +459,12 @@ func DefaultConfig() *Config {
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
 		CSIVolumeClaimGCThreshold:        5 * time.Minute,
 		OneTimeTokenGCInterval:           10 * time.Minute,
+		ACLTokenExpirationGCInterval:     5 * time.Minute,
+		ACLTokenExpirationGCThreshold:    1 * time.Hour,
+		RootKeyGCInterval:                10 * time.Minute,
+		RootKeyGCThreshold:               1 * time.Hour,
+		RootKeyRotationThreshold:         720 * time.Hour, // 30 days
+		VariablesRekeyInterval:           10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -399,6 +475,9 @@ func DefaultConfig() *Config {
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,
 		FailoverHeartbeatTTL:             300 * time.Second,
+		NodePlanRejectionEnabled:         false,
+		NodePlanRejectionThreshold:       15,
+		NodePlanRejectionWindow:          10 * time.Minute,
 		ConsulConfig:                     config.DefaultConsulConfig(),
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,
@@ -409,6 +488,8 @@ func DefaultConfig() *Config {
 		LicenseConfig:                    &LicenseConfig{},
 		EnableEventBroker:                true,
 		EventBufferSize:                  100,
+		ACLTokenMinExpirationTTL:         1 * time.Minute,
+		ACLTokenMaxExpirationTTL:         24 * time.Hour,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,

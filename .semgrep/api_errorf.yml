@@ -1,0 +1,11 @@
+rules:
+  - id: "fmt_errorf_unformatted_use"
+    patterns:
+      - pattern: fmt.Errorf("...")
+    message: "Use of fmt.Errorf without formatting. Please use errors.New"
+    languages:
+      - "go"
+    severity: "WARNING"
+    paths:
+      include:
+        - "./api/*"

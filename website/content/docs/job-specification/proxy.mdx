@@ -41,7 +41,7 @@ job "countdash" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -63,7 +63,7 @@ job "countdash" {
 - `config` `(map: nil)` - Proxy configuration that's opaque to Nomad and
   passed directly to Consul. See [Consul Connect's
   documentation](https://www.consul.io/docs/connect/proxies/envoy#dynamic-configuration)
-  for details.
+  for details. Keys and values support [runtime variable interpolation][interpolation].
 
 ## `proxy` Examples
 

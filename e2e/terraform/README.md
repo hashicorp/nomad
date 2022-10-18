@@ -35,6 +35,7 @@ values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
 
 ```
 cd ./hcp-vault-auth
+terraform init
 terraform apply --auto-approve
 $(terraform output --raw environment)
 ```
@@ -58,6 +59,7 @@ Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
+terraform init
 terraform apply
 ```
 

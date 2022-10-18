@@ -89,7 +89,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 // - missing keys block allocations from starting
 // - key updates trigger re-render
 // - service updates trigger re-render
-// - 'noop' vs ''restart' configuration
+// - 'noop' vs ”restart' configuration
 func (tc *ConsulTemplateTest) TestTemplateUpdateTriggers(f *framework.F) {
 
 	wc := &e2eutil.WaitConfig{}
@@ -163,7 +163,10 @@ job: {{ env "NOMAD_JOB_NAME" }}
 		"upstream":          "running",
 		"exec_downstream":   "running",
 		"docker_downstream": "running"}
-	f.NoError(waitForAllocStatusByGroup(jobID, ns, expected, nil))
+	f.NoError(waitForAllocStatusByGroup(jobID, ns, expected, &e2eutil.WaitConfig{
+		Interval: time.Millisecond * 300,
+		Retries:  100,
+	}))
 
 	// verify we've rendered the templates
 	for allocID := range downstreams {

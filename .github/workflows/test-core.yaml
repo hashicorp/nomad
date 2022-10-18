@@ -13,6 +13,7 @@ on:
       - 'demo/**'
       - 'dev/**'
       - 'e2e/terraform/**'
+      - 'e2e/ui/**'
       - 'integrations/**'
       - 'pkg/**'
       - 'scripts/**'
@@ -21,7 +22,7 @@ on:
       - 'website/**'
 env:
   VERBOSE: 1
-  GO_VERSION: 1.17.9
+  GO_VERSION: 1.19.1
   GOBIN: /usr/local/bin
   GOTESTARCH: amd64
   CONSUL_VERSION: 1.11.3
@@ -30,7 +31,7 @@ env:
   NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
   checks:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v2
@@ -49,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, macos-11, windows-2019]
     runs-on: ${{matrix.os}}
     timeout-minutes: 20
     steps:
@@ -65,7 +66,7 @@ jobs:
           make bootstrap
           make dev
   tests-api:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
@@ -82,7 +83,7 @@ jobs:
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-pkgs:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -145,8 +146,7 @@ jobs:
         run: |
           make bootstrap
           make generate-all
-          hc-install vault ${{env.VAULT_VERSION}}
-          hc-install consul ${{env.CONSUL_VERSION}}
+          sudo hc-install install -version ${{env.VAULT_VERSION}} -path /usr/local/bin vault
+          sudo hc-install install -version ${{env.CONSUL_VERSION}} -path /usr/local/bin consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
-

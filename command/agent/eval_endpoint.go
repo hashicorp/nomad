@@ -1,16 +1,29 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// EvalsRequest is the entry point for /v1/evaluations and is responsible for
+// handling both the listing of evaluations, and the bulk deletion of
+// evaluations. The latter is a dangerous operation and should use the
+// eval delete command to perform this.
 func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	switch req.Method {
+	case http.MethodGet:
+		return s.evalsListRequest(resp, req)
+	case http.MethodDelete:
+		return s.evalsDeleteRequest(resp, req)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
+}
+
+func (s *HTTPServer) evalsListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	args := structs.EvalListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -31,6 +44,37 @@ func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (
 		out.Evaluations = make([]*structs.Evaluation, 0)
 	}
 	return out.Evaluations, nil
+}
+
+func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	var args structs.EvalDeleteRequest
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	numIDs := len(args.EvalIDs)
+
+	// Ensure the number of evaluation IDs included in the request is within
+	// bounds.
+	if numIDs < 1 {
+		return nil, CodedError(http.StatusBadRequest, "request does not include any evaluation IDs")
+	} else if numIDs > structs.MaxUUIDsPerWriteRequest {
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf(
+			"request includes %v evaluations IDs, must be %v or fewer",
+			numIDs, structs.MaxUUIDsPerWriteRequest))
+	}
+
+	// Pass the write request to populate all meta fields.
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var reply structs.EvalDeleteResponse
+	if err := s.agent.RPC(structs.EvalDeleteRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setIndex(resp, reply.Index)
+	return nil, nil
 }
 
 func (s *HTTPServer) EvalSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

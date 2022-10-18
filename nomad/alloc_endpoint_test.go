@@ -8,7 +8,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1047,7 +1047,7 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc, alloc2}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: helper.BoolToPtr(true),
+		Migrate: pointer.Of(true),
 	}
 
 	// Update the allocs desired status
@@ -1284,8 +1284,9 @@ func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
 		{
 			Label:     "all namespaces with insufficient token",
 			Namespace: "*",
-			Allocs:    []*structs.Allocation{},
 			Token:     ns1tokenInsufficient.SecretID,
+			Error:     true,
+			Message:   structs.ErrPermissionDenied.Error(),
 		},
 		{
 			Label:     "ns1 with ns1 token",

@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -85,6 +86,17 @@ func connectGatewayVersionConstraint() *structs.Constraint {
 	return &structs.Constraint{
 		LTarget: "${attr.consul.version}",
 		RTarget: ">= 1.8.0",
+		Operand: structs.ConstraintSemver,
+	}
+}
+
+// connectGatewayTLSVersionConstraint is used when building a connect gateway
+// task to ensure proper Consul version is used that supports customized TLS version.
+// https://github.com/hashicorp/consul/pull/11576
+func connectGatewayTLSVersionConstraint() *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.11.2",
 		Operand: structs.ConstraintSemver,
 	}
 }
@@ -315,7 +327,9 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 				// detect whether the group is in host networking mode, which will
 				// require tweaking the default gateway task config
 				netHost := netMode == "host"
-				task := newConnectGatewayTask(prefix, service.Name, netHost)
+				customizedTLS := service.Connect.IsCustomizedTLS()
+
+				task := newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task stanza can also be used to configure
@@ -378,7 +392,7 @@ func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGa
 
 	// set default connect timeout if not set
 	if proxy.ConnectTimeout == nil {
-		proxy.ConnectTimeout = helper.TimeToPtr(defaultConnectTimeout)
+		proxy.ConnectTimeout = pointer.Of(defaultConnectTimeout)
 	}
 
 	if mode == "bridge" {
@@ -434,7 +448,14 @@ func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEn
 	return addresses
 }
 
-func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
+func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) *structs.Task {
+	constraints := structs.Constraints{
+		connectGatewayVersionConstraint(),
+		connectListenerConstraint(),
+	}
+	if customizedTls {
+		constraints = append(constraints, connectGatewayTLSVersionConstraint())
+	}
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", prefix, service),
@@ -446,11 +467,8 @@ func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
 		},
-		Resources: connectSidecarResources(),
-		Constraints: structs.Constraints{
-			connectGatewayVersionConstraint(),
-			connectListenerConstraint(),
-		},
+		Resources:   connectSidecarResources(),
+		Constraints: constraints,
 	}
 }
 
@@ -565,7 +583,7 @@ func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 	}
 
 	modes := []string{"bridge", "host"}
-	if !helper.SliceStringContains(modes, g.Networks[0].Mode) {
+	if !slices.Contains(modes, g.Networks[0].Mode) {
 		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
 	}
 

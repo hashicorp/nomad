@@ -2,12 +2,13 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -28,6 +29,10 @@ Alias: nomad validate
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
 
+  The run command will set the vault_token of the job based on the following
+  precedence, going from highest to lowest: the -vault-token flag, the
+  $VAULT_TOKEN environment variable and finally the value in the job file.
+
   When ACLs are enabled, this command requires a token with the 'read-job'
   capability for the job's namespace.
 
@@ -43,12 +48,28 @@ Validate Options:
     used as the job.
 
   -hcl1
-    Parses the job file as HCLv1.
+    Parses the job file as HCLv1. Takes precedence over "-hcl2-strict".
 
   -hcl2-strict
     Whether an error should be produced from the HCL2 parser where a variable
     has been supplied which is not defined within the root variables. Defaults
-    to true.
+    to true, but ignored if "-hcl1" is also defined.
+
+  -vault-token
+    Used to validate if the user submitting the job has permission to run the job
+    according to its Vault policies. A Vault token must be supplied if the vault
+    stanza allow_unauthenticated is disabled in the Nomad server configuration.
+    If the -vault-token flag is set, the passed Vault token is added to the jobspec
+    before sending to the Nomad servers. This allows passing the Vault token
+    without storing it in the job file. This overrides the token found in the
+    $VAULT_TOKEN environment variable and the vault_token field in the job file.
+    This token is cleared from the job after validating and cannot be used within
+    the job executing environment. Use the vault stanza when templating in a job
+    with a Vault token.
+
+  -vault-namespace
+    If set, the passed Vault namespace is stored in the job before sending to the
+    Nomad servers.
 
   -var 'key=value'
     Variable for template, can be used multiple times.
@@ -65,10 +86,12 @@ func (c *JobValidateCommand) Synopsis() string {
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-hcl1":        complete.PredictNothing,
-		"-hcl2-strict": complete.PredictNothing,
-		"-var":         complete.PredictAnything,
-		"-var-file":    complete.PredictFiles("*.var"),
+		"-hcl1":            complete.PredictNothing,
+		"-hcl2-strict":     complete.PredictNothing,
+		"-vault-token":     complete.PredictAnything,
+		"-vault-namespace": complete.PredictAnything,
+		"-var":             complete.PredictAnything,
+		"-var-file":        complete.PredictFiles("*.var"),
 	}
 }
 
@@ -83,11 +106,15 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
+	var vaultToken, vaultNamespace string
+
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
+	flagSet.StringVar(&vaultToken, "vault-token", "", "")
+	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
@@ -101,6 +128,10 @@ func (c *JobValidateCommand) Run(args []string) int {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	if c.JobGetter.HCL1 {
+		c.JobGetter.Strict = false
 	}
 
 	if err := c.JobGetter.Validate(); err != nil {
@@ -125,6 +156,20 @@ func (c *JobValidateCommand) Run(args []string) int {
 	// Force the region to be that of the job.
 	if r := job.Region; r != nil {
 		client.SetRegion(*r)
+	}
+
+	// Parse the Vault token
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	if vaultToken != "" {
+		job.VaultToken = pointer.Of(vaultToken)
+	}
+
+	if vaultNamespace != "" {
+		job.VaultNamespace = pointer.Of(vaultNamespace)
 	}
 
 	// Check that the job is valid
@@ -180,6 +225,30 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	out.Warnings = structs.MergeMultierrorWarnings(job.Warnings())
+	out.Warnings = mergeMultierrorWarnings(job.Warnings())
 	return &out, nil
+}
+
+func mergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
+		return ""
+	}
+
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
+}
+
+func warningsFormatter(es []error) string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
+	}
+
+	return sb.String()
 }

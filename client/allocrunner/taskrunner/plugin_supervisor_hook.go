@@ -22,11 +22,11 @@ import (
 // to their requisite plugin manager.
 //
 // It provides a few things to a plugin task running inside Nomad. These are:
-// * A mount to the `csi_plugin.mount_dir` where the plugin will create its csi.sock
-// * A mount to `local/csi` that node plugins will use to stage volume mounts.
-// * When the task has started, it starts a loop of attempting to connect to the
-//   plugin, to perform initial fingerprinting of the plugins capabilities before
-//   notifying the plugin manager of the plugin.
+//   - A mount to the `csi_plugin.mount_dir` where the plugin will create its csi.sock
+//   - A mount to `local/csi` that node plugins will use to stage volume mounts.
+//   - When the task has started, it starts a loop of attempting to connect to the
+//     plugin, to perform initial fingerprinting of the plugins capabilities before
+//     notifying the plugin manager of the plugin.
 type csiPluginSupervisorHook struct {
 	logger           hclog.Logger
 	alloc            *structs.Allocation
@@ -81,7 +81,7 @@ var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 //       Per-allocation directories of unix domain sockets used to communicate
 //       with the CSI plugin. Nomad creates the directory and the plugin creates
 //       the socket file. This directory is bind-mounted to the
-//       csi_plugin.mount_config dir in the plugin task.
+//       csi_plugin.mount_dir in the plugin task.
 //
 // {plugin-type}/{plugin-id}/
 //    staging/
@@ -102,6 +102,20 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 
 	socketMountPoint := filepath.Join(config.clientStateDirPath, "csi",
 		"plugins", config.runner.Alloc().ID)
+
+	// In v1.3.0, Nomad started instructing CSI plugins to stage and publish
+	// within /local/csi. Plugins deployed after the introduction of
+	// StagePublishBaseDir default to StagePublishBaseDir = /local/csi. However,
+	// plugins deployed between v1.3.0 and the introduction of
+	// StagePublishBaseDir have StagePublishBaseDir = "". Default to /local/csi here
+	// to avoid breaking plugins that aren't redeployed.
+	if task.CSIPluginConfig.StagePublishBaseDir == "" {
+		task.CSIPluginConfig.StagePublishBaseDir = filepath.Join("/local", "csi")
+	}
+
+	if task.CSIPluginConfig.HealthTimeout == 0 {
+		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
+	}
 
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
@@ -153,8 +167,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 	// where the staging and per-alloc directories will be mounted
 	volumeStagingMounts := &drivers.MountConfig{
-		// TODO(tgross): add this TaskPath to the CSIPluginConfig as well
-		TaskPath:        "/local/csi",
+		TaskPath:        h.task.CSIPluginConfig.StagePublishBaseDir,
 		HostPath:        h.mountPoint,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
@@ -234,13 +247,13 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 // the passed in context is terminated.
 //
 // The supervisor works by:
-// - Initially waiting for the plugin to become available. This loop is expensive
-//   and may do things like create new gRPC Clients on every iteration.
-// - After receiving an initial healthy status, it will inform the plugin catalog
-//   of the plugin, registering it with the plugins fingerprinted capabilities.
-// - We then perform a more lightweight check, simply probing the plugin on a less
-//   frequent interval to ensure it is still alive, emitting task events when this
-//   status changes.
+//   - Initially waiting for the plugin to become available. This loop is expensive
+//     and may do things like create new gRPC Clients on every iteration.
+//   - After receiving an initial healthy status, it will inform the plugin catalog
+//     of the plugin, registering it with the plugins fingerprinted capabilities.
+//   - We then perform a more lightweight check, simply probing the plugin on a less
+//     frequent interval to ensure it is still alive, emitting task events when this
+//     status changes.
 //
 // Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
@@ -253,7 +266,7 @@ func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
 
 	// We're in Poststart at this point, so if we can't connect within
 	// this deadline, assume it's broken so we can restart the task
-	startCtx, startCancelFn := context.WithTimeout(ctx, 30*time.Second)
+	startCtx, startCancelFn := context.WithTimeout(ctx, h.task.CSIPluginConfig.HealthTimeout)
 	defer startCancelFn()
 
 	var err error
@@ -356,7 +369,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(client csi.CSIPlugin, socketPat
 			Options: map[string]string{
 				"Provider":            info.Name, // vendor name
 				"MountPoint":          h.mountPoint,
-				"ContainerMountPoint": "/local/csi",
+				"ContainerMountPoint": h.task.CSIPluginConfig.StagePublishBaseDir,
 			},
 		}
 	}
@@ -441,7 +454,7 @@ func (h *csiPluginSupervisorHook) kill(ctx context.Context, reason error) {
 	if err := h.lifecycle.Kill(ctx,
 		structs.NewTaskEvent(structs.TaskKilling).
 			SetFailsTask().
-			SetDisplayMessage("CSI plugin did not become healthy before timeout"),
+			SetDisplayMessage(fmt.Sprintf("CSI plugin did not become healthy before configured %v health timeout", h.task.CSIPluginConfig.HealthTimeout.String())),
 	); err != nil {
 		h.logger.Error("failed to kill task", "kill_reason", reason, "error", err)
 	}

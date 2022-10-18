@@ -82,7 +82,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, nil, w)
 	return err
 }
 
@@ -104,7 +104,7 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, nil, w)
 	return err
 }
 
@@ -117,7 +117,7 @@ func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) er
 		w = &WriteOptions{}
 	}
 	w.SetHeadersFromCSISecrets(req.Secrets)
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, nil, w)
 	return err
 }
 
@@ -125,7 +125,7 @@ func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) er
 // node. This is used in the case that the node is temporarily lost and the
 // allocations are unable to drop their claims automatically.
 func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, nil, w)
 	return err
 }
 
@@ -152,7 +152,7 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 		w = &WriteOptions{}
 	}
 	w.SetHeadersFromCSISecrets(snap.Secrets)
-	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
+	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, nil, w)
 	return err
 }
 
@@ -229,6 +229,11 @@ const (
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
 
+const (
+	CSIVolumeTypeHost = "host"
+	CSIVolumeTypeCSI  = "csi"
+)
+
 // CSIMountOptions contain optional additional configuration that can be used
 // when specifying that a Volume should be used with VolumeAccessTypeMount.
 type CSIMountOptions struct {
@@ -242,6 +247,18 @@ type CSIMountOptions struct {
 	MountFlags []string `hcl:"mount_flags,optional"`
 
 	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"` // report unexpected keys
+}
+
+func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
+	if p == nil {
+		return
+	}
+	if p.FSType != "" {
+		o.FSType = p.FSType
+	}
+	if p.MountFlags != nil {
+		o.MountFlags = p.MountFlags
+	}
 }
 
 // CSISecrets contain optional additional credentials that may be needed by
@@ -367,6 +384,8 @@ type CSIVolumeListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
+	CurrentReaders      int
+	CurrentWriters      int
 	Schedulable         bool
 	PluginID            string
 	Provider            string

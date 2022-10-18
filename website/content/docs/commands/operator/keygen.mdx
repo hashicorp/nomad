@@ -9,6 +9,10 @@ description: >
 
 # Command: operator keygen
 
+~> **Warning:** This command is deprecated and will be removed in
+   Nomad 1.5.0. Use the `nomad operator gossip keyring generate`
+   subcommand instead.
+
 The `operator keygen` command generates an encryption key that can be used for
 Nomad server's gossip traffic encryption. The keygen command uses a
 cryptographically strong pseudo-random number generator to generate the key.

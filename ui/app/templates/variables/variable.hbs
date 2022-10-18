@@ -1,0 +1,12 @@
+{{page-title "Variables: " this.model.path}}
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
+<section class="section single-variable">
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{outlet}}
+  {{/if}}
+</section>
+ 

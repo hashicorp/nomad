@@ -647,6 +647,16 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 
 	claim := args.Claim
 
+	// we need to checkpoint when we first get the claim to ensure we've set the
+	// initial "past claim" state, otherwise a client that unpublishes (skipping
+	// the node unpublish b/c it's done that work) fail to get written if the
+	// controller unpublish fails.
+	vol = vol.Copy()
+	err = v.checkpointClaim(vol, claim)
+	if err != nil {
+		return err
+	}
+
 	// previous checkpoints may have set the past claim state already.
 	// in practice we should never see CSIVolumeClaimStateControllerDetached
 	// but having an option for the state makes it easy to add a checkpoint
@@ -659,12 +669,14 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	case structs.CSIVolumeClaimStateReadyToFree:
 		goto RELEASE_CLAIM
 	}
+	vol = vol.Copy()
 	err = v.nodeUnpublishVolume(vol, claim)
 	if err != nil {
 		return err
 	}
 
 NODE_DETACHED:
+	vol = vol.Copy()
 	err = v.controllerUnpublishVolume(vol, claim)
 	if err != nil {
 		return err
@@ -684,8 +696,35 @@ RELEASE_CLAIM:
 	return nil
 }
 
+// nodeUnpublishVolume handles the sending RPCs to the Node plugin to unmount
+// it. Typically this task is already completed on the client, but we need to
+// have this here so that GC can re-send it in case of client-side
+// problems. This function should only be called on a copy of the volume.
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("node unpublish", "vol", vol.ID)
+
+	// We need a new snapshot after each checkpoint
+	snap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// If the node has been GC'd or is down, we can't send it a node
+	// unpublish. We need to assume the node has unpublished at its
+	// end. If it hasn't, any controller unpublish will potentially
+	// hang or error and need to be retried.
+	if claim.NodeID != "" {
+		node, err := snap.NodeByID(memdb.NewWatchSet(), claim.NodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || node.Status == structs.NodeStatusDown {
+			v.logger.Debug("skipping node unpublish for down or GC'd node")
+			claim.State = structs.CSIVolumeClaimStateNodeDetached
+			return v.checkpointClaim(vol, claim)
+		}
+	}
+
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
@@ -698,8 +737,7 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 	// The RPC sent from the 'nomad node detach' command or GC won't have an
 	// allocation ID set so we try to unpublish every terminal or invalid
 	// alloc on the node, all of which will be in PastClaims after denormalizing
-	state := v.srv.fsm.State()
-	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
+	vol, err = snap.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
 	if err != nil {
 		return err
 	}
@@ -758,42 +796,64 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 	return nil
 }
 
+// controllerUnpublishVolume handles the sending RPCs to the Controller plugin
+// to unpublish the volume (detach it from its host). This function should only
+// be called on a copy of the volume.
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("controller unpublish", "vol", vol.ID)
+
 	if !vol.ControllerRequired {
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
 	}
 
-	state := v.srv.fsm.State()
+	// We need a new snapshot after each checkpoint
+	snap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	ws := memdb.NewWatchSet()
 
-	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
+	plugin, err := snap.CSIPluginByID(ws, vol.PluginID)
 	if err != nil {
 		return fmt.Errorf("could not query plugin: %v", err)
 	} else if plugin == nil {
 		return fmt.Errorf("no such plugin: %q", vol.PluginID)
 	}
+
 	if !plugin.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
+		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
 	}
 
-	// we only send a controller detach if a Nomad client no longer has
-	// any claim to the volume, so we need to check the status of claimed
-	// allocations
-	vol, err = state.CSIVolumeDenormalize(ws, vol)
+	vol, err = snap.CSIVolumeDenormalize(ws, vol)
 	if err != nil {
 		return err
 	}
-	for _, alloc := range vol.ReadAllocs {
-		if alloc != nil && alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
+
+	// we only send a controller detach if a Nomad client no longer has any
+	// claim to the volume, so we need to check the status of any other claimed
+	// allocations
+	shouldCancel := func(alloc *structs.Allocation) bool {
+		if alloc != nil && alloc.ID != claim.AllocationID &&
+			alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
 			claim.State = structs.CSIVolumeClaimStateReadyToFree
+			v.logger.Debug(
+				"controller unpublish canceled: another non-terminal alloc is on this node",
+				"vol", vol.ID, "alloc", alloc.ID)
+			return true
+		}
+		return false
+	}
+
+	for _, alloc := range vol.ReadAllocs {
+		if shouldCancel(alloc) {
 			return nil
 		}
 	}
 	for _, alloc := range vol.WriteAllocs {
-		if alloc != nil && alloc.NodeID == claim.NodeID && !alloc.TerminalStatus() {
-			claim.State = structs.CSIVolumeClaimStateReadyToFree
+		if shouldCancel(alloc) {
 			return nil
 		}
 	}
@@ -819,6 +879,8 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	if err != nil {
 		return fmt.Errorf("could not detach from controller: %v", err)
 	}
+
+	v.logger.Trace("controller detach complete", "vol", vol.ID)
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	return v.checkpointClaim(vol, claim)
 }

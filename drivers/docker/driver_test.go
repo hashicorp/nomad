@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -843,6 +844,26 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 
 	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
 	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
+func TestDockerDriver_HealthchecksDisable(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	cfg.Healthchecks.Disable = true
+	defer freeport.Return(ports)
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	must.NoError(t, err)
+
+	must.NotNil(t, container.Config.Healthcheck)
+	must.Eq(t, []string{"NONE"}, container.Config.Healthcheck.Test)
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
@@ -2292,7 +2313,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			AuthConfig: nil,
 		},
 		{
-			Repo: "redis:3.2",
+			Repo: "redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "1234",
@@ -2301,7 +2322,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			},
 		},
 		{
-			Repo: "quay.io/redis:3.2",
+			Repo: "quay.io/redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "5678",
@@ -2310,7 +2331,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			},
 		},
 		{
-			Repo: "other.io/redis:3.2",
+			Repo: "other.io/redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "abcd",
@@ -2383,9 +2404,9 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support OOM Killer")
-	}
+	// waiting on upstream fix for cgroups v2
+	// see https://github.com/hashicorp/nomad/issues/13119
+	testutil.CgroupsCompatibleV1(t)
 
 	taskCfg := newTaskConfig("", []string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
 	task := &drivers.TaskConfig{
@@ -2844,6 +2865,32 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_cgroupParent(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("v1", func(t *testing.T) {
+		testutil.CgroupsCompatibleV1(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
+			},
+		})
+		require.Equal(t, "", parent)
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		testutil.CgroupsCompatibleV2(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
+			},
+		})
+		require.Equal(t, "nomad.slice", parent)
+	})
+}
+
 func TestDockerDriver_parseSignal(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2932,7 +2979,8 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
+	for i := range cases {
+		c := cases[i]
 		t.Run(c.name, func(t *testing.T) {
 			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
 

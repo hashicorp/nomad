@@ -2,21 +2,20 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"strings"
-
-	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/raft"
+
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/raft"
 )
 
 // OperatorRequest is used route operator/raft API requests to the implementing
@@ -184,7 +183,7 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 		return nil, nil
 	}
 
-	var reply autopilot.OperatorHealthReply
+	var reply structs.OperatorHealthReply
 	if err := s.agent.RPC("Operator.ServerHealth", &args, &reply); err != nil {
 		return nil, err
 	}
@@ -262,6 +261,7 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 		SchedulerAlgorithm:            structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
 		MemoryOversubscriptionEnabled: conf.MemoryOversubscriptionEnabled,
 		RejectJobRegistration:         conf.RejectJobRegistration,
+		PauseEvalBroker:               conf.PauseEvalBroker,
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled:   conf.PreemptionConfig.SystemSchedulerEnabled,
 			SysBatchSchedulerEnabled: conf.PreemptionConfig.SysBatchSchedulerEnabled,

@@ -73,6 +73,10 @@ export default create({
       scope: '[data-test-gutter-link="optimize"]',
     },
 
+    variables: {
+      scope: '[data-test-gutter-link="variables"]',
+    },
+
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
     visitStorage: clickable('[data-test-gutter-link="storage"]'),
@@ -102,5 +106,9 @@ export default create({
 
     isDanger: hasClass('is-danger', '[data-test-inline-error]'),
     isWarning: hasClass('is-warning', '[data-test-inline-error]'),
+  },
+
+  keyboard: {
+    modalShown: isPresent('.keyboard-shortcuts'),
   },
 });

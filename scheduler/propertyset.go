@@ -248,7 +248,7 @@ func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string
 // existing and proposed allocations. It also takes into account any stopped
 // allocations
 func (p *propertySet) GetCombinedUseMap() map[string]uint64 {
-	combinedUse := make(map[string]uint64, helper.IntMax(len(p.existingValues), len(p.proposedValues)))
+	combinedUse := make(map[string]uint64, helper.Max(len(p.existingValues), len(p.proposedValues)))
 	for _, usedValues := range []map[string]uint64{p.existingValues, p.proposedValues} {
 		for propertyValue, usedCount := range usedValues {
 			combinedUse[propertyValue] += usedCount
@@ -342,14 +342,5 @@ func getProperty(n *structs.Node, property string) (string, bool) {
 		return "", false
 	}
 
-	val, ok := resolveTarget(property, n)
-	if !ok {
-		return "", false
-	}
-	nodeValue, ok := val.(string)
-	if !ok {
-		return "", false
-	}
-
-	return nodeValue, true
+	return resolveTarget(property, n)
 }

@@ -40,6 +40,18 @@ func (e *Evaluations) Info(evalID string, q *QueryOptions) (*Evaluation, *QueryM
 	return &resp, qm, nil
 }
 
+// Delete is used to batch delete evaluations using their IDs.
+func (e *Evaluations) Delete(evalIDs []string, w *WriteOptions) (*WriteMeta, error) {
+	req := EvalDeleteRequest{
+		EvalIDs: evalIDs,
+	}
+	wm, err := e.client.delete("/v1/evaluations", &req, nil, w)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
 // Allocations is used to retrieve a set of allocations given
 // an evaluation ID.
 func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
@@ -51,6 +63,14 @@ func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*Allocation
 	sort.Sort(AllocIndexSort(resp))
 	return resp, qm, nil
 }
+
+const (
+	EvalStatusBlocked   = "blocked"
+	EvalStatusPending   = "pending"
+	EvalStatusComplete  = "complete"
+	EvalStatusFailed    = "failed"
+	EvalStatusCancelled = "canceled"
+)
 
 // Evaluation is used to serialize an evaluation.
 type Evaluation struct {
@@ -106,6 +126,11 @@ type EvaluationStub struct {
 	ModifyIndex       uint64
 	CreateTime        int64
 	ModifyTime        int64
+}
+
+type EvalDeleteRequest struct {
+	EvalIDs []string
+	WriteRequest
 }
 
 // EvalIndexSort is a wrapper to sort evaluations by CreateIndex.

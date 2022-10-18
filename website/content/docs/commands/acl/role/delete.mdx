@@ -1,0 +1,30 @@
+---
+layout: docs
+page_title: 'Commands: acl role delete'
+description: The role delete command is used to delete existing ACL Roles.
+---
+
+# Command: acl role delete
+
+The `acl role delete` command is used to delete existing ACL Roles.
+
+## Usage
+
+```plaintext
+nomad acl role delete [options] <role_id>
+```
+
+The `acl role delete` command requires an existing role's ID.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+Delete an existing ACL Role:
+
+```shell-session
+$ nomad acl role delete a53b0095-c28a-6181-0586-807b82e665e4
+ACL role a53b0095-c28a-6181-0586-807b82e665e4 successfully deleted
+```

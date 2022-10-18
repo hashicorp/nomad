@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -9,16 +11,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-)
-
-var (
-	// maxIdsPerReap is the maximum number of evals and allocations to reap in a
-	// single Raft transaction. This is to ensure that the Raft message does not
-	// become too large.
-	maxIdsPerReap = (1024 * 256) / 36 // 0.25 MB of ids.
+	"golang.org/x/time/rate"
 )
 
 // CoreScheduler is a special "scheduler" that is registered
@@ -58,6 +55,14 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiPluginGC(eval)
 	case structs.CoreJobOneTimeTokenGC:
 		return c.expiredOneTimeTokenGC(eval)
+	case structs.CoreJobLocalTokenExpiredGC:
+		return c.expiredACLTokenGC(eval, false)
+	case structs.CoreJobGlobalTokenExpiredGC:
+		return c.expiredACLTokenGC(eval, true)
+	case structs.CoreJobRootKeyRotateOrGC:
+		return c.rootKeyRotateOrGC(eval)
+	case structs.CoreJobVariablesRekey:
+		return c.variablesRekey(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -85,6 +90,15 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
 		return err
 	}
+	if err := c.expiredACLTokenGC(eval, false); err != nil {
+		return err
+	}
+	if err := c.expiredACLTokenGC(eval, true); err != nil {
+		return err
+	}
+	if err := c.rootKeyRotateOrGC(eval); err != nil {
+		return err
+	}
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
 	return c.nodeGC(eval)
@@ -99,20 +113,8 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced job GC")
-	} else {
-		// Get the time table to calculate GC cutoffs.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("job GC scanning before cutoff index",
-			"index", oldThreshold, "job_gc_threshold", c.srv.config.JobGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "job",
+		"job_gc_threshold", c.srv.config.JobGCThreshold)
 
 	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval []string
@@ -205,7 +207,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		if remaining := len(jobs) - submittedJobs; remaining > 0 {
 			if remaining <= available {
@@ -236,22 +238,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced eval GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("eval GC scanning before cutoff index",
-			"index", oldThreshold, "eval_gc_threshold", c.srv.config.EvalGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "eval",
+		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
@@ -385,20 +373,20 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	return nil
 }
 
-// partitionEvalReap returns a list of EvalDeleteRequest to make, ensuring a single
+// partitionEvalReap returns a list of EvalReapRequest to make, ensuring a single
 // request does not contain too many allocations and evaluations. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalDeleteRequest {
-	var requests []*structs.EvalDeleteRequest
+func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalReapRequest {
+	var requests []*structs.EvalReapRequest
 	submittedEvals, submittedAllocs := 0, 0
 	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
-		req := &structs.EvalDeleteRequest{
+		req := &structs.EvalReapRequest{
 			WriteRequest: structs.WriteRequest{
 				Region: c.srv.config.Region,
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		// Add the allocs first
 		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
@@ -439,22 +427,8 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced node GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("node GC scanning before cutoff index",
-			"index", oldThreshold, "node_gc_threshold", c.srv.config.NodeGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "node",
+		"node_gc_threshold", c.srv.config.NodeGCThreshold)
 
 	// Collect the nodes to GC
 	var gcNode []string
@@ -505,7 +479,7 @@ OUTER:
 func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
 	// For old clusters, send single deregistration messages COMPAT(0.11)
 	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
-	if !ServersMeetMinimumVersion(c.srv.Members(), minVersionBatchNodeDeregister, true) {
+	if !ServersMeetMinimumVersion(c.srv.Members(), c.srv.Region(), minVersionBatchNodeDeregister, true) {
 		for _, id := range nodeIDs {
 			req := structs.NodeDeregisterRequest{
 				NodeID: id,
@@ -524,7 +498,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 	}
 
 	// Call to the leader to issue the reap
-	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
+	for _, ids := range partitionAll(structs.MaxUUIDsPerWriteRequest, nodeIDs) {
 		req := structs.NodeBatchDeregisterRequest{
 			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
@@ -550,22 +524,8 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so everything
-		// will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced deployment GC")
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.DeploymentGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("deployment GC scanning before cutoff index",
-			"index", oldThreshold, "deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "deployment",
+		"deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
 
 	// Collect the deployments to GC
 	var gcDeployment []string
@@ -638,7 +598,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 			},
 		}
 		requests = append(requests, req)
-		available := maxIdsPerReap
+		available := structs.MaxUUIDsPerWriteRequest
 
 		if remaining := len(deployments) - submittedDeployments; remaining > 0 {
 			if remaining <= available {
@@ -756,21 +716,8 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// Get the time table to calculate GC cutoffs.
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so
-		// everything will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced volume claim GC")
-	} else {
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIVolumeClaimGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("CSI volume claim GC scanning before cutoff index",
-			"index", oldThreshold,
-			"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "CSI volume claim",
+		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
@@ -809,20 +756,8 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	// Get the time table to calculate GC cutoffs.
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so
-		// everything will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug("forced plugin GC")
-	} else {
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("CSI plugin GC scanning before cutoff index",
-			"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
-	}
+	oldThreshold := c.getThreshold(eval, "CSI plugin",
+		"csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
@@ -857,4 +792,408 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 		},
 	}
 	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
+}
+
+// expiredACLTokenGC handles running the garbage collector for expired ACL
+// tokens. It can be used for both local and global tokens and includes
+// behaviour to account for periodic and user actioned garbage collection
+// invocations.
+func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool) error {
+
+	// If ACLs are not enabled, we do not need to continue and should exit
+	// early. This is not an error condition as callers can blindly call this
+	// function without checking the configuration. If the caller wants this to
+	// be an error, they should check this config value themselves.
+	if !c.srv.config.ACLEnabled {
+		return nil
+	}
+
+	// If the function has been triggered for global tokens, but we are not the
+	// authoritative region, we should exit. This is not an error condition as
+	// callers can blindly call this function without checking the
+	// configuration. If the caller wants this to be an error, they should
+	// check this config value themselves.
+	if global && c.srv.config.AuthoritativeRegion != c.srv.Region() {
+		return nil
+	}
+
+	// The object name is logged within the getThreshold function, therefore we
+	// want to be clear what token type this trigger is for.
+	tokenScope := "local"
+	if global {
+		tokenScope = "global"
+	}
+
+	expiryThresholdIdx := c.getThreshold(eval, tokenScope+" expired ACL tokens",
+		"acl_token_expiration_gc_threshold", c.srv.config.ACLTokenExpirationGCThreshold)
+
+	expiredIter, err := c.snap.ACLTokensByExpired(global)
+	if err != nil {
+		return err
+	}
+
+	var (
+		expiredAccessorIDs []string
+		num                int
+	)
+
+	// The memdb iterator contains all tokens which include an expiration time,
+	// however, as the caller, we do not know at which point in the array the
+	// tokens are no longer expired. This time therefore forms the basis at
+	// which we draw the line in the iteration loop and find the final expired
+	// token that is eligible for deletion.
+	now := time.Now().UTC()
+
+	for raw := expiredIter.Next(); raw != nil; raw = expiredIter.Next() {
+		token := raw.(*structs.ACLToken)
+
+		// The iteration order of the indexes mean if we come across an
+		// unexpired token, we can exit as we have found all currently expired
+		// tokens.
+		if !token.IsExpired(now) {
+			break
+		}
+
+		// Check if the token is recent enough to skip, otherwise we'll delete
+		// it.
+		if token.CreateIndex > expiryThresholdIdx {
+			continue
+		}
+
+		// Add the token accessor ID to the tracking array, thus marking it
+		// ready for deletion.
+		expiredAccessorIDs = append(expiredAccessorIDs, token.AccessorID)
+
+		// Increment the counter. If this is at or above our limit, we return
+		// what we have so far.
+		if num++; num >= structs.ACLMaxExpiredBatchSize {
+			break
+		}
+	}
+
+	// There is no need to call the RPC endpoint if we do not have any tokens
+	// to delete.
+	if len(expiredAccessorIDs) < 1 {
+		return nil
+	}
+
+	// Log a nice, friendly debug message which could be useful when debugging
+	// garbage collection in environments with a high rate of token creation
+	// and expiration.
+	c.logger.Debug("expired ACL token GC found eligible tokens",
+		"num", len(expiredAccessorIDs), "global", global)
+
+	// Set up and make the RPC request which will return any error performing
+	// the deletion.
+	req := structs.ACLTokenDeleteRequest{
+		AccessorIDs: expiredAccessorIDs,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.Region(),
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	return c.srv.RPC(structs.ACLDeleteTokensRPCMethod, req, &structs.GenericResponse{})
+}
+
+// rootKeyRotateOrGC is used to rotate or garbage collect root keys
+func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
+
+	// a rotation will be sent to the leader so our view of state
+	// is no longer valid. we ack this core job and will pick up
+	// the GC work on the next interval
+	wasRotated, err := c.rootKeyRotation(eval)
+	if err != nil {
+		return err
+	}
+	if wasRotated {
+		return nil
+	}
+
+	// we can't GC any key older than the oldest live allocation
+	// because it might have signed that allocation's workload
+	// identity; this is conservative so that we don't have to iterate
+	// over all the allocations and find out which keys signed their
+	// identity, which will be expensive on large clusters
+	allocOldThreshold, err := c.getOldestAllocationIndex()
+	if err != nil {
+		return err
+	}
+
+	oldThreshold := c.getThreshold(eval, "root key",
+		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.Active() {
+			continue // never GC the active key
+		}
+		if keyMeta.CreateIndex > oldThreshold {
+			continue // don't GC recent keys
+		}
+		if keyMeta.CreateIndex > allocOldThreshold {
+			continue // don't GC keys possibly used to sign live allocations
+		}
+		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			continue // key is still in use
+		}
+
+		req := &structs.KeyringDeleteRootKeyRequest{
+			KeyID: keyMeta.KeyID,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+		if err := c.srv.RPC("Keyring.Delete",
+			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
+			c.logger.Error("root key delete failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rootKeyRotation checks if the active key is old enough that we need
+// to kick off a rotation. Returns true if the key was rotated.
+func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) {
+
+	rotationThreshold := c.getThreshold(eval, "root key",
+		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
+
+	ws := memdb.NewWatchSet()
+	activeKey, err := c.snap.GetActiveRootKeyMeta(ws)
+	if err != nil {
+		return false, err
+	}
+	if activeKey == nil {
+		return false, nil // no active key
+	}
+	if activeKey.CreateIndex >= rotationThreshold {
+		return false, nil // key is too new
+	}
+
+	req := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.config.Region,
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	if err := c.srv.RPC("Keyring.Rotate",
+		req, &structs.KeyringRotateRootKeyResponse{}); err != nil {
+		c.logger.Error("root key rotation failed", "error", err)
+		return false, err
+	}
+
+	return true, nil
+}
+
+// variablesReKey is optionally run after rotating the active
+// root key. It iterates over all the variables for the keys in the
+// re-keying state, decrypts them, and re-encrypts them in batches
+// with the currently active key. This job does not GC the keys, which
+// is handled in the normal periodic GC job.
+func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if !keyMeta.Rekeying() {
+			continue
+		}
+		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		err = c.rotateVariables(varIter, eval)
+		if err != nil {
+			return err
+		}
+
+		// we've now rotated all this key's variables, so set its state
+		keyMeta = keyMeta.Copy()
+		keyMeta.SetDeprecated()
+
+		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		req := &structs.KeyringUpdateRootKeyRequest{
+			RootKey: &structs.RootKey{
+				Meta: keyMeta,
+				Key:  key,
+			},
+			Rekey: false,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL},
+		}
+		if err := c.srv.RPC("Keyring.Update",
+			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
+			c.logger.Error("root key update failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rotateVariables runs over an iterator of variables and decrypts them, and
+// then sends them back to be re-encrypted with the currently active key,
+// checking for conflicts
+func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+
+	args := &structs.VariablesApplyRequest{
+		Op: structs.VarOpCAS,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.config.Region,
+			AuthToken: eval.LeaderACL,
+		},
+	}
+
+	// We may have to work on a very large number of variables. There's no
+	// BatchApply RPC because it makes for an awkward API around conflict
+	// detection, and even if we did, we'd be blocking this scheduler goroutine
+	// for a very long time using the same snapshot. This would increase the
+	// risk that any given batch hits a conflict because of a concurrent change
+	// and make it more likely that we fail the eval. For large sets, this would
+	// likely mean the eval would run out of retries.
+	//
+	// Instead, we'll rate limit RPC requests and have a timeout. If we still
+	// haven't finished the set by the timeout, emit a new eval.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	limiter := rate.NewLimiter(rate.Limit(100), 100)
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			newEval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   "-",
+				Priority:    structs.CoreJobPriority,
+				Type:        structs.JobTypeCore,
+				TriggeredBy: structs.EvalTriggerScheduled,
+				JobID:       eval.JobID,
+				Status:      structs.EvalStatusPending,
+				LeaderACL:   eval.LeaderACL,
+			}
+			return c.srv.RPC("Eval.Create", &structs.EvalUpdateRequest{
+				Evals:     []*structs.Evaluation{newEval},
+				EvalToken: uuid.Generate(),
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}, &structs.GenericResponse{})
+
+		default:
+		}
+
+		ev := raw.(*structs.VariableEncrypted)
+		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
+		if err != nil {
+			return err
+		}
+		dv := &structs.VariableDecrypted{
+			VariableMetadata: ev.VariableMetadata,
+		}
+		dv.Items = make(map[string]string)
+		err = json.Unmarshal(cleartext, &dv.Items)
+		if err != nil {
+			return err
+		}
+		args.Var = dv
+		reply := &structs.VariablesApplyResponse{}
+
+		if err := limiter.Wait(ctx); err != nil {
+			return err
+		}
+
+		err = c.srv.RPC("Variables.Apply", args, reply)
+		if err != nil {
+			return err
+		}
+		if reply.IsConflict() {
+			// we've already rotated the key by the time we took this
+			// evaluation's snapshot, so any conflict is going to be on a write
+			// made with the new key, so there's nothing for us to do here
+			continue
+		}
+	}
+
+	return nil
+}
+
+// getThreshold returns the index threshold for determining whether an
+// object is old enough to GC
+func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, configName string, configThreshold time.Duration) uint64 {
+	var oldThreshold uint64
+	if eval.JobID == structs.CoreJobForceGC {
+		// The GC was forced, so set the threshold to its maximum so
+		// everything will GC.
+		oldThreshold = math.MaxUint64
+		c.logger.Debug(fmt.Sprintf("forced %s GC", objectName))
+	} else {
+		// Compute the old threshold limit for GC using the FSM
+		// time table.  This is a rough mapping of a time to the
+		// Raft index it belongs to.
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * configThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+		c.logger.Debug(
+			fmt.Sprintf("%s GC scanning before cutoff index", objectName),
+			"index", oldThreshold,
+			configName, configThreshold)
+	}
+	return oldThreshold
+}
+
+// getOldestAllocationIndex returns the CreateIndex of the oldest
+// non-terminal allocation in the state store
+func (c *CoreScheduler) getOldestAllocationIndex() (uint64, error) {
+	ws := memdb.NewWatchSet()
+	allocs, err := c.snap.Allocs(ws, state.SortDefault)
+	if err != nil {
+		return 0, err
+	}
+	for {
+		raw := allocs.Next()
+		if raw == nil {
+			break
+		}
+		alloc := raw.(*structs.Allocation)
+		if !alloc.TerminalStatus() {
+			return alloc.CreateIndex, nil
+		}
+	}
+	return 0, nil
 }

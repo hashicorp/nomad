@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
@@ -202,6 +202,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
+	if v := conf.RaftConfig.ProtocolVersion; v != 3 {
+		return nil, fmt.Errorf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", v)
+	}
 	raftMultiplier := int(DefaultRaftMultiplier)
 	if agentConfig.Server.RaftMultiplier != nil && *agentConfig.Server.RaftMultiplier != 0 {
 		raftMultiplier = *agentConfig.Server.RaftMultiplier
@@ -238,6 +241,12 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
+	}
+	if agentConfig.ACL.TokenMinExpirationTTL != 0 {
+		conf.ACLTokenMinExpirationTTL = agentConfig.ACL.TokenMinExpirationTTL
+	}
+	if agentConfig.ACL.TokenMaxExpirationTTL != 0 {
+		conf.ACLTokenMaxExpirationTTL = agentConfig.ACL.TokenMaxExpirationTTL
 	}
 	if agentConfig.Sentinel != nil {
 		conf.SentinelConfig = agentConfig.Sentinel
@@ -375,6 +384,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.CSIPluginGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.ACLTokenGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.ACLTokenExpirationGCThreshold = dur
+	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {
 		conf.HeartbeatGrace = heartbeatGrace
@@ -435,6 +451,20 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.DeploymentQueryRateLimit = rate
 	} else {
 		return nil, fmt.Errorf("deploy_query_rate_limit must be greater than 0")
+	}
+
+	// Set plan rejection tracker configuration.
+	if planRejectConf := agentConfig.Server.PlanRejectionTracker; planRejectConf != nil {
+		if planRejectConf.Enabled != nil {
+			conf.NodePlanRejectionEnabled = *planRejectConf.Enabled
+		}
+		conf.NodePlanRejectionThreshold = planRejectConf.NodeThreshold
+
+		if planRejectConf.NodeWindow == 0 {
+			return nil, fmt.Errorf("plan_rejection_tracker.node_window must be greater than 0")
+		} else {
+			conf.NodePlanRejectionWindow = planRejectConf.NodeWindow
+		}
 	}
 
 	// Add Enterprise license configs
@@ -505,7 +535,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// Setup the logging
 	c.Logger = a.logger
-	c.LogOutput = a.logOutput
 
 	// If we are running a server, append both its bind and advertise address so
 	// we are able to at least talk to the local server even if that isn't
@@ -561,7 +590,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.Servers = agentConfig.Client.Servers
-	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
 
@@ -716,6 +744,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery
 	}
 
+	artifactConfig, err := clientconfig.ArtifactConfigFromAgent(agentConfig.Client.Artifact)
+	if err != nil {
+		return nil, fmt.Errorf("invalid artifact config: %v", err)
+	}
+	conf.Artifact = artifactConfig
+
 	return conf, nil
 }
 
@@ -846,7 +880,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 			return err
 		}
 		// Persist this configured nodeID to our data directory
-		if err := helper.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
@@ -858,7 +892,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// If we still don't have a valid node ID, make one.
 	if config.NodeID == "" {
 		id := uuid.Generate()
-		if err := helper.EnsurePath(fileID, false); err != nil {
+		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {
@@ -1128,15 +1162,17 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
-	updatedLogging := newConfig != nil && (newConfig.LogLevel != a.config.LogLevel)
+	current := a.config.Copy()
+
+	updatedLogging := newConfig != nil && (newConfig.LogLevel != current.LogLevel)
 
 	if newConfig == nil || newConfig.TLSConfig == nil && !updatedLogging {
 		return fmt.Errorf("cannot reload agent with nil configuration")
 	}
 
 	if updatedLogging {
-		a.config.LogLevel = newConfig.LogLevel
-		a.logger.SetLevel(log.LevelFromString(newConfig.LogLevel))
+		current.LogLevel = newConfig.LogLevel
+		a.logger.SetLevel(log.LevelFromString(current.LogLevel))
 	}
 
 	// Update eventer config
@@ -1156,10 +1192,10 @@ func (a *Agent) Reload(newConfig *Config) error {
 		// Completely reload the agent's TLS configuration (moving from non-TLS to
 		// TLS, or vice versa)
 		// This does not handle errors in loading the new TLS configuration
-		a.config.TLSConfig = newConfig.TLSConfig.Copy()
+		current.TLSConfig = newConfig.TLSConfig.Copy()
 	}
 
-	if !a.config.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
+	if !current.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
 		// This is just a TLS configuration reload, we don't need to refresh
 		// existing network connections
 
@@ -1168,26 +1204,31 @@ func (a *Agent) Reload(newConfig *Config) error {
 		// as this allows us to dynamically reload configurations not only
 		// on the Agent but on the Server and Client too (they are
 		// referencing the same keyloader).
-		keyloader := a.config.TLSConfig.GetKeyLoader()
+		keyloader := current.TLSConfig.GetKeyLoader()
 		_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
 		if err != nil {
 			return err
 		}
-		a.config.TLSConfig = newConfig.TLSConfig
-		a.config.TLSConfig.KeyLoader = keyloader
+
+		current.TLSConfig = newConfig.TLSConfig
+		current.TLSConfig.KeyLoader = keyloader
+		a.config = current
 		return nil
-	} else if newConfig.TLSConfig.IsEmpty() && !a.config.TLSConfig.IsEmpty() {
+	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 		fullUpdateTLSConfig()
-	} else if !newConfig.TLSConfig.IsEmpty() && a.config.TLSConfig.IsEmpty() {
+	} else if !newConfig.TLSConfig.IsEmpty() && current.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
 		fullUpdateTLSConfig()
 	}
 
+	// Set agent config to the updated config
+	a.config = current
 	return nil
 }
 
-// GetConfig creates a locked reference to the agent's config
+// GetConfig returns the current agent configuration. The Config should *not*
+// be mutated directly. First call Config.Copy.
 func (a *Agent) GetConfig() *Config {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()

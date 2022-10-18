@@ -7,6 +7,8 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 import KEYS from 'nomad-ui/utils/keys';
+import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | exec', function (hooks) {
   setupApplicationTest(hooks);
@@ -15,6 +17,8 @@ module('Acceptance | exec', function (hooks) {
   hooks.beforeEach(async function () {
     window.localStorage.clear();
     window.sessionStorage.clear();
+
+    faker.seed(1);
 
     server.create('agent');
     server.create('node');
@@ -27,11 +31,15 @@ module('Acceptance | exec', function (hooks) {
     });
 
     this.job.taskGroups.models.forEach((taskGroup) => {
-      server.create('allocation', {
+      const alloc = server.create('allocation', {
         jobId: this.job.id,
         taskGroup: taskGroup.name,
         forceRunningClientStatus: true,
       });
+      server.db.taskStates.update(
+        { allocationId: alloc.id },
+        { state: 'running' }
+      );
     });
   });
 
@@ -91,6 +99,8 @@ module('Acceptance | exec', function (hooks) {
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
+    await percySnapshot(assert);
+
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
   });
@@ -135,12 +145,11 @@ module('Acceptance | exec', function (hooks) {
 
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
     runningTaskGroup.tasks.models.forEach((task, index) => {
+      let state = 'running';
       if (index > 0) {
-        this.server.db.taskStates.update(
-          { name: task.name },
-          { finishedAt: new Date() }
-        );
+        state = 'dead';
       }
+      this.server.db.taskStates.update({ name: task.name }, { state });
     });
 
     await Exec.visitJob({ job: this.job.id });
@@ -159,12 +168,11 @@ module('Acceptance | exec', function (hooks) {
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
     let changingTaskStateName;
     runningTaskGroup.tasks.models.sortBy('name').forEach((task, index) => {
+      let state = 'running';
       if (index > 0) {
-        this.server.db.taskStates.update(
-          { name: task.name },
-          { finishedAt: new Date() }
-        );
+        state = 'dead';
       }
+      this.server.db.taskStates.update({ name: task.name }, { state });
 
       if (index === 1) {
         changingTaskStateName = task.name;
@@ -187,7 +195,7 @@ module('Acceptance | exec', function (hooks) {
         );
 
         if (changingTaskState) {
-          changingTaskState.set('finishedAt', undefined);
+          changingTaskState.set('state', 'running');
         }
       });
 
@@ -288,6 +296,8 @@ module('Acceptance | exec', function (hooks) {
         allocationId.split('-')[0]
       } /bin/bash`
     );
+
+    await percySnapshot(assert);
   });
 
   test('an allocation can be specified', async function (assert) {

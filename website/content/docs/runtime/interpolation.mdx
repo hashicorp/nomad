@@ -169,7 +169,13 @@ Below is a table documenting common node properties:
       <td>
         <code>{'${attr.cpu.numcores}'}</code>
       </td>
-      <td>Number of CPU cores on the client</td>
+      <td>Number of CPU cores on the client. May differ from how many cores are available for reservation due to OS or configuration. See <code>cpu.reservablecores</code>.</td>
+    </tr>
+    <tr>
+      <td>
+        <code>{'${attr.cpu.reservablecores}'}</code>
+      </td>
+      <td>Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with <code>resources.cores</code> set.</td>
     </tr>
     <tr>
       <td>
@@ -210,6 +216,14 @@ Below is a table documenting common node properties:
       <td>
         The IP address fingerprinted by the client and from which task ports are
         allocated
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>{'${attr.kernel.arch}'}</code>
+      </td>
+      <td>
+        Kernel architecture of the client (e.g. <code>x86_64</code>, <code>aarch64</code>)
       </td>
     </tr>
     <tr>
@@ -334,7 +348,7 @@ syntax:
 task "redis" {
   driver = "docker"
   config {
-    image  = "redis:3.2"
+    image  = "redis:7"
     labels {
       label1 = "${env["invalid...name"]}"
       label2 = "${env["valid.name"]}"

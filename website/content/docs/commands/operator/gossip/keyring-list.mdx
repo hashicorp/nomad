@@ -1,0 +1,41 @@
+---
+layout: docs
+page_title: 'Commands: operator gossip keyring list'
+description: |
+  List gossip keys
+---
+
+# Command: operator gossip keyring list
+
+The `operator gossip keyring list` command lists all gossip keys
+currently in use within the cluster.
+
+This command can only be run against server nodes. It returns 0 if all
+nodes reply and there are no errors. If any node fails to reply or
+reports failure, the exit code will be 1.
+
+If ACLs are enabled, this command requires a token with the
+`agent:write` capability.
+
+## Usage
+
+```plaintext
+nomad operator gossip keyring list [options]
+```
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+The output of the `nomad operator gossip keyring list` command
+consolidates information from all the Nomad servers.
+
+```shell-session
+$ nomad operator gossip keyring list
+Gathering installed encryption keys...
+Key
+HD5Y61iE+neTxd1n6TnXhCPViPIUq5QpWq8WW8012XA=
+AOUfjGff+MrTBzNU7NCOTmYajKRkGv8r2ToxheWd+jk=
+```

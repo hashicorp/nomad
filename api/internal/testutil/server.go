@@ -155,11 +155,10 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Check that we are actually running nomad
-	vcmd := exec.Command(path, "-version")
-	vcmd.Stdout = nil
-	vcmd.Stderr = nil
-	if err := vcmd.Run(); err != nil {
-		t.Skipf("nomad version failed: %v", err)
+	if out, err := exec.Command(path, "-version").CombinedOutput(); err != nil {
+		t.Logf("nomad version failed: %v", err)
+		t.Logf("nomad version output:\n%s", string(out))
+		t.Skip()
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")

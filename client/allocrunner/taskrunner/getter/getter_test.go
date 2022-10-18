@@ -13,9 +13,14 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-hclog"
+	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -27,11 +32,11 @@ type noopReplacer struct {
 }
 
 func clientPath(taskDir, path string, join bool) (string, bool) {
-	if !filepath.IsAbs(path) || (helper.PathEscapesSandbox(taskDir, path) && join) {
+	if !filepath.IsAbs(path) || (escapingfs.PathEscapesSandbox(taskDir, path) && join) {
 		path = filepath.Join(taskDir, path)
 	}
 	path = filepath.Clean(path)
-	if taskDir != "" && !helper.PathEscapesSandbox(taskDir, path) {
+	if taskDir != "" && !escapingfs.PathEscapesSandbox(taskDir, path) {
 		return path, false
 	}
 	return path, true
@@ -46,10 +51,23 @@ func (r noopReplacer) ClientPath(p string, join bool) (string, bool) {
 	return path, escapes
 }
 
-func noopTaskEnv(taskDir string) EnvReplacer {
+func noopTaskEnv(taskDir string) interfaces.EnvReplacer {
 	return noopReplacer{
 		taskDir: taskDir,
 	}
+}
+
+// panicReplacer is a version of taskenv.TaskEnv.ReplaceEnv that panics.
+type panicReplacer struct{}
+
+func (panicReplacer) ReplaceEnv(_ string) string {
+	panic("panic")
+}
+func (panicReplacer) ClientPath(_ string, _ bool) (string, bool) {
+	panic("panic")
+}
+func panicTaskEnv() interfaces.EnvReplacer {
+	return panicReplacer{}
 }
 
 // upperReplacer is a version of taskenv.TaskEnv.ReplaceEnv that upper-cases
@@ -65,6 +83,51 @@ func (upperReplacer) ReplaceEnv(s string) string {
 func (u upperReplacer) ClientPath(p string, join bool) (string, bool) {
 	path, escapes := clientPath(u.taskDir, u.ReplaceEnv(p), join)
 	return path, escapes
+}
+
+func TestGetter_getClient(t *testing.T) {
+	getter := NewGetter(hclog.NewNullLogger(), &clientconfig.ArtifactConfig{
+		HTTPReadTimeout: time.Minute,
+		HTTPMaxBytes:    100_000,
+		GCSTimeout:      1 * time.Minute,
+		GitTimeout:      2 * time.Minute,
+		HgTimeout:       3 * time.Minute,
+		S3Timeout:       4 * time.Minute,
+	})
+	client := getter.getClient("src", nil, gg.ClientModeAny, "dst")
+
+	t.Run("check symlink config", func(t *testing.T) {
+		require.True(t, client.DisableSymlinks)
+	})
+
+	t.Run("check http config", func(t *testing.T) {
+		require.True(t, client.Getters["http"].(*gg.HttpGetter).XTerraformGetDisabled)
+		require.Equal(t, time.Minute, client.Getters["http"].(*gg.HttpGetter).ReadTimeout)
+		require.Equal(t, int64(100_000), client.Getters["http"].(*gg.HttpGetter).MaxBytes)
+	})
+
+	t.Run("check https config", func(t *testing.T) {
+		require.True(t, client.Getters["https"].(*gg.HttpGetter).XTerraformGetDisabled)
+		require.Equal(t, time.Minute, client.Getters["https"].(*gg.HttpGetter).ReadTimeout)
+		require.Equal(t, int64(100_000), client.Getters["https"].(*gg.HttpGetter).MaxBytes)
+	})
+
+	t.Run("check gcs config", func(t *testing.T) {
+		require.Equal(t, client.Getters["gcs"].(*gg.GCSGetter).Timeout, 1*time.Minute)
+	})
+
+	t.Run("check git config", func(t *testing.T) {
+		require.Equal(t, client.Getters["git"].(*gg.GitGetter).Timeout, 2*time.Minute)
+	})
+
+	t.Run("check hg config", func(t *testing.T) {
+		require.Equal(t, client.Getters["hg"].(*gg.HgGetter).Timeout, 3*time.Minute)
+	})
+
+	t.Run("check s3 config", func(t *testing.T) {
+		require.Equal(t, client.Getters["s3"].(*gg.S3Getter).Timeout, 4*time.Minute)
+	})
+
 }
 
 func TestGetArtifact_getHeaders(t *testing.T) {
@@ -118,10 +181,12 @@ func TestGetArtifact_Headers(t *testing.T) {
 	}
 
 	// Download the artifact.
+	getter := TestDefaultGetter(t)
 	taskEnv := upperReplacer{
 		taskDir: taskDir,
 	}
-	err := GetArtifact(taskEnv, artifact)
+
+	err := getter.GetArtifact(taskEnv, artifact)
 	require.NoError(t, err)
 
 	// Verify artifact exists.
@@ -151,7 +216,8 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -181,7 +247,8 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -211,7 +278,8 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	}
 
 	// attempt to download the artifact
-	err := GetArtifact(noopTaskEnv(taskDir), artifact)
+	getter := TestDefaultGetter(t)
+	err := getter.GetArtifact(noopTaskEnv(taskDir), artifact)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
 	}
@@ -257,7 +325,8 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	}
 
 	// Download the artifact and expect an error
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err == nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -318,7 +387,8 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
-	if err := GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
+	getter := TestDefaultGetter(t)
+	if err := getter.GetArtifact(noopTaskEnv(taskDir), artifact); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -349,7 +419,8 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GetArtifact(noopTaskEnv(taskDir), artifact))
+	getter := TestDefaultGetter(t)
+	require.NoError(t, getter.GetArtifact(noopTaskEnv(taskDir), artifact))
 
 	var expected map[string]int
 
@@ -377,6 +448,15 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		o := s.Mode()
 		require.Equalf(t, p, o, "%s expected %o found %o", file, p, o)
 	}
+}
+
+// TestGetArtifact_handlePanic tests that a panic during the getter execution
+// does not cause its goroutine to crash.
+func TestGetArtifact_handlePanic(t *testing.T) {
+	getter := TestDefaultGetter(t)
+	err := getter.GetArtifact(panicTaskEnv(), &structs.TaskArtifact{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "panic")
 }
 
 func TestGetGetterUrl_Queries(t *testing.T) {

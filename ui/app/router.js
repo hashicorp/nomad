@@ -24,6 +24,9 @@ Router.map(function () {
       this.route('evaluations');
       this.route('allocations');
       this.route('clients');
+      this.route('services', function () {
+        this.route('service', { path: '/:name' });
+      });
     });
   });
 
@@ -78,4 +81,21 @@ Router.map(function () {
   this.route('evaluations', function () {});
 
   this.route('not-found', { path: '/*' });
+  this.route('variables', function () {
+    this.route('new');
+
+    this.route(
+      'variable',
+      {
+        path: '/var/*id',
+      },
+      function () {
+        this.route('edit');
+      }
+    );
+
+    this.route('path', {
+      path: '/path/*absolutePath',
+    });
+  });
 });

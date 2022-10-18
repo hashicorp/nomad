@@ -90,7 +90,10 @@ func (s *HTTPServer) ServiceRegistrationRequest(resp http.ResponseWriter, req *h
 func (s *HTTPServer) serviceGetRequest(
 	resp http.ResponseWriter, req *http.Request, serviceName string) (interface{}, error) {
 
-	args := structs.ServiceRegistrationByNameRequest{ServiceName: serviceName}
+	args := structs.ServiceRegistrationByNameRequest{
+		ServiceName: serviceName,
+		Choose:      req.URL.Query().Get("choose"),
+	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}

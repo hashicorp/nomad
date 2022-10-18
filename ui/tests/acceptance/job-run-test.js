@@ -9,6 +9,7 @@ import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
+const newJobNamespace = 'default';
 
 let managementToken, clientToken;
 
@@ -18,7 +19,7 @@ const jsonJob = (overrides) => {
       {},
       {
         Name: newJobName,
-        Namespace: 'default',
+        Namespace: newJobNamespace,
         Datacenters: ['dc1'],
         Priority: 50,
         TaskGroups: [
@@ -79,7 +80,7 @@ module('Acceptance | job run', function (hooks) {
     await JobRun.editor.run();
     assert.equal(
       currentURL(),
-      `/jobs/${newJobName}`,
+      `/jobs/${newJobName}@${newJobNamespace}`,
       `Redirected to the job overview page for ${newJobName}`
     );
   });
@@ -97,7 +98,7 @@ module('Acceptance | job run', function (hooks) {
     await JobRun.editor.run();
     assert.equal(
       currentURL(),
-      `/jobs/${newJobName}?namespace=${newNamespace}`,
+      `/jobs/${newJobName}@${newNamespace}`,
       `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`
     );
   });

@@ -2,12 +2,17 @@ package nomad
 
 import (
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -149,6 +154,27 @@ func (s *ServiceRegistration) DeleteByID(
 	return nil
 }
 
+// serviceTagSet maps from a service name to a union of tags associated with that service.
+type serviceTagSet map[string]*set.Set[string]
+
+func (s serviceTagSet) add(service string, tags []string) {
+	if _, exists := s[service]; !exists {
+		s[service] = set.From[string](tags)
+	} else {
+		s[service].InsertAll(tags)
+	}
+}
+
+// namespaceServiceTagSet maps from a namespace to a serviceTagSet
+type namespaceServiceTagSet map[string]serviceTagSet
+
+func (s namespaceServiceTagSet) add(namespace, service string, tags []string) {
+	if _, exists := s[namespace]; !exists {
+		s[namespace] = make(serviceTagSet)
+	}
+	s[namespace].add(service, tags)
+}
+
 // List is used to list service registration held within state. It supports
 // single and wildcard namespace listings.
 func (s *ServiceRegistration) List(
@@ -183,43 +209,21 @@ func (s *ServiceRegistration) List(
 				return err
 			}
 
-			// Track the unique tags found per service registration name.
-			serviceTags := make(map[string]map[string]struct{})
+			// Accumulate the set of tags associated with a particular service name.
+			tagSet := make(serviceTagSet)
 
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-
 				serviceReg := raw.(*structs.ServiceRegistration)
-
-				// Identify and add any tags for the current service being
-				// iterated into the map. If the tag has already been seen for
-				// the same service, it will be overwritten ensuring no
-				// duplicates.
-				tags, ok := serviceTags[serviceReg.ServiceName]
-				if !ok {
-					serviceTags[serviceReg.ServiceName] = make(map[string]struct{})
-					tags = serviceTags[serviceReg.ServiceName]
-				}
-				for _, tag := range serviceReg.Tags {
-					tags[tag] = struct{}{}
-				}
+				tagSet.add(serviceReg.ServiceName, serviceReg.Tags)
 			}
 
+			// Set the output result with the accumulated set of tags for each service.
 			var serviceList []*structs.ServiceRegistrationStub
-
-			// Iterate the serviceTags map and populate our output result. This
-			// endpoint handles a single namespace, so we do not need to
-			// account for multiple.
-			for service, tags := range serviceTags {
-
-				serviceStub := structs.ServiceRegistrationStub{
+			for service, tags := range tagSet {
+				serviceList = append(serviceList, &structs.ServiceRegistrationStub{
 					ServiceName: service,
-					Tags:        make([]string, 0, len(tags)),
-				}
-				for tag := range tags {
-					serviceStub.Tags = append(serviceStub.Tags, tag)
-				}
-
-				serviceList = append(serviceList, &serviceStub)
+					Tags:        tags.List(),
+				})
 			}
 
 			// Correctly handle situations where a namespace was passed that
@@ -288,73 +292,43 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 				return err
 			}
 
-			// Track the unique tags found per namespace per service
-			// registration name.
-			namespacedServiceTags := make(map[string]map[string]map[string]struct{})
+			// Accumulate the union of tags per service in each namespace.
+			nsSvcTagSet := make(namespaceServiceTagSet)
 
 			// Iterate all service registrations.
 			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-
-				// We need to assert the type here in order to check the
-				// namespace.
-				serviceReg := raw.(*structs.ServiceRegistration)
+				reg := raw.(*structs.ServiceRegistration)
 
 				// Check whether the service registration is within a namespace
 				// the caller is permitted to view. nil allowedNSes means the
 				// caller can view all namespaces.
-				if allowedNSes != nil && !allowedNSes[serviceReg.Namespace] {
+				if allowedNSes != nil && !allowedNSes[reg.Namespace] {
 					continue
 				}
 
-				// Identify and add any tags for the current namespaced service
-				// being iterated into the map. If the tag has already been
-				// seen for the same service, it will be overwritten ensuring
-				// no duplicates.
-				namespace, ok := namespacedServiceTags[serviceReg.Namespace]
-				if !ok {
-					namespacedServiceTags[serviceReg.Namespace] = make(map[string]map[string]struct{})
-					namespace = namespacedServiceTags[serviceReg.Namespace]
-				}
-				tags, ok := namespace[serviceReg.ServiceName]
-				if !ok {
-					namespace[serviceReg.ServiceName] = make(map[string]struct{})
-					tags = namespace[serviceReg.ServiceName]
-				}
-				for _, tag := range serviceReg.Tags {
-					tags[tag] = struct{}{}
-				}
+				// Accumulate the set of tags associated with a particular service name in a particular namespace
+				nsSvcTagSet.add(reg.Namespace, reg.ServiceName, reg.Tags)
 			}
 
-			// Set up our output object. Start with zero size but allocate the
-			// know length as we wil need to append whilst avoid slice growing.
-			servicesOutput := make([]*structs.ServiceRegistrationListStub, 0, len(namespacedServiceTags))
-
-			for ns, serviceTags := range namespacedServiceTags {
-
-				var serviceList []*structs.ServiceRegistrationStub
-
-				// Iterate the serviceTags map and populate our output result.
-				for service, tags := range serviceTags {
-
-					serviceStub := structs.ServiceRegistrationStub{
+			// Create the service stubs, one per namespace, containing each service
+			// in that namespace, and append that to the final tally of registrations.
+			var registrations []*structs.ServiceRegistrationListStub
+			for namespace, tagSet := range nsSvcTagSet {
+				var stubs []*structs.ServiceRegistrationStub
+				for service, tags := range tagSet {
+					stubs = append(stubs, &structs.ServiceRegistrationStub{
 						ServiceName: service,
-						Tags:        make([]string, 0, len(tags)),
-					}
-					for tag := range tags {
-						serviceStub.Tags = append(serviceStub.Tags, tag)
-					}
-
-					serviceList = append(serviceList, &serviceStub)
+						Tags:        tags.List(),
+					})
 				}
-
-				servicesOutput = append(servicesOutput, &structs.ServiceRegistrationListStub{
-					Namespace: ns,
-					Services:  serviceList,
+				registrations = append(registrations, &structs.ServiceRegistrationListStub{
+					Namespace: namespace,
+					Services:  stubs,
 				})
 			}
 
-			// Add the output to the reply object.
-			reply.Services = servicesOutput
+			// Set the output on the reply object.
+			reply.Services = registrations
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
@@ -423,6 +397,16 @@ func (s *ServiceRegistration) GetService(
 					http.StatusBadRequest, "failed to read result page: %v", err)
 			}
 
+			// Select which subset and the order of services to return if using ?choose
+			if args.Choose != "" {
+				chosen, chooseErr := s.choose(services, args.Choose)
+				if chooseErr != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to choose services: %v", chooseErr)
+				}
+				services = chosen
+			}
+
 			// Populate the reply.
 			reply.Services = services
 			reply.NextToken = nextToken
@@ -432,6 +416,70 @@ func (s *ServiceRegistration) GetService(
 			return s.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
 		},
 	})
+}
+
+// choose uses rendezvous hashing to make a stable selection of a subset of services
+// to return.
+//
+// parameter must in the form "<number>|<key>", where number is the number of services
+// to select, and key is incorporated in the hashing function with each service -
+// creating a unique yet consistent priority distribution pertaining to the requester.
+// In practice (i.e. via consul-template), the key is the AllocID generating a request
+// for upstream services.
+//
+// https://en.wikipedia.org/wiki/Rendezvous_hashing
+// w := priority (i.e. hash value)
+// h := hash function
+// O := object - (i.e. requesting service - using key (allocID) as a proxy)
+// S := site (i.e. destination service)
+func (*ServiceRegistration) choose(services []*structs.ServiceRegistration, parameter string) ([]*structs.ServiceRegistration, error) {
+	// extract the number of services
+	tokens := strings.SplitN(parameter, "|", 2)
+	if len(tokens) != 2 {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+	n, err := strconv.Atoi(tokens[0])
+	if err != nil {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+
+	// extract the hash key
+	key := tokens[1]
+	if key == "" {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+
+	// if there are fewer services than requested, go with the number of services
+	if l := len(services); l < n {
+		n = l
+	}
+
+	type pair struct {
+		hash    string
+		service *structs.ServiceRegistration
+	}
+
+	// associate hash for each service
+	priorities := make([]*pair, len(services))
+	for i, service := range services {
+		priorities[i] = &pair{
+			hash:    service.HashWith(key),
+			service: service,
+		}
+	}
+
+	// sort by the hash; creating random distribution of priority
+	sort.SliceStable(priorities, func(i, j int) bool {
+		return priorities[i].hash < priorities[j].hash
+	})
+
+	// choose top n services
+	chosen := make([]*structs.ServiceRegistration, n)
+	for i := 0; i < n; i++ {
+		chosen[i] = priorities[i].service
+	}
+
+	return chosen, nil
 }
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
@@ -451,27 +499,46 @@ func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions,
 			}
 		}
 	default:
-		// In the event we got any error other than notfound, consider this
+		// Attempt to verify the token as a JWT with a workload
+		// identity claim if it's not a secret ID.
+		// COMPAT(1.4.0): we can remove this conditional in 1.5.0
+		if !helper.IsUUID(args.AuthToken) {
+			claims, err := s.srv.VerifyClaim(args.AuthToken)
+			if err != nil {
+				return err
+			}
+			if claims == nil {
+				return structs.ErrPermissionDenied
+			}
+			return nil
+		}
+
+		// COMPAT(1.4.0): Nomad 1.3.0 shipped with authentication by
+		// node secret but that's been replaced with workload identity
+		// in 1.4.0. Leave this here for backwards compatibility
+		// between clients and servers during cluster upgrades, but
+		// remove for 1.5.0
+
+		// In the event we got any error other than ErrTokenNotFound, consider this
 		// terminal.
 		if err != structs.ErrTokenNotFound {
 			return err
 		}
 
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
+		// Attempt to lookup AuthToken as a Node.SecretID and
+		// return any error wrapped along with the original.
 		node, stateErr := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
 		if stateErr != nil {
 			var mErr multierror.Error
 			mErr.Errors = append(mErr.Errors, err, stateErr)
 			return mErr.ErrorOrNil()
 		}
-
 		// At this point, we do not have a valid ACL token, nor are we being
 		// called, or able to confirm via the state store, by a node.
 		if node == nil {
 			return structs.ErrTokenNotFound
 		}
-	}
 
+	}
 	return nil
 }

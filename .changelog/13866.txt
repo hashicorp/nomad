@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Reorder and apply the same style to the Evaluations list page filters to match the Job list page.
+```

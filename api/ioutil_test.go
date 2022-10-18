@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -73,7 +73,7 @@ func TestChecksumValidatingReader_PropagatesError(t *testing.T) {
 	defer pr.Close()
 	defer pw.Close()
 
-	expectedErr := fmt.Errorf("some error")
+	expectedErr := errors.New("some error")
 
 	go func() {
 		pw.Write([]byte("some input"))

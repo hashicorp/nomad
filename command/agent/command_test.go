@@ -8,11 +8,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 )
 
@@ -41,6 +43,10 @@ func TestCommand_Args(t *testing.T) {
 		{
 			[]string{"-data-dir=" + tmpDir, "-server", "-bootstrap-expect=1"},
 			"WARNING: Bootstrap mode enabled!",
+		},
+		{
+			[]string{"-data-dir=" + tmpDir, "-server", "-bootstrap-expect=2"},
+			"Number of bootstrap servers should ideally be set to an odd number",
 		},
 		{
 			[]string{"-server"},
@@ -381,6 +387,18 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 			err: `host_network["test"].reserved_ports "3-2147483647" invalid: port must be < 65536 but found 2147483647`,
+		},
+		{
+			name: "BadArtifact",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled: true,
+					Artifact: &config.ArtifactConfig{
+						HTTPReadTimeout: pointer.Of("-10m"),
+					},
+				},
+			},
+			err: "client.artifact stanza invalid: http_read_timeout must be > 0",
 		},
 	}
 

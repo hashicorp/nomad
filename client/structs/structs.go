@@ -182,6 +182,20 @@ type AllocExecRequest struct {
 	structs.QueryOptions
 }
 
+// AllocChecksRequest is used to request the latest nomad service discovery
+// check status information of a given allocation.
+type AllocChecksRequest struct {
+	structs.QueryOptions
+	AllocID string
+}
+
+// AllocChecksResponse is used to return the latest nomad service discovery
+// check status information of a given allocation.
+type AllocChecksResponse struct {
+	structs.QueryMeta
+	Results map[structs.CheckID]*structs.CheckQueryResult
+}
+
 // AllocStatsRequest is used to request the resource usage of a given
 // allocation, potentially filtering by task
 type AllocStatsRequest struct {

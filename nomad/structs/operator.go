@@ -125,6 +125,15 @@ type AutopilotConfig struct {
 	ModifyIndex uint64
 }
 
+func (a *AutopilotConfig) Copy() *AutopilotConfig {
+	if a == nil {
+		return nil
+	}
+
+	na := *a
+	return &na
+}
+
 // SchedulerAlgorithm is an enum string that encapsulates the valid options for a
 // SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
@@ -156,9 +165,24 @@ type SchedulerConfiguration struct {
 	// management ACL token
 	RejectJobRegistration bool `hcl:"reject_job_registration"`
 
+	// PauseEvalBroker is a boolean to control whether the evaluation broker
+	// should be paused on the cluster leader. Only a single broker runs per
+	// region, and it must be persisted to state so the parameter is consistent
+	// during leadership transitions.
+	PauseEvalBroker bool `hcl:"pause_eval_broker"`
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (s *SchedulerConfiguration) Copy() *SchedulerConfiguration {
+	if s == nil {
+		return s
+	}
+
+	ns := *s
+	return &ns
 }
 
 func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorithm {

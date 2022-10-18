@@ -42,7 +42,7 @@ job "weave-example" {
     task "redis" {
       driver = "docker"
       config {
-        image = "redis:3.2"
+        image = "redis:7"
         port_map {
           db = 6379
         }

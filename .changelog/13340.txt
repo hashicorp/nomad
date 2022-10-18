@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a regression where a timeout was introduced that prevented some plugins from running by marking them as unhealthy after 30s by introducing a configurable `health_timeout` field
+```

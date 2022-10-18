@@ -12,8 +12,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -141,7 +140,7 @@ func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *NodeStatusCommand) Name() string { return "node-status" }
+func (c *NodeStatusCommand) Name() string { return "node status" }
 
 func (c *NodeStatusCommand) Run(args []string) int {
 
@@ -409,7 +408,7 @@ func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
 		}
 
 		for _, v := range tg.Volumes {
-			if v.Type == structs.VolumeTypeCSI {
+			if v.Type == api.CSIVolumeTypeCSI {
 				names = append(names, v.Name)
 			}
 		}
@@ -669,7 +668,7 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 		}
 
 		for _, v := range tg.Volumes {
-			if v.Type == structs.VolumeTypeCSI {
+			if v.Type == api.CSIVolumeTypeCSI {
 				names = append(names, v.Name)
 				requests[v.Source] = v
 			}
@@ -943,9 +942,9 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	if res == nil {
 		res = &api.Resources{}
 	}
-	total.CPU = helper.IntToPtr(*r.CPU - *res.CPU)
-	total.MemoryMB = helper.IntToPtr(*r.MemoryMB - *res.MemoryMB)
-	total.DiskMB = helper.IntToPtr(*r.DiskMB - *res.DiskMB)
+	total.CPU = pointer.Of(*r.CPU - *res.CPU)
+	total.MemoryMB = pointer.Of(*r.MemoryMB - *res.MemoryMB)
+	total.DiskMB = pointer.Of(*r.DiskMB - *res.DiskMB)
 	return total
 }
 
@@ -965,7 +964,11 @@ func getActualResources(client *api.Client, runningAllocs []*api.Allocation, nod
 		}
 
 		cpu += stats.ResourceUsage.CpuStats.TotalTicks
-		mem += stats.ResourceUsage.MemoryStats.RSS
+		if stats.ResourceUsage.MemoryStats.Usage > 0 {
+			mem += stats.ResourceUsage.MemoryStats.Usage
+		} else {
+			mem += stats.ResourceUsage.MemoryStats.RSS
+		}
 	}
 
 	resources := make([]string, 2)

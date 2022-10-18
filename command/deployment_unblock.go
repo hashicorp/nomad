@@ -124,7 +124,12 @@ func (c *DeploymentUnblockCommand) Run(args []string) int {
 	evalCreated := u.EvalID != ""
 
 	// Nothing to do
-	if detach || !evalCreated {
+	if !evalCreated {
+		return 0
+	}
+
+	if detach {
+		c.Ui.Output("Evaluation ID: " + u.EvalID)
 		return 0
 	}
 

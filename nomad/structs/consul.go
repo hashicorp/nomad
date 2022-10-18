@@ -16,8 +16,8 @@ func (c *Consul) Copy() *Consul {
 	}
 }
 
-// Equals returns whether c and o are the same.
-func (c *Consul) Equals(o *Consul) bool {
+// Equal returns whether c and o are the same.
+func (c *Consul) Equal(o *Consul) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -34,7 +34,6 @@ func (c *Consul) Validate() error {
 // noting which connect services and normal services will be registered, and
 // whether the keystore will be read via template.
 type ConsulUsage struct {
-	Kinds    []TaskKind
 	Services []string
 	KV       bool
 }
@@ -44,8 +43,6 @@ type ConsulUsage struct {
 func (cu *ConsulUsage) Used() bool {
 	switch {
 	case cu.KV:
-		return true
-	case len(cu.Kinds) > 0:
 		return true
 	case len(cu.Services) > 0:
 		return true

@@ -22,7 +22,22 @@ const (
 
 	// templateChangeModeRestart marks that the task should be restarted if the
 	templateChangeModeRestart = "restart"
+
+	// templateChangeModeScript marks that ac script should be executed on
+	// template re-render
+	templateChangeModeScript = "script"
 )
+
+// Helper functions below are only used by this test suite
+func int8ToPtr(i int8) *int8 {
+	return &i
+}
+func uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+func int64ToPtr(i int64) *int64 {
+	return &i
+}
 
 func TestParse(t *testing.T) {
 	ci.Parallel(t)
@@ -369,9 +384,17 @@ func TestParse(t *testing.T) {
 									{
 										SourcePath: stringToPtr("bar"),
 										DestPath:   stringToPtr("bar"),
-										ChangeMode: stringToPtr(templateChangeModeRestart),
+										ChangeMode: stringToPtr(templateChangeModeScript),
+										ChangeScript: &api.ChangeScript{
+											Args:        []string{"-debug", "-verbose"},
+											Command:     stringToPtr("/bin/foo"),
+											Timeout:     timeToPtr(5 * time.Second),
+											FailOnError: boolToPtr(false),
+										},
 										Splay:      timeToPtr(5 * time.Second),
 										Perms:      stringToPtr("777"),
+										Uid:        intToPtr(1001),
+										Gid:        intToPtr(20),
 										LeftDelim:  stringToPtr("--"),
 										RightDelim: stringToPtr("__"),
 									},
@@ -605,6 +628,13 @@ func TestParse(t *testing.T) {
 										GetterOptions: nil,
 										RelativeDest:  stringToPtr("var/foo"),
 									},
+									{
+										GetterSource: stringToPtr("https://example.com/file.txt"),
+										GetterHeaders: map[string]string{
+											"User-Agent":    "nomad",
+											"X-Nomad-Alloc": "alloc",
+										},
+									},
 								},
 							},
 						},
@@ -626,9 +656,10 @@ func TestParse(t *testing.T) {
 								Name:   "binstore",
 								Driver: "docker",
 								CSIPluginConfig: &api.TaskCSIPluginConfig{
-									ID:       "org.hashicorp.csi",
-									Type:     api.CSIPluginTypeMonolith,
-									MountDir: "/csi/test",
+									ID:            "org.hashicorp.csi",
+									Type:          api.CSIPluginTypeMonolith,
+									MountDir:      "/csi/test",
+									HealthTimeout: 1 * time.Minute,
 								},
 							},
 						},
@@ -838,6 +869,28 @@ func TestParse(t *testing.T) {
 								KillSignal: "SIGQUIT",
 								Config: map[string]interface{}{
 									"image": "hashicorp/image",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-tagged-address.hcl",
+			&api.Job{
+				ID:   stringToPtr("service_tagged_address"),
+				Name: stringToPtr("service_tagged_address"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("group"),
+						Services: []*api.Service{
+							{
+								Name: "service1",
+								TaggedAddresses: map[string]string{
+									"public_wan": "1.2.3.4",
 								},
 							},
 						},
@@ -1538,7 +1591,9 @@ func TestParse(t *testing.T) {
 								},
 								Ingress: &api.ConsulIngressConfigEntry{
 									TLS: &api.ConsulGatewayTLSConfig{
-										Enabled: true,
+										Enabled:       true,
+										TLSMinVersion: "TLSv1_2",
+										CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
 									},
 									Listeners: []*api.ConsulIngressListener{{
 										Port:     8001,

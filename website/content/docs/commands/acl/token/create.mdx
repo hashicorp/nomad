@@ -1,0 +1,86 @@
+---
+layout: docs
+page_title: 'Commands: acl token create'
+description: |
+  The token create command is used to create new ACL tokens.
+---
+
+# Command: acl token create
+
+The `acl token create` command is used to create new ACL tokens.
+
+## Usage
+
+```plaintext
+nomad acl token create [options]
+```
+
+The `acl token create` command requires no arguments.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Create Options
+
+- `-name`: Sets the human readable name for the ACL token.
+
+- `-type`: Sets the type of token. Must be one of "client" (default), or
+  "management".
+
+- `-global`: Toggles the global mode of the token. Global tokens are replicated
+  to all regions. Defaults false.
+
+- `-policy`: Specifies a policy to associate with the token. Can be specified
+  multiple times, but only with client type tokens.
+
+- `-role-id`: ID of a role to use for this token. May be specified multiple
+  times.
+
+- `-role-name`: Name of a role to use for this token. May be specified multiple
+  times.
+
+- `-ttl`: Specifies the time-to-live of the created ACL token. This takes the
+  form of a time duration such as "5m" and "1h". By default, tokens will be
+  created without a TTL and therefore never expire.
+
+## Examples
+
+Create a new ACL token linked to an ACL Policy and Role:
+
+```shell-session
+$ nomad acl token create -name="example-acl-token" -policy=example-acl-policy -role-name=example-acl-role
+Accessor ID  = ef851ca0-b331-da5d-bbeb-7ede8f7c9151
+Secret ID    = 11d5348a-8768-5baa-6185-c154980e1488
+Name         = example-acl-token
+Type         = client
+Global       = false
+Create Time  = 2022-08-23 12:16:09.680699039 +0000 UTC
+Expiry Time  = <none>
+Create Index = 140
+Modify Index = 140
+Policies     = [example-acl-policy]
+
+Roles
+ID                                    Name
+2fe0c403-4502-e99d-4c79-a2821355e66d  example-acl-policy
+```
+
+Create a new ACL token with an expiry:
+
+```shell-session
+$ nomad acl token create -name="example-acl-token" -policy=example-acl-policy -ttl=8h
+Accessor ID  = 1b60edc8-e4ed-08ef-208d-ecc18a90ccc3
+Secret ID    = e4c7c80e-870b-c6a6-43d2-dbfa90130c06
+Name         = example-acl-token
+Type         = client
+Global       = false
+Create Time  = 2022-08-23 12:17:35.45067293 +0000 UTC
+Expiry Time  = 2022-08-23 20:17:35.45067293 +0000 UTC
+Create Index = 142
+Modify Index = 142
+Policies     = [example-acl-policy]
+
+Roles
+<none>
+```

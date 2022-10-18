@@ -108,7 +108,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 
 	// allocation is now invalid
 	index++
-	err = srv.State().DeleteEval(index, []string{}, []string{alloc.ID})
+	err = srv.State().DeleteEval(index, []string{}, []string{alloc.ID}, false)
 	require.NoError(t, err)
 
 	// emit a GC so that we have a volume change that's dropped

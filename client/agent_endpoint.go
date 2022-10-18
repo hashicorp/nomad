@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	metrics "github.com/armon/go-metrics"
@@ -42,7 +42,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil && !a.c.config.EnableDebug {
+	if aclObj == nil && !a.c.GetConfig().EnableDebug {
 		return structs.ErrPermissionDenied
 	}
 
@@ -89,16 +89,16 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
 
 	// Check acl
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
+		handleStreamResultError(err, pointer.Of(int64(403)), encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
-		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 		return
 	}
 
@@ -108,7 +108,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	if logLevel == log.NoLevel {
-		handleStreamResultError(errors.New("Unknown log level"), helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(errors.New("Unknown log level"), pointer.Of(int64(400)), encoder)
 		return
 	}
 
@@ -206,7 +206,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 }
@@ -218,7 +218,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 		return err
 	}
 	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
-		(aclObj == nil && !a.c.config.EnableDebug) {
+		(aclObj == nil && !a.c.GetConfig().EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 

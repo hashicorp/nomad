@@ -30,6 +30,7 @@ func (f *HostFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprint
 	resp.AddAttribute("os.version", hostInfo.PlatformVersion)
 
 	resp.AddAttribute("kernel.name", runtime.GOOS)
+	resp.AddAttribute("kernel.arch", hostInfo.KernelArch)
 	resp.AddAttribute("kernel.version", hostInfo.KernelVersion)
 
 	resp.AddAttribute("unique.hostname", hostInfo.Hostname)

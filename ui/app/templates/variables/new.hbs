@@ -1,0 +1,21 @@
+{{page-title "New Variable"}}
+<Breadcrumb @crumb={{hash label="New" args=(array "variables.new")}} />
+
+<section class="section">
+  <h1 class="title variable-title">
+    Create a Variable
+    <Toggle
+      data-test-memory-toggle
+      @isActive={{eq this.view "json"}}
+      @onToggle={{action this.toggleView}}
+      title="JSON"
+    >JSON</Toggle>
+  </h1>
+
+  <VariableForm
+    @model={{this.model}}
+    @path={{this.path}}
+    @existingVariables={{this.existingVariables}}
+    @view={{this.view}}
+  />
+</section>

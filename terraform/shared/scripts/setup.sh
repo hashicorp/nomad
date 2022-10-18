@@ -9,22 +9,22 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.8.3
+CONSULVERSION=1.12.2
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=1.5.3
+VAULTVERSION=1.11.0
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.12.4
+NOMADVERSION=1.3.1
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-CONSULTEMPLATEVERSION=0.25.1
+CONSULTEMPLATEVERSION=0.29.1
 CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
@@ -32,8 +32,7 @@ CONSULTEMPLATEDIR=/opt/consul-template
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux
-
+sudo apt-get install -y unzip tree redis-tools jq curl tmux gnupg-curl
 
 # Disable the firewall
 
@@ -110,10 +109,12 @@ sudo apt-get install -y docker-ce
 
 # Needs testing, updating and fixing
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
+  
   # Install official NVIDIA driver package
-  sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+  # This is why we added gnupg-curl, otherwise, the following fails with "gpgkeys: protocol `https' not supported"
+  sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
   sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
-  sudo apt-get update && sudo apt-get install -y --no-install-recommends linux-headers-generic dkms cuda-drivers
+  sudo apt-get update && sudo apt-get install -y --no-install-recommends --allow-unauthenticated linux-headers-generic dkms cuda-drivers
 
   # Install nvidia-docker and nvidia-docker-plugin
   # from: https://github.com/NVIDIA/nvidia-docker#ubuntu-140416041804-debian-jessiestretch
@@ -125,7 +126,7 @@ if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then
     sudo tee /etc/apt/sources.list.d/nvidia-docker.list
 
   sudo apt-get update
-  sudo apt-get install -y nvidia-docker2
+  sudo apt-get install -y --allow-unauthenticated nvidia-docker2
 fi
 
 # rkt

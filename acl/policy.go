@@ -67,6 +67,17 @@ var (
 	validVolume = regexp.MustCompile("^[a-zA-Z0-9-*]{1,128}$")
 )
 
+const (
+	// The following are the fine-grained capabilities that can be
+	// granted for a variables path. When capabilities are
+	// combined we take the union of all capabilities.
+	VariablesCapabilityList    = "list"
+	VariablesCapabilityRead    = "read"
+	VariablesCapabilityWrite   = "write"
+	VariablesCapabilityDestroy = "destroy"
+	VariablesCapabilityDeny    = "deny"
+)
+
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
 	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
@@ -95,6 +106,16 @@ func (p *Policy) IsEmpty() bool {
 type NamespacePolicy struct {
 	Name         string `hcl:",key"`
 	Policy       string
+	Capabilities []string
+	Variables    *VariablesPolicy `hcl:"variables"`
+}
+
+type VariablesPolicy struct {
+	Paths []*VariablesPathPolicy `hcl:"path"`
+}
+
+type VariablesPathPolicy struct {
+	PathSpec     string `hcl:",key"`
 	Capabilities []string
 }
 
@@ -156,6 +177,18 @@ func isNamespaceCapabilityValid(cap string) bool {
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:
+		return true
+	default:
+		return false
+	}
+}
+
+// isPathCapabilityValid ensures the given capability is valid for a
+// variables path policy
+func isPathCapabilityValid(cap string) bool {
+	switch cap {
+	case VariablesCapabilityWrite, VariablesCapabilityRead,
+		VariablesCapabilityList, VariablesCapabilityDestroy, VariablesCapabilityDeny:
 		return true
 	default:
 		return false
@@ -233,6 +266,24 @@ func expandHostVolumePolicy(policy string) []string {
 	}
 }
 
+func expandVariablesCapabilities(caps []string) []string {
+	var foundRead, foundList bool
+	for _, cap := range caps {
+		switch cap {
+		case VariablesCapabilityDeny:
+			return []string{VariablesCapabilityDeny}
+		case VariablesCapabilityRead:
+			foundRead = true
+		case VariablesCapabilityList:
+			foundList = true
+		}
+	}
+	if foundRead && !foundList {
+		caps = append(caps, PolicyList)
+	}
+	return caps
+}
+
 // Parse is used to parse the specified ACL rules into an
 // intermediary set of policies, before being compiled into
 // the ACL
@@ -275,6 +326,27 @@ func Parse(rules string) (*Policy, error) {
 			extraCap := expandNamespacePolicy(ns.Policy)
 			ns.Capabilities = append(ns.Capabilities, extraCap...)
 		}
+
+		if ns.Variables != nil {
+			if len(ns.Variables.Paths) == 0 {
+				return nil, fmt.Errorf("Invalid variable policy: no variable paths in namespace %s", ns.Name)
+			}
+			for _, pathPolicy := range ns.Variables.Paths {
+				if pathPolicy.PathSpec == "" {
+					return nil, fmt.Errorf("Invalid missing variable path in namespace %s", ns.Name)
+				}
+				for _, cap := range pathPolicy.Capabilities {
+					if !isPathCapabilityValid(cap) {
+						return nil, fmt.Errorf(
+							"Invalid variable capability '%s' in namespace %s", cap, ns.Name)
+					}
+				}
+				pathPolicy.Capabilities = expandVariablesCapabilities(pathPolicy.Capabilities)
+
+			}
+
+		}
+
 	}
 
 	for _, hv := range p.HostVolumes {

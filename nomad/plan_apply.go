@@ -25,20 +25,45 @@ type planner struct {
 	// planQueue is used to manage the submitted allocation
 	// plans that are waiting to be assessed by the leader
 	planQueue *PlanQueue
+
+	// badNodeTracker keeps a score for nodes that have plan rejections.
+	// Plan rejections are somewhat expected given Nomad's optimistic
+	// scheduling, but repeated rejections for the same node may indicate an
+	// undetected issue, so we need to track rejection history.
+	badNodeTracker BadNodeTracker
 }
 
 // newPlanner returns a new planner to be used for managing allocation plans.
 func newPlanner(s *Server) (*planner, error) {
+	log := s.logger.Named("planner")
+
 	// Create a plan queue
 	planQueue, err := NewPlanQueue()
 	if err != nil {
 		return nil, err
 	}
 
+	// Create the bad node tracker.
+	var badNodeTracker BadNodeTracker
+	if s.config.NodePlanRejectionEnabled {
+		config := DefaultCachedBadNodeTrackerConfig()
+
+		config.Window = s.config.NodePlanRejectionWindow
+		config.Threshold = s.config.NodePlanRejectionThreshold
+
+		badNodeTracker, err = NewCachedBadNodeTracker(log, config)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		badNodeTracker = &NoopBadNodeTracker{}
+	}
+
 	return &planner{
-		Server:    s,
-		log:       s.logger.Named("planner"),
-		planQueue: planQueue,
+		Server:         s,
+		log:            log,
+		planQueue:      planQueue,
+		badNodeTracker: badNodeTracker,
 	}, nil
 }
 
@@ -67,7 +92,6 @@ func newPlanner(s *Server) (*planner, error) {
 // in anticipation of this case we cannot respond to the plan until
 // the Raft log is updated. This means our schedulers will stall,
 // but there are many of those and only a single plan verifier.
-//
 func (p *planner) planApply() {
 	// planIndexCh is used to track an outstanding application and receive
 	// its committed index while snap holds an optimistic state which
@@ -144,6 +168,13 @@ func (p *planner) planApply() {
 			continue
 		}
 
+		// Check if any of the rejected nodes should be made ineligible.
+		for _, nodeID := range result.RejectedNodes {
+			if p.badNodeTracker.Add(nodeID) {
+				result.IneligibleNodes = append(result.IneligibleNodes, nodeID)
+			}
+		}
+
 		// Fast-path the response if there is nothing to do
 		if result.IsNoOp() {
 			pending.respond(result, nil)
@@ -154,6 +185,7 @@ func (p *planner) planApply() {
 		// This also limits how out of date our snapshot can be.
 		if planIndexCh != nil {
 			idx := <-planIndexCh
+			planIndexCh = nil
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
@@ -177,7 +209,7 @@ func (p *planner) planApply() {
 	}
 }
 
-// snapshotMinIndex wraps SnapshotAfter with a 5s timeout and converts timeout
+// snapshotMinIndex wraps SnapshotAfter with a 10s timeout and converts timeout
 // errors to a more descriptive error message. The snapshot is guaranteed to
 // include both the previous plan and all objects referenced by the plan or
 // return an error.
@@ -188,7 +220,11 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 	// plan result's and current plan's snapshot index.
 	minIndex := max(prevPlanResultIndex, planSnapshotIndex)
 
-	const timeout = 5 * time.Second
+	// This timeout creates backpressure where any concurrent
+	// Plan.Submit RPCs will block waiting for results. This sheds
+	// load across all servers and gives raft some CPU to catch up,
+	// because schedulers won't dequeue more work while waiting.
+	const timeout = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	snap, err := p.fsm.State().SnapshotMinIndex(ctx, minIndex)
 	cancel()
@@ -202,6 +238,8 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+	now := time.Now().UTC().UnixNano()
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -209,13 +247,14 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		},
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
+		IneligibleNodes:   result.IneligibleNodes,
 		EvalID:            plan.EvalID,
+		UpdatedAt:         now,
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
-	now := time.Now().UTC().UnixNano()
 
-	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
@@ -236,6 +275,11 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		// Set the time the alloc was applied for the first time. This can be used
 		// to approximate the scheduling time.
 		updateAllocTimestamps(req.AllocsUpdated, now)
+
+		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated)
+		if err != nil {
+			return nil, err
+		}
 
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
@@ -362,20 +406,37 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	}
 }
 
+func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation) error {
+
+	encrypter := p.Server.encrypter
+
+	for _, alloc := range allocations {
+		alloc.SignedIdentities = map[string]string{}
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+		for _, task := range tg.Tasks {
+			claims := alloc.ToTaskIdentityClaims(job, task.Name)
+			token, err := encrypter.SignClaims(claims)
+			if err != nil {
+				return err
+			}
+			alloc.SignedIdentities[task.Name] = token
+		}
+	}
+	return nil
+}
+
 // asyncPlanWait is used to apply and respond to a plan async. On successful
 // commit the plan's index will be sent on the chan. On error the chan will be
 // closed.
 func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 	result *structs.PlanResult, pending *pendingPlan) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "apply"}, time.Now())
+	defer close(indexCh)
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
 		p.logger.Error("failed to apply plan", "error", err)
 		pending.respond(nil, err)
-
-		// Close indexCh on error
-		close(indexCh)
 		return
 	}
 
@@ -466,6 +527,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 	// errors since we are processing in parallel.
 	var mErr multierror.Error
 	partialCommit := false
+	rejectedNodes := make(map[string]struct{}, 0)
 
 	// handleResult is used to process the result of evaluateNodePlan
 	handleResult := func(nodeID string, fit bool, reason string, err error) (cancel bool) {
@@ -489,8 +551,11 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
 					"namespace", plan.Job.Namespace)
 			}
-			// Set that this is a partial commit
+			// Set that this is a partial commit and store the node that was
+			// rejected so the plan applier can detect repeated plan rejections
+			// for the same node.
 			partialCommit = true
+			rejectedNodes[nodeID] = struct{}{}
 
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
@@ -594,6 +659,10 @@ OUTER:
 		// deployment correct for any canary that may have been desired to be
 		// placed but wasn't actually placed
 		correctDeploymentCanaries(result)
+	}
+
+	for n := range rejectedNodes {
+		result.RejectedNodes = append(result.RejectedNodes, n)
 	}
 	return result, mErr.ErrorOrNil()
 }

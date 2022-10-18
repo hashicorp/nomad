@@ -41,6 +41,7 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
 		service.Meta = interpolateMapStringString(taskEnv, service.Meta)
 		service.CanaryMeta = interpolateMapStringString(taskEnv, service.CanaryMeta)
+		service.TaggedAddresses = interpolateMapStringString(taskEnv, service.TaggedAddresses)
 		interpolateConnect(taskEnv, service.Connect)
 
 		interpolated[i] = service
@@ -80,7 +81,12 @@ func interpolateMapStringInterface(taskEnv *TaskEnv, orig map[string]interface{}
 
 	m := make(map[string]interface{}, len(orig))
 	for k, v := range orig {
-		m[taskEnv.ReplaceEnv(k)] = v
+		envK := taskEnv.ReplaceEnv(k)
+		if vStr, ok := v.(string); ok {
+			m[envK] = taskEnv.ReplaceEnv(vStr)
+		} else {
+			m[envK] = v
+		}
 	}
 	return m
 }
