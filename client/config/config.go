@@ -217,6 +217,10 @@ type Config struct {
 	// ACLPolicyTTL is how long we cache policy values for
 	ACLPolicyTTL time.Duration
 
+	// ACLRoleTTL is how long we cache ACL role value for within each Nomad
+	// client.
+	ACLRoleTTL time.Duration
+
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
 

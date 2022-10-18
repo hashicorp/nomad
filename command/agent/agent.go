@@ -720,6 +720,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
+	conf.ACLRoleTTL = agentConfig.ACL.RoleTTL
 
 	// Setup networking configuration
 	conf.CNIPath = agentConfig.Client.CNIPath
