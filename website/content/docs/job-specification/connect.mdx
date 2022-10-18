@@ -50,7 +50,7 @@ Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
 - `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](https://www.consul.io/docs/connect/native) applications.
+  [Connect Native](https://developer.hashicorp.com/consul/docs/connect/native) applications.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
   configure the sidecar service created by Nomad for Consul Connect.
@@ -66,7 +66,7 @@ or `gateway` may be realized per `connect` block.
 ### Using Connect Native
 
 The following example is a minimal service stanza for a
-[Consul Connect Native](https://www.consul.io/docs/connect/native)
+[Consul Connect Native](https://developer.hashicorp.com/consul/docs/connect/native)
 application implemented by a task named `generate`.
 
 ```hcl
@@ -249,7 +249,7 @@ job "ingress-demo" {
 
 [job]: /docs/job-specification/job "Nomad job Job Specification"
 
-[native]: https://www.consul.io/docs/connect/native
+[native]: https://developer.hashicorp.com/consul/docs/connect/native
 
 [service_task]: /docs/job-specification/service#task-1 "Nomad service task"
 
