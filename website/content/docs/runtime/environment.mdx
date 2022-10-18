@@ -112,7 +112,104 @@ using the `exec`, `raw_exec`, and `java` task drivers. The variables that are
 passed to the tasks can be controlled using the client configuration
 [`env.denylist`][].
 
+## OpenTelemetry resource attributes
+
+Nomad will automatically include the `OTEL_RESOURCE_ATTRIBUTES` environment
+variable according to the [OpenTelemetry resource SDK
+specification][otel_resource_spec]. The attributes key use the `nomad.` scope.
+
+| Attribute                | Type     | Description | Examples |
+| ------------------------ | -------- | --------------------------- | -------- |
+| `nomad.alloc.createTime` | `string` | The time the allocation was created.                            | `1663012858195456000`                  |
+| `nomad.alloc.id`         | `string` | The ID of the allocation.                                       | `6cd78c59-b6ec-cc9d-c5df-09aa630bf5d6` |
+| `nomad.alloc.name`       | `string` | The name of the allocation.                                     | `otel-demo.demo-client[0]`             |
+| `nomad.eval.id`          | `string` | The evaluation ID that generated the allocation.                | `02a24dc2-30ac-eaa9-9330-d2125dc5a3a0` |
+| `nomad.group.name`       | `string` | The name of the group that generated this allocation.           | `demo-client`                          |
+| `nomad.job.id`           | `string` | The ID of the job that generated this allocation.               | `otel-demo`                            |
+| `nomad.job.name`         | `string` | The name of the job that generated this allocation.             | `otel-demo`                            |
+| `nomad.job.parentId`     | `string` | The ID of the parent job if applicable.                         | `parent-periodic-job`                  |
+| `nomad.job.region`       | `string` | The region of the job that generated this allocation.           | `global`                               |
+| `nomad.job.type`         | `string` | The type of the job that generated this allocation.             | `service`                              |
+| `nomad.namespace`        | `string` | The namespace where this allocation is running.                 | `default`                              |
+| `nomad.node.class`       | `string` | The node class of the node running this allocation, if defined. | `dc1`                                  |
+| `nomad.node.datacenter`  | `string` | The datacenter of the node running this allocation.             | `dc1`                                  |
+| `nomad.node.id`          | `string` | The ID of the node running this allocation.                     | `8e441a6a-3885-26f0-1017-03e13605cfe7` |
+| `nomad.node.name`        | `string` | The name of the node running this allocation.                   | `nomad-1`                              |
+| `nomad.task.driver`      | `string` | The driver used by the task.                                    | `exec`                                 |
+| `nomad.task.name`        | `string` | The name of the task.                                           | `client`                               |
+
+If a task already defines the `OTEL_RESOURCE_ATTRIBUTES` environment variable
+in its [`env`][task_env] configuration, Nomad will merge the default values
+above with the values defined by the task, with the task values taking
+precedence.
+
+```hcl
+job "example" {
+  # ...
+  group "cache" {
+    # ...
+    task "redis" {
+      # ...
+      env {
+        OTEL_RESOURCE_ATTRIBUTES = "app.version=1"
+      }
+    }
+  }
+}
+```
+
+```
+OTEL_RESOURCE_ATTRIBUTES=app.version=1,nomad.alloc.id=d3551994-fb78-d73e-db8c-bc050f45fa0a,nomad.alloc.name=....
+```
+
+If `OTEL_RESOURCE_ATTRIBUTES` is defined in a [`template`][template_env], it
+will overwrite the Nomad default values.
+
+```hcl
+job "example" {
+  # ...
+  group "cache" {
+    # ...
+    task "redis" {
+      # ...
+      template {
+        data =      <<EOF
+OTEL_RESOURCE_ATTRIBUTES="app.version=1"
+EOF
+        destination = "local/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+```
+OTEL_RESOURCE_ATTRIBUTES=app.version=1
+```
+
+To completely disable the `OTEL_RESOURCE_ATTRIBUTES` environment variable, set
+its value to an empty string.
+
+```hcl
+job "example" {
+  # ...
+  group "cache" {
+    # ...
+    task "redis" {
+      # ...
+      env {
+        OTEL_RESOURCE_ATTRIBUTES = ""
+      }
+    }
+  }
+}
+```
+
 [jobspec]: /docs/job-specification 'Nomad Job Specification'
 [vault]: /docs/vault-integration 'Nomad Vault Integration'
 [filesystem internals]: /docs/concepts/filesystem
 [`env.denylist`]: /docs/configuration/client#env-denylist
+[task_env]: /docs/job-specification/task#env
+[template_env]: /docs/job-specification/template#env
+[otel_resource_spec]: https://opentelemetry.io/docs/reference/specification/resource/sdk/#specifying-resource-information-via-an-environment-variable
