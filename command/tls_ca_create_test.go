@@ -13,8 +13,9 @@ import (
 )
 
 func TestCACreateCommand(t *testing.T) {
-	testDir := testutil.TempDir(t, "ca-create")
+	testDir := t.TempDir()
 	defer testutil.SwitchToTempDir(t, testDir)()
+	t.TempDir()
 
 	type testcase struct {
 		name       string
