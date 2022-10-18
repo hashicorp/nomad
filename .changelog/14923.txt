@@ -1,0 +1,11 @@
+```release-note:bug
+event stream: Resolve ACL roles within ACL tokens
+```
+
+```release-note:bug
+event stream: Check ACL token expiry when resolving tokens
+```
+
+```release-note:improvement
+event stream: Added ACL role topic with create and delete types
+```
