@@ -59,8 +59,8 @@ check {
 }
 ```
 
-Querying Nomad task group metrics is be done using the `operation_metric` syntax,
-where valid operations are:
+Querying Nomad task group metrics is be done using the `<operation>_<metric>`
+syntax, where valid operations are:
 
 - `avg` - returns the average of the metric value across allocations in the task
   group.
@@ -86,16 +86,30 @@ The metric value can be:
 The Nomad APM allows querying Nomad to understand the current allocated resource
 as a percentage of the total available.
 
+~> **Note:** When using the Nomad APM plugin for cluster scaling, your policy `target` and
+all Nomad clients intended to be targeted by the policy must have a
+`node_class` defined. Nodes without `node_class` are evaluated using the
+default class value `autoscaler-default-pool`.
+
 ```hcl
-check {
-  source = "nomad-apm"
-  query  = "percentage-allocated_cpu"
-  ...
+policy {
+  # ...
+  check {
+    source = "nomad-apm"
+    query  = "percentage-allocated_cpu"
+    # ...
+  }
+
+  target "..." {
+    # ...
+    node_class = "autoscale"
+    # ..
+  }
 }
 ```
 
-Querying Nomad client node metrics is be done using the `operation_metric` syntax,
-where valid operations are:
+Querying Nomad client node metrics is be done using the `<operation>_<metric>`
+syntax, where valid operations are:
 
 - `percentage-allocated` - returns the allocated percentage of the desired
   resource.
