@@ -54,6 +54,11 @@ var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.
 // before the feature can be used.
 var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 
+// minNomadServiceRegistrationVersion is the Nomad version at which the service
+// registrations table was introduced. It forms the minimum version all local
+// servers must meet before the feature can be used.
+var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
