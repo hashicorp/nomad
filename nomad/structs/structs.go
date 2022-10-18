@@ -689,6 +689,12 @@ type JobSpecificRequest struct {
 // JobListRequest is used to parameterize a list request
 type JobListRequest struct {
 	QueryOptions
+	Fields *JobStubFields
+}
+
+// Stub returns a summarized version of the job
+type JobStubFields struct {
+	Meta bool
 }
 
 // JobPlanRequest is used for the Job.Plan endpoint to trigger a dry-run
@@ -4517,8 +4523,8 @@ func (j *Job) HasUpdateStrategy() bool {
 }
 
 // Stub is used to return a summary of the job
-func (j *Job) Stub(summary *JobSummary) *JobListStub {
-	return &JobListStub{
+func (j *Job) Stub(summary *JobSummary, fields *JobStubFields) *JobListStub {
+	jobStub := &JobListStub{
 		ID:                j.ID,
 		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
@@ -4537,8 +4543,15 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		JobModifyIndex:    j.JobModifyIndex,
 		SubmitTime:        j.SubmitTime,
 		JobSummary:        summary,
-		Meta:              j.Meta,
 	}
+
+	if fields != nil {
+		if fields.Meta {
+			jobStub.Meta = j.Meta
+		}
+	}
+
+	return jobStub
 }
 
 // IsPeriodic returns whether a job is periodic.

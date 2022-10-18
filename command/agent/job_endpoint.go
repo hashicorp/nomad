@@ -37,6 +37,16 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, nil
 	}
 
+	args.Fields = &structs.JobStubFields{}
+	// Parse meta query param
+	jobMeta, err := parseBool(req, "meta")
+	if err != nil {
+		return nil, err
+	}
+	if jobMeta != nil {
+		args.Fields.Meta = *jobMeta
+	}
+
 	var out structs.JobListResponse
 	if err := s.agent.RPC("Job.List", &args, &out); err != nil {
 		return nil, err
