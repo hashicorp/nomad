@@ -90,13 +90,13 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `grpc_address` `(string: "127.0.0.1:8502")` - Specifies the address to the local
   Consul agent for `gRPC` requests, given in the format `host:port`. Note that
-  Consul does not enable the [`grpc`](https://www.consul.io/docs/agent/config/config-files#_grpc_port)
+  Consul does not enable the [`grpc`](https://developer.hashicorp.com/consul/docs/agent/config/config-files#_grpc_port)
   listener by default.
 
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
-- `namespace` `(string: "")` - Specifies the [Consul namespace](https://www.consul.io/docs/enterprise/namespaces)
+- `namespace` `(string: "")` - Specifies the [Consul namespace](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
   used by the Consul integration. If non-empty, this namespace will be used on
   all Consul API calls and for Consul Connect configurations.
 
