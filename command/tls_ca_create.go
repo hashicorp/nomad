@@ -16,8 +16,8 @@ type TLSCACreateCommand struct {
 	// days is the number of days the CA will be valid for
 	days int
 
-	// constraint provides a spoecific name constraint to the CA which will then
-	// reject any domains other than this.
+	// constraint boolean enables the name constraint option in the CA which will then
+	// reject any domains other than the ones stiputalted in -domain and -addtitiona-domain.
 	constraint bool
 
 	// domain is used to provide a custom domain for the CA
@@ -26,9 +26,9 @@ type TLSCACreateCommand struct {
 	// commonName is used to set a common name for the CA
 	commonName string
 
-	// additioanlNameConstraint provides a list of name constraints to the CA which will then
+	// additionalDomain provides a list of restricted domains to the CA which will then
 	// reject any domains other than these.
-	additionalNameConstraint flags.StringFlag
+	additionalDomain flags.StringFlag
 }
 
 func (c *TLSCACreateCommand) Help() string {
@@ -54,10 +54,10 @@ Create a new Nomad CA
 
 
 CA Create Options:
-  -additional-name-constraint
-    Add name constraints for the CA. Results in rejecting certificates
-    for other DNS than specified. Can be used multiple times. Only used 
-    in combination with -name-constraint.
+  -additional-domain
+    Add additional DNS zones to the allowed list for the CA. Results in rejecting certificates
+    for other DNS zone than the ones specified in -domain and -additional-domain. 
+	This flag can be used multiple times. Only used in combination with -domain and -name-constraint.
 
   -common-name
     Common Name of CA. Defaults to Nomad Agent CA..
@@ -71,10 +71,10 @@ CA Create Options:
     Defaults to nomad.
 
   -name-constraint
-    Add name constraints for the CA. Results in rejecting
-    certificates for other DNS than specified. If turned on localhost and 
-    -domain will be added to the allowed DNS. If the UI is going to be served 
-    over HTTPS its DNS has to be added with -additional-constraint. It is not
+    Enables the DNS name restriction functionality to the CA. Results in the CA rejecting
+    certificates for any other DNS zone. If enabled localhost and the value of
+    -domain will be added to the allowed DNS zones field. If the UI is going to be served 
+    over HTTPS its DNS has to be added with -additional-domain. It is not
     possible to add that after the fact! Defaults to false.
 
 `
@@ -84,11 +84,11 @@ CA Create Options:
 func (c *TLSCACreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-additional-name-constraint": complete.PredictAnything,
-			"-common-name":                complete.PredictAnything,
-			"-days":                       complete.PredictAnything,
-			"-domain":                     complete.PredictAnything,
-			"-name-constraint":            complete.PredictAnything,
+			"-additional-domain": complete.PredictAnything,
+			"-common-name":       complete.PredictAnything,
+			"-days":              complete.PredictAnything,
+			"-domain":            complete.PredictAnything,
+			"-name-constraint":   complete.PredictAnything,
 		})
 }
 
@@ -106,11 +106,11 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.Var(&c.additionalDomain, "additional-domain", "")
 	flagSet.IntVar(&c.days, "days", 1825, "")
 	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
 	flagSet.StringVar(&c.commonName, "common-name", "", "")
-	flagSet.Var(&c.additionalNameConstraint, "additional-name-constraint", "")
 	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
@@ -122,6 +122,19 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
+	if c.domain != "" && c.domain != "nomad" && !c.constraint {
+		c.Ui.Error("Please provide the -name-constraint flag to use a custom domain constraint")
+		return 1
+	}
+	if c.domain == "nomad" && c.constraint {
+		c.Ui.Error("Please provide the -domain flag if you want to enable custom domain constraints")
+		return 1
+	}
+	if c.additionalDomain != nil && c.domain == "" && !c.constraint {
+		c.Ui.Error("Please provide the -name-constraint flag to use a custom domain constraints")
+		return 1
+	}
+
 	certFileName := fmt.Sprintf("%s-agent-ca.pem", c.domain)
 	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", c.domain)
 
@@ -137,7 +150,7 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	constraints := []string{}
 	if c.constraint {
 		constraints = []string{c.domain, "localhost"}
-		constraints = append(constraints, c.additionalNameConstraint...)
+		constraints = append(constraints, c.additionalDomain...)
 	}
 
 	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Name: c.commonName, Days: c.days, Domain: c.domain, PermittedDNSDomains: constraints})
