@@ -1220,6 +1220,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
 			alloc.ClientStatus == structs.AllocClientStatusUnknown {
 			evalTriggerBy = structs.EvalTriggerReconnect
+			alloc.ReconnectModifyIndex = allocToUpdate.ReconnectModifyIndex
 		}
 
 		// If we weren't able to determine one of our expected eval triggers,

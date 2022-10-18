@@ -429,6 +429,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
+	// Reset the reconnect index so that subsequent evals can tell the reconnect update was already processed
+	for _, update := range results.reconnectUpdates {
+		update.ReconnectModifyIndex = 0
+		s.ctx.Plan().AppendAlloc(update, nil)
+	}
+
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
 		// If the job has been purged we don't have access to the job. Otherwise

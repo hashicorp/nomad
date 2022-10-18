@@ -5515,13 +5515,14 @@ func TestAllocation_Expired(t *testing.T) {
 	}
 }
 
-func TestAllocation_Reconnected(t *testing.T) {
+func TestAllocation_IsReconnecting(t *testing.T) {
 	type testCase struct {
 		name             string
 		maxDisconnect    string
 		elapsed          int
-		reconnected      bool
+		isReconnecting   bool
 		expired          bool
+		alreadyProcessed bool
 		nilJob           bool
 		badTaskGroup     bool
 		mixedTZ          bool
@@ -5531,77 +5532,88 @@ func TestAllocation_Reconnected(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:          "has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
+			name:           "has-expired",
+			maxDisconnect:  "5s",
+			elapsed:        10,
+			isReconnecting: true,
+			expired:        true,
 		},
 		{
-			name:          "has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
+			name:           "has-not-expired",
+			maxDisconnect:  "5s",
+			elapsed:        3,
+			isReconnecting: true,
+			expired:        false,
 		},
 		{
-			name:          "are-equal",
-			maxDisconnect: "5s",
-			elapsed:       5,
-			reconnected:   true,
-			expired:       true,
+			name:           "are-equal",
+			maxDisconnect:  "5s",
+			elapsed:        5,
+			isReconnecting: true,
+			expired:        true,
 		},
 		{
-			name:          "nil-job",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			nilJob:        true,
+			name:           "nil-job",
+			maxDisconnect:  "5s",
+			elapsed:        10,
+			isReconnecting: true,
+			expired:        false,
+			nilJob:         true,
 		},
 		{
-			name:          "bad-task-group",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			badTaskGroup:  true,
+			name:           "bad-task-group",
+			maxDisconnect:  "",
+			elapsed:        10,
+			isReconnecting: true,
+			expired:        false,
+			badTaskGroup:   true,
 		},
 		{
-			name:          "no-max-disconnect",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
+			name:           "no-max-disconnect",
+			maxDisconnect:  "",
+			elapsed:        10,
+			isReconnecting: true,
+			expired:        false,
 		},
 		{
-			name:          "mixed-utc-has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
-			mixedTZ:       true,
+			name:           "mixed-utc-has-expired",
+			maxDisconnect:  "5s",
+			elapsed:        10,
+			isReconnecting: true,
+			expired:        true,
+			mixedTZ:        true,
 		},
 		{
-			name:          "mixed-utc-has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
-			mixedTZ:       true,
+			name:           "mixed-utc-has-not-expired",
+			maxDisconnect:  "5s",
+			elapsed:        3,
+			isReconnecting: true,
+			expired:        false,
+			mixedTZ:        true,
 		},
 		{
 			name:             "no-reconnect-event",
 			maxDisconnect:    "5s",
 			elapsed:          2,
-			reconnected:      false,
+			isReconnecting:   false,
 			expired:          false,
 			noReconnectEvent: true,
+		},
+		{
+			name:             "reconnect-already-processed",
+			maxDisconnect:    "5s",
+			elapsed:          2,
+			isReconnecting:   false,
+			expired:          false,
+			noReconnectEvent: false,
+			alreadyProcessed: true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc := MockAlloc()
+			alloc.AllocModifyIndex = 100
+
 			var err error
 			var maxDisconnect time.Duration
 
@@ -5652,8 +5664,14 @@ func TestAllocation_Reconnected(t *testing.T) {
 				}
 			}
 
-			reconnected, expired := alloc.Reconnected()
-			require.Equal(t, tc.reconnected, reconnected)
+			if tc.alreadyProcessed {
+				alloc.ReconnectModifyIndex = 0
+			} else {
+				alloc.ReconnectModifyIndex = alloc.AllocModifyIndex - 1
+			}
+
+			isReconnecting, expired := alloc.IsReconnecting()
+			require.Equal(t, tc.isReconnecting, isReconnecting)
 			require.Equal(t, tc.expired, expired)
 		})
 	}

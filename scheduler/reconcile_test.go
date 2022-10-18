@@ -302,6 +302,7 @@ func buildAllocations(job *structs.Job, count int, clientStatus, desiredStatus s
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.ClientStatus = clientStatus
 		alloc.DesiredStatus = desiredStatus
+		alloc.AllocModifyIndex = 100
 
 		alloc.Metrics = &structs.AllocMetric{
 			ScoreMetaData: []*structs.NodeScoreMeta{
@@ -5539,6 +5540,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			// Set alloc state
 			disconnectedAllocCount := tc.disconnectedAllocCount
 			for _, alloc := range allocs {
+				alloc.ReconnectModifyIndex = alloc.AllocModifyIndex - 10
 				alloc.DesiredStatus = tc.serverDesiredStatus
 
 				if tc.maxDisconnect != nil {

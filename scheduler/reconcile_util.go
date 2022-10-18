@@ -229,21 +229,21 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		// without max_client_disconnect
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
-		reconnected := false
+		isReconnecting := false
 		expired := false
 
-		// Only compute reconnected for unknown, running, and failed since they need to go through the reconnect logic.
+		// Only compute isReconnecting for unknown, running, and failed since they need to go through the reconnect logic.
 		if supportsDisconnectedClients &&
 			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
 				alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusFailed) {
-			reconnected, expired = alloc.Reconnected()
+			isReconnecting, expired = alloc.IsReconnecting()
 		}
 
-		// Failed reconnected allocs need to be added to reconnecting so that they
+		// Failed reconnecting allocs need to be added to reconnecting so that they
 		// can be handled as a failed reconnect.
 		if supportsDisconnectedClients &&
-			reconnected &&
+			isReconnecting &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
 			reconnecting[alloc.ID] = alloc
@@ -272,7 +272,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				}
 			case structs.NodeStatusReady:
 				// Filter reconnecting allocs on a node that is now connected.
-				if reconnected {
+				if isReconnecting {
 					if expired {
 						lost[alloc.ID] = alloc
 						continue
@@ -284,9 +284,9 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			}
 		}
 
-		// Terminal allocs, if not reconnected, are always untainted as they
+		// Terminal allocs, if not reconnecting, are always untainted as they
 		// should never be migrated.
-		if alloc.TerminalStatus() && !reconnected {
+		if alloc.TerminalStatus() && !isReconnecting {
 			untainted[alloc.ID] = alloc
 			continue
 		}
@@ -311,9 +311,9 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		// Ignore reconnected failed allocs that have been marked stop by the server.
+		// Ignore reconnecting failed allocs that have been marked stop by the server.
 		if supportsDisconnectedClients &&
-			reconnected &&
+			isReconnecting &&
 			alloc.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusStop {
 			ignore[alloc.ID] = alloc
@@ -322,7 +322,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 
 		if !nodeIsTainted {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if reconnected {
+			if isReconnecting {
 				if expired {
 					lost[alloc.ID] = alloc
 					continue

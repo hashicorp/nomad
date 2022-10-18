@@ -9730,6 +9730,9 @@ type Allocation struct {
 	// lets the client pull only the allocs updated by the server.
 	AllocModifyIndex uint64
 
+	// ReconnectModifyIndex is used to determine if the server has processed the node reconnect.
+	ReconnectModifyIndex uint64
+
 	// CreateTime is the time the allocation has finished scheduling and been
 	// verified by the plan applier.
 	CreateTime int64
@@ -10393,9 +10396,14 @@ func (a *Allocation) LastUnknown() time.Time {
 	return lastUnknown.UTC()
 }
 
-// Reconnected determines whether a reconnect event has occurred for any task
-// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
-func (a *Allocation) Reconnected() (bool, bool) {
+// IsReconnecting determines whether a reconnect event has occurred for a task,
+// whether that event occurred within the allowable duration specified by MaxClientDisconnect,
+// and whether the reconnect has been processed.
+func (a *Allocation) IsReconnecting() (isReconnecting bool, expired bool) { // isReconnecting, expired
+	if a.ReconnectModifyIndex != 0 && a.AllocModifyIndex > a.ReconnectModifyIndex {
+		isReconnecting = true
+	}
+
 	var lastReconnect time.Time
 	for _, taskState := range a.TaskStates {
 		for _, taskEvent := range taskState.Events {
@@ -10413,7 +10421,7 @@ func (a *Allocation) Reconnected() (bool, bool) {
 		return false, false
 	}
 
-	return true, a.Expired(lastReconnect)
+	return isReconnecting, a.Expired(lastReconnect)
 }
 
 func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {

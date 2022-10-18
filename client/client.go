@@ -2030,6 +2030,7 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	stripped.ClientDescription = alloc.ClientDescription
 	stripped.DeploymentStatus = alloc.DeploymentStatus
 	stripped.NetworkStatus = alloc.NetworkStatus
+	stripped.ReconnectModifyIndex = alloc.ReconnectModifyIndex
 
 	select {
 	case c.allocUpdates <- stripped:

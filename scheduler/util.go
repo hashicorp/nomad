@@ -102,12 +102,12 @@ func diffSystemAllocsForNode(
 
 		supportsDisconnectedClients := exist.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
-		reconnected := false
+		isReconnecting := false
 		// Only compute reconnected for unknown and running since they need to go through the reconnect process.
 		if supportsDisconnectedClients &&
 			(exist.ClientStatus == structs.AllocClientStatusUnknown ||
 				exist.ClientStatus == structs.AllocClientStatusRunning) {
-			reconnected, _ = exist.Reconnected()
+			isReconnecting, _ = exist.IsReconnecting()
 		}
 
 		// If we have been marked for migration and aren't terminal, migrate
@@ -157,7 +157,7 @@ func diffSystemAllocsForNode(
 		// Filter allocs on a node that is now re-connected to reconnecting.
 		if supportsDisconnectedClients &&
 			!nodeIsTainted &&
-			reconnected {
+			isReconnecting {
 			result.reconnecting = append(result.reconnecting, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
