@@ -50,10 +50,15 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	alloc3.Namespace = ns
 	alloc3.Job.ParentID = jobID
 
+	alloc4 := mock.Alloc()
+	alloc4.ClientStatus = structs.AllocClientStatusRunning
+	alloc4.Job.Namespace = ns
+	alloc4.Namespace = ns
+
 	store := srv.fsm.State()
 	must.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns}}))
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3}))
+		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
 
 	claims1 := alloc1.ToTaskIdentityClaims(nil, "web")
 	idToken, err := srv.encrypter.SignClaims(claims1)
@@ -77,6 +82,10 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	idTokenParts[2] = strings.Join(sig, "")
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
+	claims4 := alloc4.ToTaskIdentityClaims(alloc4.Job, "web")
+	wiOnlyToken, err := srv.encrypter.SignClaims(claims4)
+	must.NoError(t, err)
+
 	policy := mock.ACLPolicy()
 	policy.Rules = `namespace "nondefault-namespace" {
 		variables {
@@ -98,8 +107,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	must.NoError(t, err)
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		_, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
-			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, "n/a",
+		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -110,8 +119,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		_, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
-			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, "n/a",
+		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -126,35 +135,35 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		{
 			name:        "valid claim for path with task secret",
 			token:       idToken,
-			cap:         "n/a",
+			cap:         acl.PolicyRead,
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with group secret",
 			token:       idToken,
-			cap:         "n/a",
+			cap:         acl.PolicyRead,
 			path:        fmt.Sprintf("nomad/jobs/%s/web", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with job secret",
 			token:       idToken,
-			cap:         "n/a",
+			cap:         acl.PolicyRead,
 			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with dispatch job secret",
 			token:       idDispatchToken,
-			cap:         "n/a",
+			cap:         acl.PolicyRead,
 			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
 			expectedErr: nil,
 		},
 		{
 			name:        "valid claim for path with namespace secret",
 			token:       idToken,
-			cap:         "n/a",
+			cap:         acl.PolicyRead,
 			path:        "nomad/jobs",
 			expectedErr: nil,
 		},
@@ -189,14 +198,14 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		{
 			name:        "valid claim with no permissions denied by path",
 			token:       noPermissionsToken,
-			cap:         "n/a",
+			cap:         acl.PolicyList,
 			path:        fmt.Sprintf("nomad/jobs/%s/w", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "valid claim with no permissions allowed by namespace",
 			token:       noPermissionsToken,
-			cap:         "n/a",
+			cap:         acl.PolicyList,
 			path:        "nomad/jobs",
 			expectedErr: nil,
 		},
@@ -208,36 +217,22 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "extra trailing slash is denied",
-			token:       idToken,
-			cap:         "n/a",
-			path:        fmt.Sprintf("nomad/jobs/%s/web/", jobID),
-			expectedErr: structs.ErrPermissionDenied,
-		},
-		{
-			name:        "invalid prefix is denied",
-			token:       idToken,
-			cap:         "n/a",
-			path:        fmt.Sprintf("nomad/jobs/%s/w", jobID),
-			expectedErr: structs.ErrPermissionDenied,
-		},
-		{
 			name:        "missing auth token is denied",
-			cap:         "n/a",
+			cap:         acl.PolicyList,
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "invalid signature is denied",
 			token:       invalidIDToken,
-			cap:         "n/a",
+			cap:         acl.PolicyList,
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
 			name:        "invalid claim for dispatched ID",
 			token:       idDispatchToken,
-			cap:         "n/a",
+			cap:         acl.PolicyList,
 			path:        fmt.Sprintf("nomad/jobs/%s", alloc3.JobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
@@ -255,12 +250,106 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: structs.ErrPermissionDenied,
 		},
+
+		{
+			name:        "WI token can read own task",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", alloc4.JobID),
+			expectedErr: nil,
+		},
+		{
+			name:        "WI token can list own task",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", alloc4.JobID),
+			expectedErr: nil,
+		},
+		{
+			name:        "WI token can read own group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/web", alloc4.JobID),
+			expectedErr: nil,
+		},
+		{
+			name:        "WI token can list own group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/web", alloc4.JobID),
+			expectedErr: nil,
+		},
+
+		{
+			name:        "WI token cannot read another task in group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/other", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot list another task in group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/other", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot read another task in group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/other", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot list a task in another group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/other/web", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot read a task in another group",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s/other/web", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot read a group in another job",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyRead,
+			path:        "nomad/jobs/other/web/web",
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token cannot list a group in another job",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        "nomad/jobs/other/web/web",
+			expectedErr: structs.ErrPermissionDenied,
+		},
+
+		{
+			name:        "WI token extra trailing slash is denied",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI token invalid prefix is denied",
+			token:       wiOnlyToken,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/w", alloc4.JobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			_, _, err := srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
 				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
@@ -453,6 +542,80 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 	})
 }
 
+func TestVariablesEndpoint_ListFiltering(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	ns := "nondefault-namespace"
+	idx := uint64(1000)
+
+	alloc := mock.Alloc()
+	alloc.Job.ID = "job1"
+	alloc.JobID = "job1"
+	alloc.TaskGroup = "group"
+	alloc.Job.TaskGroups[0].Name = "group"
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.Job.Namespace = ns
+	alloc.Namespace = ns
+
+	store := srv.fsm.State()
+	must.NoError(t, store.UpsertNamespaces(idx, []*structs.Namespace{{Name: ns}}))
+	idx++
+	must.NoError(t, store.UpsertAllocs(
+		structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
+
+	claims := alloc.ToTaskIdentityClaims(alloc.Job, "web")
+	token, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+
+	writeVar := func(ns, path string) {
+		idx++
+		sv := mock.VariableEncrypted()
+		sv.Namespace = ns
+		sv.Path = path
+		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: sv,
+		})
+		must.NoError(t, resp.Error)
+	}
+
+	writeVar(ns, "nomad/jobs/job1/group/web")
+	writeVar(ns, "nomad/jobs/job1/group")
+	writeVar(ns, "nomad/jobs/job1")
+
+	writeVar(ns, "nomad/jobs/job1/group/other")
+	writeVar(ns, "nomad/jobs/job1/other/web")
+	writeVar(ns, "nomad/jobs/job2/group/web")
+
+	req := &structs.VariablesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: ns,
+			Prefix:    "nomad",
+			AuthToken: token,
+			Region:    "global",
+		},
+	}
+	var resp structs.VariablesListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.List", req, &resp))
+	found := []string{}
+	for _, variable := range resp.Data {
+		found = append(found, variable.Path)
+	}
+	expect := []string{
+		"nomad/jobs/job1",
+		"nomad/jobs/job1/group",
+		"nomad/jobs/job1/group/web",
+	}
+	must.Eq(t, expect, found)
+
+}
+
 func TestVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
 
 	ci.Parallel(t)
@@ -560,11 +723,12 @@ namespace "*" {}
 	testListPrefix("prod", "project", 1, nil)
 	testListPrefix("prod", "", 4, nil)
 
-	testListPrefix("other", "system", 0, structs.ErrPermissionDenied)
-	testListPrefix("other", "config/system", 0, structs.ErrPermissionDenied)
-	testListPrefix("other", "config", 0, structs.ErrPermissionDenied)
-	testListPrefix("other", "project", 0, structs.ErrPermissionDenied)
-	testListPrefix("other", "", 0, structs.ErrPermissionDenied)
+	// list gives empty but no error!
+	testListPrefix("other", "system", 0, nil)
+	testListPrefix("other", "config/system", 0, nil)
+	testListPrefix("other", "config", 0, nil)
+	testListPrefix("other", "project", 0, nil)
+	testListPrefix("other", "", 0, nil)
 
 	testListPrefix("*", "system", 1, nil)
 	testListPrefix("*", "config/system", 1, nil)
