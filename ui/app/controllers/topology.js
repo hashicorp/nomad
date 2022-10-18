@@ -143,7 +143,9 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
         (selectionClass.length
           ? selectionClass.includes(node.nodeClass)
           : true) &&
-        node.name.includes(searchTerm)
+        (node.name.includes(searchTerm) ||
+          node.datacenter.includes(searchTerm) ||
+          node.nodeClass.includes(searchTerm))
       );
     });
   }
