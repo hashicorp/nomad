@@ -131,7 +131,7 @@ type ServiceRegistration struct {
 	// services/checks registered in Consul. It is used to materialize the other
 	// fields when queried.
 	ServiceID string
-	CheckIDs  map[string]struct{}
+	CheckIDs  map[string]struct{} // todo: use a Set?
 
 	// CheckOnUpdate is a map of checkIDs and the associated OnUpdate value
 	// from the ServiceCheck It is used to determine how a reported checks
