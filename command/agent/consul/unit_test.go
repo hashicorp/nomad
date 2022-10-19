@@ -211,7 +211,6 @@ func TestConsul_ChangePorts(t *testing.T) {
 	ci.Parallel(t)
 
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
 		{
@@ -238,17 +237,17 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(xPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, xPort, v.Port)
 	}
 
-	require.Len(ctx.FakeConsul.checks["default"], 3)
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"], must.Sprintf("checks %#v", ctx.FakeConsul.checks))
 
 	origTCPKey := ""
 	origScriptKey := ""
@@ -257,20 +256,20 @@ func TestConsul_ChangePorts(t *testing.T) {
 		switch v.Name {
 		case "c1":
 			origTCPKey = k
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			origScriptKey = k
 		case "c3":
 			origHTTPKey = k
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
 			t.Fatalf("unexpected check: %q", v.Name)
 		}
 	}
 
-	require.NotEmpty(origTCPKey)
-	require.NotEmpty(origScriptKey)
-	require.NotEmpty(origHTTPKey)
+	must.StrHasPrefix(t, origTCPKey, "_nomad-check-")
+	must.StrHasPrefix(t, origScriptKey, "_nomad-check-")
+	must.StrHasPrefix(t, origHTTPKey, "_nomad-check-")
 
 	// Now update the PortLabel on the Service and Check c3
 	origWorkload := ctx.Workload.Copy()
@@ -300,32 +299,31 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(yPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, yPort, v.Port)
 	}
-
-	require.Equal(3, len(ctx.FakeConsul.checks["default"]))
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"])
 
 	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			// C1 is changed because the service was re-registered
-			require.NotEqual(origTCPKey, k)
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.NotEq(t, origTCPKey, k)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			// C2 is changed because the service was re-registered
-			require.NotEqual(origScriptKey, k)
+			must.NotEq(t, origScriptKey, k)
 		case "c3":
-			require.NotEqual(origHTTPKey, k)
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.NotEq(t, origHTTPKey, k)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
-			t.Errorf("Unknown check: %q", k)
+			must.Unreachable(t, must.Sprintf("unknown check: %q", k))
 		}
 	}
 }
@@ -1313,8 +1311,6 @@ func TestCreateCheckReg_HTTP(t *testing.T) {
 		Name:      "name",
 		ServiceID: serviceID,
 		AgentServiceCheck: api.AgentServiceCheck{
-			CheckID:  checkID,
-			Name:     "name",
 			Timeout:  "0s",
 			Interval: "0s",
 			HTTP:     fmt.Sprintf("http://%s:%d/path", host, port),
@@ -1357,11 +1353,9 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	expected := &api.AgentCheckRegistration{
 		Namespace: "",
 		ID:        checkID,
-		Name:      "name",
+		Name:      check.Name,
 		ServiceID: serviceID,
 		AgentServiceCheck: api.AgentServiceCheck{
-			CheckID:       checkID,
-			Name:          "name",
 			Timeout:       "1s",
 			Interval:      "1m0s",
 			GRPC:          "localhost:8080/foo.Bar",
@@ -1371,8 +1365,8 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	}
 
 	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080, "default")
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
+	must.NoError(t, err)
+	must.Eq(t, expected, actual)
 }
 
 func TestConsul_ServiceName_Duplicates(t *testing.T) {
