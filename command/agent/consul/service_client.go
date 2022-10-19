@@ -1105,7 +1105,10 @@ func (c *ServiceClient) serviceRegs(
 	for _, registration := range checkRegs {
 		sreg.CheckIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
-		serviceReg.Checks = append(serviceReg.Checks, apiCheckRegistrationToCheck(registration))
+		serviceReg.Checks = append(
+			serviceReg.Checks,
+			apiCheckRegistrationToCheck(registration),
+		)
 	}
 
 	return sreg, nil
@@ -1597,9 +1600,6 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		ServiceID: serviceID,
 		Namespace: normalizeNamespace(namespace),
 	}
-	chkReg.AgentServiceCheck.CheckID = checkID
-	chkReg.AgentServiceCheck.Name = check.Name
-
 	chkReg.Status = check.InitialStatus
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()

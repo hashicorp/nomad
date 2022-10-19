@@ -265,6 +265,11 @@ func (c *MockAgent) CheckRegs() []*api.AgentCheckRegistration {
 func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.checkRegister(check)
+}
+
+// checkRegister registers a check; c.mu must be held.
+func (c *MockAgent) checkRegister(check *api.AgentCheckRegistration) error {
 	c.hits++
 
 	// Consul will set empty Namespace to default, do the same here
@@ -330,6 +335,20 @@ func (c *MockAgent) ServiceRegister(service *api.AgentServiceRegistration) error
 		c.services[service.Namespace] = make(map[string]*api.AgentServiceRegistration)
 	}
 	c.services[service.Namespace][service.ID] = service
+
+	// as of Nomad v1.4.x registering service now also registers its checks
+	for _, check := range service.Checks {
+		if err := c.checkRegister(&api.AgentCheckRegistration{
+			ID:                check.CheckID,
+			Name:              check.Name,
+			ServiceID:         service.ID,
+			AgentServiceCheck: *check,
+			Namespace:         service.Namespace,
+		}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
