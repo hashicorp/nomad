@@ -209,12 +209,22 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 	}
 }
 
-// maybeTweakTaggedAddresses will remove the .TaggedAddresses fields from existing
-// if wanted represents a Nomad agent (Client or Server). We do this because Consul
-// sets the TaggedAddress on these legacy registrations for us
+// maybeTweakTaggedAddresses will remove the Consul-injected .TaggedAddresses fields
+// from existing if wanted represents a Nomad agent (Client or Server) or Nomad managed
+// service, which do not themselves configure those tagged addresses. We do this
+// because Consul will magically set the .TaggedAddress to values Nomad does not
+// know about if they are submitted as unset.
 func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *api.AgentService) {
 	if isNomadAgent(wanted.ID) && len(wanted.TaggedAddresses) == 0 {
 		existing.TaggedAddresses = nil
+		if isNomadAgent(wanted.ID) || isNomadService(wanted.ID) {
+			if _, exists := wanted.TaggedAddresses["lan_ipv4"]; !exists {
+				delete(existing.TaggedAddresses, "lan_ipv4")
+			}
+			if _, exists := wanted.TaggedAddresses["wan_ipv4"]; !exists {
+				delete(existing.TaggedAddresses, "wan_ipv4")
+			}
+		}
 	}
 }
 
@@ -1165,6 +1175,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		Meta:              meta,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
+		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1176,9 +1187,38 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	for _, registration := range checkRegs {
 		sreg.checkIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
+		serviceReg.Checks = append(
+			serviceReg.Checks,
+			apiCheckRegistrationToCheck(registration),
+		)
 	}
 
 	return sreg, nil
+}
+
+// apiCheckRegistrationToCheck converts a check registration to a check, so that
+// we can include them in the initial service registration. It is expected the
+// Nomad-conversion (e.g. turning script checks into ttl checks) has already been
+// applied.
+func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServiceCheck {
+	return &api.AgentServiceCheck{
+		CheckID:                r.ID,
+		Name:                   r.Name,
+		Interval:               r.Interval,
+		Timeout:                r.Timeout,
+		TTL:                    r.TTL,
+		HTTP:                   r.HTTP,
+		Header:                 maps.Clone(r.Header),
+		Method:                 r.Method,
+		Body:                   r.Body,
+		TCP:                    r.TCP,
+		Status:                 r.Status,
+		TLSSkipVerify:          r.TLSSkipVerify,
+		GRPC:                   r.GRPC,
+		GRPCUseTLS:             r.GRPCUseTLS,
+		SuccessBeforePassing:   r.SuccessBeforePassing,
+		FailuresBeforeCritical: r.FailuresBeforeCritical,
+	}
 }
 
 // checkRegs creates check registrations for the given service
