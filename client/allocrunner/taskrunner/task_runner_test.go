@@ -1716,44 +1716,6 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	require.True(t, state.Events[2].FailsTask)
 }
 
-// TestTaskRunner_Download_ChrootExec asserts that downloaded artifacts may be
-// executed in a chroot.
-func TestTaskRunner_Download_ChrootExec(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
-
-	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
-	defer ts.Close()
-
-	// Create a task that downloads a script and executes it.
-	alloc := mock.BatchAlloc()
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.RestartPolicy = &structs.RestartPolicy{}
-	task.Driver = "exec"
-	task.Config = map[string]interface{}{
-		"command": "noop.sh",
-	}
-
-	task.Artifacts = []*structs.TaskArtifact{
-		{
-			GetterSource: fmt.Sprintf("%s/testdata/noop.sh", ts.URL),
-			GetterMode:   "file",
-			RelativeDest: "noop.sh",
-		},
-	}
-
-	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
-	defer cleanup()
-
-	// Wait for task to run and exit
-	testWaitForTaskToDie(t, tr)
-
-	state := tr.TaskState()
-	require.Equal(t, structs.TaskStateDead, state.State)
-	require.False(t, state.Failed)
-}
-
 // TestTaskRunner_Download_Exec asserts that downloaded artifacts may be
 // executed in a driver without filesystem isolation.
 func TestTaskRunner_Download_RawExec(t *testing.T) {
