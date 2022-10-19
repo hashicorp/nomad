@@ -209,12 +209,19 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 	}
 }
 
-// maybeTweakTaggedAddresses will remove the .TaggedAddresses fields from existing
-// if wanted represents a Nomad agent (Client or Server). We do this because Consul
-// sets the TaggedAddress on these legacy registrations for us
+// maybeTweakTaggedAddresses will remove the Consul-injected .TaggedAddresses fields
+// from existing if wanted represents a Nomad agent (Client or Server) or Nomad managed
+// service, which do not themselves configure those tagged addresses. We do this
+// because Consul will magically set the .TaggedAddress to values Nomad does not
+// know about if they are submitted as unset.
 func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *api.AgentService) {
-	if isNomadAgent(wanted.ID) && len(wanted.TaggedAddresses) == 0 {
-		existing.TaggedAddresses = nil
+	if isNomadAgent(wanted.ID) || isNomadService(wanted.ID) {
+		if _, exists := wanted.TaggedAddresses["lan_ipv4"]; !exists {
+			delete(existing.TaggedAddresses, "lan_ipv4")
+		}
+		if _, exists := wanted.TaggedAddresses["wan_ipv4"]; !exists {
+			delete(existing.TaggedAddresses, "wan_ipv4")
+		}
 	}
 }
 
