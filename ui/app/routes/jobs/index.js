@@ -32,7 +32,7 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamesapce, meta: true })
+      this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
     );
   }
 
