@@ -75,6 +75,11 @@ ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS = freebsd_amd64
 endif
 
+# Allow overriding ALL_TARGETS via $TARGETS
+ifdef TARGETS
+ALL_TARGETS = $(TARGETS)
+endif
+
 SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
 
 CGO_ENABLED = 1
