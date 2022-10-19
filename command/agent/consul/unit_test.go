@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1730,17 +1731,13 @@ func TestGetAddress(t *testing.T) {
 
 func TestConsul_ServiceName_Duplicates(t *testing.T) {
 	ci.Parallel(t)
-
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services = []*structs.Service{
 		{
 			Name:      "best-service",
 			PortLabel: "x",
-			Tags: []string{
-				"foo",
-			},
+			Tags:      []string{"foo"},
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "check-a",
@@ -1753,12 +1750,10 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		{
 			Name:      "best-service",
 			PortLabel: "y",
-			Tags: []string{
-				"bar",
-			},
+			Tags:      []string{"bar"},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:     "checky-mccheckface",
+					Name:     "check-b",
 					Type:     "tcp",
 					Interval: time.Second,
 					Timeout:  time.Second,
@@ -1771,21 +1766,20 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 3, ctx.FakeConsul.services["default"])
 
-	require.NoError(ctx.syncOnce(syncNewOps))
-
-	require.Len(ctx.FakeConsul.services["default"], 3)
-
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name == ctx.Workload.Services[0].Name && v.Port == xPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[0].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[1].Name && v.Port == yPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[1].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[2].Name {
-			require.Len(v.Checks, 0)
+	for _, s := range ctx.FakeConsul.services["default"] {
+		switch {
+		case s.Name == "best-service" && s.Port == xPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[0].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "best-service" && s.Port == yPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[1].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "worst-service":
+			must.SliceEmpty(t, s.Checks)
 		}
 	}
 }
