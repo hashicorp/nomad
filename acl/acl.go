@@ -359,6 +359,11 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 }
 
 func (a *ACL) AllowVariableOperation(ns, path, op string) bool {
+	if a == nil {
+		//TODO: nil acls mean what?
+		return false
+	}
+
 	if a.management {
 		return true
 	}

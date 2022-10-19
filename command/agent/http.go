@@ -180,6 +180,10 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 				serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to start unix-socket HTTP listener at %q: %v", socketPath, err))
 				continue
 			}
+			if err := os.Chmod(socketPath, 0777); err != nil {
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to change permission on unix-socket HTTP listener at %q: %v", socketPath, err))
+				continue
+			}
 		}
 
 		// Create the server

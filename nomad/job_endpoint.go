@@ -1645,8 +1645,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Enforce Sentinel policies
 	nomadACLToken, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
-	if err != nil && !strings.Contains(err.Error(), "missing secret id") {
-		return err
+	if helper.IsUUID(args.AuthToken) {
+		if err != nil && !strings.Contains(err.Error(), "missing secret id") {
+			return err
+		}
 	}
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
 	if err != nil {

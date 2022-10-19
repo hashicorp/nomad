@@ -7,6 +7,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,14 +27,21 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 		return acl.ManagementACL, nil
 	}
 
-	// Snapshot the state
-	snap, err := s.fsm.State().Snapshot()
-	if err != nil {
-		return nil, err
+	if secretID == "" || helper.IsUUID(secretID) {
+		// Resolve the ACL using the traditional path
+		// Snapshot the state
+		snap, err := s.fsm.State().Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		return resolveTokenFromSnapshotCache(snap, s.aclCache, secretID)
 	}
 
-	// Resolve the ACL
-	return resolveTokenFromSnapshotCache(snap, s.aclCache, secretID)
+	if claims, err := s.VerifyClaim(secretID); err == nil {
+		return s.ResolveClaims(claims)
+	} else {
+		return nil, err
+	}
 }
 
 // VerifyClaim asserts that the token is valid and that the resulting
@@ -69,9 +77,6 @@ func (s *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error)
 	policies, err := s.resolvePoliciesForClaims(claims)
 	if err != nil {
 		return nil, err
-	}
-	if len(policies) == 0 {
-		return nil, nil
 	}
 
 	// Compile and cache the ACL object
@@ -183,6 +188,13 @@ func (s *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 	if !s.config.ACLEnabled {
 		return nil, nil
 	}
+
+	if !helper.IsUUID(secretID) && secretID != "" {
+		// TODO: For right now bail out since it's probably a JWT with no
+		// corresponding ACLToken object in the store.
+		return nil, nil
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveSecretToken"}, time.Now())
 
 	snap, err := s.fsm.State().Snapshot()
