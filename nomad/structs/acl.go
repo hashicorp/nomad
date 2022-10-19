@@ -233,13 +233,10 @@ func (a *ACLToken) IsExpired(t time.Time) bool {
 	return a.ExpirationTime.Before(t) || t.IsZero()
 }
 
-// RoleSubset checks if a given set of role IDs are assigned to the ACL token.
-func (a *ACLToken) RoleSubset(roleIDs []string) bool {
-
-	// Hot-path: management tokens allows access to all roles.
-	if a.Type == ACLManagementToken {
-		return true
-	}
+// HasRoles checks if a given set of role IDs are assigned to the ACL token. It
+// does not account for management tokens, therefore it is the responsibility
+// of the caller to perform this check, if required.
+func (a *ACLToken) HasRoles(roleIDs []string) bool {
 
 	// Generate a set of role IDs that the token is assigned.
 	roleSet := set.FromFunc(a.Roles, func(roleLink *ACLTokenRoleLink) string { return roleLink.ID })
