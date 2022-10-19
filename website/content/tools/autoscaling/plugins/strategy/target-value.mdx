@@ -6,8 +6,35 @@ description: The "target-value" strategy plugin tracks a target metric value.
 
 # Target Value Strategy Plugin
 
-The `target-value` strategy plugin will perform count calculations in order to
+The `target-value` strategy plugin performs count calculations in order to
 keep the value resulting from the APM query at or around a specified target.
+
+It accomplishes this by extrapolating the current metric value and used
+capacity linearly to determine if a scaling action is required and how many
+instances need to be added or removed. More specify, the new scaling value is
+calculated as:
+
+```
+new_count = (current_metric_value / target) * current_count
+```
+
+As an example, a policy that tracks memory usage with target defined as `70`
+(representing 70% of memory usage) and there are `10` instances running will
+generate a scaling action to add `2` new instances when the metric reaches `80`
+(80% of memory usage) because:
+
+```
+new_count = (80/70) * 10 = 11.43 ~= 12
+```
+
+In other words, if with 10 instances the memory usage in 80%, it's expected
+that with 12 instances the memory usage is lower and closer to the target value
+of 70%.
+
+~> **Note:** In some situations this inverse relationship may not be true,
+  meaning that _more_ instances causes the metric value to _grow_. Make sure
+  you have a good grasp of your query result dynamic when the number of
+  instances changes.
 
 ## Agent Configuration Options
 
