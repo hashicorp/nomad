@@ -297,21 +297,13 @@ func TestACLToken_IsExpired(t *testing.T) {
 	}
 }
 
-func TestACLToken_RoleSubset(t *testing.T) {
+func TestACLToken_HasRoles(t *testing.T) {
 	testCases := []struct {
 		name           string
 		inputToken     *ACLToken
 		inputRoleIDs   []string
 		expectedOutput bool
 	}{
-		{
-			name: "management token",
-			inputToken: &ACLToken{
-				Type: ACLManagementToken,
-			},
-			inputRoleIDs:   []string{"foo", "bar", "baz"},
-			expectedOutput: true,
-		},
 		{
 			name: "client token request all subset",
 			inputToken: &ACLToken{
@@ -368,7 +360,7 @@ func TestACLToken_RoleSubset(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.inputToken.RoleSubset(tc.inputRoleIDs)
+			actualOutput := tc.inputToken.HasRoles(tc.inputRoleIDs)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}

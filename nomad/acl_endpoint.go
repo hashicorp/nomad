@@ -1378,7 +1378,7 @@ func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACL
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}
-	if token.Type != structs.ACLManagementToken && !token.RoleSubset(args.ACLRoleIDs) {
+	if token.Type != structs.ACLManagementToken && !token.HasRoles(args.ACLRoleIDs) {
 		return structs.ErrPermissionDenied
 	}
 
