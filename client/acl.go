@@ -109,7 +109,10 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 	if token == nil {
 		return nil, nil, structs.ErrTokenNotFound
 	}
-	if token.IsExpired(time.Now()) {
+
+	// Give the token expiry some slight leeway in case the client and server
+	// clocks are skewed.
+	if token.IsExpired(time.Now().Add(2 * time.Second)) {
 		return nil, nil, structs.ErrTokenExpired
 	}
 
