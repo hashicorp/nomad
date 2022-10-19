@@ -12,17 +12,17 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_clientACLResolver_init(t *testing.T) {
 	resolver := &clientACLResolver{}
-	require.NoError(t, resolver.init())
-	require.NotNil(t, resolver.aclCache)
-	require.NotNil(t, resolver.policyCache)
-	require.NotNil(t, resolver.tokenCache)
-	require.NotNil(t, resolver.roleCache)
+	must.NoError(t, resolver.init())
+	must.NotNil(t, resolver.aclCache)
+	must.NotNil(t, resolver.policyCache)
+	must.NotNil(t, resolver.tokenCache)
+	must.NotNil(t, resolver.roleCache)
 }
 
 func TestClient_ACL_resolveTokenValue(t *testing.T) {
@@ -139,24 +139,24 @@ func TestClient_resolveTokenACLRoles(t *testing.T) {
 	mockACLToken.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
 
 	err := testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, []*structs.ACLRole{mockACLRole}, true)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	err = testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{mockACLToken})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Resolve the ACL policies linked via the role.
 	resolvedRoles1, err := testClient.resolveTokenACLRoles(rootACLToken.SecretID, mockACLToken.Roles)
-	require.NoError(t, err)
-	require.Len(t, resolvedRoles1, 2)
+	must.NoError(t, err)
+	must.Len(t, 2, resolvedRoles1)
 
 	// Test the cache directly and check that the ACL role previously queried
 	// is now cached.
-	require.Equal(t, 1, testClient.roleCache.Len())
-	require.True(t, testClient.roleCache.Contains(mockACLRole.ID))
+	must.Eq(t, 1, testClient.roleCache.Len())
+	must.True(t, testClient.roleCache.Contains(mockACLRole.ID))
 
 	// Resolve the roles again to check we get the same results.
 	resolvedRoles2, err := testClient.resolveTokenACLRoles(rootACLToken.SecretID, mockACLToken.Roles)
-	require.NoError(t, err)
-	require.ElementsMatch(t, resolvedRoles1, resolvedRoles2)
+	must.NoError(t, err)
+	must.SliceContainsAll(t, resolvedRoles1, resolvedRoles2)
 }
 
 func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
@@ -252,14 +252,14 @@ func TestClient_ACL_ResolveSecretToken(t *testing.T) {
 		assert.NotEmpty(t, respToken.AccessorID)
 	}
 
-	// Create and upset a token which has just expired.
+	// Create and upsert a token which has just expired.
 	mockExpiredToken := mock.ACLToken()
 	mockExpiredToken.ExpirationTime = pointer.Of(time.Now().Add(-5 * time.Minute))
 
 	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 120, []*structs.ACLToken{mockExpiredToken})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expiredTokenResp, err := c1.ResolveSecretToken(mockExpiredToken.SecretID)
-	require.Nil(t, expiredTokenResp)
-	require.ErrorContains(t, err, "ACL token expired")
+	must.Nil(t, expiredTokenResp)
+	must.StrContains(t, err.Error(), "ACL token expired")
 }
