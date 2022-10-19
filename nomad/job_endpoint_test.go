@@ -5103,6 +5103,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	require.Len(t, resp2.Jobs, 1)
 	require.Equal(t, job.ID, resp2.Jobs[0].ID)
 	require.Equal(t, job.Namespace, resp2.Jobs[0].Namespace)
+	require.Nil(t, resp2.Jobs[0].Meta)
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
@@ -5119,6 +5120,22 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	require.Len(t, resp3.Jobs, 1)
 	require.Equal(t, job.ID, resp3.Jobs[0].ID)
 	require.Equal(t, job.Namespace, resp3.Jobs[0].Namespace)
+
+	// Lookup jobs with a meta parameter
+	get = &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    resp2.Jobs[0].ID[:4],
+		},
+		Fields: &structs.JobStubFields{
+			Meta: true,
+		},
+	}
+	var resp4 structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp4)
+	require.NoError(t, err)
+	require.Equal(t, job.Meta["owner"], resp4.Jobs[0].Meta["owner"])
 }
 
 // TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server
