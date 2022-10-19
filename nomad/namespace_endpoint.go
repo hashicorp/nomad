@@ -7,13 +7,67 @@ import (
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
-	srv *Server
+	srv    *Server
+	rpcCtx *RPCContext
+}
+
+func (n *Namespace) UpsertNamespaceExample(
+	args *structs.NamespaceUpsertRequest,
+	reply *structs.GenericResponse) error {
+
+	return Chain(
+		authenticationMiddleware[
+			*structs.NamespaceUpsertRequest, *structs.GenericResponse](),
+		forwardingAuthoritativeRegionMiddleware[
+			*structs.NamespaceUpsertRequest, *structs.GenericResponse](
+			"Namespace.UpsertNamespaceExample", n.srv.config.AuthoritativeRegion),
+		metricsMiddleware[
+			*structs.NamespaceUpsertRequest, *structs.GenericResponse](
+			[]string{"nomad", "namespace", "upsert_namespaces"}),
+		// authorizationManagementOnlyMiddleware[
+		// 	*structs.NamespaceUpsertRequest, *structs.GenericResponse](),
+		authorizationMiddleware[
+			*structs.NamespaceUpsertRequest, *structs.GenericResponse](
+			func(aclObj *acl.ACL) bool { return aclObj.AllowNamespace(args.RequestNamespace()) }),
+	)(
+		NewRPCHandlerContext(n.rpcCtx, n.srv),
+		args,
+		reply,
+		n.upsertNamespaceExampleImpl,
+	)
+}
+
+func (n *Namespace) upsertNamespaceExampleImpl(ctx *RPCHandlerContext,
+	args *structs.NamespaceUpsertRequest, reply *structs.GenericResponse) error {
+
+	// Validate there is at least one namespace
+	if len(args.Namespaces) == 0 {
+		return fmt.Errorf("must specify at least one namespace")
+	}
+	for _, ns := range args.Namespaces {
+		if err := ns.Validate(); err != nil {
+			return fmt.Errorf("Invalid namespace %q: %v", ns.Name, err)
+		}
+
+		ns.SetHash()
+	}
+
+	out, index, err := n.srv.raftApply(structs.NamespaceUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+	reply.Index = index
+	return nil
 }
 
 // UpsertNamespaces is used to upsert a set of namespaces

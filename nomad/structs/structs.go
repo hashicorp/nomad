@@ -328,6 +328,14 @@ func (q QueryOptions) RequestNamespace() string {
 	return q.Namespace
 }
 
+func (q QueryOptions) RequestToken() string {
+	return q.AuthToken
+}
+
+func (q QueryOptions) SetRegion(region string) {
+	q.Region = region
+}
+
 // IsRead only applies to reads, so always true.
 func (q QueryOptions) IsRead() bool {
 	return true
@@ -397,6 +405,8 @@ type WriteRequest struct {
 	// IdempotencyToken can be used to ensure the write is idempotent.
 	IdempotencyToken string
 
+	identity *AuthenticatedIdentity
+
 	InternalRpcInfo
 }
 
@@ -424,6 +434,22 @@ func (w WriteRequest) RequestNamespace() string {
 	return w.Namespace
 }
 
+func (w WriteRequest) RequestToken() string {
+	return w.AuthToken
+}
+
+func (w WriteRequest) SetRegion(region string) {
+	w.Region = region
+}
+
+func (w WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
+	w.identity = identity
+}
+
+func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
+	return w.identity
+}
+
 // IsRead only applies to writes, always false.
 func (w WriteRequest) IsRead() bool {
 	return false
@@ -431,6 +457,15 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+type AuthenticatedIdentity struct {
+	ACLToken      *ACLToken
+	Claims        *IdentityClaims
+	ClientID      string
+	ServerID      string
+	ServerAddress string
+	LeaderACL     string
 }
 
 // QueryMeta allows a query response to include potentially
