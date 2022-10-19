@@ -42,6 +42,10 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   ];
 
   @tracked searchTerm = '';
+  qpState = '';
+  qpVersion = '';
+  qpClass = '';
+  qpDatacenter = '';
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
