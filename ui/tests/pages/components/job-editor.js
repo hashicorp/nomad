@@ -28,13 +28,6 @@ export default () => ({
     dismiss: clickable('[data-test-plan-help-dismiss]'),
   },
 
-  editorHelp: {
-    isPresent: isPresent('[data-test-editor-help-title]'),
-    title: text('[data-test-editor-help-title]'),
-    message: text('[data-test-editor-help-message]'),
-    dismiss: clickable('[data-test-editor-help-dismiss]'),
-  },
-
   editor: {
     isPresent: isPresent('[data-test-editor]'),
     contents: code('[data-test-editor]'),
