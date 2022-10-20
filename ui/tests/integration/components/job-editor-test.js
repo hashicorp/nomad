@@ -105,8 +105,6 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   const planJob = async (spec) => {
-    await this.pauseTest();
-
     await Editor.editor.fillIn(spec);
     await Editor.plan();
   };
@@ -122,7 +120,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test.only('submitting a json job skips the parse endpoint', async function (assert) {
+  test('submitting a json job skips the parse endpoint', async function (assert) {
     const spec = jsonJob();
     const job = await this.store.createRecord('job');
 
