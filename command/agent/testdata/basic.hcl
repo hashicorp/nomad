@@ -163,6 +163,7 @@ acl {
   enabled                  = true
   token_ttl                = "60s"
   policy_ttl               = "60s"
+  role_ttl                 = "60s"
   token_min_expiration_ttl = "1h"
   token_max_expiration_ttl = "100h"
   replication_token        = "foobar"

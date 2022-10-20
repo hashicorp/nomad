@@ -1,0 +1,7 @@
+```release-note:bug
+client: Resolve ACL roles within client ACL cache
+```
+
+```release-note:bug
+client: Check ACL token expiry when resolving token within ACL cache
+```

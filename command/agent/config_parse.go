@@ -66,6 +66,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
 		{"acl.token_ttl", &c.ACL.TokenTTL, &c.ACL.TokenTTLHCL, nil},
 		{"acl.policy_ttl", &c.ACL.PolicyTTL, &c.ACL.PolicyTTLHCL, nil},
+		{"acl.policy_ttl", &c.ACL.RoleTTL, &c.ACL.RoleTTLHCL, nil},
 		{"acl.token_min_expiration_ttl", &c.ACL.TokenMinExpirationTTL, &c.ACL.TokenMinExpirationTTLHCL, nil},
 		{"acl.token_max_expiration_ttl", &c.ACL.TokenMaxExpirationTTL, &c.ACL.TokenMaxExpirationTTLHCL, nil},
 		{"client.server_join.retry_interval", &c.Client.ServerJoin.RetryInterval, &c.Client.ServerJoin.RetryIntervalHCL, nil},
