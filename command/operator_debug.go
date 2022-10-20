@@ -1404,7 +1404,7 @@ func writeResponseStreamOrErrorToFile[T any](obj []T, apiErr error, getWriterFn 
 	defer writer.Close()
 
 	if apiErr != nil {
-		wrapped := errorWrapper{Error: err.Error()}
+		wrapped := errorWrapper{Error: apiErr.Error()}
 		return writeJSON(wrapped, writer)
 	}
 
