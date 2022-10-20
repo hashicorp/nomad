@@ -435,7 +435,10 @@ START:
 			return
 		default:
 			// Rate limit how often we attempt replication
-			limiter.Wait(ctx)
+			err := limiter.Wait(ctx)
+			if err != nil {
+				goto ERR_WAIT // rate limit exceeded
+			}
 
 			ws := store.NewWatchSet()
 			iter, err := store.RootKeyMetas(ws)
