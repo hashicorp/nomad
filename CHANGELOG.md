@@ -1,3 +1,9 @@
+## 1.4.1 (October 06, 2022)
+
+BUG FIXES:
+
+* keyring: Fixed a panic that can occur during upgrades to 1.4.0 when initializing the keyring [[GH-14821](https://github.com/hashicorp/nomad/issues/14821)]
+
 ## 1.4.0 (October 04, 2022)
 
 FEATURES:
