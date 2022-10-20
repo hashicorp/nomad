@@ -40,7 +40,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     try {
       // Preload the job for the allocation since it's required for the breadcrumb trail
       const allocation = await super.model(...arguments);
-      const jobId = allocation.belongsTo('job').id();
+      const jobId = allocation?.belongsTo('job').id();
       const getJob = this.store.findRecord('job', jobId);
       const getNamespaces = this.store.findAll('namespace');
       await Promise.all([getJob, getNamespaces]);
