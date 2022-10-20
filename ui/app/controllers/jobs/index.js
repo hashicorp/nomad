@@ -191,8 +191,9 @@ export default class IndexController extends Controller.extend(
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.jobs.@each.parent')
+  @computed('model.jobs.@each.parent', 'model.jobs.[]', 'model.jobs.length')
   get visibleJobs() {
+    console.log('visibleJobs refire', this.model.jobs);
     if (!this.model || !this.model.jobs) return [];
     return this.model.jobs
       .compact()
@@ -214,6 +215,8 @@ export default class IndexController extends Controller.extend(
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
     } = this;
+
+    console.log('filtered jobs refire');
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.

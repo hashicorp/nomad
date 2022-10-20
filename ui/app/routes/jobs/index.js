@@ -30,9 +30,10 @@ export default class IndexRoute extends Route.extend(
 
   startWatchers(controller) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
+    console.log('QPN', controller.qpNamespace);
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamesapce })
+      this.watchJobs.perform({ namespace: controller.qpNamespace })
     );
   }
 

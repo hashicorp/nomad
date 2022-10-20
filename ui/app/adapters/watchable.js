@@ -125,16 +125,44 @@ export default class Watchable extends ApplicationAdapter {
 
       // Remove existing records that match this query. This way if server-side
       // deletes have occurred, the store won't have stale records.
-      store
+      console.log(
+        'watcher.query has been thenned; about to make a peekAll and filter out'
+      );
+      const matchingStoreEntries = store
         .peekAll(type.modelName)
-        .filter((record) =>
-          queryParamsToAttrs.some(
-            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
-          )
-        )
-        .forEach((record) => {
-          removeRecord(store, record);
+        .filter((record) => {
+          console.log('reco', queryParamsToAttrs, record);
+          return queryParamsToAttrs.some((mapping) => {
+            console.log(
+              'SOME?',
+              mapping.attr,
+              query[mapping.queryParam],
+              get(get(record, mapping.attr), 'id')
+            );
+            return (
+              get(record, mapping.attr) === query[mapping.queryParam] ||
+              get(get(record, mapping.attr), 'id') === query[mapping.queryParam]
+            );
+          });
         });
+      console.log('=========', matchingStoreEntries);
+
+      matchingStoreEntries.forEach((record) => {
+        removeRecord(store, record);
+      });
+
+      console.log('type', type.modelName, payload);
+
+      // payload.forEach((record) => {
+      //   store.pushPayload(type.modelName, {
+      //     [`${type.modelName}s`]: record
+      //   });
+      // });
+      console.log(
+        'payload',
+        store.peekAll(type.modelName),
+        matchingStoreEntries
+      );
 
       return payload;
     });
