@@ -268,9 +268,9 @@ func TestConsul_ChangePorts(t *testing.T) {
 		}
 	}
 
-	require.NotEmpty(origTCPKey)
-	require.NotEmpty(origScriptKey)
-	require.NotEmpty(origHTTPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origTCPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origScriptKey)
+	must.StrHasPrefix(t, "_nomad-check-", origHTTPKey)
 
 	// Now update the PortLabel on the Service and Check c3
 	origWorkload := ctx.Workload.Copy()
