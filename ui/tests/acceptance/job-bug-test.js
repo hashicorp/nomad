@@ -2687,7 +2687,7 @@ const getJob = () => ({
   JobModifyIndex: 809537203,
 });
 
-module('Acceptance | evaluations list', function (hooks) {
+module('Acceptance | job load bug', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
