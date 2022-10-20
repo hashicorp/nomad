@@ -36,18 +36,18 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     }
   }
 
-  model() {
-    // Preload the job for the allocation since it's required for the breadcrumb trail
-    return super
-      .model(...arguments)
-      .then((allocation) => {
-        const jobId = allocation.belongsTo('job').id();
-        return this.store
-          .findRecord('job', jobId)
-          .then(() => this.store.findAll('namespace')) // namespaces belong to a job and are an asynchronous relationship so we can peak them later on
-          .then(() => allocation);
-      })
-      .catch(notifyError(this));
+  async model() {
+    try {
+      // Preload the job for the allocation since it's required for the breadcrumb trail
+      const allocation = await super.model(...arguments);
+      const jobId = allocation?.belongsTo('job').id();
+      const getJob = this.store.findRecord('job', jobId);
+      const getNamespaces = this.store.findAll('namespace');
+      await Promise.all([getJob, getNamespaces]);
+      return allocation;
+    } catch {
+      notifyError(this);
+    }
   }
 
   @watchRecord('allocation') watch;
