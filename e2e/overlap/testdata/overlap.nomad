@@ -10,11 +10,19 @@ job "overlap" {
   group "overlap" {
     count = 1
 
+    network {
+      # Reserve a static port so that the subsequent job run is blocked until
+      # the port is freed
+      port "hack" {
+        static = 7234
+      }
+    }
+
     task "test" {
       driver = "raw_exec"
 
       # Delay shutdown to delay next placement
-      shutdown_delay = "10s"
+      shutdown_delay = "8s"
 
       config {
         command = "bash"
@@ -23,7 +31,7 @@ job "overlap" {
 
       resources {
         cpu    = "500"
-        memory = "50"
+        memory = "100"
       }
     }
   }
