@@ -23,6 +23,7 @@ const (
 	TopicNode       Topic = "Node"
 	TopicACLPolicy  Topic = "ACLPolicy"
 	TopicACLToken   Topic = "ACLToken"
+	TopicACLRole    Topic = "ACLRole"
 	TopicService    Topic = "Service"
 	TopicAll        Topic = "*"
 
@@ -46,6 +47,8 @@ const (
 	TypeACLTokenUpserted              = "ACLTokenUpserted"
 	TypeACLPolicyDeleted              = "ACLPolicyDeleted"
 	TypeACLPolicyUpserted             = "ACLPolicyUpserted"
+	TypeACLRoleDeleted                = "ACLRoleDeleted"
+	TypeACLRoleUpserted               = "ACLRoleUpserted"
 	TypeServiceRegistration           = "ServiceRegistration"
 	TypeServiceDeregistration         = "ServiceDeregistration"
 )
@@ -150,4 +153,10 @@ func (a *ACLTokenEvent) SecretID() string {
 
 type ACLPolicyEvent struct {
 	ACLPolicy *ACLPolicy
+}
+
+// ACLRoleStreamEvent holds a newly updated or delete ACL role to be used as an
+// event within the event stream.
+type ACLRoleStreamEvent struct {
+	ACLRole *ACLRole
 }

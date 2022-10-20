@@ -33,6 +33,7 @@ by default, requiring a management token.
 | `*`          | `management`         |
 | `ACLToken`   | `management`         |
 | `ACLPolicy`  | `management`         |
+| `ACLRole`    | `management`         |
 | `Job`        | `namespace:read-job` |
 | `Allocation` | `namespace:read-job` |
 | `Deployment` | `namespace:read-job` |
@@ -67,6 +68,7 @@ by default, requiring a management token.
 | ---------- | ------------------------------- |
 | ACLToken   | ACLToken                        |
 | ACLPolicy  | ACLPolicy                       |
+| ACLRoles   | ACLRole                         |
 | Allocation | Allocation (no job information) |
 | Job        | Job                             |
 | Evaluation | Evaluation                      |
@@ -83,6 +85,8 @@ by default, requiring a management token.
 | ACLTokenDeleted               |
 | ACLPolicyUpserted             |
 | ACLPolicyDeleted              |
+| ACLRoleUpserted               |
+| ACLRoleDeleted                |
 | AllocationCreated             |
 | AllocationUpdated             |
 | AllocationUpdateDesiredStatus |

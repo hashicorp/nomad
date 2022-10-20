@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"golang.org/x/crypto/blake2b"
@@ -230,6 +231,24 @@ func (a *ACLToken) IsExpired(t time.Time) bool {
 	}
 
 	return a.ExpirationTime.Before(t) || t.IsZero()
+}
+
+// HasRoles checks if a given set of role IDs are assigned to the ACL token. It
+// does not account for management tokens, therefore it is the responsibility
+// of the caller to perform this check, if required.
+func (a *ACLToken) HasRoles(roleIDs []string) bool {
+
+	// Generate a set of role IDs that the token is assigned.
+	roleSet := set.FromFunc(a.Roles, func(roleLink *ACLTokenRoleLink) string { return roleLink.ID })
+
+	// Iterate the role IDs within the request and check whether these are
+	// present within the token assignment.
+	for _, roleID := range roleIDs {
+		if !roleSet.Contains(roleID) {
+			return false
+		}
+	}
+	return true
 }
 
 // ACLRole is an abstraction for the ACL system which allows the grouping of
