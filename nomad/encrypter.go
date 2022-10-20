@@ -464,7 +464,8 @@ START:
 				getReq := &structs.KeyringGetRootKeyRequest{
 					KeyID: keyID,
 					QueryOptions: structs.QueryOptions{
-						Region: krr.srv.config.Region,
+						Region:        krr.srv.config.Region,
+						MinQueryIndex: keyMeta.ModifyIndex - 1,
 					},
 				}
 				getResp := &structs.KeyringGetRootKeyResponse{}
@@ -482,7 +483,7 @@ START:
 					getReq.AllowStale = true
 					for _, peer := range krr.getAllPeers() {
 						err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
-						if err == nil {
+						if err == nil && getResp.Key != nil {
 							break
 						}
 					}
