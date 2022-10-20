@@ -104,6 +104,35 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp4)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
+
+	// Generate and upsert an ACL role which links to the previously created
+	// policy.
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: policy.Name}}
+	must.NoError(t, s1.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 1010, []*structs.ACLRole{mockACLRole}, false))
+
+	// Generate and upsert an ACL token which only has ACL role links.
+	mockTokenWithRole := mock.ACLToken()
+	mockTokenWithRole.Policies = []string{}
+	mockTokenWithRole.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(
+		structs.MsgTypeTestSetup, 1020, []*structs.ACLToken{mockTokenWithRole}))
+
+	// Use the newly created token to attempt to read the policy which is
+	// linked via a role, and not directly referenced within the policy array.
+	req5 := &structs.ACLPolicySpecificRequest{
+		Name: policy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRole.SecretID,
+		},
+	}
+
+	var resp5 structs.SingleACLPolicyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", req5, &resp5))
+	must.Eq(t, 1000, resp5.Index)
+	must.Eq(t, policy, resp5.Policy)
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
@@ -265,6 +294,59 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err == nil {
 		t.Fatalf("expected error")
 	}
+
+	// Generate and upsert an ACL role which links to the previously created
+	// policy.
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: policy.Name}}
+	must.NoError(t, s1.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 1010, []*structs.ACLRole{mockACLRole}, false))
+
+	// Generate and upsert an ACL token which only has ACL role links.
+	mockTokenWithRole := mock.ACLToken()
+	mockTokenWithRole.Policies = []string{}
+	mockTokenWithRole.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(
+		structs.MsgTypeTestSetup, 1020, []*structs.ACLToken{mockTokenWithRole}))
+
+	// Use the newly created token to attempt to read the policy which is
+	// linked via a role, and not directly referenced within the policy array.
+	req1 := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRole.SecretID,
+		},
+	}
+
+	var resp1 structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req1, &resp1))
+	must.Eq(t, 1000, resp1.Index)
+	must.Eq(t, 1, len(resp1.Policies))
+	must.Eq(t, policy, resp1.Policies[policy.Name])
+
+	// Generate and upsert an ACL token which only has both direct policy links
+	// and ACL role links.
+	mockTokenWithRolePolicy := mock.ACLToken()
+	mockTokenWithRolePolicy.Policies = []string{policy2.Name}
+	mockTokenWithRolePolicy.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(
+		structs.MsgTypeTestSetup, 1030, []*structs.ACLToken{mockTokenWithRolePolicy}))
+
+	// Use the newly created token to attempt to read the policies which are
+	// linked directly, and by ACL roles.
+	req2 := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name, policy2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRolePolicy.SecretID,
+		},
+	}
+
+	var resp2 structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req2, &resp2))
+	must.Eq(t, 1000, resp2.Index)
+	must.Eq(t, 2, len(resp2.Policies))
 }
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
@@ -413,6 +495,36 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	if assert.Len(resp3.Policies, 1) {
 		assert.Equal(resp3.Policies[0].Name, p1.Name)
 	}
+
+	// Generate and upsert an ACL role which links to the previously created
+	// policy.
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: p1.Name}}
+	must.NoError(t, s1.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 1010, []*structs.ACLRole{mockACLRole}, false))
+
+	// Generate and upsert an ACL token which only has ACL role links.
+	mockTokenWithRole := mock.ACLToken()
+	mockTokenWithRole.Policies = []string{}
+	mockTokenWithRole.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(
+		structs.MsgTypeTestSetup, 1020, []*structs.ACLToken{mockTokenWithRole}))
+
+	// Use the newly created token to attempt to list the policies. We should
+	// get the single policy linked by the ACL role.
+	req4 := &structs.ACLPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRole.SecretID,
+		},
+	}
+
+	var resp4 structs.ACLPolicyListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", req4, &resp4))
+	must.Eq(t, 1000, resp4.Index)
+	must.Len(t, 1, resp4.Policies)
+	must.Eq(t, p1.Name, resp4.Policies[0].Name)
+	must.Eq(t, p1.Hash, resp4.Policies[0].Hash)
 }
 
 // TestACLEndpoint_ListPolicies_Unauthenticated asserts that
