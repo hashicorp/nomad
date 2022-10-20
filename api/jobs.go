@@ -1063,6 +1063,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
+	Meta              map[string]string `json:",omitempty"`
 }
 
 // JobIDSort is used to sort jobs by their job ID's.

@@ -4735,7 +4735,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
-	Meta              map[string]string
+	Meta              map[string]string `json:",omitempty"`
 }
 
 // JobSummary summarizes the state of the allocations of a job
