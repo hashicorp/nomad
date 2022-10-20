@@ -38,6 +38,15 @@ export default class JobRoute extends Route {
           this.store.findAll('namespace'),
         ];
 
+        if (job.get('hasChildren')) {
+          relatedModelsQueries.push(
+            this.store.query('job', {
+              namespace,
+              filter: `JobID contains ${name}`,
+            })
+          );
+        }
+
         if (this.can.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
         }
