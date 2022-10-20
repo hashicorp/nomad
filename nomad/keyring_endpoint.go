@@ -264,7 +264,20 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 				Key:  key,
 			}
 			reply.Key = rootKey
-			reply.Index = keyMeta.ModifyIndex
+
+			// Use the last index that affected the policy table
+			index, err := s.Index(state.TableRootKeyMeta)
+			if err != nil {
+				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query
+			// cannot be used.  We floor the index at one, since realistically
+			// the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
+			reply.Index = index
 			return nil
 		},
 	}
