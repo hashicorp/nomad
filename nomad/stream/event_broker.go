@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
@@ -213,22 +214,22 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 					return !aclAllowsSubscription(aclObj, sub.req)
 				})
 
-			case *structs.ACLPolicyEvent:
-				// Re-evaluate each subscriptions permissions since a policy
-				// change may or may not affect the subscription
-				e.checkSubscriptionsAgainstPolicyChange()
+			case *structs.ACLPolicyEvent, *structs.ACLRoleStreamEvent:
+				// Re-evaluate each subscription permission since a policy or
+				// role change may alter the permissions of the token being
+				// used for the subscription.
+				e.checkSubscriptionsAgainstACLChange()
 			}
 		}
 	}
 }
 
-// checkSubscriptionsAgainstPolicyChange iterates over the brokers
-// subscriptions and evaluates whether the token used for the subscription is
-// still valid. If it is not valid it closes the subscriptions belonging to the
-// token.
-//
-// A lock must be held to iterate over the map of subscriptions.
-func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
+// checkSubscriptionsAgainstACLChange iterates over the brokers subscriptions
+// and evaluates whether the token used for the subscription is still valid. A
+// token may become invalid is the assigned policies or roles have been updated
+// which removed the required permission. If the token is no long valid, the
+// subscription is closed.
+func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -257,14 +258,19 @@ func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
 	}
 }
 
-func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *lru.TwoQueueCache, tokenSecretID string) (*acl.ACL, error) {
+func aclObjFromSnapshotForTokenSecretID(
+	aclSnapshot ACLTokenProvider, aclCache *lru.TwoQueueCache, tokenSecretID string) (*acl.ACL, error) {
+
 	aclToken, err := aclSnapshot.ACLTokenBySecretID(nil, tokenSecretID)
 	if err != nil {
 		return nil, err
 	}
 
 	if aclToken == nil {
-		return nil, errors.New("no token for secret ID")
+		return nil, structs.ErrTokenNotFound
+	}
+	if aclToken.IsExpired(time.Now().UTC()) {
+		return nil, structs.ErrTokenExpired
 	}
 
 	// Check if this is a management token
@@ -272,7 +278,8 @@ func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *
 		return acl.ManagementACL, nil
 	}
 
-	aclPolicies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies))
+	aclPolicies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies)+len(aclToken.Roles))
+
 	for _, policyName := range aclToken.Policies {
 		policy, err := aclSnapshot.ACLPolicyByName(nil, policyName)
 		if err != nil || policy == nil {
@@ -281,12 +288,34 @@ func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *
 		aclPolicies = append(aclPolicies, policy)
 	}
 
+	// Iterate all the token role links, so we can unpack these and identify
+	// the ACL policies.
+	for _, roleLink := range aclToken.Roles {
+
+		role, err := aclSnapshot.GetACLRoleByID(nil, roleLink.ID)
+		if err != nil {
+			return nil, err
+		}
+		if role == nil {
+			continue
+		}
+
+		for _, policyLink := range role.Policies {
+			policy, err := aclSnapshot.ACLPolicyByName(nil, policyLink.Name)
+			if err != nil || policy == nil {
+				return nil, errors.New("error finding acl policy")
+			}
+			aclPolicies = append(aclPolicies, policy)
+		}
+	}
+
 	return structs.CompileACLObject(aclCache, aclPolicies)
 }
 
 type ACLTokenProvider interface {
 	ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error)
 	ACLPolicyByName(ws memdb.WatchSet, policyName string) (*structs.ACLPolicy, error)
+	GetACLRoleByID(ws memdb.WatchSet, roleID string) (*structs.ACLRole, error)
 }
 
 type ACLDelegate interface {

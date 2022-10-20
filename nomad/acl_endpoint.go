@@ -1366,8 +1366,8 @@ func (a *ACL) ListRoles(
 }
 
 // GetRolesByID is used to get a set of ACL Roles as defined by their ID. This
-// endpoint is used by the replication process and uses a specific response in
-// order to make that process easier.
+// endpoint is used by the replication process and Nomad agent client token
+// resolution.
 func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACLRolesByIDResponse) error {
 
 	// This endpoint is only used by the replication process which is only
@@ -1382,11 +1382,17 @@ func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACL
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_roles_id"}, time.Now())
 
-	// Check that the caller has a management token and that ACLs are enabled
-	// properly.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// For client typed tokens, allow them to query any roles associated with
+	// that token. This is used by Nomad agents in client mode which are
+	// resolving the roles to enforce.
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken && !token.HasRoles(args.ACLRoleIDs) {
 		return structs.ErrPermissionDenied
 	}
 
