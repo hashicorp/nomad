@@ -30,7 +30,20 @@ env:
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
+  mods:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: magnetikonline/action-golang-cache@v1
+        with:
+          go-version: ${{env.GO_VERSION}}
+      - name: Pre-cache Go modules
+        run: |
+          make tidy
+          make bootstrap
   checks:
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -40,13 +53,14 @@ jobs:
       - uses: magnetikonline/action-golang-cache@v1
         with:
           go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -checks
+          cache-key-suffix: -core
       - name: Run make check
         run: |
           make missing
           make bootstrap
           make check
   compile:
+    needs: [mods]
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +72,7 @@ jobs:
       - uses: magnetikonline/action-golang-cache@v1
         with:
           go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -compile
+          cache-key-suffix: -core
       - name: Run make dev
         env:
           GOBIN: ${{env.GOROOT}}/bin # windows kludge
@@ -66,6 +80,7 @@ jobs:
           make bootstrap
           make dev
   tests-api:
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -73,7 +88,7 @@ jobs:
       - uses: magnetikonline/action-golang-cache@v1
         with:
           go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -api
+          cache-key-suffix: -core
       - name: Run API tests
         env:
           GOTEST_MOD: api
@@ -83,6 +98,7 @@ jobs:
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-pkgs:
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
@@ -139,7 +155,7 @@ jobs:
       - uses: magnetikonline/action-golang-cache@v1
         with:
           go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -pkgs
+          cache-key-suffix: -core
       - name: Run Matrix Tests
         env:
           GOTEST_PKGS: ./${{matrix.pkg}}
