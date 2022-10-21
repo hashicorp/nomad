@@ -30,6 +30,18 @@ env:
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
+  mods:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: magnetikonline/action-golang-cache@v1
+        with:
+          go-version: ${{env.GO_VERSION}}
+      - name: Pre-cache Go modules
+        run: |
+          make tidy
+          make bootstrap
   checks:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
