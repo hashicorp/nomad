@@ -303,9 +303,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
-	// Create the first root key if it doesn't already exist
-	go s.initializeKeyring(stopCh)
-
 	// Initialize the ClusterID
 	_, _ = s.ClusterID()
 	// todo: use cluster ID for stuff, later!
@@ -349,6 +346,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.setConsistentReadReady()
 
 	// Further clean ups and follow up that don't block RPC consistency
+
+	// Create the first root key if it doesn't already exist
+	go s.initializeKeyring(stopCh)
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -2005,7 +2005,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 			break
 		}
 	}
-	// we might have lost leadershuip during the version check
+	// we might have lost leadership during the version check
 	if !s.IsLeader() {
 		return
 	}
