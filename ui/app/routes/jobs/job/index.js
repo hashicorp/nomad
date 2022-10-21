@@ -31,7 +31,10 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         this.watchLatestDeployment.perform(model),
       list:
         model.get('hasChildren') &&
-        this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
+        this.watchChildrenJobs.perform({
+          namespace: model.namespace.get('name'),
+          filter: `ParentID == ${model.name}`,
+        }),
       nodes:
         model.get('hasClientStatus') &&
         this.can.can('read client') &&
@@ -52,7 +55,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   }
 
   @watchRecord('job') watch;
-  @watchQuery('job') watchAllJobs;
+  @watchQuery('job') watchChildrenJobs;
   @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
@@ -61,7 +64,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   @collect(
     'watch',
-    'watchAllJobs',
+    'watchChildrenJobs',
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
