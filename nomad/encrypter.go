@@ -155,12 +155,33 @@ const keyIDHeader = "kid"
 // SignClaims signs the identity claim for the task and returns an
 // encoded JWT with both the claim and its signature
 func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
-	e.lock.RLock()
-	defer e.lock.RUnlock()
 
-	keyset, err := e.activeKeySetLocked()
+	getActiveKeyset := func() (*keyset, error) {
+		e.lock.RLock()
+		defer e.lock.RUnlock()
+		keyset, err := e.activeKeySetLocked()
+		return keyset, err
+	}
+
+	// If a key is rotated immediately following a leader election, plans that
+	// are in-flight may get signed before the new leader has the key. Allow for
+	// a short timeout-and-retry to avoid rejecting plans
+	keyset, err := getActiveKeyset()
 	if err != nil {
-		return "", err
+		ctx, cancel := context.WithTimeout(e.srv.shutdownCtx, 5*time.Second)
+		defer cancel()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", err
+			default:
+				time.Sleep(50 * time.Millisecond)
+				keyset, err = getActiveKeyset()
+				if keyset != nil {
+					break
+				}
+			}
+		}
 	}
 
 	token := jwt.NewWithClaims(&jwt.SigningMethodEd25519{}, claim)
@@ -435,7 +456,10 @@ START:
 			return
 		default:
 			// Rate limit how often we attempt replication
-			limiter.Wait(ctx)
+			err := limiter.Wait(ctx)
+			if err != nil {
+				goto ERR_WAIT // rate limit exceeded
+			}
 
 			ws := store.NewWatchSet()
 			iter, err := store.RootKeyMetas(ws)
@@ -461,7 +485,8 @@ START:
 				getReq := &structs.KeyringGetRootKeyRequest{
 					KeyID: keyID,
 					QueryOptions: structs.QueryOptions{
-						Region: krr.srv.config.Region,
+						Region:        krr.srv.config.Region,
+						MinQueryIndex: keyMeta.ModifyIndex - 1,
 					},
 				}
 				getResp := &structs.KeyringGetRootKeyResponse{}
@@ -479,7 +504,7 @@ START:
 					getReq.AllowStale = true
 					for _, peer := range krr.getAllPeers() {
 						err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
-						if err == nil {
+						if err == nil && getResp.Key != nil {
 							break
 						}
 					}
