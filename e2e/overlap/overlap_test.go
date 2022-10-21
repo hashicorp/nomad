@@ -37,7 +37,7 @@ func TestOverlap(t *testing.T) {
 
 	var origAlloc *api.AllocationListStub
 	testutil.Wait(t, func() (bool, error) {
-		time.Sleep(time.Second)
+		time.Sleep(500 * time.Millisecond)
 
 		a, _, err := nomadClient.Jobs().Allocations(jobID1, false, nil)
 		must.NoError(t, err)
@@ -52,10 +52,6 @@ func TestOverlap(t *testing.T) {
 			origAlloc.ID, jobID1, origAlloc.ClientStatus)
 	})
 
-	// Capture node so we can ensure 2nd job is blocked by first
-	node, _, err := nomadClient.Nodes().Info(origAlloc.NodeID, nil)
-	must.NoError(t, err)
-
 	// Stop job but don't wait for ClientStatus terminal
 	_, _, err = nomadClient.Jobs().Deregister(jobID1, false, nil)
 	must.NoError(t, err)
@@ -69,12 +65,11 @@ func TestOverlap(t *testing.T) {
 			a.ID, ds, cs)
 	})
 
-	// Start replacement job on same node and assert it is blocked
+	// Start replacement job on same node and assert it is blocked because the
+	// static port is already in use.
 	job2, jobID2 := getJob()
 	job2.Constraints = append(job2.Constraints, api.NewConstraint("${node.unique.id}", "=", origAlloc.NodeID))
 	job2.TaskGroups[0].Tasks[0].ShutdownDelay = 0 // no need on the followup
-	availCPU := int(node.NodeResources.Cpu.CpuShares - int64(node.ReservedResources.Cpu.CpuShares))
-	job2.TaskGroups[0].Tasks[0].Resources.CPU = &availCPU // require job1 to free resources
 
 	resp, _, err := nomadClient.Jobs().Register(job2, nil)
 	must.NoError(t, err)
@@ -106,9 +101,9 @@ func TestOverlap(t *testing.T) {
 
 	// Assert replacement job unblocked and running
 	testutil.Wait(t, func() (bool, error) {
-		time.Sleep(time.Second)
+		time.Sleep(500 * time.Millisecond)
 
-		a, _, err := nomadClient.Jobs().Allocations(jobID2, false, nil)
+		a, _, err := nomadClient.Jobs().Allocations(jobID2, true, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
 			evalOut := e2eutil.DumpEvals(nomadClient, jobID2)

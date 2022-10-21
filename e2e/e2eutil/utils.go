@@ -335,29 +335,46 @@ var EvalTemplate = template.Must(template.New("dump_eval").Parse(
 	`{{.Index}}/{{.Total}} Job {{.Eval.JobID}} Eval {{.Eval.ID}}
   Type:         {{.Eval.Type}}
   TriggeredBy:  {{.Eval.TriggeredBy}}
+  {{- if .Eval.DeploymentID}}
   Deployment:   {{.Eval.DeploymentID}}
-  Status:       {{.Eval.Status}} ({{.Eval.StatusDescription}})
+  {{- end}}
+  Status:       {{.Eval.Status}} {{if .Eval.StatusDescription}}({{.Eval.StatusDescription}}){{end}}
+  {{- if .Eval.Wait}}
+  Wait:         {{.Eval.Wait}} <- DEPRECATED
+  {{- end}}
+  {{- if not .Eval.WaitUntil.IsZero}}
+  WaitUntil:    {{.Eval.WaitUntil}}
+  {{- end}}
+  {{- if .Eval.NextEval}}
   NextEval:     {{.Eval.NextEval}}
+  {{- end}}
+  {{- if .Eval.PreviousEval}}
   PrevEval:     {{.Eval.PreviousEval}}
+  {{- end}}
+  {{- if .Eval.BlockedEval}}
   BlockedEval:  {{.Eval.BlockedEval}}
+  {{- end}}
+  {{- if .Eval.FailedTGAllocs }}
+  Failed Allocs:
+  {{- end}}
   {{- range $k, $v := .Eval.FailedTGAllocs}}
     Failed Group: {{$k}}
       NodesEvaluated: {{$v.NodesEvaluated}}
-  		NodesFiltered:  {{$v.NodesFiltered}}
-  		NodesAvailable: {{range $dc, $n := $v.NodesAvailable}}{{$dc}}:{{$n}} {{end}}
-  		NodesExhausted: {{$v.NodesExhausted}}
-  		ClassFiltered:  {{len $v.ClassFiltered}}
-  		ConstraintFilt: {{len $v.ConstraintFiltered}}
-  		DimensionExhst: {{range $d, $n := $v.DimensionExhausted}}{{$d}}:{{$n}} {{end}}
-  		ResourcesExhst: {{range $r, $n := $v.ResourcesExhausted}}{{$r}}:{{$n}} {{end}}
-  		QuotaExhausted: {{range $i, $q := $v.QuotaExhausted}}{{$q}} {{end}}
-  		CoalescedFail:  {{$v.CoalescedFailures}}
-  		ScoreMetaDAta:  {{len $v.ScoreMetaData}}
-  		AllocationTime: {{$v.AllocationTime}}
-  {{- else}}
-   -- No placement failures --
+      NodesFiltered:  {{$v.NodesFiltered}}
+      NodesAvailable: {{range $dc, $n := $v.NodesAvailable}}{{$dc}}:{{$n}} {{end}}
+      NodesExhausted: {{$v.NodesExhausted}}
+      ClassFiltered:  {{len $v.ClassFiltered}}
+      ConstraintFilt: {{len $v.ConstraintFiltered}}
+      DimensionExhst: {{range $d, $n := $v.DimensionExhausted}}{{$d}}:{{$n}} {{end}}
+      ResourcesExhst: {{range $r, $n := $v.ResourcesExhausted}}{{$r}}:{{$n}} {{end}}
+      QuotaExhausted: {{range $i, $q := $v.QuotaExhausted}}{{$q}} {{end}}
+      CoalescedFail:  {{$v.CoalescedFailures}}
+      ScoreMetaData:  {{len $v.ScoreMetaData}}
+      AllocationTime: {{$v.AllocationTime}}
   {{- end}}
+  {{- if .Eval.QueuedAllocations}}
   QueuedAllocs: {{range $k, $n := .Eval.QueuedAllocations}}{{$k}}:{{$n}} {{end}}
+  {{- end}}
   SnapshotIdx:  {{.Eval.SnapshotIndex}}
   CreateIndex:  {{.Eval.CreateIndex}}
   ModifyIndex:  {{.Eval.ModifyIndex}}
