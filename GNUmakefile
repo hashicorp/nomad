@@ -32,12 +32,6 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-ifeq ($(CIRCLECI),true)
-GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
-else
-GO_TEST_CMD = go test
-endif
-
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
 else
@@ -135,7 +129,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.7.0
+	go install gotest.tools/gotestsum@v1.8.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
@@ -288,23 +282,10 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
-.PHONY: test
-test: ## Run the Nomad test suite and/or the Nomad UI test suite
-	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make test-nomad; \
-		fi
-	@if [ $(RUN_UI_TESTS) ]; then \
-		make test-ui; \
-		fi
-	@if [ $(RUN_E2E_TESTS) ]; then \
-		make e2e-test; \
-		fi
-
 .PHONY: test-nomad
-test-nomad: dev ## Run Nomad test suites
-	@echo "==> Running Nomad test suites:"
-	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad: dev ## Run Nomad unit tests
+	@echo "==> Running Nomad unit tests $(GOTEST_PKGS)"
+	gotestsum --format=testname --rerun-fails=3 --packages=$(GOTEST_PKGS) -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
@@ -312,10 +293,9 @@ test-nomad: dev ## Run Nomad test suites
 		$(GOTEST_PKGS)
 
 .PHONY: test-nomad-module
-test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
-	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad-module: dev ## Run Nomad unit tests on sub-module
+	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
+	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
