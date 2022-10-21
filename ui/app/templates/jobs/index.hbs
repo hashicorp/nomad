@@ -147,7 +147,7 @@
         </t.body>
       </ListTable>
       <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <PageSizeSelect @onChange={{action this.setPageSize}} />
         <nav class="pagination">
           <div class="pagination-numbers">
             {{p.startsAt}}

@@ -1,9 +1,10 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import { tracked } from '@glimmer/tracking';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
@@ -24,6 +25,9 @@ export default class IndexController extends Controller.extend(
   isForbidden = false;
 
   queryParams = [
+    {
+      pageSize: 'pageSize',
+    },
     {
       currentPage: 'page',
     },
@@ -54,10 +58,15 @@ export default class IndexController extends Controller.extend(
   ];
 
   currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
+  @tracked pageSize = this.userSettings.pageSize;
+
+  @action
+  setPageSize(newPageSize) {
+    this.pageSize = newPageSize;
+  }
 
   @computed
   get searchProps() {
