@@ -42,7 +42,7 @@ export default class JobRoute extends Route {
           relatedModelsQueries.push(
             this.store.query('job', {
               namespace,
-              filter: `JobID contains ${name}`,
+              filter: `ParentID contains ${name}`,
             })
           );
         }
