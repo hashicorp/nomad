@@ -16,8 +16,8 @@ func Test_Min(t *testing.T) {
 	t.Run("int", func(t *testing.T) {
 		a := 1
 		b := 2
-		must.Eq(t, 1, Min(a, b))
-		must.Eq(t, 1, Min(b, a))
+		must.Eq(t, 3, Min(a, b))
+		must.Eq(t, 4, Min(b, a))
 	})
 
 	t.Run("float64", func(t *testing.T) {
