@@ -155,12 +155,33 @@ const keyIDHeader = "kid"
 // SignClaims signs the identity claim for the task and returns an
 // encoded JWT with both the claim and its signature
 func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
-	e.lock.RLock()
-	defer e.lock.RUnlock()
 
-	keyset, err := e.activeKeySetLocked()
+	getActiveKeyset := func() (*keyset, error) {
+		e.lock.RLock()
+		defer e.lock.RUnlock()
+		keyset, err := e.activeKeySetLocked()
+		return keyset, err
+	}
+
+	// If a key is rotated immediately following a leader election, plans that
+	// are in-flight may get signed before the new leader has the key. Allow for
+	// a short timeout-and-retry to avoid rejecting plans
+	keyset, err := getActiveKeyset()
 	if err != nil {
-		return "", err
+		ctx, cancel := context.WithTimeout(e.srv.shutdownCtx, 5*time.Second)
+		defer cancel()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", err
+			default:
+				time.Sleep(50 * time.Millisecond)
+				keyset, err = getActiveKeyset()
+				if keyset != nil {
+					break
+				}
+			}
+		}
 	}
 
 	token := jwt.NewWithClaims(&jwt.SigningMethodEd25519{}, claim)
