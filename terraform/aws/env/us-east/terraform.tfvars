@@ -38,9 +38,9 @@ USE_HCP_PACKER=true
 # * For the Spark demos, you will need at least 4 t2.medium client
 #   instances.
 server_instance_type = "t2.micro"
-server_count         = "3"
+server_count         = "1"
 client_instance_type = "t2.micro"
-client_count         = "3"
+client_count         = "1"
 
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
 # to 0.0.0.0/0 for world).  
