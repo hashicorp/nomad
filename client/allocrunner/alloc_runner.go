@@ -1349,7 +1349,7 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 	alloc := ar.clientAlloc(states)
 
 	// Set the reconnect modify index so that the scheduler can track that the reconnect has not been processed.
-	alloc.ReconnectModifyIndex = ar.Alloc().ReconnectModifyIndex
+	alloc.ReconnectModifyIndex = ar.Alloc().AllocModifyIndex
 
 	// Update the client state store.
 	err = ar.stateUpdater.PutAllocation(alloc)
