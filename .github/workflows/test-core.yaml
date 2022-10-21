@@ -43,6 +43,7 @@ jobs:
           make tidy
           make bootstrap
   checks:
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -59,7 +60,7 @@ jobs:
           make bootstrap
           make check
   compile:
-    needs: [checks]
+    needs: [mods]
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +80,7 @@ jobs:
           make bootstrap
           make dev
   tests-api:
-    needs: [checks]
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -97,7 +98,7 @@ jobs:
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-pkgs:
-    needs: [checks]
+    needs: [mods]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
