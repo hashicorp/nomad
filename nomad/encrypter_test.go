@@ -123,8 +123,8 @@ func TestEncrypter_Restore(t *testing.T) {
 	}
 }
 
-// TestKeyringReplicator exercises key replication between servers
-func TestKeyringReplicator(t *testing.T) {
+// TestEncrypter_KeyringReplication exercises key replication between servers
+func TestEncrypter_KeyringReplication(t *testing.T) {
 
 	ci.Parallel(t)
 
@@ -267,6 +267,31 @@ func TestKeyringReplicator(t *testing.T) {
 	require.Eventually(t, checkReplicationFn(keyID3),
 		time.Second*5, time.Second,
 		"expected keys to be replicated to followers after election")
+
+	// Scenario: new members join the cluster
+
+	srv4, cleanupSRV4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV4()
+	srv5, cleanupSRV5 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV5()
+
+	TestJoin(t, srv4, srv5)
+	TestJoin(t, srv5, srv1)
+	servers = []*Server{srv1, srv2, srv3, srv4, srv5}
+
+	testutil.WaitForLeader(t, srv4.RPC)
+	testutil.WaitForLeader(t, srv5.RPC)
+
+	require.Eventually(t, checkReplicationFn(keyID3),
+		time.Second*5, time.Second,
+		"expected new servers to get replicated keys")
+
 }
 
 func TestEncrypter_EncryptDecrypt(t *testing.T) {
