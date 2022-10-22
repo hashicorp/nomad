@@ -94,7 +94,11 @@ func runVerify(manifest Manifest) error {
 }
 
 func runGroups(manifest Manifest, group string) error {
-	s := strings.Join(manifest[group], " ")
+	list := manifest[group]
+	for i := 0; i < len(list); i++ {
+		list[i] = "./" + list[i]
+	}
+	s := strings.Join(list, " ")
 	fmt.Print(s)
 	return nil
 }

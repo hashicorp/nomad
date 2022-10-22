@@ -32,12 +32,6 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
-GOTEST_PKGS ?= "./..."
-else
-GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
-endif
-
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
@@ -283,9 +277,11 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test-nomad
-test-nomad: dev ## Run Nomad unit tests
-	@echo "==> Running Nomad unit tests $(GOTEST_PKGS)"
-	gotestsum --format=testname --rerun-fails=3 --packages=$(GOTEST_PKGS) -- \
+test-nomad: GOTEST_PKGS=$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(GOTEST_GROUP))
+test-nomad: # dev ## Run Nomad unit tests
+	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
+	@echo "==> with packages $(GOTEST_PKGS)"
+	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
