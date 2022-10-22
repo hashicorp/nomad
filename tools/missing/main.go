@@ -62,9 +62,9 @@ func run(args []string) error {
 	case verify:
 		return runVerify(manifest)
 	case group:
-		return runGroups(manifest)
+		return runGroups(manifest, args[1])
 	default:
-		return errors.New("subcommand must be [verify|group]")
+		panic("oops")
 	}
 }
 
@@ -93,7 +93,9 @@ func runVerify(manifest Manifest) error {
 	return nil
 }
 
-func runGroups(manifest Manifest) error {
+func runGroups(manifest Manifest, group string) error {
+	s := strings.Join(manifest[group], " ")
+	fmt.Print(s)
 	return nil
 }
 
