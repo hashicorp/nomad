@@ -1,5 +1,4 @@
 {
-  "example": ["acl/...", "lib/..."],
   "nomad": ["nomad"],
   "client": [
     "client",
