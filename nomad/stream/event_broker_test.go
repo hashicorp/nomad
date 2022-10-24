@@ -514,13 +514,14 @@ func TestEventBroker_handleACLUpdates_policyUpdated(t *testing.T) {
 				ns = structs.DefaultNamespace
 			}
 
-			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
+			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
 					tc.event.Topic: {"*"},
 				},
 				Namespace: ns,
 				Token:     secretID,
 			})
+			require.Nil(t, expiryTime)
 
 			if tc.initialSubErr {
 				require.Error(t, err)
@@ -811,11 +812,12 @@ func TestEventBroker_handleACLUpdates_roleUpdated(t *testing.T) {
 				ns = tc.event.Namespace
 			}
 
-			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
+			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics:    map[structs.Topic][]string{tc.event.Topic: {"*"}},
 				Namespace: ns,
 				Token:     tokenSecretID,
 			})
+			require.Nil(t, expiryTime)
 
 			if tc.initialSubErr {
 				require.Error(t, err)
@@ -931,12 +933,13 @@ func TestEventBroker_handleACLUpdates_tokenExpiry(t *testing.T) {
 				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tc.inputToken.SecretID}),
 			}
 
-			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
+			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{structs.TopicAll: {"*"}},
 				Token:  tc.inputToken.SecretID,
 			})
 			require.NoError(t, err)
 			require.NotNil(t, sub)
+			require.NotNil(t, expiryTime)
 
 			// Publish an event and check that there is a new item in the
 			// subscription queue.
