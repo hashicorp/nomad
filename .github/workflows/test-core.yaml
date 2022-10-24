@@ -43,7 +43,6 @@ jobs:
         run: |
           make tidy
           make bootstrap
-          make dev
   checks:
     needs: [mods]
     runs-on: ubuntu-22.04
@@ -124,9 +123,9 @@ jobs:
         run: |
           make bootstrap
           make generate-all
+          make dev
           sudo hc-install install -version ${{env.VAULT_VERSION}} -path /usr/local/bin vault
           sudo hc-install install -version ${{env.CONSUL_VERSION}} -path /usr/local/bin consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
 
-# todo: tests-os for testing drivers on more operating systems
