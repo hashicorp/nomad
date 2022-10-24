@@ -43,6 +43,7 @@ jobs:
         run: |
           make tidy
           make bootstrap
+          make dev
   checks:
     needs: [mods]
     runs-on: ubuntu-22.04
