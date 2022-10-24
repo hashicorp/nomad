@@ -90,11 +90,7 @@ func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger)
 }
 
 // minimumControllers sets the minimum set of required controllers on the
-// /sys/fs/cgroup/cgroup.subtree_control file. Some systems like Ubuntu turn on
-// all controllers by default, and will be unaffected. Other systems like RHEL,
-// CentOS, Fedora turn of most controllers, and provide a default that excludes
-// controllers needed by Nomad. This helper ensures all of:
-// [cpuset, cpu, io, memory, pids]
+// /sys/fs/cgroup/cgroup.subtree_control file - ensuring [cpuset, cpu, io, memory, pids]
 // are enabled.
 func minimumRootControllers() error {
 	e := new(editor)
