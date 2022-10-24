@@ -73,14 +73,14 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-3
 	github.com/hashicorp/hcl/v2 v2.9.2-0.20210407182552-eb14f8319bdc
 	github.com/hashicorp/logutils v1.0.0
-	github.com/hashicorp/memberlist v0.3.1
+	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
-	github.com/hashicorp/nomad/api v0.0.0-20220707195938-75f4c2237b28
-	github.com/hashicorp/raft v1.3.9
-	github.com/hashicorp/raft-boltdb/v2 v2.2.0
-	github.com/hashicorp/serf v0.9.7
-	github.com/hashicorp/vault/api v1.4.1
-	github.com/hashicorp/vault/sdk v0.4.1
+	github.com/hashicorp/nomad/api v0.0.0-20221006174558-2aa7e66bdb52
+	github.com/hashicorp/raft v1.3.11
+	github.com/hashicorp/raft-boltdb/v2 v2.2.2
+	github.com/hashicorp/serf v0.10.0
+	github.com/hashicorp/vault/api v1.8.1
+	github.com/hashicorp/vault/sdk v0.6.0
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 	github.com/kr/pretty v0.3.0
@@ -121,7 +121,7 @@ require (
 	golang.org/x/exp v0.0.0-20220921164117-439092de6870
 	golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab
+	golang.org/x/sys v0.1.0
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.1
@@ -208,7 +208,7 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-secure-stdlib/mlock v0.1.2 // indirect
-	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.4 // indirect
+	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.6 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.1 // indirect
 	github.com/hashicorp/mdns v1.0.4 // indirect
