@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -54,16 +55,21 @@ type cpusetManagerV2 struct {
 }
 
 func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger) CpusetManager {
+	if err := minimumRootControllers(); err != nil {
+		logger.Error("failed to enabled minimum set of cgroup controllers; disable cpuset management", "error", err)
+		return new(NoopCpusetManager)
+	}
+
 	parentAbs := filepath.Join(CgroupRoot, parent)
 	if err := os.MkdirAll(parentAbs, 0o755); err != nil {
-		logger.Warn("failed to ensure nomad parent cgroup exists; disable cpuset management", "error", err)
+		logger.Error("failed to ensure nomad parent cgroup exists; disable cpuset management", "error", err)
 		return new(NoopCpusetManager)
 	}
 
 	if len(reservable) == 0 {
 		// read from group
 		if cpus, err := GetCPUsFromCgroup(parent); err != nil {
-			logger.Warn("failed to lookup cpus from parent cgroup; disable cpuset management", "error", err)
+			logger.Error("failed to lookup cpus from parent cgroup; disable cpuset management", "error", err)
 			return new(NoopCpusetManager)
 		} else {
 			reservable = cpus
@@ -78,6 +84,30 @@ func NewCpusetManagerV2(parent string, reservable []uint16, logger hclog.Logger)
 		sharing:   make(map[identity]nothing),
 		isolating: make(map[identity]cpuset.CPUSet),
 	}
+}
+
+// minimumControllers sets the minimum set of required controllers on the
+// /sys/fs/cgroup/cgroup.subtree_control file. Some systems like Ubuntu turn on
+// all controllers by default, and will be unaffected. Other systems like RHEL,
+// CentOS, Fedora turn of most controllers, and provide a default that excludes
+// controllers needed by Nomad. This helper ensures all of:
+// [cpuset, cpu, io, memory, pids]
+// are enabled.
+func minimumRootControllers() error {
+	e := new(editor)
+	s, err := e.read("cgroup.subtree_control")
+	if err != nil {
+		return err
+	}
+	required := set.From[string]([]string{"cpuset", "cpu", "io", "memory", "pids"})
+	enabled := set.From[string](strings.Fields(s))
+	needed := required.Difference(enabled)
+	sb := new(strings.Builder)
+	for _, controller := range needed.List() {
+		sb.WriteString("+" + controller + " ")
+	}
+	activation := sb.String()
+	return e.write("cgroup.subtree_control", activation)
 }
 
 func (c *cpusetManagerV2) Init() {
