@@ -59,9 +59,13 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	// start subscription to publisher
 	var subscription *stream.Subscription
 	var subErr error
+
+	// Track whether the ACL token being used has an expiry time.
+	var expiryTime *time.Time
+
 	// Check required ACL permissions for requested Topics
 	if e.srv.config.ACLEnabled {
-		subscription, subErr = publisher.SubscribeWithACLCheck(subReq)
+		subscription, expiryTime, subErr = publisher.SubscribeWithACLCheck(subReq)
 	} else {
 		subscription, subErr = publisher.Subscribe(subReq)
 	}
@@ -88,6 +92,16 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			if err != nil {
 				select {
 				case errCh <- err:
+				case <-ctx.Done():
+				}
+				return
+			}
+
+			// Ensure the token being used is not expired before we any events
+			// to subscribers.
+			if expiryTime != nil && expiryTime.Before(time.Now().UTC()) {
+				select {
+				case errCh <- structs.ErrTokenExpired:
 				case <-ctx.Done():
 				}
 				return
