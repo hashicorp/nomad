@@ -98,6 +98,8 @@ export default class Watchable extends ApplicationAdapter {
       additionalParams,
       query
     );
+    // If your query is effectively a findAll under the hood, treat non-returned entities as deleted
+    const isPseudoFindAll = Object.values(params).every((v) => v === '*');
 
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
@@ -133,23 +135,44 @@ export default class Watchable extends ApplicationAdapter {
         .filter((record) => {
           console.log('reco', queryParamsToAttrs, record);
           return queryParamsToAttrs.some((mapping) => {
+            // Special consideration for * queries, like "All jobs with * namespace":
+            // entities will generally have "default" instead of "*" as their value for these sorts of properties.
+            const queryValue =
+              query[mapping.queryParam] === '*'
+                ? 'default'
+                : query[mapping.queryParam];
             console.log(
               'SOME?',
               mapping.attr,
               query[mapping.queryParam],
+              queryValue,
+              get(record, mapping.attr),
               get(get(record, mapping.attr), 'id')
             );
             return (
-              get(record, mapping.attr) === query[mapping.queryParam] ||
-              get(get(record, mapping.attr), 'id') === query[mapping.queryParam]
+              get(record, mapping.attr) === queryValue ||
+              get(get(record, mapping.attr), 'id') === queryValue
             );
           });
         });
       console.log('=========', matchingStoreEntries);
 
-      matchingStoreEntries.forEach((record) => {
-        removeRecord(store, record);
-      });
+      if (isPseudoFindAll) {
+        matchingStoreEntries.forEach((record) => {
+          const IDValue = record.get('plainId') || record.get('id');
+          const storedRecordNotFoundInPayload =
+            IDValue && !payload.find((r) => r.ID === IDValue);
+          console.log(
+            'storedRecordNotFoundInPayload for',
+            record.id,
+            payload.mapBy('ID'),
+            storedRecordNotFoundInPayload
+          );
+          if (storedRecordNotFoundInPayload) {
+            removeRecord(store, record);
+          }
+        });
+      }
 
       console.log('type', type.modelName, payload);
 

@@ -191,11 +191,18 @@ export default class IndexController extends Controller.extend(
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.jobs.@each.parent', 'model.jobs.[]', 'model.jobs.length')
+  @computed(
+    'model.jobs.@each.parent',
+    'model.jobs.[]',
+    'model.jobs.length',
+    'storedJobs.[]'
+  )
   get visibleJobs() {
     console.log('visibleJobs refire', this.model.jobs);
     if (!this.model || !this.model.jobs) return [];
-    return this.model.jobs
+    // return this.model.jobs
+    return this.store
+      .peekAll('job')
       .compact()
       .filter((job) => !job.isNew)
       .filter((job) => !job.get('parent.content'));
@@ -251,6 +258,24 @@ export default class IndexController extends Controller.extend(
   @alias('filteredJobs') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedJobs;
+
+  // @computed('listSearched')
+  // get sortedJobs() {
+  //   console.log('&&&& sortedJobs refire', this.listSeached, this.listToSearch);
+  //   // return this.listSeached;
+  //   return this.listToSearch;
+  // }
+
+  get storedJobs() {
+    console.log('!!!!!!!!!!!!!!!!1storedJobs refire!!!');
+    return this.store.peekAll('job');
+  }
+
+  @computed('sortedJobs.[]', 'sortedJobs.length')
+  get jobsFromStore() {
+    console.log('&&&&&&&& jobsFromStore refire');
+    return this.sortedJobs;
+  }
 
   isShowingDeploymentDetails = false;
 
