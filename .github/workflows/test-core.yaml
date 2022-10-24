@@ -119,7 +119,7 @@ jobs:
           cache-key-suffix: -core
       - name: Run Matrix Tests
         env:
-          GOTEST_PKGS: ./${{matrix.pkg}}
+          GOTEST_GROUP: ${{matrix.groups}}
         run: |
           make bootstrap
           make generate-all
