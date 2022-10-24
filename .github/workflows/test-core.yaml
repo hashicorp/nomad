@@ -62,7 +62,7 @@ jobs:
           make bootstrap
           make check
   compile:
-    needs: [mods]
+    needs: [mods, checks]
     strategy:
       fail-fast: false
       matrix:
