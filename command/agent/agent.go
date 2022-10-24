@@ -390,6 +390,27 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.ACLTokenExpirationGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.RootKeyGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyGCThreshold = dur
+	}
+	if gcInterval := agentConfig.Server.RootKeyGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyGCInterval = dur
+	}
+	if rotationThreshold := agentConfig.Server.RootKeyRotationThreshold; rotationThreshold != "" {
+		dur, err := time.ParseDuration(rotationThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyRotationThreshold = dur
+	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {
 		conf.HeartbeatGrace = heartbeatGrace

@@ -1,0 +1,7 @@
+```release-note:bug
+keyring: Fixed a bug where root keyring garbage collection configuration values were not respected.
+```
+
+```release-note:bug
+keyring: Fixed a bug where `nomad system gc` forced a root keyring rotation.
+```
