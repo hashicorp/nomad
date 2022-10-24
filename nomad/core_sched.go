@@ -96,7 +96,7 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.expiredACLTokenGC(eval, true); err != nil {
 		return err
 	}
-	if err := c.rootKeyRotateOrGC(eval); err != nil {
+	if err := c.rootKeyGC(eval); err != nil {
 		return err
 	}
 	// Node GC must occur after the others to ensure the allocations are
@@ -908,6 +908,10 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 	if wasRotated {
 		return nil
 	}
+	return c.rootKeyGC(eval)
+}
+
+func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 
 	// we can't GC any key older than the oldest live allocation
 	// because it might have signed that allocation's workload
