@@ -110,7 +110,7 @@ jobs:
           - client
           - command
           - drivers
-          - misfits
+          - quick
     steps:
       - uses: actions/checkout@v3
       - uses: magnetikonline/action-golang-cache@v1

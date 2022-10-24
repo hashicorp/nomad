@@ -7,7 +7,7 @@
   ],
   "command": ["command"],
   "drivers": ["drivers/..."],
-  "misfits": [
+  "quick": [
     "acl/...",
     "client/allocdir/...",
     "client/allochealth/...",
