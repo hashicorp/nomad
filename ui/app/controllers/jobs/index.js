@@ -191,18 +191,15 @@ export default class IndexController extends Controller.extend(
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed(
-    'model.jobs.@each.parent',
-    'model.jobs.[]',
-    'model.jobs.length',
-    'storedJobs.[]'
-  )
+  @computed('model.jobs.@each.parent', 'model.jobs.[]', 'storedJobs.[]')
   get visibleJobs() {
-    console.log('visibleJobs refire', this.model.jobs);
     if (!this.model || !this.model.jobs) return [];
-    // return this.model.jobs
     return this.store
       .peekAll('job')
+      .filter((job) => {
+        if (this.qpNamespace === '*') return true;
+        return job.get('namespace.id') === this.qpNamespace;
+      })
       .compact()
       .filter((job) => !job.isNew)
       .filter((job) => !job.get('parent.content'));
@@ -222,8 +219,6 @@ export default class IndexController extends Controller.extend(
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
     } = this;
-
-    console.log('filtered jobs refire');
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
@@ -259,22 +254,8 @@ export default class IndexController extends Controller.extend(
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedJobs;
 
-  // @computed('listSearched')
-  // get sortedJobs() {
-  //   console.log('&&&& sortedJobs refire', this.listSeached, this.listToSearch);
-  //   // return this.listSeached;
-  //   return this.listToSearch;
-  // }
-
   get storedJobs() {
-    console.log('!!!!!!!!!!!!!!!!1storedJobs refire!!!');
     return this.store.peekAll('job');
-  }
-
-  @computed('sortedJobs.[]', 'sortedJobs.length')
-  get jobsFromStore() {
-    console.log('&&&&&&&& jobsFromStore refire');
-    return this.sortedJobs;
   }
 
   isShowingDeploymentDetails = false;

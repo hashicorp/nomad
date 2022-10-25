@@ -127,13 +127,9 @@ export default class Watchable extends ApplicationAdapter {
 
       // Remove existing records that match this query. This way if server-side
       // deletes have occurred, the store won't have stale records.
-      console.log(
-        'watcher.query has been thenned; about to make a peekAll and filter out'
-      );
       const matchingStoreEntries = store
         .peekAll(type.modelName)
         .filter((record) => {
-          console.log('reco', queryParamsToAttrs, record);
           return queryParamsToAttrs.some((mapping) => {
             // Special consideration for * queries, like "All jobs with * namespace":
             // entities will generally have "default" instead of "*" as their value for these sorts of properties.
@@ -141,51 +137,23 @@ export default class Watchable extends ApplicationAdapter {
               query[mapping.queryParam] === '*'
                 ? 'default'
                 : query[mapping.queryParam];
-            console.log(
-              'SOME?',
-              mapping.attr,
-              query[mapping.queryParam],
-              queryValue,
-              get(record, mapping.attr),
-              get(get(record, mapping.attr), 'id')
-            );
             return (
               get(record, mapping.attr) === queryValue ||
               get(get(record, mapping.attr), 'id') === queryValue
             );
           });
         });
-      console.log('=========', matchingStoreEntries);
 
       if (isPseudoFindAll) {
         matchingStoreEntries.forEach((record) => {
           const IDValue = record.get('plainId') || record.get('id');
           const storedRecordNotFoundInPayload =
             IDValue && !payload.find((r) => r.ID === IDValue);
-          console.log(
-            'storedRecordNotFoundInPayload for',
-            record.id,
-            payload.mapBy('ID'),
-            storedRecordNotFoundInPayload
-          );
           if (storedRecordNotFoundInPayload) {
             removeRecord(store, record);
           }
         });
       }
-
-      console.log('type', type.modelName, payload);
-
-      // payload.forEach((record) => {
-      //   store.pushPayload(type.modelName, {
-      //     [`${type.modelName}s`]: record
-      //   });
-      // });
-      console.log(
-        'payload',
-        store.peekAll(type.modelName),
-        matchingStoreEntries
-      );
 
       return payload;
     });

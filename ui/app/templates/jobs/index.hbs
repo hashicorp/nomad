@@ -1,6 +1,4 @@
 {{page-title "Jobs"}}
-aaa{{this.modelWatch.value}}bbb{{this.modelWatch.state}}ccc{{this.storedJobs.length}}ddd
-{{log "MODELWATCH" this.modelWatch}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item">
@@ -105,9 +103,9 @@ aaa{{this.modelWatch.value}}bbb{{this.modelWatch.state}}ccc{{this.storedJobs.len
   </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
-  {{else if this.jobsFromStore}}
+  {{else if this.sortedJobs}}
     <ListPagination
-      @source={{this.jobsFromStore}}
+      @source={{this.sortedJobs}}
       @size={{this.pageSize}}
       @page={{this.currentPage}}
       as |p|
@@ -156,11 +154,11 @@ aaa{{this.modelWatch.value}}bbb{{this.modelWatch.state}}ccc{{this.storedJobs.len
             –
             {{p.endsAt}}
             of
-            {{this.jobsFromStore.length}}
+            {{this.sortedJobs.length}}
             {{#if this.searchTerm}}
               <em>
                 (
-                {{dec this.jobsFromStore.length this.filteredJobs.length}}
+                {{dec this.sortedJobs.length this.filteredJobs.length}}
                 hidden by search term)
               </em>
             {{/if}}
