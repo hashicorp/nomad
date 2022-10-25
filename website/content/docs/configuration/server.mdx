@@ -200,15 +200,11 @@ server {
   rejoin the cluster.
 
 - `root_key_gc_interval` `(string: "10m")` - Specifies the interval between
-  [encryption key][] metadata garbage collections.
-
-- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time that an
-  [encryption key][] must exist before it can be eligible for garbage
-  collection.
+  checks to rotate the root [encryption key][].
 
 - `root_key_rotation_threshold` `(string: "720h")` - Specifies the minimum time
   that an [encryption key][] must exist before it is automatically rotated on
-  the next garbage collection interval.
+  the next `root_key_gc_interval`.
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad server will connect to other Nomad servers. The `retry_join`
@@ -392,7 +388,7 @@ regardless of cluster size.
 The base formula for determining how often a Client must heartbeat is:
 
 ```
-<number of Clients> / <max_heartbeats_per_second> 
+<number of Clients> / <max_heartbeats_per_second>
 ```
 
 Other factors modify this base TTL:
@@ -408,7 +404,7 @@ Other factors modify this base TTL:
   to successfully heartbeat. This gives Clients time to discover a functioning
   Server in case they were directly connected to a leader that crashed.
 
-For example, given the default values for heartbeat parameters, different sized 
+For example, given the default values for heartbeat parameters, different sized
 clusters will use the following TTLs for the heartbeats. Note that the `Server TTL`
 simply adds the `heartbeat_grace` parameter to the TTL Clients are given.
 
@@ -425,7 +421,7 @@ Regardless of size, all clients will have a Server TTL of
 than the maximum Client TTL for your cluster size in order to prevent marking
 live Clients as `down`.
 
-For clusters over 5000 Clients you should increase `failover_heartbeat_ttl` 
+For clusters over 5000 Clients you should increase `failover_heartbeat_ttl`
 using the following formula:
 
 ```
