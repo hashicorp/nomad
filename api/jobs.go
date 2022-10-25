@@ -116,6 +116,7 @@ type RegisterOptions struct {
 	PolicyOverride bool
 	PreserveCounts bool
 	EvalPriority   int
+	ConsulToken    string
 }
 
 // Register is used to register a new job. It returns the ID
@@ -145,6 +146,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
 		req.EvalPriority = opts.EvalPriority
+		req.ConsulToken = opts.ConsulToken
 	}
 
 	var resp JobRegisterResponse
@@ -152,6 +154,10 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("--------------------------------------")
+	fmt.Println("JOB RETURNED:", resp)
+	fmt.Println("JOB RETURNED2:", &resp)
+	fmt.Println("JOB RETURNED3:", wm)
 	return &resp, wm, nil
 }
 
@@ -1234,6 +1240,7 @@ type JobRegisterRequest struct {
 	JobModifyIndex uint64 `json:",omitempty"`
 	PolicyOverride bool   `json:",omitempty"`
 	PreserveCounts bool   `json:",omitempty"`
+	ConsulToken    string `json:",omitempty"`
 
 	// EvalPriority is an optional priority to use on any evaluation created as
 	// a result on this job registration. This value must be between 1-100

@@ -243,6 +243,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
+	fmt.Println("-----------------------")
+	fmt.Println("Consul token present?")
+	fmt.Println(args.Job.ConsulToken)
+	fmt.Println(args.ConsulToken)
 	if err := checkConsulToken(args.Job.ConsulUsages()); err != nil {
 		return err
 	}

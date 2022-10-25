@@ -2,6 +2,7 @@ import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
+import queryString from 'query-string';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
@@ -35,6 +36,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   parse(spec) {
+    console.log(
+      'buildURL',
+      buildURL(this.urlForCreateRecord('job'), { consul_token: '123' })
+    );
+
     const url = addToPath(this.urlForFindAll('job'), '/parse?namespace=*');
     return this.ajax(url, 'POST', {
       data: {
@@ -64,7 +70,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   // Running a job doesn't follow REST create semantics so it's easier to
   // treat it as an action.
   run(job) {
-    return this.ajax(this.urlForCreateRecord('job'), 'POST', {
+    const parameterizedURL = buildURL(this.urlForCreateRecord('job'), {
+      consul_token: '123',
+    });
+    return this.ajax(parameterizedURL, 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
       },
@@ -111,4 +120,13 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       },
     });
   }
+}
+
+function buildURL(path, queryParams) {
+  const qpString = queryString.stringify(queryParams);
+  console.log('BUILDING URL', path, qpString);
+  if (qpString) {
+    return `${path}?${qpString}`;
+  }
+  return path;
 }
