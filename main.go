@@ -76,7 +76,7 @@ var (
 )
 
 func init() {
-	seed.Init()
+	seed.MustInit()
 }
 
 func main() {
