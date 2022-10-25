@@ -5,6 +5,8 @@
 }}
 <SvgPatterns />
 
+{{log "THEME FROM SERVICE" this.theme.theme}}
+
 <section class="notifications">
   {{#each this.flashMessages.queue as |flash|}}
   <FlashMessage @flash={{flash}} as |component flash close|>

@@ -17,6 +17,7 @@ export default class ApplicationController extends Controller {
   @service system;
   @service token;
   @service flashMessages;
+  @service theme;
 
   /**
    * @type {KeyboardService}
