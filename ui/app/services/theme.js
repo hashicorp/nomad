@@ -12,10 +12,6 @@ export default class ThemeService extends Service {
     this.loadTheme();
   }
 
-  get bannerColor() {
-    return this.theme.items['color-banner'];
-  }
-
   async loadTheme() {
     console.log('loading theme');
     this.theme = await this.store.findRecord('variable', 'nomad/ui', {
