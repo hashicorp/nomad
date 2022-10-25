@@ -2471,73 +2471,33 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NotNil(t, key0, "expected keyring to be bootstapped")
 	require.NoError(t, err)
 
-	// insert an "old" and inactive key
-	key1 := structs.NewRootKeyMeta()
-	key1.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(500, key1, false))
-
-	// insert an "old" and inactive key with a variable that's using it
-	key2 := structs.NewRootKeyMeta()
-	key2.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(600, key2, false))
-
-	variable := mock.VariableEncrypted()
-	variable.KeyID = key2.KeyID
-
-	setResp := store.VarSet(601, &structs.VarApplyStateRequest{
-		Op:  structs.VarOpSet,
-		Var: variable,
-	})
-	require.NoError(t, setResp.Error)
-
-	// insert an allocation
-	alloc := mock.Alloc()
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-	require.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 700, []*structs.Allocation{alloc}))
-
-	// insert an "old" key that's newer than oldest alloc
-	key3 := structs.NewRootKeyMeta()
-	key3.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(750, key3, false))
-
-	// insert a time table index before the last key
-	tt := srv.fsm.TimeTable()
-	tt.Witness(1000, time.Now().UTC().Add(-1*srv.config.RootKeyGCThreshold))
-
-	// insert a "new" but inactive key
-	key4 := structs.NewRootKeyMeta()
-	key4.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(1500, key4, false))
-
 	// run the core job
 	snap, err := store.Snapshot()
 	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 	eval := srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, 2000)
 	c := core.(*CoreScheduler)
-	require.NoError(t, c.rootKeyRotateOrGC(eval))
+	require.NoError(t, c.rootKeyRotate(eval))
 
-	ws := memdb.NewWatchSet()
-	key, err := store.RootKeyMetaByID(ws, key0.KeyID)
-	require.NoError(t, err)
-	require.NotNil(t, key, "active key should not have been GCd")
+	got, err := store.GetActiveRootKeyMeta(nil)
+	require.NotNil(t, got, "expected keyring to have an active key")
+	require.Equal(t, got.KeyID, key0.KeyID)
 
-	key, err = store.RootKeyMetaByID(ws, key1.KeyID)
-	require.NoError(t, err)
-	require.Nil(t, key, "old key should have been GCd")
+	// insert a time table index after the key
+	tt := srv.fsm.TimeTable()
+	tt.Witness(3000, time.Now().UTC().Add(-1*srv.config.RootKeyRotationThreshold))
 
-	key, err = store.RootKeyMetaByID(ws, key2.KeyID)
+	// re-run the core job
+	snap, err = store.Snapshot()
 	require.NoError(t, err)
-	require.NotNil(t, key, "old key should not have been GCd if still in use")
+	core = NewCoreScheduler(srv, snap)
+	eval = srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, 4000)
+	c = core.(*CoreScheduler)
+	require.NoError(t, c.rootKeyRotate(eval))
 
-	key, err = store.RootKeyMetaByID(ws, key3.KeyID)
-	require.NoError(t, err)
-	require.NotNil(t, key, "old key newer than oldest alloc should not have been GCd")
-
-	key, err = store.RootKeyMetaByID(ws, key4.KeyID)
-	require.NoError(t, err)
-	require.NotNil(t, key, "new key should not have been GCd")
+	got, err = store.GetActiveRootKeyMeta(nil)
+	require.NotNil(t, got, "expected keyring to have an active key")
+	require.NotEqual(t, got.KeyID, key0.KeyID)
 }
 
 // TestCoreScheduler_VariablesRekey exercises variables rekeying
