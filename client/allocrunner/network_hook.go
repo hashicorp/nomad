@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -58,14 +58,14 @@ type networkHook struct {
 	networkStatusSetter networkStatusSetter
 
 	// manager is used when creating the network namespace. This defaults to
-	// bind mounting a network namespace descritor under /var/run/netns but
-	// can be created by a driver if nessicary
+	// bind mounting a network namespace descriptor under /var/run/netns but
+	// can be created by a driver if necessary
 	manager drivers.DriverNetworkManager
 
 	// alloc should only be read from
 	alloc *structs.Allocation
 
-	// spec described the network namespace and is syncronized by specLock
+	// spec described the network namespace and is synchronized by specLock
 	spec *drivers.NetworkIsolationSpec
 
 	// networkConfigurator configures the network interfaces, routes, etc once

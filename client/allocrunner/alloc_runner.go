@@ -125,7 +125,7 @@ type allocRunner struct {
 	allocDir *allocdir.AllocDir
 
 	// runnerHooks are alloc runner lifecycle hooks that should be run on state
-	// transistions.
+	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
 	// hookState is the output of allocrunner hooks

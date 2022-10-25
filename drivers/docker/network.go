@@ -5,6 +5,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -21,99 +22,150 @@ const (
 	dockerNetSpecHostnameKey = "docker_sandbox_hostname"
 )
 
+func networkName(allocID string) string {
+	return "nomad_" + allocID[0:8]
+}
+
 func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-	// Initialize docker API clients
-	client, _, err := d.dockerClients()
+	dockerClient, _, err := d.dockerClients()
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to connect to docker daemon: %s", err)
+		return nil, false, fmt.Errorf("failed to connect to docker daemon: %w", err)
 	}
 
-	if err := d.pullInfraImage(allocID); err != nil {
-		return nil, false, err
-	}
+	netlog.Yellow("DD.CreateNetwork", "alloc_id", allocID, "hostname", createSpec.Hostname)
 
-	config, err := d.createSandboxContainerConfig(allocID, createSpec)
-	if err != nil {
-		return nil, false, err
-	}
-
-	specFromContainer := func(c *docker.Container, hostname string) *drivers.NetworkIsolationSpec {
-		spec := &drivers.NetworkIsolationSpec{
-			Mode: drivers.NetIsolationModeGroup,
-			Path: c.NetworkSettings.SandboxKey,
-			Labels: map[string]string{
-				dockerNetSpecLabelKey: c.ID,
-			},
-		}
-
-		// If the user supplied a hostname, set the label.
-		if hostname != "" {
-			spec.Labels[dockerNetSpecHostnameKey] = hostname
-		}
-
-		return spec
-	}
-
-	// We want to return a flag that tells us if the container already
-	// existed so that callers can decide whether or not to recreate
-	// the task's network namespace associations.
-	container, err := d.containerByName(config.Name)
-	if err != nil {
-		return nil, false, err
-	}
-	if container != nil && container.State.Running {
-		return specFromContainer(container, createSpec.Hostname), false, nil
-	}
-
-	container, err = d.createContainer(client, *config, d.config.InfraImage)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if err = d.startContainer(container); err != nil {
-		return nil, false, err
-	}
-
-	// until the container is started, InspectContainerWithOptions
-	// returns a mostly-empty struct
-	container, err = client.InspectContainerWithOptions(docker.InspectContainerOptions{
-		ID: container.ID,
+	network, err := dockerClient.CreateNetwork(docker.CreateNetworkOptions{
+		Name:       networkName(allocID),
+		Driver:     "bridge",
+		Scope:      "",
+		IPAM:       nil,
+		ConfigFrom: nil,
+		Options:    nil,
+		Labels: map[string]string{
+			dockerNetSpecLabelKey: allocID,
+		},
+		CheckDuplicate: false,
+		Internal:       false,
+		EnableIPv6:     false,
+		Attachable:     true,
+		ConfigOnly:     false,
+		Ingress:        false,
+		Context:        nil,
 	})
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("failed to create network via docker api: %w", err)
 	}
 
-	return specFromContainer(container, createSpec.Hostname), true, nil
+	netlog.Yellow("DD.CreateNetwork (after)", "name", networkName(allocID), "network", fmt.Sprintf("%#v", network))
+
+	return &drivers.NetworkIsolationSpec{
+		Mode: drivers.NetIsolationModeGroup,
+		Path: "",
+		Labels: map[string]string{
+			dockerNetSpecLabelKey: allocID,
+			"docker_network_id":   network.ID,
+		},
+		HostsConfig: nil,
+	}, false, nil
+
+	//// Initialize docker API clients
+	//client, _, err := d.dockerClients()
+	//if err != nil {
+	//	return nil, false, fmt.Errorf("failed to connect to docker daemon: %s", err)
+	//}
+	//
+	//if err := d.pullInfraImage(allocID); err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//config, err := d.createSandboxContainerConfig(allocID, createSpec)
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//specFromContainer := func(c *docker.Container, hostname string) *drivers.NetworkIsolationSpec {
+	//	spec := &drivers.NetworkIsolationSpec{
+	//		Mode: drivers.NetIsolationModeGroup,
+	//		Path: c.NetworkSettings.SandboxKey,
+	//		Labels: map[string]string{
+	//			dockerNetSpecLabelKey: c.ID,
+	//		},
+	//	}
+	//
+	//	// If the user supplied a hostname, set the label.
+	//	if hostname != "" {
+	//		spec.Labels[dockerNetSpecHostnameKey] = hostname
+	//	}
+	//
+	//	return spec
+	//}
+	//
+	//// We want to return a flag that tells us if the container already
+	//// existed so that callers can decide whether or not to recreate
+	//// the task's network namespace associations.
+	//container, err := d.containerByName(config.Name)
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//if container != nil && container.State.Running {
+	//	return specFromContainer(container, createSpec.Hostname), false, nil
+	//}
+	//
+	//container, err = d.createContainer(client, *config, d.config.InfraImage)
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//if err = d.startContainer(container); err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//// until the container is started, InspectContainerWithOptions
+	//// returns a mostly-empty struct
+	//container, err = client.InspectContainerWithOptions(docker.InspectContainerOptions{
+	//	ID: container.ID,
+	//})
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//return specFromContainer(container, createSpec.Hostname), true, nil
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
-	client, _, err := d.dockerClients()
+
+	netlog.Yellow("DD.DestroyNetwork", "name", networkName(allocID), "alloc_id", allocID)
+
+	c, _, err := d.dockerClients()
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
-	if err := client.RemoveContainer(docker.RemoveContainerOptions{
-		Force: true,
-		ID:    spec.Labels[dockerNetSpecLabelKey],
-	}); err != nil {
-		return err
-	}
+	return c.RemoveNetwork(spec.Labels["docker_network_id"])
 
-	if d.config.GC.Image {
-
-		// The Docker image ID is needed in order to correctly update the image
-		// reference count. Any error finding this, however, should not result
-		// in an error shutting down the allocrunner.
-		dockerImage, err := client.InspectImage(d.config.InfraImage)
-		if err != nil {
-			d.logger.Warn("InspectImage failed for infra_image container destroy",
-				"image", d.config.InfraImage, "error", err)
-			return nil
-		}
-		d.coordinator.RemoveImage(dockerImage.ID, allocID)
-	}
-
-	return nil
+	//
+	//if err := client.RemoveContainer(docker.RemoveContainerOptions{
+	//	Force: true,
+	//	ID:    spec.Labels[dockerNetSpecLabelKey],
+	//}); err != nil {
+	//	return err
+	//}
+	//
+	//if d.config.GC.Image {
+	//
+	//	// The Docker image ID is needed in order to correctly update the image
+	//	// reference count. Any error finding this, however, should not result
+	//	// in an error shutting down the allocrunner.
+	//	dockerImage, err := client.InspectImage(d.config.InfraImage)
+	//	if err != nil {
+	//		d.logger.Warn("InspectImage failed for infra_image container destroy",
+	//			"image", d.config.InfraImage, "error", err)
+	//		return nil
+	//	}
+	//	d.coordinator.RemoveImage(dockerImage.ID, allocID)
+	//}
+	//
+	//return nil
 }
 
 // createSandboxContainerConfig creates a docker container configuration which
