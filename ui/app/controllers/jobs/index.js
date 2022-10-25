@@ -191,7 +191,7 @@ export default class IndexController extends Controller.extend(
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.jobs.@each.parent', 'model.jobs.[]', 'storedJobs.[]')
+  @computed('model.jobs.@each.parent', 'qpNamespace', 'store', 'storedJobs.[]')
   get visibleJobs() {
     if (!this.model || !this.model.jobs) return [];
     return this.store
