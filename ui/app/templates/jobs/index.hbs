@@ -107,7 +107,6 @@
     <ListPagination
       @source={{this.sortedJobs}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}}
       as |p|
     >
       <ListTable
@@ -147,30 +146,33 @@
         </t.body>
       </ListTable>
       <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
-        <nav class="pagination">
-          <div class="pagination-numbers">
-            {{p.startsAt}}
-            –
-            {{p.endsAt}}
-            of
-            {{this.sortedJobs.length}}
-            {{#if this.searchTerm}}
-              <em>
-                (
-                {{dec this.sortedJobs.length this.filteredJobs.length}}
-                hidden by search term)
-              </em>
-            {{/if}}
-          </div>
-          <p.prev @class="pagination-previous">
-            {{x-icon "chevron-left"}}
-          </p.prev>
-          <p.next @class="pagination-next">
-            {{x-icon "chevron-right"}}
-          </p.next>
-          <ul class="pagination-list"></ul>
-        </nav>
+        <PageSizeSelect @onChange={{action this.setPageSize}} />
+       <div>
+          <button 
+            type="button" 
+            class="button"
+            {{on "click" this.refresh}}
+          >
+            {{x-icon "refresh-default" class="is-text"}}
+            Refresh
+          </button>
+          <button
+            type="button"
+            class="button is-text is-borderless"
+            disabled={{this.shouldDisablePrev}}
+            {{on "click" (fn this.onPrev this.lastToken)}}
+          >
+            {{x-icon "chevron-left" class="is-large"}}
+          </button>
+          <button
+            type="button"
+            class="button is-text is-borderless"
+            disabled={{this.shouldDisableNext}}
+            {{on "click" (fn this.onNext this.model.jobs.meta.nextToken)}}
+          >
+            {{x-icon "chevron-right" class="is-large"}}
+          </button>
+        </div>
       </div>
     </ListPagination>
   {{else}}

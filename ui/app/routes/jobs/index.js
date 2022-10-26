@@ -17,12 +17,23 @@ export default class IndexRoute extends Route.extend(
     qpNamespace: {
       refreshModel: true,
     },
+    pageSize: {
+      refreshModel: true,
+    },
+    nextToken: {
+      refreshModel: true,
+    },
   };
 
   model(params) {
     return RSVP.hash({
       jobs: this.store
-        .query('job', { namespace: params.qpNamespace })
+        .query('job', {
+          namespace: params.qpNamespace,
+          per_page: params.pageSize,
+          filter: `ParentID is empty`,
+          next_token: params.nextToken,
+        })
         .catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
     });
@@ -32,7 +43,12 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamesapce })
+      this.watchJobs.perform({
+        namespace: controller.qpNamespace,
+        per_page: controller.pageSize,
+        filter: `ParentID is empty`,
+        next_token: controller.nextToken,
+      })
     );
   }
 
