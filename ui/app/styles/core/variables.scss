@@ -59,3 +59,8 @@ $control-padding-vertical: calc(0.375em - #{$control-border-width});
 $control-padding-horizontal: calc(0.625em - #{$control-border-width});
 $button-padding-vertical: calc(0.375em - #{$button-border-width});
 $button-padding-horizontal: 0.75em;
+
+marquee {
+  font-size: 3rem;
+  font-weight: bold;
+}

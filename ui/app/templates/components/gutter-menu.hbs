@@ -1,6 +1,7 @@
 <div
   data-test-gutter-menu
   class="page-column is-left {{if this.isOpen "is-open"}}"
+  style="background: {{html-safe this.theme.theme.items.background_color}}" 
   {{did-insert this.keyboard.registerNav type="main"}}
 >
   <div class="gutter {{if this.isOpen "is-open"}}">
@@ -137,8 +138,11 @@
     {{/if}}
   </div>
 </div>
-<div data-test-page-content class="page-column is-right">
+<div data-test-page-content class="page-column is-right"  style="background: {{html-safe this.theme.theme.items.background_color}}"  >
   {{yield}}
+  {{#if (eq this.theme.theme.items.show_a_weird_little_marquee "true")}}
+    <marquee>lol, lmao</marquee>
+  {{/if}}
 </div>
 <div
   data-test-gutter-backdrop

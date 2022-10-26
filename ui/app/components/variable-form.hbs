@@ -149,9 +149,10 @@
   {{/if}}
 
   {{#if this.shouldShowUIHints}}
-  
-  <p class="ui-hints notification">
-
+  <p
+    class="ui-hints notification"
+    {{did-update (action this.setThemeValues) this.uiHintValues}}
+  >
     <FlightIcon @name="info-fill" @color="var(--blue)" />
     <span>
       Your variable will affect the Web UI styles for all users
@@ -172,6 +173,14 @@
           <code>background_color</code>
           <span>
             <input type="color" value={{this.uiHints.background_color}} {{on "change" (action this.addKeyValue "background_color")}}>
+          </span>
+        </label>
+      </li>
+      <li>
+        <label>
+          <code>show_a_weird_little_marquee</code>
+          <span>
+            <input type="checkbox" value={{this.uiHints.show_a_weird_little_marquee}} {{on "change" (action this.addKeyValue "show_a_weird_little_marquee")}}>
           </span>
         </label>
       </li>

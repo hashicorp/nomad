@@ -24,6 +24,7 @@ export default class VariableFormComponent extends Component {
   @service flashMessages;
   @service router;
   @service store;
+  @service theme;
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
@@ -406,20 +407,22 @@ export default class VariableFormComponent extends Component {
 
   //#region UI Hints
   uiHints = {
-    banner_color: '#2eb039',
+    banner_color: '#16704d',
     background_color: '#ffffff',
+    show_a_weird_little_marquee: false,
   };
 
   @action addKeyValue(key, event) {
-    console.log('AKV', key, event);
-    const value = event.target.value;
+    // console.log('AKV', key, event);
+    const value =
+      event.target.type === 'checkbox'
+        ? event.target.checked
+          ? 'true'
+          : 'false'
+        : event.target.value;
     const alreadyExistingEntry = this.keyValues.find((kv) => kv.key === key);
-    console.log('Already?', alreadyExistingEntry, 'but', key, value);
     if (alreadyExistingEntry) {
-      console.log('already existing entry');
       set(alreadyExistingEntry, 'value', value);
-      // set(this, 'keyValues', A([...this.keyValues]));
-      console.log('---------', this.keyValues);
     } else {
       this.keyValues.pushObject({
         key,
@@ -427,6 +430,20 @@ export default class VariableFormComponent extends Component {
         warnings: EmberObject.create(),
       });
     }
+  }
+
+  get uiHintValues() {
+    // console.log('UHV', this.keyValues);
+    return this.keyValues.mapBy('value');
+  }
+
+  @action
+  setThemeValues() {
+    console.log('setting theme values!', this.keyValues);
+    this.keyValues.forEach((kv) => {
+      set(this.theme.theme.items, kv.key, kv.value);
+      // this.theme.theme.items.set(kv.key, kv.value);
+    });
   }
   //#endregion UI Hints
 }
