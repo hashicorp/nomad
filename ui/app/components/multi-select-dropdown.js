@@ -43,7 +43,6 @@ export default class MultiSelectDropdown extends Component {
 
   @action
   toggle({ key }) {
-    console.log('sele', this.selection);
     const newSelection = this.selection.slice();
     if (newSelection.includes(key)) {
       newSelection.removeObject(key);
