@@ -510,7 +510,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.heartbeatStop.watch()
 
 	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, cfg.AllocDir, c.devicemanager.AllStats)
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.GetConfig().AllocDir, c.devicemanager.AllStats)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
