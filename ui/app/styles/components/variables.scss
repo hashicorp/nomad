@@ -152,7 +152,9 @@ table.path-tree {
 }
 
 .related-entities-hint {
-  margin: 0.5rem 0;
+  & > p {
+    margin: 0.5rem 0;
+  }
   code {
     background-color: lighten($grey-lighter, 8%);
     border: 1px solid $grey-lighter;

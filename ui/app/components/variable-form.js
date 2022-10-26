@@ -117,15 +117,20 @@ export default class VariableFormComponent extends Component {
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     const pathValue = trimPath([this.path]);
-    let existingVariable = existingVariables
-      .without(this.args.model)
-      .find(
-        (v) => v.path === pathValue && v.namespace === this.variableNamespace
-      );
+    let existingVariable = null;
+    if (this.variableNamespace) {
+      existingVariable = existingVariables
+        .without(this.args.model)
+        .find(
+          (v) => v.path === pathValue && v.namespace === this.variableNamespace
+        );
+    } else {
+      existingVariable = existingVariables
+        .without(this.args.model)
+        .find((v) => v.path === pathValue);
+    }
     if (existingVariable) {
-      return {
-        path: existingVariable.path,
-      };
+      return existingVariable;
     } else {
       return null;
     }
@@ -339,6 +344,10 @@ export default class VariableFormComponent extends Component {
     );
   }
 
+  get shouldShowUIHints() {
+    return this.path === 'nomad/ui';
+  }
+
   //#region Unsaved Changes Confirmation
 
   hasRemovedExitHandler = false;
@@ -394,4 +403,30 @@ export default class VariableFormComponent extends Component {
   }
 
   //#endregion Unsaved Changes Confirmation
+
+  //#region UI Hints
+  uiHints = {
+    banner_color: '#2eb039',
+    background_color: '#ffffff',
+  };
+
+  @action addKeyValue(key, event) {
+    console.log('AKV', key, event);
+    const value = event.target.value;
+    const alreadyExistingEntry = this.keyValues.find((kv) => kv.key === key);
+    console.log('Already?', alreadyExistingEntry, 'but', key, value);
+    if (alreadyExistingEntry) {
+      console.log('already existing entry');
+      set(alreadyExistingEntry, 'value', value);
+      // set(this, 'keyValues', A([...this.keyValues]));
+      console.log('---------', this.keyValues);
+    } else {
+      this.keyValues.pushObject({
+        key,
+        value,
+        warnings: EmberObject.create(),
+      });
+    }
+  }
+  //#endregion UI Hints
 }

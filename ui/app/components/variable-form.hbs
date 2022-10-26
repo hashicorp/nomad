@@ -6,6 +6,7 @@
     <div class="related-entities related-entities-hint">
       <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
       Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      <p>Use <code>nomad/ui</code> as your path to style the Nomad Web UI</p>
     </div>
   {{/if}}
 
@@ -54,7 +55,7 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{this.duplicatePathWarning.path}}
+            @model={{this.duplicatePathWarning.id}}
           >
             edit the existing variable
           </LinkTo>
@@ -145,6 +146,39 @@
       @task={{@model.pathLinkedEntities.task}}
       @namespace={{this.variableNamespace}}
     />
+  {{/if}}
+
+  {{#if this.shouldShowUIHints}}
+  
+  <p class="ui-hints notification">
+
+    <FlightIcon @name="info-fill" @color="var(--blue)" />
+    <span>
+      Your variable will affect the Web UI styles for all users
+    </span>
+    <hr />
+    <strong>Available Keys (click to add)</strong>
+    <ul>
+      <li>
+        <label>
+          <code>banner_color</code>
+          <span>
+            <input type="color" value={{this.uiHints.banner_color}} {{on "change" (action this.addKeyValue "banner_color")}}>
+          </span>
+        </label>
+      </li>
+      <li>
+        <label>
+          <code>background_color</code>
+          <span>
+            <input type="color" value={{this.uiHints.background_color}} {{on "change" (action this.addKeyValue "background_color")}}>
+          </span>
+        </label>
+      </li>
+    </ul>
+  </p>
+
+
   {{/if}}
 
   <footer>
