@@ -1,9 +1,10 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import { tracked } from '@glimmer/tracking';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
@@ -24,12 +25,13 @@ export default class IndexController extends Controller.extend(
   isForbidden = false;
 
   queryParams = [
-    {
-      currentPage: 'page',
-    },
-    {
-      searchTerm: 'search',
-    },
+    'pageSize',
+    'nextToken',
+    'status',
+    'type',
+    'searchTerm',
+    'datacenter',
+    'prefix',
     {
       sortProperty: 'sort',
     },
@@ -37,27 +39,47 @@ export default class IndexController extends Controller.extend(
       sortDescending: 'desc',
     },
     {
-      qpType: 'type',
-    },
-    {
-      qpStatus: 'status',
-    },
-    {
-      qpDatacenter: 'dc',
-    },
-    {
-      qpPrefix: 'prefix',
-    },
-    {
       qpNamespace: 'namespace',
     },
   ];
 
-  currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
-
   sortProperty = 'modifyIndex';
   sortDescending = true;
+  @tracked pageSize = this.userSettings.pageSize;
+  @tracked nextToken = null;
+  @tracked previousTokens = [];
+
+  get shouldDisableNext() {
+    return !this.model.jobs.meta?.nextToken;
+  }
+
+  get shouldDisablePrev() {
+    return !this.previousTokens.length;
+  }
+
+  @action
+  onNext(nextToken) {
+    this.previousTokens = [...this.previousTokens, this.nextToken];
+    this.nextToken = nextToken;
+  }
+
+  @action
+  onPrev(lastToken) {
+    this.previousTokens.pop();
+    this.previousTokens = [...this.previousTokens];
+    this.nextToken = lastToken;
+  }
+
+  @action
+  refresh() {
+    this.nextToken = null;
+    this.previousTokens = [];
+  }
+
+  @action
+  setPageSize(newPageSize) {
+    this.pageSize = newPageSize;
+  }
 
   @computed
   get searchProps() {
@@ -71,15 +93,15 @@ export default class IndexController extends Controller.extend(
 
   fuzzySearchEnabled = true;
 
-  qpType = '';
-  qpStatus = '';
-  qpDatacenter = '';
-  qpPrefix = '';
+  @tracked type = '';
+  @tracked status = '';
+  @tracked datacenter = '';
+  @tracked prefix = '';
 
-  @selection('qpType') selectionType;
-  @selection('qpStatus') selectionStatus;
-  @selection('qpDatacenter') selectionDatacenter;
-  @selection('qpPrefix') selectionPrefix;
+  @selection('type') selectionType;
+  @selection('status') selectionStatus;
+  @selection('datacenter') selectionDatacenter;
+  @selection('prefix') selectionPrefix;
 
   @computed
   get optionsType() {
@@ -251,7 +273,15 @@ export default class IndexController extends Controller.extend(
 
   isShowingDeploymentDetails = false;
 
+  @action
   setFacetQueryParam(queryParam, selection) {
+    this._resetTokens();
     this.set(queryParam, serialize(selection));
+  }
+
+  @action
+  _resetTokens() {
+    this.nextToken = null;
+    this.previousTokens = [];
   }
 }
