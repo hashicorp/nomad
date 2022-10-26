@@ -1,9 +1,10 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import { tracked } from '@glimmer/tracking';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
@@ -25,7 +26,7 @@ export default class IndexController extends Controller.extend(
 
   queryParams = [
     {
-      currentPage: 'page',
+      pageSize: 'pageSize',
     },
     {
       searchTerm: 'search',
@@ -53,8 +54,43 @@ export default class IndexController extends Controller.extend(
     },
   ];
 
-  currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
+  // START PAGINATION LOGIC
+  @tracked pageSize = this.userSettings.pageSize;
+  @tracked nextToken = null;
+  @tracked previousTokens = [];
+
+  get shouldDisableNext() {
+    return !this.model.jobs.meta?.nextToken;
+  }
+
+  get shouldDisablePrev() {
+    return !this.previousTokens.length;
+  }
+
+  @action
+  onNext(nextToken) {
+    this.previousTokens = [...this.previousTokens, this.nextToken];
+    this.nextToken = nextToken;
+  }
+
+  @action
+  onPrev(lastToken) {
+    this.previousTokens.pop();
+    this.previousTokens = [...this.previousTokens];
+    this.nextToken = lastToken;
+  }
+
+  @action
+  refresh() {
+    this.nextToken = null;
+    this.previousTokens = [];
+  }
+
+  @action
+  setPageSize(newPageSize) {
+    this.pageSize = newPageSize;
+  }
+  // END PAGINATION LOGIC
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
@@ -194,10 +230,7 @@ export default class IndexController extends Controller.extend(
   @computed('model.jobs.@each.parent')
   get visibleJobs() {
     if (!this.model || !this.model.jobs) return [];
-    return this.model.jobs
-      .compact()
-      .filter((job) => !job.isNew)
-      .filter((job) => !job.get('parent.content'));
+    return this.model.jobs.compact().filter((job) => !job.isNew);
   }
 
   @computed(
@@ -252,6 +285,7 @@ export default class IndexController extends Controller.extend(
   isShowingDeploymentDetails = false;
 
   setFacetQueryParam(queryParam, selection) {
+    this.refresh(); // Reset Tokens
     this.set(queryParam, serialize(selection));
   }
 }
