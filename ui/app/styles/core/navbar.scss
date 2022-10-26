@@ -153,18 +153,15 @@
   }
 
   .profile-dropdown {
-    // border: 3px solid red;
-    // min-width: 120px;
     padding: 0.5rem 1rem 0.5rem 0.75rem;
     background-color: transparent;
     border: none !important;
     height: auto;
-    // padding-top: 0;
-    // padding-left: 0;
-    // padding-bottom: 0;
-    // outline: none;
     box-shadow: none !important;
-    // padding-right: 24px;
+
+    &:focus {
+      background-color: #21a572;
+    }
 
     .ember-power-select-prefix {
       color: rgba($primary-invert, 0.8);

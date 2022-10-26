@@ -62,6 +62,7 @@
     </a>
     {{#if this.token.selfToken}}
       <PowerSelect
+        {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}
         @options={{this.profileOptions}}
         @onChange={{action (queue 
           (fn (mut this.profileSelection))
@@ -75,26 +76,8 @@
         <span class="ember-power-select-prefix">Profile</span>
         <span class="dropdown-label" data-test-dropdown-option={{option.key}}>{{option.label}}</span>
       </PowerSelect>
-{{!-- 
-      <SingleSelectDropdown
-        @label="Profile"
-        @options={{this.profileOptions}}
-        @selection={{this.profileSelection}}
-        @onSelect={{this.profileSelection.action}}
-      /> --}}
-{{!-- 
-      <MultiSelectDropdown
-        @label="Profile"
-        @options={{this.profileOptions}}
-        @selection={{this.profileSelection}}
-        @onSelect={{this.profileSelection.action}}
-      /> --}}
-
-      {{!-- <LinkTo @route="settings.tokens" class="navbar-item"  {{keyboard-shortcut menuLevel=true pattern=(array "g" "a") }}>
-        Profile
-      </LinkTo> --}}
     {{else}}
-      <LinkTo @route="settings.tokens" class="navbar-item"  {{keyboard-shortcut menuLevel=true pattern=(array "g" "a") }}>
+      <LinkTo @route="settings.tokens" class="navbar-item" {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}>
         Sign In
       </LinkTo>
     {{/if}}

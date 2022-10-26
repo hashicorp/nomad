@@ -10,6 +10,7 @@ export default class GlobalHeader extends Component {
   @service system;
   @service token;
   @service router;
+  @service store;
 
   'data-test-global-header' = true;
   onHamburgerClick() {}
@@ -26,7 +27,15 @@ export default class GlobalHeader extends Component {
       label: 'Sign Out',
       key: 'sign-out',
       action: () => {
-        this.router.transitionTo('jobs.index');
+        this.token.setProperties({
+          secret: undefined,
+        });
+
+        // Clear out all data to ensure only data the anonymous token is privileged to see is shown
+        this.store.unloadAll();
+        this.token.reset();
+
+        // this.router.transitionTo('jobs.index');
       },
     },
   ];
