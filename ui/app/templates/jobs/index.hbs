@@ -51,28 +51,28 @@
           @label="Type"
           @options={{this.optionsType}}
           @selection={{this.selectionType}}
-          @onSelect={{action this.setFacetQueryParam "qpType"}}
+          @onSelect={{action this.setFacetQueryParam "type"}}
         />
         <MultiSelectDropdown
           data-test-status-facet
           @label="Status"
           @options={{this.optionsStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{action this.setFacetQueryParam "status"}}
         />
         <MultiSelectDropdown
           data-test-datacenter-facet
           @label="Datacenter"
           @options={{this.optionsDatacenter}}
           @selection={{this.selectionDatacenter}}
-          @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+          @onSelect={{action this.setFacetQueryParam "datacenter"}}
         />
         <MultiSelectDropdown
           data-test-prefix-facet
           @label="Prefix"
           @options={{this.optionsPrefix}}
           @selection={{this.selectionPrefix}}
-          @onSelect={{action this.setFacetQueryParam "qpPrefix"}}
+          @onSelect={{action this.setFacetQueryParam "prefix"}}
         />
       </div>
     </div>
@@ -107,7 +107,6 @@
     <ListPagination
       @source={{this.sortedJobs}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}}
       as |p|
     >
       <ListTable
@@ -146,31 +145,34 @@
           <JobRow @data-test-job-row={{row.model.plainId}} @job={{row.model}} />
         </t.body>
       </ListTable>
-      <div class="table-foot">
+      <div class="table-foot with-padding">
         <PageSizeSelect @onChange={{action this.setPageSize}} />
-        <nav class="pagination">
-          <div class="pagination-numbers">
-            {{p.startsAt}}
-            –
-            {{p.endsAt}}
-            of
-            {{this.sortedJobs.length}}
-            {{#if this.searchTerm}}
-              <em>
-                (
-                {{dec this.sortedJobs.length this.filteredJobs.length}}
-                hidden by search term)
-              </em>
-            {{/if}}
-          </div>
-          <p.prev @class="pagination-previous">
-            {{x-icon "chevron-left"}}
-          </p.prev>
-          <p.next @class="pagination-next">
-            {{x-icon "chevron-right"}}
-          </p.next>
-          <ul class="pagination-list"></ul>
-        </nav>
+        <div>
+          <button 
+            type="button" 
+            class="button"
+            {{on "click" this.refresh}}
+          >
+            {{x-icon "refresh-default" class="is-text"}}
+            Refresh
+          </button>
+          <button
+            type="button"
+            class="button is-text is-borderless"
+            disabled={{this.shouldDisablePrev}}
+            {{on "click" (fn this.onPrev this.lastToken)}}
+          >
+            {{x-icon "chevron-left" class="is-large"}}
+          </button>
+          <button
+            type="button"
+            class="button is-text is-borderless"
+            disabled={{this.shouldDisableNext}}
+            {{on "click" (fn this.onNext this.model.jobs.meta.nextToken)}}
+          >
+            {{x-icon "chevron-right" class="is-large"}}
+          </button>
+        </div>
       </div>
     </ListPagination>
   {{else}}

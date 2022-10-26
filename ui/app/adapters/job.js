@@ -106,4 +106,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       },
     });
   }
+
+  handleResponse(_status, headers) {
+    const result = super.handleResponse(...arguments);
+    result.meta = { nextToken: headers['x-nomad-nexttoken'] };
+    return result;
+  }
 }

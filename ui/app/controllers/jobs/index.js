@@ -25,15 +25,13 @@ export default class IndexController extends Controller.extend(
   isForbidden = false;
 
   queryParams = [
-    {
-      pageSize: 'pageSize',
-    },
-    {
-      currentPage: 'page',
-    },
-    {
-      searchTerm: 'search',
-    },
+    'pageSize',
+    'nextToken',
+    'status',
+    'type',
+    'searchTerm',
+    'datacenter',
+    'prefix',
     {
       sortProperty: 'sort',
     },
@@ -41,27 +39,42 @@ export default class IndexController extends Controller.extend(
       sortDescending: 'desc',
     },
     {
-      qpType: 'type',
-    },
-    {
-      qpStatus: 'status',
-    },
-    {
-      qpDatacenter: 'dc',
-    },
-    {
-      qpPrefix: 'prefix',
-    },
-    {
       qpNamespace: 'namespace',
     },
   ];
 
-  currentPage = 1;
-
   sortProperty = 'modifyIndex';
   sortDescending = true;
   @tracked pageSize = this.userSettings.pageSize;
+  @tracked nextToken = null;
+  @tracked previousTokens = [];
+
+  get shouldDisableNext() {
+    return !this.model.jobs.meta?.nextToken;
+  }
+
+  get shouldDisablePrev() {
+    return !this.previousTokens.length;
+  }
+
+  @action
+  onNext(nextToken) {
+    this.previousTokens = [...this.previousTokens, this.nextToken];
+    this.nextToken = nextToken;
+  }
+
+  @action
+  onPrev(lastToken) {
+    this.previousTokens.pop();
+    this.previousTokens = [...this.previousTokens];
+    this.nextToken = lastToken;
+  }
+
+  @action
+  refresh() {
+    this.nextToken = null;
+    this.previousTokens = [];
+  }
 
   @action
   setPageSize(newPageSize) {
@@ -80,15 +93,15 @@ export default class IndexController extends Controller.extend(
 
   fuzzySearchEnabled = true;
 
-  qpType = '';
-  qpStatus = '';
-  qpDatacenter = '';
-  qpPrefix = '';
+  @tracked type = '';
+  @tracked status = '';
+  @tracked datacenter = '';
+  @tracked prefix = '';
 
-  @selection('qpType') selectionType;
-  @selection('qpStatus') selectionStatus;
-  @selection('qpDatacenter') selectionDatacenter;
-  @selection('qpPrefix') selectionPrefix;
+  @selection('type') selectionType;
+  @selection('status') selectionStatus;
+  @selection('datacenter') selectionDatacenter;
+  @selection('prefix') selectionPrefix;
 
   @computed
   get optionsType() {
@@ -260,7 +273,15 @@ export default class IndexController extends Controller.extend(
 
   isShowingDeploymentDetails = false;
 
+  @action
   setFacetQueryParam(queryParam, selection) {
+    this._resetTokens();
     this.set(queryParam, serialize(selection));
+  }
+
+  @action
+  _resetTokens() {
+    this.nextToken = null;
+    this.previousTokens = [];
   }
 }

@@ -1,9 +1,13 @@
 /* eslint-disable qunit/require-expect */
-import { currentURL } from '@ember/test-helpers';
+import { click, currentURL, typeIn, visit, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import percySnapshot from '@percy/ember';
@@ -38,7 +42,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
-    const jobsCount = JobsList.pageSize + 1;
+    const jobsCount = JobsList.pageSize - 1;
     server.createList('job', jobsCount, { createAllocations: false });
 
     await JobsList.visit();
@@ -487,6 +491,510 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit({ namespace: READ_ONLY_NAMESPACE });
     assert.ok(JobsList.runJobButton.isDisabled);
+  });
+
+  module('filters', function () {
+    test('it should enable filtering by job status', async function (assert) {
+      assert.expect(2);
+
+      const jobsCount = JobsList.pageSize + 1;
+      server.createList('job', jobsCount, { createAllocations: false });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: 'ParentID is empty and Status == "pending"',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await click('[data-test-status-facet] > [data-test-dropdown-trigger]');
+      await click('[data-test-dropdown-option=pending] > label > input');
+      console.log('currentURL', currentURL());
+
+      assert
+        .dom('[data-test-empty-jobs-list-headline]')
+        .exists('Renders a message saying no jobs match filter status');
+    });
+
+    test('it should enable filtering by namespace', async function (assert) {
+      assert.expect(2);
+
+      const jobsCount = JobsList.pageSize + 1;
+      server.createList('namespace', 2);
+      server.createList('job', jobsCount, {
+        createAllocations: false,
+        namespaceId: server.db.namespaces[0].id,
+      });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: 'default',
+            per_page: '25',
+            next_token: '',
+            filter: 'ParentID is empty',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await clickTrigger('[data-test-namespace-facet]');
+      await selectChoose('[data-test-namespace-facet]', 'default');
+
+      assert
+        .dom('[data-test-empty-jobs-list]')
+        .exists('Renders a message saying no jobs match filter status');
+    });
+
+    test('it should enable filtering by job type', async function (assert) {
+      assert.expect(2);
+
+      const jobsCount = JobsList.pageSize + 1;
+      server.createList('job', jobsCount, { createAllocations: false });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `TriggeredBy contains "periodic-job"`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await click('[data-test-type-facet] > [data-test-dropdown-trigger]');
+      await click('[data-test-dropdown-option=parameterized] > label > input');
+
+      assert
+        .dom('[data-test-empty-jobs-list]')
+        .exists('Renders a message saying no jobs match filter status');
+    });
+
+    test('it should enable filtering by datacenter', async function (assert) {
+      assert.expect(2);
+
+      const jobsCount = JobsList.pageSize + 1;
+      server.createList('job', jobsCount, { createAllocations: false });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: 'NodeID is not empty',
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await click(
+        '[data-test-datacenter-facet] > [data-test-dropdown-trigger]'
+      );
+      await click('[data-test-dropdown-option=dc1] > label > input');
+
+      assert
+        .dom('[data-test-empty-evaluations-list]')
+        .exists('Renders a message saying no evaluations match filter status');
+    });
+
+    test.skip('it should enable filtering by prefix', async function (assert) {
+      // TODO
+      assert.expect(2);
+
+      const jobsCount = JobsList.pageSize + 1;
+      server.createList('job', jobsCount, { createAllocations: false });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: 'NodeID is not empty',
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await click('[data-test-prefix-facet] > [data-test-dropdown-trigger]');
+      await click('[data-test-dropdown-option=dc1] > label > input');
+
+      assert
+        .dom('[data-test-empty-evaluations-list]')
+        .exists('Renders a message saying no evaluations match filter status');
+    });
+
+    test('it should enable filtering by search term', async function (assert) {
+      assert.expect(2);
+
+      server.get('/jobs', server.db.jobs);
+
+      await visit('/jobs');
+
+      const searchTerm = 'Lasso';
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+
+      await typeIn('[data-test-evaluations-search] input', searchTerm);
+
+      assert
+        .dom('[data-test-empty-evaluations-list]')
+        .exists('Renders a message saying no evaluations match filter status');
+    });
+
+    test('it should enable combining filters and search', async function (assert) {
+      assert.expect(5);
+
+      server.get('/jobs', server.db.jobs);
+
+      await visit('/jobs');
+
+      const searchTerm = 'Lasso';
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await typeIn('[data-test-evaluations-search] input', searchTerm);
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `(ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}") and NodeID is not empty`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await clickTrigger('[data-test-evaluation-type-facet]');
+      await selectChoose('[data-test-evaluation-type-facet]', 'Client');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `NodeID is not empty`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await click('[data-test-evaluations-search] button');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `NodeID is not empty and Status contains "complete"`,
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await clickTrigger('[data-test-evaluation-status-facet]');
+      await selectChoose('[data-test-evaluation-status-facet]', 'Complete');
+
+      assert
+        .dom('[data-test-empty-evaluations-list]')
+        .exists('Renders a message saying no evaluations match filter status');
+    });
+  });
+
+  module('page size', function (hooks) {
+    hooks.afterEach(function () {
+      // PageSizeSelect and the Evaluations Controller are both using localStorage directly
+      // Will come back and invert the dependency
+      window.localStorage.clear();
+    });
+
+    test('it is possible to change page size', async function (assert) {
+      assert.expect(1);
+
+      server.get('/jobs', server.db.jobs);
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '50',
+            next_token: '',
+            filter: '',
+            reverse: 'true',
+          },
+          'It makes a request with the per_page set by the user'
+        );
+        return server.db.jobs;
+      });
+
+      await clickTrigger('[data-test-per-page]');
+      await selectChoose('[data-test-per-page]', 50);
+    });
+  });
+
+  module('pagination', function () {
+    test('it should enable pagination by using next tokens', async function (assert) {
+      assert.expect(7);
+
+      server.get('/jobs', function () {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-1' },
+          server.db.jobs
+        );
+      });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: 'next-token-1',
+            filter: '',
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-2' },
+          server.db.jobs
+        );
+      });
+
+      assert
+        .dom('[data-test-eval-pagination-next]')
+        .isEnabled(
+          'If there is a next-token in the API response the next button should be enabled.'
+        );
+      await click('[data-test-eval-pagination-next]');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: 'next-token-2',
+            filter: '',
+            reverse: 'true',
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return server.db.jobs;
+      });
+      await click('[data-test-eval-pagination-next]');
+
+      assert
+        .dom('[data-test-eval-pagination-next]')
+        .isDisabled('If there is no next-token, the next button is disabled.');
+
+      assert
+        .dom('[data-test-eval-pagination-prev]')
+        .isEnabled(
+          'After we transition to the next page, the previous page button is enabled.'
+        );
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: 'next-token-1',
+            filter: '',
+            reverse: 'true',
+          },
+          'It makes a request using the stored old token.'
+        );
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-2' },
+          server.db.jobs
+        );
+      });
+
+      await click('[data-test-eval-pagination-prev]');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: '',
+            reverse: 'true',
+          },
+          'When there are no more stored previous tokens, we will request with no next-token.'
+        );
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-1' },
+          server.db.jobs
+        );
+      });
+
+      await click('[data-test-eval-pagination-prev]');
+    });
+
+    test('it should clear all query parameters on refresh', async function (assert) {
+      assert.expect(1);
+
+      server.get('/jobs', function () {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-1' },
+          server.db.jobs
+        );
+      });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function () {
+        return server.db.jobs;
+      });
+
+      await click('[data-test-eval-pagination-next]');
+
+      await clickTrigger('[data-test-evaluation-status-facet]');
+      await selectChoose('[data-test-evaluation-status-facet]', 'Pending');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: '',
+            reverse: 'true',
+          },
+          'It clears all query parameters when making a refresh'
+        );
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-1' },
+          server.db.jobs
+        );
+      });
+
+      await click('[data-test-eval-refresh]');
+    });
+
+    test('it should reset pagination when filters are applied', async function (assert) {
+      assert.expect(1);
+
+      server.get('/jobs', function () {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-1' },
+          server.db.jobs
+        );
+      });
+
+      await visit('/jobs');
+
+      server.get('/jobs', function () {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': 'next-token-2' },
+          server.db.jobs
+        );
+      });
+
+      await click('[data-test-eval-pagination-next]');
+
+      server.get('/jobs', server.db.jobs);
+      await click('[data-test-eval-pagination-next]');
+
+      server.get('/jobs', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: 'Status contains "pending"',
+            reverse: 'true',
+          },
+          'It clears all next token when filtered request is made'
+        );
+        return server.db.jobs;
+      });
+      await clickTrigger('[data-test-evaluation-status-facet]');
+      await selectChoose('[data-test-evaluation-status-facet]', 'Pending');
+    });
   });
 
   pageSizeSelect({
