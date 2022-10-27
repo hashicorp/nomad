@@ -62,6 +62,22 @@ export default create({
         text: text(),
         link: property('href'),
       },
+
+      signInLink: {
+        scope: '[data-test-header-signin-link]',
+        text: text(),
+        link: property('href'),
+      },
+
+      profileDropdown: {
+        scope: '[data-test-header-profile-dropdown]',
+        text: text(),
+        open: clickable(),
+        options: collection('.dropdown-label', {
+          label: text(),
+          choose: clickable(),
+        }),
+      },
     },
   },
 

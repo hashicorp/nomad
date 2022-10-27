@@ -60,27 +60,7 @@
     >
       Documentation
     </a>
-    {{#if this.token.selfToken}}
-      <PowerSelect
-        {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}
-        @options={{this.profileOptions}}
-        @onChange={{action (queue 
-          (fn (mut this.profileSelection))
-          this.profileSelection.action
-        )}}
-        @dropdownClass="dropdown-options"
-        @matchTriggerWidth={{false}}
-        @selected={{get this.profileSelection "key"}}
-        class="profile-dropdown navbar-item"
-        as |option|>
-        <span class="ember-power-select-prefix">Profile</span>
-        <span class="dropdown-label" data-test-dropdown-option={{option.key}}>{{option.label}}</span>
-      </PowerSelect>
-    {{else}}
-      <LinkTo @route="settings.tokens" class="navbar-item" {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}>
-        Sign In
-      </LinkTo>
-    {{/if}}
+    <ProfileNavbarItem />
   </div>
 </nav>
 <div class="navbar is-secondary">
