@@ -77,7 +77,7 @@ export default class KeyboardService extends Service {
     'Go to Clients': ['g', 'c'],
     'Go to Topology': ['g', 't'],
     'Go to Evaluations': ['g', 'e'],
-    'Go to ACL Tokens': ['g', 'a'],
+    'Go to Profile': ['g', 'p'],
     'Next Subnav': ['Shift+ArrowRight'],
     'Previous Subnav': ['Shift+ArrowLeft'],
     'Previous Main Section': ['Shift+ArrowUp'],
@@ -126,7 +126,7 @@ export default class KeyboardService extends Service {
         rebindable: true,
       },
       {
-        label: 'Go to ACL Tokens',
+        label: 'Go to Profile',
         action: () => this.router.transitionTo('settings.tokens'),
         rebindable: true,
       },
