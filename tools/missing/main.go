@@ -49,7 +49,9 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer ignore.Close(f)
+	defer func() {
+		_ = f.Close()
+	}()
 
 	manifest, err := getManifest(f)
 	if err != nil {
@@ -196,3 +198,4 @@ func inCode(root string) ([]string, error) {
 	sort.Strings(packages)
 	return packages, nil
 }
+
