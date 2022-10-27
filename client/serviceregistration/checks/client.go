@@ -173,6 +173,9 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
+	defer func() {
+		_ = result.Body.Close()
+	}()
 
 	// match the result status code to the http status code
 	qr.StatusCode = result.StatusCode
