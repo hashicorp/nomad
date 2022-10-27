@@ -175,12 +175,3 @@
     }
   }
 }
-
-.profile-options {
-  .ember-power-select-option {
-    border: none !important;
-    &.ember-power-select-option[aria-current='true'] .dropdown-label {
-      padding-left: 8px;
-    }
-  }
-}
