@@ -1,3 +1,14 @@
+## 1.2.14 (October 26, 2022)
+
+IMPROVEMENTS:
+
+* deps: update go-memdb for goroutine leak fix [[GH-14983](https://github.com/hashicorp/nomad/issues/14983)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where Nomad version checking for one-time tokens was enforced across regions [[GH-14910](https://github.com/hashicorp/nomad/issues/14910)]
+* deps: Update hashicorp/raft to v1.3.11; fixes unstable leadership on server removal [[GH-15021](https://github.com/hashicorp/nomad/issues/15021)]
+
 ## 1.2.13 (October 04, 2022)
 
 SECURITY:
