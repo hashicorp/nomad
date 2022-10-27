@@ -5,9 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
 
-let node;
 let managementToken;
-let clientToken;
 
 module('Acceptance | global header', function (hooks) {
   setupApplicationTest(hooks);
@@ -53,7 +51,6 @@ module('Acceptance | global header', function (hooks) {
 
   test('it diplays SignIn', async function (assert) {
     managementToken = server.create('token');
-    clientToken = server.create('token');
 
     window.localStorage.clear();
 
@@ -64,7 +61,6 @@ module('Acceptance | global header', function (hooks) {
 
   test('it diplays a Profile dropdown', async function (assert) {
     managementToken = server.create('token');
-    clientToken = server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
