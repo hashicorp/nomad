@@ -3,13 +3,13 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func Test_isCoveredOne(t *testing.T) {
 	try := func(p string, exp bool) {
 		result := isCoveredOne(p, "foo/bar")
-		require.Equal(t, exp, result)
+		must.Eq(t, exp, result)
 	}
 	try("baz", false)
 	try("foo", false)
@@ -19,3 +19,4 @@ func Test_isCoveredOne(t *testing.T) {
 	try("foo/...", true)
 	try("abc/...", false)
 }
+
