@@ -13,37 +13,37 @@ This architecture has a few implications:
   the state store. These values must be provided as parameters from the RPC
   handler.
 
-      ```go
-      # Incorrect: generating a timestamp in the state store is not deterministic.
-      func (s *StateStore) UpsertObject(...) {
-          # ...
-          obj.CreateTime = time.Now()
-          # ...
-      }
+    ```go
+    # Incorrect: generating a timestamp in the state store is not deterministic.
+    func (s *StateStore) UpsertObject(...) {
+        # ...
+        obj.CreateTime = time.Now()
+        # ...
+    }
 
-      # Correct: non-deterministic values should be passed as inputs:
-      func (s *StateStore) UpsertObject(..., timestamp time.Time) {
-          # ...
-          obj.CreateTime = timestamp
-          # ...
-      }
-      ```
+    # Correct: non-deterministic values should be passed as inputs:
+    func (s *StateStore) UpsertObject(..., timestamp time.Time) {
+        # ...
+        obj.CreateTime = timestamp
+        # ...
+    }
+    ```
 
 * Every object you read from the state store must be copied before it can be
   mutated, because mutating the object modifies it outside the raft
   workflow. The result can be servers having inconsistent state, transactions
   breaking, or even server panics.
 
-      ```go
-      # Incorrect: job is mutated without copying.
-      job, err := state.JobByID(ws, namespace, id)
-      job.Status = structs.JobStatusRunning
+    ```go
+    # Incorrect: job is mutated without copying.
+    job, err := state.JobByID(ws, namespace, id)
+    job.Status = structs.JobStatusRunning
 
-      # Correct: only the job copy is mutated.
-      job, err := state.JobByID(ws, namespace, id)
-      updateJob := job.Copy()
-      updateJob.Status = structs.JobStatusRunning
-      ```
+    # Correct: only the job copy is mutated.
+    job, err := state.JobByID(ws, namespace, id)
+    updateJob := job.Copy()
+    updateJob.Status = structs.JobStatusRunning
+    ```
 
 Adding new objects to the state store should be done as part of adding new RPC
 endpoints. See the [RPC Endpoint Checklist][].
