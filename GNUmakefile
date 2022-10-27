@@ -402,14 +402,9 @@ endif
 .PHONY: missing
 missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
-<<<<<<< HEAD
-	@go run -modfile tools/go.mod tools/missing/main.go .github/workflows/test-core.yaml
-=======
 	@go run -modfile tools/go.mod tools/missing/main.go ci/test-core.json
 
 .PHONY: ec2info
 ec2info: ## Generate AWS EC2 CPU specification table
 	@echo "==> Generating AWS EC2 specifications ..."
 	@go run -modfile tools/go.mod tools/ec2info/main.go
-
->>>>>>> 6e1c2f7b5 (ci: backport of gha groups  (#15058))
