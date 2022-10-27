@@ -34,7 +34,7 @@ binary (ex. with `make dev`) that includes any changes your API
 exercises.
 
 
-# CI Plubming
+# CI Plumbing
 
 See [ci/README.md] for details on how the [Core CI Tests](https://github.com/hashicorp/nomad/actions/workflows/test-core.yaml)
 Github Action works.
