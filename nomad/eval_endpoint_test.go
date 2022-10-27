@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -717,169 +718,152 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 func TestEvalEndpoint_Delete(t *testing.T) {
 	ci.Parallel(t)
 
-	testCases := []struct {
-		testFn func()
-		name   string
-	}{
-		{
-			testFn: func() {
-
-				testServer, testServerCleanup := TestServer(t, nil)
-				defer testServerCleanup()
-
-				codec := rpcClient(t, testServer)
-				testutil.WaitForLeader(t, testServer.RPC)
-
-				// Create and upsert an evaluation.
-				mockEval := mock.Eval()
-				require.NoError(t, testServer.fsm.State().UpsertEvals(
-					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
-
-				// Attempt to delete the eval, which should fail because the
-				// eval broker is not paused.
-				get := &structs.EvalDeleteRequest{
-					EvalIDs:      []string{mockEval.ID},
-					WriteRequest: structs.WriteRequest{Region: "global"},
-				}
-				var resp structs.EvalDeleteResponse
-				err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
-				require.Contains(t, err.Error(), "eval broker is enabled")
-			},
-			name: "unsuccessful delete broker enabled",
-		},
-		{
-			testFn: func() {
-
-				testServer, testServerCleanup := TestServer(t, func(c *Config) {
-					c.NumSchedulers = 0
-				})
-				defer testServerCleanup()
-
-				codec := rpcClient(t, testServer)
-				testutil.WaitForLeader(t, testServer.RPC)
-
-				// Pause the eval broker and update the scheduler config.
-				testServer.evalBroker.SetEnabled(false)
-
-				_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
-				require.NoError(t, err)
-				require.NotNil(t, schedulerConfig)
-
-				schedulerConfig.PauseEvalBroker = true
-				require.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
-
-				// Create and upsert an evaluation.
-				mockEval := mock.Eval()
-				require.NoError(t, testServer.fsm.State().UpsertEvals(
-					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
-
-				// Attempt to delete the eval, which should succeed as the eval
-				// broker is disabled.
-				get := &structs.EvalDeleteRequest{
-					EvalIDs:      []string{mockEval.ID},
-					WriteRequest: structs.WriteRequest{Region: "global"},
-				}
-				var resp structs.EvalDeleteResponse
-				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
-
-				// Attempt to read the eval from state; this should not be found.
-				ws := memdb.NewWatchSet()
-				respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-				require.Nil(t, err)
-				require.Nil(t, respEval)
-			},
-			name: "successful delete without ACLs",
-		},
-		{
-			testFn: func() {
-
-				testServer, rootToken, testServerCleanup := TestACLServer(t, func(c *Config) {
-					c.NumSchedulers = 0
-				})
-				defer testServerCleanup()
-
-				codec := rpcClient(t, testServer)
-				testutil.WaitForLeader(t, testServer.RPC)
-
-				// Pause the eval broker and update the scheduler config.
-				testServer.evalBroker.SetEnabled(false)
-
-				_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
-				require.NoError(t, err)
-				require.NotNil(t, schedulerConfig)
-
-				schedulerConfig.PauseEvalBroker = true
-				require.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
-
-				// Create and upsert an evaluation.
-				mockEval := mock.Eval()
-				require.NoError(t, testServer.fsm.State().UpsertEvals(
-					structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
-
-				// Attempt to delete the eval, which should succeed as the eval
-				// broker is disabled, and we are using a management token.
-				get := &structs.EvalDeleteRequest{
-					EvalIDs: []string{mockEval.ID},
-					WriteRequest: structs.WriteRequest{
-						AuthToken: rootToken.SecretID,
-						Region:    "global",
-					},
-				}
-				var resp structs.EvalDeleteResponse
-				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
-
-				// Attempt to read the eval from state; this should not be found.
-				ws := memdb.NewWatchSet()
-				respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-				require.Nil(t, err)
-				require.Nil(t, respEval)
-			},
-			name: "successful delete with ACLs",
-		},
-		{
-			testFn: func() {
-
-				testServer, _, testServerCleanup := TestACLServer(t, func(c *Config) {
-					c.NumSchedulers = 0
-				})
-				defer testServerCleanup()
-
-				codec := rpcClient(t, testServer)
-				testutil.WaitForLeader(t, testServer.RPC)
-
-				// Pause the eval broker.
-				testServer.evalBroker.SetEnabled(false)
-
-				// Create and upsert an evaluation.
-				mockEval := mock.Eval()
-				require.NoError(t, testServer.fsm.State().UpsertEvals(
-					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
-
-				nonMgntToken := mock.CreatePolicyAndToken(t, testServer.State(), 20, "test-valid",
-					mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-
-				// Attempt to delete the eval, which should not succeed as we
-				// are using a non-management token.
-				get := &structs.EvalDeleteRequest{
-					EvalIDs: []string{mockEval.ID},
-					WriteRequest: structs.WriteRequest{
-						AuthToken: nonMgntToken.SecretID,
-						Region:    "global",
-					},
-				}
-				var resp structs.EvalDeleteResponse
-				err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
-				require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
-			},
-			name: "unsuccessful delete with ACLs incorrect token permissions",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.testFn()
+	setup := func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+		t.Helper()
+		testServer, rootToken, cleanupFn := TestACLServer(t, func(c *Config) {
+			c.NumSchedulers = 0
 		})
+		testutil.WaitForLeader(t, testServer.RPC)
+		return testServer, rootToken, cleanupFn
 	}
+
+	// Set the expected eval broker state and scheduler config
+	setBrokerEnabled := func(t *testing.T, testServer *Server, enabled bool) {
+		t.Helper()
+		testServer.evalBroker.SetEnabled(enabled)
+
+		_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
+		must.NoError(t, err)
+		must.NotNil(t, schedulerConfig)
+
+		schedulerConfig.PauseEvalBroker = !enabled
+		must.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
+	}
+
+	t.Run("unsuccessful delete broker enabled", func(t *testing.T) {
+
+		testServer, rootToken, cleanup := setup(t)
+		defer cleanup()
+		codec := rpcClient(t, testServer)
+
+		// Ensure broker is enabled
+		setBrokerEnabled(t, testServer, true)
+
+		// Create and upsert an evaluation.
+		mockEval := mock.Eval()
+		must.NoError(t, testServer.fsm.State().UpsertEvals(
+			structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
+
+		// Attempt to delete the eval, which should fail because the
+		// eval broker is not paused.
+		get := &structs.EvalDeleteRequest{
+			EvalIDs: []string{mockEval.ID},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: rootToken.SecretID},
+		}
+		var resp structs.EvalDeleteResponse
+		err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
+		must.EqError(t, err, "eval broker is enabled; eval broker must be paused to delete evals")
+	})
+
+	t.Run("successful delete without ACLs", func(t *testing.T) {
+		testServer, testServerCleanup := TestServer(t, func(c *Config) {
+			c.NumSchedulers = 0
+		})
+		defer testServerCleanup()
+
+		codec := rpcClient(t, testServer)
+		testutil.WaitForLeader(t, testServer.RPC)
+
+		// Ensure broker is disabled
+		setBrokerEnabled(t, testServer, false)
+
+		// Create and upsert an evaluation.
+		mockEval := mock.Eval()
+		must.NoError(t, testServer.fsm.State().UpsertEvals(
+			structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
+
+		// Attempt to delete the eval, which should succeed as the eval
+		// broker is disabled.
+		get := &structs.EvalDeleteRequest{
+			EvalIDs:      []string{mockEval.ID},
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.EvalDeleteResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
+
+		// Attempt to read the eval from state; this should not be found.
+		ws := memdb.NewWatchSet()
+		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
+		must.Nil(t, err)
+		must.Nil(t, respEval)
+	})
+
+	t.Run("successful delete with ACLs", func(t *testing.T) {
+
+		testServer, rootToken, cleanup := setup(t)
+		defer cleanup()
+		codec := rpcClient(t, testServer)
+
+		// Ensure broker is disabled
+		setBrokerEnabled(t, testServer, false)
+
+		// Create and upsert an evaluation.
+		mockEval := mock.Eval()
+		must.NoError(t, testServer.fsm.State().UpsertEvals(
+			structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
+
+		// Attempt to delete the eval, which should succeed as the eval
+		// broker is disabled, and we are using a management token.
+		get := &structs.EvalDeleteRequest{
+			EvalIDs: []string{mockEval.ID},
+			WriteRequest: structs.WriteRequest{
+				AuthToken: rootToken.SecretID,
+				Region:    "global",
+			},
+		}
+		var resp structs.EvalDeleteResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
+
+		// Attempt to read the eval from state; this should not be found.
+		ws := memdb.NewWatchSet()
+		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
+		must.Nil(t, err)
+		must.Nil(t, respEval)
+	})
+
+	t.Run("unsuccessful delete with ACLs incorrect token permissions", func(t *testing.T) {
+
+		testServer, _, cleanup := setup(t)
+		defer cleanup()
+		codec := rpcClient(t, testServer)
+
+		// Ensure broker is disabled
+		setBrokerEnabled(t, testServer, false)
+
+		// Create and upsert an evaluation.
+		mockEval := mock.Eval()
+		must.NoError(t, testServer.fsm.State().UpsertEvals(
+			structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
+
+		nonMgntToken := mock.CreatePolicyAndToken(t, testServer.State(), 20, "test-valid",
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+		// Attempt to delete the eval, which should not succeed as we
+		// are using a non-management token.
+		get := &structs.EvalDeleteRequest{
+			EvalIDs: []string{mockEval.ID},
+			WriteRequest: structs.WriteRequest{
+				AuthToken: nonMgntToken.SecretID,
+				Region:    "global",
+			},
+		}
+		var resp structs.EvalDeleteResponse
+		err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
+	})
+
 }
 
 func Test_evalDeleteSafe(t *testing.T) {
