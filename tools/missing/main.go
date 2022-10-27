@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"github.com/hashicorp/go-set"
 )
 
 func main() {
@@ -20,21 +21,28 @@ func main() {
 	}
 }
 
-type YamlFile struct {
-	Jobs struct {
-		TestPackages struct {
-			Strategy struct {
-				Matrix struct {
-					Packages []string `yaml:"pkg"`
-				} `yaml:"matrix"`
-			} `yaml:"strategy"`
-		} `yaml:"tests-pkgs"`
-	} `yaml:"jobs"`
+// Manifest represents groupings of packages for testing
+// see: ci/test-core.json
+type Manifest map[string][]string
+
+func (m Manifest) covers(pkg string) bool {
+	for _, list := range m {
+		if isCovered(list, pkg) {
+			return true
+		}
+	}
+	return false
 }
 
+const (
+	verify = 1
+	group  = 2
+)
+
 func run(args []string) error {
-	if len(args) != 1 {
-		return errors.New("requires filename")
+	mode := len(args)
+	if !(mode == verify || mode == group) {
+		return errors.New("usage: [filename] <group>")
 	}
 
 	f, err := os.Open(args[0])
@@ -45,11 +53,22 @@ func run(args []string) error {
 		_ = f.Close()
 	}()
 
-	coverage, err := inMatrix(f)
+	manifest, err := getManifest(f)
 	if err != nil {
 		return err
 	}
 
+	switch mode {
+	case verify:
+		return runVerify(manifest)
+	case group:
+		return runGroups(manifest, args[1])
+	default:
+		panic("oops")
+	}
+}
+
+func runVerify(manifest Manifest) error {
 	packages, err := inCode(".")
 	if err != nil {
 		return err
@@ -57,7 +76,7 @@ func run(args []string) error {
 
 	var isMissing []string
 	for _, pkg := range packages {
-		if !isCovered(coverage, pkg) {
+		if !manifest.covers(pkg) {
 			isMissing = append(isMissing, pkg)
 		}
 	}
@@ -74,7 +93,17 @@ func run(args []string) error {
 	return nil
 }
 
-// isCovered returns true if pkg is covered by a package in coverage.
+func runGroups(manifest Manifest, group string) error {
+	list := manifest[group]
+	for i := 0; i < len(list); i++ {
+		list[i] = "./" + list[i]
+	}
+	s := strings.Join(list, " ")
+	fmt.Print(s)
+	return nil
+}
+
+// isCovered returns true if pkg is tested by directory in manifest.
 func isCovered(coverage []string, pkg string) bool {
 	for _, p := range coverage {
 		if isCoveredOne(p, pkg) {
@@ -101,18 +130,13 @@ func isCoveredOne(p string, pkg string) bool {
 	return false
 }
 
-func inMatrix(r io.Reader) ([]string, error) {
-	var yFile YamlFile
-	if err := yaml.NewDecoder(r).Decode(&yFile); err != nil {
+func getManifest(r io.Reader) (Manifest, error) {
+	m := make(Manifest)
+	if err := json.NewDecoder(r).Decode(&m); err != nil {
 		return nil, err
 	}
-	p := yFile.Jobs.TestPackages.Strategy.Matrix.Packages
-	return p, nil
+	return m, nil
 }
-
-type nothing struct{}
-
-var null = nothing{}
 
 // uninteresting lists remaining packages that contain Go code but still
 // do not need to be covered by test cases.
@@ -147,7 +171,7 @@ func skip(p string) bool {
 }
 
 func inCode(root string) ([]string, error) {
-	m := map[string]nothing{}
+	pkgs := set.New[string](100)
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
@@ -159,7 +183,7 @@ func inCode(root string) ([]string, error) {
 		}
 
 		if ext := filepath.Ext(path); ext == ".go" {
-			m[filepath.Dir(path)] = null
+			pkgs.Insert(filepath.Dir(path))
 		}
 
 		return nil
@@ -168,12 +192,9 @@ func inCode(root string) ([]string, error) {
 		return nil, err
 	}
 
-	delete(m, ".") // package main
+	pkgs.Remove(".") // main
 
-	var packages []string
-	for p := range m {
-		packages = append(packages, p)
-	}
+	packages := pkgs.List()
 	sort.Strings(packages)
 	return packages, nil
 }
