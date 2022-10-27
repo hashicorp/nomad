@@ -109,19 +109,25 @@ func (e *EventBroker) Publish(events *structs.Events) {
 	e.publishCh <- events
 }
 
-// SubscribeWithACLCheck validates the SubscribeRequest's token and requested Topics
-// to ensure that the tokens privileges are sufficient enough.
-func (e *EventBroker) SubscribeWithACLCheck(req *SubscribeRequest) (*Subscription, error) {
-	aclObj, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, req.Token)
+// SubscribeWithACLCheck validates the SubscribeRequest's token and requested
+// topics to ensure that the tokens privileges are sufficient. It will also
+// return the token expiry time, if any. It is the callers responsibility to
+// check this before publishing events to the caller.
+func (e *EventBroker) SubscribeWithACLCheck(req *SubscribeRequest) (*Subscription, *time.Time, error) {
+	aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, req.Token)
 	if err != nil {
-		return nil, structs.ErrPermissionDenied
+		return nil, nil, structs.ErrPermissionDenied
 	}
 
 	if allowed := aclAllowsSubscription(aclObj, req); !allowed {
-		return nil, structs.ErrPermissionDenied
+		return nil, nil, structs.ErrPermissionDenied
 	}
 
-	return e.Subscribe(req)
+	sub, err := e.Subscribe(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	return sub, expiryTime, nil
 }
 
 // Subscribe returns a new Subscription for a given request. A Subscription
@@ -203,9 +209,15 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 					continue
 				}
 
-				aclObj, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, tokenSecretID)
+				aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, tokenSecretID)
 				if err != nil || aclObj == nil {
 					e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
+					e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
+					continue
+				}
+
+				if expiryTime != nil && expiryTime.Before(time.Now().UTC()) {
+					e.logger.Info("ACL token is expired, closing subscriptions")
 					e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 					continue
 				}
@@ -245,9 +257,15 @@ func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 			continue
 		}
 
-		aclObj, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
+		aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
 		if err != nil || aclObj == nil {
 			e.logger.Debug("failed resolving ACL for secretID, closing subscriptions", "error", err)
+			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
+			continue
+		}
+
+		if expiryTime != nil && expiryTime.Before(time.Now().UTC()) {
+			e.logger.Info("ACL token is expired, closing subscriptions")
 			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 			continue
 		}
@@ -259,23 +277,24 @@ func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 }
 
 func aclObjFromSnapshotForTokenSecretID(
-	aclSnapshot ACLTokenProvider, aclCache *lru.TwoQueueCache, tokenSecretID string) (*acl.ACL, error) {
+	aclSnapshot ACLTokenProvider, aclCache *lru.TwoQueueCache, tokenSecretID string) (
+	*acl.ACL, *time.Time, error) {
 
 	aclToken, err := aclSnapshot.ACLTokenBySecretID(nil, tokenSecretID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if aclToken == nil {
-		return nil, structs.ErrTokenNotFound
+		return nil, nil, structs.ErrTokenNotFound
 	}
 	if aclToken.IsExpired(time.Now().UTC()) {
-		return nil, structs.ErrTokenExpired
+		return nil, nil, structs.ErrTokenExpired
 	}
 
 	// Check if this is a management token
 	if aclToken.Type == structs.ACLManagementToken {
-		return acl.ManagementACL, nil
+		return acl.ManagementACL, aclToken.ExpirationTime, nil
 	}
 
 	aclPolicies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies)+len(aclToken.Roles))
@@ -283,7 +302,7 @@ func aclObjFromSnapshotForTokenSecretID(
 	for _, policyName := range aclToken.Policies {
 		policy, err := aclSnapshot.ACLPolicyByName(nil, policyName)
 		if err != nil || policy == nil {
-			return nil, errors.New("error finding acl policy")
+			return nil, nil, errors.New("error finding acl policy")
 		}
 		aclPolicies = append(aclPolicies, policy)
 	}
@@ -294,7 +313,7 @@ func aclObjFromSnapshotForTokenSecretID(
 
 		role, err := aclSnapshot.GetACLRoleByID(nil, roleLink.ID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if role == nil {
 			continue
@@ -303,13 +322,17 @@ func aclObjFromSnapshotForTokenSecretID(
 		for _, policyLink := range role.Policies {
 			policy, err := aclSnapshot.ACLPolicyByName(nil, policyLink.Name)
 			if err != nil || policy == nil {
-				return nil, errors.New("error finding acl policy")
+				return nil, nil, errors.New("error finding acl policy")
 			}
 			aclPolicies = append(aclPolicies, policy)
 		}
 	}
 
-	return structs.CompileACLObject(aclCache, aclPolicies)
+	aclObj, err := structs.CompileACLObject(aclCache, aclPolicies)
+	if err != nil {
+		return nil, nil, err
+	}
+	return aclObj, aclToken.ExpirationTime, nil
 }
 
 type ACLTokenProvider interface {
