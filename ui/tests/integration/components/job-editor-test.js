@@ -105,7 +105,8 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   const planJob = async (spec) => {
-    await Editor.editor.fillIn(spec);
+    const cm = getCodeMirrorInstance(['data-test-editor']);
+    cm.setValue(spec);
     await Editor.plan();
   };
 
