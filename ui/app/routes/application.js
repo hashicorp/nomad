@@ -13,6 +13,7 @@ export default class ApplicationRoute extends Route {
   @service system;
   @service store;
   @service token;
+  @service router;
 
   queryParams = {
     region: {
@@ -140,7 +141,11 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
-      this.controllerFor('application').set('error', error);
+      if (error.errors?.any((e) => e.detail === 'ACL token expired')) {
+        this.router.transitionTo('settings.tokens');
+      } else {
+        this.controllerFor('application').set('error', error);
+      }
     }
   }
 }
