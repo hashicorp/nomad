@@ -5,17 +5,43 @@
     <div class="column is-two-thirds">
       <p class="message">Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token <strong>Secret ID</strong>, each future request will be authenticated, potentially authorizing read access to additional information. By providing a token <strong>Accessor ID</strong>, the policies and rules for the token will be listed.</p>
 
-      <div class="notification is-info">
-        <div class="columns">
-          <div class="column">
-            <h3 class="title is-4">Token Storage</h3>
-            <p>Tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">local storage</a>. This will persist your token across sessions. You can manually clear your token here.</p>
-          </div>
-          <div class="column is-centered is-minimum">
-            <button data-test-token-clear class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
+      {{#if this.tokenRecord.isExpired}}
+        <div data-test-token-error class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">Your token has expired</h3>
+              <p>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
+            </div>
           </div>
         </div>
-      </div>
+      {{else if this.token.tokenNotFound}}
+        <div data-test-token-error class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">Your token was not found</h3>
+              <p>It may have expired, or been entered incorrectly.</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
+            </div>
+          </div>
+        </div>
+      {{else}}
+        <div class="notification is-info">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">Token Storage</h3>
+              <p>Tokens are stored client-side in <a target="_blank" rel="noopener noreferer" href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">local storage</a>. This will persist your token across sessions. You can manually clear your token here.</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-token-clear class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
+            </div>
+          </div>
+        </div>
+      {{/if}}
 
       {{#unless this.tokenIsValid}}
         <div class="field">
@@ -60,37 +86,42 @@
       {{/if}}
 
       {{#if this.tokenRecord}}
-        <h3 class="title is-4">Token: {{this.tokenRecord.name}}</h3>
-        <div class="content">
-          <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
-          <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
-        </div>
-        <h3 class="title is-4">Policies</h3>
-        {{#if (eq this.tokenRecord.type "management")}}
-          <div data-test-token-management-message class="boxed-section">
-            <div class="boxed-section-body has-centered-text">
-              The management token has all permissions
-            </div>
+        {{#unless this.tokenRecord.isExpired}}
+          <h3 class="title is-4">Token: {{this.tokenRecord.name}}</h3>
+          <div class="content">
+            <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
+            <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
+            {{#if this.tokenRecord.expirationTime}}
+              <div>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</div>
+            {{/if}}
           </div>
-        {{else}}
-          {{#each this.tokenRecord.policies as |policy|}}
-            <div data-test-token-policy class="boxed-section">
-              <div data-test-policy-name class="boxed-section-head">
-                {{policy.name}}
-              </div>
-              <div class="boxed-section-body">
-                <p data-test-policy-description class="content">
-                  {{#if policy.description}}
-                    {{policy.description}}
-                  {{else}}
-                    <em>No description</em>
-                  {{/if}}
-                </p>
-                <pre><code data-test-policy-rules>{{policy.rules}}</code></pre>
+          <h3 class="title is-4">Policies</h3>
+          {{#if (eq this.tokenRecord.type "management")}}
+            <div data-test-token-management-message class="boxed-section">
+              <div class="boxed-section-body has-centered-text">
+                The management token has all permissions
               </div>
             </div>
-          {{/each}}
-        {{/if}}
+          {{else}}
+            {{#each this.tokenRecord.policies as |policy|}}
+              <div data-test-token-policy class="boxed-section">
+                <div data-test-policy-name class="boxed-section-head">
+                  {{policy.name}}
+                </div>
+                <div class="boxed-section-body">
+                  <p data-test-policy-description class="content">
+                    {{#if policy.description}}
+                      {{policy.description}}
+                    {{else}}
+                      <em>No description</em>
+                    {{/if}}
+                  </p>
+                  <pre><code data-test-policy-rules>{{policy.rules}}</code></pre>
+                </div>
+              </div>
+            {{/each}}
+          {{/if}}
+        {{/unless}}
       {{/if}}
     </div>
   </div>

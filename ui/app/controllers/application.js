@@ -69,6 +69,11 @@ export default class ApplicationController extends Controller {
     return this.errorCodes.includes('500');
   }
 
+  @computed('errorCodes.[]')
+  get isExpiredTokenError() {
+    return this.error.errors.any((e) => e.detail === 'ACL token expired');
+  }
+
   @computed('error')
   get isNoLeader() {
     const error = this.error;
