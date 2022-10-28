@@ -141,7 +141,13 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
-      if (error.errors?.any((e) => e.detail === 'ACL token expired')) {
+      if (
+        error.errors?.any(
+          (e) =>
+            e.detail === 'ACL token expired' ||
+            e.detail === 'ACL token not found'
+        )
+      ) {
         this.router.transitionTo('settings.tokens');
       } else {
         this.controllerFor('application').set('error', error);

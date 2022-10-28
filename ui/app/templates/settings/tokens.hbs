@@ -6,7 +6,7 @@
       <p class="message">Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token <strong>Secret ID</strong>, each future request will be authenticated, potentially authorizing read access to additional information. By providing a token <strong>Accessor ID</strong>, the policies and rules for the token will be listed.</p>
 
       {{#if this.tokenRecord.isExpired}}
-        <div data-test-token-error class="notification is-danger">
+        <div data-test-token-expired class="notification is-danger">
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Your token has expired</h3>
@@ -18,7 +18,7 @@
           </div>
         </div>
       {{else if this.token.tokenNotFound}}
-        <div data-test-token-error class="notification is-danger">
+        <div data-test-token-not-found class="notification is-danger">
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Your token was not found</h3>
@@ -92,7 +92,7 @@
             <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
             <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
             {{#if this.tokenRecord.expirationTime}}
-              <div>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</div>
+              <div data-test-token-expiry>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</div>
             {{/if}}
           </div>
           <h3 class="title is-4">Policies</h3>

@@ -181,6 +181,41 @@ module('Acceptance | tokens', function (hooks) {
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
 
+  test('it handles expiring tokens', async function (assert) {
+    const expiringToken = server.create('token', {
+      name: "Time's a-tickin",
+      expirationTime: moment().add(1, 'm').toDate(),
+    });
+
+    // Soon-expiring token
+    await Tokens.visit();
+    await Tokens.secret(expiringToken.secretId).submit();
+    assert
+      .dom('[data-test-token-expiry]')
+      .exists('Expiry shown for TTL-having token');
+
+    // Token with no TTL
+    await Tokens.clear();
+    await Tokens.secret(clientToken.secretId).submit();
+    assert
+      .dom('[data-test-token-expiry]')
+      .doesNotExist('No expiry shown for regular token');
+  });
+
+  test('it handles expired tokens', async function (assert) {
+    const expiredToken = server.create('token', {
+      name: 'Well past due',
+      expirationTime: moment().add(-5, 'm').toDate(),
+    });
+
+    // GC'd or non-existent token, from localStorage or otherwise
+    window.localStorage.nomadTokenSecret = expiredToken.secretId;
+    await Tokens.visit();
+    assert
+      .dom('[data-test-token-expired]')
+      .exists('Warning banner shown for expired token');
+  });
+
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
     const { oneTimeSecret, secretId } = managementToken;
 
