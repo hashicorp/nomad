@@ -3143,6 +3143,87 @@ func (s *StateStore) updateEvalModifyIndex(txn *txn, index uint64, evalID string
 	return nil
 }
 
+// EvalIsUserDeleteSafe ensures an evaluation is safe to delete based on its
+// related allocation and job information. This follows similar, but different
+// rules to the eval reap checking, to ensure evaluations for running allocs or
+// allocs which need the evaluation detail are not deleted.
+//
+// Returns both a bool and an error so that error in querying the related
+// objects can be differentiated from reporting that the eval isn't safe to
+// delete.
+func (s *StateStore) EvalIsUserDeleteSafe(ws memdb.WatchSet, eval *structs.Evaluation) (bool, error) {
+
+	job, err := s.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup job for eval: %v", err)
+	}
+
+	allocs, err := s.AllocsByEval(ws, eval.ID)
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup eval allocs: %v", err)
+	}
+
+	return isEvalDeleteSafe(allocs, job), nil
+}
+
+func isEvalDeleteSafe(allocs []*structs.Allocation, job *structs.Job) bool {
+
+	// If the job is deleted, stopped, or dead, all allocs are terminal and
+	// the eval can be deleted.
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// Iterate the allocations associated to the eval, if any, and check
+	// whether we can delete the eval.
+	for _, alloc := range allocs {
+
+		// If the allocation is still classed as running on the client, or
+		// might be, we can't delete.
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusRunning, structs.AllocClientStatusUnknown:
+			return false
+		}
+
+		// If the alloc hasn't failed then we don't need to consider it for
+		// rescheduling. Rescheduling needs to copy over information from the
+		// previous alloc so that it can enforce the reschedule policy.
+		if alloc.ClientStatus != structs.AllocClientStatusFailed {
+			continue
+		}
+
+		var reschedulePolicy *structs.ReschedulePolicy
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+
+		if tg != nil {
+			reschedulePolicy = tg.ReschedulePolicy
+		}
+
+		// No reschedule policy or rescheduling is disabled
+		if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+			continue
+		}
+
+		// The restart tracking information has not been carried forward.
+		if alloc.NextAllocation == "" {
+			return false
+		}
+
+		// This task has unlimited rescheduling and the alloc has not been
+		// replaced, so we can't delete the eval yet.
+		if reschedulePolicy.Unlimited {
+			return false
+		}
+
+		// No restarts have been attempted yet.
+		if alloc.RescheduleTracker == nil || len(alloc.RescheduleTracker.Events) == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
 // DeleteEval is used to delete an evaluation
 func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitiated bool) error {
 	txn := s.db.WriteTxn(index)
