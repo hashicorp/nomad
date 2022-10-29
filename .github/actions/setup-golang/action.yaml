@@ -23,9 +23,9 @@ runs:
         echo "gocache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
         echo "gomodcache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
         if [ "$RUNNER_OS" == "Windows" ]; then
-          echo "$(go env GOROOT)/bin" >> $env:GOBIN
+          echo "GOBIN=$(go env GOROOT)/bin" >> $env:GITHUB_ENV
         else
-          echo "$(go env GOROOT)/bin" >> $GOBIN
+          echo "GOBIN=$(go env GOROOT)/bin" >> $GITHUB_ENV
         fi
     - name: Setup Go Cache
       uses: actions/cache@v3
