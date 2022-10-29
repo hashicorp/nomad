@@ -23,7 +23,6 @@ on:
 env:
   VERBOSE: 1
   GO_VERSION: 1.19.1
-  GOBIN: /usr/local/bin
   GOTESTARCH: amd64
   CONSUL_VERSION: 1.12.6
   VAULT_VERSION: 1.12.0
@@ -35,7 +34,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/setup-golang
+      - uses: .github/actions/setup-golang
         with:
           cache-key: core
       - name: Setup Go modules
