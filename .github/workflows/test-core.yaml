@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - uses: .github/actions/setup-golang
+      - uses: ./.github/actions/setup-golang
         with:
           cache-key: core
       - name: Setup Go modules
