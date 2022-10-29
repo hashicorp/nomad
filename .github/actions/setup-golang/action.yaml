@@ -1,0 +1,37 @@
+name: Setup Go, Cache, Environment
+author: HashiCorp
+description: Setup Go compiler, Actions Cache, and Environment variables.
+
+inputs:
+  version-file:
+    description: .go-version or go.mod
+    default: .go-version
+  cache-key:
+    description: Shared cache key.
+    default: default
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: ${{inputs.version-file}}
+    - name: Prepare Paths
+      id: cache-paths
+      shell: bash
+      run: |
+        echo "gocache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+        echo "gomodcache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          echo "$(go env GOROOT)/bin" >> $env:GOBIN
+        else
+          echo "$(go env GOROOT)/bin" >> $GOBIN
+        fi
+    - name: Setup Go Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{steps.cache-paths.outputs.gocache}}
+          ${{steps.cache-paths.outputs.gomodcache}}
+        key: ${{runner.os}}-go-${{inputs.cache-key}}-${{hashFiles('**/go.sum')}}
+        restore-keys: ${{runner.os}}-go-${{inputs.cache-key}}-
