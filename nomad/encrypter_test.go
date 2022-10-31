@@ -326,7 +326,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
-	out, err := e.SignClaims(claim)
+	out, _, err := e.SignClaims(claim)
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)

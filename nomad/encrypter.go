@@ -152,7 +152,7 @@ const keyIDHeader = "kid"
 
 // SignClaims signs the identity claim for the task and returns an
 // encoded JWT with both the claim and its signature
-func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
+func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, error) {
 
 	// If a key is rotated immediately following a leader election, plans that
 	// are in-flight may get signed before the new leader has the key. Allow for
@@ -164,7 +164,7 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				return "", err
+				return "", "", err
 			default:
 				time.Sleep(50 * time.Millisecond)
 				keyset, err = e.activeKeySet()
@@ -180,10 +180,10 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
 
 	tokenString, err := token.SignedString(keyset.privateKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return tokenString, nil
+	return tokenString, keyset.rootKey.Meta.KeyID, nil
 }
 
 // VerifyClaim accepts a previously-signed encoded claim and validates
