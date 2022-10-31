@@ -1133,6 +1133,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 }
 
 // UpdateAlloc is used to update the client status of an allocation
+// Clients must first register and heartbeat successfully before being able to
+// call this method.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
 	// Ensure the connection was initiated by another client if TLS is used.
 	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
@@ -1148,6 +1150,26 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
 		return fmt.Errorf("must update at least one allocation")
+	}
+
+	// Ensure the node is allowed to update allocs.
+	// The node needs to successfully heartbeat before updating its allocs.
+	nodeID := args.NodeID
+	if nodeID == "" {
+		// COMPAT 1.14
+		// Maintain backwards compatibility with clients that don't set the
+		// NodeID field in the request.
+		nodeID = args.Alloc[0].NodeID
+	}
+	node, err := n.srv.State().NodeByID(nil, nodeID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve node %s: %v", args.NodeID, err)
+	}
+	if node == nil {
+		return fmt.Errorf("node %s not found", args.NodeID)
+	}
+	if node.Status != structs.NodeStatusReady {
+		return fmt.Errorf("node %s is %s, not %s", args.NodeID, node.Status, structs.NodeStatusReady)
 	}
 
 	// Ensure that evals aren't set from client RPCs
