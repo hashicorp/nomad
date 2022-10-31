@@ -21,6 +21,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -222,11 +223,28 @@ func loadCNIConf(confDir, name string) ([]byte, error) {
 
 // Teardown calls the CNI plugins with the delete action
 func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	netlog.Yellow("cNC.Teardown", "alloc_id", alloc.ID)
 	if err := c.ensureCNIInitialized(); err != nil {
+		netlog.Red("cNC.Teardown.ensureCNIInitialized", "alloc_id", alloc.ID, "error", err)
 		return err
 	}
 
-	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP)))
+	if filepath.HasPrefix(spec.Path, "/var/run/docker") {
+		if err := os.Remove(spec.Path); err != nil {
+			netlog.Red("NS REMOVE", "path", spec.Path, "error", err)
+		}
+		if err := os.WriteFile(spec.Path, nil, 0600); err != nil {
+			netlog.Red("WRITE FILE", "path", spec.Path, "error", err)
+		}
+	}
+
+	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
+		netlog.Red("cNC.Teardown.Remove", "alloc_id", alloc.ID, "path", spec.Path, "error", err)
+		// BUG IS HERE (ish), what was this actually removing?
+		// failed (delete): unknown FS magic on "/var/run/docker/netns/55782147c323"
+		return err
+	}
+	return nil
 }
 
 func (c *cniNetworkConfigurator) ensureCNIInitialized() error {

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/miekg/dns"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -134,6 +135,8 @@ func (h *networkHook) Prerun() error {
 		return fmt.Errorf("failed to create network for alloc: %v", err)
 	}
 
+	netlog.Yellow("NH.Prerun", "alloc_id", h.alloc.ID, "hostname", networkCreateReq.Hostname, "CreateNetwork spec", fmt.Sprintf("%#v", spec))
+
 	if spec != nil {
 		h.spec = spec
 		h.isolationSetter.SetNetworkIsolation(spec)
@@ -154,7 +157,7 @@ func (h *networkHook) Prerun() error {
 				Address:  status.Address,
 				Hostname: hostname,
 			}
-		} else if hostname, ok := spec.Labels[dockerNetSpecLabelKey]; ok {
+		} else if hostname, ok = spec.Labels[dockerNetSpecLabelKey]; ok {
 
 			// the docker_sandbox_container_id is the full ID of the pause
 			// container, whereas we want the shortened name that dockerd sets
@@ -179,8 +182,18 @@ func (h *networkHook) Postrun() error {
 		return nil
 	}
 
+	netlog.Yellow("NH.Postrun", "alloc_id", h.alloc.ID, "alloc_name", h.alloc.Name, "spec", fmt.Sprintf("%#v", h.spec))
 	if err := h.networkConfigurator.Teardown(context.TODO(), h.alloc, h.spec); err != nil {
+		netlog.Red("NH.Postrun_Teardwon_Failure", "alloc_id", h.alloc.ID, "alloc_name", h.alloc.Name, "error", err)
 		h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
+		// do not return yet! continue attempt to destroy network
 	}
-	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
+
+	if err := h.manager.DestroyNetwork(h.alloc.ID, h.spec); err != nil {
+		netlog.Red("NH.Postrun_DestroyNetwork_Failure", "alloc_id", h.alloc.ID, "alloc_name", h.alloc.Name, "error", err)
+		// error
+		return err
+	}
+
+	return nil
 }

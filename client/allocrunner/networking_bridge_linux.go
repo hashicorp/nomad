@@ -8,6 +8,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -66,6 +67,8 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
+	netlog.Green("bNC.ensureForwardingRules", "bridge", b.bridgeName, "subnet", b.allocSubnet)
+
 	ipt, err := iptables.New()
 	if err != nil {
 		return err
@@ -75,7 +78,7 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 		return err
 	}
 
-	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+	if err = appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
 		return err
 	}
 
@@ -84,6 +87,7 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 
 // ensureChain ensures that the given chain exists, creating it if missing
 func ensureChain(ipt *iptables.IPTables, table, chain string) error {
+	netlog.Green("bn.ensureChain", "table", table, "chain", chain)
 	chains, err := ipt.ListChains(table)
 	if err != nil {
 		return fmt.Errorf("failed to list iptables chains: %v", err)
@@ -107,6 +111,7 @@ func ensureChain(ipt *iptables.IPTables, table, chain string) error {
 
 // appendChainRule adds the given rule to the chain
 func appendChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
+	netlog.Green("bn.appendChainRule", "chain", chain, "rule", rule)
 	exists, err := ipt.Exists("filter", chain, rule...)
 	if !exists && err == nil {
 		err = ipt.Append("filter", chain, rule...)
@@ -122,15 +127,16 @@ func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
 
 // Setup calls the CNI plugins with the add action
 func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
+	netlog.Green("bNC.Setup", "alloc_id", alloc.ID, "alloc_name", alloc.Name, "spec.path", spec.Path, "spec.mode", spec.Mode)
 	if err := b.ensureForwardingRules(); err != nil {
 		return nil, fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
-
 	return b.cni.Setup(ctx, alloc, spec)
 }
 
 // Teardown calls the CNI plugins with the delete action
 func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	netlog.Green("bNC.Teardown", "alloc_id", alloc.ID, "alloc_name", alloc.Name, "spec.path", spec.Path, "spec..address", spec.HostsConfig.Address, "spec.mode", spec.Mode)
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 

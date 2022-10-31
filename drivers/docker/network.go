@@ -91,7 +91,7 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
-
+	// todo: detect if it is already deleted first ?
 	if err := client.RemoveContainer(docker.RemoveContainerOptions{
 		Force: true,
 		ID:    spec.Labels[dockerNetSpecLabelKey],
