@@ -1145,6 +1145,15 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
+	// Ensure node is allowed to update allocs
+	node, err := n.srv.State().NodeByID(nil, args.NodeID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve node %s: %v", args.NodeID, err)
+	}
+	if node.Status != structs.NodeStatusReady {
+		return fmt.Errorf("node %s is %s, not %s", args.NodeID, node.Status, structs.NodeStatusReady)
+	}
+
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
 		return fmt.Errorf("must update at least one allocation")
