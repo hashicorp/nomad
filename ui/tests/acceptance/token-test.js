@@ -11,6 +11,7 @@ import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
+import moment from 'moment';
 
 let job;
 let node;
