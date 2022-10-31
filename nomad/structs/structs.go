@@ -9717,10 +9717,13 @@ type Allocation struct {
 	// to stop running because it got preempted
 	PreemptedByAllocation string
 
-	// SignedIdentities is a map of task names to signed
-	// identity/capability claim tokens for those tasks. If needed, it
-	// is populated in the plan applier
+	// SignedIdentities is a map of task names to signed identity/capability
+	// claim tokens for those tasks. If needed, it is populated in the plan
+	// applier.
 	SignedIdentities map[string]string `json:"-"`
+
+	// SigningKeyID is the key used to sign the SignedIdentities field.
+	SigningKeyID string
 
 	// Raft Indexes
 	CreateIndex uint64

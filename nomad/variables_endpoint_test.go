@@ -61,15 +61,15 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
 
 	claims1 := alloc1.ToTaskIdentityClaims(nil, "web")
-	idToken, err := srv.encrypter.SignClaims(claims1)
+	idToken, _, err := srv.encrypter.SignClaims(claims1)
 	must.NoError(t, err)
 
 	claims2 := alloc2.ToTaskIdentityClaims(nil, "web")
-	noPermissionsToken, err := srv.encrypter.SignClaims(claims2)
+	noPermissionsToken, _, err := srv.encrypter.SignClaims(claims2)
 	must.NoError(t, err)
 
 	claims3 := alloc3.ToTaskIdentityClaims(alloc3.Job, "web")
-	idDispatchToken, err := srv.encrypter.SignClaims(claims3)
+	idDispatchToken, _, err := srv.encrypter.SignClaims(claims3)
 	must.NoError(t, err)
 
 	// corrupt the signature of the token
@@ -83,7 +83,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
 	claims4 := alloc4.ToTaskIdentityClaims(alloc4.Job, "web")
-	wiOnlyToken, err := srv.encrypter.SignClaims(claims4)
+	wiOnlyToken, _, err := srv.encrypter.SignClaims(claims4)
 	must.NoError(t, err)
 
 	policy := mock.ACLPolicy()
@@ -570,7 +570,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
 
 	claims := alloc.ToTaskIdentityClaims(alloc.Job, "web")
-	token, err := srv.encrypter.SignClaims(claims)
+	token, _, err := srv.encrypter.SignClaims(claims)
 	must.NoError(t, err)
 
 	writeVar := func(ns, path string) {

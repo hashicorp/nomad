@@ -18,6 +18,7 @@ const (
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
+	TableAllocs               = "allocs"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	indexKeyID         = "key_id"
 	indexPath          = "path"
 	indexName          = "name"
+	indexSigningKey    = "signing_key"
 )
 
 var (
@@ -684,6 +686,15 @@ func allocTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "DeploymentID",
+				},
+			},
+
+			indexSigningKey: {
+				Name:         indexSigningKey,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SigningKeyID",
 				},
 			},
 		},
