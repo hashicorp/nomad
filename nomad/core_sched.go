@@ -901,7 +901,7 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 	// a rotation will be sent to the leader so our view of state
 	// is no longer valid. we ack this core job and will pick up
 	// the GC work on the next interval
-	wasRotated, err := c.rootKeyRotation(eval)
+	wasRotated, err := c.rootKeyRotate(eval)
 	if err != nil {
 		return err
 	}
@@ -912,16 +912,6 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 }
 
 func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
-
-	// we can't GC any key older than the oldest live allocation
-	// because it might have signed that allocation's workload
-	// identity; this is conservative so that we don't have to iterate
-	// over all the allocations and find out which keys signed their
-	// identity, which will be expensive on large clusters
-	allocOldThreshold, err := c.getOldestAllocationIndex()
-	if err != nil {
-		return err
-	}
 
 	oldThreshold := c.getThreshold(eval, "root key",
 		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
@@ -938,21 +928,24 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 			break
 		}
 		keyMeta := raw.(*structs.RootKeyMeta)
-		if keyMeta.Active() {
-			continue // never GC the active key
+		if keyMeta.Active() || keyMeta.Rekeying() {
+			continue // never GC the active key or one we're rekeying
 		}
 		if keyMeta.CreateIndex > oldThreshold {
 			continue // don't GC recent keys
 		}
-		if keyMeta.CreateIndex > allocOldThreshold {
-			continue // don't GC keys possibly used to sign live allocations
+
+		// don't GC a key that's deprecated, that's encrypted a variable or
+		// signed a live workload identity
+		inUse := false
+		if !keyMeta.Deprecated() {
+			inUse, err = c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
+			if err != nil {
+				return err
+			}
 		}
-		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
-		if err != nil {
-			return err
-		}
-		if varIter.Next() != nil {
-			continue // key is still in use
+		if inUse {
+			continue
 		}
 
 		req := &structs.KeyringDeleteRootKeyRequest{
@@ -972,9 +965,9 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 	return nil
 }
 
-// rootKeyRotation checks if the active key is old enough that we need
-// to kick off a rotation. Returns true if the key was rotated.
-func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) {
+// rootKeyRotate checks if the active key is old enough that we need
+// to kick off a rotation.
+func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 
 	rotationThreshold := c.getThreshold(eval, "root key",
 		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
@@ -1037,9 +1030,20 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			return err
 		}
 
-		// we've now rotated all this key's variables, so set its state
+		// we've rotated this key's variables, but we need to ensure it hasn't
+		// been used to sign any live workload identities before it's safe to
+		// mark as deprecated
+		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+
 		keyMeta = keyMeta.Copy()
-		keyMeta.SetDeprecated()
+		if inUse {
+			keyMeta.SetInactive()
+		} else {
+			keyMeta.SetDeprecated()
+		}
 
 		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
 		if err != nil {
