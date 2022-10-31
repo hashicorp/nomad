@@ -7,6 +7,7 @@ import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
 import classic from 'ember-classic-decorator';
+import moment from 'moment';
 
 const MINUTES_LEFT_AT_WARNING = 10;
 const EXPIRY_NOTIFICATION_TITLE = 'Your access is about to expire';
