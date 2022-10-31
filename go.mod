@@ -17,14 +17,14 @@ require (
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.84
+	github.com/aws/aws-sdk-go v1.44.126
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v1.1.7
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.1.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/creack/pty v1.1.18
-	github.com/docker/cli v20.10.18+incompatible
+	github.com/docker/cli v20.10.21+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.5.0
@@ -73,13 +73,13 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-3
 	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
 	github.com/hashicorp/logutils v1.0.0
-	github.com/hashicorp/memberlist v0.4.0
+	github.com/hashicorp/memberlist v0.5.0
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20221006174558-2aa7e66bdb52
 	github.com/hashicorp/raft v1.3.11
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.2.2
-	github.com/hashicorp/serf v0.10.0
+	github.com/hashicorp/serf v0.10.1
 	github.com/hashicorp/vault/api v1.8.1
 	github.com/hashicorp/vault/sdk v0.6.0
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
@@ -117,7 +117,7 @@ require (
 	github.com/zclconf/go-cty v1.11.0
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.etcd.io/bbolt v1.3.6
-	go.uber.org/goleak v1.1.12
+	go.uber.org/goleak v1.2.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/exp v0.0.0-20220921164117-439092de6870
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
