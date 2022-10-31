@@ -73,7 +73,7 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-3
 	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
 	github.com/hashicorp/logutils v1.0.0
-	github.com/hashicorp/memberlist v0.4.0
+	github.com/hashicorp/memberlist v0.5.0
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20221006174558-2aa7e66bdb52
 	github.com/hashicorp/raft v1.3.11
