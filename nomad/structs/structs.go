@@ -10632,6 +10632,14 @@ type IdentityClaims struct {
 	jwt.RegisteredClaims
 }
 
+// TODO(schmichael) this is just for debugging, feel free to remove
+// String version of the identity. No secrets, safe for display.
+func (ic *IdentityClaims) String() string {
+	//TODO(schmichael) use "jwt" or something vendor specific like "nwi"
+	//for Nomad Workload Identity here?
+	return fmt.Sprintf("jwt:%s/%s/%s/%s", ic.Namespace, ic.JobID, ic.AllocationID, ic.TaskName)
+}
+
 // AllocationDiff is another named type for Allocation (to use the same fields),
 // which is used to represent the delta for an Allocation. If you need a method
 // defined on the al

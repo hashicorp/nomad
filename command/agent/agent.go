@@ -115,7 +115,11 @@ type Agent struct {
 	builtinListener net.Listener
 	builtinDialer   *bufconndialer.BufConnWrapper
 
-	InmemSink *metrics.InmemSink
+	//TODO(schmichael) builtinServer is an HTTP server for attaching
+	//per-task listeners. Always requires auth.
+	builtinServer *builtinAPI
+
+	inmemSink *metrics.InmemSink
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -124,7 +128,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 		config:     config,
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
-		InmemSink:  inmem,
+		inmemSink:  inmem,
 	}
 
 	// Create the loggers
@@ -1017,8 +1021,14 @@ func (a *Agent) setupClient() error {
 	// running consul-template functions that utilize the Nomad API. We lazy
 	// load this into the client config, therefore this needs to happen before
 	// we call NewClient.
+	//TODO migrate to APIListenerRegistrar
 	a.builtinListener, a.builtinDialer = bufconndialer.New()
 	conf.TemplateDialer = a.builtinDialer
+
+	// Initialize builtin API server here for use in the client, but it won't
+	// accept connections until the HTTP servers are created.
+	a.builtinServer = newBuiltinAPI()
+	conf.APIListenerRegistrar = a.builtinServer
 
 	nomadClient, err := client.NewClient(
 		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)
@@ -1298,6 +1308,11 @@ func (a *Agent) GetConfig() *Config {
 	defer a.configLock.Unlock()
 
 	return a.config
+}
+
+// GetMetricsSink returns the metrics sink.
+func (a *Agent) GetMetricsSink() *metrics.InmemSink {
+	return a.inmemSink
 }
 
 // setupConsul creates the Consul client and starts its main Run loop.

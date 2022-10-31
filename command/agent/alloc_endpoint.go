@@ -222,7 +222,7 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	case "exec":
 		return s.allocExec(allocID, resp, req)
 	case "snapshot":
-		if s.agent.client == nil {
+		if s.agent.Client() == nil {
 			return nil, clientNotRunning
 		}
 		return s.allocSnapshot(allocID, resp, req)

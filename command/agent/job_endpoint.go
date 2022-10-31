@@ -819,7 +819,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 
 	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
-		job, queryRegion, writeReq.Region, s.agent.config.Region,
+		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
 	)
 
 	sJob := ApiJobToStructJob(job)

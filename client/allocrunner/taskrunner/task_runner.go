@@ -426,7 +426,11 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Use the client secret only as the initial value; the identity hook will
 	// update this with a workload identity if one is available
-	tr.setNomadToken(config.ClientConfig.Node.SecretID)
+	//TODO(schmichael) can we remove this entirely? seems like a huge
+	//security problem if we use accidentally use it instead of the
+	//workload identity
+	//tr.setNomadToken(config.ClientConfig.Node.SecretID)
+	tr.setNomadToken("Hi, this is a fake token that should never work or be used! Remove me.")
 
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities
