@@ -6965,23 +6965,16 @@ func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMe
 func (s *StateStore) IsRootKeyMetaInUse(keyID string) (bool, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableAllocs, indexSigningKey)
+	iter, err := txn.Get(TableAllocs, indexSigningKey, keyID, true)
 	if err != nil {
 		return false, err
 	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		alloc := raw.(*structs.Allocation)
-		if !alloc.TerminalStatus() {
-			return true, nil
-		}
+	alloc := iter.Next()
+	if alloc != nil {
+		return true, nil
 	}
 
-	iter, err = txn.Get(TableVariables, indexKeyID)
+	iter, err = txn.Get(TableVariables, indexKeyID, keyID)
 	if err != nil {
 		return false, err
 	}
