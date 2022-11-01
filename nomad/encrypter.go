@@ -485,7 +485,6 @@ START:
 					krr.logger.Error(err.Error(), "key", keyMeta.KeyID)
 				}
 			}
-
 		}
 	}
 
