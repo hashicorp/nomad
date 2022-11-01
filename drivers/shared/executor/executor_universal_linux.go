@@ -3,7 +3,6 @@ package executor
 import (
 	"fmt"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -21,7 +21,7 @@ import (
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
 func setCmdUser(cmd *exec.Cmd, userid string) error {
-	u, err := user.Lookup(userid)
+	u, err := users.Lookup(userid)
 	if err != nil {
 		return fmt.Errorf("failed to identify user %v: %v", userid, err)
 	}
@@ -122,7 +122,7 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 				"error", err)
 			return nil
 		}
-		path := cfg.Cgroups.Paths["freezer"]
+		path := cfg.Cgroups.Path
 		e.logger.Trace("cgroup created, now need to apply", "path", path)
 		e.containment = resources.Contain(e.logger, cfg.Cgroups)
 		return e.containment.Apply(pid)

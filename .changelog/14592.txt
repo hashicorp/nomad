@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: allow deep-dive clicks to tasks from client, job, and task group routes.
+```

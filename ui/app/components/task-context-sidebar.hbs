@@ -1,0 +1,44 @@
+<Portal @target="log-sidebar-portal">
+	<div
+		class="sidebar task-context-sidebar has-subnav {{if this.isSideBarOpen "open"}}"
+		{{on-click-outside
+			@fns.closeSidebar
+			capture=true
+		}}
+	>
+	{{#if @task}}
+		{{keyboard-commands this.keyCommands}}
+		<header>
+			<h1 class="title">
+				{{@task.name}}
+				<span class="state {{@task.state}}">
+					{{@task.state}}
+				</span>
+			</h1>
+			<LinkTo
+				class="link"
+				title={{@task.name}}
+				@route="allocations.allocation.task"
+				@models={{array @task.allocation @task}}
+			>
+				Go to Task page
+			</LinkTo>
+			<button
+				class="button close is-borderless"
+				type="button"
+				{{on "click" @fns.closeSidebar}}
+			>
+				{{x-icon "cancel"}}
+			</button>
+		</header>
+
+		<TaskLog
+			@allocation={{@task.allocation}}
+			@task={{@task.name}}
+			@shouldFillHeight={{false}}
+		/>
+
+
+	{{/if}}
+	</div>
+</Portal>

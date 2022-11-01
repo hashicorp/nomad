@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -370,6 +371,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 		valid := []string{
 			"source",
 			"options",
+			"headers",
 			"mode",
 			"destination",
 		}
@@ -433,10 +435,19 @@ func parseArtifactOption(result map[string]string, list *ast.ObjectList) error {
 
 func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
+		// we'll need a list of all ast objects for later
+		var listVal *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
 		// Check for invalid keys
 		valid := []string{
 			"change_mode",
 			"change_signal",
+			"change_script",
 			"data",
 			"destination",
 			"left_delimiter",
@@ -459,13 +470,14 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
+		delete(m, "change_script") // change_script is its own object
 
 		templ := &api.Template{
 			ChangeMode:    stringToPtr("restart"),
 			Splay:         timeToPtr(5 * time.Second),
 			Perms:         stringToPtr("0644"),
-			Uid:           intToPtr(-1),
-			Gid:           intToPtr(-1),
+			Uid:           pointer.Of(-1),
+			Gid:           pointer.Of(-1),
 			ErrMissingKey: boolToPtr(false),
 		}
 
@@ -479,6 +491,40 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 		if err := dec.Decode(m); err != nil {
 			return err
+		}
+
+		// If we have change_script, parse it
+		if o := listVal.Filter("change_script"); len(o.Items) > 0 {
+			if len(o.Items) != 1 {
+				return fmt.Errorf(
+					"change_script -> expected single stanza, got %d", len(o.Items),
+				)
+			}
+			var m map[string]interface{}
+			changeScriptBlock := o.Items[0]
+
+			// check for invalid fields
+			valid := []string{"command", "args", "timeout", "fail_on_error"}
+			if err := checkHCLKeys(changeScriptBlock.Val, valid); err != nil {
+				return multierror.Prefix(err, "change_script ->")
+			}
+
+			if err := hcl.DecodeObject(&m, changeScriptBlock.Val); err != nil {
+				return err
+			}
+
+			templ.ChangeScript = &api.ChangeScript{}
+			dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+				DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+				WeaklyTypedInput: true,
+				Result:           templ.ChangeScript,
+			})
+			if err != nil {
+				return err
+			}
+			if err := dec.Decode(m); err != nil {
+				return err
+			}
 		}
 
 		*result = append(*result, templ)

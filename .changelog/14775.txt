@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Added a TaskEvent when task shutdown is waiting on shutdown_delay
+```

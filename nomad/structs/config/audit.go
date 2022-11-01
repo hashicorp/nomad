@@ -3,7 +3,8 @@ package config
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"golang.org/x/exp/slices"
 )
 
 // AuditConfig is the configuration specific to Audit Logging
@@ -83,7 +84,7 @@ func (a *AuditConfig) Copy() *AuditConfig {
 
 	// Copy bool pointers
 	if a.Enabled != nil {
-		nc.Enabled = helper.BoolToPtr(*a.Enabled)
+		nc.Enabled = pointer.Of(*a.Enabled)
 	}
 
 	// Copy Sinks and Filters
@@ -98,7 +99,7 @@ func (a *AuditConfig) Merge(b *AuditConfig) *AuditConfig {
 	result := a.Copy()
 
 	if b.Enabled != nil {
-		result.Enabled = helper.BoolToPtr(*b.Enabled)
+		result.Enabled = pointer.Of(*b.Enabled)
 	}
 
 	// Merge Sinks
@@ -138,9 +139,9 @@ func (a *AuditFilter) Copy() *AuditFilter {
 	*nc = *a
 
 	// Copy slices
-	nc.Endpoints = helper.CopySliceString(nc.Endpoints)
-	nc.Stages = helper.CopySliceString(nc.Stages)
-	nc.Operations = helper.CopySliceString(nc.Operations)
+	nc.Endpoints = slices.Clone(nc.Endpoints)
+	nc.Stages = slices.Clone(nc.Stages)
+	nc.Operations = slices.Clone(nc.Operations)
 
 	return nc
 }

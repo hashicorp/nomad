@@ -1,4 +1,4 @@
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package allocdir
 
@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/hashicorp/nomad/helper/users"
 	"golang.org/x/sys/unix"
 )
 
@@ -18,7 +19,7 @@ var (
 	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("/", SharedAllocName)
 
-	// TaskLocalContainer is the path inside a container for mounted directory
+	// TaskLocalContainerPath is the path inside a container for mounted directory
 	// for local storage.
 	TaskLocalContainerPath = filepath.Join("/", TaskLocal)
 
@@ -39,17 +40,14 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	u, err := user.Lookup("nobody")
+	nobody := users.Nobody()
+
+	uid, err := getUid(&nobody)
 	if err != nil {
 		return err
 	}
 
-	uid, err := getUid(u)
-	if err != nil {
-		return err
-	}
-
-	gid, err := getGid(u)
+	gid, err := getGid(&nobody)
 	if err != nil {
 		return err
 	}

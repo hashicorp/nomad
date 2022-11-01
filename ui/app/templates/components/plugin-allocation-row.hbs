@@ -55,7 +55,7 @@
     {{#if (or this.allocation.job.isPending this.allocation.job.isReloading)}}
       ...
     {{else}}
-      <LinkTo @route="jobs.job" @model={{this.allocation.job}} @query={{hash jobNamespace=this.allocation.job.namespace.id}} data-test-job>{{this.allocation.job.name}}</LinkTo>
+      <LinkTo @route="jobs.job" @model={{this.allocation.job}} data-test-job>{{this.allocation.job.name}}</LinkTo>
       <span class="is-faded" data-test-task-group>/ {{this.allocation.taskGroup.name}}</span>
     {{/if}}
   </td>

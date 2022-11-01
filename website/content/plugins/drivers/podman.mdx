@@ -408,7 +408,7 @@ the networking namespace of one container for other tasks in the same group.
 
 A typical example is a network server and a metric exporter or log shipping
 sidecar. The metric exporter needs access to a private monitoring port which
-should not be exposed the the network and thus is usually bound to `localhost`.
+should not be exposed to the network and thus is usually bound to `localhost`.
 
 The [`nomad-driver-podman` repository][homepage] includes three different
 examples jobs for such a setup. All of them will start a
@@ -566,8 +566,8 @@ configuration file.
 [memory-value]: /docs/job-specification/resources#memory
 [`network`]: /docs/job-specification/network
 [nomad-init]: /docs/commands/job/init
-[nomad_download]: /downloads.html
-[nomad_driver_ports]: /docs/drivers/docker.html#forwarding-and-exposing-ports
+[nomad_download]: /downloads
+[nomad_driver_ports]: /docs/drivers/docker#forwarding-and-exposing-ports
 [nomad_group_network]: /docs/job-specification/group#network
 [nomad_lifecycle_hooks]: /docs/job-specification/lifecycle
 [plugin_dir]: /docs/configuration#plugin_dir

@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -341,7 +342,7 @@ func (t *TaskEnv) replaceEnvClient(arg string) string {
 // directory path fields of this TaskEnv
 func (t *TaskEnv) checkEscape(testPath string) bool {
 	for _, p := range []string{t.clientTaskDir, t.clientSharedAllocDir} {
-		if p != "" && !helper.PathEscapesSandbox(p, testPath) {
+		if p != "" && !escapingfs.PathEscapesSandbox(p, testPath) {
 			return false
 		}
 	}
@@ -903,7 +904,6 @@ func (b *Builder) SetDriverNetwork(n *drivers.DriverNetwork) *Builder {
 // Handled by setAlloc -> otherPorts:
 //
 //	Task:   NOMAD_TASK_{IP,PORT,ADDR}_<task>_<label> # Always host values
-//
 func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *drivers.DriverNetwork) {
 	for _, n := range nets {
 		for _, p := range n.ReservedPorts {

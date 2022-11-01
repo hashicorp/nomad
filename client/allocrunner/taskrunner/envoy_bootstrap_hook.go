@@ -152,8 +152,8 @@ func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 }
 
 // getConsulNamespace will resolve the Consul namespace, choosing between
-//  - agent config (low precedence)
-//  - task group config (high precedence)
+//   - agent config (low precedence)
+//   - task group config (high precedence)
 func (h *envoyBootstrapHook) getConsulNamespace() string {
 	var namespace string
 	if h.consulConfig.Namespace != "" {
@@ -292,6 +292,8 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 	// Create environment
 	bootstrapEnv := bootstrap.env(os.Environ())
+	// append nomad environment variables to the bootstrap environment
+	bootstrapEnv = append(bootstrapEnv, h.groupEnv()...)
 
 	// Write env to file for debugging
 	envFile, err := os.Create(bootstrapEnvPath)
@@ -375,6 +377,19 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	}
 
 	return nil
+}
+
+func (h *envoyBootstrapHook) groupEnv() []string {
+	return []string{
+		fmt.Sprintf("%s=%s", taskenv.AllocID, h.alloc.ID),
+		fmt.Sprintf("%s=%s", taskenv.ShortAllocID, h.alloc.ID[:8]),
+		fmt.Sprintf("%s=%s", taskenv.AllocName, h.alloc.Name),
+		fmt.Sprintf("%s=%s", taskenv.GroupName, h.alloc.TaskGroup),
+		fmt.Sprintf("%s=%s", taskenv.JobName, h.alloc.Job.Name),
+		fmt.Sprintf("%s=%s", taskenv.JobID, h.alloc.Job.ID),
+		fmt.Sprintf("%s=%s", taskenv.Namespace, h.alloc.Namespace),
+		fmt.Sprintf("%s=%s", taskenv.Region, h.alloc.Job.Region),
+	}
 }
 
 // buildEnvoyAdminBind determines a unique port for use by the envoy admin listener.

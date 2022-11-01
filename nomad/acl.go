@@ -82,9 +82,9 @@ func (s *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error)
 	return aclObj, nil
 }
 
-// resolveTokenFromSnapshotCache is used to resolve an ACL object from a snapshot of state,
-// using a cache to avoid parsing and ACL construction when possible. It is split from resolveToken
-// to simplify testing.
+// resolveTokenFromSnapshotCache is used to resolve an ACL object from a
+// snapshot of state, using a cache to avoid parsing and ACL construction when
+// possible. It is split from resolveToken to simplify testing.
 func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID string) (*acl.ACL, error) {
 	// Lookup the ACL Token
 	var token *structs.ACLToken
@@ -101,6 +101,9 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 		if token == nil {
 			return nil, structs.ErrTokenNotFound
 		}
+		if token.IsExpired(time.Now().UTC()) {
+			return nil, structs.ErrTokenExpired
+		}
 	}
 
 	// Check if this is a management token
@@ -108,20 +111,59 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 		return acl.ManagementACL, nil
 	}
 
-	// Get all associated policies
-	policies := make([]*structs.ACLPolicy, 0, len(token.Policies))
+	// Store all policies detailed in the token request, this includes the
+	// named policies and those referenced within the role link.
+	policies := make([]*structs.ACLPolicy, 0, len(token.Policies)+len(token.Roles))
+
+	// Iterate all the token policies and add these to our policy tracking
+	// array.
 	for _, policyName := range token.Policies {
 		policy, err := snap.ACLPolicyByName(nil, policyName)
 		if err != nil {
 			return nil, err
 		}
 		if policy == nil {
-			// Ignore policies that don't exist, since they don't grant any more privilege
+			// Ignore policies that don't exist, since they don't grant any
+			// more privilege.
 			continue
 		}
 
-		// Save the policy and update the cache key
+		// Add the policy to the tracking array.
 		policies = append(policies, policy)
+	}
+
+	// Iterate all the token role links, so we can unpack these and identify
+	// the ACL policies.
+	for _, roleLink := range token.Roles {
+
+		// Any error reading the role means we cannot move forward. We just
+		// ignore any roles that have been detailed but are not within our
+		// state.
+		role, err := snap.GetACLRoleByID(nil, roleLink.ID)
+		if err != nil {
+			return nil, err
+		}
+		if role == nil {
+			continue
+		}
+
+		// Unpack the policies held within the ACL role to form a single list
+		// of ACL policies that this token has available.
+		for _, policyLink := range role.Policies {
+			policy, err := snap.ACLPolicyByName(nil, policyLink.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			// Ignore policies that don't exist, since they don't grant any
+			// more privilege.
+			if policy == nil {
+				continue
+			}
+
+			// Add the policy to the tracking array.
+			policies = append(policies, policy)
+		}
 	}
 
 	// Compile and cache the ACL object
@@ -161,6 +203,9 @@ func (s *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 		if token == nil {
 			return nil, structs.ErrTokenNotFound
 		}
+		if token.IsExpired(time.Now().UTC()) {
+			return nil, structs.ErrTokenExpired
+		}
 	}
 
 	return token, nil
@@ -180,27 +225,33 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 		return nil, fmt.Errorf("allocation does not exist")
 	}
 
-	// Find any implicit policies associated with this task
-	policies := []*structs.ACLPolicy{}
-	implicitPolicyNames := []string{
-		fmt.Sprintf("_:%s/%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup, claims.TaskName),
-		fmt.Sprintf("_:%s/%s/%s", alloc.Namespace, alloc.Job.ID, alloc.TaskGroup),
-		fmt.Sprintf("_:%s/%s", alloc.Namespace, alloc.Job.ID),
-		fmt.Sprintf("_:%s", alloc.Namespace),
+	// Find any policies attached to the job
+	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, alloc.Job.ID)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, policyName := range implicitPolicyNames {
-		policy, err := snap.ACLPolicyByName(nil, policyName)
-		if err != nil {
-			return nil, err
+	policies := []*structs.ACLPolicy{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
 		}
-		if policy == nil {
-			// Ignore policies that don't exist, since they don't
-			// grant any more privilege
+		policy := raw.(*structs.ACLPolicy)
+		if policy.JobACL == nil {
 			continue
 		}
 
-		policies = append(policies, policy)
+		switch {
+		case policy.JobACL.Group == "":
+			policies = append(policies, policy)
+		case policy.JobACL.Group != alloc.TaskGroup:
+			continue // don't bother checking task
+		case policy.JobACL.Task == "":
+			policies = append(policies, policy)
+		case policy.JobACL.Task == claims.TaskName:
+			policies = append(policies, policy)
+		}
 	}
+
 	return policies, nil
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the memory usage reported by Allocation Resource Utilization is zero on systems using cgroups v2
+```

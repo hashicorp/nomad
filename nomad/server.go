@@ -20,11 +20,16 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
+
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
@@ -38,10 +43,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
-	"github.com/hashicorp/serf/serf"
-	"go.etcd.io/bbolt"
 )
 
 const (
@@ -175,13 +176,16 @@ type Server struct {
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
+	// bootstrapped indicates if Server has bootstrapped or not.
+	bootstrapped *atomic.Bool
+
 	// reconcileCh is used to pass events from the serf handler
 	// into the leader manager. Mostly used to handle when servers
 	// join/leave from the region.
 	reconcileCh chan serf.Member
 
 	// used to track when the server is ready to serve consistent reads, updated atomically
-	readyForConsistentReads int32
+	readyForConsistentReads *atomic.Bool
 
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
@@ -212,11 +216,12 @@ type Server struct {
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
 
-	// keyringReplicator is used to replicate encryption keys for
-	// secure variables from the leader
+	// keyringReplicator is used to replicate root encryption keys from the
+	// leader
 	keyringReplicator *KeyringReplicator
 
-	// encrypter is the keyring for secure variables
+	// encrypter is the root keyring for encrypting variables and signing
+	// workload identities
 	encrypter *Encrypter
 
 	// periodicDispatcher is used to track and create evaluations for periodic jobs.
@@ -294,7 +299,7 @@ type endpoints struct {
 	Enterprise          *EnterpriseEndpoints
 	Event               *Event
 	Namespace           *Namespace
-	SecureVariables     *SecureVariables
+	Variables           *Variables
 	Keyring             *Keyring
 	ServiceRegistration *ServiceRegistration
 
@@ -341,24 +346,26 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Create the server
 	s := &Server{
-		config:           config,
-		consulCatalog:    consulCatalog,
-		connPool:         pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:           logger,
-		tlsWrap:          tlsWrap,
-		rpcServer:        rpc.NewServer(),
-		streamingRpcs:    structs.NewStreamingRpcRegistry(),
-		nodeConns:        make(map[string][]*nodeConnState),
-		peers:            make(map[string][]*serverParts),
-		localPeers:       make(map[raft.ServerAddress]*serverParts),
-		reassertLeaderCh: make(chan chan error),
-		reconcileCh:      make(chan serf.Member, 32),
-		eventCh:          make(chan serf.Event, 256),
-		evalBroker:       evalBroker,
-		blockedEvals:     NewBlockedEvals(evalBroker, logger),
-		rpcTLS:           incomingTLS,
-		aclCache:         aclCache,
-		workersEventCh:   make(chan interface{}, 1),
+		config:                  config,
+		consulCatalog:           consulCatalog,
+		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:                  logger,
+		tlsWrap:                 tlsWrap,
+		rpcServer:               rpc.NewServer(),
+		streamingRpcs:           structs.NewStreamingRpcRegistry(),
+		nodeConns:               make(map[string][]*nodeConnState),
+		peers:                   make(map[string][]*serverParts),
+		localPeers:              make(map[raft.ServerAddress]*serverParts),
+		bootstrapped:            &atomic.Bool{},
+		reassertLeaderCh:        make(chan chan error),
+		reconcileCh:             make(chan serf.Member, 32),
+		readyForConsistentReads: &atomic.Bool{},
+		eventCh:                 make(chan serf.Event, 256),
+		evalBroker:              evalBroker,
+		blockedEvals:            NewBlockedEvals(evalBroker, logger),
+		rpcTLS:                  incomingTLS,
+		aclCache:                aclCache,
+		workersEventCh:          make(chan interface{}, 1),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -746,7 +753,7 @@ func (s *Server) Leave() error {
 	// for some sane period of time.
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
-		minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+		minRaftProtocol, err := s.MinRaftProtocol()
 		if err != nil {
 			return err
 		}
@@ -956,7 +963,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 		}
 
 		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
@@ -1206,7 +1213,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: s.encrypter}
+		s.staticEndpoints.Variables = &Variables{srv: s, logger: s.logger.Named("variables"), encrypter: s.encrypter}
 		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
 
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
@@ -1256,7 +1263,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
 	server.Register(s.staticEndpoints.Namespace)
-	server.Register(s.staticEndpoints.SecureVariables)
+	server.Register(s.staticEndpoints.Variables)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
@@ -1894,17 +1901,17 @@ func (s *Server) getLeaderAcl() string {
 
 // Atomically sets a readiness state flag when leadership is obtained, to indicate that server is past its barrier write
 func (s *Server) setConsistentReadReady() {
-	atomic.StoreInt32(&s.readyForConsistentReads, 1)
+	s.readyForConsistentReads.Store(true)
 }
 
 // Atomically reset readiness state flag on leadership revoke
 func (s *Server) resetConsistentReadReady() {
-	atomic.StoreInt32(&s.readyForConsistentReads, 0)
+	s.readyForConsistentReads.Store(false)
 }
 
 // Returns true if this server is ready to serve consistent reads
 func (s *Server) isReadyForConsistentReads() bool {
-	return atomic.LoadInt32(&s.readyForConsistentReads) == 1
+	return s.readyForConsistentReads.Load()
 }
 
 // Regions returns the known regions in the cluster.
@@ -2006,7 +2013,7 @@ func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, r
 	if err != nil {
 		return err
 	}
-	reply.Index = helper.Uint64Max(1, index)
+	reply.Index = helper.Max(1, index)
 
 	// Set the query response.
 	s.setQueryMeta(reply)

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,10 +15,10 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	b := a.Copy()
 	require.Equal(t, a, b)
 
-	b.HTTPReadTimeout = helper.StringToPtr("5m")
-	b.HTTPMaxSize = helper.StringToPtr("2MB")
-	b.GitTimeout = helper.StringToPtr("3m")
-	b.HgTimeout = helper.StringToPtr("2m")
+	b.HTTPReadTimeout = pointer.Of("5m")
+	b.HTTPMaxSize = pointer.Of("2MB")
+	b.GitTimeout = pointer.Of("3m")
+	b.HgTimeout = pointer.Of("2m")
 	require.NotEqual(t, a, b)
 }
 
@@ -34,68 +34,68 @@ func TestArtifactConfig_Merge(t *testing.T) {
 		{
 			name: "merge all fields",
 			source: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("30m"),
-				HTTPMaxSize:     helper.StringToPtr("100GB"),
-				GCSTimeout:      helper.StringToPtr("30m"),
-				GitTimeout:      helper.StringToPtr("30m"),
-				HgTimeout:       helper.StringToPtr("30m"),
-				S3Timeout:       helper.StringToPtr("30m"),
+				HTTPReadTimeout: pointer.Of("30m"),
+				HTTPMaxSize:     pointer.Of("100GB"),
+				GCSTimeout:      pointer.Of("30m"),
+				GitTimeout:      pointer.Of("30m"),
+				HgTimeout:       pointer.Of("30m"),
+				S3Timeout:       pointer.Of("30m"),
 			},
 			other: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("5m"),
-				HTTPMaxSize:     helper.StringToPtr("2GB"),
-				GCSTimeout:      helper.StringToPtr("1m"),
-				GitTimeout:      helper.StringToPtr("2m"),
-				HgTimeout:       helper.StringToPtr("3m"),
-				S3Timeout:       helper.StringToPtr("4m"),
+				HTTPReadTimeout: pointer.Of("5m"),
+				HTTPMaxSize:     pointer.Of("2GB"),
+				GCSTimeout:      pointer.Of("1m"),
+				GitTimeout:      pointer.Of("2m"),
+				HgTimeout:       pointer.Of("3m"),
+				S3Timeout:       pointer.Of("4m"),
 			},
 			expected: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("5m"),
-				HTTPMaxSize:     helper.StringToPtr("2GB"),
-				GCSTimeout:      helper.StringToPtr("1m"),
-				GitTimeout:      helper.StringToPtr("2m"),
-				HgTimeout:       helper.StringToPtr("3m"),
-				S3Timeout:       helper.StringToPtr("4m"),
+				HTTPReadTimeout: pointer.Of("5m"),
+				HTTPMaxSize:     pointer.Of("2GB"),
+				GCSTimeout:      pointer.Of("1m"),
+				GitTimeout:      pointer.Of("2m"),
+				HgTimeout:       pointer.Of("3m"),
+				S3Timeout:       pointer.Of("4m"),
 			},
 		},
 		{
 			name:   "null source",
 			source: nil,
 			other: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("5m"),
-				HTTPMaxSize:     helper.StringToPtr("2GB"),
-				GCSTimeout:      helper.StringToPtr("1m"),
-				GitTimeout:      helper.StringToPtr("2m"),
-				HgTimeout:       helper.StringToPtr("3m"),
-				S3Timeout:       helper.StringToPtr("4m"),
+				HTTPReadTimeout: pointer.Of("5m"),
+				HTTPMaxSize:     pointer.Of("2GB"),
+				GCSTimeout:      pointer.Of("1m"),
+				GitTimeout:      pointer.Of("2m"),
+				HgTimeout:       pointer.Of("3m"),
+				S3Timeout:       pointer.Of("4m"),
 			},
 			expected: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("5m"),
-				HTTPMaxSize:     helper.StringToPtr("2GB"),
-				GCSTimeout:      helper.StringToPtr("1m"),
-				GitTimeout:      helper.StringToPtr("2m"),
-				HgTimeout:       helper.StringToPtr("3m"),
-				S3Timeout:       helper.StringToPtr("4m"),
+				HTTPReadTimeout: pointer.Of("5m"),
+				HTTPMaxSize:     pointer.Of("2GB"),
+				GCSTimeout:      pointer.Of("1m"),
+				GitTimeout:      pointer.Of("2m"),
+				HgTimeout:       pointer.Of("3m"),
+				S3Timeout:       pointer.Of("4m"),
 			},
 		},
 		{
 			name: "null other",
 			source: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("30m"),
-				HTTPMaxSize:     helper.StringToPtr("100GB"),
-				GCSTimeout:      helper.StringToPtr("30m"),
-				GitTimeout:      helper.StringToPtr("30m"),
-				HgTimeout:       helper.StringToPtr("30m"),
-				S3Timeout:       helper.StringToPtr("30m"),
+				HTTPReadTimeout: pointer.Of("30m"),
+				HTTPMaxSize:     pointer.Of("100GB"),
+				GCSTimeout:      pointer.Of("30m"),
+				GitTimeout:      pointer.Of("30m"),
+				HgTimeout:       pointer.Of("30m"),
+				S3Timeout:       pointer.Of("30m"),
 			},
 			other: nil,
 			expected: &ArtifactConfig{
-				HTTPReadTimeout: helper.StringToPtr("30m"),
-				HTTPMaxSize:     helper.StringToPtr("100GB"),
-				GCSTimeout:      helper.StringToPtr("30m"),
-				GitTimeout:      helper.StringToPtr("30m"),
-				HgTimeout:       helper.StringToPtr("30m"),
-				S3Timeout:       helper.StringToPtr("30m"),
+				HTTPReadTimeout: pointer.Of("30m"),
+				HTTPMaxSize:     pointer.Of("100GB"),
+				GCSTimeout:      pointer.Of("30m"),
+				GitTimeout:      pointer.Of("30m"),
+				HgTimeout:       pointer.Of("30m"),
+				S3Timeout:       pointer.Of("30m"),
 			},
 		},
 	}
@@ -131,28 +131,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "http read timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = helper.StringToPtr("invalid")
+				a.HTTPReadTimeout = pointer.Of("invalid")
 			},
 			expectedError: "http_read_timeout not a valid duration",
 		},
 		{
 			name: "http read timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = helper.StringToPtr("")
+				a.HTTPReadTimeout = pointer.Of("")
 			},
 			expectedError: "http_read_timeout not a valid duration",
 		},
 		{
 			name: "http read timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = helper.StringToPtr("0")
+				a.HTTPReadTimeout = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "http read timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = helper.StringToPtr("-10m")
+				a.HTTPReadTimeout = pointer.Of("-10m")
 			},
 			expectedError: "http_read_timeout must be > 0",
 		},
@@ -166,28 +166,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "http max size is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = helper.StringToPtr("invalid")
+				a.HTTPMaxSize = pointer.Of("invalid")
 			},
 			expectedError: "http_max_size not a valid size",
 		},
 		{
 			name: "http max size is empty",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = helper.StringToPtr("")
+				a.HTTPMaxSize = pointer.Of("")
 			},
 			expectedError: "http_max_size not a valid size",
 		},
 		{
 			name: "http max size is zero",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = helper.StringToPtr("0")
+				a.HTTPMaxSize = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "http max size is negative",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = helper.StringToPtr("-l0MB")
+				a.HTTPMaxSize = pointer.Of("-l0MB")
 			},
 			expectedError: "http_max_size not a valid size",
 		},
@@ -201,28 +201,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "gcs timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = helper.StringToPtr("invalid")
+				a.GCSTimeout = pointer.Of("invalid")
 			},
 			expectedError: "gcs_timeout not a valid duration",
 		},
 		{
 			name: "gcs timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = helper.StringToPtr("")
+				a.GCSTimeout = pointer.Of("")
 			},
 			expectedError: "gcs_timeout not a valid duration",
 		},
 		{
 			name: "gcs timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = helper.StringToPtr("0")
+				a.GCSTimeout = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "gcs timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = helper.StringToPtr("-l0m")
+				a.GCSTimeout = pointer.Of("-l0m")
 			},
 			expectedError: "gcs_timeout not a valid duration",
 		},
@@ -236,28 +236,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "git timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = helper.StringToPtr("invalid")
+				a.GitTimeout = pointer.Of("invalid")
 			},
 			expectedError: "git_timeout not a valid duration",
 		},
 		{
 			name: "git timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = helper.StringToPtr("")
+				a.GitTimeout = pointer.Of("")
 			},
 			expectedError: "git_timeout not a valid duration",
 		},
 		{
 			name: "git timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = helper.StringToPtr("0")
+				a.GitTimeout = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "git timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = helper.StringToPtr("-l0m")
+				a.GitTimeout = pointer.Of("-l0m")
 			},
 			expectedError: "git_timeout not a valid duration",
 		},
@@ -271,28 +271,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "hg timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = helper.StringToPtr("invalid")
+				a.HgTimeout = pointer.Of("invalid")
 			},
 			expectedError: "hg_timeout not a valid duration",
 		},
 		{
 			name: "hg timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = helper.StringToPtr("")
+				a.HgTimeout = pointer.Of("")
 			},
 			expectedError: "hg_timeout not a valid duration",
 		},
 		{
 			name: "hg timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = helper.StringToPtr("0")
+				a.HgTimeout = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "hg timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = helper.StringToPtr("-l0m")
+				a.HgTimeout = pointer.Of("-l0m")
 			},
 			expectedError: "hg_timeout not a valid duration",
 		},
@@ -306,28 +306,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "s3 timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = helper.StringToPtr("invalid")
+				a.S3Timeout = pointer.Of("invalid")
 			},
 			expectedError: "s3_timeout not a valid duration",
 		},
 		{
 			name: "s3 timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = helper.StringToPtr("")
+				a.S3Timeout = pointer.Of("")
 			},
 			expectedError: "s3_timeout not a valid duration",
 		},
 		{
 			name: "s3 timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = helper.StringToPtr("0")
+				a.S3Timeout = pointer.Of("0")
 			},
 			expectedError: "",
 		},
 		{
 			name: "s3 timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = helper.StringToPtr("-l0m")
+				a.S3Timeout = pointer.Of("-l0m")
 			},
 			expectedError: "s3_timeout not a valid duration",
 		},

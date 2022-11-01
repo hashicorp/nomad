@@ -225,7 +225,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 
 func TestPeriodConfig_DSTSprintForward_Property(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	locName := "America/Los_Angeles"
 	loc, err := time.LoadLocation(locName)
 	require.NoError(t, err)

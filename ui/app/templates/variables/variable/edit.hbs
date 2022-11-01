@@ -1,4 +1,4 @@
-{{page-title "Edit Secure Variable"}}
+{{page-title "Edit Variable"}}
 
 <h1 class="title variable-title">
   <LinkTo class="back-link" @route="variables.variable.index">
@@ -11,7 +11,7 @@
   Edit
   {{this.model.path}}
   <Toggle
-    data-test-memory-toggle
+    data-test-json-toggle
     @isActive={{eq this.view "json"}}
     @onToggle={{action this.toggleView}}
     title="JSON"
@@ -19,7 +19,7 @@
 
 </h1>
 
-<SecureVariableForm
+<VariableForm
   @model={{this.model}}
   @existingVariables={{this.existingVariables}}
   @view={{this.view}}

@@ -15,6 +15,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class ClientController extends Controller.extend(
@@ -46,6 +47,7 @@ export default class ClientController extends Controller.extend(
     {
       qpStatus: 'status',
     },
+    'activeTask',
   ];
 
   // Set in the route
@@ -56,9 +58,18 @@ export default class ClientController extends Controller.extend(
   qpStatus = '';
   currentPage = 1;
   pageSize = 8;
+  activeTask = null;
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
+
+  @localStorageProperty('nomadShowSubTasks', false) showSubTasks;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
+  }
 
   @computed()
   get searchProps() {
@@ -256,5 +267,14 @@ export default class ClientController extends Controller.extend(
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
+  }
+
+  @action
+  setActiveTaskQueryParam(task) {
+    if (task) {
+      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+    } else {
+      this.set('activeTask', null);
+    }
   }
 }

@@ -15,12 +15,12 @@ import { attr } from '@ember-data/model';
  */
 
 /**
- * @typedef SecureVariable
+ * @typedef Variable
  * @type {object}
  */
 
 /**
- * A Secure Variable has a path, namespace, and an array of key-value pairs within the client.
+ * A Variable has a path, namespace, and an array of key-value pairs within the client.
  * On the server, these key-value pairs are serialized into object structure.
  * @class
  * @extends Model
@@ -67,7 +67,9 @@ export default class VariableModel extends Model {
    */
   setAndTrimPath() {
     this.set('path', trimPath([this.path]));
-    this.set('id', this.get('path'));
+    if (!this.get('id')) {
+      this.set('id', `${this.get('path')}@${this.get('namespace')}`);
+    }
   }
 
   /**

@@ -56,3 +56,23 @@ func (a *Allocation) ServiceProviderNamespace() string {
 
 	return tg.Consul.GetNamespace()
 }
+
+type AllocInfo struct {
+	AllocID string
+
+	// Group in which the service belongs for a group-level service, or the
+	// group in which task belongs for a task-level service.
+	Group string
+
+	// Task in which the service belongs for task-level service. Will be empty
+	// for a group-level service.
+	Task string
+
+	// JobID provides additional context for providers regarding which job
+	// caused this registration.
+	JobID string
+
+	// NomadNamespace provides additional context for providers regarding which
+	// nomad namespace caused this registration.
+	Namespace string
+}

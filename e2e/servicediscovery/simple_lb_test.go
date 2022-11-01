@@ -15,8 +15,8 @@ import (
 func testSimpleLoadBalancing(t *testing.T) {
 	nomadClient := e2eutil.NomadClient(t)
 
-	// Generate our job ID which will be used for the entire test.
-	jobID := "nsd-simple-lb-replicas" + uuid.Short()
+	// Generate our unique job ID which will be used for this test.
+	jobID := "nsd-simple-lb-replicas-" + uuid.Short()
 	jobIDs := []string{jobID}
 
 	// Defer a cleanup function to remove the job. This will trigger if the

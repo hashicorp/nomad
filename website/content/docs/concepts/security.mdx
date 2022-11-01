@@ -17,7 +17,7 @@ workloads including Docker, non-containerized, microservice, and batch
 applications.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
-Consul](https://www.consul.io/docs/concepts/security), which provides
+Consul](https://developer.hashicorp.com/consul/docs/concepts/security), which provides
 various essential features. Both of these systems provide security mechanisms
 which should be utilized to help provide [confidentiality, integrity and
 authentication](https://en.wikipedia.org/wiki/Information_security).
@@ -148,7 +148,7 @@ recommendations accordingly.
 - **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
   (**Enterprise Only**) - [Sentinel](https://www.hashicorp.com/sentinel/) is
   a feature which enables
-  [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code/)
+  [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code)
   to enforce further restrictions on operators. This is used to augment the
   built-in ACL system for fine-grained control over jobs.
 
@@ -259,9 +259,9 @@ The following are not part of the threat model for server agents:
   system through various means) results in almost all aspects of the agent
   being compromised including access to certificates and other secrets.
 
-- **Existence of [Secure Variables] metadata** - Access to Secure
-  Variables List APIs is controlled by ACL policies, but the existence
-  of specific paths or metadata is not considered sensitive.
+- **Existence of [Variables] metadata** - Access to Variables List APIs is
+  controlled by ACL policies, but the existence of specific paths or metadata is
+  not considered sensitive.
 
 The following are not part of the threat model for client agents:
 
@@ -327,8 +327,8 @@ There are two main components to consider to for external threats in a Nomad clu
 | **Port / Protocol**  | Agents  | Description                                                                                                                                                                         |
 | -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/tutorials/nomad/web-ui-access) and [API](/api-docs) access to agents. |
-| **4647** / TCP       | Servers | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
+| **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
 | **4648** / TCP + UDP | Servers | [gossip](/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
 
 
-[Secure Variables]: /docs/concepts/secure-variables
+[Variables]: /docs/concepts/variables

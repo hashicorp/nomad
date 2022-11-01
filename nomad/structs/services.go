@@ -17,9 +17,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -45,7 +48,10 @@ const (
 	minCheckTimeout = 1 * time.Second
 )
 
-// ServiceCheck represents the Consul health check.
+// ServiceCheck represents a Nomad or Consul service health check.
+//
+// The fields available depend on the service provider the check is being
+// registered into.
 type ServiceCheck struct {
 	Name                   string              // Name of the check, defaults to a generated label
 	Type                   string              // Type of the check - tcp, http, docker and script
@@ -85,14 +91,14 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
-	nsc.Args = helper.CopySliceString(sc.Args)
-	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
+	nsc.Args = slices.Clone(sc.Args)
+	nsc.Header = helper.CopyMapOfSlice(sc.Header)
 	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
 }
 
-// Equals returns true if the structs are recursively equal.
-func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
+// Equal returns true if the structs are recursively equal.
+func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 	if sc == nil || o == nil {
 		return sc == o
 	}
@@ -105,11 +111,11 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(sc.Args, o.Args) {
+	if !helper.SliceSetEq(sc.Args, o.Args) {
 		return false
 	}
 
-	if !sc.CheckRestart.Equals(o.CheckRestart) {
+	if !sc.CheckRestart.Equal(o.CheckRestart) {
 		return false
 	}
 
@@ -193,7 +199,7 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	return true
 }
 
-func (sc *ServiceCheck) Canonicalize(serviceName string) {
+func (sc *ServiceCheck) Canonicalize(serviceName, taskName string) {
 	// Ensure empty maps/slices are treated as null to avoid scheduling
 	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
@@ -214,6 +220,11 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 	// Ensure a default name for the check
 	if sc.Name == "" {
 		sc.Name = fmt.Sprintf("service: %q check", serviceName)
+	}
+
+	// Set task name if not already set
+	if sc.TaskName == "" && taskName != "group" {
+		sc.TaskName = taskName
 	}
 
 	// Ensure OnUpdate defaults to require_healthy (i.e. healthiness check)
@@ -336,9 +347,11 @@ func (sc *ServiceCheck) validateNomad() error {
 	// below are temporary limitations on checks in nomad
 	// https://github.com/hashicorp/team-nomad/issues/354
 
-	// check_restart not yet supported on nomad
+	// check_restart.ignore_warnings is not a thing in Nomad (which has no warnings in checks)
 	if sc.CheckRestart != nil {
-		return fmt.Errorf("check_restart may only be set for Consul service checks")
+		if sc.CheckRestart.IgnoreWarnings {
+			return fmt.Errorf("ignore_warnings on check_restart only supported for Consul service checks")
+		}
 	}
 
 	// address_mode="driver" not yet supported on nomad
@@ -349,11 +362,6 @@ func (sc *ServiceCheck) validateNomad() error {
 	if sc.Type == "http" {
 		if sc.Method != "" && !helper.IsMethodHTTP(sc.Method) {
 			return fmt.Errorf("method type %q not supported in Nomad http check", sc.Method)
-		}
-
-		// todo(shoenig) support body
-		if len(sc.Body) > 0 {
-			return fmt.Errorf("http checks may not set Body in Nomad services")
 		}
 	}
 
@@ -402,13 +410,13 @@ func (sc *ServiceCheck) validateConsul() error {
 
 	if sc.SuccessBeforePassing < 0 {
 		return fmt.Errorf("success_before_passing must be non-negative")
-	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.SuccessBeforePassing > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
 	}
 
 	if sc.FailuresBeforeCritical < 0 {
 		return fmt.Errorf("failures_before_critical must be non-negative")
-	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+	} else if sc.FailuresBeforeCritical > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
@@ -533,9 +541,10 @@ type Service struct {
 	Name string
 
 	// Name of the Task associated with this service.
-	//
-	// Currently only used to identify the implementing task of a Consul
-	// Connect Native enabled service.
+	// Group services do not have a task name, unless they are a connect native
+	// service specifying the task implementing the service.
+	// Task-level services automatically have the task name plumbed through
+	// down to checks for convenience.
 	TaskName string
 
 	// PortLabel is either the numeric port number or the `host:port`.
@@ -593,8 +602,8 @@ func (s *Service) Copy() *Service {
 	}
 	ns := new(Service)
 	*ns = *s
-	ns.Tags = helper.CopySliceString(ns.Tags)
-	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
+	ns.Tags = slices.Clone(ns.Tags)
+	ns.CanaryTags = slices.Clone(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -606,9 +615,9 @@ func (s *Service) Copy() *Service {
 
 	ns.Connect = s.Connect.Copy()
 
-	ns.Meta = helper.CopyMapStringString(s.Meta)
-	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
-	ns.TaggedAddresses = helper.CopyMapStringString(s.TaggedAddresses)
+	ns.Meta = maps.Clone(s.Meta)
+	ns.CanaryMeta = maps.Clone(s.CanaryMeta)
+	ns.TaggedAddresses = maps.Clone(s.TaggedAddresses)
 
 	return ns
 }
@@ -631,6 +640,11 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 		s.TaggedAddresses = nil
 	}
 
+	// Set the task name if not already set
+	if s.TaskName == "" && task != "group" {
+		s.TaskName = task
+	}
+
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
 		"TASKGROUP": taskGroup,
@@ -639,7 +653,7 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	})
 
 	for _, check := range s.Checks {
-		check.Canonicalize(s.Name)
+		check.Canonicalize(s.Name, s.TaskName)
 	}
 
 	// Set the provider to its default value. The value of consul ensures this
@@ -869,8 +883,8 @@ func hashConfig(h hash.Hash, c map[string]interface{}) {
 	_, _ = fmt.Fprintf(h, "%v", c)
 }
 
-// Equals returns true if the structs are recursively equal.
-func (s *Service) Equals(o *Service) bool {
+// Equal returns true if the structs are recursively equal.
+func (s *Service) Equal(o *Service) bool {
 	if s == nil || o == nil {
 		return s == o
 	}
@@ -895,28 +909,15 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.CanaryTags, o.CanaryTags) {
+	if !helper.SliceSetEq(s.CanaryTags, o.CanaryTags) {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
+	if !helper.ElementsEqual(s.Checks, o.Checks) {
 		return false
 	}
 
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
-		return false
-	}
-
-	if !s.Connect.Equals(o.Connect) {
+	if !s.Connect.Equal(o.Connect) {
 		return false
 	}
 
@@ -928,19 +929,19 @@ OUTER:
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.Meta, o.Meta) {
+	if !maps.Equal(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.CanaryMeta, o.CanaryMeta) {
+	if !maps.Equal(s.CanaryMeta, o.CanaryMeta) {
 		return false
 	}
 
-	if !helper.CompareMapStringString(s.TaggedAddresses, o.TaggedAddresses) {
+	if !maps.Equal(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -980,8 +981,8 @@ func (c *ConsulConnect) Copy() *ConsulConnect {
 	}
 }
 
-// Equals returns true if the connect blocks are deeply equal.
-func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
+// Equal returns true if the connect blocks are deeply equal.
+func (c *ConsulConnect) Equal(o *ConsulConnect) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -990,15 +991,15 @@ func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 		return false
 	}
 
-	if !c.SidecarService.Equals(o.SidecarService) {
+	if !c.SidecarService.Equal(o.SidecarService) {
 		return false
 	}
 
-	if !c.SidecarTask.Equals(o.SidecarTask) {
+	if !c.SidecarTask.Equal(o.SidecarTask) {
 		return false
 	}
 
-	if !c.Gateway.Equals(o.Gateway) {
+	if !c.Gateway.Equal(o.Gateway) {
 		return false
 	}
 
@@ -1112,15 +1113,15 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		return nil
 	}
 	return &ConsulSidecarService{
-		Tags:                   helper.CopySliceString(s.Tags),
+		Tags:                   slices.Clone(s.Tags),
 		Port:                   s.Port,
 		Proxy:                  s.Proxy.Copy(),
 		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
 	}
 }
 
-// Equals returns true if the structs are recursively equal.
-func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
+// Equal returns true if the structs are recursively equal.
+func (s *ConsulSidecarService) Equal(o *ConsulSidecarService) bool {
 	if s == nil || o == nil {
 		return s == o
 	}
@@ -1133,11 +1134,11 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 		return false
 	}
 
-	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+	if !helper.SliceSetEq(s.Tags, o.Tags) {
 		return false
 	}
 
-	return s.Proxy.Equals(o.Proxy)
+	return s.Proxy.Equal(o.Proxy)
 }
 
 // SidecarTask represents a subset of Task fields that are able to be overridden
@@ -1182,7 +1183,7 @@ type SidecarTask struct {
 	KillSignal string
 }
 
-func (t *SidecarTask) Equals(o *SidecarTask) bool {
+func (t *SidecarTask) Equal(o *SidecarTask) bool {
 	if t == nil || o == nil {
 		return t == o
 	}
@@ -1204,27 +1205,27 @@ func (t *SidecarTask) Equals(o *SidecarTask) bool {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Env, o.Env) {
+	if !maps.Equal(t.Env, o.Env) {
 		return false
 	}
 
-	if !t.Resources.Equals(o.Resources) {
+	if !t.Resources.Equal(o.Resources) {
 		return false
 	}
 
-	if !helper.CompareMapStringString(t.Meta, o.Meta) {
+	if !maps.Equal(t.Meta, o.Meta) {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.KillTimeout, o.KillTimeout) {
+	if !pointer.Eq(t.KillTimeout, o.KillTimeout) {
 		return false
 	}
 
-	if !t.LogConfig.Equals(o.LogConfig) {
+	if !t.LogConfig.Equal(o.LogConfig) {
 		return false
 	}
 
-	if !helper.CompareTimePtrs(t.ShutdownDelay, o.ShutdownDelay) {
+	if !pointer.Eq(t.ShutdownDelay, o.ShutdownDelay) {
 		return false
 	}
 
@@ -1241,11 +1242,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 	nt := new(SidecarTask)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = maps.Clone(nt.Env)
 
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = maps.Clone(nt.Meta)
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
@@ -1254,11 +1255,11 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+		nt.KillTimeout = pointer.Of(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
 
 	return nt
@@ -1369,29 +1370,13 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		return nil
 	}
 
-	newP := &ConsulProxy{
+	return &ConsulProxy{
 		LocalServiceAddress: p.LocalServiceAddress,
 		LocalServicePort:    p.LocalServicePort,
 		Expose:              p.Expose.Copy(),
+		Upstreams:           slices.Clone(p.Upstreams),
+		Config:              maps.Clone(p.Config),
 	}
-
-	if n := len(p.Upstreams); n > 0 {
-		newP.Upstreams = make([]ConsulUpstream, n)
-
-		for i := range p.Upstreams {
-			newP.Upstreams[i] = *p.Upstreams[i].Copy()
-		}
-	}
-
-	if n := len(p.Config); n > 0 {
-		newP.Config = make(map[string]interface{}, n)
-
-		for k, v := range p.Config {
-			newP.Config[k] = v
-		}
-	}
-
-	return newP
 }
 
 // opaqueMapsEqual compares map[string]interface{} commonly used for opaque
@@ -1403,8 +1388,8 @@ func opaqueMapsEqual(a, b map[string]interface{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-// Equals returns true if the structs are recursively equal.
-func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
+// Equal returns true if the structs are recursively equal.
+func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 	if p == nil || o == nil {
 		return p == o
 	}
@@ -1417,7 +1402,7 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !p.Expose.Equals(o.Expose) {
+	if !p.Expose.Equal(o.Expose) {
 		return false
 	}
 
@@ -1451,21 +1436,13 @@ type ConsulMeshGateway struct {
 	Mode string
 }
 
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
+func (c *ConsulMeshGateway) Copy() ConsulMeshGateway {
+	return ConsulMeshGateway{
 		Mode: c.Mode,
 	}
 }
 
-func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
-	if c == nil || o == nil {
-		return c == o
-	}
-
+func (c *ConsulMeshGateway) Equal(o ConsulMeshGateway) bool {
 	return c.Mode == o.Mode
 }
 
@@ -1503,64 +1480,19 @@ type ConsulUpstream struct {
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
-	MeshGateway *ConsulMeshGateway
+	MeshGateway ConsulMeshGateway
 }
 
-func upstreamsEquals(a, b []ConsulUpstream) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, upA := range a {
-		for _, upB := range b {
-			if upA.Equals(&upB) {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
-}
-
-// Copy the stanza recursively. Returns nil if u is nil.
-func (u *ConsulUpstream) Copy() *ConsulUpstream {
-	if u == nil {
-		return nil
-	}
-
-	return &ConsulUpstream{
-		DestinationName:      u.DestinationName,
-		DestinationNamespace: u.DestinationNamespace,
-		LocalBindPort:        u.LocalBindPort,
-		Datacenter:           u.Datacenter,
-		LocalBindAddress:     u.LocalBindAddress,
-		MeshGateway:          u.MeshGateway.Copy(),
-	}
-}
-
-// Equals returns true if the structs are recursively equal.
-func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
+// Equal returns true if the structs are recursively equal.
+func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 	if u == nil || o == nil {
 		return u == o
 	}
+	return *u == *o
+}
 
-	switch {
-	case u.DestinationName != o.DestinationName:
-		return false
-	case u.DestinationNamespace != o.DestinationNamespace:
-		return false
-	case u.LocalBindPort != o.LocalBindPort:
-		return false
-	case u.Datacenter != o.Datacenter:
-		return false
-	case u.LocalBindAddress != o.LocalBindAddress:
-		return false
-	case !u.MeshGateway.Equals(o.MeshGateway):
-		return false
-	}
-
-	return true
+func upstreamsEquals(a, b []ConsulUpstream) bool {
+	return set.From(a).Equal(set.From(b))
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
@@ -1576,21 +1508,8 @@ type ConsulExposePath struct {
 	ListenerPort  string
 }
 
-func exposePathsEqual(pathsA, pathsB []ConsulExposePath) bool {
-	if len(pathsA) != len(pathsB) {
-		return false
-	}
-
-LOOP: // order does not matter
-	for _, pathA := range pathsA {
-		for _, pathB := range pathsB {
-			if pathA == pathB {
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
+func exposePathsEqual(a, b []ConsulExposePath) bool {
+	return helper.SliceSetEq(a, b)
 }
 
 // Copy the stanza. Returns nil if e is nil.
@@ -1605,8 +1524,8 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 	}
 }
 
-// Equals returns true if the structs are recursively equal.
-func (e *ConsulExposeConfig) Equals(o *ConsulExposeConfig) bool {
+// Equal returns true if the structs are recursively equal.
+func (e *ConsulExposeConfig) Equal(o *ConsulExposeConfig) bool {
 	if e == nil || o == nil {
 		return e == o
 	}
@@ -1652,24 +1571,24 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 	}
 }
 
-func (g *ConsulGateway) Equals(o *ConsulGateway) bool {
+func (g *ConsulGateway) Equal(o *ConsulGateway) bool {
 	if g == nil || o == nil {
 		return g == o
 	}
 
-	if !g.Proxy.Equals(o.Proxy) {
+	if !g.Proxy.Equal(o.Proxy) {
 		return false
 	}
 
-	if !g.Ingress.Equals(o.Ingress) {
+	if !g.Ingress.Equal(o.Ingress) {
 		return false
 	}
 
-	if !g.Terminating.Equals(o.Terminating) {
+	if !g.Terminating.Equal(o.Terminating) {
 		return false
 	}
 
-	if !g.Mesh.Equals(o.Mesh) {
+	if !g.Mesh.Equal(o.Mesh) {
 		return false
 	}
 
@@ -1722,7 +1641,7 @@ type ConsulGatewayBindAddress struct {
 	Port    int
 }
 
-func (a *ConsulGatewayBindAddress) Equals(o *ConsulGatewayBindAddress) bool {
+func (a *ConsulGatewayBindAddress) Equal(o *ConsulGatewayBindAddress) bool {
 	if a == nil || o == nil {
 		return a == o
 	}
@@ -1784,12 +1703,12 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMapStringInterface(p.Config),
+		Config:                          maps.Clone(p.Config),
 	}
 }
 
@@ -1812,7 +1731,7 @@ func (p *ConsulGatewayProxy) equalBindAddresses(o map[string]*ConsulGatewayBindA
 	}
 
 	for listener, addr := range p.EnvoyGatewayBindAddresses {
-		if !o[listener].Equals(addr) {
+		if !o[listener].Equal(addr) {
 			return false
 		}
 	}
@@ -1820,12 +1739,12 @@ func (p *ConsulGatewayProxy) equalBindAddresses(o map[string]*ConsulGatewayBindA
 	return true
 }
 
-func (p *ConsulGatewayProxy) Equals(o *ConsulGatewayProxy) bool {
+func (p *ConsulGatewayProxy) Equal(o *ConsulGatewayProxy) bool {
 	if p == nil || o == nil {
 		return p == o
 	}
 
-	if !helper.CompareTimePtrs(p.ConnectTimeout, o.ConnectTimeout) {
+	if !pointer.Eq(p.ConnectTimeout, o.ConnectTimeout) {
 		return false
 	}
 
@@ -1900,11 +1819,11 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       c.Enabled,
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
-		CipherSuites:  helper.CopySliceString(c.CipherSuites),
+		CipherSuites:  slices.Clone(c.CipherSuites),
 	}
 }
 
-func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
+func (c *ConsulGatewayTLSConfig) Equal(o *ConsulGatewayTLSConfig) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -1912,7 +1831,7 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.CompareSliceSetString(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
@@ -1938,7 +1857,7 @@ func (s *ConsulIngressService) Copy() *ConsulIngressService {
 	}
 }
 
-func (s *ConsulIngressService) Equals(o *ConsulIngressService) bool {
+func (s *ConsulIngressService) Equal(o *ConsulIngressService) bool {
 	if s == nil || o == nil {
 		return s == o
 	}
@@ -1947,7 +1866,7 @@ func (s *ConsulIngressService) Equals(o *ConsulIngressService) bool {
 		return false
 	}
 
-	return helper.CompareSliceSetString(s.Hosts, o.Hosts)
+	return helper.SliceSetEq(s.Hosts, o.Hosts)
 }
 
 func (s *ConsulIngressService) Validate(protocol string) error {
@@ -2012,7 +1931,7 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 	}
 }
 
-func (l *ConsulIngressListener) Equals(o *ConsulIngressListener) bool {
+func (l *ConsulIngressListener) Equal(o *ConsulIngressListener) bool {
 	if l == nil || o == nil {
 		return l == o
 	}
@@ -2038,7 +1957,7 @@ func (l *ConsulIngressListener) Validate() error {
 	}
 
 	protocols := []string{"tcp", "http", "http2", "grpc"}
-	if !helper.SliceStringContains(protocols, l.Protocol) {
+	if !slices.Contains(protocols, l.Protocol) {
 		return fmt.Errorf(`Consul Ingress Listener requires protocol of %s, got %q`, strings.Join(protocols, ", "), l.Protocol)
 	}
 
@@ -2055,21 +1974,8 @@ func (l *ConsulIngressListener) Validate() error {
 	return nil
 }
 
-func ingressServicesEqual(servicesA, servicesB []*ConsulIngressService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func ingressServicesEqual(a, b []*ConsulIngressService) bool {
+	return helper.ElementsEqual(a, b)
 }
 
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
@@ -2100,12 +2006,12 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	}
 }
 
-func (e *ConsulIngressConfigEntry) Equals(o *ConsulIngressConfigEntry) bool {
+func (e *ConsulIngressConfigEntry) Equal(o *ConsulIngressConfigEntry) bool {
 	if e == nil || o == nil {
 		return e == o
 	}
 
-	if !e.TLS.Equals(o.TLS) {
+	if !e.TLS.Equal(o.TLS) {
 		return false
 	}
 
@@ -2130,21 +2036,8 @@ func (e *ConsulIngressConfigEntry) Validate() error {
 	return nil
 }
 
-func ingressListenersEqual(listenersA, listenersB []*ConsulIngressListener) bool {
-	if len(listenersA) != len(listenersB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, listenerA := range listenersA {
-		for _, listenerB := range listenersB {
-			if listenerA.Equals(listenerB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func ingressListenersEqual(a, b []*ConsulIngressListener) bool {
+	return helper.ElementsEqual(a, b)
 }
 
 type ConsulLinkedService struct {
@@ -2169,7 +2062,7 @@ func (s *ConsulLinkedService) Copy() *ConsulLinkedService {
 	}
 }
 
-func (s *ConsulLinkedService) Equals(o *ConsulLinkedService) bool {
+func (s *ConsulLinkedService) Equal(o *ConsulLinkedService) bool {
 	if s == nil || o == nil {
 		return s == o
 	}
@@ -2219,21 +2112,8 @@ func (s *ConsulLinkedService) Validate() error {
 	return nil
 }
 
-func linkedServicesEqual(servicesA, servicesB []*ConsulLinkedService) bool {
-	if len(servicesA) != len(servicesB) {
-		return false
-	}
-
-COMPARE: // order does not matter
-	for _, serviceA := range servicesA {
-		for _, serviceB := range servicesB {
-			if serviceA.Equals(serviceB) {
-				continue COMPARE
-			}
-		}
-		return false
-	}
-	return true
+func linkedServicesEqual(a, b []*ConsulLinkedService) bool {
+	return helper.ElementsEqual(a, b)
 }
 
 type ConsulTerminatingConfigEntry struct {
@@ -2258,7 +2138,7 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	}
 }
 
-func (e *ConsulTerminatingConfigEntry) Equals(o *ConsulTerminatingConfigEntry) bool {
+func (e *ConsulTerminatingConfigEntry) Equal(o *ConsulTerminatingConfigEntry) bool {
 	if e == nil || o == nil {
 		return e == o
 	}
@@ -2300,7 +2180,7 @@ func (e *ConsulMeshConfigEntry) Copy() *ConsulMeshConfigEntry {
 	return new(ConsulMeshConfigEntry)
 }
 
-func (e *ConsulMeshConfigEntry) Equals(o *ConsulMeshConfigEntry) bool {
+func (e *ConsulMeshConfigEntry) Equal(o *ConsulMeshConfigEntry) bool {
 	if e == nil || o == nil {
 		return e == o
 	}

@@ -11,7 +11,7 @@ var (
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "1.3.3"
+	Version = "1.4.3"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
@@ -28,6 +28,15 @@ type VersionInfo struct {
 	Version           string
 	VersionPrerelease string
 	VersionMetadata   string
+}
+
+func (v *VersionInfo) Copy() *VersionInfo {
+	if v == nil {
+		return nil
+	}
+
+	nv := *v
+	return &nv
 }
 
 func GetVersion() *VersionInfo {

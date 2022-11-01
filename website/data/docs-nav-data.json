@@ -148,8 +148,8 @@
         "path": "concepts/workload-identity"
       },
       {
-        "title": "Secure Variables",
-        "path": "concepts/secure-variables"
+        "title": "Variables",
+        "path": "concepts/variables"
       }
     ]
   },
@@ -237,44 +237,79 @@
             "path": "commands/acl/bootstrap"
           },
           {
-            "title": "policy apply",
-            "path": "commands/acl/policy-apply"
+            "title": "policy",
+            "routes": [
+              {
+                "title": "apply",
+                "path": "commands/acl/policy/apply"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/policy/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/policy/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/policy/list"
+              }
+            ]
           },
           {
-            "title": "policy delete",
-            "path": "commands/acl/policy-delete"
+            "title": "role",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/role/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/role/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/role/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/role/list"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/role/update"
+              }
+            ]
           },
           {
-            "title": "policy info",
-            "path": "commands/acl/policy-info"
-          },
-          {
-            "title": "policy list",
-            "path": "commands/acl/policy-list"
-          },
-          {
-            "title": "token create",
-            "path": "commands/acl/token-create"
-          },
-          {
-            "title": "token delete",
-            "path": "commands/acl/token-delete"
-          },
-          {
-            "title": "token info",
-            "path": "commands/acl/token-info"
-          },
-          {
-            "title": "token list",
-            "path": "commands/acl/token-list"
-          },
-          {
-            "title": "token self",
-            "path": "commands/acl/token-self"
-          },
-          {
-            "title": "token update",
-            "path": "commands/acl/token-update"
+            "title": "token",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/token/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/token/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/token/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/token/list"
+              },
+              {
+                "title": "self",
+                "path": "commands/acl/token/self"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/token/update"
+              }
+            ]
           }
         ]
       },
@@ -393,6 +428,10 @@
             "path": "commands/eval/status"
           }
         ]
+      },
+      {
+        "title": "fmt",
+        "path": "commands/fmt"
       },
       {
         "title": "job",
@@ -633,6 +672,23 @@
             ]
           },
           {
+            "title": "root",
+            "routes": [
+              {
+                "title": "keyring list",
+                "path": "commands/operator/root/keyring-list"
+              },
+              {
+                "title": "keyring remove",
+                "path": "commands/operator/root/keyring-remove"
+              },
+              {
+                "title": "keyring rotate",
+                "path": "commands/operator/root/keyring-rotate"
+              }
+            ]
+          },
+          {
             "title": "scheduler",
             "routes": [
               {
@@ -642,27 +698,6 @@
               {
                 "title": "set-config",
                 "path": "commands/operator/scheduler/set-config"
-              }
-            ]
-          },
-          {
-            "title": "secure-variables",
-            "routes": [
-              {
-                "title": "keyring install",
-                "path": "commands/operator/secure-variables/keyring-install"
-              },
-              {
-                "title": "keyring list",
-                "path": "commands/operator/secure-variables/keyring-list"
-              },
-              {
-                "title": "keyring remove",
-                "path": "commands/operator/secure-variables/keyring-remove"
-              },
-              {
-                "title": "keyring rotate",
-                "path": "commands/operator/secure-variables/keyring-rotate"
               }
             ]
           },
@@ -872,6 +907,35 @@
       {
         "title": "ui",
         "path": "commands/ui"
+      },
+      {
+        "title": "var",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/var"
+          },
+          {
+            "title": "get",
+            "path": "commands/var/get"
+          },
+          {
+            "title": "init",
+            "path": "commands/var/init"
+          },
+          {
+            "title": "list",
+            "path": "commands/var/list"
+          },
+          {
+            "title": "put",
+            "path": "commands/var/put"
+          },
+          {
+            "title": "purge",
+            "path": "commands/var/purge"
+          }
+        ]
       },
       {
         "title": "version",
@@ -1288,6 +1352,10 @@
                     "path": "job-specification/hcl2/functions/string/split"
                   },
                   {
+                    "title": "strlen",
+                    "path": "job-specification/hcl2/functions/string/strlen"
+                  },
+                  {
                     "title": "strrev",
                     "path": "job-specification/hcl2/functions/string/strrev"
                   },
@@ -1357,6 +1425,10 @@
       {
         "title": "affinity",
         "path": "job-specification/affinity"
+      },
+      {
+        "title": "change_script",
+        "path": "job-specification/change_script"
       },
       {
         "title": "check",
@@ -1605,7 +1677,12 @@
             "href": "/plugins/drivers/community/pot"
           },
           {
-            "title": "Rkt <sup>Deprecated</sup> ",
+            "title": "Rkt",
+            "badge": {
+              "text": "Deprecated",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "href": "/plugins/drivers/community/rkt"
           },
           {
@@ -1660,7 +1737,12 @@
             "href": "/plugins/devices/nvidia"
           },
           {
-            "title": "USB <sup>Beta</sup>",
+            "title": "USB",
+            "badge": {
+              "text": "Beta",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "href": "/plugins/devices/community/usb"
           }
         ]

@@ -1,7 +1,7 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
-import notifyError from 'nomad-ui/utils/notify-error';
+import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import PathTree from 'nomad-ui/utils/path-tree';
 
 export default class VariablesRoute extends Route.extend(WithForbiddenState) {
@@ -30,13 +30,13 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
         { namespace },
         { reload: true }
       );
-
       return {
         variables,
         pathTree: new PathTree(variables),
       };
     } catch (e) {
-      notifyError(this)(e);
+      notifyForbidden(this)(e);
+      return e;
     }
   }
 }

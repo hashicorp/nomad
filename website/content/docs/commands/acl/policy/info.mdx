@@ -1,0 +1,71 @@
+---
+layout: docs
+page_title: 'Commands: acl policy info'
+description: >
+  The policy info command is used to fetch information on an existing ACL
+  policy.
+---
+
+# Command: acl policy info
+
+The `acl policy info` command is used to fetch information on an existing ACL
+policy.
+
+## Usage
+
+```plaintext
+nomad acl policy info <name>
+```
+
+The `acl policy info` command requires the policy name.
+
+This command requires a management ACL token or a token that has the
+associated policy.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+Fetch information on an existing ACL Policy:
+
+```shell-session
+$ nomad acl policy info my-policy
+Name        = my-policy
+Description = <none>
+CreateIndex = 749
+ModifyIndex = 758
+
+Rules
+
+{
+  "Name": "my-policy",
+  "Description": "This is a great policy",
+  "Rules": "list_jobs"
+}
+```
+
+If the ACL Policy is associated with a [Workload Identity], additional information will be shown:
+
+```shell-session
+$ nomad acl policy info my-policy
+Name        = my-policy
+Description = <none>
+CreateIndex = 749
+ModifyIndex = 758
+
+Associated Workload
+Namespace = default
+JobID     = example
+Group     = cache
+Task      = redis
+
+Rules
+
+{
+  "Name": "my-policy",
+  "Description": "This is a great policy",
+  "Rules": "list_jobs"
+}
+```

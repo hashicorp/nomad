@@ -283,6 +283,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	// Explicitly parse the body separately to disallow overriding AllocID in req Body.
 	var reqBody struct {
 		TaskName string
+		AllTasks bool
 	}
 	err := json.NewDecoder(req.Body).Decode(&reqBody)
 	if err != nil && err != io.EOF {
@@ -290,6 +291,9 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	}
 	if reqBody.TaskName != "" {
 		args.TaskName = reqBody.TaskName
+	}
+	if reqBody.AllTasks {
+		args.AllTasks = reqBody.AllTasks
 	}
 
 	// Determine the handler to use
@@ -457,9 +461,9 @@ func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *
 	case useLocalClient:
 		rpcErr = s.agent.Client().ClientRPC("Allocations.Checks", &args, &reply)
 	case useClientRPC:
-		rpcErr = s.agent.Client().RPC("Allocations.Checks", &args, &reply)
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Checks", &args, &reply)
 	case useServerRPC:
-		rpcErr = s.agent.Server().RPC("Allocations.Checks", &args, &reply)
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Checks", &args, &reply)
 	default:
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}

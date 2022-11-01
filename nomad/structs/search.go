@@ -16,7 +16,7 @@ const (
 	Recommendations Context = "recommendations"
 	ScalingPolicies Context = "scaling_policy"
 	Plugins         Context = "plugins"
-	SecureVariables Context = "vars"
+	Variables       Context = "vars"
 	Volumes         Context = "volumes"
 
 	// Subtypes used in fuzzy matching.
@@ -59,6 +59,15 @@ type SearchConfig struct {
 	MinTermLength int `hcl:"min_term_length"`
 }
 
+func (s *SearchConfig) Copy() *SearchConfig {
+	if s == nil {
+		return nil
+	}
+
+	ns := *s
+	return &ns
+}
+
 // SearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of Context.
 type SearchResponse struct {
@@ -94,7 +103,8 @@ type SearchRequest struct {
 // ID.
 //
 // e.g. A Task-level service would have scope like,
-//   ["<namespace>", "<job>", "<group>", "<task>"]
+//
+//	["<namespace>", "<job>", "<group>", "<task>"]
 type FuzzyMatch struct {
 	ID    string   // ID is UUID or Name of object
 	Scope []string `json:",omitempty"` // IDs of parent objects

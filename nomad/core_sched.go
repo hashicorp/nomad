@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,9 +11,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"golang.org/x/time/rate"
 )
 
 // CoreScheduler is a special "scheduler" that is registered
@@ -52,10 +55,14 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiPluginGC(eval)
 	case structs.CoreJobOneTimeTokenGC:
 		return c.expiredOneTimeTokenGC(eval)
+	case structs.CoreJobLocalTokenExpiredGC:
+		return c.expiredACLTokenGC(eval, false)
+	case structs.CoreJobGlobalTokenExpiredGC:
+		return c.expiredACLTokenGC(eval, true)
 	case structs.CoreJobRootKeyRotateOrGC:
-		return c.rootKeyRotateOrGC(eval)
-	case structs.CoreJobSecureVariablesRekey:
-		return c.secureVariablesRekey(eval)
+		return c.rootKeyRotate(eval)
+	case structs.CoreJobVariablesRekey:
+		return c.variablesRekey(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -83,9 +90,13 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
 		return err
 	}
-	if err := c.rootKeyRotateOrGC(eval); err != nil {
+	if err := c.expiredACLTokenGC(eval, false); err != nil {
 		return err
 	}
+	if err := c.expiredACLTokenGC(eval, true); err != nil {
+		return err
+	}
+
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
 	return c.nodeGC(eval)
@@ -466,7 +477,7 @@ OUTER:
 func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
 	// For old clusters, send single deregistration messages COMPAT(0.11)
 	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
-	if !ServersMeetMinimumVersion(c.srv.Members(), minVersionBatchNodeDeregister, true) {
+	if !ServersMeetMinimumVersion(c.srv.Members(), c.srv.Region(), minVersionBatchNodeDeregister, true) {
 		for _, id := range nodeIDs {
 			req := structs.NodeDeregisterRequest{
 				NodeID: id,
@@ -781,82 +792,110 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
 }
 
-// rootKeyRotateOrGC is used to rotate or garbage collect root keys
-func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
+// expiredACLTokenGC handles running the garbage collector for expired ACL
+// tokens. It can be used for both local and global tokens and includes
+// behaviour to account for periodic and user actioned garbage collection
+// invocations.
+func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool) error {
 
-	// a rotation will be sent to the leader so our view of state
-	// is no longer valid. we ack this core job and will pick up
-	// the GC work on the next interval
-	wasRotated, err := c.rootKeyRotation(eval)
-	if err != nil {
-		return err
-	}
-	if wasRotated {
+	// If ACLs are not enabled, we do not need to continue and should exit
+	// early. This is not an error condition as callers can blindly call this
+	// function without checking the configuration. If the caller wants this to
+	// be an error, they should check this config value themselves.
+	if !c.srv.config.ACLEnabled {
 		return nil
 	}
 
-	// we can't GC any key older than the oldest live allocation
-	// because it might have signed that allocation's workload
-	// identity; this is conservative so that we don't have to iterate
-	// over all the allocations and find out which keys signed their
-	// identity, which will be expensive on large clusters
-	allocOldThreshold, err := c.getOldestAllocationIndex()
+	// If the function has been triggered for global tokens, but we are not the
+	// authoritative region, we should exit. This is not an error condition as
+	// callers can blindly call this function without checking the
+	// configuration. If the caller wants this to be an error, they should
+	// check this config value themselves.
+	if global && c.srv.config.AuthoritativeRegion != c.srv.Region() {
+		return nil
+	}
+
+	// The object name is logged within the getThreshold function, therefore we
+	// want to be clear what token type this trigger is for.
+	tokenScope := "local"
+	if global {
+		tokenScope = "global"
+	}
+
+	expiryThresholdIdx := c.getThreshold(eval, tokenScope+" expired ACL tokens",
+		"acl_token_expiration_gc_threshold", c.srv.config.ACLTokenExpirationGCThreshold)
+
+	expiredIter, err := c.snap.ACLTokensByExpired(global)
 	if err != nil {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "root key",
-		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+	var (
+		expiredAccessorIDs []string
+		num                int
+	)
 
-	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeyMetas(ws)
-	if err != nil {
-		return err
-	}
+	// The memdb iterator contains all tokens which include an expiration time,
+	// however, as the caller, we do not know at which point in the array the
+	// tokens are no longer expired. This time therefore forms the basis at
+	// which we draw the line in the iteration loop and find the final expired
+	// token that is eligible for deletion.
+	now := time.Now().UTC()
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
+	for raw := expiredIter.Next(); raw != nil; raw = expiredIter.Next() {
+		token := raw.(*structs.ACLToken)
+
+		// The iteration order of the indexes mean if we come across an
+		// unexpired token, we can exit as we have found all currently expired
+		// tokens.
+		if !token.IsExpired(now) {
 			break
 		}
-		keyMeta := raw.(*structs.RootKeyMeta)
-		if keyMeta.Active() {
-			continue // never GC the active key
-		}
-		if keyMeta.CreateIndex > oldThreshold {
-			continue // don't GC recent keys
-		}
-		if keyMeta.CreateIndex > allocOldThreshold {
-			continue // don't GC keys possibly used to sign live allocations
-		}
-		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
-		if err != nil {
-			return err
-		}
-		if varIter.Next() != nil {
-			continue // key is still in use
+
+		// Check if the token is recent enough to skip, otherwise we'll delete
+		// it.
+		if token.CreateIndex > expiryThresholdIdx {
+			continue
 		}
 
-		req := &structs.KeyringDeleteRootKeyRequest{
-			KeyID: keyMeta.KeyID,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL,
-			},
-		}
-		if err := c.srv.RPC("Keyring.Delete",
-			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
-			c.logger.Error("root key delete failed", "error", err)
-			return err
+		// Add the token accessor ID to the tracking array, thus marking it
+		// ready for deletion.
+		expiredAccessorIDs = append(expiredAccessorIDs, token.AccessorID)
+
+		// Increment the counter. If this is at or above our limit, we return
+		// what we have so far.
+		if num++; num >= structs.ACLMaxExpiredBatchSize {
+			break
 		}
 	}
 
-	return nil
+	// There is no need to call the RPC endpoint if we do not have any tokens
+	// to delete.
+	if len(expiredAccessorIDs) < 1 {
+		return nil
+	}
+
+	// Log a nice, friendly debug message which could be useful when debugging
+	// garbage collection in environments with a high rate of token creation
+	// and expiration.
+	c.logger.Debug("expired ACL token GC found eligible tokens",
+		"num", len(expiredAccessorIDs), "global", global)
+
+	// Set up and make the RPC request which will return any error performing
+	// the deletion.
+	req := structs.ACLTokenDeleteRequest{
+		AccessorIDs: expiredAccessorIDs,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.Region(),
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	return c.srv.RPC(structs.ACLDeleteTokensRPCMethod, req, &structs.GenericResponse{})
 }
 
-// rootKeyRotation checks if the active key is old enough that we need
-// to kick off a rotation. Returns true if the key was rotated.
-func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) {
+// rootKeyRotate checks if the active key is old enough that we need
+// to kick off a rotation.
+func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) error {
 
 	rotationThreshold := c.getThreshold(eval, "root key",
 		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
@@ -864,13 +903,13 @@ func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) 
 	ws := memdb.NewWatchSet()
 	activeKey, err := c.snap.GetActiveRootKeyMeta(ws)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if activeKey == nil {
-		return false, nil // no active key
+		return nil // no active key
 	}
 	if activeKey.CreateIndex >= rotationThreshold {
-		return false, nil // key is too new
+		return nil // key is too new
 	}
 
 	req := &structs.KeyringRotateRootKeyRequest{
@@ -882,18 +921,18 @@ func (c *CoreScheduler) rootKeyRotation(eval *structs.Evaluation) (bool, error) 
 	if err := c.srv.RPC("Keyring.Rotate",
 		req, &structs.KeyringRotateRootKeyResponse{}); err != nil {
 		c.logger.Error("root key rotation failed", "error", err)
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
-// secureVariablesReKey is optionally run after rotating the active
+// variablesReKey is optionally run after rotating the active
 // root key. It iterates over all the variables for the keys in the
 // re-keying state, decrypts them, and re-encrypts them in batches
 // with the currently active key. This job does not GC the keys, which
 // is handled in the normal periodic GC job.
-func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
+func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.RootKeyMetas(ws)
@@ -910,11 +949,11 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 		if !keyMeta.Rekeying() {
 			continue
 		}
-		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
 		if err != nil {
 			return err
 		}
-		err = c.batchRotateVariables(varIter, eval)
+		err = c.rotateVariables(varIter, eval)
 		if err != nil {
 			return err
 		}
@@ -947,57 +986,96 @@ func (c *CoreScheduler) secureVariablesRekey(eval *structs.Evaluation) error {
 	return nil
 }
 
-// rootKeyFullRotatePerKey runs over an iterator of secure variables
-// and decrypts them, and then sends them back as batches to be
-// re-encrypted with the currently active key.
-func (c *CoreScheduler) batchRotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+// rotateVariables runs over an iterator of variables and decrypts them, and
+// then sends them back to be re-encrypted with the currently active key,
+// checking for conflicts
+func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
 
-	upsertFn := func(variables []*structs.SecureVariableDecrypted) error {
-		if len(variables) == 0 {
-			return nil
-		}
-		args := &structs.SecureVariablesUpsertRequest{
-			Data: variables,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL,
-			},
-		}
-		reply := &structs.SecureVariablesUpsertResponse{}
-		return c.srv.RPC("SecureVariables.Upsert", args, reply)
+	args := &structs.VariablesApplyRequest{
+		Op: structs.VarOpCAS,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.config.Region,
+			AuthToken: eval.LeaderACL,
+		},
 	}
 
-	variables := []*structs.SecureVariableDecrypted{}
+	// We may have to work on a very large number of variables. There's no
+	// BatchApply RPC because it makes for an awkward API around conflict
+	// detection, and even if we did, we'd be blocking this scheduler goroutine
+	// for a very long time using the same snapshot. This would increase the
+	// risk that any given batch hits a conflict because of a concurrent change
+	// and make it more likely that we fail the eval. For large sets, this would
+	// likely mean the eval would run out of retries.
+	//
+	// Instead, we'll rate limit RPC requests and have a timeout. If we still
+	// haven't finished the set by the timeout, emit a new eval.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	limiter := rate.NewLimiter(rate.Limit(100), 100)
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		ev := raw.(*structs.SecureVariableEncrypted)
+
+		select {
+		case <-ctx.Done():
+			newEval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   "-",
+				Priority:    structs.CoreJobPriority,
+				Type:        structs.JobTypeCore,
+				TriggeredBy: structs.EvalTriggerScheduled,
+				JobID:       eval.JobID,
+				Status:      structs.EvalStatusPending,
+				LeaderACL:   eval.LeaderACL,
+			}
+			return c.srv.RPC("Eval.Create", &structs.EvalUpdateRequest{
+				Evals:     []*structs.Evaluation{newEval},
+				EvalToken: uuid.Generate(),
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}, &structs.GenericResponse{})
+
+		default:
+		}
+
+		ev := raw.(*structs.VariableEncrypted)
 		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
 		if err != nil {
 			return err
 		}
-		dv := &structs.SecureVariableDecrypted{
-			SecureVariableMetadata: ev.SecureVariableMetadata,
+		dv := &structs.VariableDecrypted{
+			VariableMetadata: ev.VariableMetadata,
 		}
 		dv.Items = make(map[string]string)
 		err = json.Unmarshal(cleartext, &dv.Items)
 		if err != nil {
 			return err
 		}
-		variables = append(variables, dv)
-		if len(variables) == 20 {
-			err := upsertFn(variables)
-			if err != nil {
-				return err
-			}
-			variables = []*structs.SecureVariableDecrypted{}
+		args.Var = dv
+		reply := &structs.VariablesApplyResponse{}
+
+		if err := limiter.Wait(ctx); err != nil {
+			return err
+		}
+
+		err = c.srv.RPC("Variables.Apply", args, reply)
+		if err != nil {
+			return err
+		}
+		if reply.IsConflict() {
+			// we've already rotated the key by the time we took this
+			// evaluation's snapshot, so any conflict is going to be on a write
+			// made with the new key, so there's nothing for us to do here
+			continue
 		}
 	}
 
-	// ensure we submit any partial batch
-	return upsertFn(variables)
+	return nil
 }
 
 // getThreshold returns the index threshold for determining whether an

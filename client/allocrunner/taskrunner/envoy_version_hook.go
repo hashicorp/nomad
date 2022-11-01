@@ -181,9 +181,9 @@ func (h *envoyVersionHook) tweakImage(configured string, supported map[string][]
 // semver sanitizes the envoy version string coming from Consul into the format
 // used by the Envoy project when publishing images (i.e. proper semver). This
 // resulting string value does NOT contain the 'v' prefix for 2 reasons:
-// 1) the version library does not include the 'v'
-// 2) its plausible unofficial images use the 3 numbers without the prefix for
-//    tagging their own images
+//  1. the version library does not include the 'v'
+//  2. its plausible unofficial images use the 3 numbers without the prefix for
+//     tagging their own images
 func semver(chosen string) (string, error) {
 	v, err := version.NewVersion(chosen)
 	if err != nil {

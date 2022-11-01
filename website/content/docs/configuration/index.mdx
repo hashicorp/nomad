@@ -146,8 +146,7 @@ testing.
 - `consul` `(`[`Consul`]`: nil)` - Specifies configuration for
   connecting to Consul.
 
-- `datacenter` `(string: "dc1")` - Specifies the data center of the local agent.
-  All members of a datacenter should share a local LAN connection.
+- `datacenter` `(string: "dc1")` - Specifies the data center of the local agent. A datacenter is an abstract grouping of clients within a region. Clients are not required to be in the same datacenter as the servers they are joined with, but do need to be in the same region.
 
 - `data_dir` `(string: required)` - Specifies a local directory used to store
   agent state. Client nodes use this directory by default to store temporary
@@ -300,6 +299,12 @@ testing.
   member of. A region typically maps to a geographic region, for example `us`,
   with potentially multiple zones, which map to [datacenters](#datacenter) such
   as `us-west` and `us-east`.
+
+  !> **Be Careful!** Changing the `region` of an agent with data stored in its
+  `data_dir` may result in overwrite and data loss in the new region so avoid
+  modifying this value after the agent starts. If you must change it, make sure
+  no local state remains from the previous region before running the agent
+  again.
 
 - `sentinel` `(`[`Sentinel`]`: nil)` - Specifies configuration for Sentinel
   policies.

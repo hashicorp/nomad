@@ -70,7 +70,7 @@ func (h *heartbeatStop) shouldStopAfter(now time.Time, interval time.Duration) b
 func (h *heartbeatStop) watch() {
 	// If we never manage to successfully contact the server, we want to stop our allocs
 	// after duration + start time
-	h.lastOk = time.Now()
+	h.setLastOk(time.Now())
 	stop := make(chan string, 1)
 	var now time.Time
 	var interval time.Duration

@@ -171,7 +171,11 @@ jobs:
             mkdir -p $GOTESTSUM_PATH
       - install-golang:
           target_directory: "c:"
-      - run: go version
+      - run:
+          name: Show installed Go version
+          command: |
+            export PATH=/c/go/bin:/c/gopath/bin:$PATH
+            go version
       - install-vault:
           version: $VAULT_VERSION
       - run: vault version
@@ -457,7 +461,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.18.5
+      - image: docker.mirror.hashicorp.services/golang:1.19.1
     resource_class: medium
     environment:
       <<: *common_envs
@@ -470,7 +474,7 @@ executors:
       resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOLANG_VERSION: 1.18.5
+      GOLANG_VERSION: 1.19.1
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -479,7 +483,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.18.5
+      GOLANG_VERSION: 1.19.1
 
   go-windows:
     machine:
@@ -491,7 +495,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.18.5
+      GOLANG_VERSION: 1.19.1
       GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
@@ -516,10 +520,6 @@ workflows:
                 - /^backport/docs-.*/
                 - stable-website
 
-        # Note: comment-out this job in ENT
-      - build-darwin-binaries:
-          filters: *backend_check_branches_filter
-
       - test-e2e:
           filters: *backend_check_branches_filter
 
@@ -542,51 +542,3 @@ workflows:
                 - /^backport/docs-.*/
                 - /^e2e-.*/
                 - stable-website
-
-      - test-machine:
-          name: "test-client"
-          test_packages: "./client/..."
-          # test branches are the branches that can impact unit tests
-          filters: &backend_test_branches_filter
-            branches:
-              ignore:
-                - /^.-ui\b.*/
-                - /^docs-.*/
-                - /^backport/docs-.*/
-                - /^e2e-.*/
-                - stable-website
-      - test-machine:
-          name: "test-nomad"
-          test_packages: "./nomad/..."
-          filters: *backend_test_branches_filter
-      - test-machine:
-          # API Tests run in a VM rather than container due to the FS tests
-          # requiring `mount` priviliges.
-          name: "test-api"
-          test_module: "api"
-          filters: *backend_test_branches_filter
-          enable_race_testing: true
-      - test-machine:
-          name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./e2e"
-          filters: *backend_test_branches_filter
-      - test-machine:
-          name: "test-docker"
-          test_packages: "./drivers/docker"
-          executor: go-machine
-          filters: *backend_test_branches_filter
-      - test-machine:
-          name: "test-exec"
-          test_packages: "./drivers/exec"
-          filters: *backend_test_branches_filter
-      - test-machine:
-          name: "test-shared-exec"
-          test_packages: "./drivers/shared/executor"
-          filters: *backend_test_branches_filter
-      - test-machine:
-          name: "test-32bit"
-          # Currently we only explicitly test fingerprinting on 32bit
-          # architectures.
-          test_packages: "./client/fingerprint"
-          goarch: "386"
-          filters: *backend_test_branches_filter

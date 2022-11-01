@@ -22,8 +22,8 @@ var (
 func contextToIndex(ctx structs.Context) string {
 	switch ctx {
 	// Handle cases where context name and state store table name do not match
-	case structs.SecureVariables:
-		return state.TableSecureVariables
+	case structs.Variables:
+		return state.TableVariables
 	default:
 		return string(ctx)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,8 +29,10 @@ const (
 
 func testWorkload() *serviceregistration.WorkloadServices {
 	return &serviceregistration.WorkloadServices{
-		AllocID:   uuid.Generate(),
-		Task:      "taskname",
+		AllocInfo: structs.AllocInfo{
+			AllocID: uuid.Generate(),
+			Task:    "taskname",
+		},
 		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{
@@ -132,7 +134,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1, "Unexpected nil alloc registration")
 	r.Equal(1, reg1.NumServices())
@@ -172,7 +174,7 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services))
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1)
 	r.Equal(1, reg1.NumServices())
@@ -210,7 +212,6 @@ func TestConsul_ChangePorts(t *testing.T) {
 	ci.Parallel(t)
 
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
 		{
@@ -237,17 +238,17 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(xPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, xPort, v.Port)
 	}
 
-	require.Len(ctx.FakeConsul.checks["default"], 3)
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"], must.Sprintf("checks %#v", ctx.FakeConsul.checks))
 
 	origTCPKey := ""
 	origScriptKey := ""
@@ -256,20 +257,20 @@ func TestConsul_ChangePorts(t *testing.T) {
 		switch v.Name {
 		case "c1":
 			origTCPKey = k
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			origScriptKey = k
 		case "c3":
 			origHTTPKey = k
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
 			t.Fatalf("unexpected check: %q", v.Name)
 		}
 	}
 
-	require.NotEmpty(origTCPKey)
-	require.NotEmpty(origScriptKey)
-	require.NotEmpty(origHTTPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origTCPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origScriptKey)
+	must.StrHasPrefix(t, "_nomad-check-", origHTTPKey)
 
 	// Now update the PortLabel on the Service and Check c3
 	origWorkload := ctx.Workload.Copy()
@@ -299,407 +300,32 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(yPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, yPort, v.Port)
 	}
-
-	require.Equal(3, len(ctx.FakeConsul.checks["default"]))
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"])
 
 	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			// C1 is changed because the service was re-registered
-			require.NotEqual(origTCPKey, k)
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.NotEq(t, origTCPKey, k)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			// C2 is changed because the service was re-registered
-			require.NotEqual(origScriptKey, k)
+			must.NotEq(t, origScriptKey, k)
 		case "c3":
-			require.NotEqual(origHTTPKey, k)
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.NotEq(t, origHTTPKey, k)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
-			t.Errorf("Unknown check: %q", k)
+			must.Unreachable(t, must.Sprintf("unknown check: %q", k))
 		}
-	}
-}
-
-// TestConsul_ChangeChecks asserts that updating only the checks on a service
-// properly syncs with Consul.
-func TestConsul_ChangeChecks(t *testing.T) {
-	ci.Parallel(t)
-
-	ctx := setupFake(t)
-	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
-		{
-			Name:      "c1",
-			Type:      "tcp",
-			Interval:  time.Second,
-			Timeout:   time.Second,
-			PortLabel: "x",
-			CheckRestart: &structs.CheckRestart{
-				Limit: 3,
-			},
-		},
-	}
-
-	if err := ctx.ServiceClient.RegisterWorkload(ctx.Workload); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-
-	// Assert a check restart watch update was enqueued and clear it
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 1 {
-		t.Fatalf("expected 1 check restart update but found %d", n)
-	}
-	upd := <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	c1ID := upd.checkID
-
-	// Query the allocs registrations and then again when we update. The IDs
-	// should change
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
-	if err != nil {
-		t.Fatalf("Looking up alloc registration failed: %v", err)
-	}
-	if reg1 == nil {
-		t.Fatalf("Nil alloc registrations: %v", err)
-	}
-	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of services: got %d; want 1", num)
-	}
-	if num := reg1.NumChecks(); num != 1 {
-		t.Fatalf("Wrong number of checks: got %d; want 1", num)
-	}
-
-	origServiceKey := ""
-	for k, v := range ctx.FakeConsul.services["default"] {
-		origServiceKey = k
-		if v.Name != ctx.Workload.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Workload.Services[0].Name, v.Name)
-		}
-		if v.Port != xPort {
-			t.Errorf("expected Port x=%v but found: %v", xPort, v.Port)
-		}
-	}
-
-	if n := len(ctx.FakeConsul.checks["default"]); n != 1 {
-		t.Fatalf("expected 1 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
-	}
-	for _, v := range ctx.FakeConsul.checks["default"] {
-		if v.Name != "c1" {
-			t.Fatalf("expected check c1 but found %q", v.Name)
-		}
-	}
-
-	// Now add a check and modify the original
-	origWorkload := ctx.Workload.Copy()
-	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
-		{
-			Name:      "c1",
-			Type:      "tcp",
-			Interval:  2 * time.Second,
-			Timeout:   time.Second,
-			PortLabel: "x",
-			CheckRestart: &structs.CheckRestart{
-				Limit: 3,
-			},
-		},
-		{
-			Name:      "c2",
-			Type:      "http",
-			Path:      "/",
-			Interval:  time.Second,
-			Timeout:   time.Second,
-			PortLabel: "x",
-		},
-	}
-	if err := ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-
-	// Assert 2 check restart watch updates was enqueued
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 2 {
-		t.Fatalf("expected 2 check restart updates but found %d", n)
-	}
-
-	// First the new watch
-	upd = <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	if upd.checkID == c1ID || upd.remove {
-		t.Fatalf("expected check watch update to be an add of checkID=%q but found remove=%t checkID=%q",
-			c1ID, upd.remove, upd.checkID)
-	}
-
-	// Then remove the old watch
-	upd = <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	if upd.checkID != c1ID || !upd.remove {
-		t.Fatalf("expected check watch update to be a removal of checkID=%q but found remove=%t checkID=%q",
-			c1ID, upd.remove, upd.checkID)
-	}
-
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-
-	if _, ok := ctx.FakeConsul.services["default"][origServiceKey]; !ok {
-		t.Errorf("unexpected key change; was: %q -- but found %#v", origServiceKey, ctx.FakeConsul.services)
-	}
-
-	if n := len(ctx.FakeConsul.checks["default"]); n != 2 {
-		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
-	}
-
-	for k, v := range ctx.FakeConsul.checks["default"] {
-		switch v.Name {
-		case "c1":
-			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
-				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
-			}
-
-			// update id
-			c1ID = k
-		case "c2":
-			if expected := fmt.Sprintf("http://:%d/", xPort); v.HTTP != expected {
-				t.Errorf("expected Port x=%v but found: %v", expected, v.HTTP)
-			}
-		default:
-			t.Errorf("Unknown check: %q", k)
-		}
-	}
-
-	// Check again and ensure the IDs changed
-	reg2, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
-	if err != nil {
-		t.Fatalf("Looking up alloc registration failed: %v", err)
-	}
-	if reg2 == nil {
-		t.Fatalf("Nil alloc registrations: %v", err)
-	}
-	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of services: got %d; want 1", num)
-	}
-	if num := reg2.NumChecks(); num != 2 {
-		t.Fatalf("Wrong number of checks: got %d; want 2", num)
-	}
-
-	for task, treg := range reg1.Tasks {
-		otherTaskReg, ok := reg2.Tasks[task]
-		if !ok {
-			t.Fatalf("Task %q not in second reg", task)
-		}
-
-		for sID, sreg := range treg.Services {
-			otherServiceReg, ok := otherTaskReg.Services[sID]
-			if !ok {
-				t.Fatalf("service ID changed")
-			}
-
-			for newID := range sreg.CheckIDs {
-				if _, ok := otherServiceReg.CheckIDs[newID]; ok {
-					t.Fatalf("check IDs should change")
-				}
-			}
-		}
-	}
-
-	// Alter a CheckRestart and make sure the watcher is updated but nothing else
-	origWorkload = ctx.Workload.Copy()
-	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
-		{
-			Name:      "c1",
-			Type:      "tcp",
-			Interval:  2 * time.Second,
-			Timeout:   time.Second,
-			PortLabel: "x",
-			CheckRestart: &structs.CheckRestart{
-				Limit: 11,
-			},
-		},
-		{
-			Name:      "c2",
-			Type:      "http",
-			Path:      "/",
-			Interval:  time.Second,
-			Timeout:   time.Second,
-			PortLabel: "x",
-		},
-	}
-	if err := ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.checks["default"]); n != 2 {
-		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
-	}
-
-	for k, v := range ctx.FakeConsul.checks["default"] {
-		if v.Name == "c1" {
-			if k != c1ID {
-				t.Errorf("expected c1 to still have id %q but found %q", c1ID, k)
-			}
-			break
-		}
-	}
-
-	// Assert a check restart watch update was enqueued for a removal and an add
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 1 {
-		t.Fatalf("expected 1 check restart update but found %d", n)
-	}
-	<-ctx.ServiceClient.checkWatcher.checkUpdateCh
-}
-
-// TestConsul_RegServices tests basic service registration.
-func TestConsul_RegServices(t *testing.T) {
-	ci.Parallel(t)
-
-	ctx := setupFake(t)
-
-	// Add a check w/restarting
-	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
-		{
-			Name:     "testcheck",
-			Type:     "tcp",
-			Interval: 100 * time.Millisecond,
-			CheckRestart: &structs.CheckRestart{
-				Limit: 3,
-			},
-		},
-	}
-
-	if err := ctx.ServiceClient.RegisterWorkload(ctx.Workload); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name != ctx.Workload.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Workload.Services[0].Name, v.Name)
-		}
-		if !reflect.DeepEqual(v.Tags, ctx.Workload.Services[0].Tags) {
-			t.Errorf("expected Tags=%v != %v", ctx.Workload.Services[0].Tags, v.Tags)
-		}
-		if v.Port != xPort {
-			t.Errorf("expected Port=%d != %d", xPort, v.Port)
-		}
-	}
-
-	// Assert the check update is pending
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 1 {
-		t.Fatalf("expected 1 check restart update but found %d", n)
-	}
-
-	// Assert the check update is properly formed
-	checkUpd := <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	if checkUpd.checkRestart.allocID != ctx.Workload.AllocID {
-		t.Fatalf("expected check's allocid to be %q but found %q", "allocid", checkUpd.checkRestart.allocID)
-	}
-	if expected := 200 * time.Millisecond; checkUpd.checkRestart.timeLimit != expected {
-		t.Fatalf("expected check's time limit to be %v but found %v", expected, checkUpd.checkRestart.timeLimit)
-	}
-
-	// Make a change which will register a new service
-	ctx.Workload.Services[0].Name = "taskname-service2"
-	ctx.Workload.Services[0].Tags[0] = "tag3"
-	if err := ctx.ServiceClient.RegisterWorkload(ctx.Workload); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-
-	// Assert check update is pending
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 1 {
-		t.Fatalf("expected 1 check restart update but found %d", n)
-	}
-
-	// Assert the check update's id has changed
-	checkUpd2 := <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	if checkUpd.checkID == checkUpd2.checkID {
-		t.Fatalf("expected new check update to have a new ID both both have: %q", checkUpd.checkID)
-	}
-
-	// Make sure changes don't take affect until sync() is called (since
-	// Run() isn't running)
-	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if reflect.DeepEqual(v.Tags, ctx.Workload.Services[0].Tags) {
-			t.Errorf("expected Tags to differ, changes applied before sync()")
-		}
-	}
-
-	// Now sync() and re-check for the applied updates
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-	if n := len(ctx.FakeConsul.services["default"]); n != 2 {
-		t.Fatalf("expected 2 services but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-	found := false
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name == ctx.Workload.Services[0].Name {
-			if found {
-				t.Fatalf("found new service name %q twice", v.Name)
-			}
-			found = true
-			if !reflect.DeepEqual(v.Tags, ctx.Workload.Services[0].Tags) {
-				t.Errorf("expected Tags=%v != %v", ctx.Workload.Services[0].Tags, v.Tags)
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("did not find new service %q", ctx.Workload.Services[0].Name)
-	}
-
-	// Remove the new task
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
-	if err := ctx.syncOnce(syncNewOps); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
-	}
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name != "taskname-service" {
-			t.Errorf("expected original task to survive not %q", v.Name)
-		}
-	}
-
-	// Assert check update is pending
-	if n := len(ctx.ServiceClient.checkWatcher.checkUpdateCh); n != 1 {
-		t.Fatalf("expected 1 check restart update but found %d", n)
-	}
-
-	// Assert the check update's id is correct and that it's a removal
-	checkUpd3 := <-ctx.ServiceClient.checkWatcher.checkUpdateCh
-	if checkUpd2.checkID != checkUpd3.checkID {
-		t.Fatalf("expected checkid %q but found %q", checkUpd2.checkID, checkUpd3.checkID)
-	}
-	if !checkUpd3.remove {
-		t.Fatalf("expected check watch removal update but found: %#v", checkUpd3)
 	}
 }
 
@@ -1354,7 +980,7 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	expected := &api.AgentCheckRegistration{
 		Namespace: "",
 		ID:        checkID,
-		Name:      "name",
+		Name:      check.Name,
 		ServiceID: serviceID,
 		AgentServiceCheck: api.AgentServiceCheck{
 			Timeout:       "1s",
@@ -1366,23 +992,19 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	}
 
 	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080, "default")
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
+	must.NoError(t, err)
+	must.Eq(t, expected, actual)
 }
 
 func TestConsul_ServiceName_Duplicates(t *testing.T) {
 	ci.Parallel(t)
-
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services = []*structs.Service{
 		{
 			Name:      "best-service",
 			PortLabel: "x",
-			Tags: []string{
-				"foo",
-			},
+			Tags:      []string{"foo"},
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "check-a",
@@ -1395,12 +1017,10 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		{
 			Name:      "best-service",
 			PortLabel: "y",
-			Tags: []string{
-				"bar",
-			},
+			Tags:      []string{"bar"},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:     "checky-mccheckface",
+					Name:     "check-b",
 					Type:     "tcp",
 					Interval: time.Second,
 					Timeout:  time.Second,
@@ -1413,21 +1033,20 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 3, ctx.FakeConsul.services["default"])
 
-	require.NoError(ctx.syncOnce(syncNewOps))
-
-	require.Len(ctx.FakeConsul.services["default"], 3)
-
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name == ctx.Workload.Services[0].Name && v.Port == xPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[0].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[1].Name && v.Port == yPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[1].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[2].Name {
-			require.Len(v.Checks, 0)
+	for _, s := range ctx.FakeConsul.services["default"] {
+		switch {
+		case s.Name == "best-service" && s.Port == xPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[0].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "best-service" && s.Port == yPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[1].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "worst-service":
+			must.SliceEmpty(t, s.Checks)
 		}
 	}
 }
@@ -1457,7 +1076,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1480,7 +1099,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1505,7 +1124,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
@@ -1567,7 +1186,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1590,7 +1209,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1615,7 +1234,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))

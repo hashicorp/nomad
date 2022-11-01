@@ -74,6 +74,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 // Spec defines the available specification types.
 type Spec struct {
 	// Types that are valid to be assigned to Block:
+	//
 	//	*Spec_Object
 	//	*Spec_Array
 	//	*Spec_Attr
@@ -273,18 +274,18 @@ func (*Spec) XXX_OneofWrappers() []interface{} {
 }
 
 // Attr spec type reads the value of an attribute in the current body
-//and returns that value as its result. It also creates validation constraints
-//for the given attribute name and its value.
+// and returns that value as its result. It also creates validation constraints
+// for the given attribute name and its value.
 //
-//```hcl
-//Attr {
+// ```hcl
+// Attr {
 // name     = "document_root"
 // type     = string
 // required = true
-//}
-//```
+// }
+// ```
 //
-//`Attr` spec blocks accept the following arguments:
+// `Attr` spec blocks accept the following arguments:
 //
 // `name` (required) - The attribute name to expect within the HCL input file.
 // This may be omitted when a default name selector is created by a parent
@@ -299,7 +300,7 @@ func (*Spec) XXX_OneofWrappers() []interface{} {
 // `required` (optional) - If set to `true`, `hcldec` will produce an error
 // if a value is not provided for the source attribute.
 //
-//`Attr` is a leaf spec type, so no nested spec blocks are permitted.
+// `Attr` is a leaf spec type, so no nested spec blocks are permitted.
 type Attr struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
@@ -356,11 +357,11 @@ func (m *Attr) GetRequired() bool {
 }
 
 // Block spec type applies one nested spec block to the contents of a
-//block within the current body and returns the result of that spec. It also
-//creates validation constraints for the given block type name.
+// block within the current body and returns the result of that spec. It also
+// creates validation constraints for the given block type name.
 //
-//```hcl
-//Block {
+// ```hcl
+// Block {
 // name = "logging"
 //
 // Object {
@@ -371,10 +372,10 @@ func (m *Attr) GetRequired() bool {
 // type = string
 // }
 // }
-//}
-//```
+// }
+// ```
 //
-//`Block` spec blocks accept the following arguments:
+// `Block` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
 // input file. This may be omitted when a default name selector is created
@@ -384,12 +385,11 @@ func (m *Attr) GetRequired() bool {
 // `required` (optional) - If set to `true`, `hcldec` will produce an error
 // if a block of the specified type is not present in the current body.
 //
-//`Block` creates a validation constraint that there must be zero or one blocks
-//of the given type name, or exactly one if `required` is set.
+// `Block` creates a validation constraint that there must be zero or one blocks
+// of the given type name, or exactly one if `required` is set.
 //
-//`Block` expects a single nested spec block, which is applied to the body of
-//the block of the given type when it is present.
-//
+// `Block` expects a single nested spec block, which is applied to the body of
+// the block of the given type when it is present.
 type Block struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Required             bool     `protobuf:"varint,2,opt,name=required,proto3" json:"required,omitempty"`
@@ -445,7 +445,6 @@ func (m *Block) GetNested() *Spec {
 	return nil
 }
 
-//
 // The BlockAttrs spec type is similar to an Attr spec block of a map type,
 // but it produces a map from the attributes of a block rather than from an
 // attribute's expression.
@@ -533,11 +532,11 @@ func (m *BlockAttrs) GetRequired() bool {
 }
 
 // BlockList spec type is similar to `Block`, but it accepts zero or
-//more blocks of a specified type rather than requiring zero or one. The
-//result is a JSON array with one entry per block of the given type.
+// more blocks of a specified type rather than requiring zero or one. The
+// result is a JSON array with one entry per block of the given type.
 //
-//```hcl
-//BlockList {
+// ```hcl
+// BlockList {
 // name = "log_file"
 //
 // Object {
@@ -549,10 +548,10 @@ func (m *BlockAttrs) GetRequired() bool {
 // required = true
 // }
 // }
-//}
-//```
+// }
+// ```
 //
-//`BlockList` spec blocks accept the following arguments:
+// `BlockList` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
 // input file. This may be omitted when a default name selector is created
@@ -566,12 +565,11 @@ func (m *BlockAttrs) GetRequired() bool {
 // produce an error if more than the given number of blocks are present. This
 // attribute must be greater than or equal to `min_items` if both are set.
 //
-//`Block` creates a validation constraint on the number of blocks of the given
-//type that must be present.
+// `Block` creates a validation constraint on the number of blocks of the given
+// type that must be present.
 //
-//`Block` expects a single nested spec block, which is applied to the body of
-//each matching block to produce the resulting list items.
-//
+// `Block` expects a single nested spec block, which is applied to the body of
+// each matching block to produce the resulting list items.
 type BlockList struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	MinItems             uint64   `protobuf:"varint,2,opt,name=min_items,json=minItems,proto3" json:"min_items,omitempty"`
@@ -636,10 +634,10 @@ func (m *BlockList) GetNested() *Spec {
 }
 
 // BlockSet spec type behaves the same as BlockList except that
-//the result is in no specific order and any duplicate items are removed.
+// the result is in no specific order and any duplicate items are removed.
 //
-//```hcl
-//BlockSet {
+// ```hcl
+// BlockSet {
 // name = "log_file"
 //
 // Object {
@@ -651,11 +649,10 @@ func (m *BlockList) GetNested() *Spec {
 // required = true
 // }
 // }
-//}
-//```
+// }
+// ```
 //
-//The contents of `BlockSet` are the same as for `BlockList`.
-//
+// The contents of `BlockSet` are the same as for `BlockList`.
 type BlockSet struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	MinItems             uint64   `protobuf:"varint,2,opt,name=min_items,json=minItems,proto3" json:"min_items,omitempty"`
@@ -720,12 +717,12 @@ func (m *BlockSet) GetNested() *Spec {
 }
 
 // BlockMap spec type is similar to `Block`, but it accepts zero or
-//more blocks of a specified type rather than requiring zero or one. The
-//result is a JSON object, or possibly multiple nested JSON objects, whose
-//properties are derived from the labels set on each matching block.
+// more blocks of a specified type rather than requiring zero or one. The
+// result is a JSON object, or possibly multiple nested JSON objects, whose
+// properties are derived from the labels set on each matching block.
 //
-//```hcl
-//BlockMap {
+// ```hcl
+// BlockMap {
 // name = "log_file"
 // labels = ["filename"]
 //
@@ -735,10 +732,10 @@ func (m *BlockSet) GetNested() *Spec {
 // required = true
 // }
 // }
-//}
-//```
+// }
+// ```
 //
-//`BlockMap` spec blocks accept the following arguments:
+// `BlockMap` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
 // input file. This may be omitted when a default name selector is created
@@ -751,12 +748,11 @@ func (m *BlockSet) GetNested() *Spec {
 // Block header labels are the quoted strings that appear after the block type
 // name but before the opening `{`.
 //
-//`Block` creates a validation constraint on the number of labels that blocks
-//of the given type must have.
+// `Block` creates a validation constraint on the number of labels that blocks
+// of the given type must have.
 //
-//`Block` expects a single nested spec block, which is applied to the body of
-//each matching block to produce the resulting map items.
-//
+// `Block` expects a single nested spec block, which is applied to the body of
+// each matching block to produce the resulting map items.
 type BlockMap struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Labels               []string `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty"`
@@ -813,23 +809,23 @@ func (m *BlockMap) GetNested() *Spec {
 }
 
 // Literal spec type returns a given literal value, and creates no
-//validation constraints. It is most commonly used with the `Default` spec
-//type to create a fallback value, but can also be used e.g. to fill out
-//required properties in an `Object` spec that do not correspond to any
-//construct in the input configuration.
+// validation constraints. It is most commonly used with the `Default` spec
+// type to create a fallback value, but can also be used e.g. to fill out
+// required properties in an `Object` spec that do not correspond to any
+// construct in the input configuration.
 //
-//```hcl
-//Literal {
+// ```hcl
+// Literal {
 // value = "hello world"
-//}
-//```
+// }
+// ```
 //
-//`Literal` spec blocks accept the following argument:
+// `Literal` spec blocks accept the following argument:
 //
 // `value` (required) - The value to return. This attribute may be an expression
 // that uses [functions](#spec-definition-functions).
 //
-//`Literal` is a leaf spec type, so no nested spec blocks are permitted.
+// `Literal` is a leaf spec type, so no nested spec blocks are permitted.
 type Literal struct {
 	Value                string   `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -870,12 +866,12 @@ func (m *Literal) GetValue() string {
 }
 
 // Default spec type evaluates a sequence of nested specs in turn and
-//returns the result of the first one that produces a non-null value.
-//It creates no validation constraints of its own, but passes on the validation
-//constraints from its first nested block.
+// returns the result of the first one that produces a non-null value.
+// It creates no validation constraints of its own, but passes on the validation
+// constraints from its first nested block.
 //
-//```hcl
-//Default {
+// ```hcl
+// Default {
 // Attr {
 // name = "private"
 // type = bool
@@ -883,17 +879,16 @@ func (m *Literal) GetValue() string {
 // Literal {
 // value = false
 // }
-//}
-//```
+// }
+// ```
 //
-//A `Default` spec block must have at least one nested spec block, and should
-//generally have at least two since otherwise the `Default` wrapper is a no-op.
+// A `Default` spec block must have at least one nested spec block, and should
+// generally have at least two since otherwise the `Default` wrapper is a no-op.
 //
-//The second and any subsequent spec blocks are _fallback_ specs. These exhibit
-//their usual behavior but are not able to impose validation constraints on the
-//current body since they are not evaluated unless all prior specs produce
-//`null` as their result.
-//
+// The second and any subsequent spec blocks are _fallback_ specs. These exhibit
+// their usual behavior but are not able to impose validation constraints on the
+// current body since they are not evaluated unless all prior specs produce
+// `null` as their result.
 type Default struct {
 	Primary              *Spec    `protobuf:"bytes,1,opt,name=primary,proto3" json:"primary,omitempty"`
 	Default              *Spec    `protobuf:"bytes,2,opt,name=default,proto3" json:"default,omitempty"`
@@ -942,11 +937,11 @@ func (m *Default) GetDefault() *Spec {
 }
 
 // Object spec type is the most commonly used at the root of a spec file.
-//Its result is a JSON object whose properties are set based on any nested
-//spec blocks:
+// Its result is a JSON object whose properties are set based on any nested
+// spec blocks:
 //
-//```hcl
-//Object {
+// ```hcl
+// Object {
 // Attr "name" {
 // type = "string"
 // }
@@ -958,18 +953,18 @@ func (m *Default) GetDefault() *Spec {
 // # ...
 // }
 // }
-//}
-//```
+// }
+// ```
 //
-//Nested spec blocks inside `Object` must always have an extra block label
-//`"name"`, `"address"` and `"street"` in the above example) that specifies
-//the name of the property that should be created in the JSON object result.
-//This label also acts as a default name selector for the nested spec, allowing
-//the `Attr` blocks in the above example to omit the usually-required `name`
-//argument in cases where the HCL input name and JSON output name are the same.
+// Nested spec blocks inside `Object` must always have an extra block label
+// `"name"`, `"address"` and `"street"` in the above example) that specifies
+// the name of the property that should be created in the JSON object result.
+// This label also acts as a default name selector for the nested spec, allowing
+// the `Attr` blocks in the above example to omit the usually-required `name`
+// argument in cases where the HCL input name and JSON output name are the same.
 //
-//An `Object` spec block creates no validation constraints, but it passes on
-//any validation constraints created by the nested specs.
+// An `Object` spec block creates no validation constraints, but it passes on
+// any validation constraints created by the nested specs.
 type Object struct {
 	Attributes           map[string]*Spec `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
@@ -1010,10 +1005,10 @@ func (m *Object) GetAttributes() map[string]*Spec {
 }
 
 // Array spec type produces a JSON array whose elements are set based on
-//any nested spec blocks:
+// any nested spec blocks:
 //
-//```hcl
-//Array {
+// ```hcl
+// Array {
 // Attr {
 // name = "first_element"
 // type = "string"
@@ -1022,11 +1017,11 @@ func (m *Object) GetAttributes() map[string]*Spec {
 // name = "second_element"
 // type = "string"
 // }
-//}
-//```
+// }
+// ```
 //
-//An `Array` spec block creates no validation constraints, but it passes on
-//any validation constraints created by the nested specs.
+// An `Array` spec block creates no validation constraints, but it passes on
+// any validation constraints created by the nested specs.
 type Array struct {
 	Values               []*Spec  `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`

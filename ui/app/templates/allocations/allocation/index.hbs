@@ -61,13 +61,27 @@
           @idleText="Restart Alloc"
           @cancelText="Cancel Restart"
           @confirmText="Yes, Restart Alloc"
-          @confirmationMessage="Are you sure? This will restart the allocation in-place."
+          @confirmationMessage="Are you sure? This will restart the tasks that are currently running in-place."
           @awaitingConfirmation={{this.restartAllocation.isRunning}}
           @disabled={{or
             this.stopAllocation.isRunning
             this.restartAllocation.isRunning
           }}
           @onConfirm={{perform this.restartAllocation}}
+        />
+        <TwoStepButton
+          data-test-restart-all
+          @alignRight={{true}}
+          @idleText="Restart All Tasks"
+          @cancelText="Cancel Restart"
+          @confirmText="Yes, Restart All Tasks"
+          @confirmationMessage="Are you sure? This will restart all tasks in-place."
+          @awaitingConfirmation={{this.restartAllocation.isRunning}}
+          @disabled={{or
+            this.stopAllocation.isRunning
+            this.restartAllocation.isRunning
+          }}
+          @onConfirm={{perform this.restartAll}}
         />
       {{/if}}
     </div>
@@ -100,13 +114,15 @@
         <span class="term">
           Client
         </span>
-        <LinkTo
-          @route="clients.client"
-          @model={{this.model.node}}
-          data-test-client-link
-        >
-          {{this.model.node.shortId}}
-        </LinkTo>
+        <Tooltip @text={{this.model.node.name}}>
+          <LinkTo
+            @route="clients.client"
+            @model={{this.model.node}}
+            data-test-client-link
+          >
+            {{this.model.node.shortId}}
+          </LinkTo>
+        </Tooltip>
       </span>
     </div>
   </div>
@@ -184,6 +200,10 @@
           </t.head>
           <t.body as |row|>
             <TaskRow
+              {{keyboard-shortcut
+                enumerated=true
+                action=(action "taskClick" row.model.allocation row.model)
+              }}
               @data-test-task-row={{row.model.name}}
               @task={{row.model}}
               @onClick={{action "taskClick" row.model.allocation row.model}}
@@ -252,50 +272,54 @@
         Services
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.services}} as |t|>
+        <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
-            <th class="is-2">
+            <th class="is-narrow"></th>
+            <th>
               Name
             </th>
-            <th class="is-1">
+            <th>
               Port
             </th>
             <td>
               Tags
             </td>
             <td>
-              On Update
-            </td>
-            <td>
-              Connect?
-            </td>
-            <td>
-              Upstreams
+              Health Check Status
             </td>
           </t.head>
           <t.body as |row|>
-            <tr data-test-service>
-              <td data-test-service-name>
+            <tr data-test-service class="is-interactive {{if (eq this.activeService row.model) "is-active"}}"
+              {{on "click" (fn this.handleServiceClick row.model)}}
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(fn this.handleServiceClick row.model)
+              }}
+            >
+              <td class="is-narrow">
+                {{#if (eq row.model.provider "nomad")}}
+                  <FlightIcon @name="nomad-color" />
+                {{else}}
+                  <FlightIcon @name="consul-color" />
+                {{/if}}
+              </td>
+              <td data-test-service-name class="is-long-text">
                 {{row.model.name}}
               </td>
               <td data-test-service-port>
                 {{row.model.portLabel}}
               </td>
               <td data-test-service-tags class="is-long-text">
-                {{join ", " row.model.tags}}
-              </td>
-              <td data-test-service-onupdate>
-                {{row.model.onUpdate}}
-              </td>
-              <td data-test-service-connect>
-                {{if row.model.connect "Yes" "No"}}
-              </td>
-              <td data-test-service-upstreams>
-                {{#each
-                  row.model.connect.sidecarService.proxy.upstreams as |upstream|
-                }}
-                  {{upstream.destinationName}}:{{upstream.localBindPort}}
+                {{#each row.model.tags as |tag|}}
+                  <span class="tag">{{tag}}</span>
                 {{/each}}
+              </td>
+              <td data-test-service-health class="is-2">
+                {{#if (eq row.model.provider "nomad")}}
+                  <div class="inline-chart">
+                    <ServiceStatusBar @isNarrow={{true}} @status={{row.model.mostRecentCheckStatus}} />
+                  </div>
+                {{/if}}
               </td>
             </tr>
           </t.body>
@@ -465,4 +489,11 @@
       </div>
     </div>
   {{/if}}
+  <AllocationServiceSidebar
+    @service={{this.activeService}}
+    @allocation={{this.model}}
+    @fns={{hash
+      closeSidebar=this.closeSidebar
+    }}
+  />
 </section>

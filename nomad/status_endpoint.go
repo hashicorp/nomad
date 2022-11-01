@@ -7,7 +7,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -97,7 +96,7 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 }
 
 // RaftStats is used by Autopilot to query the raft stats of the local server.
-func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
+func (s *Status) RaftStats(args struct{}, reply *structs.RaftStats) error {
 	stats := s.srv.raft.Stats()
 
 	var err error

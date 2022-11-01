@@ -22,6 +22,10 @@ const (
 
 	// templateChangeModeRestart marks that the task should be restarted if the
 	templateChangeModeRestart = "restart"
+
+	// templateChangeModeScript marks that ac script should be executed on
+	// template re-render
+	templateChangeModeScript = "script"
 )
 
 // Helper functions below are only used by this test suite
@@ -374,8 +378,6 @@ func TestParse(t *testing.T) {
 										ChangeSignal:  stringToPtr("foo"),
 										Splay:         timeToPtr(10 * time.Second),
 										Perms:         stringToPtr("0644"),
-										Uid:           intToPtr(-1),
-										Gid:           intToPtr(-1),
 										Envvars:       boolToPtr(true),
 										VaultGrace:    timeToPtr(33 * time.Second),
 										ErrMissingKey: boolToPtr(true),
@@ -383,7 +385,13 @@ func TestParse(t *testing.T) {
 									{
 										SourcePath:    stringToPtr("bar"),
 										DestPath:      stringToPtr("bar"),
-										ChangeMode:    stringToPtr(templateChangeModeRestart),
+										ChangeMode: stringToPtr(templateChangeModeScript),
+										ChangeScript: &api.ChangeScript{
+											Args:        []string{"-debug", "-verbose"},
+											Command:     stringToPtr("/bin/foo"),
+											Timeout:     timeToPtr(5 * time.Second),
+											FailOnError: boolToPtr(false),
+										},
 										Splay:         timeToPtr(5 * time.Second),
 										Perms:         stringToPtr("777"),
 										Uid:           intToPtr(1001),
@@ -621,6 +629,13 @@ func TestParse(t *testing.T) {
 										GetterSource:  stringToPtr("http://foo.com/bam"),
 										GetterOptions: nil,
 										RelativeDest:  stringToPtr("var/foo"),
+									},
+									{
+										GetterSource: stringToPtr("https://example.com/file.txt"),
+										GetterHeaders: map[string]string{
+											"User-Agent":    "nomad",
+											"X-Nomad-Alloc": "alloc",
+										},
 									},
 								},
 							},

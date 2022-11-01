@@ -203,7 +203,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 						},
 						Constraints: []*structs.Constraint{
 							{
-								LTarget: vaultConstraintLTarget,
+								LTarget: attrVaultVersion,
 								RTarget: ">= 1.0.0",
 								Operand: structs.ConstraintSemver,
 							},
@@ -224,7 +224,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 						},
 						Constraints: []*structs.Constraint{
 							{
-								LTarget: vaultConstraintLTarget,
+								LTarget: attrVaultVersion,
 								RTarget: ">= 1.0.0",
 								Operand: structs.ConstraintSemver,
 							},

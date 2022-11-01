@@ -92,7 +92,6 @@ func newPlanner(s *Server) (*planner, error) {
 // in anticipation of this case we cannot respond to the plan until
 // the Raft log is updated. This means our schedulers will stall,
 // but there are many of those and only a single plan verifier.
-//
 func (p *planner) planApply() {
 	// planIndexCh is used to track an outstanding application and receive
 	// its committed index while snap holds an optimistic state which
@@ -255,7 +254,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 
-	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node

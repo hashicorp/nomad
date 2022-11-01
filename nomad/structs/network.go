@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -110,7 +110,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
 		c.AvailBandwidth = make(map[string]int)
 	} else {
-		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
+		c.AvailBandwidth = maps.Clone(idx.AvailBandwidth)
 	}
 	if len(idx.UsedPorts) > 0 {
 		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
@@ -121,7 +121,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
 		c.UsedBandwidth = make(map[string]int)
 	} else {
-		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+		c.UsedBandwidth = maps.Clone(idx.UsedBandwidth)
 	}
 
 	return c
@@ -347,7 +347,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason string) {
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.TerminalStatus() {
+		if alloc.ClientTerminalStatus() {
 			continue
 		}
 

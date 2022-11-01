@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,19 +59,21 @@ func TestUtil_CreateCPUSetManager(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
 		testutil.CgroupsCompatibleV1(t)
 		parent := "/" + uuid.Short()
-		manager := CreateCPUSetManager(parent, logger)
-		err := manager.Init([]uint16{0})
-		require.NoError(t, err)
-		require.NoError(t, cgroups.RemovePath(filepath.Join(CgroupRoot, parent)))
+		manager := CreateCPUSetManager(parent, []uint16{0}, logger)
+		manager.Init()
+		_, ok := manager.(*cpusetManagerV1)
+		must.True(t, ok)
+		must.NoError(t, cgroups.RemovePath(filepath.Join(CgroupRoot, parent)))
 	})
 
 	t.Run("v2", func(t *testing.T) {
 		testutil.CgroupsCompatibleV2(t)
 		parent := uuid.Short() + ".slice"
-		manager := CreateCPUSetManager(parent, logger)
-		err := manager.Init([]uint16{0})
-		require.NoError(t, err)
-		require.NoError(t, cgroups.RemovePath(filepath.Join(CgroupRoot, parent)))
+		manager := CreateCPUSetManager(parent, []uint16{0}, logger)
+		manager.Init()
+		_, ok := manager.(*cpusetManagerV2)
+		must.True(t, ok)
+		must.NoError(t, cgroups.RemovePath(filepath.Join(CgroupRoot, parent)))
 	})
 }
 
@@ -86,7 +89,7 @@ func TestUtil_GetCPUsFromCgroup(t *testing.T) {
 }
 
 func create(t *testing.T, name string) {
-	mgr, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, name), rootless)
+	mgr, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, name))
 	require.NoError(t, err)
 	if err = mgr.Apply(CreationPID); err != nil {
 		_ = cgroups.RemovePath(name)

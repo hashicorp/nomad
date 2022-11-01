@@ -48,7 +48,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canList);
     });
 
-    test('it permits listing variables when token has SecureVariables with list capabilities in its rules', function (assert) {
+    test('it permits listing variables when token has Variables with list capabilities in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -59,10 +59,8 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
-                    'Path "*"': {
-                      Capabilities: ['list'],
-                    },
+                  Variables: {
+                    Paths: [{ Capabilities: ['list'], PathSpec: '*' }],
                   },
                 },
               ],
@@ -76,7 +74,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canList);
     });
 
-    test('it permits listing variables when token has SecureVariables alone in its rules', function (assert) {
+    test('it does not permit listing variables when token has Variables alone in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -87,7 +85,124 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {},
+                  Variables: {},
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has a null Variables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  Variables: null,
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has a Variables block where paths are without capabilities', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [
+                      { Capabilities: [], PathSpec: '*' },
+                      { Capabilities: [], PathSpec: 'foo' },
+                      { Capabilities: [], PathSpec: 'foo/bar' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it does not permit listing variables when token has no Variables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canList);
+    });
+
+    test('it permits listing variables when token multiple namespaces, only one of which having a Variables block', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  Variables: null,
+                },
+                {
+                  Name: 'nonsense',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [{ Capabilities: [], PathSpec: '*' }],
+                  },
+                },
+                {
+                  Name: 'shenanigans',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [
+                      { Capabilities: ['list'], PathSpec: 'foo/bar/baz' },
+                    ],
+                  },
                 },
               ],
             },
@@ -134,7 +249,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canWrite);
     });
 
-    test('it permits creating variables when token has SecureVariables with write capabilities in its rules', function (assert) {
+    test('it permits creating variables when token has Variables with write capabilities in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -145,7 +260,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: '*' }],
                   },
                 },
@@ -171,14 +286,14 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
                   },
                 },
                 {
                   Name: 'pablo',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: 'foo/bar' }],
                   },
                 },
@@ -229,7 +344,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canDestroy);
     });
 
-    test('it permits destroying variables when token has SecureVariables with write capabilities in its rules', function (assert) {
+    test('it permits destroying variables when token has Variables with write capabilities in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -240,7 +355,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['destroy'], PathSpec: '*' }],
                   },
                 },
@@ -266,14 +381,14 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
                   },
                 },
                 {
                   Name: 'pablo',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['destroy'], PathSpec: 'foo/bar' }],
                   },
                 },
@@ -291,6 +406,101 @@ module('Unit | Ability | variable', function (hooks) {
     });
   });
 
+  module('#read', function () {
+    test('it does not permit reading variables by default', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.notOk(this.ability.canRead);
+    });
+
+    test('it permits reading variables when token type is management', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'management' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it permits reading variables when acl is disabled', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: false,
+        selfToken: { type: 'client' },
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it permits reading variables when token has Variables with read capabilities in its rules', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [{ Capabilities: ['read'], PathSpec: '*' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+
+      assert.ok(this.ability.canRead);
+    });
+
+    test('it handles namespace matching', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: 'default',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [{ Capabilities: ['list'], PathSpec: 'foo/bar' }],
+                  },
+                },
+                {
+                  Name: 'pablo',
+                  Capabilities: [],
+                  Variables: {
+                    Paths: [{ Capabilities: ['read'], PathSpec: 'foo/bar' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.path = 'foo/bar';
+      this.ability.namespace = 'pablo';
+
+      assert.ok(this.ability.canRead);
+    });
+  });
+
   module('#_nearestMatchingPath', function () {
     test('returns capabilities for an exact path match', function (assert) {
       const mockToken = Service.extend({
@@ -303,7 +513,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
                   },
                 },
@@ -336,7 +546,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       { Capabilities: ['write'], PathSpec: 'foo/*' },
                       { Capabilities: ['write'], PathSpec: 'foo/bar/*' },
@@ -372,7 +582,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: 'foo/*' }],
                   },
                 },
@@ -405,7 +615,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       { Capabilities: ['write'], PathSpec: '*/bar' },
                       { Capabilities: ['write'], PathSpec: '*/bar/baz' },
@@ -441,7 +651,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       { Capabilities: ['write'], PathSpec: '*/bar' },
                       { Capabilities: ['write'], PathSpec: 'foo/*' },
@@ -477,7 +687,7 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     'Path "*"': {
                       Capabilities: ['write'],
                     },
@@ -872,14 +1082,14 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
                   },
                 },
                 {
                   Name: 'bar',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       { Capabilities: ['read', 'write'], PathSpec: 'foo' },
                     ],
@@ -919,14 +1129,14 @@ module('Unit | Ability | variable', function (hooks) {
                 {
                   Name: 'default',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [{ Capabilities: ['write'], PathSpec: 'foo' }],
                   },
                 },
                 {
                   Name: 'bar',
                   Capabilities: [],
-                  SecureVariables: {
+                  Variables: {
                     Paths: [
                       { Capabilities: ['read', 'write'], PathSpec: 'foo' },
                     ],
@@ -952,6 +1162,77 @@ module('Unit | Ability | variable', function (hooks) {
           },
         ],
         'It should return the exact path match.'
+      );
+    });
+
+    test('it handles globs in namespaces', function (assert) {
+      const mockToken = Service.extend({
+        aclEnabled: true,
+        selfToken: { type: 'client' },
+        selfTokenPolicies: [
+          {
+            rulesJSON: {
+              Namespaces: [
+                {
+                  Name: '*',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  Variables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list'],
+                        PathSpec: '*',
+                      },
+                    ],
+                  },
+                },
+                {
+                  Name: 'namespace-1',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  Variables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list', 'read', 'destroy', 'create'],
+                        PathSpec: '*',
+                      },
+                    ],
+                  },
+                },
+                {
+                  Name: 'namespace-2',
+                  Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+                  Variables: {
+                    Paths: [
+                      {
+                        Capabilities: ['list', 'read', 'destroy', 'create'],
+                        PathSpec: 'blue/*',
+                      },
+                      {
+                        Capabilities: ['list', 'read', 'create'],
+                        PathSpec: 'nomad/jobs/*',
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      this.owner.register('service:token', mockToken);
+      this.ability.namespace = 'pablo';
+
+      const allPaths = this.ability.allPaths;
+
+      assert.deepEqual(
+        allPaths,
+        [
+          {
+            capabilities: ['list'],
+            name: '*',
+          },
+        ],
+        'It should return the glob matching namespace match.'
       );
     });
   });

@@ -2,7 +2,7 @@ package vaultcompat
 
 import (
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 const (
@@ -45,12 +45,12 @@ var (
 	// job is a test job that is used to request a Vault token and cat the token
 	// out before exiting.
 	job = &api.Job{
-		ID:          helper.StringToPtr("test"),
-		Type:        helper.StringToPtr("batch"),
+		ID:          pointer.Of("test"),
+		Type:        pointer.Of("batch"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name: helper.StringToPtr("test"),
+				Name: pointer.Of("test"),
 				Tasks: []*api.Task{
 					{
 						Name:   "test",
@@ -65,8 +65,8 @@ var (
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
-					Attempts: helper.IntToPtr(0),
-					Mode:     helper.StringToPtr("fail"),
+					Attempts: pointer.Of(0),
+					Mode:     pointer.Of("fail"),
 				},
 			},
 		},

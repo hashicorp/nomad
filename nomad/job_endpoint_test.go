@@ -12,15 +12,17 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -107,6 +109,178 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
+}
+
+// TestJobEndpoint_Register_NonOverlapping asserts that ClientStatus must be
+// terminal, not just DesiredStatus, for the resources used by a job to be
+// considered free for subsequent placements to use.
+//
+// See: https://github.com/hashicorp/nomad/issues/10440
+func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+	})
+	defer cleanupS1()
+	state := s1.fsm.State()
+
+	// Create a mock node with easy to check resources
+	node := mock.Node()
+	node.Resources = nil // Deprecated in 0.9
+	node.NodeResources.Cpu.CpuShares = 700
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	req := &structs.JobRegisterRequest{
+		Job: job.Copy(),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	must.NonZero(t, resp.Index)
+
+	// Assert placement
+	jobReq := &structs.JobSpecificRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	var alloc *structs.AllocListStub
+	testutil.Wait(t, func() (bool, error) {
+		resp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &resp))
+		if n := len(resp.Allocations); n != 1 {
+			return false, fmt.Errorf("expected 1 allocation but found %d:\n%v", n, resp.Allocations)
+		}
+
+		alloc = resp.Allocations[0]
+		return true, nil
+	})
+	must.Eq(t, alloc.NodeID, node.ID)
+	must.Eq(t, alloc.DesiredStatus, structs.AllocDesiredStatusRun)
+	must.Eq(t, alloc.ClientStatus, structs.AllocClientStatusPending)
+
+	// Stop
+	stopReq := &structs.JobDeregisterRequest{
+		JobID:        job.ID,
+		Purge:        false,
+		WriteRequest: req.WriteRequest,
+	}
+	var stopResp structs.JobDeregisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", stopReq, &stopResp))
+
+	// Wait until the Stop is complete
+	testutil.Wait(t, func() (bool, error) {
+		eval, err := state.EvalByID(nil, stopResp.EvalID)
+		must.NoError(t, err)
+		if eval == nil {
+			return false, fmt.Errorf("eval not applied: %s", resp.EvalID)
+		}
+		return eval.Status == structs.EvalStatusComplete, fmt.Errorf("expected eval to be complete but found: %s", eval.Status)
+	})
+
+	// Assert new register blocked
+	req.Job = job.Copy()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	must.NonZero(t, resp.Index)
+
+	blockedEval := ""
+	testutil.Wait(t, func() (bool, error) {
+		// Assert no new allocs
+		allocResp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &allocResp))
+		if n := len(allocResp.Allocations); n != 1 {
+			return false, fmt.Errorf("expected 1 allocation but found %d:\n%v", n, allocResp.Allocations)
+		}
+
+		if alloc.ID != allocResp.Allocations[0].ID {
+			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		}
+
+		eval, err := state.EvalByID(nil, resp.EvalID)
+		must.NoError(t, err)
+		if eval == nil {
+			return false, fmt.Errorf("eval not applied: %s", resp.EvalID)
+		}
+		if eval.Status != structs.EvalStatusComplete {
+			return false, fmt.Errorf("expected eval to be complete but found: %s", eval.Status)
+		}
+		if eval.BlockedEval == "" {
+			return false, fmt.Errorf("expected a blocked eval to be created")
+		}
+		blockedEval = eval.BlockedEval
+		return true, nil
+	})
+
+	// Set ClientStatus=complete like a client would
+	stoppedAlloc := &structs.Allocation{
+		ID:     alloc.ID,
+		NodeID: alloc.NodeID,
+		TaskStates: map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				State: structs.TaskStateDead,
+			},
+		},
+		ClientStatus:     structs.AllocClientStatusComplete,
+		DeploymentStatus: nil, // should not have an impact
+		NetworkStatus:    nil, // should not have an impact
+	}
+	upReq := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{stoppedAlloc},
+		WriteRequest: req.WriteRequest,
+	}
+	var upResp structs.GenericResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", upReq, &upResp))
+
+	// Assert newer register's eval unblocked
+	testutil.Wait(t, func() (bool, error) {
+		eval, err := state.EvalByID(nil, blockedEval)
+		must.NoError(t, err)
+		must.NotNil(t, eval)
+		if eval.Status != structs.EvalStatusComplete {
+			return false, fmt.Errorf("expected blocked eval to be complete but found: %s", eval.Status)
+		}
+		return true, nil
+	})
+
+	// Assert new alloc placed
+	testutil.Wait(t, func() (bool, error) {
+		// Assert no new allocs
+		allocResp := structs.JobAllocationsResponse{}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Allocations", jobReq, &allocResp))
+		if n := len(allocResp.Allocations); n != 2 {
+			return false, fmt.Errorf("expected 2 allocs but found %d:\n%v", n, allocResp.Allocations)
+		}
+
+		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) bool {
+			return a.CreateIndex < b.CreateIndex
+		})
+
+		if alloc.ID != allocResp.Allocations[0].ID {
+			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		}
+
+		if cs := allocResp.Allocations[0].ClientStatus; cs != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
+		}
+
+		if cs := allocResp.Allocations[1].ClientStatus; cs != structs.AllocClientStatusPending {
+			return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
+		}
+		return true, nil
+	})
 }
 
 func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
@@ -361,7 +535,7 @@ func TestJobEndpoint_Register_ConnectIngressGateway_full(t *testing.T) {
 	job.TaskGroups[0].Services[0].Connect = &structs.ConsulConnect{
 		Gateway: &structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+				ConnectTimeout:                  pointer.Of(1 * time.Second),
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 					"service1": {
@@ -1506,7 +1680,7 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Assert constraint was not overridden by the server
 	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
 	require.Len(t, outConstraints, 1)
-	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equals(outConstraints[0]))
+	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
@@ -2393,7 +2567,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	revertReq := &structs.JobRevertRequest{
 		JobID:               job.ID,
 		JobVersion:          0,
-		EnforcePriorVersion: helper.Uint64ToPtr(10),
+		EnforcePriorVersion: pointer.Of(uint64(10)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2426,7 +2600,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	revertReq = &structs.JobRevertRequest{
 		JobID:               job.ID,
 		JobVersion:          0,
-		EnforcePriorVersion: helper.Uint64ToPtr(1),
+		EnforcePriorVersion: pointer.Of(uint64(1)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2594,7 +2768,7 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 	revertReq = &structs.JobRevertRequest{
 		JobID:               job.ID,
 		JobVersion:          0,
-		EnforcePriorVersion: helper.Uint64ToPtr(1),
+		EnforcePriorVersion: pointer.Of(uint64(1)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -4959,7 +5133,6 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 // TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server
 // returns all jobs across namespace.
-//
 func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 	ci.Parallel(t)
 
@@ -7104,7 +7277,7 @@ func TestJobEndpoint_Scale(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: groupName,
 		},
-		Count:   helper.Int64ToPtr(int64(originalCount + 1)),
+		Count:   pointer.Of(int64(originalCount + 1)),
 		Message: "because of the load",
 		Meta: map[string]interface{}{
 			"metrics": map[string]string{
@@ -7189,7 +7362,7 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 			},
 			Meta:    scalingMetadata,
 			Message: scalingMessage,
-			Count:   helper.Int64ToPtr(newCount),
+			Count:   pointer.Of(newCount),
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				Namespace: job.Namespace,
@@ -7481,7 +7654,7 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Count:   helper.Int64ToPtr(int64(count) + 1),
+		Count:   pointer.Of(int64(count) + 1),
 		Message: "this should fail",
 		Meta: map[string]interface{}{
 			"metrics": map[string]string{
@@ -7505,7 +7678,7 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
-	scale.Count = helper.Int64ToPtr(10)
+	scale.Count = pointer.Of(int64(10))
 	scale.Message = "error message"
 	scale.Error = true
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
@@ -7538,7 +7711,7 @@ func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Count:          helper.Int64ToPtr(pol.Max + 1),
+		Count:          pointer.Of(pol.Max + 1),
 		Message:        "out of bounds",
 		PolicyOverride: false,
 		WriteRequest: structs.WriteRequest{
@@ -7550,7 +7723,7 @@ func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), "group count was greater than scaling policy maximum: 11 > 10")
 
-	scale.Count = helper.Int64ToPtr(2)
+	scale.Count = pointer.Of(int64(2))
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
 	require.Contains(err.Error(), "group count was less than scaling policy minimum: 2 < 3")
@@ -7644,7 +7817,7 @@ func TestJobEndpoint_Scale_Priority(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: groupName,
 		},
-		Count:          helper.Int64ToPtr(int64(originalCount + 1)),
+		Count:          pointer.Of(int64(originalCount + 1)),
 		Message:        "scotty, we need more power",
 		PolicyOverride: false,
 		WriteRequest: structs.WriteRequest{
@@ -7690,7 +7863,7 @@ func TestJobEndpoint_InvalidCount(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Count: helper.Int64ToPtr(int64(-1)),
+		Count: pointer.Of(int64(-1)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -7744,7 +7917,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a1.ClientStatus = structs.AllocClientStatusRunning
 	// healthy
 	a1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 	}
 	a2 := mock.Alloc()
 	a2.Job = jobV2
@@ -7753,7 +7926,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusPending
 	// unhealthy
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(false),
+		Healthy: pointer.Of(false),
 	}
 	a3 := mock.Alloc()
 	a3.Job = jobV2
@@ -7762,7 +7935,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a3.ClientStatus = structs.AllocClientStatusRunning
 	// canary
 	a3.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
+		Healthy: pointer.Of(true),
 		Canary:  true,
 	}
 	// no health
@@ -7776,7 +7949,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 
 	event := &structs.ScalingEvent{
 		Time:    time.Now().Unix(),
-		Count:   helper.Int64ToPtr(5),
+		Count:   pointer.Of(int64(5)),
 		Message: "message",
 		Error:   false,
 		Meta: map[string]interface{}{

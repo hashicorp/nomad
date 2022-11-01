@@ -23,25 +23,25 @@ func TestResources_Canonicalize(t *testing.T) {
 		{
 			name: "cores",
 			input: &Resources{
-				Cores:    intToPtr(2),
-				MemoryMB: intToPtr(1024),
+				Cores:    pointerOf(2),
+				MemoryMB: pointerOf(1024),
 			},
 			expected: &Resources{
-				CPU:      intToPtr(0),
-				Cores:    intToPtr(2),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointerOf(0),
+				Cores:    pointerOf(2),
+				MemoryMB: pointerOf(1024),
 			},
 		},
 		{
 			name: "cpu",
 			input: &Resources{
-				CPU:      intToPtr(500),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointerOf(500),
+				MemoryMB: pointerOf(1024),
 			},
 			expected: &Resources{
-				CPU:      intToPtr(500),
-				Cores:    intToPtr(0),
-				MemoryMB: intToPtr(1024),
+				CPU:      pointerOf(500),
+				Cores:    pointerOf(0),
+				MemoryMB: pointerOf(1024),
 			},
 		},
 	}

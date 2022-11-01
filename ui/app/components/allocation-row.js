@@ -106,7 +106,7 @@ async function qualifyAllocation() {
     // Make sure that the job record in the store for this allocation
     // is complete and not a partial from the list endpoint
     const job = allocation.get('job.content');
-    if (job) await job.reload();
+    if (job.isPartial) await job.reload();
   }
 
   this.fetchStats.perform();

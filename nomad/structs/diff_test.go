@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1176,7 +1176,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// Multiregion: region added
 			Old: &Job{
@@ -1319,6 +1318,21 @@ func TestJobDiff(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{
+			// VaultToken is filtered
+			Old: &Job{
+				ID:         "vault-job",
+				VaultToken: "secret",
+			},
+			New: &Job{
+				ID:         "vault-job",
+				VaultToken: "new-secret",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+				ID:   "vault-job",
 			},
 		},
 	}
@@ -2696,7 +2710,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+									ConnectTimeout:                  pointer.Of(1 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: false,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -2778,7 +2792,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											LocalBindPort:        8000,
 											Datacenter:           "dc2",
 											LocalBindAddress:     "127.0.0.2",
-											MeshGateway: &ConsulMeshGateway{
+											MeshGateway: ConsulMeshGateway{
 												Mode: "remote",
 											},
 										},
@@ -2790,7 +2804,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+									ConnectTimeout:                  pointer.Of(2 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -3736,10 +3750,10 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay edited",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+				ShutdownDelay: pointer.Of(5 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3756,7 +3770,7 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay removed",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{},
 			Expected: &TaskGroupDiff{
@@ -3775,7 +3789,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "TaskGroup shutdown_delay added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3943,7 +3957,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3962,11 +3976,11 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect updated",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3985,7 +3999,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect deleted",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
@@ -7042,13 +7056,19 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
+						},
 						Splay:        1,
 						Perms:        "0644",
-						Uid:          1001,
-						Gid:          21,
+						Uid:   pointer.Of(1001),
+						Gid:   pointer.Of(21),
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(5 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(5 * time.Second),
 						},
 						ErrMissingKey: false,
 					},
@@ -7058,10 +7078,16 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz2",
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo2",
+							Args:        []string{"-debugs"},
+							Timeout:     6,
+							FailOnError: false,
+						},
 						Splay:        2,
 						Perms:        "0666",
-						Uid:          1000,
-						Gid:          20,
+						Uid:     pointer.Of(1000),
+						Gid:     pointer.Of(20),
 						Envvars:      true,
 					},
 				},
@@ -7074,13 +7100,19 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz new",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
+						},
 						Splay:        1,
 						Perms:        "0644",
-						Uid:          1001,
-						Gid:          21,
+						Uid:   pointer.Of(1001),
+						Gid:   pointer.Of(21),
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
 						},
 						ErrMissingKey: true,
 					},
@@ -7090,13 +7122,19 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz3",
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo3",
+							Args:        []string{"-debugss"},
+							Timeout:     7,
+							FailOnError: false,
+						},
 						Splay:        3,
 						Perms:        "0776",
-						Uid:          1002,
-						Gid:          22,
+						Uid:   pointer.Of(1002),
+						Gid:   pointer.Of(22),
 						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
 						},
 						ErrMissingKey: true,
 					},
@@ -7233,6 +7271,44 @@ func TestTaskDiff(t *testing.T) {
 									},
 								},
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeScript",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Command",
+										Old:  "",
+										New:  "/bin/foo3",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "FailOnError",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Timeout",
+										Old:  "",
+										New:  "7",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Args",
+												Old:  "",
+												New:  "-debugss",
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 					{
@@ -7310,6 +7386,46 @@ func TestTaskDiff(t *testing.T) {
 								Name: "VaultGrace",
 								Old:  "0",
 								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeScript",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Command",
+										Old:  "/bin/foo2",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "FailOnError",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Timeout",
+										Old:  "6",
+										New:  "",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Args",
+												Old:  "-debugs",
+												New:  "",
+											},
+										},
+									},
+								},
 							},
 						},
 					},

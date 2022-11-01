@@ -11,7 +11,6 @@
           <LinkTo
             @route="jobs.job"
             @model={{@job.parent}}
-            @query={{hash namespace=@job.parent.namespace.name}}
           >
             {{@job.parent.name}}
           </LinkTo>
@@ -22,7 +21,7 @@
     <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
     <jobPage.ui.PlacementFailures />
     <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
-    <jobPage.ui.RecentAllocations />
+    <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />
     <div class="boxed-section">
       {{#if @job.meta}}
         <jobPage.ui.Meta />

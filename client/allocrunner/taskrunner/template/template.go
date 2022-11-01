@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -53,6 +53,10 @@ type TaskTemplateManager struct {
 
 	// runner is the consul-template runner
 	runner *manager.Runner
+
+	// handle is used to execute scripts
+	handle     interfaces.ScriptExecutor
+	handleLock sync.Mutex
 
 	// signals is a lookup map from the string representation of a signal to its
 	// actual signal
@@ -190,6 +194,14 @@ func (tm *TaskTemplateManager) Stop() {
 	if tm.runner != nil {
 		tm.runner.Stop()
 	}
+}
+
+// SetDriverHandle sets the executor
+func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
+	tm.handleLock.Lock()
+	defer tm.handleLock.Unlock()
+	tm.handle = executor
+
 }
 
 // run is the long lived loop that handles errors and templates being rendered
@@ -392,6 +404,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 
 	var handling []string
 	signals := make(map[string]struct{})
+	scripts := []*structs.ChangeScript{}
 	restart := false
 	var splay time.Duration
 
@@ -436,6 +449,8 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 				signals[tmpl.ChangeSignal] = struct{}{}
 			case structs.TemplateChangeModeRestart:
 				restart = true
+			case structs.TemplateChangeModeScript:
+				scripts = append(scripts, tmpl.ChangeScript)
 			case structs.TemplateChangeModeNoop:
 				continue
 			}
@@ -448,7 +463,12 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		handling = append(handling, id)
 	}
 
-	if restart || len(signals) != 0 {
+	shouldHandle := restart || len(signals) != 0 || len(scripts) != 0
+	if !shouldHandle {
+		return
+	}
+
+	// Apply splay timeout to avoid applying change_mode too frequently.
 		if splay != 0 {
 			ns := splay.Nanoseconds()
 			offset := rand.Int63n(ns)
@@ -470,7 +490,15 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 			tm.config.Lifecycle.Restart(context.Background(),
 				structs.NewTaskEvent(structs.TaskRestartSignal).
 					SetDisplayMessage("Template with change_mode restart re-rendered"), false)
-		} else if len(signals) != 0 {
+	} else {
+		// Handle signals and scripts since the task may have multiple
+		// templates with mixed change_mode values.
+		tm.handleChangeModeSignal(signals)
+		tm.handleChangeModeScript(scripts)
+	}
+}
+
+func (tm *TaskTemplateManager) handleChangeModeSignal(signals map[string]struct{}) {
 			var mErr multierror.Error
 			for signal := range signals {
 				s := tm.signals[signal]
@@ -491,9 +519,75 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 						SetFailsTask().
 						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 			}
-		}
-	}
+}
 
+func (tm *TaskTemplateManager) handleChangeModeScript(scripts []*structs.ChangeScript) {
+	// process script execution concurrently
+	var wg sync.WaitGroup
+	for _, script := range scripts {
+		wg.Add(1)
+		go tm.processScript(script, &wg)
+	}
+	wg.Wait()
+}
+
+// handleScriptError is a helper function that produces a TaskKilling event and
+// emits a message
+func (tm *TaskTemplateManager) handleScriptError(script *structs.ChangeScript, msg string) {
+	ev := structs.NewTaskEvent(structs.TaskHookFailed).SetDisplayMessage(msg)
+	tm.config.Events.EmitEvent(ev)
+
+	if script.FailOnError {
+		tm.config.Lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage("Template script failed, task is being killed"))
+	}
+}
+
+// processScript is used for executing change_mode script and handling errors
+func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	if tm.handle == nil {
+		failureMsg := fmt.Sprintf(
+			"Template failed to run script %v with arguments %v because task driver doesn't support the exec operation",
+			script.Command,
+			script.Args,
+		)
+		tm.handleScriptError(script, failureMsg)
+		return
+	}
+	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
+	if err != nil {
+		failureMsg := fmt.Sprintf(
+			"Template failed to run script %v with arguments %v on change: %v Exit code: %v",
+			script.Command,
+			script.Args,
+			err,
+			exitCode,
+		)
+		tm.handleScriptError(script, failureMsg)
+		return
+	}
+	if exitCode != 0 {
+		failureMsg := fmt.Sprintf(
+			"Template ran script %v with arguments %v on change but it exited with code code: %v",
+			script.Command,
+			script.Args,
+			exitCode,
+		)
+		tm.handleScriptError(script, failureMsg)
+		return
+	}
+	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
+		SetDisplayMessage(
+			fmt.Sprintf(
+				"Template successfully ran script %v with arguments: %v. Exit code: %v",
+				script.Command,
+				script.Args,
+				exitCode,
+			)))
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
@@ -612,7 +706,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: helper.BoolToPtr(true),
+				Enabled: pointer.Of(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -628,9 +722,11 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			ct.Perms = &m
 		}
 		// Set ownership
-		if tmpl.Uid >= 0 && tmpl.Gid >= 0 {
-			ct.Uid = &tmpl.Uid
-			ct.Gid = &tmpl.Gid
+		if tmpl.Uid != nil && *tmpl.Uid >= 0 {
+			ct.Uid = tmpl.Uid
+		}
+		if tmpl.Gid != nil && *tmpl.Gid >= 0 {
+			ct.Gid = tmpl.Gid
 		}
 
 		ct.Finalize()
@@ -724,7 +820,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: helper.BoolToPtr(true),
+				Enabled: pointer.Of(true),
 				Verify:  &verify,
 				Cert:    &cc.ConsulConfig.CertFile,
 				Key:     &cc.ConsulConfig.KeyFile,
@@ -739,7 +835,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  helper.BoolToPtr(true),
+				Enabled:  pointer.Of(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -768,7 +864,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = helper.BoolToPtr(false)
+	conf.Vault.RenewToken = pointer.Of(false)
 	conf.Vault.Token = &emptyStr
 	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &cc.VaultConfig.Addr
@@ -787,7 +883,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    helper.BoolToPtr(true),
+				Enabled:    pointer.Of(true),
 				Verify:     &verify,
 				Cert:       &cc.VaultConfig.TLSCertFile,
 				Key:        &cc.VaultConfig.TLSKeyFile,
@@ -797,8 +893,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    helper.BoolToPtr(false),
-				Verify:     helper.BoolToPtr(false),
+				Enabled:    pointer.Of(false),
+				Verify:     pointer.Of(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,

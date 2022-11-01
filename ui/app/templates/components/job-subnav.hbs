@@ -1,4 +1,4 @@
-<div data-test-subnav="job" class="tabs is-subnav">
+<div data-test-subnav="job" class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
     <li data-test-tab="overview">
       <LinkTo
@@ -68,5 +68,14 @@
         </LinkTo>
       </li>
     {{/if}}
+    <li data-test-tab="services">
+      <LinkTo
+        @route="jobs.job.services"
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Services
+      </LinkTo>
+    </li>
   </ul>
 </div>

@@ -13,6 +13,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
@@ -42,6 +43,7 @@ export default class TaskGroupController extends Controller.extend(
     {
       qpClient: 'client',
     },
+    'activeTask',
   ];
 
   currentPage = 1;
@@ -51,10 +53,19 @@ export default class TaskGroupController extends Controller.extend(
   qpClient = '';
   sortProperty = 'modifyIndex';
   sortDescending = true;
+  activeTask = null;
 
   @computed
   get searchProps() {
     return ['shortId', 'name'];
+  }
+
+  @localStorageProperty('nomadShowSubTasks', true) showSubTasks;
+
+  @action
+  toggleShowSubTasks(e) {
+    e.preventDefault();
+    this.set('showSubTasks', !this.get('showSubTasks'));
   }
 
   @computed('model.allocations.[]')
@@ -176,5 +187,14 @@ export default class TaskGroupController extends Controller.extend(
       label: name,
       args: ['jobs.job.task-group', job, name],
     };
+  }
+
+  @action
+  setActiveTaskQueryParam(task) {
+    if (task) {
+      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+    } else {
+      this.set('activeTask', null);
+    }
   }
 }

@@ -24,6 +24,9 @@ Router.map(function () {
       this.route('evaluations');
       this.route('allocations');
       this.route('clients');
+      this.route('services', function () {
+        this.route('service', { path: '/:name' });
+      });
     });
   });
 
@@ -84,7 +87,7 @@ Router.map(function () {
     this.route(
       'variable',
       {
-        path: '/var/*path',
+        path: '/var/*id',
       },
       function () {
         this.route('edit');

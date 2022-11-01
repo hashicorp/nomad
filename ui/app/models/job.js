@@ -141,6 +141,7 @@ export default class Job extends Model {
   @hasMany('variables') variables;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
+  @hasMany('services') services;
 
   @hasMany('recommendation-summary') recommendationSummaries;
 
@@ -224,6 +225,10 @@ export default class Job extends Model {
 
   stop() {
     return this.store.adapterFor('job').stop(this);
+  }
+
+  purge() {
+    return this.store.adapterFor('job').purge(this);
   }
 
   plan() {

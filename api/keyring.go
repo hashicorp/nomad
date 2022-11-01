@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// Keyring is used to access the Secure Variables keyring
+// Keyring is used to access the Variables keyring.
 type Keyring struct {
 	client *Client
 }
@@ -22,13 +22,6 @@ type EncryptionAlgorithm string
 const (
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
-
-// RootKey wraps key metadata and the key itself. The key must be
-// base64 encoded
-type RootKey struct {
-	Meta *RootKeyMeta
-	Key  string
-}
 
 // RootKeyMeta is the metadata used to refer to a RootKey.
 type RootKeyMeta struct {
@@ -70,12 +63,6 @@ func (k *Keyring) Delete(opts *KeyringDeleteOptions, w *WriteOptions) (*WriteMet
 // KeyringDeleteOptions are parameters for the Delete API
 type KeyringDeleteOptions struct {
 	KeyID string // UUID
-}
-
-// Update upserts a key into the keyring
-func (k *Keyring) Update(key *RootKey, w *WriteOptions) (*WriteMeta, error) {
-	wm, err := k.client.write("/v1/operator/keyring/keys", key, nil, w)
-	return wm, err
 }
 
 // Rotate requests a key rotation

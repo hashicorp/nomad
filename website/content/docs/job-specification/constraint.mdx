@@ -64,8 +64,9 @@ all groups (and tasks) in the job.
   to examine for the constraint. This can be any of the [Nomad interpolated
   values](/docs/runtime/interpolation#interpreted_node_vars).
 
-- `operator` `(string: "=")` - Specifies the comparison operator. The ordering is
-  compared lexically. Possible values include:
+- `operator` `(string: "=")` - Specifies the comparison operator. If the operator
+  is one of `>, >=, <, <=`, the ordering is compared numerically if the operands
+  are both integers or both floats, and lexically otherwise. Possible values include:
 
   ```text
   =

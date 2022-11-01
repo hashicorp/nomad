@@ -24,6 +24,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 // specifying units
 type Attribute struct {
 	// Types that are valid to be assigned to Value:
+	//
 	//	*Attribute_FloatVal
 	//	*Attribute_IntVal
 	//	*Attribute_StringVal

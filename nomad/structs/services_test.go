@@ -7,9 +7,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +66,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 			Method:   "",
 			OnUpdate: "",
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Nil(t, sc.Args)
 		must.Nil(t, sc.Header)
 		must.Eq(t, `service: "MyService" check`, sc.Name)
@@ -79,7 +78,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 		sc := &ServiceCheck{
 			Name: "Some Check",
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Eq(t, "Some Check", sc.Name)
 	})
 
@@ -87,7 +86,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 		sc := &ServiceCheck{
 			OnUpdate: OnUpdateIgnore,
 		}
-		sc.Canonicalize("MyService")
+		sc.Canonicalize("MyService", "task1")
 		must.Eq(t, OnUpdateIgnore, sc.OnUpdate)
 	})
 }
@@ -282,7 +281,18 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:      1 * time.Second,
 				CheckRestart: new(CheckRestart),
 			},
-			exp: `check_restart may only be set for Consul service checks`,
+		},
+		{
+			name: "check_restart ignore_warnings",
+			sc: &ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Interval: 3 * time.Second,
+				Timeout:  1 * time.Second,
+				CheckRestart: &CheckRestart{
+					IgnoreWarnings: true,
+				},
+			},
+			exp: `ignore_warnings on check_restart only supported for Consul service checks`,
 		},
 		{
 			name: "address mode driver",
@@ -336,10 +346,9 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Interval: 3 * time.Second,
 				Timeout:  1 * time.Second,
 				Path:     "/health",
-				Method:   "GET",
-				Body:     "blah",
+				Method:   "POST",
+				Body:     "this is a request payload!",
 			},
-			exp: `http checks may not set Body in Nomad services`,
 		},
 	}
 
@@ -490,7 +499,7 @@ func TestConsulConnect_Validate(t *testing.T) {
 	require.NoError(t, c.Validate())
 }
 
-func TestConsulConnect_CopyEquals(t *testing.T) {
+func TestConsulConnect_CopyEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	c := &ConsulConnect{
@@ -523,17 +532,17 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 
 	// Copies should be equivalent
 	o := c.Copy()
-	require.True(t, c.Equals(o))
+	require.True(t, c.Equal(o))
 
 	o.SidecarService.Proxy.Upstreams = nil
-	require.False(t, c.Equals(o))
+	require.False(t, c.Equal(o))
 }
 
-func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
+func TestConsulConnect_GatewayProxy_CopyEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	c := &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+		ConnectTimeout:                  pointer.Of(1 * time.Second),
 		EnvoyGatewayBindTaggedAddresses: false,
 		EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress),
 	}
@@ -543,7 +552,7 @@ func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
 	// Copies should be equivalent
 	o := c.Copy()
 	require.Equal(t, c, o)
-	require.True(t, c.Equals(o))
+	require.True(t, c.Equal(o))
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
@@ -567,11 +576,11 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 		Meta: map[string]string{
 			"abc": "123",
 		},
-		KillTimeout: helper.TimeToPtr(15 * time.Second),
+		KillTimeout: pointer.Of(15 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles: 3,
 		},
-		ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+		ShutdownDelay: pointer.Of(5 * time.Second),
 		KillSignal:    "SIGABRT",
 	}
 
@@ -602,7 +611,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	require.Exactly(t, expected, task)
 }
 
-func TestSidecarTask_Equals(t *testing.T) {
+func TestSidecarTask_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	original := &SidecarTask{
@@ -613,18 +622,18 @@ func TestSidecarTask_Equals(t *testing.T) {
 		Env:         map[string]string{"color": "blue"},
 		Resources:   &Resources{MemoryMB: 300},
 		Meta:        map[string]string{"index": "1"},
-		KillTimeout: helper.TimeToPtr(2 * time.Second),
+		KillTimeout: pointer.Of(2 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      2,
 			MaxFileSizeMB: 300,
 		},
-		ShutdownDelay: helper.TimeToPtr(10 * time.Second),
+		ShutdownDelay: pointer.Of(10 * time.Second),
 		KillSignal:    "SIGTERM",
 	}
 
 	t.Run("unmodified", func(t *testing.T) {
 		duplicate := original.Copy()
-		require.True(t, duplicate.Equals(original))
+		require.True(t, duplicate.Equal(original))
 	})
 
 	type st = SidecarTask
@@ -665,7 +674,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 
 	t.Run("mod kill timeout", func(t *testing.T) {
-		try(t, func(s *st) { s.KillTimeout = helper.TimeToPtr(3 * time.Second) })
+		try(t, func(s *st) { s.KillTimeout = pointer.Of(3 * time.Second) })
 	})
 
 	t.Run("mod log config", func(t *testing.T) {
@@ -673,7 +682,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 
 	t.Run("mod shutdown delay", func(t *testing.T) {
-		try(t, func(s *st) { s.ShutdownDelay = helper.TimeToPtr(20 * time.Second) })
+		try(t, func(s *st) { s.ShutdownDelay = pointer.Of(20 * time.Second) })
 	})
 
 	t.Run("mod kill signal", func(t *testing.T) {
@@ -681,7 +690,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 }
 
-func TestConsulUpstream_upstreamEquals(t *testing.T) {
+func TestConsulUpstream_upstreamEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	up := func(name string, port int) ConsulUpstream {
@@ -714,8 +723,8 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	})
 
 	t.Run("different mesh_gateway", func(t *testing.T) {
-		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "local"}}}
-		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "remote"}}}
+		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "local"}}}
+		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "remote"}}}
 		require.False(t, upstreamsEquals(a, b))
 	})
 
@@ -784,15 +793,15 @@ func TestConsulExposeConfig_Copy(t *testing.T) {
 	}).Copy())
 }
 
-func TestConsulExposeConfig_Equals(t *testing.T) {
+func TestConsulExposeConfig_Equal(t *testing.T) {
 	ci.Parallel(t)
 
-	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
+	require.True(t, (*ConsulExposeConfig)(nil).Equal(nil))
 	require.True(t, (&ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
 			Path: "/health",
 		}},
-	}).Equals(&ConsulExposeConfig{
+	}).Equal(&ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
 			Path: "/health",
 		}},
@@ -826,7 +835,7 @@ func TestConsulSidecarService_Copy(t *testing.T) {
 var (
 	consulIngressGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:                  pointer.Of(1 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2001},
@@ -863,7 +872,7 @@ var (
 
 	consulTerminatingGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:            helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:            pointer.Of(1 * time.Second),
 			EnvoyDNSDiscoveryType:     "STRICT_DNS",
 			EnvoyGatewayBindAddresses: nil,
 		},
@@ -882,7 +891,7 @@ var (
 
 	consulMeshGateway1 = &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 		},
 		Mesh: &ConsulMeshConfigEntry{
 			// nothing
@@ -921,50 +930,50 @@ func TestConsulGateway_Copy(t *testing.T) {
 	t.Run("as ingress", func(t *testing.T) {
 		result := consulIngressGateway1.Copy()
 		require.Equal(t, consulIngressGateway1, result)
-		require.True(t, result.Equals(consulIngressGateway1))
-		require.True(t, consulIngressGateway1.Equals(result))
+		require.True(t, result.Equal(consulIngressGateway1))
+		require.True(t, consulIngressGateway1.Equal(result))
 	})
 
 	t.Run("as terminating", func(t *testing.T) {
 		result := consulTerminatingGateway1.Copy()
 		require.Equal(t, consulTerminatingGateway1, result)
-		require.True(t, result.Equals(consulTerminatingGateway1))
-		require.True(t, consulTerminatingGateway1.Equals(result))
+		require.True(t, result.Equal(consulTerminatingGateway1))
+		require.True(t, consulTerminatingGateway1.Equal(result))
 	})
 
 	t.Run("as mesh", func(t *testing.T) {
 		result := consulMeshGateway1.Copy()
 		require.Equal(t, consulMeshGateway1, result)
-		require.True(t, result.Equals(consulMeshGateway1))
-		require.True(t, consulMeshGateway1.Equals(result))
+		require.True(t, result.Equal(consulMeshGateway1))
+		require.True(t, consulMeshGateway1.Equal(result))
 	})
 }
 
-func TestConsulGateway_Equals_mesh(t *testing.T) {
+func TestConsulGateway_Equal_mesh(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
 		b := (*ConsulGateway)(nil)
-		require.True(t, a.Equals(b))
-		require.False(t, a.Equals(consulMeshGateway1))
-		require.False(t, consulMeshGateway1.Equals(a))
+		require.True(t, a.Equal(b))
+		require.False(t, a.Equal(consulMeshGateway1))
+		require.False(t, consulMeshGateway1.Equal(a))
 	})
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, consulMeshGateway1.Equals(consulMeshGateway1))
+		require.True(t, consulMeshGateway1.Equal(consulMeshGateway1))
 	})
 }
 
-func TestConsulGateway_Equals_ingress(t *testing.T) {
+func TestConsulGateway_Equal_ingress(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
 		b := (*ConsulGateway)(nil)
-		require.True(t, a.Equals(b))
-		require.False(t, a.Equals(consulIngressGateway1))
-		require.False(t, consulIngressGateway1.Equals(a))
+		require.True(t, a.Equal(b))
+		require.False(t, a.Equal(consulIngressGateway1))
+		require.False(t, consulIngressGateway1.Equal(a))
 	})
 
 	original := consulIngressGateway1.Copy()
@@ -973,21 +982,21 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 	type tweaker = func(g *cg)
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, original.Equals(original))
+		require.True(t, original.Equal(original))
 	})
 
 	try := func(t *testing.T, tweak tweaker) {
 		modifiable := original.Copy()
 		tweak(modifiable)
-		require.False(t, original.Equals(modifiable))
-		require.False(t, modifiable.Equals(original))
-		require.True(t, modifiable.Equals(modifiable))
+		require.False(t, original.Equal(modifiable))
+		require.False(t, modifiable.Equal(original))
+		require.True(t, modifiable.Equal(modifiable))
 	}
 
 	// proxy stanza equality checks
 
 	t.Run("mod gateway timeout", func(t *testing.T) {
-		try(t, func(g *cg) { g.Proxy.ConnectTimeout = helper.TimeToPtr(9 * time.Second) })
+		try(t, func(g *cg) { g.Proxy.ConnectTimeout = pointer.Of(9 * time.Second) })
 	})
 
 	t.Run("mod gateway envoy_gateway_bind_tagged_addresses", func(t *testing.T) {
@@ -1050,7 +1059,7 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 	})
 }
 
-func TestConsulGateway_Equals_terminating(t *testing.T) {
+func TestConsulGateway_Equal_terminating(t *testing.T) {
 	ci.Parallel(t)
 
 	original := consulTerminatingGateway1.Copy()
@@ -1059,15 +1068,15 @@ func TestConsulGateway_Equals_terminating(t *testing.T) {
 	type tweaker = func(c *cg)
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, original.Equals(original))
+		require.True(t, original.Equal(original))
 	})
 
 	try := func(t *testing.T, tweak tweaker) {
 		modifiable := original.Copy()
 		tweak(modifiable)
-		require.False(t, original.Equals(modifiable))
-		require.False(t, modifiable.Equals(original))
-		require.True(t, modifiable.Equals(modifiable))
+		require.False(t, original.Equal(modifiable))
+		require.False(t, modifiable.Equal(original))
+		require.True(t, modifiable.Equal(modifiable))
 	}
 
 	// proxy stanza equality checks
@@ -1269,7 +1278,7 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("invalid bind address", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"service1": {
 					Address: "10.0.0.1",
@@ -1281,7 +1290,7 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("invalid dns discovery type", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout:        pointer.Of(1 * time.Second),
 			EnvoyDNSDiscoveryType: "RANDOM_DNS",
 		}).Validate()
 		require.EqualError(t, err, "Consul Gateway Proxy Envoy DNS Discovery type must be STRICT_DNS or LOGICAL_DNS")
@@ -1289,14 +1298,14 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 
 	t.Run("ok with nothing set", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 		}).Validate()
 		require.NoError(t, err)
 	})
 
 	t.Run("ok with everything set", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			ConnectTimeout: pointer.Of(1 * time.Second),
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"service1": {
 					Address: "10.0.0.1",
@@ -1636,15 +1645,15 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 	})
 }
 
-func TestConsulMeshGateway_Equals(t *testing.T) {
+func TestConsulMeshGateway_Equal(t *testing.T) {
 	ci.Parallel(t)
 
-	c := &ConsulMeshGateway{Mode: "local"}
-	require.False(t, c.Equals(nil))
-	require.True(t, c.Equals(c))
+	c := ConsulMeshGateway{Mode: "local"}
+	require.False(t, c.Equal(ConsulMeshGateway{}))
+	require.True(t, c.Equal(c))
 
-	o := &ConsulMeshGateway{Mode: "remote"}
-	require.False(t, c.Equals(o))
+	o := ConsulMeshGateway{Mode: "remote"}
+	require.False(t, c.Equal(o))
 }
 
 func TestConsulMeshGateway_Validate(t *testing.T) {
@@ -1676,24 +1685,24 @@ func TestService_Validate(t *testing.T) {
 		name      string
 	}{
 		{
+			name: "base service",
 			input: &Service{
 				Name: "testservice",
 			},
 			expErr: false,
-			name:   "base service",
 		},
 		{
+			name: "Native Connect without task name",
 			input: &Service{
 				Name: "testservice",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
 			},
-			expErr:    true,
-			expErrStr: "Connect Native and requires setting the task",
-			name:      "Native Connect without task name",
+			expErr: false, // gets set automatically
 		},
 		{
+			name: "Native Connect with task name",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1702,9 +1711,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "Native Connect with task name",
 		},
 		{
+			name: "Native Connect with Sidecar",
 			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
@@ -1715,9 +1724,9 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Consul Connect must be exclusively native",
-			name:      "Native Connect with Sidecar",
 		},
 		{
+			name: "provider nomad with checks",
 			input: &Service{
 				Name:      "testservice",
 				Provider:  "nomad",
@@ -1739,9 +1748,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: false,
-			name:   "provider nomad with checks",
 		},
 		{
+			name: "provider nomad with invalid check type",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1753,9 +1762,9 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr: true,
-			name:   "provider nomad with invalid check type",
 		},
 		{
+			name: "provider nomad with connect",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
@@ -1765,15 +1774,14 @@ func TestService_Validate(t *testing.T) {
 			},
 			expErr:    true,
 			expErrStr: "Service with provider nomad cannot include Connect blocks",
-			name:      "provider nomad with connect",
 		},
 		{
+			name: "provider nomad valid",
 			input: &Service{
 				Name:     "testservice",
 				Provider: "nomad",
 			},
 			expErr: false,
-			name:   "provider nomad valid",
 		},
 	}
 
@@ -1782,10 +1790,10 @@ func TestService_Validate(t *testing.T) {
 			tc.input.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
 			err := tc.input.Validate()
 			if tc.expErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expErrStr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expErrStr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -1820,7 +1828,7 @@ func TestService_Validate_Address(t *testing.T) {
 	try("driver", "example.com", errors.New(`Service address_mode must be "auto" if address is set`))
 }
 
-func TestService_Equals(t *testing.T) {
+func TestService_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	s := Service{
@@ -1833,13 +1841,13 @@ func TestService_Equals(t *testing.T) {
 	o := s.Copy()
 
 	// Base service should be equal to copy of itself
-	require.True(t, s.Equals(o))
+	require.True(t, s.Equal(o))
 
 	// create a helper to assert a diff and reset the struct
 	assertDiff := func() {
-		require.False(t, s.Equals(o))
+		require.False(t, s.Equal(o))
 		o = s.Copy()
-		require.True(t, s.Equals(o), "bug in copy")
+		require.True(t, s.Equal(o), "bug in copy")
 	}
 
 	// Changing any field should cause inequality

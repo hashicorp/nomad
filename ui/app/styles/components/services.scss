@@ -1,0 +1,174 @@
+.service-list {
+  .title {
+    .back-link {
+      text-decoration: none;
+      color: #363636;
+      position: relative;
+      top: 4px;
+    }
+  }
+  td svg {
+    position: relative;
+    top: 3px;
+    margin-right: 5px;
+  }
+}
+
+.service-sidebar {
+  .aggregate-status {
+    font-size: 1rem;
+    font-weight: normal;
+    line-height: 16px;
+    & > svg {
+      position: relative;
+      top: 3px;
+      margin-left: 5px;
+    }
+  }
+  td.name {
+    width: 100px;
+    span {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100px;
+    }
+  }
+  td.status {
+    span {
+      display: inline-grid;
+      grid-auto-flow: column;
+      line-height: 16px;
+      gap: 0.25rem;
+    }
+  }
+
+  td.service-output {
+    padding: 0;
+    code {
+      padding: 1.25em 1.5em;
+      max-height: 100px;
+      overflow: auto;
+      display: block;
+    }
+  }
+
+  .inline-definitions {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.allocation-services-table {
+  td svg {
+    position: relative;
+    top: 3px;
+    margin-right: 5px;
+  }
+}
+
+table.health-checks {
+  table-layout: fixed;
+  th.name {
+    width: 20%;
+  }
+  th.status {
+    width: 15%;
+  }
+  th.output {
+    width: 65%;
+  }
+  tbody tr td {
+    border-bottom-width: 0;
+  }
+
+  .service-status-indicators {
+    td {
+      border-bottom-width: 1px;
+      text-align: right;
+      & > div {
+        display: grid;
+        grid-auto-flow: column;
+        justify-content: end;
+        gap: 2px;
+        width: calc(
+          750px - 3rem - 50px
+        ); //Sidebar width - padding - table padding
+        height: 12px;
+        padding-top: 30px;
+        margin-top: -20px;
+        padding-bottom: 20px;
+        margin-bottom: -10px;
+        overflow: hidden;
+        box-sizing: content-box;
+        .service-status-indicator {
+          width: 12px;
+          height: 12px;
+          display: block;
+          position: relative;
+          line-height: 10px;
+          text-align: center;
+          color: white;
+          border-radius: 2px;
+          &.status-success {
+            background-color: $nomad-green;
+          }
+          &.status-failure {
+            background-color: $red;
+          }
+
+          & > .timestamp {
+            color: black;
+            font-size: 0.75rem;
+            position: absolute;
+            top: 100%;
+            text-align: center;
+            white-space: nowrap;
+            left: 50%;
+            width: 100px;
+            margin-left: -50px;
+            margin-top: calc(50% + 2px);
+
+            & > span {
+              visibility: hidden;
+            }
+
+            &:before {
+              display: none;
+              border-left: 1px solid $grey-blue;
+              content: '';
+              position: absolute;
+              left: 50%;
+              height: 50%;
+              top: -50%;
+            }
+
+            &:after {
+              display: block;
+              width: calc(12px + 2px); // account for grid.gap
+              border-top: 1px solid $grey-blue;
+              content: '';
+              position: absolute;
+              left: calc(50% - 1px);
+              margin-left: -6px;
+              top: calc(-50% - 1px);
+            }
+          }
+
+          &:nth-child(8n + 1) > .timestamp {
+            &:before {
+              display: block;
+            }
+            & > span {
+              visibility: visible;
+            }
+            & > span {
+              visibility: visible;
+            }
+          }
+        }
+      }
+    }
+  }
+}

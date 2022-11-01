@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -60,7 +59,7 @@ func (d *killer) v1(cgroup *configs.Cgroup) error {
 	}
 
 	// the actual path to our tasks freezer cgroup
-	path := cgroup.Paths[freezer]
+	path := cgroup.Path
 
 	d.logger.Trace("killing processes", "cgroup_path", path, "cgroup_version", "v1", "executor_pid", d.pid)
 
@@ -96,56 +95,24 @@ func (d *killer) v1(cgroup *configs.Cgroup) error {
 }
 
 func (d *killer) v2(cgroup *configs.Cgroup) error {
-	if cgroup == nil {
+	if cgroup == nil || cgroup.Path == "" {
 		return errors.New("missing cgroup")
 	}
 
-	path := filepath.Join(CgroupRoot, cgroup.Path)
-
-	existingPIDs, err := cgroups.GetPids(path)
-	if err != nil {
-		return fmt.Errorf("failed to determine pids in cgroup: %w", err)
-	}
-
-	d.logger.Trace("killing processes", "cgroup_path", path, "cgroup_version", "v2", "executor_pid", d.pid, "existing_pids", existingPIDs)
-
-	mgr, err := fs2.NewManager(cgroup, "", rootless)
-	if err != nil {
-		return fmt.Errorf("failed to create v2 cgroup manager: %w", err)
-	}
-
-	// move executor PID into the root init.scope so we can kill the task pids
-	// without killing the executor (which is the process running this code, doing
-	// the killing)
-	init, err := fs2.NewManager(nil, filepath.Join(CgroupRoot, "init.scope"), rootless)
-	if err != nil {
-		return fmt.Errorf("failed to create v2 init cgroup manager: %w", err)
-	}
-	if err = init.Apply(d.pid); err != nil {
-		return fmt.Errorf("failed to move executor pid into init.scope cgroup: %w", err)
-	}
-
-	d.logger.Trace("move of executor pid into init.scope complete", "pid", d.pid)
-
-	// ability to freeze the cgroup
-	freeze := func() {
-		_ = mgr.Freeze(configs.Frozen)
-	}
-
-	// ability to thaw the cgroup
-	thaw := func() {
-		_ = mgr.Freeze(configs.Thawed)
-	}
-
-	// do the common kill logic
-
-	if err = d.kill(path, freeze, thaw); err != nil {
+	// move executor (d.PID) into init.scope
+	editSelf := &editor{"init.scope"}
+	if err := editSelf.write("cgroup.procs", strconv.Itoa(d.pid)); err != nil {
 		return err
 	}
 
-	// note: do NOT remove the cgroup from disk; leave that to the alloc-level
-	// cpuset mananager.
+	// write "1" to cgroup.kill
+	editTask := &editor{cgroup.Path}
+	if err := editTask.write("cgroup.kill", "1"); err != nil {
+		return err
+	}
 
+	// note: do NOT remove the cgroup from disk; leave that to the Client, at
+	// least until #14375 is implemented.
 	return nil
 }
 

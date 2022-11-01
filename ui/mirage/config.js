@@ -6,6 +6,7 @@ import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
+import faker from 'nomad-ui/mirage/faker';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -836,10 +837,14 @@ export default function () {
     }
   );
 
-  //#region Secure Variables
+  //#region Variables
 
-  this.get('/vars', function (schema) {
-    return schema.variables.all();
+  this.get('/vars', function (schema, { queryParams: { namespace } }) {
+    if (namespace && namespace !== '*') {
+      return schema.variables.all().filter((v) => v.namespace === namespace);
+    } else {
+      return schema.variables.all();
+    }
   });
 
   this.get('/var/:id', function ({ variables }, { params }) {
@@ -848,21 +853,78 @@ export default function () {
 
   this.put('/var/:id', function (schema, request) {
     const { Path, Namespace, Items } = JSON.parse(request.requestBody);
-    return server.create('variable', {
-      Path,
-      Namespace,
-      Items,
-      id: Path,
-    });
+    if (request.url.includes('cas=') && Path === 'Auto-conflicting Variable') {
+      return new Response(
+        409,
+        {},
+        {
+          CreateIndex: 65,
+          CreateTime: faker.date.recent(14) * 1000000, // in the past couple weeks
+          Items: { edited_by: 'your_remote_pal' },
+          ModifyIndex: 2118,
+          ModifyTime: faker.date.recent(0.01) * 1000000, // a few minutes ago
+          Namespace: Namespace,
+          Path: Path,
+        }
+      );
+    } else {
+      return server.create('variable', {
+        path: Path,
+        namespace: Namespace,
+        items: Items,
+        id: Path,
+      });
+    }
   });
 
   this.delete('/var/:id', function (schema, request) {
     const { id } = request.params;
     server.db.variables.remove(id);
-    return okEmpty();
+    return '';
   });
 
-  //#endregion Secure Variables
+  //#endregion Variables
+
+  //#region Services
+
+  const allocationServiceChecksHandler = function (schema) {
+    let disasters = [
+      "Moon's haunted",
+      'reticulating splines',
+      'The operation completed unexpectedly',
+      'Ran out of sriracha :(',
+      '¯\\_(ツ)_/¯',
+      '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
+    ];
+    let fakeChecks = [];
+    schema.serviceFragments.all().models.forEach((frag, iter) => {
+      [...Array(iter)].forEach((check, checkIter) => {
+        const checkOK = faker.random.boolean();
+        fakeChecks.push({
+          Check: `check-${checkIter}`,
+          Group: `job-name.${frag.taskGroup?.name}[1]`,
+          Output: checkOK
+            ? 'nomad: http ok'
+            : disasters[Math.floor(Math.random() * disasters.length)],
+          Service: frag.name,
+          Status: checkOK ? 'success' : 'failure',
+          StatusCode: checkOK ? 200 : 400,
+          Task: frag.task?.name,
+          Timestamp: new Date().getTime(),
+        });
+      });
+    });
+    return fakeChecks;
+  };
+
+  this.get('/job/:id/services', function (schema, { params }) {
+    const { services } = schema;
+    return this.serialize(services.where({ jobId: params.id }));
+  });
+
+  this.get('/client/allocation/:id/checks', allocationServiceChecksHandler);
+
+  //#endregion Services
 }
 
 function filterKeys(object, ...keys) {

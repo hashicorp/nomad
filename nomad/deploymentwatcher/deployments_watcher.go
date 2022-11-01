@@ -193,7 +193,12 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 
 // getDeploys retrieves all deployments blocking at the given index.
 func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.Deployment, uint64, error) {
-	resp, index, err := w.state.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
+	// state can be updated concurrently
+	w.l.Lock()
+	stateStore := w.state
+	w.l.Unlock()
+
+	resp, index, err := stateStore.BlockingQuery(w.getDeploysImpl, minIndex, ctx)
 	if err != nil {
 		return nil, 0, err
 	}

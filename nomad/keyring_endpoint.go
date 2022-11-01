@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Keyring endpoint serves RPCs for secure variables key management
+// Keyring endpoint serves RPCs for root key management
 type Keyring struct {
 	srv       *Server
 	logger    hclog.Logger
@@ -78,7 +78,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 			Priority:    structs.CoreJobPriority,
 			Type:        structs.JobTypeCore,
 			TriggeredBy: structs.EvalTriggerJobRegister,
-			JobID:       structs.CoreJobSecureVariablesRekey,
+			JobID:       structs.CoreJobVariablesRekey,
 			Status:      structs.EvalStatusPending,
 			ModifyIndex: index,
 			LeaderACL:   k.srv.getLeaderAcl(),
@@ -264,7 +264,20 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 				Key:  key,
 			}
 			reply.Key = rootKey
-			reply.Index = keyMeta.ModifyIndex
+
+			// Use the last index that affected the policy table
+			index, err := s.Index(state.TableRootKeyMeta)
+			if err != nil {
+				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query
+			// cannot be used.  We floor the index at one, since realistically
+			// the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
+			reply.Index = index
 			return nil
 		},
 	}

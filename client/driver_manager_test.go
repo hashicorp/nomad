@@ -22,10 +22,11 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
 
+	conf := testClient.GetConfig()
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
-		Loader:              testClient.config.PluginSingletonLoader,
-		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
+		Loader:              conf.PluginSingletonLoader,
+		PluginConfig:        conf.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,
@@ -35,7 +36,7 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 	defer dm.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
-		node := testClient.configCopy.Node
+		node := testClient.Node()
 
 		d, ok := node.Drivers["mock_driver"]
 		if !ok {
@@ -73,10 +74,11 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 	})
 	defer cleanup()
 
+	conf := testClient.GetConfig()
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
-		Loader:              testClient.config.PluginSingletonLoader,
-		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
+		Loader:              conf.PluginSingletonLoader,
+		PluginConfig:        conf.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,
@@ -134,10 +136,11 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 	})
 	defer cleanup()
 
+	conf := testClient.GetConfig()
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
-		Loader:              testClient.config.PluginSingletonLoader,
-		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
+		Loader:              conf.PluginSingletonLoader,
+		PluginConfig:        conf.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,

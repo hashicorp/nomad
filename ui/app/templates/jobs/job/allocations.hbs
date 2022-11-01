@@ -46,7 +46,7 @@
           @source={{p.list}}
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|>
+          @class="with-foot with-collapsed-borders" as |t|>
           <t.head>
             <th class="is-narrow"></th>
             <t.sort-by @prop="shortId">ID</t.sort-by>
@@ -62,10 +62,18 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoAllocation" row.model)
+              }}
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"
               @onClick={{action "gotoAllocation" row.model}} />
+              {{#each row.model.states as |task|}}
+                <TaskSubRow @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @namespan="9" @taskState={{task}} />
+              {{/each}}
+
           </t.body>
         </ListTable>
         <div class="table-foot">

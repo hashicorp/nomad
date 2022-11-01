@@ -6,194 +6,85 @@ description: Comparison between Nomad and Kubernetes
 
 # Nomad Ecosystem
 
-### Continuous Integration & Delivery
+## Continuous Integration & Delivery
 
-#### GitLab
+- [GitLab](https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations)
+- [Codefresh](https://codefresh.io/docs/docs/yaml-examples/examples/nomad/)
+- [CircleCI](https://circleci.com/docs/server/operator/introduction-to-nomad-cluster-operation)
+- [Drone](https://docs.drone.io/runner/nomad/overview/)
+- [Jenkins](https://plugins.jenkins.io/nomad/)
+- [Buildkite](https://buildkite.com/works-with/hashicorp)
 
-https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations
+## Task Drivers
 
-#### Codefresh
+- [Containerd](https://www.nomadproject.io/plugins/drivers/community/containerd)
+- [Windows IIS](https://github.com/Roblox/nomad-driver-iis)
+- [Jailtask](https://www.nomadproject.io/plugins/drivers/community/jail-task-driver)
+- [Pot](https://github.com/trivago/nomad-pot-driver)
+- [Singularity](https://www.nomadproject.io/plugins/drivers/community/singularity)
+- [Firecracker](https://www.nomadproject.io/plugins/drivers/community/firecracker-task-driver)
+- [Podman](https://www.nomadproject.io/plugins/drivers/podman)
+- [LXC](https://www.nomadproject.io/plugins/drivers/community/lxc)
 
-https://codefresh.io/docs/docs/yaml-examples/examples/nomad/
+## Application Definition & Image Build
 
-#### CircleCI
+- [Nomad Pack](https://github.com/hashicorp/nomad-pack)
+- [Levant](https://github.com/hashicorp/levant)
+- [Packer](https://www.packer.io/)
+- [Waypoint](https://learn.hashicorp.com/collections/waypoint/get-started-nomad)
 
-https://circleci.com/docs/2.0/nomad/
+## Container Registry
 
-#### Drone
+- [JFrog Artifactory](https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/)
 
-https://docs.drone.io/runner/nomad/overview/
+## Observability and Analysis
 
-#### Jenkins
+- Prometheus
+  - [Using Prometheus to Monitor Nomad Metrics](https://learn.hashicorp.com/tutorials/nomad/prometheus-metrics)
+  - [Start Prometheus](https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus)
+- [Grafana](https://www.metricfire.com/blog/monitoring-hashicorp-nomad-with-prometheus-and-grafana/)
+- [DataDog](https://docs.datadoghq.com/integrations/nomad/)
+- [Turbonomics](https://www.youtube.com/watch?v=lwtIaPpdDsc)
+- [Circonus](https://www.nomadproject.io/tools/autoscaling/agent/telemetry#circonus)
+- [Splunk](https://www.kmruddy.com/2020/deploying-splunk-enterprise-with-nomad/)
 
-https://plugins.jenkins.io/nomad/
+## Secret Management
 
-#### Buildkite
+- [Vault](https://www.nomadproject.io/docs/integrations/vault-integration)
 
-https://buildkite.com/works-with/hashicorp
+## Service Mesh
 
-### Container Runtime
+- [Consul](https://www.nomadproject.io/docs/integrations/consul-integration)
 
-#### Containerd
+## Provisioning
 
-https://www.nomadproject.io/plugins/drivers/community/containerd
+- [Terraform](https://registry.terraform.io/providers/hashicorp/nomad/latest/docs)
+- [Chef](https://github.com/nathwill/chef-nomad)
+- [Ansible](https://github.com/ansible-community/ansible-nomad)
 
-#### Windows IIS
+## Cloud Native Network
 
-https://github.com/Roblox/nomad-driver-iis
+- [CNI](https://www.nomadproject.io/docs/integrations/consul-connect#cni-plugins)
 
-#### Jailtask
+## Service Proxy
 
-https://www.nomadproject.io/plugins/drivers/community/jail-task-driver
+- [Envoy](https://www.nomadproject.io/docs/integrations/consul-connect)
+- [NGINX](https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx)
+- [Traefik](https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik)
 
-#### Pot
+## Storage
 
-https://github.com/trivago/nomad-pot-driver
+- [CSI](https://www.nomadproject.io/docs/concepts/plugins/csi)
+- [Portworx](https://learn.hashicorp.com/tutorials/nomad/stateful-workloads-portworx)
 
-#### Singularity
+## GPUs
 
-https://www.nomadproject.io/plugins/drivers/community/singularity
+- NVIDIA
+  - [Using HashiCorp Nomad to Schedule GPU Workloads](https://developer.nvidia.com/blog/hashicorp-nomad-gpu-scheduling/)
+  - [Running GPU-Accelerated Applications on Nomad](https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad)
 
-#### Firecracker
+## Autoscaling
 
-https://www.nomadproject.io/plugins/drivers/community/firecracker-task-driver
-
-#### Podman
-
-https://www.nomadproject.io/plugins/drivers/podman
-
-#### LXC
-
-https://www.nomadproject.io/plugins/drivers/community/lxc
-
-### Application Definition & Image Build
-
-#### Levant
-
-https://github.com/hashicorp/levant
-
-#### Packer
-
-https://www.packer.io/
-
-#### Waypoint
-
-https://learn.hashicorp.com/collections/waypoint/get-started-nomad
-
-### Container Registry
-
-#### JFrog Artifactory
-
-https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/
-
-### Observability and Analysis
-
-#### Prometheus
-
-https://learn.hashicorp.com/tutorials/nomad/prometheus-metrics
-
-https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus
-
-#### Grafana
-
-https://www.metricfire.com/blog/monitoring-hashicorp-nomad-with-prometheus-and-grafana/
-
-#### DataDog
-
-https://docs.datadoghq.com/integrations/nomad/
-
-#### Turbonomics
-
-https://www.youtube.com/watch?v=lwtIaPpdDsc
-
-#### Circonus
-
-https://www.hashicorp.com/integrations/circonus/nomad
-
-#### Flowmill
-
-https://www.flowmill.com/blog/announcing-flowmill-s-integration-with-nomad/
-
-#### Sematext
-
-https://www.hashicorp.com/integrations/sematext/nomad
-
-#### Splunk
-
-https://www.kmruddy.com/2020/deploying-splunk-enterprise-with-nomad/
-
-### Secret Management
-
-#### Vault
-
-https://www.nomadproject.io/docs/integrations/vault-integration
-
-### Service Mesh
-
-#### Consul
-
-https://www.nomadproject.io/docs/integrations/consul-integration
-
-### Provisioning
-
-#### Terraform
-
-https://registry.terraform.io/providers/hashicorp/nomad/latest/docs
-
-#### Chef
-
-https://github.com/nathwill/chef-nomad
-
-#### Ansible
-
-https://github.com/ansible-community/ansible-nomad
-
-### Cloud Native Network
-
-#### CNI
-
-https://www.nomadproject.io/docs/integrations/consul-connect#cni-plugins
-
-### Service Proxy
-
-#### Envoy
-
-https://www.nomadproject.io/docs/integrations/consul-connect
-
-#### NGINX
-
-https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx
-
-#### Traefik
-
-https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik
-
-### Storage
-
-#### CSI
-
-https://www.nomadproject.io/docs/concepts/plugins/csi
-
-#### Portworx
-
-https://www.hashicorp.com/integrations/portworx/nomad
-
-### GPUs
-
-#### NVIDIA
-
-https://developer.nvidia.com/blog/hashicorp-nomad-gpu-scheduling/
-
-https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad
-
-### Autoscaling
-
-#### AWS ASGs
-
-Dynamically autoscale your Nomad clusters
-
-https://www.hashicorp.com/blog/cluster-scaling-with-the-hashicorp-nomad-autoscaler
-
-#### Spot
-
-https://docs.spot.io/container-management/nomad/nomad-integration-with-elastigroup/
+- AWS ASGs
+  - [Dynamically autoscale your Nomad clusters](https://www.hashicorp.com/blog/cluster-scaling-with-the-hashicorp-nomad-autoscaler)
+- [Spot](https://docs.spot.io/container-management/nomad/nomad-integration-with-elastigroup/)

@@ -1,0 +1,7 @@
+```release-note:security
+variables: Fixed a bug where non-sensitive variable metadata (paths and raft indexes) was exposed via the template `nomadVarList` function to other jobs in the same namespace.
+```
+
+```release-note:bug
+variables: Fixed a bug where getting empty results from listing variables resulted in a permission denied error.
+```
