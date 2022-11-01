@@ -1053,7 +1053,7 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 	//
 	// Instead, we'll rate limit RPC requests and have a timeout. If we still
 	// haven't finished the set by the timeout, emit a new eval.
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), c.srv.GetConfig().EvalNackTimeout/2)
 	defer cancel()
 	limiter := rate.NewLimiter(rate.Limit(100), 100)
 
