@@ -150,9 +150,10 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 // header name.
 const keyIDHeader = "kid"
 
-// SignClaims signs the identity claim for the task and returns an
-// encoded JWT with both the claim and its signature
-func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
+// SignClaims signs the identity claim for the task and returns an encoded JWT
+// (including both the claim and its signature), the key ID of the key used to
+// sign it, and any error.
+func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, error) {
 
 	// If a key is rotated immediately following a leader election, plans that
 	// are in-flight may get signed before the new leader has the key. Allow for
@@ -164,7 +165,7 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				return "", err
+				return "", "", err
 			default:
 				time.Sleep(50 * time.Millisecond)
 				keyset, err = e.activeKeySet()
@@ -180,10 +181,10 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
 
 	tokenString, err := token.SignedString(keyset.privateKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return tokenString, nil
+	return tokenString, keyset.rootKey.Meta.KeyID, nil
 }
 
 // VerifyClaim accepts a previously-signed encoded claim and validates
@@ -430,8 +431,10 @@ func (krr *KeyringReplicator) stop() {
 	krr.stopFn()
 }
 
+const keyringReplicationRate = 10
+
 func (krr *KeyringReplicator) run(ctx context.Context) {
-	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	limiter := rate.NewLimiter(keyringReplicationRate, keyringReplicationRate)
 	krr.logger.Debug("starting encryption key replication")
 	defer krr.logger.Debug("exiting key replication")
 
@@ -460,59 +463,27 @@ START:
 				krr.logger.Error("failed to fetch keyring", "error", err)
 				goto ERR_WAIT
 			}
+
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
+
 				keyMeta := raw.(*structs.RootKeyMeta)
-				keyID := keyMeta.KeyID
-				if _, err := krr.encrypter.GetKey(keyID); err == nil {
+				if key, err := krr.encrypter.GetKey(keyMeta.KeyID); err == nil && len(key) > 0 {
 					// the key material is immutable so if we've already got it
-					// we can safely return early
+					// we can move on to the next key
 					continue
 				}
 
-				krr.logger.Trace("replicating new key", "id", keyID)
-
-				getReq := &structs.KeyringGetRootKeyRequest{
-					KeyID: keyID,
-					QueryOptions: structs.QueryOptions{
-						Region:        krr.srv.config.Region,
-						MinQueryIndex: keyMeta.ModifyIndex - 1,
-					},
-				}
-				getResp := &structs.KeyringGetRootKeyResponse{}
-				err := krr.srv.RPC("Keyring.Get", getReq, getResp)
-
-				if err != nil || getResp.Key == nil {
-					// Key replication needs to tolerate leadership
-					// flapping. If a key is rotated during a
-					// leadership transition, it's possible that the
-					// new leader has not yet replicated the key from
-					// the old leader before the transition. Ask all
-					// the other servers if they have it.
-					krr.logger.Warn("failed to fetch key from current leader, trying peers",
-						"key", keyID, "error", err)
-					getReq.AllowStale = true
-					for _, peer := range krr.getAllPeers() {
-						err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
-						if err == nil && getResp.Key != nil {
-							break
-						}
-					}
-					if getResp.Key == nil {
-						krr.logger.Error("failed to fetch key from any peer",
-							"key", keyID, "error", err)
-						goto ERR_WAIT
-					}
-				}
-				err = krr.encrypter.AddKey(getResp.Key)
+				err := krr.replicateKey(ctx, keyMeta)
 				if err != nil {
-					krr.logger.Error("failed to add key", "key", keyID, "error", err)
-					goto ERR_WAIT
+					// don't break the loop on an error, as we want to make sure
+					// we've replicated any keys we can. the rate limiter will
+					// prevent this case from sending excessive RPCs
+					krr.logger.Error(err.Error(), "key", keyMeta.KeyID)
 				}
-				krr.logger.Info("added key", "key", keyID)
 			}
 		}
 	}
@@ -527,6 +498,53 @@ ERR_WAIT:
 		return
 	}
 
+}
+
+// replicateKey replicates a single key from peer servers that was present in
+// the state store but missing from the keyring. Returns an error only if no
+// peers have this key.
+func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs.RootKeyMeta) error {
+	keyID := keyMeta.KeyID
+	krr.logger.Debug("replicating new key", "id", keyID)
+
+	getReq := &structs.KeyringGetRootKeyRequest{
+		KeyID: keyID,
+		QueryOptions: structs.QueryOptions{
+			Region:        krr.srv.config.Region,
+			MinQueryIndex: keyMeta.ModifyIndex - 1,
+		},
+	}
+	getResp := &structs.KeyringGetRootKeyResponse{}
+	err := krr.srv.RPC("Keyring.Get", getReq, getResp)
+
+	if err != nil || getResp.Key == nil {
+		// Key replication needs to tolerate leadership flapping. If a key is
+		// rotated during a leadership transition, it's possible that the new
+		// leader has not yet replicated the key from the old leader before the
+		// transition. Ask all the other servers if they have it.
+		krr.logger.Warn("failed to fetch key from current leader, trying peers",
+			"key", keyID, "error", err)
+		getReq.AllowStale = true
+		for _, peer := range krr.getAllPeers() {
+			err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
+			if err == nil && getResp.Key != nil {
+				break
+			}
+		}
+		if getResp.Key == nil {
+			krr.logger.Error("failed to fetch key from any peer",
+				"key", keyID, "error", err)
+			return fmt.Errorf("failed to fetch key from any peer: %v", err)
+		}
+	}
+
+	err = krr.encrypter.AddKey(getResp.Key)
+	if err != nil {
+		return fmt.Errorf("failed to add key to keyring: %v", err)
+	}
+
+	krr.logger.Debug("added key", "key", keyID)
+	return nil
 }
 
 // TODO: move this method into Server?
