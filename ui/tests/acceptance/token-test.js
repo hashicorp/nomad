@@ -1,5 +1,5 @@
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, visit } from '@ember/test-helpers';
+import { currentURL, find, visit, click } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -191,12 +191,6 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     await Tokens.visit();
-    // https://ember-concurrency.com/docs/testing-debugging/
-    setTimeout(() => run.cancelTimers(), 500);
-    await Tokens.secret(expiringToken.secretId).submit();
-    assert
-      .dom('[data-test-token-expiry]')
-      .exists('Expiry shown for TTL-having token');
 
     // Token with no TTL
     await Tokens.clear();
@@ -204,6 +198,30 @@ module('Acceptance | tokens', function (hooks) {
     assert
       .dom('[data-test-token-expiry]')
       .doesNotExist('No expiry shown for regular token');
+
+    await Tokens.clear();
+
+    // https://ember-concurrency.com/docs/testing-debugging/
+    setTimeout(() => run.cancelTimers(), 500);
+
+    // Token with TTL
+    await Tokens.secret(expiringToken.secretId).submit();
+    assert
+      .dom('[data-test-token-expiry]')
+      .exists('Expiry shown for TTL-having token');
+
+    // TTL Action
+    await Jobs.visit();
+    assert
+      .dom('.flash-message.alert-error button')
+      .exists('A global alert exists and has a clickable button');
+
+    await click('.flash-message.alert-error button');
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to tokens page on notification action'
+    );
   });
 
   test('it handles expired tokens', async function (assert) {
