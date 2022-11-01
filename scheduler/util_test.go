@@ -356,6 +356,22 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 			},
 		},
 		{
+			name: "disconnected alloc reconnects even when AllocUpdate happens before heartbeat",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now().Add(-time.Minute),
+				}}
+			},
+			expect: diffResultCount{
+				reconnecting: 1,
+			},
+		},
+		{
 			name: "alloc not reconnecting after it reconnects",
 			node: readyNode,
 			allocFn: func(alloc *structs.Allocation) {

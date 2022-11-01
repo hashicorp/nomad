@@ -262,6 +262,15 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				if supportsDisconnectedClients {
 					// Filter running allocs on a node that is disconnected to be marked as unknown.
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
+						// Handle the case where the client updates its allocs
+						// before sending a heartbeat. The alloc will be set to
+						// running, but the client is still considered to be
+						// disconnected.
+						if reconnect {
+							reconnecting[alloc.ID] = alloc
+							continue
+						}
+
 						disconnecting[alloc.ID] = alloc
 						continue
 					}
