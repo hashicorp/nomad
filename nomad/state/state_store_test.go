@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -4496,6 +4497,67 @@ func TestStateStore_DeleteEval_UserInitiated(t *testing.T) {
 	mockEval2Lookup, err := testState.EvalByID(ws, mockEval1.ID)
 	require.NoError(t, err)
 	require.Nil(t, mockEval2Lookup)
+}
+
+// TestStateStore_DeleteEvalsByFilter_Pagination tests the pagination logic for
+// deleting evals by filter; the business logic is tested more fully in the eval
+// endpoint tests.
+func TestStateStore_DeleteEvalsByFilter_Pagination(t *testing.T) {
+
+	evalCount := 100
+	index := uint64(100)
+
+	store := testStateStore(t)
+
+	// Create a set of pending evaluations
+
+	schedulerConfig := &structs.SchedulerConfiguration{
+		PauseEvalBroker: true,
+		CreateIndex:     index,
+		ModifyIndex:     index,
+	}
+	must.NoError(t, store.SchedulerSetConfig(index, schedulerConfig))
+
+	evals := []*structs.Evaluation{}
+	for i := 0; i < evalCount; i++ {
+		mockEval := mock.Eval()
+		evals = append(evals, mockEval)
+	}
+	index++
+	must.NoError(t, store.UpsertEvals(
+		structs.MsgTypeTestSetup, index, evals))
+
+	// Delete one page
+	index++
+	must.NoError(t, store.DeleteEvalsByFilter(index, "JobID != \"\"", "", 10))
+
+	countRemaining := func() (string, int) {
+		lastSeen := ""
+		remaining := 0
+
+		iter, err := store.Evals(nil, SortDefault)
+		must.NoError(t, err)
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			eval := raw.(*structs.Evaluation)
+			lastSeen = eval.ID
+			remaining++
+		}
+		return lastSeen, remaining
+	}
+
+	lastSeen, remaining := countRemaining()
+	must.Eq(t, 90, remaining)
+
+	// Delete starting from lastSeen, which should only delete 1
+	index++
+	must.NoError(t, store.DeleteEvalsByFilter(index, "JobID != \"\"", lastSeen, 10))
+
+	_, remaining = countRemaining()
+	must.Eq(t, 89, remaining)
 }
 
 func TestStateStore_EvalIsUserDeleteSafe(t *testing.T) {
