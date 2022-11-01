@@ -1069,5 +1069,5 @@ func TestErrMissingKey(t *testing.T) {
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
 	require.NotNil(t, tmpl)
 	require.NotNil(t, tmpl.ErrMissingKey)
-	require.Equal(t, true, *tmpl.ErrMissingKey)
+	require.True(t, *tmpl.ErrMissingKey)
 }

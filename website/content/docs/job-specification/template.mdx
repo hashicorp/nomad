@@ -78,7 +78,7 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   permitted but will not update the environment variables in the task.
 
 - `error_on_missing_key` `(bool: false)` - Specifies how the template behaves
-  when attempting to index a struct or map key that does not exist.
+  when attempting to index a struct or map key that does not exist. If set to true, the task will fail if a template tries to access a key that doesn't exist in a struct or map. If set to false, an empty value will be used in the template instead.
 
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
