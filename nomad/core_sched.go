@@ -1184,24 +1184,3 @@ func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, confi
 	}
 	return oldThreshold
 }
-
-// getOldestAllocationIndex returns the CreateIndex of the oldest
-// non-terminal allocation in the state store
-func (c *CoreScheduler) getOldestAllocationIndex() (uint64, error) {
-	ws := memdb.NewWatchSet()
-	allocs, err := c.snap.Allocs(ws, state.SortDefault)
-	if err != nil {
-		return 0, err
-	}
-	for {
-		raw := allocs.Next()
-		if raw == nil {
-			break
-		}
-		alloc := raw.(*structs.Allocation)
-		if !alloc.TerminalStatus() {
-			return alloc.CreateIndex, nil
-		}
-	}
-	return 0, nil
-}
