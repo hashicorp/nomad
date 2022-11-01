@@ -62,6 +62,16 @@ func (e *Evaluations) Delete(evalIDs []string, w *WriteOptions) (*WriteMeta, err
 	return wm, nil
 }
 
+// DeleteOpts is used to batch delete evaluations using a filter.
+func (e *Evaluations) DeleteOpts(req *EvalDeleteRequest, w *WriteOptions) (*EvalDeleteResponse, *WriteMeta, error) {
+	resp := &EvalDeleteResponse{}
+	wm, err := e.client.delete("/v1/evaluations", &req, resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, wm, nil
+}
+
 // Allocations is used to retrieve a set of allocations given
 // an evaluation ID.
 func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*AllocationListStub, *QueryMeta, error) {
@@ -140,7 +150,12 @@ type EvaluationStub struct {
 
 type EvalDeleteRequest struct {
 	EvalIDs []string
+	Filter  string
 	WriteRequest
+}
+
+type EvalDeleteResponse struct {
+	Count int
 }
 
 type EvalCountResponse struct {

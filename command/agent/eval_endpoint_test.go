@@ -138,7 +138,7 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 					// Make the request and check the response.
 					obj, err := s.Server.EvalsRequest(respW, req)
 					require.Equal(t,
-						CodedError(http.StatusBadRequest, "request does not include any evaluation IDs"), err)
+						CodedError(http.StatusBadRequest, "evals must be deleted by either ID or filter"), err)
 					require.Nil(t, obj)
 				})
 			},
@@ -169,7 +169,7 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 					obj, err := s.Server.EvalsRequest(respW, req)
 					require.Equal(t,
 						CodedError(http.StatusBadRequest,
-							"request includes 8000 evaluations IDs, must be 7281 or fewer"), err)
+							"request includes 8000 evaluation IDs, must be 7281 or fewer"), err)
 					require.Nil(t, obj)
 				})
 			},
@@ -223,8 +223,10 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 
 					// Make the request and check the response.
 					obj, err := s.Server.EvalsRequest(respW, req)
-					require.Nil(t, err)
-					require.Nil(t, obj)
+					require.NoError(t, err)
+					require.NotNil(t, obj)
+					deleteResp := obj.(structs.EvalDeleteResponse)
+					require.Equal(t, deleteResp.Count, 1)
 
 					// Ensure the eval is not found.
 					readEval, err := s.Agent.server.State().EvalByID(nil, mockEval.ID)
