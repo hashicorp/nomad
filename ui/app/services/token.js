@@ -128,7 +128,7 @@ export default class TokenService extends Service {
   }
 
   @task(function* () {
-    while (this.selfToken) {
+    while (this.selfToken?.expirationTime) {
       const diff = new Date(this.selfToken.expirationTime) - new Date();
       // Let the user know at the 10 minute mark,
       // or any time they refresh with under 10 minutes left

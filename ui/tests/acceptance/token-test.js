@@ -12,6 +12,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
+import { run } from '@ember/runloop';
 
 let job;
 let node;
@@ -183,13 +184,15 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('it handles expiring tokens', async function (assert) {
+    // Soon-expiring token
     const expiringToken = server.create('token', {
       name: "Time's a-tickin",
       expirationTime: moment().add(1, 'm').toDate(),
     });
 
-    // Soon-expiring token
     await Tokens.visit();
+    // https://ember-concurrency.com/docs/testing-debugging/
+    setTimeout(() => run.cancelTimers(), 500);
     await Tokens.secret(expiringToken.secretId).submit();
     assert
       .dom('[data-test-token-expiry]')
@@ -268,6 +271,43 @@ module('Acceptance | tokens', function (hooks) {
       '/settings/tokens',
       'Redirected to tokens page due to a token not being found'
     );
+  });
+
+  test('it notifies you when your token has 10 minutes remaining', async function (assert) {
+    let notificationRendered = assert.async();
+    let notificationNotRendered = assert.async();
+    window.localStorage.clear();
+    assert.equal(
+      window.localStorage.nomadTokenSecret,
+      null,
+      'No token secret set'
+    );
+    assert.timeout(6000);
+    const nearlyExpiringToken = server.create('token', {
+      name: 'Not quite dead yet',
+      expirationTime: moment().add(10, 'm').add(5, 's').toDate(),
+    });
+
+    await Tokens.visit();
+    await Tokens.clear();
+    // Ember Concurrency makes testing iterations convoluted: https://ember-concurrency.com/docs/testing-debugging/
+    // Waiting for half a second to validate that there's no warning;
+    // then a further 5 seconds to validate that there is a warning, and to explicitly cancelAllTimers(),
+    // short-circuiting our Ember Concurrency loop.
+    setTimeout(() => {
+      assert
+        .dom('.flash-message.alert-error')
+        .doesNotExist('No notification yet for a token with 10m5s left');
+      notificationNotRendered();
+      setTimeout(() => {
+        assert
+          .dom('.flash-message.alert-error')
+          .exists('Notification is rendered at the 10m mark');
+        notificationRendered();
+        run.cancelTimers();
+      }, 5000);
+    }, 500);
+    await Tokens.secret(nearlyExpiringToken.secretId).submit();
   });
 
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
