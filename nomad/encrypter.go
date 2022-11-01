@@ -150,8 +150,9 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 // header name.
 const keyIDHeader = "kid"
 
-// SignClaims signs the identity claim for the task and returns an
-// encoded JWT with both the claim and its signature
+// SignClaims signs the identity claim for the task and returns an encoded JWT
+// (including both the claim and its signature), the key ID of the key used to
+// sign it, and any error.
 func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, error) {
 
 	// If a key is rotated immediately following a leader election, plans that
@@ -510,7 +511,7 @@ ERR_WAIT:
 // peers have this key.
 func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs.RootKeyMeta) error {
 	keyID := keyMeta.KeyID
-	krr.logger.Info("replicating new key", "id", keyID)
+	krr.logger.Debug("replicating new key", "id", keyID)
 
 	getReq := &structs.KeyringGetRootKeyRequest{
 		KeyID: keyID,
@@ -548,7 +549,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs
 		return fmt.Errorf("failed to add key to keyring: %v", err)
 	}
 
-	krr.logger.Info("added key", "key", keyID)
+	krr.logger.Debug("added key", "key", keyID)
 	return nil
 }
 
