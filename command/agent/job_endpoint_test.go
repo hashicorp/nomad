@@ -2743,7 +2743,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: helper.TimeToPtr(5 * time.Second),
 									Max: helper.TimeToPtr(10 * time.Second),
 								},
-								ErrMissingKey: pointer.Of[bool](true),
+								ErrMissingKey: helper.BoolToPtr(true),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
