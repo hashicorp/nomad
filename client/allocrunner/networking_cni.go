@@ -229,17 +229,15 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	if filepath.HasPrefix(spec.Path, "/var/run/docker") {
-		if err := os.Remove(spec.Path); err != nil {
-			netlog.Red("NS REMOVE", "path", spec.Path, "error", err)
-		}
-		if err := os.WriteFile(spec.Path, nil, 0600); err != nil {
-			netlog.Red("WRITE FILE", "path", spec.Path, "error", err)
-		}
-	}
+	specPath := spec.Path
+	//if filepath.HasPrefix(specPath, "/var/run/docker") {
+	//	fi, err := os.Stat(specPath)
+	//	netlog.Yellow("cnc.Teardown", "err", err, "fi", fi)
+	//	specPath = "" // force empty
+	//}
 
-	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
-		netlog.Red("cNC.Teardown.Remove", "alloc_id", alloc.ID, "path", spec.Path, "error", err)
+	if err := c.cni.Remove(ctx, alloc.ID, specPath, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
+		netlog.Red("cNC.Teardown.Remove", "alloc_id", alloc.ID, "path", specPath, "error", err)
 		// BUG IS HERE (ish), what was this actually removing?
 		// failed (delete): unknown FS magic on "/var/run/docker/netns/55782147c323"
 		return err
