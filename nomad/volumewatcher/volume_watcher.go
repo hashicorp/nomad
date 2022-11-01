@@ -74,7 +74,6 @@ func (vw *volumeWatcher) Notify(v *structs.CSIVolume) {
 	select {
 	case vw.updateCh <- v:
 	case <-vw.shutdownCtx.Done(): // prevent deadlock if we stopped
-	case <-vw.ctx.Done(): // prevent deadlock if we stopped
 	}
 }
 
@@ -83,17 +82,14 @@ func (vw *volumeWatcher) Start() {
 	vw.wLock.Lock()
 	defer vw.wLock.Unlock()
 	vw.running = true
-	ctx, exitFn := context.WithCancel(vw.shutdownCtx)
-	vw.ctx = ctx
-	vw.exitFn = exitFn
 	go vw.watch()
 }
 
-// Stop stops watching the volume. This should be called whenever a
-// volume's claims are fully reaped or the watcher is no longer needed.
 func (vw *volumeWatcher) Stop() {
 	vw.logger.Trace("no more claims")
-	vw.exitFn()
+	vw.wLock.Lock()
+	defer vw.wLock.Unlock()
+	vw.running = false
 }
 
 func (vw *volumeWatcher) isRunning() bool {
@@ -101,8 +97,6 @@ func (vw *volumeWatcher) isRunning() bool {
 	defer vw.wLock.RUnlock()
 	select {
 	case <-vw.shutdownCtx.Done():
-		return false
-	case <-vw.ctx.Done():
 		return false
 	default:
 		return vw.running
@@ -113,12 +107,8 @@ func (vw *volumeWatcher) isRunning() bool {
 // Each pass steps the volume's claims through the various states of reaping
 // until the volume has no more claims eligible to be reaped.
 func (vw *volumeWatcher) watch() {
-	// always denormalize the volume and call reap when we first start
-	// the watcher so that we ensure we don't drop events that
-	// happened during leadership transitions and didn't get completed
-	// by the prior leader
-	vol := vw.getVolume(vw.v)
-	vw.volumeReap(vol)
+	defer vw.deleteFn()
+	defer vw.Stop()
 
 	timer, stop := helper.NewSafeTimer(vw.quiescentTimeout)
 	defer stop()
@@ -129,31 +119,17 @@ func (vw *volumeWatcher) watch() {
 		// context, so we can't stop the long-runner RPCs gracefully
 		case <-vw.shutdownCtx.Done():
 			return
-		case <-vw.ctx.Done():
-			return
 		case vol := <-vw.updateCh:
 			vol = vw.getVolume(vol)
 			if vol == nil {
-				// We stop the goroutine whenever we have no more
-				// work, but only delete the watcher when the volume
-				// is gone to avoid racing the blocking query
-				vw.deleteFn()
-				vw.Stop()
 				return
 			}
 			vw.volumeReap(vol)
 			timer.Reset(vw.quiescentTimeout)
 		case <-timer.C:
-			// Wait until the volume has "settled" before stopping
-			// this goroutine so that the race between shutdown and
-			// the parent goroutine sending on <-updateCh is pushed to
-			// after the window we most care about quick freeing of
-			// claims (and the GC job will clean up anything we miss)
-			vol = vw.getVolume(vol)
-			if vol == nil {
-				vw.deleteFn()
-			}
-			vw.Stop()
+			// Wait until the volume has "settled" before stopping this
+			// goroutine so that we can handle the burst of updates around
+			// freeing claims without having to spin it back up
 			return
 		}
 	}
