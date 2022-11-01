@@ -25,6 +25,7 @@ export default class Tokens extends Controller {
   clearTokenProperties() {
     this.token.setProperties({
       secret: undefined,
+      tokenNotFound: false,
     });
     this.setProperties({
       tokenIsValid: false,
@@ -54,6 +55,7 @@ export default class Tokens extends Controller {
           tokenIsValid: true,
           tokenIsInvalid: false,
         });
+        this.token.set('tokenNotFound', false);
       },
       () => {
         this.set('token.secret', undefined);
