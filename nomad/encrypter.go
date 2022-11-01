@@ -471,11 +471,6 @@ START:
 				}
 
 				keyMeta := raw.(*structs.RootKeyMeta)
-				if keyMeta.Deprecated() {
-					// this key has been marked as deprecated following a full
-					// rekey, so it can be ignored.
-					continue
-				}
 				if key, err := krr.encrypter.GetKey(keyMeta.KeyID); err == nil && len(key) > 0 {
 					// the key material is immutable so if we've already got it
 					// we can move on to the next key

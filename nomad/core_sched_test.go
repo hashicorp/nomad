@@ -2472,23 +2472,18 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NotNil(t, key0, "expected keyring to be bootstapped")
 	require.NoError(t, err)
 
-	// insert an "old" deprecated key
-	key1 := structs.NewRootKeyMeta()
-	key1.SetDeprecated()
-	require.NoError(t, store.UpsertRootKeyMeta(500, key1, false))
-
 	// insert an "old" inactive key
-	key2 := structs.NewRootKeyMeta()
-	key2.SetDeprecated()
-	require.NoError(t, store.UpsertRootKeyMeta(600, key2, false))
+	key1 := structs.NewRootKeyMeta()
+	key1.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(600, key1, false))
 
 	// insert an "old" and inactive key with a variable that's using it
-	key3 := structs.NewRootKeyMeta()
-	key3.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(700, key3, false))
+	key2 := structs.NewRootKeyMeta()
+	key2.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(700, key2, false))
 
 	variable := mock.VariableEncrypted()
-	variable.KeyID = key3.KeyID
+	variable.KeyID = key2.KeyID
 
 	setResp := store.VarSet(601, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
@@ -2497,26 +2492,27 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NoError(t, setResp.Error)
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key4 := structs.NewRootKeyMeta()
-	key4.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(800, key4, false))
+	key3 := structs.NewRootKeyMeta()
+	key3.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(800, key3, false))
 
 	// insert the allocation using key3
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc.SigningKeyID = key4.KeyID
+	alloc.SigningKeyID = key3.KeyID
 	require.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 850, []*structs.Allocation{alloc}))
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key5 := structs.NewRootKeyMeta()
-	key5.SetInactive()
+	key4 := structs.NewRootKeyMeta()
+	key4.SetInactive()
 	require.NoError(t, store.UpsertRootKeyMeta(900, key4, false))
 
-	// insert the allocation using key3
+	// insert the dead allocation using key4
 	alloc2 := mock.Alloc()
-	alloc2.ClientStatus = structs.AllocClientStatusRunning
-	alloc2.SigningKeyID = key5.KeyID
+	alloc2.ClientStatus = structs.AllocClientStatusFailed
+	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc2.SigningKeyID = key4.KeyID
 	require.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 950, []*structs.Allocation{alloc2}))
 
@@ -2525,9 +2521,9 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	tt.Witness(1000, time.Now().UTC().Add(-1*srv.config.RootKeyGCThreshold))
 
 	// insert a "new" but inactive key
-	key6 := structs.NewRootKeyMeta()
-	key6.SetInactive()
-	require.NoError(t, store.UpsertRootKeyMeta(1500, key6, false))
+	key5 := structs.NewRootKeyMeta()
+	key5.SetInactive()
+	require.NoError(t, store.UpsertRootKeyMeta(1500, key5, false))
 
 	// run the core job
 	snap, err := store.Snapshot()
@@ -2544,25 +2540,21 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	key, err = store.RootKeyMetaByID(ws, key1.KeyID)
 	require.NoError(t, err)
-	require.Nil(t, key, "old deprecated key should have been GCd")
+	require.Nil(t, key, "old and unused inactive key should have been GCd")
 
 	key, err = store.RootKeyMetaByID(ws, key2.KeyID)
 	require.NoError(t, err)
-	require.Nil(t, key, "old and unused inactive key should have been GCd")
+	require.NotNil(t, key, "old key should not have been GCd if still in use")
 
 	key, err = store.RootKeyMetaByID(ws, key3.KeyID)
 	require.NoError(t, err)
-	require.NotNil(t, key, "old key should not have been GCd if still in use")
+	require.NotNil(t, key, "old key used to sign a live alloc should not have been GCd")
 
 	key, err = store.RootKeyMetaByID(ws, key4.KeyID)
 	require.NoError(t, err)
-	require.NotNil(t, key, "old key used to sign a live alloc should not have been GCd")
-
-	key, err = store.RootKeyMetaByID(ws, key5.KeyID)
-	require.NoError(t, err)
 	require.Nil(t, key, "old key used to sign a terminal alloc should have been GCd")
 
-	key, err = store.RootKeyMetaByID(ws, key6.KeyID)
+	key, err = store.RootKeyMetaByID(ws, key5.KeyID)
 	require.NoError(t, err)
 	require.NotNil(t, key, "new key should not have been GCd")
 
@@ -2631,18 +2623,6 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	}, time.Second*5, 100*time.Millisecond,
 		"variable rekey should be complete")
 
-	iter, err := store.RootKeyMetas(memdb.NewWatchSet())
-	require.NoError(t, err)
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		keyMeta := raw.(*structs.RootKeyMeta)
-		if keyMeta.KeyID != newKeyID {
-			require.True(t, keyMeta.State == structs.RootKeyStateInactive)
-		}
-	}
 }
 
 func TestCoreScheduler_FailLoop(t *testing.T) {
