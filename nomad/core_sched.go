@@ -324,7 +324,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
 		if !collect {
 			// Find allocs associated with older (based on createindex) and GC them if terminal
-			oldAllocs := olderVersionTerminalAllocs(allocs, job)
+			oldAllocs := olderVersionTerminalAllocs(allocs)
 			return false, oldAllocs, nil
 		}
 	}
@@ -348,10 +348,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 
 // olderVersionTerminalAllocs returns terminal allocations whose job create index
 // is older than the job's create index
-func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+func olderVersionTerminalAllocs(allocs []*structs.Allocation) []string {
 	var ret []string
 	for _, alloc := range allocs {
-		if alloc.Job != nil && alloc.Job.CreateIndex < job.CreateIndex && alloc.TerminalStatus() {
+		if alloc.Job != nil && alloc.CreateIndex < alloc.Job.ModifyIndex && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
 		}
 	}

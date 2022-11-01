@@ -439,18 +439,21 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 
-	// Insert alloc with older job modifyindex
-	alloc3 := mock.Alloc()
-	job2 := job.Copy()
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
-	alloc3.Job = job2
-	alloc3.JobID = job2.ID
+	// Insert alloc with indexes older job modifyindex
+	alloc3 := mock.Alloc()
+
+	alloc3.Job = job
+	alloc3.JobID = job.ID
 	alloc3.EvalID = eval.ID
-	job2.CreateIndex = 500
 	alloc3.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc3.ClientStatus = structs.AllocClientStatusLost
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2, alloc3})
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, job.ModifyIndex - 1, []*structs.Allocation{alloc3})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
