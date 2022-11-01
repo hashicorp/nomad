@@ -935,14 +935,9 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 			continue // don't GC recent keys
 		}
 
-		// don't GC a key that's deprecated, that's encrypted a variable or
-		// signed a live workload identity
-		inUse := false
-		if !keyMeta.Deprecated() {
-			inUse, err = c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
-			if err != nil {
-				return err
-			}
+		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
+		if err != nil {
+			return err
 		}
 		if inUse {
 			continue
@@ -1030,40 +1025,6 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			return err
 		}
 
-		// we've rotated this key's variables, but we need to ensure it hasn't
-		// been used to sign any live workload identities before it's safe to
-		// mark as deprecated
-		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
-		if err != nil {
-			return err
-		}
-
-		keyMeta = keyMeta.Copy()
-		if inUse {
-			keyMeta.SetInactive()
-		} else {
-			keyMeta.SetDeprecated()
-		}
-
-		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
-		if err != nil {
-			return err
-		}
-		req := &structs.KeyringUpdateRootKeyRequest{
-			RootKey: &structs.RootKey{
-				Meta: keyMeta,
-				Key:  key,
-			},
-			Rekey: false,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL},
-		}
-		if err := c.srv.RPC("Keyring.Update",
-			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
-			c.logger.Error("root key update failed", "error", err)
-			return err
-		}
 	}
 
 	return nil
