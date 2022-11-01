@@ -70,8 +70,11 @@ func TestEncrypter_Restore(t *testing.T) {
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
-	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.Len(t, listResp.Keys, 1)
+
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 1
+	}, time.Second*5, time.Second, "expected keyring to be initialized")
 
 	// Send a few key rotations to add keys
 
@@ -102,9 +105,10 @@ func TestEncrypter_Restore(t *testing.T) {
 
 	// Verify we've restored all the keys from the old keystore
 
-	err := msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.NoError(t, err)
-	require.Len(t, listResp.Keys, 5) // 4 new + the bootstrap key
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 5 // 4 new + the bootstrap key
+	}, time.Second*5, time.Second, "expected keyring to be restored")
 
 	for _, keyMeta := range listResp.Keys {
 
@@ -115,7 +119,7 @@ func TestEncrypter_Restore(t *testing.T) {
 			},
 		}
 		var getResp structs.KeyringGetRootKeyResponse
-		err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
+		err := msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
 		require.NoError(t, err)
 
 		gotKey := getResp.Key
@@ -174,8 +178,12 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
-	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.Len(t, listResp.Keys, 1)
+
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 1
+	}, time.Second*5, time.Second, "expected keyring to be initialized")
+
 	keyID1 := listResp.Keys[0].KeyID
 
 	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
@@ -326,7 +334,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
-	out, err := e.SignClaims(claim)
+	out, _, err := e.SignClaims(claim)
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)

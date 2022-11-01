@@ -6959,3 +6959,29 @@ func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMe
 	}
 	return nil, nil
 }
+
+// IsRootKeyMetaInUse determines whether a key has been used to sign a workload
+// identity for a live allocation or encrypt any variables
+func (s *StateStore) IsRootKeyMetaInUse(keyID string) (bool, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableAllocs, indexSigningKey, keyID, true)
+	if err != nil {
+		return false, err
+	}
+	alloc := iter.Next()
+	if alloc != nil {
+		return true, nil
+	}
+
+	iter, err = txn.Get(TableVariables, indexKeyID, keyID)
+	if err != nil {
+		return false, err
+	}
+	variable := iter.Next()
+	if variable != nil {
+		return true, nil
+	}
+
+	return false, nil
+}

@@ -60,7 +60,7 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 	case structs.CoreJobGlobalTokenExpiredGC:
 		return c.expiredACLTokenGC(eval, true)
 	case structs.CoreJobRootKeyRotateOrGC:
-		return c.rootKeyRotate(eval)
+		return c.rootKeyRotateOrGC(eval)
 	case structs.CoreJobVariablesRekey:
 		return c.variablesRekey(eval)
 	case structs.CoreJobForceGC:
@@ -96,7 +96,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.expiredACLTokenGC(eval, true); err != nil {
 		return err
 	}
-
+	if err := c.rootKeyGC(eval); err != nil {
+		return err
+	}
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
 	return c.nodeGC(eval)
@@ -893,9 +895,74 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 	return c.srv.RPC(structs.ACLDeleteTokensRPCMethod, req, &structs.GenericResponse{})
 }
 
+// rootKeyRotateOrGC is used to rotate or garbage collect root keys
+func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
+
+	// a rotation will be sent to the leader so our view of state
+	// is no longer valid. we ack this core job and will pick up
+	// the GC work on the next interval
+	wasRotated, err := c.rootKeyRotate(eval)
+	if err != nil {
+		return err
+	}
+	if wasRotated {
+		return nil
+	}
+	return c.rootKeyGC(eval)
+}
+
+func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
+
+	oldThreshold := c.getThreshold(eval, "root key",
+		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.Active() || keyMeta.Rekeying() {
+			continue // never GC the active key or one we're rekeying
+		}
+		if keyMeta.CreateIndex > oldThreshold {
+			continue // don't GC recent keys
+		}
+
+		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		if inUse {
+			continue
+		}
+
+		req := &structs.KeyringDeleteRootKeyRequest{
+			KeyID: keyMeta.KeyID,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+		if err := c.srv.RPC("Keyring.Delete",
+			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
+			c.logger.Error("root key delete failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // rootKeyRotate checks if the active key is old enough that we need
 // to kick off a rotation.
-func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) error {
+func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 
 	rotationThreshold := c.getThreshold(eval, "root key",
 		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
@@ -903,13 +970,13 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) error {
 	ws := memdb.NewWatchSet()
 	activeKey, err := c.snap.GetActiveRootKeyMeta(ws)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if activeKey == nil {
-		return nil // no active key
+		return false, nil // no active key
 	}
 	if activeKey.CreateIndex >= rotationThreshold {
-		return nil // key is too new
+		return false, nil // key is too new
 	}
 
 	req := &structs.KeyringRotateRootKeyRequest{
@@ -921,10 +988,10 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) error {
 	if err := c.srv.RPC("Keyring.Rotate",
 		req, &structs.KeyringRotateRootKeyResponse{}); err != nil {
 		c.logger.Error("root key rotation failed", "error", err)
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 // variablesReKey is optionally run after rotating the active
@@ -958,29 +1025,6 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			return err
 		}
 
-		// we've now rotated all this key's variables, so set its state
-		keyMeta = keyMeta.Copy()
-		keyMeta.SetDeprecated()
-
-		key, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
-		if err != nil {
-			return err
-		}
-		req := &structs.KeyringUpdateRootKeyRequest{
-			RootKey: &structs.RootKey{
-				Meta: keyMeta,
-				Key:  key,
-			},
-			Rekey: false,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL},
-		}
-		if err := c.srv.RPC("Keyring.Update",
-			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
-			c.logger.Error("root key update failed", "error", err)
-			return err
-		}
 	}
 
 	return nil
@@ -1100,25 +1144,4 @@ func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, confi
 			configName, configThreshold)
 	}
 	return oldThreshold
-}
-
-// getOldestAllocationIndex returns the CreateIndex of the oldest
-// non-terminal allocation in the state store
-func (c *CoreScheduler) getOldestAllocationIndex() (uint64, error) {
-	ws := memdb.NewWatchSet()
-	allocs, err := c.snap.Allocs(ws, state.SortDefault)
-	if err != nil {
-		return 0, err
-	}
-	for {
-		raw := allocs.Next()
-		if raw == nil {
-			break
-		}
-		alloc := raw.(*structs.Allocation)
-		if !alloc.TerminalStatus() {
-			return alloc.CreateIndex, nil
-		}
-	}
-	return 0, nil
 }

@@ -18,6 +18,7 @@ const (
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
+	TableAllocs               = "allocs"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	indexKeyID         = "key_id"
 	indexPath          = "path"
 	indexName          = "name"
+	indexSigningKey    = "signing_key"
 )
 
 var (
@@ -684,6 +686,35 @@ func allocTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "DeploymentID",
+				},
+			},
+
+			// signing_key index is used to lookup live allocations by signing
+			// key ID
+			indexSigningKey: {
+				Name:         indexSigningKey,
+				AllowMissing: true, // terminal allocations won't be indexed
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "SigningKeyID",
+						},
+						&memdb.ConditionalIndex{
+							Conditional: func(obj interface{}) (bool, error) {
+								alloc, ok := obj.(*structs.Allocation)
+								if !ok {
+									return false, fmt.Errorf(
+										"wrong type, got %t should be Allocation", obj)
+								}
+								// note: this isn't alloc.TerminalStatus(),
+								// because we only want to consider the key
+								// unused if the allocation is terminal on both
+								// server and client
+								return !(alloc.ClientTerminalStatus() && alloc.ServerTerminalStatus()), nil
+							},
+						},
+					},
 				},
 			},
 		},
