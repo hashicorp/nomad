@@ -12,8 +12,11 @@ import classic from 'ember-classic-decorator';
 export default class TokenService extends Service {
   @service store;
   @service system;
+  @service router;
 
   aclEnabled = true;
+
+  tokenNotFound = false;
 
   @computed
   get secret() {
@@ -38,6 +41,9 @@ export default class TokenService extends Service {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
       if (errors.find((error) => error === 'ACL support disabled')) {
         this.set('aclEnabled', false);
+      }
+      if (errors.find((error) => error === 'ACL token not found')) {
+        this.set('tokenNotFound', true);
       }
       return null;
     }

@@ -11,6 +11,7 @@ import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
+import moment from 'moment';
 
 let job;
 let node;
@@ -179,6 +180,94 @@ module('Acceptance | tokens', function (hooks) {
 
     // If jobs are lingering in the store, they would show up
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
+  });
+
+  test('it handles expiring tokens', async function (assert) {
+    const expiringToken = server.create('token', {
+      name: "Time's a-tickin",
+      expirationTime: moment().add(1, 'm').toDate(),
+    });
+
+    // Soon-expiring token
+    await Tokens.visit();
+    await Tokens.secret(expiringToken.secretId).submit();
+    assert
+      .dom('[data-test-token-expiry]')
+      .exists('Expiry shown for TTL-having token');
+
+    // Token with no TTL
+    await Tokens.clear();
+    await Tokens.secret(clientToken.secretId).submit();
+    assert
+      .dom('[data-test-token-expiry]')
+      .doesNotExist('No expiry shown for regular token');
+  });
+
+  test('it handles expired tokens', async function (assert) {
+    const expiredToken = server.create('token', {
+      name: 'Well past due',
+      expirationTime: moment().add(-5, 'm').toDate(),
+    });
+
+    // GC'd or non-existent token, from localStorage or otherwise
+    window.localStorage.nomadTokenSecret = expiredToken.secretId;
+    await Tokens.visit();
+    assert
+      .dom('[data-test-token-expired]')
+      .exists('Warning banner shown for expired token');
+  });
+
+  test('it forces redirect on an expired token', async function (assert) {
+    const expiredToken = server.create('token', {
+      name: 'Well past due',
+      expirationTime: moment().add(-5, 'm').toDate(),
+    });
+
+    window.localStorage.nomadTokenSecret = expiredToken.secretId;
+    const expiredServerError = {
+      errors: [
+        {
+          detail: 'ACL token expired',
+        },
+      ],
+    };
+    server.pretender.get('/v1/jobs', function () {
+      console.log('uhhhh');
+      return [500, {}, JSON.stringify(expiredServerError)];
+    });
+
+    await Jobs.visit();
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to tokens page due to an expired token'
+    );
+  });
+
+  test('it forces redirect on a not-found token', async function (assert) {
+    const longDeadToken = server.create('token', {
+      name: 'dead and gone',
+      expirationTime: moment().add(-5, 'h').toDate(),
+    });
+
+    window.localStorage.nomadTokenSecret = longDeadToken.secretId;
+    const notFoundServerError = {
+      errors: [
+        {
+          detail: 'ACL token not found',
+        },
+      ],
+    };
+    server.pretender.get('/v1/jobs', function () {
+      return [500, {}, JSON.stringify(notFoundServerError)];
+    });
+
+    await Jobs.visit();
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to tokens page due to a token not being found'
+    );
   });
 
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
