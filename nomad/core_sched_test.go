@@ -444,7 +444,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Insert alloc with indexes older job modifyindex
+	// Insert alloc with indexes older than job.ModifyIndex 
 	alloc3 := mock.Alloc()
 
 	alloc3.Job = job
