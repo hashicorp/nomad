@@ -279,9 +279,9 @@ func MountFromProto(mount *proto.Mount) *MountConfig {
 	}
 
 	return &MountConfig{
-		TaskPath: mount.TaskPath,
-		HostPath: mount.HostPath,
-		Readonly: mount.Readonly,
+		TaskPath:        mount.TaskPath,
+		HostPath:        mount.HostPath,
+		Readonly:        mount.Readonly,
 		PropagationMode: mount.PropagationMode,
 	}
 }
@@ -330,9 +330,9 @@ func MountToProto(mount *MountConfig) *proto.Mount {
 	}
 
 	return &proto.Mount{
-		TaskPath: mount.TaskPath,
-		HostPath: mount.HostPath,
-		Readonly: mount.Readonly,
+		TaskPath:        mount.TaskPath,
+		HostPath:        mount.HostPath,
+		Readonly:        mount.Readonly,
 		PropagationMode: mount.PropagationMode,
 	}
 }
