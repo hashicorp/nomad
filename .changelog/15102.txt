@@ -1,0 +1,3 @@
+```release-note:bug
+variables: Fixed a bug where a long-running rekey could hit the nack timeout
+```
