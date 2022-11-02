@@ -1153,7 +1153,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// The node needs to successfully heartbeat before updating its allocs.
 	nodeID := args.NodeID
 	if nodeID == "" {
-		// COMPAT 1.14
+		// COMPAT 1.4
 		// Maintain backwards compatibility with clients that don't set the
 		// NodeID field in the request.
 		nodeID = args.Alloc[0].NodeID
