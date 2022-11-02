@@ -164,5 +164,10 @@ node {
       server.create('policy', variableViewerPolicy);
       token.policyIds.push(variableViewerPolicy.id);
     }
+    if (token.id === '3XP1R35-1N-3L3V3N-M1NU735') {
+      token.update({
+        expirationTime: new Date(new Date().getTime() + 11 * 60 * 1000),
+      });
+    }
   },
 });

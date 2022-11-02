@@ -41,48 +41,49 @@
             </div>
           </div>
         </div>
-      {{/if}}
 
-      {{#unless this.tokenIsValid}}
-        <div class="field">
-          <label class="label" for="token-input">Secret ID</label>
-          <div class="control">
-            <input
-              id="token-input"
-              class="input"
-              type="text"
-              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-              {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
-              value={{this.token.secret}}
-              oninput={{action (mut this.secret) value="target.value"}}
-              data-test-token-secret>
+        {{#unless this.tokenIsValid}}
+          <div class="field">
+            <label class="label" for="token-input">Secret ID</label>
+            <div class="control">
+              <input
+                id="token-input"
+                class="input"
+                type="text"
+                placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
+                value={{this.token.secret}}
+                oninput={{action (mut this.secret) value="target.value"}}
+                data-test-token-secret>
+            </div>
+            <p class="help">Sent with every request to determine authorization</p>
           </div>
-          <p class="help">Sent with every request to determine authorization</p>
-        </div>
 
-        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
-      {{/unless}}
+          <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
+        {{/unless}}
 
-      {{#if this.tokenIsValid}}
-        <div data-test-token-success class="notification is-success">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Token Authenticated!</h3>
-              <p>Your token is valid and authorized for the following policies.</p>
+        {{#if this.tokenIsValid}}
+          <div data-test-token-success class="notification is-success">
+            <div class="columns">
+              <div class="column">
+                <h3 class="title is-4">Token Authenticated!</h3>
+                <p>Your token is valid and authorized for the following policies.</p>
+              </div>
             </div>
           </div>
-        </div>
-      {{/if}}
+        {{/if}}
 
-      {{#if this.tokenIsInvalid}}
-        <div data-test-token-error class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Token Failed to Authenticate</h3>
-              <p>The token secret you have provided does not match an existing token.</p>
+        {{#if this.tokenIsInvalid}}
+          <div data-test-token-error class="notification is-danger">
+            <div class="columns">
+              <div class="column">
+                <h3 class="title is-4">Token Failed to Authenticate</h3>
+                <p>The token secret you have provided does not match an existing token, or has expired.</p>
+              </div>
             </div>
           </div>
-        </div>
+        {{/if}}
+
       {{/if}}
 
       {{#if this.tokenRecord}}
