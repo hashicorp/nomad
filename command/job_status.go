@@ -128,7 +128,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Invoke list mode if no job ID.
 	if len(args) == 0 {
-		jobs, _, err := client.Jobs().List(nil)
+		jobs, _, err := client.Jobs().ListOptions(nil, nil)
 
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying jobs: %s", err))

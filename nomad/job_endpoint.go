@@ -1377,7 +1377,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 						if err != nil || summary == nil {
 							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						}
-						jobs = append(jobs, job.Stub(summary))
+						jobs = append(jobs, job.Stub(summary, args.Fields))
 						return nil
 					})
 				if err != nil {
