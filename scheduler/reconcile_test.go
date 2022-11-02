@@ -5272,6 +5272,39 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 	})
 }
 
+func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create 2 allocs and simulate one have being previously disconnected.
+	job, allocs := buildResumableAllocations(2, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+	allocs[0].AllocStates = []*structs.AllocState{
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusUnknown,
+			Time:  time.Now().Add(-5 * time.Minute),
+		},
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusRunning,
+			Time:  time.Now(),
+		},
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
+		nil, allocs, nil, "", 50, true)
+	results := reconciler.Compute()
+
+	// Assert both allocations will be updated.
+	assertResults(t, results, &resultExpectation{
+		inplace: 2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate: 2,
+			},
+		},
+	})
+}
+
 // Tests that when a node disconnects/reconnects allocations for that node are
 // reconciled according to the business rules.
 func TestReconciler_Disconnected_Client(t *testing.T) {
@@ -5282,6 +5315,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		jobVersionIncrement          uint64
 		nodeScoreIncrement           float64
 		disconnectedAllocStatus      string
+		disconnectedAllocStates      []*structs.AllocState
 		serverDesiredStatus          string
 		isBatch                      bool
 		nodeStatusDisconnected       bool
@@ -5294,11 +5328,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:                         "reconnect-original-no-replacement",
-			allocCount:                   2,
-			replace:                      false,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "reconnect-original-no-replacement",
+			allocCount:              2,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5311,11 +5350,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "resume-original-and-stop-replacement",
-			allocCount:                   3,
-			replace:                      true,
-			disconnectedAllocCount:       1,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "resume-original-and-stop-replacement",
+			allocCount:              3,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5330,11 +5374,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-with-lower-node-score",
-			allocCount:                   4,
-			replace:                      true,
-			disconnectedAllocCount:       1,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "stop-original-with-lower-node-score",
+			allocCount:              4,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeScoreIncrement:           1,
@@ -5349,11 +5398,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-failed-on-reconnect",
-			allocCount:                   4,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			name:                    "stop-original-failed-on-reconnect",
+			allocCount:              4,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusFailed,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5367,11 +5421,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "reschedule-original-failed-if-not-replaced",
-			allocCount:                   4,
-			replace:                      false,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			name:                    "reschedule-original-failed-if-not-replaced",
+			allocCount:              4,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusFailed,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5392,8 +5451,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                 false,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusComplete,
-			serverDesiredStatus:     structs.AllocDesiredStatusRun,
-			isBatch:                 true,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
+			serverDesiredStatus: structs.AllocDesiredStatusRun,
+			isBatch:             true,
 			expected: &resultExpectation{
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
@@ -5403,11 +5467,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-alloc-with-old-job-version",
-			allocCount:                   5,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "stop-original-alloc-with-old-job-version",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
@@ -5422,11 +5491,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-alloc-with-old-job-version-reconnect-eval",
-			allocCount:                   5,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "stop-original-alloc-with-old-job-version-reconnect-eval",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
@@ -5441,11 +5515,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements",
-			allocCount:                   5,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			name:                    "stop-original-alloc-with-old-job-version-and-failed-replacements",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			failReplacement:              true,
 			shouldStopOnDisconnectedNode: true,
@@ -5461,11 +5540,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-pending-alloc-for-disconnected-node",
-			allocCount:                   2,
-			replace:                      true,
-			disconnectedAllocCount:       1,
-			disconnectedAllocStatus:      structs.AllocClientStatusPending,
+			name:                    "stop-original-pending-alloc-for-disconnected-node",
+			allocCount:              2,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusPending,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
@@ -5480,11 +5564,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-expired-allocs",
-			allocCount:                   5,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
+			name:                    "stop-expired-allocs",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusUnknown,
+			disconnectedAllocStates: []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}},
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
@@ -5505,6 +5594,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                 false,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{},
 			serverDesiredStatus:     structs.AllocDesiredStatusRun,
 			nodeStatusDisconnected:  true,
 			expected: &resultExpectation{
@@ -5547,24 +5637,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 				if disconnectedAllocCount > 0 {
 					alloc.ClientStatus = tc.disconnectedAllocStatus
+					alloc.AllocStates = tc.disconnectedAllocStates
 					// Set the node id on all the disconnected allocs to the node under test.
 					alloc.NodeID = testNode.ID
 					alloc.NodeName = "disconnected"
 
-					alloc.AllocStates = []*structs.AllocState{{
-						Field: structs.AllocStateFieldClientStatus,
-						Value: structs.AllocClientStatusUnknown,
-						Time:  time.Now(),
-					}}
-
-					event := structs.NewTaskEvent(structs.TaskClientReconnected)
-					event.Time = time.Now().UnixNano()
-
-					alloc.TaskStates = map[string]*structs.TaskState{
-						alloc.Job.TaskGroups[0].Tasks[0].Name: {
-							Events: []*structs.TaskEvent{event},
-						},
-					}
 					disconnectedAllocCount--
 				}
 			}
