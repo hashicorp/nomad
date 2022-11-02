@@ -155,10 +155,31 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 	return &resp, wm, nil
 }
 
+type JobListFields struct {
+	Meta bool
+}
+type JobListOptions struct {
+	Fields *JobListFields
+}
+
 // List is used to list all of the existing jobs.
 func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
+	return j.ListOptions(nil, q)
+}
+
+// List is used to list all of the existing jobs.
+func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
-	qm, err := j.client.query("/v1/jobs", &resp, q)
+
+	destinationURL := "/v1/jobs"
+
+	if opts != nil && opts.Fields != nil {
+		qp := url.Values{}
+		qp.Add("meta", fmt.Sprint(opts.Fields.Meta))
+		destinationURL = destinationURL + "?" + qp.Encode()
+	}
+
+	qm, err := j.client.query(destinationURL, &resp, q)
 	if err != nil {
 		return nil, qm, err
 	}
@@ -1063,6 +1084,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
+	Meta              map[string]string `json:",omitempty"`
 }
 
 // JobIDSort is used to sort jobs by their job ID's.

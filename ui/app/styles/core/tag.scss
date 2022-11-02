@@ -68,6 +68,11 @@
     vertical-align: 2px;
   }
 
+  &.is-pack {
+    position: relative;
+    top: 3px;
+  }
+
   .icon {
     height: 1rem;
     width: 1rem;
