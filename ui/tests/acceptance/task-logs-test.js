@@ -75,9 +75,13 @@ module('Acceptance | task logs', function (hooks) {
       run.cancelTimers();
     }, 500);
 
-    await click('button.logs-sidebar-trigger');
+    const taskButton = document.querySelectorAll(
+      'button.logs-sidebar-trigger'
+    )[1];
+    await click(taskButton);
 
     assert.ok(TaskLogs.sidebarIsPresent, 'Sidebar is present');
+
     assert
       .dom('.task-context-sidebar h1.title')
       .includesText(task.name, 'Sidebar title is correct');

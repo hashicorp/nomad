@@ -10,9 +10,11 @@ export default class PluginRoute extends Route {
     return { plugin_name: model.get('plainId') };
   }
 
-  model(params) {
-    return this.store
-      .findRecord('plugin', `csi/${params.plugin_name}`)
-      .catch(notifyError(this));
+  async model(params) {
+    try {
+      return this.store.findRecord('plugin', `csi/${params.plugin_name}`);
+    } catch (e) {
+      notifyError(this)(e);
+    }
   }
 }

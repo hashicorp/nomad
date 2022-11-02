@@ -1,8 +1,12 @@
 import Route from '@ember/routing/route';
 
 export default class LogsRoute extends Route {
-  model() {
+  async model() {
     const task = super.model(...arguments);
-    return task && task.get('allocation.node').then(() => task);
+
+    if (task) {
+      await task.get('allocation.node');
+      return task;
+    }
   }
 }

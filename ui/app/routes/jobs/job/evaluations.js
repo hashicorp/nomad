@@ -7,9 +7,13 @@ import { inject as service } from '@ember/service';
 export default class EvaluationsRoute extends Route.extend(WithWatchers) {
   @service store;
 
-  model() {
+  async model() {
     const job = this.modelFor('jobs.job');
-    return job && job.get('evaluations').then(() => job);
+
+    if (job) {
+      await job.get('evaluations');
+      return job;
+    }
   }
 
   startWatchers(controller, model) {

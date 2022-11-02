@@ -3,23 +3,32 @@ import Route from '@ember/routing/route';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import classic from 'ember-classic-decorator';
-import RSVP from 'rsvp';
 
 @classic
 export default class TopologyRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  model() {
-    return RSVP.hash({
-      jobs: this.store.findAll('job'),
-      allocations: this.store.query('allocation', {
-        resources: true,
-        task_states: false,
-        namespace: '*',
-      }),
-      nodes: this.store.query('node', { resources: true }),
-    }).catch(notifyForbidden(this));
+  async model() {
+    try {
+      const [jobs, allocations, nodes] = await Promise.all([
+        this.store.findAll('job'),
+        this.store.query('allocation', {
+          resources: true,
+          task_states: false,
+          namespace: '*',
+        }),
+        this.store.query('node', { resources: true }),
+      ]);
+
+      return {
+        jobs,
+        allocations,
+        nodes,
+      };
+    } catch (e) {
+      notifyForbidden(this)(e);
+    }
   }
 
   setupController(controller, model) {

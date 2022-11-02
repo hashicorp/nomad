@@ -7,9 +7,13 @@ import {
 } from 'nomad-ui/utils/properties/watch';
 
 export default class JobsJobServicesRoute extends Route.extend(WithWatchers) {
-  model() {
+  async model() {
     const job = this.modelFor('jobs.job');
-    return job && job.get('services').then(() => job);
+
+    if (job) {
+      await job.get('services');
+      return job;
+    }
   }
 
   startWatchers(controller, model) {
