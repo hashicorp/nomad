@@ -35,9 +35,17 @@ export default class JobRoute extends Route {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
-          this.store.query('job', { namespace }),
           this.store.findAll('namespace'),
         ];
+
+        if (job.get('hasChildren')) {
+          relatedModelsQueries.push(
+            this.store.query('job', {
+              namespace,
+              filter: `ParentID == ${name}`,
+            })
+          );
+        }
 
         if (this.can.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
