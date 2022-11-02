@@ -1,0 +1,7 @@
+```release-note:bug
+scheduler: Fixed a bug that prevented allocations with `max_client_disconnect` set to be updated after they reconnected.
+```
+
+```release-note:bug
+scheduler: Prevent unnecessary placements when allocations with `max_client_disconnect` set reconnect.
+```
