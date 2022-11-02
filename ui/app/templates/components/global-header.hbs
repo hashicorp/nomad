@@ -60,7 +60,9 @@
     >
       Documentation
     </a>
-    <ProfileNavbarItem />
+    {{#if this.system.agent.config.ACL.Enabled}}
+      <ProfileNavbarItem />
+    {{/if}}
   </div>
 </nav>
 <div class="navbar is-secondary">
