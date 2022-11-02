@@ -1201,6 +1201,10 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 			continue
 		}
 
+		// Record the new ClientStatus to indicate to future evals that the
+		// alloc has already reconnected.
+		alloc.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
+
 		a.result.reconnectUpdates[alloc.ID] = alloc
 	}
 }
