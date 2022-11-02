@@ -175,7 +175,7 @@ func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStu
 
 	if opts != nil && opts.Fields != nil {
 		qp := url.Values{}
-		qp.Add("Meta", fmt.Sprint(opts.Fields.Meta))
+		qp.Add("meta", fmt.Sprint(opts.Fields.Meta))
 		destinationURL = destinationURL + "?" + qp.Encode()
 	}
 
