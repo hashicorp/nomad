@@ -7070,6 +7070,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(5 * time.Second),
 						},
+						ErrMissingKey: false,
 					},
 					{
 						SourcePath:   "foo2",
@@ -7113,6 +7114,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(10 * time.Second),
 						},
+						ErrMissingKey: true,
 					},
 					{
 						SourcePath:   "foo3",
@@ -7134,6 +7136,7 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(10 * time.Second),
 						},
+						ErrMissingKey: true,
 					},
 				},
 			},
@@ -7149,6 +7152,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EmbeddedTmpl",
 								Old:  "baz",
 								New:  "baz new",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ErrMissingKey",
+								Old:  "false",
+								New:  "true",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -7199,6 +7208,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Envvars",
 								Old:  "",
 								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ErrMissingKey",
+								Old:  "",
+								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7328,6 +7343,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Envvars",
 								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ErrMissingKey",
+								Old:  "false",
 								New:  "",
 							},
 							{
