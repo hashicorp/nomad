@@ -76,6 +76,7 @@ SEND_BATCH:
 	var devicesChanged bool
 	c.batchNodeUpdates.batchDevicesUpdates(func(devices []*structs.NodeDeviceResource) {
 		if c.updateNodeFromDevicesLocked(devices) {
+			newConfig.Node.NodeResources.Devices = devices
 			devicesChanged = true
 		}
 	})
