@@ -110,7 +110,7 @@
     "ember-resolver": "^8.0.3",
     "ember-responsive": "^4.0.2",
     "ember-sinon": "^5.0.0",
-    "ember-source": "~3.28.8",
+    "ember-source": "~3.28.10",
     "ember-stargate": "^0.4.1",
     "ember-statecharts": "^0.13.2",
     "ember-template-lint": "^3.15.0",
