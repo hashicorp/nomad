@@ -832,21 +832,22 @@ func (ch *ChangeScript) Canonicalize() {
 }
 
 type Template struct {
-	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
-	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
-	EmbeddedTmpl *string        `mapstructure:"data" hcl:"data,optional"`
-	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeScript *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
-	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
-	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
-	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
-	Uid          *int           `mapstructure:"uid" hcl:"uid,optional"`
-	Gid          *int           `mapstructure:"gid" hcl:"gid,optional"`
-	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
-	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
-	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
-	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
-	Wait         *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
+	SourcePath    *string        `mapstructure:"source" hcl:"source,optional"`
+	DestPath      *string        `mapstructure:"destination" hcl:"destination,optional"`
+	EmbeddedTmpl  *string        `mapstructure:"data" hcl:"data,optional"`
+	ChangeMode    *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeScript  *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
+	ChangeSignal  *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Splay         *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
+	Perms         *string        `mapstructure:"perms" hcl:"perms,optional"`
+	Uid           *int           `mapstructure:"uid" hcl:"uid,optional"`
+	Gid           *int           `mapstructure:"gid" hcl:"gid,optional"`
+	LeftDelim     *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
+	RightDelim    *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
+	Envvars       *bool          `mapstructure:"env" hcl:"env,optional"`
+	VaultGrace    *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
+	Wait          *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
+	ErrMissingKey *bool          `mapstructure:"error_on_missing_key" hcl:"error_on_missing_key,optional"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -890,7 +891,9 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = pointerOf(false)
 	}
-
+	if tmpl.ErrMissingKey == nil {
+		tmpl.ErrMissingKey = pointerOf(false)
+	}
 	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
 	if tmpl.VaultGrace == nil {
 		tmpl.VaultGrace = pointerOf(time.Duration(0))

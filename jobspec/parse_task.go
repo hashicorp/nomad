@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -458,6 +459,8 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"splay",
 			"env",
 			"vault_grace", //COMPAT(0.12) not used; emits warning in 0.11.
+			"wait",
+			"error_on_missing_key",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -470,9 +473,12 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		delete(m, "change_script") // change_script is its own object
 
 		templ := &api.Template{
-			ChangeMode: stringToPtr("restart"),
-			Splay:      timeToPtr(5 * time.Second),
-			Perms:      stringToPtr("0644"),
+			ChangeMode:    stringToPtr("restart"),
+			Splay:         timeToPtr(5 * time.Second),
+			Perms:         stringToPtr("0644"),
+			Uid:           pointer.Of(-1),
+			Gid:           pointer.Of(-1),
+			ErrMissingKey: pointer.Of(false),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
