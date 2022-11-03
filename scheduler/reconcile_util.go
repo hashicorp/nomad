@@ -240,7 +240,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				alloc.ClientStatus == structs.AllocClientStatusFailed) {
 			reconnect = alloc.NeedsToReconnect()
 			if reconnect {
-				expired = alloc.Expired(time.Now())
+				expired = alloc.Expired(now)
 			}
 		}
 
