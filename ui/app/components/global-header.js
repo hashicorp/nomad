@@ -17,6 +17,9 @@ export default class GlobalHeader extends Component {
   // - User can load agent config in and ACLs are enabled (meaning ACLs are enabled and they're signed in)
   // The excluded case here is if there is both an agent config and ACLs are disabled
   get shouldShowProfileNav() {
-    return !this.system.agent.config || this.system.agent?.config.ACL.Enabled === true;
+    return (
+      !this.system.agent.config ||
+      this.system.agent?.config.ACL.Enabled === true
+    );
   }
 }
