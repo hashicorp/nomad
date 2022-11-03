@@ -1129,7 +1129,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
-// UpdateAlloc is used to update the client status of an allocation
+// UpdateAlloc is used to update the client status of an allocation. It can
+// only be called by clients.
+//
 // Clients must first register and heartbeat successfully before being able to
 // call this method.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
@@ -1158,6 +1160,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		// NodeID field in the request.
 		nodeID = args.Alloc[0].NodeID
 	}
+	if nodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
 	node, err := n.srv.State().NodeByID(nil, nodeID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve node %s: %v", args.NodeID, err)
