@@ -60,9 +60,9 @@
     >
       Documentation
     </a>
-    {{#unless (eq this.system.agent.config.ACL.Enabled false)}}
+    {{#if this.shouldShowProfileNav}}
       <ProfileNavbarItem />
-    {{/unless}}
+    {{/if}}
   </div>
 </nav>
 <div class="navbar is-secondary">
