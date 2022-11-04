@@ -102,12 +102,18 @@ func diffSystemAllocsForNode(
 
 		supportsDisconnectedClients := exist.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
-		reconnected := false
-		// Only compute reconnected for unknown and running since they need to go through the reconnect process.
+		reconnect := false
+		expired := false
+
+		// Only compute reconnect for unknown and running since they need to go
+		// through the reconnect process.
 		if supportsDisconnectedClients &&
 			(exist.ClientStatus == structs.AllocClientStatusUnknown ||
 				exist.ClientStatus == structs.AllocClientStatusRunning) {
-			reconnected, _ = exist.Reconnected()
+			reconnect = exist.NeedsToReconnect()
+			if reconnect {
+				expired = exist.Expired(time.Now())
+			}
 		}
 
 		// If we have been marked for migration and aren't terminal, migrate
@@ -131,7 +137,7 @@ func diffSystemAllocsForNode(
 		}
 
 		// Expired unknown allocs are lost. Expired checks that status is unknown.
-		if supportsDisconnectedClients && exist.Expired(time.Now().UTC()) {
+		if supportsDisconnectedClients && expired {
 			result.lost = append(result.lost, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -157,11 +163,16 @@ func diffSystemAllocsForNode(
 		// Filter allocs on a node that is now re-connected to reconnecting.
 		if supportsDisconnectedClients &&
 			!nodeIsTainted &&
-			reconnected {
+			reconnect {
+
+			// Record the new ClientStatus to indicate to future evals that the
+			// alloc has already reconnected.
+			reconnecting := exist.Copy()
+			reconnecting.AppendState(structs.AllocStateFieldClientStatus, exist.ClientStatus)
 			result.reconnecting = append(result.reconnecting, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     reconnecting,
 			})
 			continue
 		}
