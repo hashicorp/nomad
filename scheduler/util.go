@@ -195,20 +195,6 @@ func diffSystemAllocsForNode(
 				node.Status == structs.NodeStatusDisconnected &&
 				exist.ClientStatus == structs.AllocClientStatusRunning {
 
-				// Handle the case where the client updates its allocs before
-				// sending a heartbeat. The alloc will be set to running, but
-				// the client is still considered to be disconnected.
-				if reconnect {
-					reconnecting := exist.Copy()
-					reconnecting.AppendState(structs.AllocStateFieldClientStatus, exist.ClientStatus)
-					result.reconnecting = append(result.reconnecting, allocTuple{
-						Name:      name,
-						TaskGroup: tg,
-						Alloc:     reconnecting,
-					})
-					continue
-				}
-
 				disconnect := exist.Copy()
 				disconnect.ClientStatus = structs.AllocClientStatusUnknown
 				disconnect.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
