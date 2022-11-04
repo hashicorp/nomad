@@ -1548,6 +1548,124 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
 		})
 	}
+
+}
+
+func TestEvalEndpoint_Count(t *testing.T) {
+	ci.Parallel(t)
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	index := uint64(100)
+	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+
+	// Create non-default namespace
+	nondefaultNS := mock.Namespace()
+	nondefaultNS.Name = "non-default"
+	err := store.UpsertNamespaces(index, []*structs.Namespace{nondefaultNS})
+	must.NoError(t, err)
+
+	// create a set of evals and field values to filter on.
+	mocks := []struct {
+		namespace string
+		status    string
+	}{
+		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
+		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
+		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
+		{namespace: nondefaultNS.Name, status: structs.EvalStatusPending},
+		{namespace: structs.DefaultNamespace, status: structs.EvalStatusComplete},
+		{namespace: nondefaultNS.Name, status: structs.EvalStatusComplete},
+	}
+
+	evals := []*structs.Evaluation{}
+	for i, m := range mocks {
+		eval := mock.Eval()
+		eval.ID = fmt.Sprintf("%d", i) + uuid.Generate()[1:] // sorted for prefix count tests
+		eval.Namespace = m.namespace
+		eval.Status = m.status
+		evals = append(evals, eval)
+	}
+
+	index++
+	require.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, index, evals))
+
+	index++
+	aclToken := mock.CreatePolicyAndToken(t, store, index, "test-read-any",
+		mock.NamespacePolicy("*", "read", nil)).SecretID
+
+	limitedACLToken := mock.CreatePolicyAndToken(t, store, index, "test-read-limited",
+		mock.NamespacePolicy("default", "read", nil)).SecretID
+
+	cases := []struct {
+		name          string
+		namespace     string
+		prefix        string
+		filter        string
+		token         string
+		expectedCount int
+	}{
+		{
+			name:          "count wildcard namespace with read-any ACL",
+			namespace:     "*",
+			token:         aclToken,
+			expectedCount: 6,
+		},
+		{
+			name:          "count wildcard namespace with limited-read ACL",
+			namespace:     "*",
+			token:         limitedACLToken,
+			expectedCount: 4,
+		},
+		{
+			name:          "count wildcard namespace with prefix",
+			namespace:     "*",
+			prefix:        evals[2].ID[:2],
+			token:         aclToken,
+			expectedCount: 1,
+		},
+		{
+			name:          "count default namespace with filter",
+			namespace:     structs.DefaultNamespace,
+			filter:        "Status == \"pending\"",
+			token:         aclToken,
+			expectedCount: 3,
+		},
+		{
+			name:          "count nondefault namespace with filter",
+			namespace:     "non-default",
+			filter:        "Status == \"complete\"",
+			token:         aclToken,
+			expectedCount: 1,
+		},
+		{
+			name:          "count no results",
+			namespace:     "non-default",
+			filter:        "Status == \"never\"",
+			token:         aclToken,
+			expectedCount: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.EvalCountRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					Filter:    tc.filter,
+				},
+			}
+			req.AuthToken = tc.token
+			var resp structs.EvalCountResponse
+			err := msgpackrpc.CallWithCodec(codec, "Eval.Count", req, &resp)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedCount, resp.Count)
+		})
+	}
+
 }
 
 func TestEvalEndpoint_Allocations(t *testing.T) {
