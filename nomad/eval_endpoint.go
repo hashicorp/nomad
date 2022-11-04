@@ -7,6 +7,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/go-bexpr"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -608,6 +609,104 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			e.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
+	return e.srv.blockingRPC(&opts)
+}
+
+// Count is used to get a list of the evaluations in the system
+func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountResponse) error {
+	if done, err := e.srv.forward("Eval.Count", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "count"}, time.Now())
+	namespace := args.RequestNamespace()
+
+	// Check for read-job permissions
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
+
+	var filter *bexpr.Evaluator
+	if args.Filter != "" {
+		filter, err = bexpr.CreateEvaluator(args.Filter)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup the blocking query. This is only superficially like Eval.List,
+	// because we don't any concerns about pagination, sorting, and legacy
+	// filter fields.
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			// Scan all the evaluations
+			var err error
+			var iter memdb.ResultIterator
+
+			// Get the namespaces the user is allowed to access.
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err != nil {
+				return err
+			}
+
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.EvalsByNamespace(ws, namespace)
+			} else {
+				iter, err = store.Evals(ws, state.SortDefault)
+			}
+			if err != nil {
+				return err
+			}
+
+			count := 0
+
+			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				if raw == nil {
+					return true
+				}
+				eval := raw.(*structs.Evaluation)
+				if allowableNamespaces != nil && !allowableNamespaces[eval.Namespace] {
+					return true
+				}
+				if filter != nil {
+					ok, err := filter.Evaluate(eval)
+					if err != nil {
+						return true
+					}
+					return !ok
+				}
+				return false
+			})
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				count++
+			}
+
+			// Use the last index that affected the jobs table
+			index, err := store.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			reply.Count = count
+
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+
 	return e.srv.blockingRPC(&opts)
 }
 

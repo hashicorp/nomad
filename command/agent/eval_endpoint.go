@@ -138,3 +138,22 @@ func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, eval
 	}
 	return out.Eval, nil
 }
+
+func (s *HTTPServer) EvalsCountRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.EvalCountRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.EvalCountResponse
+	if err := s.agent.RPC("Eval.Count", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return &out, nil
+}

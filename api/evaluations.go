@@ -30,6 +30,16 @@ func (e *Evaluations) PrefixList(prefix string) ([]*Evaluation, *QueryMeta, erro
 	return e.List(&QueryOptions{Prefix: prefix})
 }
 
+// Count is used to get a count of evaluations.
+func (e *Evaluations) Count(q *QueryOptions) (*EvalCountResponse, *QueryMeta, error) {
+	var resp *EvalCountResponse
+	qm, err := e.client.query("/v1/evaluations/count", &resp, q)
+	if err != nil {
+		return resp, nil, err
+	}
+	return resp, qm, nil
+}
+
 // Info is used to query a single evaluation by its ID.
 func (e *Evaluations) Info(evalID string, q *QueryOptions) (*Evaluation, *QueryMeta, error) {
 	var resp Evaluation
@@ -131,6 +141,11 @@ type EvaluationStub struct {
 type EvalDeleteRequest struct {
 	EvalIDs []string
 	WriteRequest
+}
+
+type EvalCountResponse struct {
+	Count int
+	QueryMeta
 }
 
 // EvalIndexSort is a wrapper to sort evaluations by CreateIndex.

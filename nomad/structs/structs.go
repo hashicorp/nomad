@@ -899,6 +899,11 @@ func (req *EvalListRequest) ShouldBeFiltered(e *Evaluation) bool {
 	return false
 }
 
+// EvalCountRequest is used to count evaluations
+type EvalCountRequest struct {
+	QueryOptions
+}
+
 // PlanRequest is used to submit an allocation plan to the leader
 type PlanRequest struct {
 	Plan *Plan
@@ -1596,6 +1601,12 @@ type DeploymentListResponse struct {
 // EvalListResponse is used for a list request
 type EvalListResponse struct {
 	Evaluations []*Evaluation
+	QueryMeta
+}
+
+// EvalCountResponse is used for a count request
+type EvalCountResponse struct {
+	Count int
 	QueryMeta
 }
 
