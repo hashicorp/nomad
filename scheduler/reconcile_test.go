@@ -5275,7 +5275,8 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
 	ci.Parallel(t)
 
-	// Create 2 allocs and simulate one have being previously disconnected.
+	// Create 2 allocs and simulate one have being previously disconnected and
+	// then reconnected.
 	job, allocs := buildResumableAllocations(2, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
 	allocs[0].AllocStates = []*structs.AllocState{
 		{
