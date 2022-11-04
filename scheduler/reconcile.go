@@ -1206,7 +1206,7 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 		// Use a copy to prevent mutating the object from statestore.
 		reconnectedAlloc := alloc.Copy()
 		reconnectedAlloc.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
-		a.result.reconnectUpdates[alloc.ID] = reconnectedAlloc
+		a.result.reconnectUpdates[reconnectedAlloc.ID] = reconnectedAlloc
 	}
 }
 
