@@ -943,10 +943,6 @@ type ApplyPlanResultsRequest struct {
 // to cause evictions or to assign new allocations. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
-	// NodeID is the ID of the node sending the request.
-	// It may be empty if this is not an RPC request from a client.
-	NodeID string
-
 	// COMPAT 0.11
 	// Alloc is the list of new allocations to assign
 	// Deprecated: Replaced with two separate slices, one containing stopped allocations
