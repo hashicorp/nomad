@@ -784,69 +784,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			lost:   allocSet{},
 		},
 		{
-			// On reconnect the node may send a Node.UpdateAlloc RPC before it
-			// heartbeats, so the alloc ClientStatus changes from "unknown" to
-			// "running" before the client itself is marked as "ready".
-			// This scenario is similar to a client disconnecting for the first
-			// time, but we _should not_ create a replacement when the client
-			// reconnects.
-			name:                        "disco-client-no-placement-on-reconnect",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore: allocSet{},
-			lost:   allocSet{},
-		},
-		{
 			// After an alloc is reconnected, it should be considered
 			// "untainted" instead of "reconnecting" to allow changes such as
 			// job updates to be applied properly.
