@@ -70,34 +70,37 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	}
 
 TRY:
+	var rpcErr error
+
 	server := c.servers.FindServer()
 	if server == nil {
-		return noServersErr
+		rpcErr = noServersErr
+	} else {
+		// Make the request.
+		rpcErr = c.connPool.RPC(c.Region(), server.Addr, method, args, reply)
+
+		if rpcErr == nil {
+			c.fireRpcRetryWatcher()
+			return nil
+		}
+
+		// If shutting down, exit without logging the error
+		select {
+		case <-c.shutdownCh:
+			return nil
+		default:
+		}
+
+		// Move off to another server, and see if we can retry.
+		c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
+		c.servers.NotifyFailedServer(server)
+
+		if !canRetry(args, rpcErr) {
+			c.rpcLogger.Error("error performing RPC to server which is not safe to automatically retry", "error", rpcErr, "rpc", method, "server", server.Addr)
+			return rpcErr
+		}
 	}
 
-	// Make the request.
-	rpcErr := c.connPool.RPC(c.Region(), server.Addr, method, args, reply)
-
-	if rpcErr == nil {
-		c.fireRpcRetryWatcher()
-		return nil
-	}
-
-	// If shutting down, exit without logging the error
-	select {
-	case <-c.shutdownCh:
-		return nil
-	default:
-	}
-
-	// Move off to another server, and see if we can retry.
-	c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
-	c.servers.NotifyFailedServer(server)
-
-	if !canRetry(args, rpcErr) {
-		c.rpcLogger.Error("error performing RPC to server which is not safe to automatically retry", "error", rpcErr, "rpc", method, "server", server.Addr)
-		return rpcErr
-	}
 	if time.Now().After(deadline) {
 		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple places can result in our server call taking longer than we wanted it to. For example:
 		// a block time of 5s may easily turn into the server blocking for 10s since it applies its own RPCHoldTime. If the server dies at t=7s we still want to retry
@@ -106,7 +109,7 @@ TRY:
 			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
 		}
-		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method, "server", server.Addr)
+		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method)
 		return rpcErr
 	}
 
