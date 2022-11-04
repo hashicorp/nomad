@@ -2469,6 +2469,46 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	}
 }
 
+// TestTaskTemplateManager_Template_ErrMissingKey_Set asserts that all template level
+// configuration is accurately mapped from the template to the TaskTemplateManager's
+// template config.
+func TestTaskTemplateManager_Template_ErrMissingKey_Set(t *testing.T) {
+	ci.Parallel(t)
+
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+
+	alloc := mock.Alloc()
+
+	ttmConfig := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		Templates: []*structs.Template{
+			{
+				EmbeddedTmpl:  "test-false",
+				ErrMissingKey: false,
+			},
+			{
+				EmbeddedTmpl:  "test-true",
+				ErrMissingKey: true,
+			},
+		},
+	}
+
+	templateMapping, err := parseTemplateConfigs(ttmConfig)
+	require.NoError(t, err)
+
+	for k, tmpl := range templateMapping {
+		if tmpl.EmbeddedTmpl == "test-false" {
+			require.False(t, *k.ErrMissingKey)
+		}
+		if tmpl.EmbeddedTmpl == "test-true" {
+			require.True(t, *k.ErrMissingKey)
+		}
+	}
+}
+
 // TestTaskTemplateManager_writeToFile_Disabled asserts the consul-template function
 // writeToFile is disabled by default.
 func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
