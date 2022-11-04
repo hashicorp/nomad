@@ -2747,6 +2747,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: pointer.Of(5 * time.Second),
 									Max: pointer.Of(10 * time.Second),
 								},
+								ErrMissingKey: pointer.Of(true),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -3160,6 +3161,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: pointer.Of(5 * time.Second),
 									Max: pointer.Of(10 * time.Second),
 								},
+								ErrMissingKey: true,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
