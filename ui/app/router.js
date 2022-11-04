@@ -98,4 +98,5 @@ Router.map(function () {
       path: '/path/*absolutePath',
     });
   });
+  this.route('oidc-test-route-please-delete');
 });

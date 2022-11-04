@@ -176,6 +176,11 @@ function smallCluster(server) {
     volume.readAllocs.add(alloc);
     volume.save();
   });
+
+  server.create('auth-method', {name: 'vault'});
+  server.create('auth-method', {name: 'auth0'});
+  server.create('auth-method', {name: 'cognito'});
+
 }
 
 function mediumCluster(server) {

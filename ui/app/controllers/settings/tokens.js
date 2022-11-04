@@ -1,3 +1,4 @@
+// @ts-check
 import { inject as service } from '@ember/service';
 import { reads } from '@ember/object/computed';
 import Controller from '@ember/controller';
@@ -65,5 +66,33 @@ export default class Tokens extends Controller {
         });
       }
     );
+  }
+
+  // Generate a 20-char nonce, using window.crypto to
+  // create a sufficiently-large output then trimming
+  generateNonce() {
+    let randomArray = new Uint32Array(10);
+    crypto.getRandomValues(randomArray);
+    return randomArray.join('').slice(0, 20);
+  }
+
+  @action signInWithSSO(method) {
+    const provider = method.name;
+    const nonce = this.generateNonce();
+
+    window.localStorage.setItem('nomadOIDCNonce', nonce);
+    window.localStorage.setItem('nomadOIDCAuthMethod', provider);
+
+    let returned = method
+      .getAuthURL({
+        AuthMethod: provider,
+        ClientNonce: nonce,
+        RedirectUri: window.location.toString(), // TODO: decide if you want them back on /tokens.
+      })
+      .then(({ AuthURL }) => {
+        console.log('AUTHURL BACK', AuthURL);
+        window.location = AuthURL;
+      });
+    console.log('returned', returned);
   }
 }

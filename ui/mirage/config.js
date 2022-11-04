@@ -25,7 +25,8 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = window.location.search.includes('mirage-logging=true');
+  // TODO: TEMP
+  this.logging = true; //window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
@@ -925,6 +926,24 @@ export default function () {
   this.get('/client/allocation/:id/checks', allocationServiceChecksHandler);
 
   //#endregion Services
+
+  //#region SSO
+  this.get('/acl/auth-methods', function (schema, request) {
+    // console.log('Getting Auth Methods', schema, request);
+    return schema.authMethods.all();
+  });
+  this.post('/acl/oidc/auth-url', (schema, req) => {
+    // console.log('Requesting a URL', schema, request);
+    const {AuthMethod, ClientNonce, RedirectUri, Meta} = JSON.parse(req.requestBody);
+    console.log('from mirage', req);
+    return new Response(200, {}, {
+      AuthURL: `/ui/oidc-test-route-please-delete?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`
+    });
+  });
+
+
+
+  //#endregion SSO
 }
 
 function filterKeys(object, ...keys) {
