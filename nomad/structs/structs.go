@@ -10361,27 +10361,24 @@ func (a *Allocation) LastUnknown() time.Time {
 	return lastUnknown.UTC()
 }
 
-// Reconnected determines whether a reconnect event has occurred for any task
-// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
-func (a *Allocation) Reconnected() (bool, bool) {
-	var lastReconnect time.Time
-	for _, taskState := range a.TaskStates {
-		for _, taskEvent := range taskState.Events {
-			if taskEvent.Type != TaskClientReconnected {
-				continue
-			}
-			eventTime := time.Unix(0, taskEvent.Time).UTC()
-			if lastReconnect.IsZero() || lastReconnect.Before(eventTime) {
-				lastReconnect = eventTime
-			}
+// NeedsToReconnect returns true if the last known ClientStatus value is
+// "unknown" and so the allocation did not reconnect yet.
+func (a *Allocation) NeedsToReconnect() bool {
+	disconnected := false
+
+	// AllocStates are appended to the list and we only need the latest
+	// ClientStatus transition, so traverse from the end until we find one.
+	for i := len(a.AllocStates) - 1; i >= 0; i-- {
+		s := a.AllocStates[i]
+		if s.Field != AllocStateFieldClientStatus {
+			continue
 		}
+
+		disconnected = s.Value == AllocClientStatusUnknown
+		break
 	}
 
-	if lastReconnect.IsZero() {
-		return false, false
-	}
-
-	return true, a.Expired(lastReconnect)
+	return disconnected
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
