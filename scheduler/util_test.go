@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -290,6 +291,153 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	require.Len(t, diff.stop, 0)
 	require.Len(t, diff.ignore, 1)
 	require.Len(t, diff.lost, 0)
+}
+
+func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create job.
+	job := mock.SystemJob()
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+
+	// Create nodes.
+	readyNode := mock.Node()
+	readyNode.Status = structs.NodeStatusReady
+
+	disconnectedNode := mock.Node()
+	disconnectedNode.Status = structs.NodeStatusDisconnected
+
+	eligibleNodes := map[string]*structs.Node{
+		readyNode.ID: readyNode,
+	}
+
+	taintedNodes := map[string]*structs.Node{
+		disconnectedNode.ID: disconnectedNode,
+	}
+
+	// Create allocs.
+	required := materializeTaskGroups(job)
+	terminal := make(structs.TerminalByNodeByName)
+
+	type diffResultCount struct {
+		place, update, migrate, stop, ignore, lost, disconnecting, reconnecting int
+	}
+
+	testCases := []struct {
+		name    string
+		node    *structs.Node
+		allocFn func(*structs.Allocation)
+		expect  diffResultCount
+	}{
+		{
+			name: "alloc in disconnected client is marked as unknown",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+			},
+			expect: diffResultCount{
+				disconnecting: 1,
+			},
+		},
+		{
+			name: "disconnected alloc reconnects",
+			node: readyNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now().Add(-time.Minute),
+				}}
+			},
+			expect: diffResultCount{
+				reconnecting: 1,
+			},
+		},
+		{
+			name: "alloc not reconnecting after it reconnects",
+			node: readyNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				alloc.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: structs.AllocClientStatusUnknown,
+						Time:  time.Now().Add(-time.Minute),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: structs.AllocClientStatusRunning,
+						Time:  time.Now(),
+					},
+				}
+			},
+			expect: diffResultCount{
+				ignore: 1,
+			},
+		},
+		{
+			name: "disconnected alloc is lost after it expires",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusUnknown
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now().Add(-10 * time.Hour),
+				}}
+			},
+			expect: diffResultCount{
+				lost: 1,
+			},
+		},
+		{
+			name: "disconnected allocs are ignored",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusUnknown
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now(),
+				}}
+			},
+			expect: diffResultCount{
+				ignore: 1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := mock.AllocForNode(tc.node)
+			alloc.JobID = job.ID
+			alloc.Job = job
+			alloc.Name = fmt.Sprintf("%s.%s[0]", job.Name, job.TaskGroups[0].Name)
+
+			if tc.allocFn != nil {
+				tc.allocFn(alloc)
+			}
+
+			got := diffSystemAllocsForNode(
+				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
+				required, []*structs.Allocation{alloc}, terminal, true,
+			)
+
+			assert.Len(t, got.place, tc.expect.place, "place")
+			assert.Len(t, got.update, tc.expect.update, "update")
+			assert.Len(t, got.migrate, tc.expect.migrate, "migrate")
+			assert.Len(t, got.stop, tc.expect.stop, "stop")
+			assert.Len(t, got.ignore, tc.expect.ignore, "ignore")
+			assert.Len(t, got.lost, tc.expect.lost, "lost")
+			assert.Len(t, got.disconnecting, tc.expect.disconnecting, "disconnecting")
+			assert.Len(t, got.reconnecting, tc.expect.reconnecting, "reconnecting")
+		})
+	}
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
