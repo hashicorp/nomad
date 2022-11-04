@@ -415,6 +415,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.plan.AppendUnknownAlloc(update)
 	}
 
+	// Handle reconnect updates.
+	// Reconnected allocs have a new AllocState entry.
+	for _, update := range results.reconnectUpdates {
+		s.ctx.Plan().AppendAlloc(update, nil)
+	}
+
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
 		if update.DeploymentID != s.deployment.GetID() {
