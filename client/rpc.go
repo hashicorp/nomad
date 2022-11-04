@@ -75,9 +75,7 @@ TRY:
 	server := c.servers.FindServer()
 	if server == nil {
 		rpcErr = noServersErr
-	}
-
-	if server != nil {
+	} else {
 		// Make the request.
 		rpcErr = c.connPool.RPC(c.Region(), server.Addr, method, args, reply)
 
