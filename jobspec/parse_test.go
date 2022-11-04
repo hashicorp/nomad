@@ -379,6 +379,8 @@ func TestParse(t *testing.T) {
 										Splay:         timeToPtr(10 * time.Second),
 										Perms:         stringToPtr("0644"),
 										Envvars:       boolToPtr(true),
+										Uid:           intToPtr(-1),
+										Gid:           intToPtr(-1),
 										VaultGrace:    timeToPtr(33 * time.Second),
 										ErrMissingKey: boolToPtr(true),
 									},
