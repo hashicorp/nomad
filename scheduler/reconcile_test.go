@@ -5571,31 +5571,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				},
 			},
 		},
-		{
-			// This case tests when the disconnected client reconnects but
-			// sends a Node.UpdateAlloc RPC before a Node.UpdateStatus
-			// heartbeat, setting the ClientStatus for the previously
-			// disconnected allocs to "running" before the node status is set
-			// to "ready".
-			name:                    "reconnect-with-alloc-update-before-heartbeat",
-			allocCount:              5,
-			replace:                 true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-			disconnectedAllocStates: disconnectAllocState,
-			serverDesiredStatus:     structs.AllocDesiredStatusRun,
-			nodeStatusDisconnected:  true,
-			expected: &resultExpectation{
-				stop:             2,
-				reconnectUpdates: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2, // stop the 2 replacements
-						Ignore: 5, // ignore other allocs since they are all still running
-					},
-				},
-			},
-		},
 	}
 
 	for _, tc := range testCases {
