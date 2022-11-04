@@ -2574,7 +2574,6 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	updatedAlloc.ClientStatus = structs.AllocClientStatusFailed
 
 	allocUpdateReq := &structs.AllocUpdateRequest{
-		NodeID:       node.ID,
 		Alloc:        []*structs.Allocation{updatedAlloc},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
@@ -2583,17 +2582,17 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	require.ErrorContains(t, err, "not ready")
 
 	// Send request without an explicit node ID.
-	allocUpdateReq.NodeID = ""
+	updatedAlloc.NodeID = ""
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
-	require.ErrorContains(t, err, "not ready")
+	require.ErrorContains(t, err, "missing node ID")
 
 	// Send request with invalid node ID.
-	allocUpdateReq.NodeID = "not-valid"
+	updatedAlloc.NodeID = "not-valid"
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
 	require.ErrorContains(t, err, "node lookup failed")
 
 	// Send request with non-existing node ID.
-	allocUpdateReq.NodeID = uuid.Generate()
+	updatedAlloc.NodeID = uuid.Generate()
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
 	require.ErrorContains(t, err, "not found")
 
@@ -2601,7 +2600,7 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	err = state.UpdateNodeStatus(structs.MsgTypeTestSetup, 102, node.ID, structs.NodeStatusReady, time.Now().UnixNano(), nil)
 	require.NoError(t, err)
 
-	allocUpdateReq.NodeID = node.ID
+	updatedAlloc.NodeID = node.ID
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
 	require.NoError(t, err)
 }

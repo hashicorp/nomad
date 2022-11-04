@@ -2068,7 +2068,6 @@ func (c *Client) allocSync() {
 
 			// Send to server.
 			args := structs.AllocUpdateRequest{
-				NodeID:       c.NodeID(),
 				Alloc:        sync,
 				WriteRequest: structs.WriteRequest{Region: c.Region()},
 			}
