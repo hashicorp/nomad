@@ -95,6 +95,17 @@ func testDownloadChrootExec(t *testing.T) {
 	// wait for allocation stopped
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
 
+	allocStatuses, err := e2eutil.AllocStatuses(jobID, "")
+	must.NoError(t, err)
+	t.Log("DEBUG", "job_id", jobID, "allocStatuses", allocStatuses)
+
+	allocEvents, err := e2eutil.AllocTaskEventsForJob(jobID, "")
+	must.NoError(t, err)
+	t.Log("DEBUG", "job_id", jobID, "allocEvents", allocEvents)
+
+	// wait for task complete (is the alloc stopped state not enough??)
+	e2eutil.WaitForAllocTaskComplete(t, nomad, allocID, "run-script")
+
 	// assert log contents
 	logs, err := e2eutil.AllocTaskLogs(allocID, "run-script", e2eutil.LogsStdOut)
 	must.NoError(t, err)
