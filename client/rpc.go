@@ -109,7 +109,7 @@ TRY:
 			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
 		}
-		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method, "server", server.Addr)
+		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method)
 		return rpcErr
 	}
 
