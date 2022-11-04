@@ -154,20 +154,27 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 }
 
 func WaitForAllocTaskRunning(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	WaitForAllocTaskState(t, nomadClient, allocID, task, structs.TaskStateRunning)
+}
+
+func WaitForAllocTaskComplete(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	WaitForAllocTaskState(t, nomadClient, allocID, task, structs.TaskStateDead)
+}
+
+func WaitForAllocTaskState(t *testing.T, nomadClient *api.Client, allocID, task, state string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 500)
 		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
 		}
-
-		state := "n/a"
-		if task := alloc.TaskStates[task]; task != nil {
-			state = task.State
+		currentState := "n/a"
+		if taskState := alloc.TaskStates[task]; taskState != nil {
+			currentState = taskState.State
 		}
-		return state == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", state)
+		return currentState == state, fmt.Errorf("expected status %s, but was: %s", state, currentState)
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		t.Fatalf("failed to wait on alloc task: %v", err)
 	})
 }
 
