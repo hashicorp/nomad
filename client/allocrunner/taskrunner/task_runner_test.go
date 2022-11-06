@@ -146,7 +146,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
-		Getter:                getter.TestDefaultGetter(t),
+		Getter:                getter.TestSandbox(t),
 	}
 
 	// Set the cgroup path getter if we are in v2 mode
@@ -1716,7 +1716,7 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	require.True(t, state.Events[2].FailsTask)
 }
 
-// TestTaskRunner_Download_Exec asserts that downloaded artifacts may be
+// TestTaskRunner_Download_RawExec asserts that downloaded artifacts may be
 // executed in a driver without filesystem isolation.
 func TestTaskRunner_Download_RawExec(t *testing.T) {
 	ci.Parallel(t)
@@ -1727,6 +1727,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	// Create a task that downloads a script and executes it.
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
+
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "raw_exec"

@@ -32,7 +32,8 @@ type EnvReplacer interface {
 	ClientPath(string, bool) (string, bool)
 }
 
-// ArtifactGetter is an interface satisfied by the helper/getter package.
+// ArtifactGetter is an interface satisfied by the getter package.
 type ArtifactGetter interface {
-	GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error
+	// Get artifact and put it in the task directory.
+	Get(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error
 }
