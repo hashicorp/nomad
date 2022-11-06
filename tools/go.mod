@@ -1,11 +1,11 @@
 module github.com/hashicorp/nomad/tools
 
-go 1.18
+go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.37.26
 	github.com/hashicorp/go-set v0.1.6
-	github.com/shoenig/test v0.4.0
+	github.com/shoenig/test v0.4.4
 )
 
 require (
