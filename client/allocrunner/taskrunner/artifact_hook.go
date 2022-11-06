@@ -42,7 +42,7 @@ func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfa
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource, "aid", aid)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := h.getter.GetArtifact(req.TaskEnv, artifact); err != nil {
+		if err := h.getter.Get(req.TaskEnv, artifact); err != nil {
 
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
