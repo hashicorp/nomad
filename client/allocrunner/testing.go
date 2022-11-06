@@ -90,7 +90,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
-		Getter:             getter.TestDefaultGetter(t),
+		Getter:             getter.TestSandbox(t),
 	}
 
 	return conf, cleanup
