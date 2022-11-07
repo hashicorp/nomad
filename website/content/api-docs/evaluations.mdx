@@ -382,4 +382,65 @@ $ curl \
 ]
 ```
 
+## Count Evaluations
+
+This endpoint counts evaluations. Note that Nomad's state store architecture
+makes calculating this count unexpectedly expensive (similar in cost to the List
+API), and this API was designed for use during recovery operations with the
+`nomad eval delete` command. It is not recommended to use this API for
+monitoring. The `nomad.nomad.broker.*`  metrics are better for that use
+case. See the [metrics reference][] for details.
+
+
+| Method | Path                    | Produces           |
+|--------|-------------------------|--------------------|
+| `GET`  | `/v1/evaluations/count` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `namespace:read-job` |
+
+### Parameters
+
+- `prefix` `(string: "")`- Specifies a string to filter evaluations based on an
+  ID prefix. Because the value is decoded to bytes, the prefix must have an even
+  number of hexadecimal characters (0-9a-f). This is specified as a query string
+  parameter and is used before any `filter` expression is applied.
+
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering) used
+  to filter the results.
+
+- `namespace` `(string: "default")` - Specifies the target namespace.
+  Specifying `*` will return all evaluations across all authorized namespaces.
+  This parameter is used before any `filter` expression is applied.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/evaluations/count
+```
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/evaluations/count?prefix=25ba81
+```
+
+### Sample Response
+
+```json
+{
+  "Count": 36
+  "Index": 133,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "NextToken": ""
+}
+```
+
 [update_scheduler_configuration]: /api-docs/operator/scheduler#update-scheduler-configuration
+[metrics reference]: /docs/operations/metrics-reference
