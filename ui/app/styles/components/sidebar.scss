@@ -58,10 +58,6 @@ $subNavOffset: 49px;
 }
 
 .task-context-sidebar {
-  animation-name: slideFromRight;
-  animation-duration: 150ms;
-  animation-fill-mode: both;
-
   header {
     display: grid;
     justify-content: left;
@@ -120,14 +116,5 @@ $subNavOffset: 49px;
       100vh - $sidebarTopOffset - $sidebarInnerPadding - $sidebarHeaderOffset -
         $cliHeaderOffset
     );
-  }
-}
-
-@keyframes slideFromRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0%);
   }
 }
