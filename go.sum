@@ -1164,8 +1164,8 @@ github.com/seccomp/libseccomp-golang v0.10.0 h1:aA4bp+/Zzi0BnWZ2F1wgNBs5gTpm+na2
 github.com/seccomp/libseccomp-golang v0.10.0/go.mod h1:JA8cRccbGaA1s33RQf7Y1+q9gHmZX1yB/z9WDN1C6fg=
 github.com/sergi/go-diff v1.0.0 h1:Kpca3qRNrduNnOQeazBd0ysaKrUJiIuISHxogkT9RPQ=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
-github.com/shirou/gopsutil/v3 v3.22.9 h1:yibtJhIVEMcdw+tCTbOPiF1VcsuDeTE4utJ8Dm4c5eA=
-github.com/shirou/gopsutil/v3 v3.22.9/go.mod h1:bBYl1kjgEJpWpxeHmLI+dVHWtyAwfcmSBLDsp2TNT8A=
+github.com/shirou/gopsutil/v3 v3.22.10 h1:4KMHdfBRYXGF9skjDWiL4RA2N+E8dRdodU/bOZpPoVg=
+github.com/shirou/gopsutil/v3 v3.22.10/go.mod h1:QNza6r4YQoydyCfo6rH0blGfKahgibh4dQmV5xdFkQk=
 github.com/shoenig/test v0.4.4 h1:juucmjQTPYUfO2+rID1wfQqsreSlk+2I8K/bQFsUZ9c=
 github.com/shoenig/test v0.4.4/go.mod h1:xYtyGBC5Q3kzCNyJg/SjgNpfAa2kvmgA0i5+lQso8x0=
 github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=
