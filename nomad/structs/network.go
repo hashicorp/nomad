@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -36,13 +36,33 @@ var (
 
 // NetworkIndex is used to index the available network resources
 // and the used network resources on a machine given allocations
+//
+// Fields are exported so they may be JSON serialized for debugging.
+// Fields are *not* intended to be used directly.
 type NetworkIndex struct {
-	AvailNetworks  []*NetworkResource              // List of available networks
-	NodeNetworks   []*NodeNetworkResource          // List of available node networks
-	AvailAddresses map[string][]NodeNetworkAddress // Map of host network aliases to list of addresses
-	AvailBandwidth map[string]int                  // Bandwidth by device
-	UsedPorts      map[string]Bitmap               // Ports by IP
-	UsedBandwidth  map[string]int                  // Bandwidth by device
+	// TaskNetworks are the node networks available for
+	// task.resources.network asks.
+	TaskNetworks []*NetworkResource
+
+	// GroupNetworks are the node networks available for group.network
+	// asks.
+	GroupNetworks []*NodeNetworkResource
+
+	// HostNetworks indexes addresses by host network alias
+	HostNetworks map[string][]NodeNetworkAddress
+
+	// UsedPorts tracks which ports are used on a per-IP address basis. For
+	// example if a node has `network_interface=lo` and port 22 reserved,
+	// then on a dual stack loopback interface UsedPorts would contain:
+	// {
+	//  "127.0.0.1": Bitmap{22},
+	//  "::1":       Bitmap{22},
+	// }
+	UsedPorts map[string]Bitmap
+
+	// Deprecated bandwidth fields
+	AvailBandwidth map[string]int // Bandwidth by device
+	UsedBandwidth  map[string]int // Bandwidth by device
 
 	MinDynamicPort int // The smallest dynamic port generated
 	MaxDynamicPort int // The largest dynamic port generated
@@ -51,9 +71,9 @@ type NetworkIndex struct {
 // NewNetworkIndex is used to construct a new network index
 func NewNetworkIndex() *NetworkIndex {
 	return &NetworkIndex{
-		AvailAddresses: make(map[string][]NodeNetworkAddress),
-		AvailBandwidth: make(map[string]int),
+		HostNetworks:   make(map[string][]NodeNetworkAddress),
 		UsedPorts:      make(map[string]Bitmap),
+		AvailBandwidth: make(map[string]int),
 		UsedBandwidth:  make(map[string]int),
 		MinDynamicPort: DefaultMinDynamicPort,
 		MaxDynamicPort: DefaultMaxDynamicPort,
@@ -84,13 +104,13 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	c := new(NetworkIndex)
 	*c = *idx
 
-	c.AvailNetworks = copyNetworkResources(idx.AvailNetworks)
-	c.NodeNetworks = copyNodeNetworks(idx.NodeNetworks)
-	c.AvailAddresses = copyAvailAddresses(idx.AvailAddresses)
+	c.TaskNetworks = copyNetworkResources(idx.TaskNetworks)
+	c.GroupNetworks = copyNodeNetworks(idx.GroupNetworks)
+	c.HostNetworks = copyAvailAddresses(idx.HostNetworks)
 	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
 		c.AvailBandwidth = make(map[string]int)
 	} else {
-		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
+		c.AvailBandwidth = maps.Clone(idx.AvailBandwidth)
 	}
 	if len(idx.UsedPorts) > 0 {
 		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
@@ -101,7 +121,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
 		c.UsedBandwidth = make(map[string]int)
 	} else {
-		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+		c.UsedBandwidth = maps.Clone(idx.UsedBandwidth)
 	}
 
 	return c
@@ -145,9 +165,7 @@ func copyAvailAddresses(a map[string][]NodeNetworkAddress) map[string][]NodeNetw
 			continue
 		}
 		c[k] = make([]NodeNetworkAddress, len(v))
-		for i, a := range v {
-			c[k][i] = a
-		}
+		copy(c[k], v)
 	}
 
 	return c
@@ -173,61 +191,141 @@ func (idx *NetworkIndex) Overcommitted() bool {
 	return false
 }
 
-// SetNode is used to setup the available network resources. Returns
-// true if there is a collision
-func (idx *NetworkIndex) SetNode(node *Node) (collide bool, reason string) {
+// SetNode is used to initialize a node's network index with available IPs,
+// reserved ports, and other details from a node's configuration and
+// fingerprinting.
+//
+// SetNode must be idempotent as preemption causes SetNode to be called
+// multiple times on the same NetworkIndex, only clearing UsedPorts between
+// calls.
+//
+// An error is returned if the Node cannot produce a consistent NetworkIndex
+// such as if reserved_ports are unparseable.
+//
+// Any errors returned by SetNode indicate a bug! The bug may lie in client
+// code not properly validating its configuration or it may lie in improper
+// Node object handling by servers. Users should not be able to cause SetNode
+// to error. Data that cause SetNode to error should be caught upstream such as
+// a client agent refusing to start with an invalid configuration.
+func (idx *NetworkIndex) SetNode(node *Node) error {
 
-	// COMPAT(0.11): Remove in 0.11
-	// Grab the network resources, handling both new and old
-	var networks []*NetworkResource
+	// COMPAT(0.11): Deprecated. taskNetworks are only used for
+	// task.resources.network asks which have been deprecated since before
+	// 0.11.
+	// Grab the network resources, handling both new and old Node layouts
+	// from clients.
+	var taskNetworks []*NetworkResource
 	if node.NodeResources != nil && len(node.NodeResources.Networks) != 0 {
-		networks = node.NodeResources.Networks
+		taskNetworks = node.NodeResources.Networks
 	} else if node.Resources != nil {
-		networks = node.Resources.Networks
+		taskNetworks = node.Resources.Networks
 	}
 
+	// Reserved ports get merged downward. For example given an agent
+	// config:
+	//
+	// client.reserved.reserved_ports = "22"
+	// client.host_network["eth0"] = {reserved_ports = "80,443"}
+	// client.host_network["eth1"] = {reserved_ports = "1-1000"}
+	//
+	// Addresses on taskNetworks reserve port 22
+	// Addresses on eth0 reserve 22,80,443 (note 22 is also reserved!)
+	// Addresses on eth1 reserve 1-1000
+	globalResPorts := []uint{}
+
+	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
+		resPorts, err := ParsePortRanges(node.ReservedResources.Networks.ReservedHostPorts)
+		if err != nil {
+			// This is a fatal error that should have been
+			// prevented by client validation.
+			return fmt.Errorf("error parsing reserved_ports: %w", err)
+		}
+
+		globalResPorts = make([]uint, len(resPorts))
+		for i, p := range resPorts {
+			globalResPorts[i] = uint(p)
+		}
+	} else if node.Reserved != nil {
+		// COMPAT(0.11): Remove after 0.11. Nodes stopped reporting
+		// reserved ports under Node.Reserved.Resources in #4750 / v0.9
+		for _, n := range node.Reserved.Networks {
+			used := idx.getUsedPortsFor(n.IP)
+			for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
+				for _, p := range ports {
+					if p.Value > MaxValidPort || p.Value < 0 {
+						// This is a fatal error that
+						// should have been prevented
+						// by validation upstream.
+						return fmt.Errorf("invalid port %d for reserved_ports", p.Value)
+					}
+
+					globalResPorts = append(globalResPorts, uint(p.Value))
+					used.Set(uint(p.Value))
+				}
+			}
+
+			// Reserve mbits
+			if n.Device != "" {
+				idx.UsedBandwidth[n.Device] += n.MBits
+			}
+		}
+	}
+
+	// Filter task networks down to those with a device. For example
+	// taskNetworks may contain a "bridge" interface which has no device
+	// set and cannot be used to fulfill asks.
+	for _, n := range taskNetworks {
+		if n.Device != "" {
+			idx.TaskNetworks = append(idx.TaskNetworks, n)
+			idx.AvailBandwidth[n.Device] = n.MBits
+
+			// Reserve ports
+			used := idx.getUsedPortsFor(n.IP)
+			for _, p := range globalResPorts {
+				used.Set(p)
+			}
+		}
+	}
+
+	// nodeNetworks are used for group.network asks.
 	var nodeNetworks []*NodeNetworkResource
 	if node.NodeResources != nil && len(node.NodeResources.NodeNetworks) != 0 {
 		nodeNetworks = node.NodeResources.NodeNetworks
 	}
 
-	// Add the available CIDR blocks
-	for _, n := range networks {
-		if n.Device != "" {
-			idx.AvailNetworks = append(idx.AvailNetworks, n)
-			idx.AvailBandwidth[n.Device] = n.MBits
-		}
-	}
-
-	// TODO: upgrade path?
-	// is it possible to get duplicates here?
 	for _, n := range nodeNetworks {
 		for _, a := range n.Addresses {
-			idx.AvailAddresses[a.Alias] = append(idx.AvailAddresses[a.Alias], a)
-			if c, r := idx.AddReservedPortsForIP(a.ReservedPorts, a.Address); c {
-				collide = true
-				reason = fmt.Sprintf("collision when reserving ports for node network %s in node %s: %v", a.Alias, node.ID, r)
+			// Index host networks by their unique alias for asks
+			// with group.network.port.host_network set.
+			idx.HostNetworks[a.Alias] = append(idx.HostNetworks[a.Alias], a)
+
+			// Mark reserved ports as used without worrying about
+			// collisions. This effectively merges
+			// client.reserved.reserved_ports into each
+			// host_network.
+			used := idx.getUsedPortsFor(a.Address)
+			for _, p := range globalResPorts {
+				used.Set(p)
+			}
+
+			// If ReservedPorts is set on the NodeNetwork, use it
+			// and the global reserved ports.
+			if a.ReservedPorts != "" {
+				rp, err := ParsePortRanges(a.ReservedPorts)
+				if err != nil {
+					// This is a fatal error that should
+					// have been prevented by validation
+					// upstream.
+					return fmt.Errorf("error parsing reserved_ports for network %q: %w", a.Alias, err)
+				}
+				for _, p := range rp {
+					used.Set(uint(p))
+				}
 			}
 		}
 	}
 
-	// COMPAT(0.11): Remove in 0.11
-	// Handle reserving ports, handling both new and old
-	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
-		c, r := idx.AddReservedPortRange(node.ReservedResources.Networks.ReservedHostPorts)
-		collide = c
-		if collide {
-			reason = fmt.Sprintf("collision when reserving port range for node %s: %v", node.ID, r)
-		}
-	} else if node.Reserved != nil {
-		for _, n := range node.Reserved.Networks {
-			if c, r := idx.AddReserved(n); c {
-				collide = true
-				reason = fmt.Sprintf("collision when reserving network %s for node %s: %v", n.IP, node.ID, r)
-			}
-		}
-	}
-
+	// Set dynamic port range (applies to all addresses)
 	if node.NodeResources != nil && node.NodeResources.MinDynamicPort > 0 {
 		idx.MinDynamicPort = node.NodeResources.MinDynamicPort
 	}
@@ -236,15 +334,20 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool, reason string) {
 		idx.MaxDynamicPort = node.NodeResources.MaxDynamicPort
 	}
 
-	return
+	return nil
 }
 
 // AddAllocs is used to add the used network resources. Returns
 // true if there is a collision
+//
+// AddAllocs may be called multiple times for the same NetworkIndex with
+// UsedPorts cleared between calls (by Release). Therefore AddAllocs must be
+// determistic and must not manipulate state outside of UsedPorts as that state
+// would persist between Release calls.
 func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason string) {
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.TerminalStatus() {
+		if alloc.ClientTerminalStatus() {
 			continue
 		}
 
@@ -340,51 +443,11 @@ func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool, r
 	return
 }
 
-// AddReservedPortRange marks the ports given as reserved on all network
-// interfaces. The port format is comma delimited, with spans given as n1-n2
-// (80,100-200,205)
-func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool, reasons []string) {
-	// Convert the ports into a slice of ints
-	resPorts, err := ParsePortRanges(ports)
-	if err != nil {
-		return
-	}
-
-	// Ensure we create a bitmap for each available network
-	for _, n := range idx.AvailNetworks {
-		idx.getUsedPortsFor(n.IP)
-	}
-
-	for _, used := range idx.UsedPorts {
-		for _, port := range resPorts {
-			// Guard against invalid port
-			if port >= MaxValidPort {
-				return true, []string{fmt.Sprintf("invalid port %d", port)}
-			}
-			if used.Check(uint(port)) {
-				collide = true
-				reason := fmt.Sprintf("port %d already in use", port)
-				reasons = append(reasons, reason)
-			} else {
-				used.Set(uint(port))
-			}
-		}
-	}
-
-	return
-}
-
 // AddReservedPortsForIP checks whether any reserved ports collide with those
 // in use for the IP address.
-func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide bool, reasons []string) {
-	// Convert the ports into a slice of ints
-	resPorts, err := ParsePortRanges(ports)
-	if err != nil {
-		return
-	}
-
+func (idx *NetworkIndex) AddReservedPortsForIP(ports []uint64, ip string) (collide bool, reasons []string) {
 	used := idx.getUsedPortsFor(ip)
-	for _, port := range resPorts {
+	for _, port := range ports {
 		// Guard against invalid port
 		if port >= MaxValidPort {
 			return true, []string{fmt.Sprintf("invalid port %d", port)}
@@ -403,22 +466,13 @@ func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide
 
 // yieldIP is used to iteratively invoke the callback with
 // an available IP
-func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) {
-	inc := func(ip net.IP) {
-		for j := len(ip) - 1; j >= 0; j-- {
-			ip[j]++
-			if ip[j] > 0 {
-				break
-			}
-		}
-	}
-
-	for _, n := range idx.AvailNetworks {
+func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, offerIP net.IP) bool) {
+	for _, n := range idx.TaskNetworks {
 		ip, ipnet, err := net.ParseCIDR(n.CIDR)
 		if err != nil {
 			continue
 		}
-		for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+		for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); incIP(ip) {
 			if cb(n, ip) {
 				return
 			}
@@ -426,6 +480,26 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, ip net.IP) bool) 
 	}
 }
 
+func incIP(ip net.IP) {
+	// Iterate over IP octects from right to left
+	for j := len(ip) - 1; j >= 0; j-- {
+
+		// Increment octect
+		ip[j]++
+
+		// If this octect did not wrap around to 0, it's the next IP to
+		// try. If it did wrap (p[j]==0), then the next octect is
+		// incremented.
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// AssignPorts based on an ask from the scheduler processing a group.network
+// stanza. Supports multi-interfaces through node configured host_networks.
+//
+// AssignTaskNetwork supports the deprecated task.resources.network stanza.
 func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, error) {
 	var offer AllocatedPorts
 
@@ -439,7 +513,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 		// if allocPort is still nil after the loop, the port wasn't available for reservation
 		var allocPort *AllocatedPortMapping
 		var addrErr error
-		for _, addr := range idx.AvailAddresses[port.HostNetwork] {
+		for _, addr := range idx.HostNetworks[port.HostNetwork] {
 			used := idx.getUsedPortsFor(addr.Address)
 			// Guard against invalid port
 			if port.Value < 0 || port.Value >= MaxValidPort {
@@ -474,7 +548,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 	for _, port := range ask.DynamicPorts {
 		var allocPort *AllocatedPortMapping
 		var addrErr error
-		for _, addr := range idx.AvailAddresses[port.HostNetwork] {
+		for _, addr := range idx.HostNetworks[port.HostNetwork] {
 			used := idx.getUsedPortsFor(addr.Address)
 			// Try to stochastically pick the dynamic ports as it is faster and
 			// lower memory usage.
@@ -514,13 +588,18 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 	return offer, nil
 }
 
-// AssignNetwork is used to assign network resources given an ask.
-// If the ask cannot be satisfied, returns nil
-func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResource, err error) {
+// AssignTaskNetwork is used to offer network resources given a
+// task.resources.network ask.  If the ask cannot be satisfied, returns nil
+//
+// AssignTaskNetwork and task.resources.network are deprecated in favor of
+// AssignPorts and group.network. AssignTaskNetwork does not support multiple
+// interfaces and only uses the node's default interface. AssignPorts is the
+// method that is used for group.network asks.
+func (idx *NetworkIndex) AssignTaskNetwork(ask *NetworkResource) (out *NetworkResource, err error) {
 	err = fmt.Errorf("no networks available")
-	idx.yieldIP(func(n *NetworkResource, ip net.IP) (stop bool) {
+	idx.yieldIP(func(n *NetworkResource, offerIP net.IP) (stop bool) {
 		// Convert the IP to a string
-		ipStr := ip.String()
+		offerIPStr := offerIP.String()
 
 		// Check if we would exceed the bandwidth cap
 		availBandwidth := idx.AvailBandwidth[n.Device]
@@ -530,7 +609,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			return
 		}
 
-		used := idx.UsedPorts[ipStr]
+		used := idx.UsedPorts[offerIPStr]
 
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
@@ -551,7 +630,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		offer := &NetworkResource{
 			Mode:          ask.Mode,
 			Device:        n.Device,
-			IP:            ipStr,
+			IP:            offerIPStr,
 			MBits:         ask.MBits,
 			DNS:           ask.DNS,
 			ReservedPorts: ask.ReservedPorts,

@@ -399,11 +399,17 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	for _, hn := range config.Client.HostNetworks {
+		// Ensure port range is valid
 		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
 			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
 				hn.Name, hn.ReservedPorts, err))
 			return false
 		}
+	}
+
+	if err := config.Client.Artifact.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("client.artifact stanza invalid: %v", err))
+		return false
 	}
 
 	if !config.DevMode {
@@ -431,12 +437,15 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 		}
+		if config.Server.Enabled && config.Server.BootstrapExpect%2 == 0 {
+			c.Ui.Error("WARNING: Number of bootstrap servers should ideally be set to an odd number.")
+		}
 	}
 
 	// ProtocolVersion has never been used. Warn if it is set as someone
 	// has probably made a mistake.
 	if config.Server.ProtocolVersion != 0 {
-		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
+		c.Ui.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
 	return true
@@ -703,6 +712,8 @@ func (c *Command) Run(args []string) int {
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
 		c.Ui = &logging.HcLogUI{Log: logger}
+		// Don't buffer json logs because they aren't reordered anyway.
+		logGate.Flush()
 	}
 
 	// Log config files
@@ -997,7 +1008,7 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	if s := c.agent.Client(); s != nil {
+	if client := c.agent.Client(); client != nil {
 		c.agent.logger.Debug("starting reload of client config")
 		clientConfig, err := convertClientConfig(newConf)
 		if err != nil {
@@ -1011,7 +1022,7 @@ func (c *Command) handleReload() {
 			return
 		}
 
-		if err := c.agent.Client().Reload(clientConfig); err != nil {
+		if err := client.Reload(clientConfig); err != nil {
 			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
 		}

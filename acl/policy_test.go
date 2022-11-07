@@ -55,6 +55,19 @@ func TestParse(t *testing.T) {
 			namespace "secret" {
 				capabilities = ["deny", "read-logs"]
 			}
+			namespace "apps" {
+				variables {
+					path "jobs/write-does-not-imply-read-or-delete" {
+						capabilities = ["write"]
+					}
+					path "project/read-implies-list" {
+						capabilities = ["read"]
+					}
+					path "project/explicit" {
+						capabilities = ["read", "list", "destroy"]
+					}
+				}
+			}
 			namespace "autoscaler" {
 				policy = "scale"
 			}
@@ -123,6 +136,32 @@ func TestParse(t *testing.T) {
 						},
 					},
 					{
+						Name: "apps",
+						Variables: &VariablesPolicy{
+							Paths: []*VariablesPathPolicy{
+								{
+									PathSpec:     "jobs/write-does-not-imply-read-or-delete",
+									Capabilities: []string{VariablesCapabilityWrite},
+								},
+								{
+									PathSpec: "project/read-implies-list",
+									Capabilities: []string{
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
+									},
+								},
+								{
+									PathSpec: "project/explicit",
+									Capabilities: []string{
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
+										VariablesCapabilityDestroy,
+									},
+								},
+							},
+						},
+					},
+					{
 						Name:   "autoscaler",
 						Policy: PolicyScale,
 						Capabilities: []string{
@@ -157,6 +196,17 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid namespace policy",
+			nil,
+		},
+		{
+			`
+			namespace "dev" {
+			  variables "*" {
+			      capabilities = ["read", "write"]
+			  }
+			}
+			`,
+			"Invalid variable policy: no variable paths in namespace dev",
 			nil,
 		},
 		{

@@ -7,7 +7,7 @@ description: |
 
 # Command: volume snapshot list
 
-The `volume snapshot list` command lists volume snapshots known to to a
+The `volume snapshot list` command lists volume snapshots known to a
 [Container Storage Interface (CSI)][csi] storage provider. Only CSI plugins
 that implement the [Controller][csi_plugins_internals] interface support this
 command.
@@ -64,4 +64,4 @@ snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /docs/job-specification/csi_plugin
 [registered]: /docs/commands/volume/register
-[csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
+[csi_plugins_internals]: /docs/concepts/plugins/csi#csi-plugins

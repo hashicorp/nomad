@@ -9,13 +9,14 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 func TestServiceSched_JobRegister(t *testing.T) {
@@ -64,10 +65,11 @@ func TestServiceSched_JobRegister(t *testing.T) {
 
 	// Ensure the eval has no spawned blocked eval
 	if len(h.CreateEvals) != 0 {
-		t.Fatalf("bad: %#v", h.CreateEvals)
+		t.Errorf("bad: %#v", h.CreateEvals)
 		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
+		t.FailNow()
 	}
 
 	// Ensure the plan allocated
@@ -1517,10 +1519,11 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 
 	// Ensure the eval has no spawned blocked eval
 	if len(h.Evals) != 1 {
-		t.Fatalf("bad: %#v", h.Evals)
+		t.Errorf("bad: %#v", h.Evals)
 		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
+		t.FailNow()
 	}
 
 	// Ensure the plan allocated
@@ -1593,6 +1596,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+		alloc.ClientStatus = structs.AllocClientStatusFailed // #10446
 		terminal = append(terminal, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))
@@ -1727,7 +1731,7 @@ func TestServiceSched_JobModify_Datacenters(t *testing.T) {
 	placed := map[string]*structs.Allocation{}
 	for node, placedAllocs := range plan.NodeAllocation {
 		require.True(
-			helper.SliceStringContains([]string{nodes[0].ID, nodes[1].ID}, node),
+			slices.Contains([]string{nodes[0].ID, nodes[1].ID}, node),
 			"allocation placed on ineligible node",
 		)
 		for _, alloc := range placedAllocs {
@@ -2336,7 +2340,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DeploymentID = d.ID
-		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
 		alloc.AllocatedResources.Shared = asr
 		allocs = append(allocs, alloc)
@@ -2983,7 +2987,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			alloc.ClientStatus = tc.client
 
 			// Mark for migration if necessary
-			alloc.DesiredTransition.Migrate = helper.BoolToPtr(tc.migrate)
+			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
 
 			allocs := []*structs.Allocation{alloc}
 			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -3276,7 +3280,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		alloc.DesiredTransition.Migrate = pointer.Of(true)
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -3363,7 +3367,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		newAlloc := allocs[i].Copy()
 		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
-		newAlloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		newAlloc.DesiredTransition.Migrate = pointer.Of(true)
 		stop = append(stop, newAlloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), stop))
@@ -3468,7 +3472,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		alloc.DesiredTransition.Migrate = pointer.Of(true)
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -3527,7 +3531,7 @@ func TestServiceSched_NodeDrain_TaskHandle(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		alloc.DesiredTransition.Migrate = pointer.Of(true)
 		alloc.TaskStates = map[string]*structs.TaskState{
 			"web": {
 				TaskHandle: &structs.TaskHandle{
@@ -4176,7 +4180,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 			allocs[1].TaskStates = map[string]*structs.TaskState{"web": {State: "start",
 				StartedAt:  time.Now().Add(-12 * time.Hour),
 				FinishedAt: time.Now().Add(-10 * time.Hour)}}
-			allocs[1].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+			allocs[1].DesiredTransition.Reschedule = pointer.Of(true)
 
 			require.Nil(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
@@ -5198,7 +5202,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
-	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = pointer.Of(true)
 	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), alloc.Job))
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
@@ -5834,7 +5838,7 @@ func TestServiceSched_Migrate_NonCanary(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = pointer.Of(true)
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation
@@ -6353,7 +6357,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	require.NotEqual("", h.Evals[1].BlockedEval,
 		"expected a blocked eval to be spawned")
 	require.Equal(2, h.Evals[1].QueuedAllocations["web"], "expected 2 queued allocs")
-	require.Equal(1, h.Evals[1].FailedTGAllocs["web"].
+	require.Equal(5, h.Evals[1].FailedTGAllocs["web"].
 		ConstraintFiltered["missing CSI Volume volume-unique[3]"])
 
 	// Upsert 2 more per-alloc volumes
@@ -6397,6 +6401,93 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 
 }
 
+func TestServiceSched_CSITopology(t *testing.T) {
+	ci.Parallel(t)
+	h := NewHarness(t)
+
+	zones := []string{"zone-0", "zone-1", "zone-2", "zone-3"}
+
+	// Create some nodes, each running a CSI plugin with topology for
+	// a different "zone"
+	for i := 0; i < 12; i++ {
+		node := mock.Node()
+		node.Datacenter = zones[i%4]
+		node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"test-plugin-" + zones[i%4]: {
+				PluginID: "test-plugin-" + zones[i%4],
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{
+					MaxVolumes: 3,
+					AccessibleTopology: &structs.CSITopology{
+						Segments: map[string]string{"zone": zones[i%4]}},
+				},
+			},
+		}
+		require.NoError(t, h.State.UpsertNode(
+			structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// create 2 per-alloc volumes for those zones
+	vol0 := structs.NewCSIVolume("myvolume[0]", 0)
+	vol0.PluginID = "test-plugin-zone-0"
+	vol0.Namespace = structs.DefaultNamespace
+	vol0.AccessMode = structs.CSIVolumeAccessModeSingleNodeWriter
+	vol0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	vol0.RequestedTopologies = &structs.CSITopologyRequest{
+		Required: []*structs.CSITopology{{
+			Segments: map[string]string{"zone": "zone-0"},
+		}},
+	}
+
+	vol1 := vol0.Copy()
+	vol1.ID = "myvolume[1]"
+	vol1.PluginID = "test-plugin-zone-1"
+	vol1.RequestedTopologies.Required[0].Segments["zone"] = "zone-1"
+
+	require.NoError(t, h.State.UpsertCSIVolume(
+		h.NextIndex(), []*structs.CSIVolume{vol0, vol1}))
+
+	// Create a job that uses those volumes
+	job := mock.Job()
+	job.Datacenters = zones
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"myvolume": {
+			Type:     "csi",
+			Name:     "unique",
+			Source:   "myvolume",
+			PerAlloc: true,
+		},
+	}
+
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and expect a single plan without annotations
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+	require.Len(t, h.Plans, 1, "expected one plan")
+	require.Nil(t, h.Plans[0].Annotations, "expected no annotations")
+
+	// Expect the eval has not spawned a blocked eval
+	require.Equal(t, len(h.CreateEvals), 0)
+	require.Equal(t, "", h.Evals[0].BlockedEval, "did not expect a blocked eval")
+	require.Equal(t, structs.EvalStatusComplete, h.Evals[0].Status)
+
+}
+
 // TestPropagateTaskState asserts that propagateTaskState only copies state
 // when the previous allocation is lost or draining.
 func TestPropagateTaskState(t *testing.T) {
@@ -6433,7 +6524,7 @@ func TestPropagateTaskState(t *testing.T) {
 			prevAlloc: &structs.Allocation{
 				ClientStatus: structs.AllocClientStatusRunning,
 				DesiredTransition: structs.DesiredTransition{
-					Migrate: helper.BoolToPtr(true),
+					Migrate: pointer.Of(true),
 				},
 				TaskStates: map[string]*structs.TaskState{
 					taskName: {
@@ -6461,7 +6552,7 @@ func TestPropagateTaskState(t *testing.T) {
 			prevAlloc: &structs.Allocation{
 				ClientStatus: structs.AllocClientStatusRunning,
 				DesiredTransition: structs.DesiredTransition{
-					Migrate: helper.BoolToPtr(true),
+					Migrate: pointer.Of(true),
 				},
 				TaskStates: map[string]*structs.TaskState{
 					taskName: {},

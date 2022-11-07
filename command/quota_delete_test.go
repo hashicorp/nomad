@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
@@ -99,7 +99,7 @@ func testQuotaSpec() *api.QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &api.Resources{
-					CPU: helper.IntToPtr(100),
+					CPU: pointer.Of(100),
 				},
 			},
 		},

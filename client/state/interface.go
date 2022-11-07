@@ -5,6 +5,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,14 +29,16 @@ type StateDB interface {
 	// not be stored.
 	PutAllocation(*structs.Allocation, ...WriteOption) error
 
-	// Get/Put DeploymentStatus get and put the allocation's deployment
-	// status. It may be nil.
+	// GetDeploymentStatus gets the allocation's deployment status. It may be nil.
 	GetDeploymentStatus(allocID string) (*structs.AllocDeploymentStatus, error)
+
+	// PutDeploymentStatus sets the allocation's deployment status. It may be nil.
 	PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error
 
-	// Get/Put NetworkStatus get and put the allocation's network
-	// status. It may be nil.
+	// GetNetworkStatus gets the allocation's network status. It may be nil.
 	GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error)
+
+	// PutNetworkStatus puts the allocation's network status. It may be nil.
 	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
@@ -43,7 +46,7 @@ type StateDB interface {
 	// error is encountered only the error will be non-nil.
 	GetTaskRunnerState(allocID, taskName string) (*state.LocalState, *structs.TaskState, error)
 
-	// PutTaskRunnerLocalTask stores the LocalState for a TaskRunner or
+	// PutTaskRunnerLocalState stores the LocalState for a TaskRunner or
 	// returns an error.
 	PutTaskRunnerLocalState(allocID, taskName string, val *state.LocalState) error
 
@@ -80,6 +83,18 @@ type StateDB interface {
 
 	// PutDynamicPluginRegistryState is used to store the dynamic plugin manager's state.
 	PutDynamicPluginRegistryState(state *dynamicplugins.RegistryState) error
+
+	// PutCheckResult sets the query result for the check implied in qr.
+	PutCheckResult(allocID string, qr *structs.CheckQueryResult) error
+
+	// DeleteCheckResults removes the given set of check results.
+	DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error
+
+	// PurgeCheckResults removes all check results of the given allocation.
+	PurgeCheckResults(allocID string) error
+
+	// GetCheckResults is used to restore the set of check results on this Client.
+	GetCheckResults() (checks.ClientResults, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

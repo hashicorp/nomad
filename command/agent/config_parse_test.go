@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
@@ -82,7 +82,7 @@ var basicConfig = &Config{
 		GCDiskUsageThreshold:  82,
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
-		NoHostUUID:            helper.BoolToPtr(false),
+		NoHostUUID:            pointer.Of(false),
 		DisableRemoteExec:     true,
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
@@ -97,8 +97,8 @@ var basicConfig = &Config{
 		BootstrapExpect:           5,
 		DataDir:                   "/tmp/data",
 		RaftProtocol:              3,
-		RaftMultiplier:            helper.IntToPtr(4),
-		NumSchedulers:             helper.IntToPtr(2),
+		RaftMultiplier:            pointer.Of(4),
+		NumSchedulers:             pointer.Of(2),
 		EnabledSchedulers:         []string{"test"},
 		NodeGCThreshold:           "12h",
 		EvalGCThreshold:           "12h",
@@ -107,6 +107,7 @@ var basicConfig = &Config{
 		DeploymentGCThreshold:     "12h",
 		CSIVolumeClaimGCThreshold: "12h",
 		CSIPluginGCThreshold:      "12h",
+		ACLTokenGCThreshold:       "12h",
 		HeartbeatGrace:            30 * time.Second,
 		HeartbeatGraceHCL:         "30s",
 		MinHeartbeatTTL:           33 * time.Second,
@@ -124,8 +125,14 @@ var basicConfig = &Config{
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
-		EnableEventBroker:         helper.BoolToPtr(false),
-		EventBufferSize:           helper.IntToPtr(200),
+		EnableEventBroker:         pointer.Of(false),
+		EventBufferSize:           pointer.Of(200),
+		PlanRejectionTracker: &PlanRejectionTracker{
+			Enabled:       pointer.Of(true),
+			NodeThreshold: 100,
+			NodeWindow:    41 * time.Minute,
+			NodeWindowHCL: "41m",
+		},
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
@@ -143,15 +150,21 @@ var basicConfig = &Config{
 		LicensePath: "/tmp/nomad.hclic",
 	},
 	ACL: &ACLConfig{
-		Enabled:          true,
-		TokenTTL:         60 * time.Second,
-		TokenTTLHCL:      "60s",
-		PolicyTTL:        60 * time.Second,
-		PolicyTTLHCL:     "60s",
-		ReplicationToken: "foobar",
+		Enabled:                  true,
+		TokenTTL:                 60 * time.Second,
+		TokenTTLHCL:              "60s",
+		PolicyTTL:                60 * time.Second,
+		PolicyTTLHCL:             "60s",
+		RoleTTLHCL:               "60s",
+		RoleTTL:                  60 * time.Second,
+		TokenMinExpirationTTLHCL: "1h",
+		TokenMinExpirationTTL:    1 * time.Hour,
+		TokenMaxExpirationTTLHCL: "100h",
+		TokenMaxExpirationTTL:    100 * time.Hour,
+		ReplicationToken:         "foobar",
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -190,7 +203,7 @@ var basicConfig = &Config{
 	LeaveOnTerm:               true,
 	EnableSyslog:              true,
 	SyslogFacility:            "LOCAL1",
-	DisableUpdateCheck:        helper.BoolToPtr(true),
+	DisableUpdateCheck:        pointer.Of(true),
 	DisableAnonymousSignature: true,
 	Consul: &config.ConsulConfig{
 		ServerServiceName:    "nomad",
@@ -213,6 +226,7 @@ var basicConfig = &Config{
 		AutoAdvertise:        &trueValue,
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
+		TimeoutHCL:           "5s",
 	},
 	Vault: &config.VaultConfig{
 		Addr:                 "127.0.0.1:9500",
@@ -420,7 +434,10 @@ func TestConfig_ParseMerge(t *testing.T) {
 	actual, err := ParseConfigFile(path)
 	require.NoError(t, err)
 
-	require.Equal(t, basicConfig.Client, actual.Client)
+	// The Vault connection retry interval is an internal only configuration
+	// option, and therefore needs to be added here to ensure the test passes.
+	actual.Vault.ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	require.Equal(t, basicConfig, actual)
 
 	oldDefault := &Config{
 		Consul:    config.DefaultConsulConfig(),
@@ -431,8 +448,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 		Audit:     &config.AuditConfig{},
 	}
 	merged := oldDefault.Merge(actual)
-	require.Equal(t, basicConfig.Client, merged.Client)
-
+	require.Equal(t, basicConfig, merged)
 }
 
 func TestConfig_Parse(t *testing.T) {
@@ -540,6 +556,9 @@ func (c *Config) addDefaults() {
 	if c.Server.ServerJoin == nil {
 		c.Server.ServerJoin = &ServerJoin{}
 	}
+	if c.Server.PlanRejectionTracker == nil {
+		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
+	}
 }
 
 // Tests for a panic parsing json with an object of exactly
@@ -617,12 +636,17 @@ var sample0 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -660,11 +684,11 @@ var sample0 = &Config{
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: helper.BoolToPtr(false),
-		ClientAutoJoin: helper.BoolToPtr(false),
+		ServerAutoJoin: pointer.Of(false),
+		ClientAutoJoin: pointer.Of(false),
 	},
 	Vault: &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
@@ -677,7 +701,7 @@ var sample0 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: helper.BoolToPtr(true),
+		CleanupDeadServers: pointer.Of(true),
 	},
 }
 
@@ -707,12 +731,17 @@ var sample1 = &Config{
 		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
 		ServerJoin:      &ServerJoin{},
+		PlanRejectionTracker: &PlanRejectionTracker{
+			NodeThreshold: 100,
+			NodeWindow:    31 * time.Minute,
+			NodeWindowHCL: "31m",
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
 	},
 	Audit: &config.AuditConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
 			{
 				Name:              "file",
@@ -749,13 +778,13 @@ var sample1 = &Config{
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
-		EnableSSL:      helper.BoolToPtr(true),
+		EnableSSL:      pointer.Of(true),
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: helper.BoolToPtr(false),
-		ClientAutoJoin: helper.BoolToPtr(false),
+		ServerAutoJoin: pointer.Of(false),
+		ClientAutoJoin: pointer.Of(false),
 	},
 	Vault: &config.VaultConfig{
-		Enabled: helper.BoolToPtr(true),
+		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
@@ -768,7 +797,7 @@ var sample1 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: helper.BoolToPtr(true),
+		CleanupDeadServers: pointer.Of(true),
 	},
 }
 

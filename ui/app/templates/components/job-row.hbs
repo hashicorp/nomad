@@ -1,10 +1,23 @@
-<td data-test-job-name>
+<td data-test-job-name
+  {{keyboard-shortcut 
+    enumerated=true
+    action=(action "gotoJob" @job)
+  }}
+>
   <LinkTo
     @route="jobs.job.index"
     @model={{this.job.idWithNamespace}}
     class="is-primary"
   >
     {{this.job.name}}
+
+    {{#if this.job.meta.structured.pack}}
+      <span data-test-pack-tag class="tag is-pack">
+        {{x-icon "box" class= "test"}}
+        <span>Pack</span>
+      </span>
+    {{/if}}
+
   </LinkTo>
 </td>
 {{#if this.system.shouldShowNamespaces}}

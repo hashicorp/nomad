@@ -64,7 +64,7 @@ job "expose-check-example" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -122,7 +122,7 @@ job "expose-example" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
 
       # e.g. reference ${NOMAD_PORT_api_expose_healthcheck} for other uses
@@ -229,7 +229,7 @@ check {
 ```
 
 [network-to]: /docs/job-specification/network#to
-[consul-expose-path-config]: https://www.consul.io/docs/connect/registration/service-registration#expose-paths-configuration-reference
+[consul-expose-path-config]: https://developer.hashicorp.com/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference
 [expose-path]: /docs/job-specification/expose#path-1
 [expose]: /docs/job-specification/service#expose
 [path]: /docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'

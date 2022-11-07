@@ -8,9 +8,10 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
+	"golang.org/x/exp/slices"
 )
 
-// jobVaultHook is an job registration admission controllver for Vault blocks.
+// jobVaultHook is an job registration admission controller for Vault blocks.
 type jobVaultHook struct {
 	srv *Server
 }
@@ -62,7 +63,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 }
 
 // validatePolicies returns an error if the job contains Vault blocks that
-// require policies that the requirest token is not allowed to access.
+// require policies that the request token is not allowed to access.
 func (jobVaultHook) validatePolicies(
 	blocks map[string]map[string]*structs.Vault,
 	token *vapi.Secret,
@@ -79,11 +80,11 @@ func (jobVaultHook) validatePolicies(
 	}
 
 	// If we are given a root token it can access all policies
-	if helper.SliceStringContains(allowedPolicies, "root") {
+	if slices.Contains(allowedPolicies, "root") {
 		return nil
 	}
 
-	subset, offending := helper.SliceStringIsSubset(allowedPolicies, jobPolicies)
+	subset, offending := helper.IsSubset(allowedPolicies, jobPolicies)
 	if !subset {
 		return fmt.Errorf("Vault token doesn't allow access to the following policies: %s",
 			strings.Join(offending, ", "))

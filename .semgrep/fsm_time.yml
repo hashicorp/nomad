@@ -1,0 +1,30 @@
+rules:
+  - id: "no-time-in-fsm"
+    patterns:
+      - pattern: time.Now()
+
+      # Metric state is local to the server and therefore must use time.
+      - pattern-not-inside: |
+          defer metrics.MeasureSince(...)
+
+      # Metric state is local to the server and therefore must use time.
+      - pattern-not-inside: |
+          defer metrics.MeasureSinceWithLabels(...)
+
+      # The timetable's whole point is to roughly track timestamps for Raft log
+      # indexes, so it must use time.
+      - pattern-not-inside: |
+          $N.timetable.Witness(...)
+    message: |
+      time.Now() should not be called from within the Server's FSM. Apply Raft
+      log messages to the State Store must be deterministic so that each server
+      contains exactly the same state. Since time drifts between nodes, it must
+      be set before the Raft log message is applied so that all Raft members
+      see the same timestamp.
+    languages:
+      - "go"
+    severity: "WARNING"
+    paths:
+      include:
+        - "nomad/fsm.*"
+        - "nomad/state/state_store.*"

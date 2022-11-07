@@ -14,8 +14,8 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flatmap"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
@@ -229,18 +229,18 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          helper.StringToPtr("job1"),
-		Name:        helper.StringToPtr("job1"),
-		Type:        helper.StringToPtr("service"),
+		ID:          pointer.Of("job1"),
+		Name:        pointer.Of("job1"),
+		Type:        pointer.Of("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  helper.StringToPtr("group1"),
-				Count: helper.IntToPtr(1),
+				Name:  pointer.Of("group1"),
+				Count: pointer.Of(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts: helper.IntToPtr(10),
-					Interval: helper.TimeToPtr(15 * time.Second),
-					Mode:     helper.StringToPtr("delay"),
+					Attempts: pointer.Of(10),
+					Interval: pointer.Of(15 * time.Second),
+					Mode:     pointer.Of("delay"),
 				},
 
 				Tasks: []*api.Task{
@@ -332,7 +332,6 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 // TestJobGetter_HCL2_Variables asserts variable arguments from CLI
 // and varfiles are both honored
 func TestJobGetter_HCL2_Variables(t *testing.T) {
-	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -346,8 +345,7 @@ job "example" {
   datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
 }
 `
-
-	setEnv(t, "NOMAD_VAR_var4", "from-envvar")
+	t.Setenv("NOMAD_VAR_var4", "from-envvar")
 
 	cliArgs := []string{`var2=from-cli`}
 	fileVars := `var3 = "from-varfile"`
@@ -377,7 +375,6 @@ job "example" {
 }
 
 func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
-	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -392,8 +389,7 @@ job "example" {
 }
 `
 
-	os.Setenv("NOMAD_VAR_var4", "from-envvar")
-	defer os.Unsetenv("NOMAD_VAR_var4")
+	t.Setenv("NOMAD_VAR_var4", "from-envvar")
 
 	// Both the CLI and var file contain variables that are not used with the
 	// template and therefore would error, if hcl2-strict was true.

@@ -8,7 +8,6 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,18 +22,21 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
@@ -44,6 +46,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -55,6 +58,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -133,7 +137,7 @@ type ClientStatsReporter interface {
 }
 
 // AllocRunner is the interface implemented by the core alloc runner.
-//TODO Create via factory to allow testing Client with mock AllocRunners.
+// TODO Create via factory to allow testing Client with mock AllocRunners.
 type AllocRunner interface {
 	Alloc() *structs.Allocation
 	AllocState() *arstate.State
@@ -156,6 +160,7 @@ type AllocRunner interface {
 	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
+	RestartRunning(taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
 	Reconnect(update *structs.Allocation) error
 
@@ -164,18 +169,25 @@ type AllocRunner interface {
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
-// are expected to register as a schedulable node to the servers, and to
+// are expected to register as a schedule-able node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
-	config *config.Config
-	start  time.Time
+	start time.Time
 
 	// stateDB is used to efficiently store client state.
 	stateDB state.StateDB
 
-	// configCopy is a copy that should be passed to alloc-runners.
-	configCopy *config.Config
-	configLock sync.RWMutex
+	// config must only be accessed with lock held. To update the config, use the
+	// Client.UpdateConfig() helper. If you need more fine grained control use
+	// the following pattern:
+	//
+	// 	c.configLock.Lock()
+	// 	newConfig := c.config.Copy()
+	// 	// <mutate newConfig>
+	// 	c.config = newConfig
+	// 	c.configLock.Unlock()
+	config     *config.Config
+	configLock sync.Mutex
 
 	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
@@ -235,6 +247,10 @@ type Client struct {
 	// registrations.
 	nomadService serviceregistration.Handler
 
+	// checkStore is used to store group and task checks and their current pass/fail
+	// status.
+	checkStore checkstore.Shim
+
 	// serviceRegWrapper wraps the consulService and nomadService
 	// implementations so that the alloc and task runner service hooks can call
 	// this without needing to identify which backend provider should be used.
@@ -282,6 +298,9 @@ type Client struct {
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
 
+	// fingerprintManager is the FingerprintManager registered by the client
+	fingerprintManager *FingerprintManager
+
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
@@ -319,6 +338,9 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 var (
@@ -376,7 +398,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
+		getter:               getter.NewGetter(logger.Named("artifact_getter"), cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -421,20 +444,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Store the config copy before restoring state but after it has been
-	// initialized.
-	c.configLock.Lock()
-	c.configCopy = c.config.Copy()
-	c.configLock.Unlock()
-
-	fingerprintManager := NewFingerprintManager(
-		c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
+	c.fingerprintManager = NewFingerprintManager(
+		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
 
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if err := fingerprintManager.Run(); err != nil {
+	if err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
@@ -457,8 +474,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
 		Logger:              c.logger,
-		Loader:              c.configCopy.PluginSingletonLoader,
-		PluginConfig:        c.configCopy.NomadPluginConfig(),
+		Loader:              cfg.PluginSingletonLoader,
+		PluginConfig:        cfg.NomadPluginConfig(),
 		Updater:             c.batchNodeUpdates.updateNodeFromDriver,
 		EventHandlerFactory: c.GetTaskEventHandler,
 		State:               c.stateDB,
@@ -472,10 +489,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Setup the device manager
 	devConfig := &devicemanager.Config{
 		Logger:        c.logger,
-		Loader:        c.configCopy.PluginSingletonLoader,
-		PluginConfig:  c.configCopy.NomadPluginConfig(),
+		Loader:        cfg.PluginSingletonLoader,
+		PluginConfig:  cfg.NomadPluginConfig(),
 		Updater:       c.batchNodeUpdates.updateNodeFromDevices,
-		StatsInterval: c.configCopy.StatsCollectionInterval,
+		StatsInterval: cfg.StatsCollectionInterval,
 		State:         c.stateDB,
 	}
 	devManager := devicemanager.New(devConfig)
@@ -501,7 +518,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.heartbeatStop.watch()
 
 	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.GetConfig().AllocDir, c.devicemanager.AllStats)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
@@ -517,16 +534,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.garbageCollector.Run()
 
 	// Set the preconfigured list of static servers
-	c.configLock.RLock()
-	if len(c.configCopy.Servers) > 0 {
-		if _, err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
+	if len(cfg.Servers) > 0 {
+		if _, err := c.setServersImpl(cfg.Servers, true); err != nil {
 			logger.Warn("none of the configured servers are valid", "error", err)
 		}
 	}
-	c.configLock.RUnlock()
 
 	// Setup Consul discovery if enabled
-	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
+	if cfg.ConsulConfig.ClientAutoJoin != nil && *cfg.ConsulConfig.ClientAutoJoin {
 		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
@@ -560,7 +575,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 			"The safest way to proceed is to manually stop running task processes "+
 			"and remove Nomad's state and alloc directories before "+
 			"restarting. Lost allocations will be rescheduled.",
-			"state_dir", c.config.StateDir, "alloc_dir", c.config.AllocDir)
+			"state_dir", cfg.StateDir, "alloc_dir", cfg.AllocDir)
 		logger.Error("Corrupt state is often caused by a bug. Please " +
 			"report as much information as possible to " +
 			"https://github.com/hashicorp/nomad/issues")
@@ -594,8 +609,9 @@ func (c *Client) Ready() <-chan struct{} {
 // needed before we begin starting its various components.
 func (c *Client) init() error {
 	// Ensure the state dir exists if we have one
-	if c.config.StateDir != "" {
-		if err := os.MkdirAll(c.config.StateDir, 0700); err != nil {
+	conf := c.GetConfig()
+	if conf.StateDir != "" {
+		if err := os.MkdirAll(conf.StateDir, 0700); err != nil {
 			return fmt.Errorf("failed creating state dir: %s", err)
 		}
 
@@ -611,12 +627,14 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed to find temporary directory for the StateDir: %v", err)
 		}
 
-		c.config.StateDir = p
+		conf = c.UpdateConfig(func(c *config.Config) {
+			c.StateDir = p
+		})
 	}
-	c.logger.Info("using state directory", "state_dir", c.config.StateDir)
+	c.logger.Info("using state directory", "state_dir", conf.StateDir)
 
 	// Open the state database
-	db, err := c.config.StateDBFactory(c.logger, c.config.StateDir)
+	db, err := conf.StateDBFactory(c.logger, conf.StateDir)
 	if err != nil {
 		return fmt.Errorf("failed to open state database: %v", err)
 	}
@@ -634,8 +652,8 @@ func (c *Client) init() error {
 	c.stateDB = db
 
 	// Ensure the alloc dir exists if we have one
-	if c.config.AllocDir != "" {
-		if err := os.MkdirAll(c.config.AllocDir, 0711); err != nil {
+	if conf.AllocDir != "" {
+		if err := os.MkdirAll(conf.AllocDir, 0711); err != nil {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
@@ -655,38 +673,31 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
-		c.config.AllocDir = p
+		conf = c.UpdateConfig(func(c *config.Config) {
+			c.AllocDir = p
+		})
 	}
 
-	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+	c.logger.Info("using alloc directory", "alloc_dir", conf.AllocDir)
 
 	reserved := "<none>"
-	if c.config.Node != nil && c.config.Node.ReservedResources != nil {
+	if conf.Node != nil && conf.Node.ReservedResources != nil {
 		// Node should always be non-nil due to initialization in the
 		// agent package, but don't risk a panic just for a long line.
-		reserved = c.config.Node.ReservedResources.Networks.ReservedHostPorts
+		reserved = conf.Node.ReservedResources.Networks.ReservedHostPorts
 	}
 	c.logger.Info("using dynamic ports",
-		"min", c.config.MinDynamicPort,
-		"max", c.config.MaxDynamicPort,
+		"min", conf.MinDynamicPort,
+		"max", conf.MaxDynamicPort,
 		"reserved", reserved,
 	)
 
-	// Ensure cgroups are created on linux platform
-	if runtime.GOOS == "linux" && c.cpusetManager != nil {
-		// use the client configuration for reservable_cores if set
-		cores := c.config.ReservableCores
-		if len(cores) == 0 {
-			// otherwise lookup the effective cores from the parent cgroup
-			cores, _ = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
-		}
-		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
-			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
-			// will be disabled. this is common when running in dev mode under a non-root user for example.
-			c.logger.Warn("failed to initialize cpuset cgroup subsystem, cpuset management disabled", "error", cpuErr)
-			c.cpusetManager = new(cgutil.NoopCpusetManager)
-		}
-	}
+	// startup the CPUSet manager
+	c.cpusetManager.Init()
+
+	// setup the nsd check store
+	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
+
 	return nil
 }
 
@@ -713,9 +724,9 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
-	c.configLock.Lock()
-	c.config.TLSConfig = newConfig
-	c.configLock.Unlock()
+	c.UpdateConfig(func(c *config.Config) {
+		c.TLSConfig = newConfig
+	})
 
 	c.connPool.ReloadTLS(tlsWrap)
 
@@ -724,7 +735,8 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 
 // Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
-	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(c.config.TLSConfig, newConfig.TLSConfig)
+	existing := c.GetConfig()
+	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(existing.TLSConfig, newConfig.TLSConfig)
 	if err != nil {
 		c.logger.Error("error parsing TLS configuration", "error", err)
 		return err
@@ -733,6 +745,8 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	if shouldReloadTLS {
 		return c.reloadTLSConnections(newConfig.TLSConfig)
 	}
+
+	c.fingerprintManager.Reload()
 
 	return nil
 }
@@ -743,31 +757,50 @@ func (c *Client) Leave() error {
 	return nil
 }
 
-// GetConfig returns the config of the client
+// GetConfig returns the config of the client. Do *not* mutate without first
+// calling Copy().
 func (c *Client) GetConfig() *config.Config {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
-	return c.configCopy
+	return c.config
+}
+
+// UpdateConfig allows mutating the configuration. The updated configuration is
+// returned.
+func (c *Client) UpdateConfig(cb func(*config.Config)) *config.Config {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	// Create a copy of the active config
+	newConfig := c.config.Copy()
+
+	// Pass the copy to the supplied callback for mutation
+	cb(newConfig)
+
+	// Set new config struct
+	c.config = newConfig
+
+	return newConfig
 }
 
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
-	return c.config.Node.Datacenter
+	return c.GetConfig().Node.Datacenter
 }
 
 // Region returns the region for the given client
 func (c *Client) Region() string {
-	return c.config.Region
+	return c.GetConfig().Region
 }
 
 // NodeID returns the node ID for the given client
 func (c *Client) NodeID() string {
-	return c.config.Node.ID
+	return c.GetConfig().Node.ID
 }
 
 // secretNodeID returns the secret node ID for the given client
 func (c *Client) secretNodeID() string {
-	return c.config.Node.SecretID
+	return c.GetConfig().Node.SecretID
 }
 
 // Shutdown is used to tear down the client
@@ -790,7 +823,7 @@ func (c *Client) Shutdown() error {
 	c.garbageCollector.Stop()
 
 	arGroup := group{}
-	if c.config.DevMode {
+	if c.GetConfig().DevMode {
 		// In DevMode destroy all the running allocations.
 		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
@@ -881,27 +914,36 @@ func (c *Client) CollectAllAllocs() {
 	c.garbageCollector.CollectAll()
 }
 
-func (c *Client) RestartAllocation(allocID, taskName string) error {
+func (c *Client) RestartAllocation(allocID, taskName string, allTasks bool) error {
+	if allTasks && taskName != "" {
+		return fmt.Errorf("task name cannot be set when restarting all tasks")
+	}
+
 	ar, err := c.getAllocRunner(allocID)
 	if err != nil {
 		return err
 	}
 
-	event := structs.NewTaskEvent(structs.TaskRestartSignal).
-		SetRestartReason("User requested restart")
-
 	if taskName != "" {
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).
+			SetRestartReason("User requested task to restart")
 		return ar.RestartTask(taskName, event)
 	}
 
-	return ar.RestartAll(event)
+	if allTasks {
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).
+			SetRestartReason("User requested all tasks to restart")
+		return ar.RestartAll(event)
+	}
+
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).
+		SetRestartReason("User requested running tasks to restart")
+	return ar.RestartRunning(event)
 }
 
 // Node returns the locally registered node
 func (c *Client) Node() *structs.Node {
-	c.configLock.RLock()
-	defer c.configLock.RUnlock()
-	return c.configCopy.Node
+	return c.GetConfig().Node
 }
 
 // getAllocRunner returns an AllocRunner or an UnknownAllocation error if the
@@ -997,11 +1039,12 @@ func (c *Client) computeAllocatedDeviceGroupStats(devices []*structs.AllocatedDe
 // allocation, and has been created by a trusted party that has privileged
 // knowledge of the client's secret identifier
 func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
-	if !c.config.ACLEnabled {
+	conf := c.GetConfig()
+	if !conf.ACLEnabled {
 		return true
 	}
 
-	return structs.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
+	return structs.CompareMigrateToken(allocID, conf.Node.SecretID, migrateToken)
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1104,7 +1147,8 @@ func (c *Client) setServersImpl(in []string, force bool) (int, error) {
 // If there are errors restoring a specific allocation it is marked
 // as failed whenever possible.
 func (c *Client) restoreState() error {
-	if c.config.DevMode {
+	conf := c.GetConfig()
+	if conf.DevMode {
 		return nil
 	}
 
@@ -1148,11 +1192,10 @@ func (c *Client) restoreState() error {
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
 		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
-		c.configLock.RLock()
 		arConf := &allocrunner.Config{
 			Alloc:               alloc,
 			Logger:              c.logger,
-			ClientConfig:        c.configCopy,
+			ClientConfig:        conf,
 			StateDB:             c.stateDB,
 			StateUpdater:        c,
 			DeviceStatsReporter: c,
@@ -1169,9 +1212,10 @@ func (c *Client) restoreState() error {
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
 			ServiceRegWrapper:   c.serviceRegWrapper,
+			CheckStore:          c.checkStore,
 			RPCClient:           c,
+			Getter:              c.getter,
 		}
-		c.configLock.RUnlock()
 
 		ar, err := allocrunner.NewAllocRunner(arConf)
 		if err != nil {
@@ -1231,8 +1275,8 @@ func (c *Client) restoreState() error {
 // wait until it gets allocs from server to launch them.
 //
 // See:
-//  * https://github.com/hashicorp/nomad/pull/6207
-//  * https://github.com/hashicorp/nomad/issues/5984
+//   - https://github.com/hashicorp/nomad/pull/6207
+//   - https://github.com/hashicorp/nomad/issues/5984
 //
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
 func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
@@ -1315,13 +1359,13 @@ func (c *Client) NumAllocs() int {
 	return n
 }
 
-// nodeID restores, or generates if necessary, a unique node ID and SecretID.
-// The node ID is, if available, a persistent unique ID.  The secret ID is a
-// high-entropy random UUID.
-func (c *Client) nodeID() (id, secret string, err error) {
+// ensureNodeID restores, or generates if necessary, a unique node ID and
+// SecretID.  The node ID is, if available, a persistent unique ID.  The secret
+// ID is a high-entropy random UUID.
+func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 	var hostID string
 	hostInfo, err := host.Info()
-	if !c.config.NoHostUUID && err == nil {
+	if !conf.NoHostUUID && err == nil {
 		if hashed, ok := helper.HashUUID(hostInfo.HostID); ok {
 			hostID = hashed
 		}
@@ -1334,19 +1378,19 @@ func (c *Client) nodeID() (id, secret string, err error) {
 	}
 
 	// Do not persist in dev mode
-	if c.config.DevMode {
+	if conf.DevMode {
 		return hostID, uuid.Generate(), nil
 	}
 
 	// Attempt to read existing ID
-	idPath := filepath.Join(c.config.StateDir, "client-id")
+	idPath := filepath.Join(conf.StateDir, "client-id")
 	idBuf, err := ioutil.ReadFile(idPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", "", err
 	}
 
 	// Attempt to read existing secret ID
-	secretPath := filepath.Join(c.config.StateDir, "secret-id")
+	secretPath := filepath.Join(conf.StateDir, "secret-id")
 	secretBuf, err := ioutil.ReadFile(secretPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", "", err
@@ -1381,13 +1425,18 @@ func (c *Client) nodeID() (id, secret string, err error) {
 
 // setupNode is used to setup the initial node
 func (c *Client) setupNode() error {
-	node := c.config.Node
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	newConfig := c.config.Copy()
+	node := newConfig.Node
 	if node == nil {
 		node = &structs.Node{}
-		c.config.Node = node
+		newConfig.Node = node
 	}
+
 	// Generate an ID and secret for the node
-	id, secretID, err := c.nodeID()
+	id, secretID, err := ensureNodeID(newConfig)
 	if err != nil {
 		return fmt.Errorf("node ID setup failed: %v", err)
 	}
@@ -1414,8 +1463,8 @@ func (c *Client) setupNode() error {
 	}
 	if node.NodeResources == nil {
 		node.NodeResources = &structs.NodeResources{}
-		node.NodeResources.MinDynamicPort = c.config.MinDynamicPort
-		node.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
+		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
+		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1432,11 +1481,11 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
-	node.CgroupParent = c.config.CgroupParent
+	node.CgroupParent = newConfig.CgroupParent
 	if node.HostVolumes == nil {
-		if l := len(c.config.HostVolumes); l != 0 {
+		if l := len(newConfig.HostVolumes); l != 0 {
 			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
-			for k, v := range c.config.HostVolumes {
+			for k, v := range newConfig.HostVolumes {
 				if _, err := os.Stat(v.Path); err != nil {
 					return fmt.Errorf("failed to validate volume %s, err: %v", v.Name, err)
 				}
@@ -1445,9 +1494,9 @@ func (c *Client) setupNode() error {
 		}
 	}
 	if node.HostNetworks == nil {
-		if l := len(c.config.HostNetworks); l != 0 {
+		if l := len(newConfig.HostNetworks); l != 0 {
 			node.HostNetworks = make(map[string]*structs.ClientHostNetworkConfig, l)
-			for k, v := range c.config.HostNetworks {
+			for k, v := range newConfig.HostNetworks {
 				node.HostNetworks[k] = v.Copy()
 			}
 		}
@@ -1472,6 +1521,7 @@ func (c *Client) setupNode() error {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
 	}
 
+	c.config = newConfig
 	return nil
 }
 
@@ -1482,34 +1532,35 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	defer c.configLock.Unlock()
 
 	nodeHasChanged := false
+	newConfig := c.config.Copy()
 
 	for name, newVal := range response.Attributes {
-		oldVal := c.config.Node.Attributes[name]
+		oldVal := newConfig.Node.Attributes[name]
 		if oldVal == newVal {
 			continue
 		}
 
 		nodeHasChanged = true
 		if newVal == "" {
-			delete(c.config.Node.Attributes, name)
+			delete(newConfig.Node.Attributes, name)
 		} else {
-			c.config.Node.Attributes[name] = newVal
+			newConfig.Node.Attributes[name] = newVal
 		}
 	}
 
 	// update node links and resources from the diff created from
 	// fingerprinting
 	for name, newVal := range response.Links {
-		oldVal := c.config.Node.Links[name]
+		oldVal := newConfig.Node.Links[name]
 		if oldVal == newVal {
 			continue
 		}
 
 		nodeHasChanged = true
 		if newVal == "" {
-			delete(c.config.Node.Links, name)
+			delete(newConfig.Node.Links, name)
 		} else {
-			c.config.Node.Links[name] = newVal
+			newConfig.Node.Links[name] = newVal
 		}
 	}
 
@@ -1519,9 +1570,9 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	if response.Resources != nil {
 		response.Resources.Networks = updateNetworks(
 			response.Resources.Networks,
-			c.config)
-		if !c.config.Node.Resources.Equals(response.Resources) {
-			c.config.Node.Resources.Merge(response.Resources)
+			newConfig)
+		if !newConfig.Node.Resources.Equal(response.Resources) {
+			newConfig.Node.Resources.Merge(response.Resources)
 			nodeHasChanged = true
 		}
 	}
@@ -1531,26 +1582,27 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	if response.NodeResources != nil {
 		response.NodeResources.Networks = updateNetworks(
 			response.NodeResources.Networks,
-			c.config)
-		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
-			c.config.Node.NodeResources.Merge(response.NodeResources)
+			newConfig)
+		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
+			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
 
-		response.NodeResources.MinDynamicPort = c.config.MinDynamicPort
-		response.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
-		if c.config.Node.NodeResources.MinDynamicPort != response.NodeResources.MinDynamicPort ||
-			c.config.Node.NodeResources.MaxDynamicPort != response.NodeResources.MaxDynamicPort {
+		response.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
+		response.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
+		if newConfig.Node.NodeResources.MinDynamicPort != response.NodeResources.MinDynamicPort ||
+			newConfig.Node.NodeResources.MaxDynamicPort != response.NodeResources.MaxDynamicPort {
 			nodeHasChanged = true
 		}
 
 	}
 
 	if nodeHasChanged {
-		c.updateNodeLocked()
+		c.config = newConfig
+		c.updateNode()
 	}
 
-	return c.configCopy.Node
+	return newConfig.Node
 }
 
 // updateNetworks filters and overrides network speed of host networks based
@@ -1591,7 +1643,7 @@ func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
 
 // retryIntv calculates a retry interval value given the base
 func (c *Client) retryIntv(base time.Duration) time.Duration {
-	if c.config.DevMode {
+	if c.GetConfig().DevMode {
 		return devModeRetryIntv
 	}
 	return base + helper.RandomStagger(base)
@@ -1613,7 +1665,7 @@ func (c *Client) registerAndHeartbeat() {
 	// we want to do this quickly. We want to do it extra quickly
 	// in development mode.
 	var heartbeat <-chan time.Time
-	if c.config.DevMode {
+	if c.GetConfig().DevMode {
 		heartbeat = time.After(0)
 	} else {
 		heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
@@ -1657,7 +1709,7 @@ func (c *Client) lastHeartbeat() time.Time {
 // getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
 // another heartbeat.
 func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
-	if c.config.DevMode {
+	if c.GetConfig().DevMode {
 		return devModeRetryIntv
 	}
 
@@ -1843,9 +1895,8 @@ func (c *Client) retryRegisterNode() {
 
 // registerNode is used to register the node or update the registration
 func (c *Client) registerNode() error {
-	node := c.Node()
 	req := structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         c.Node(),
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
 	var resp structs.NodeUpdateResponse
@@ -1854,10 +1905,9 @@ func (c *Client) registerNode() error {
 	}
 
 	// Update the node status to ready after we register.
-	c.configLock.Lock()
-	node.Status = structs.NodeStatusReady
-	c.config.Node.Status = structs.NodeStatusReady
-	c.configLock.Unlock()
+	c.UpdateConfig(func(c *config.Config) {
+		c.Node.Status = structs.NodeStatusReady
+	})
 
 	c.logger.Info("node registration complete")
 	if len(resp.EvalIDs) != 0 {
@@ -1910,6 +1960,14 @@ func (c *Client) updateNodeStatus() error {
 				"req_latency", end.Sub(start), "heartbeat_ttl", oldTTL, "since_last_heartbeat", time.Since(last))
 		}
 	}
+
+	// Check heartbeat response for information about the server-side scheduling
+	// state of this node
+	c.UpdateConfig(func(c *config.Config) {
+		if resp.SchedulingEligibility != "" {
+			c.Node.SchedulingEligibility = resp.SchedulingEligibility
+		}
+	})
 
 	// Update the number of nodes in the cluster so we can adjust our server
 	// rebalance rate.
@@ -2240,14 +2298,9 @@ OUTER:
 	}
 }
 
-// updateNode updates the Node copy and triggers the client to send the updated
-// Node to the server. This should be done while the caller holds the
-// configLock lock.
-func (c *Client) updateNodeLocked() {
-	// Update the config copy.
-	node := c.config.Node.Copy()
-	c.configCopy.Node = node
-
+// updateNode signals the client to send the updated
+// Node to the server.
+func (c *Client) updateNode() {
 	select {
 	case c.triggerNodeUpdate <- struct{}{}:
 		// Node update goroutine was released to execute
@@ -2365,7 +2418,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 		stripped.DeploymentStatus = add.DeploymentStatus.Copy()
 	} else {
 		stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(false),
+			Healthy:   pointer.Of(false),
 			Timestamp: failTime,
 		}
 	}
@@ -2426,11 +2479,14 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
-	// Reconnect unknown allocations
-	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+	// Reconnect unknown allocations if they were updated and are not terminal.
+	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
+		update.AllocModifyIndex > ar.Alloc().AllocModifyIndex &&
+		!update.ServerTerminalStatus()
+	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
-			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "error", err)
 		}
 		return
 	}
@@ -2477,20 +2533,16 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		PreviousRunner:   c.allocs[alloc.PreviousAllocation],
 		PreemptedRunners: preemptedAllocs,
 		RPC:              c,
-		Config:           c.configCopy,
+		Config:           c.GetConfig(),
 		MigrateToken:     migrateToken,
 		Logger:           c.logger,
 	}
 	prevAllocWatcher, prevAllocMigrator := allocwatcher.NewAllocWatcher(watcherConfig)
 
-	// Copy the config since the node can be swapped out as it is being updated.
-	// The long term fix is to pass in the config and node separately and then
-	// we don't have to do a copy.
-	c.configLock.RLock()
 	arConf := &allocrunner.Config{
 		Alloc:               alloc,
 		Logger:              c.logger,
-		ClientConfig:        c.configCopy,
+		ClientConfig:        c.GetConfig(),
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
 		ConsulProxies:       c.consulProxies,
@@ -2506,9 +2558,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
+		CheckStore:          c.checkStore,
 		RPCClient:           c,
+		Getter:              c.getter,
 	}
-	c.configLock.RUnlock()
 
 	ar, err := allocrunner.NewAllocRunner(arConf)
 	if err != nil {
@@ -2537,7 +2590,7 @@ func (c *Client) setupConsulTokenClient() error {
 // with vault.
 func (c *Client) setupVaultClient() error {
 	var err error
-	c.vaultClient, err = vaultclient.NewVaultClient(c.config.VaultConfig, c.logger, c.deriveToken)
+	c.vaultClient, err = vaultclient.NewVaultClient(c.GetConfig().VaultConfig, c.logger, c.deriveToken)
 	if err != nil {
 		return err
 	}
@@ -2558,11 +2611,14 @@ func (c *Client) setupVaultClient() error {
 func (c *Client) setupNomadServiceRegistrationHandler() {
 	cfg := nsd.ServiceRegistrationHandlerCfg{
 		Datacenter: c.Datacenter(),
-		Enabled:    c.config.NomadServiceDiscovery,
+		Enabled:    c.GetConfig().NomadServiceDiscovery,
 		NodeID:     c.NodeID(),
 		NodeSecret: c.secretNodeID(),
 		Region:     c.Region(),
 		RPCFn:      c.RPC,
+		CheckWatcher: serviceregistration.NewCheckWatcher(
+			c.logger, nsd.NewStatusGetter(c.checkStore),
+		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
 }
@@ -2586,8 +2642,9 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		AllocID:  alloc.ID,
 		Tasks:    verifiedTasks,
 		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: false,
+			Region:        c.Region(),
+			AllowStale:    false,
+			MinQueryIndex: alloc.CreateIndex,
 		},
 	}
 
@@ -2692,7 +2749,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
-	m := helper.CopyMapStringString(resp.Tokens)
+	m := maps.Clone(resp.Tokens)
 	return m, nil
 }
 
@@ -2737,7 +2794,8 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
-	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
+	config := c.GetConfig()
+	if config.ConsulConfig.ClientAutoJoin != nil && *config.ConsulConfig.ClientAutoJoin {
 		select {
 		case c.triggerDiscoveryCh <- struct{}{}:
 			// Discovery goroutine was released to execute
@@ -2779,7 +2837,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		// datacenterQueryLimit, the next heartbeat will pick
 		// a new set of servers so it's okay.
 		shuffleStrings(dcs[1:])
-		dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
+		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 	}
 
 	// Query for servers in this client's region only
@@ -2790,7 +2848,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		},
 	}
 
-	serviceName := c.configCopy.ConsulConfig.ServerServiceName
+	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
 	var mErr multierror.Error
 	var nomadServers servers.Servers
 	consulLogger.Debug("bootstrap contacting Consul DCs", "consul_dcs", dcs)
@@ -2831,6 +2889,7 @@ DISCOLOOP:
 				addr, err := net.ResolveTCPAddr("tcp", p)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
+					continue
 				}
 				srv := &servers.Server{Addr: addr}
 				nomadServers = append(nomadServers, srv)
@@ -2884,13 +2943,14 @@ func (c *Client) emitStats() {
 	next := time.NewTimer(0)
 	defer next.Stop()
 	for {
+		config := c.GetConfig()
 		select {
 		case <-next.C:
 			err := c.hostStatsCollector.Collect()
-			next.Reset(c.config.StatsCollectionInterval)
+			next.Reset(config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
-			} else if c.config.PublishNodeMetrics {
+			} else if config.PublishNodeMetrics {
 				// Publish Node metrics if operator has opted in
 				c.emitHostStats()
 			}
@@ -2951,9 +3011,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, ba
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
 func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.Label) {
-	c.configLock.RLock()
-	node := c.configCopy.Node
-	c.configLock.RUnlock()
+	node := c.GetConfig().Node
 	total := node.NodeResources
 	res := node.ReservedResources
 	allocated := c.getAllocatedResources(node)
@@ -3052,14 +3110,11 @@ func (c *Client) emitClientMetrics() {
 
 // labels takes the base labels and appends the node state
 func (c *Client) labels() []metrics.Label {
-	c.configLock.RLock()
-	nodeStatus := c.configCopy.Node.Status
-	nodeEligibility := c.configCopy.Node.SchedulingEligibility
-	c.configLock.RUnlock()
+	node := c.Node()
 
 	return append(c.baseLabels,
-		metrics.Label{Name: "node_status", Value: nodeStatus},
-		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
+		metrics.Label{Name: "node_status", Value: node.Status},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: node.SchedulingEligibility},
 	)
 }
 

@@ -9,6 +9,9 @@ import (
 	glob "github.com/ryanuber/go-glob"
 )
 
+// Redefine this value from structs to avoid circular dependency.
+const AllNamespacesSentinel = "*"
+
 // ManagementACL is a singleton used for management tokens
 var ManagementACL *ACL
 
@@ -58,6 +61,9 @@ type ACL struct {
 	// We use an iradix for the purposes of ordered iteration.
 	wildcardHostVolumes *iradix.Tree
 
+	variables         *iradix.Tree
+	wildcardVariables *iradix.Tree
+
 	agent    string
 	node     string
 	operator string
@@ -95,6 +101,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	wnsTxn := iradix.New().Txn()
 	hvTxn := iradix.New().Txn()
 	whvTxn := iradix.New().Txn()
+	svTxn := iradix.New().Txn()
+	wsvTxn := iradix.New().Txn()
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -120,6 +128,33 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 				} else {
 					capabilities = make(capabilitySet)
 					nsTxn.Insert([]byte(ns.Name), capabilities)
+				}
+			}
+
+			if ns.Variables != nil {
+				for _, pathPolicy := range ns.Variables.Paths {
+					key := []byte(ns.Name + "\x00" + pathPolicy.PathSpec)
+					var svCapabilities capabilitySet
+					if globDefinition || strings.Contains(pathPolicy.PathSpec, "*") {
+						raw, ok := wsvTxn.Get(key)
+						if ok {
+							svCapabilities = raw.(capabilitySet)
+						} else {
+							svCapabilities = make(capabilitySet)
+						}
+						wsvTxn.Insert(key, svCapabilities)
+					} else {
+						raw, ok := svTxn.Get(key)
+						if ok {
+							svCapabilities = raw.(capabilitySet)
+						} else {
+							svCapabilities = make(capabilitySet)
+						}
+						svTxn.Insert(key, svCapabilities)
+					}
+					for _, cap := range pathPolicy.Capabilities {
+						svCapabilities.Set(cap)
+					}
 				}
 			}
 
@@ -206,6 +241,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl.wildcardNamespaces = wnsTxn.Commit()
 	acl.hostVolumes = hvTxn.Commit()
 	acl.wildcardHostVolumes = whvTxn.Commit()
+	acl.variables = svTxn.Commit()
+	acl.wildcardVariables = wsvTxn.Commit()
 
 	return acl, nil
 }
@@ -215,10 +252,29 @@ func (a *ACL) AllowNsOp(ns string, op string) bool {
 	return a.AllowNamespaceOperation(ns, op)
 }
 
-// AllowNamespaceOperation checks if a given operation is allowed for a namespace
+// AllowNsOpFunc is a helper that returns a function that can be used to check
+// namespace permissions.
+func (a *ACL) AllowNsOpFunc(ops ...string) func(string) bool {
+	return func(ns string) bool {
+		return NamespaceValidator(ops...)(a, ns)
+	}
+}
+
+// AllowNamespaceOperation checks if a given operation is allowed for a namespace.
 func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
+	// Hot path if ACL is not enabled.
+	if a == nil {
+		return true
+	}
+
 	// Hot path management tokens
 	if a.management {
+		return true
+	}
+
+	// If using the all namespaces wildcard, allow if any namespace allows the
+	// operation.
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsOp(op) {
 		return true
 	}
 
@@ -234,8 +290,19 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 
 // AllowNamespace checks if any operations are allowed for a namespace
 func (a *ACL) AllowNamespace(ns string) bool {
+	// Hot path if ACL is not enabled.
+	if a == nil {
+		return true
+	}
+
 	// Hot path management tokens
 	if a.management {
+		return true
+	}
+
+	// If using the all namespaces wildcard, allow if any namespace allows any
+	// operation.
+	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsAnyOp() {
 		return true
 	}
 
@@ -291,6 +358,40 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
+func (a *ACL) AllowVariableOperation(ns, path, op string) bool {
+	if a.management {
+		return true
+	}
+
+	// Check for a matching capability set
+	capabilities, ok := a.matchingVariablesCapabilitySet(ns, path)
+	if !ok {
+		return false
+	}
+
+	return capabilities.Check(op)
+}
+
+// AllowVariableSearch is a very loose check that the token has *any* access to
+// a variables path for the namespace, with an expectation that the actual
+// search result will be filtered by specific paths
+func (a *ACL) AllowVariableSearch(ns string) bool {
+	if a.management {
+		return true
+	}
+	iter := a.variables.Root().Iterator()
+	iter.SeekPrefix([]byte(ns))
+	_, _, ok := iter.Next()
+	if ok {
+		return true
+	}
+
+	iter = a.wildcardVariables.Root().Iterator()
+	iter.SeekPrefix([]byte(ns))
+	_, _, ok = iter.Next()
+	return ok
+}
+
 // matchingNamespaceCapabilitySet looks for a capabilitySet that matches the namespace,
 // if no concrete definitions are found, then we return the closest matching
 // glob.
@@ -307,6 +408,42 @@ func (a *ACL) matchingNamespaceCapabilitySet(ns string) (capabilitySet, bool) {
 	return a.findClosestMatchingGlob(a.wildcardNamespaces, ns)
 }
 
+// anyNamespaceAllowsOp returns true if any namespace in ACL object allows the
+// given operation.
+func (a *ACL) anyNamespaceAllowsOp(op string) bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return c.Check(op)
+	})
+}
+
+// anyNamespaceAllowsAnyOp returns true if any namespace in ACL object allows
+// at least one operation.
+func (a *ACL) anyNamespaceAllowsAnyOp() bool {
+	return a.anyNamespaceAllows(func(c capabilitySet) bool {
+		return len(c) > 0 && !c.Check(PolicyDeny)
+	})
+}
+
+// anyNamespaceAllows returns true if the callback cb returns true for any
+// namespace operation of the ACL object.
+func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
+	allow := false
+
+	checkFn := func(_ []byte, iv interface{}) bool {
+		v := iv.(capabilitySet)
+		allow = cb(v)
+		return allow
+	}
+
+	a.namespaces.Root().Walk(checkFn)
+	if allow {
+		return true
+	}
+
+	a.wildcardNamespaces.Root().Walk(checkFn)
+	return allow
+}
+
 // matchingHostVolumeCapabilitySet looks for a capabilitySet that matches the host volume name,
 // if no concrete definitions are found, then we return the closest matching
 // glob.
@@ -321,6 +458,22 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
 	return a.findClosestMatchingGlob(a.wildcardHostVolumes, name)
+}
+
+// matchingVariablesCapabilitySet looks for a capabilitySet that matches the namespace and path,
+// if no concrete definitions are found, then we return the closest matching
+// glob.
+// The closest matching glob is the one that has the smallest character
+// difference between the namespace and the glob.
+func (a *ACL) matchingVariablesCapabilitySet(ns, path string) (capabilitySet, bool) {
+	// Check for a concrete matching capability set
+	raw, ok := a.variables.Get([]byte(ns + "\x00" + path))
+	if ok {
+		return raw.(capabilitySet), true
+	}
+
+	// We didn't find a concrete match, so lets try and evaluate globs.
+	return a.findClosestMatchingGlob(a.wildcardVariables, ns+"\x00"+path)
 }
 
 type matchingGlob struct {

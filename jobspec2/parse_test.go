@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/stretchr/testify/require"
 )
@@ -644,13 +645,13 @@ job "job-webserver" {
 		{
 			"prod",
 			&api.Job{
-				ID:          stringToPtr("job-webserver"),
-				Name:        stringToPtr("job-webserver"),
+				ID:          pointer.Of("job-webserver"),
+				Name:        pointer.Of("job-webserver"),
 				Datacenters: []string{"prod-dc1", "prod-dc2"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  stringToPtr("group-webserver"),
-						Count: intToPtr(20),
+						Name:  pointer.Of("group-webserver"),
+						Count: pointer.Of(20),
 
 						Tasks: []*api.Task{
 							{
@@ -670,13 +671,13 @@ job "job-webserver" {
 		{
 			"staging",
 			&api.Job{
-				ID:          stringToPtr("job-webserver"),
-				Name:        stringToPtr("job-webserver"),
+				ID:          pointer.Of("job-webserver"),
+				Name:        pointer.Of("job-webserver"),
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  stringToPtr("group-webserver"),
-						Count: intToPtr(3),
+						Name:  pointer.Of("group-webserver"),
+						Count: pointer.Of(3),
 
 						Tasks: []*api.Task{
 							{
@@ -696,13 +697,13 @@ job "job-webserver" {
 		{
 			"unknown",
 			&api.Job{
-				ID:          stringToPtr("job-webserver"),
-				Name:        stringToPtr("job-webserver"),
+				ID:          pointer.Of("job-webserver"),
+				Name:        pointer.Of("job-webserver"),
 				Datacenters: []string{},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  stringToPtr("group-webserver"),
-						Count: intToPtr(0),
+						Name:  pointer.Of("group-webserver"),
+						Count: pointer.Of(0),
 
 						Tasks: []*api.Task{
 							{
@@ -1005,11 +1006,11 @@ func TestParseServiceCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedJob := &api.Job{
-		ID:   stringToPtr("group_service_check_script"),
-		Name: stringToPtr("group_service_check_script"),
+		ID:   pointer.Of("group_service_check_script"),
+		Name: pointer.Of("group_service_check_script"),
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name: stringToPtr("group"),
+				Name: pointer.Of("group"),
 				Services: []*api.Service{
 					{
 						Name:      "foo-service",
@@ -1033,7 +1034,7 @@ func TestParseServiceCheck(t *testing.T) {
 
 func TestWaitConfig(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
 	require.NoError(t, err)
 
@@ -1050,4 +1051,20 @@ func TestWaitConfig(t *testing.T) {
 	require.NotNil(t, tmpl.Wait)
 	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
+}
+
+func TestErrMissingKey(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/template-err-missing-key.hcl")
+	require.NoError(t, err)
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/template-err-missing-key.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	require.NoError(t, err)
+	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
+	require.NotNil(t, tmpl)
+	require.NotNil(t, tmpl.ErrMissingKey)
+	require.True(t, *tmpl.ErrMissingKey)
 }

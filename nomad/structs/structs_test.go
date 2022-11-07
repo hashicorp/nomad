@@ -11,9 +11,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -251,6 +250,36 @@ func TestJob_Warnings(t *testing.T) {
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Update.MaxParallel warning",
+			Expected: []string{"Update max parallel count is greater than task group count (5 > 2). A destructive change would result in the simultaneous replacement of all allocations."},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Count: 2,
+						Update: &UpdateStrategy{
+							MaxParallel: 5,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Update.MaxParallel no warning",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Count: 1,
+						Update: &UpdateStrategy{
+							MaxParallel: 5,
 						},
 					},
 				},
@@ -834,12 +863,12 @@ func TestJob_PartEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	ns := &Networks{}
-	require.True(t, ns.Equals(&Networks{}))
+	require.True(t, ns.Equal(&Networks{}))
 
 	ns = &Networks{
 		&NetworkResource{Device: "eth0"},
 	}
-	require.True(t, ns.Equals(&Networks{
+	require.True(t, ns.Equal(&Networks{
 		&NetworkResource{Device: "eth0"},
 	}))
 
@@ -848,7 +877,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&NetworkResource{Device: "eth1"},
 		&NetworkResource{Device: "eth2"},
 	}
-	require.True(t, ns.Equals(&Networks{
+	require.True(t, ns.Equal(&Networks{
 		&NetworkResource{Device: "eth2"},
 		&NetworkResource{Device: "eth0"},
 		&NetworkResource{Device: "eth1"},
@@ -859,7 +888,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Constraint{"left1", "right1", "="},
 		&Constraint{"left2", "right2", "="},
 	}
-	require.True(t, cs.Equals(&Constraints{
+	require.True(t, cs.Equal(&Constraints{
 		&Constraint{"left0", "right0", "="},
 		&Constraint{"left2", "right2", "="},
 		&Constraint{"left1", "right1", "="},
@@ -870,7 +899,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left1", "right1", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 	}
-	require.True(t, as.Equals(&Affinities{
+	require.True(t, as.Equal(&Affinities{
 		&Affinity{"left0", "right0", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 		&Affinity{"left1", "right1", "=", 0},
@@ -1247,9 +1276,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	err = tg.Validate(&Job{})
 	expected = `Check check-a invalid: refers to non-existent task task-b`
-	require.Contains(t, err.Error(), expected)
-
-	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
 	tg = &TaskGroup{
@@ -1999,7 +2025,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Interval: 10 * time.Second,
 	}
 
-	err := invalidCheck.validate()
+	err := invalidCheck.validateConsul()
 	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
 		t.Fatalf("expected a timeout validation error but received: %q", err)
 	}
@@ -2011,12 +2037,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	if err := check1.validate(); err != nil {
+	if err := check1.validateConsul(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = "foo"
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2026,19 +2052,19 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	}
 
 	check1.InitialStatus = api.HealthCritical
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = api.HealthPassing
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = ""
-	err = check1.validate()
+	err = check1.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2051,22 +2077,22 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Path:     "/foo/bar",
 	}
 
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = ""
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if !strings.Contains(err.Error(), "valid http path") {
+	if !strings.Contains(err.Error(), "http type must have http path") {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = "http://www.example.com"
-	err = check2.validate()
+	err = check2.validateConsul()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2082,7 +2108,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Expose:   true,
-			}).validate())
+			}).validateConsul())
 		})
 		t.Run("type tcp", func(t *testing.T) {
 			require.EqualError(t, (&ServiceCheck{
@@ -2090,7 +2116,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Interval: 1 * time.Second,
 				Timeout:  1 * time.Second,
 				Expose:   true,
-			}).validate(), "expose may only be set on HTTP or gRPC checks")
+			}).validateConsul(), "expose may only be set on HTTP or gRPC checks")
 		})
 	})
 }
@@ -2458,31 +2484,31 @@ func TestLogConfig_Equals(t *testing.T) {
 	t.Run("both nil", func(t *testing.T) {
 		a := (*LogConfig)(nil)
 		b := (*LogConfig)(nil)
-		require.True(t, a.Equals(b))
+		require.True(t, a.Equal(b))
 	})
 
 	t.Run("one nil", func(t *testing.T) {
 		a := new(LogConfig)
 		b := (*LogConfig)(nil)
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("max files", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("max file size", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.True(t, a.Equals(b))
+		require.True(t, a.Equal(b))
 	})
 }
 
@@ -2580,6 +2606,69 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 }
 
+func TestTemplate_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	t1 := &Template{
+		SourcePath:   "/local/file.txt",
+		DestPath:     "/local/dest.txt",
+		EmbeddedTmpl: "tpl",
+		ChangeMode:   TemplateChangeModeScript,
+		ChangeScript: &ChangeScript{
+			Command: "/bin/foo",
+			Args:    []string{"--force", "--debug"},
+		},
+		Splay:      10 * time.Second,
+		Perms:      "777",
+		Uid:        pointer.Of(1000),
+		Gid:        pointer.Of(2000),
+		LeftDelim:  "[[",
+		RightDelim: "]]",
+		Envvars:    true,
+		VaultGrace: time.Minute,
+		Wait: &WaitConfig{
+			Min: pointer.Of(time.Second),
+			Max: pointer.Of(time.Minute),
+		},
+	}
+	t2 := t1.Copy()
+
+	t1.SourcePath = "/local/file2.txt"
+	t1.DestPath = "/local/dest2.txt"
+	t1.EmbeddedTmpl = "tpl2"
+	t1.ChangeMode = TemplateChangeModeSignal
+	t1.ChangeScript.Command = "/bin/foobar"
+	t1.ChangeScript.Args = []string{"--forces", "--debugs"}
+	t1.Splay = 5 * time.Second
+	t1.Perms = "700"
+	t1.Uid = pointer.Of(5000)
+	t1.Gid = pointer.Of(6000)
+	t1.LeftDelim = "(("
+	t1.RightDelim = "))"
+	t1.Envvars = false
+	t1.VaultGrace = 2 * time.Minute
+	t1.Wait.Min = pointer.Of(2 * time.Second)
+	t1.Wait.Max = pointer.Of(2 * time.Minute)
+
+	require.NotEqual(t, t1.SourcePath, t2.SourcePath)
+	require.NotEqual(t, t1.DestPath, t2.DestPath)
+	require.NotEqual(t, t1.EmbeddedTmpl, t2.EmbeddedTmpl)
+	require.NotEqual(t, t1.ChangeMode, t2.ChangeMode)
+	require.NotEqual(t, t1.ChangeScript.Command, t2.ChangeScript.Command)
+	require.NotEqual(t, t1.ChangeScript.Args, t2.ChangeScript.Args)
+	require.NotEqual(t, t1.Splay, t2.Splay)
+	require.NotEqual(t, t1.Perms, t2.Perms)
+	require.NotEqual(t, t1.Uid, t2.Uid)
+	require.NotEqual(t, t1.Gid, t2.Gid)
+	require.NotEqual(t, t1.LeftDelim, t2.LeftDelim)
+	require.NotEqual(t, t1.RightDelim, t2.RightDelim)
+	require.NotEqual(t, t1.Envvars, t2.Envvars)
+	require.NotEqual(t, t1.VaultGrace, t2.VaultGrace)
+	require.NotEqual(t, t1.Wait.Min, t2.Wait.Min)
+	require.NotEqual(t, t1.Wait.Max, t2.Wait.Max)
+
+}
+
 func TestTemplate_Validate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2670,8 +2759,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(10 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(10 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: true,
@@ -2685,8 +2774,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(5 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(5 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2697,9 +2786,36 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Min: helper.TimeToPtr(5 * time.Second),
-					Max: helper.TimeToPtr(10 * time.Second),
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(10 * time.Second),
 				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: nil,
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: ""},
+			},
+			Fail: true,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath:   "foo",
+				DestPath:     "local/foo",
+				ChangeMode:   "script",
+				ChangeScript: &ChangeScript{Command: "/bin/foo"},
 			},
 			Fail: false,
 		},
@@ -2735,12 +2851,12 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "all-fields",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(10 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 		{
@@ -2751,26 +2867,26 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "min-only",
 			config: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 			expected: &WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
 			},
 		},
 		{
 			name: "max-only",
 			config: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Max: helper.TimeToPtr(10 * time.Second),
+				Max: pointer.Of(10 * time.Second),
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.True(t, tc.config.Equals(tc.expected))
+			require.True(t, tc.config.Equal(tc.expected))
 		})
 	}
 }
@@ -3431,6 +3547,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate task in name",
 		},
@@ -3446,6 +3563,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "no interpolation in name",
 		},
@@ -3461,6 +3579,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate job, taskgroup and task in name",
 		},
@@ -3476,6 +3595,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
+				TaskName:  "redis",
 			},
 			name: "interpolate base in name",
 		},
@@ -3492,6 +3612,7 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "nomad",
 				Namespace: "platform",
+				TaskName:  "redis",
 			},
 			name: "nomad provider",
 		},
@@ -4321,7 +4442,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		err := tc.Input.Validate()
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
-			continue
 		}
 	}
 }
@@ -5226,11 +5346,11 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 		},
 		{
 			desc:          "has max_client_disconnect",
-			maxDisconnect: helper.TimeToPtr(30 * time.Second),
+			maxDisconnect: pointer.Of(30 * time.Second),
 		},
 		{
 			desc:          "zero max_client_disconnect",
-			maxDisconnect: helper.TimeToPtr(0 * time.Second),
+			maxDisconnect: pointer.Of(0 * time.Second),
 		},
 	}
 	for _, tc := range testCases {
@@ -5395,146 +5515,106 @@ func TestAllocation_Expired(t *testing.T) {
 	}
 }
 
-func TestAllocation_Reconnected(t *testing.T) {
-	type testCase struct {
-		name             string
-		maxDisconnect    string
-		elapsed          int
-		reconnected      bool
-		expired          bool
-		nilJob           bool
-		badTaskGroup     bool
-		mixedTZ          bool
-		noReconnectEvent bool
-		status           string
+func TestAllocation_NeedsToReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		states   []*AllocState
+		expected bool
+	}{
+		{
+			name:     "no state",
+			expected: false,
+		},
+		{
+			name:     "never disconnected",
+			states:   []*AllocState{},
+			expected: false,
+		},
+		{
+			name: "disconnected once",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "disconnect reconnect disconnect",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "disconnect multiple times before reconnect",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now(),
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "disconnect after multiple updates",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusPending,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
 	}
 
-	testCases := []testCase{
-		{
-			name:          "has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
-		},
-		{
-			name:          "has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
-		},
-		{
-			name:          "are-equal",
-			maxDisconnect: "5s",
-			elapsed:       5,
-			reconnected:   true,
-			expired:       true,
-		},
-		{
-			name:          "nil-job",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			nilJob:        true,
-		},
-		{
-			name:          "bad-task-group",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			badTaskGroup:  true,
-		},
-		{
-			name:          "no-max-disconnect",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-		},
-		{
-			name:          "mixed-utc-has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
-			mixedTZ:       true,
-		},
-		{
-			name:          "mixed-utc-has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
-			mixedTZ:       true,
-		},
-		{
-			name:             "no-reconnect-event",
-			maxDisconnect:    "5s",
-			elapsed:          2,
-			reconnected:      false,
-			expired:          false,
-			noReconnectEvent: true,
-		},
-	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc := MockAlloc()
-			var err error
-			var maxDisconnect time.Duration
+			alloc.AllocStates = tc.states
 
-			if tc.maxDisconnect != "" {
-				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
-				require.NoError(t, err)
-				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
-			}
-
-			if tc.nilJob {
-				alloc.Job = nil
-			}
-
-			if tc.badTaskGroup {
-				alloc.TaskGroup = "bad"
-			}
-
-			alloc.ClientStatus = AllocClientStatusUnknown
-			if tc.status != "" {
-				alloc.ClientStatus = tc.status
-			}
-
-			alloc.AllocStates = []*AllocState{{
-				Field: AllocStateFieldClientStatus,
-				Value: AllocClientStatusUnknown,
-				Time:  time.Now().UTC(),
-			}}
-
-			now := time.Now().UTC()
-			if tc.mixedTZ {
-				var loc *time.Location
-				loc, err = time.LoadLocation("America/New_York")
-				require.NoError(t, err)
-				now = time.Now().In(loc)
-			}
-
-			ellapsedDuration := time.Duration(tc.elapsed) * time.Second
-			now = now.Add(ellapsedDuration)
-
-			if !tc.noReconnectEvent {
-				event := NewTaskEvent(TaskClientReconnected)
-				event.Time = now.UnixNano()
-
-				alloc.TaskStates = map[string]*TaskState{
-					"web": {
-						Events: []*TaskEvent{event},
-					},
-				}
-			}
-
-			reconnected, expired := alloc.Reconnected()
-			require.Equal(t, tc.reconnected, reconnected)
-			require.Equal(t, tc.expired, expired)
+			got := alloc.NeedsToReconnect()
+			require.Equal(t, tc.expected, got)
 		})
 	}
 }
@@ -5994,80 +6074,6 @@ func TestIsRecoverable(t *testing.T) {
 	}
 }
 
-func TestACLTokenValidate(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{}
-
-	// Missing a type
-	err := tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "client or management") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Missing policies
-	tk.Type = ACLClientToken
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "missing policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Invalid policies
-	tk.Type = ACLManagementToken
-	tk.Policies = []string{"foo"}
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "associated with policies") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Name too long policies
-	tk.Name = ""
-	for i := 0; i < 8; i++ {
-		tk.Name += uuid.Generate()
-	}
-	tk.Policies = nil
-	err = tk.Validate()
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "too long") {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Make it valid
-	tk.Name = "foo"
-	err = tk.Validate()
-	assert.Nil(t, err)
-}
-
-func TestACLTokenPolicySubset(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{
-		Type:     ACLClientToken,
-		Policies: []string{"foo", "bar", "baz"},
-	}
-
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{}))
-	assert.Equal(t, false, tk.PolicySubset([]string{"foo", "bar", "new"}))
-	assert.Equal(t, false, tk.PolicySubset([]string{"new"}))
-
-	tk = &ACLToken{
-		Type: ACLManagementToken,
-	}
-
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
-}
-
 func TestACLTokenSetHash(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6137,7 +6143,8 @@ func TestTaskEventPopulate(t *testing.T) {
 		{NewTaskEvent(TaskRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it - Task restarting in 0s"},
 		{NewTaskEvent(TaskKilling), "Sent interrupt"},
 		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Its time for you to die"},
-		{NewTaskEvent(TaskKilling).SetKillTimeout(1 * time.Second), "Sent interrupt. Waiting 1s before force killing"},
+		{NewTaskEvent(TaskKilling).SetKillTimeout(1*time.Second, 5*time.Second), "Sent interrupt. Waiting 1s before force killing"},
+		{NewTaskEvent(TaskKilling).SetKillTimeout(10*time.Second, 5*time.Second), "Sent interrupt. Waiting 5s before force killing"},
 		{NewTaskEvent(TaskTerminated).SetExitCode(-1).SetSignal(3), "Exit Code: -1, Signal: 3"},
 		{NewTaskEvent(TaskTerminated).SetMessage("Goodbye"), "Exit Code: 0, Exit Message: \"Goodbye\""},
 		{NewTaskEvent(TaskKilled), "Task successfully killed"},
@@ -6323,7 +6330,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 	for _, testCase := range networkResourcesTest {
 		first := testCase.input[0]
 		second := testCase.input[1]
-		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
+		require.Equal(testCase.expected, first.Equal(second), testCase.errorMsg)
 	}
 }
 
@@ -6668,7 +6675,6 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		out, err := r.ParseReservedHostPorts()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
-			continue
 		}
 
 		require.Equal(out, tc.Parsed)

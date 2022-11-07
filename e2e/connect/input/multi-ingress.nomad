@@ -98,7 +98,7 @@ job "multi-ingress" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v5"
+        image        = "hashicorpdev/uuid-api:v5"
         network_mode = "host"
       }
 
@@ -128,7 +128,7 @@ job "multi-ingress" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v5"
+        image        = "hashicorpdev/uuid-api:v5"
         network_mode = "host"
       }
 
@@ -158,7 +158,7 @@ job "multi-ingress" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v5"
+        image        = "hashicorpdev/uuid-api:v5"
         network_mode = "host"
       }
 

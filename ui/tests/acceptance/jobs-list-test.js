@@ -6,8 +6,8 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
-import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 let managementToken, clientToken;
 
@@ -39,6 +39,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
+    faker.seed(1);
     const jobsCount = JobsList.pageSize + 1;
     server.createList('job', jobsCount, { createAllocations: false });
 
@@ -64,7 +65,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
-    assert.equal(jobRow.link, `/ui/jobs/${job.id}`, 'Detail Link');
+    assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
     assert.equal(jobRow.priority, job.priority, 'Priority');
@@ -78,7 +79,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
     await JobsList.jobs.objectAt(0).clickName();
 
-    assert.equal(currentURL(), `/jobs/${job.id}`);
+    assert.equal(currentURL(), `/jobs/${job.id}@default`);
   });
 
   test('the new job button transitions to the new job page', async function (assert) {
@@ -117,6 +118,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when there are no jobs, there is an empty message', async function (assert) {
+    faker.seed(1);
     await JobsList.visit();
 
     await percySnapshot(assert);
@@ -423,19 +425,6 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  test('the active namespace is carried over to the storage pages', async function (assert) {
-    server.createList('namespace', 2);
-
-    const namespace = server.db.namespaces[1];
-    await JobsList.visit();
-    await JobsList.facets.namespace.toggle();
-    await JobsList.facets.namespace.options.objectAt(2).select();
-
-    await Layout.gutter.visitStorage();
-
-    assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.id}`);
-  });
-
   test('when the user has a client token that has a namespace with a policy to run a job', async function (assert) {
     const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
@@ -467,6 +456,37 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit({ namespace: READ_AND_WRITE_NAMESPACE });
     assert.notOk(JobsList.runJobButton.isDisabled);
+
+    await JobsList.visit({ namespace: READ_ONLY_NAMESPACE });
+    assert.notOk(JobsList.runJobButton.isDisabled);
+  });
+
+  test('when the user has no client tokens that allow them to run a job', async function (assert) {
+    const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
+    const READ_ONLY_NAMESPACE = 'read-only-namespace';
+
+    server.create('namespace', { id: READ_ONLY_NAMESPACE });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: READ_ONLY_NAMESPACE,
+            Capabilities: ['list-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await JobsList.visit({ namespace: READ_AND_WRITE_NAMESPACE });
+    assert.ok(JobsList.runJobButton.isDisabled);
 
     await JobsList.visit({ namespace: READ_ONLY_NAMESPACE });
     assert.ok(JobsList.runJobButton.isDisabled);

@@ -305,19 +305,29 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source        = "foo"
-        destination   = "foo"
-        change_mode   = "foo"
-        change_signal = "foo"
-        splay         = "10s"
-        env           = true
-        vault_grace   = "33s"
+        source               = "foo"
+        destination          = "foo"
+        change_mode          = "foo"
+        change_signal        = "foo"
+        splay                = "10s"
+        env                  = true
+        vault_grace          = "33s"
+        error_on_missing_key = true
       }
 
       template {
-        source          = "bar"
-        destination     = "bar"
+        source      = "bar"
+        destination = "bar"
+        change_mode = "script"
+        change_script {
+          command       = "/bin/foo"
+          args          = ["-debug", "-verbose"]
+          timeout       = "5s"
+          fail_on_error = false
+        }
         perms           = "777"
+        uid             = 1001
+        gid             = 20
         left_delimiter  = "--"
         right_delimiter = "__"
       }

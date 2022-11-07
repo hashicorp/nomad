@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,7 +31,7 @@ const (
 // failed allocation becomes available.
 type BlockedEvals struct {
 	// logger is the logger to use by the blocked eval tracker.
-	logger log.Logger
+	logger hclog.Logger
 
 	evalBroker *EvalBroker
 	enabled    bool
@@ -96,7 +96,7 @@ type wrappedEval struct {
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
 // unblocked evals into the passed broker.
-func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
+func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
 	return &BlockedEvals{
 		logger:           logger.Named("blocked_evals"),
 		evalBroker:       evalBroker,
@@ -248,8 +248,8 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
-			b.stats.Unblock(eval)
 			dup = existingW.eval
+			b.stats.Unblock(dup)
 		} else {
 			dup = eval
 			newCancelled = true
@@ -290,7 +290,7 @@ func latestEvalIndex(eval *structs.Evaluation) uint64 {
 		return 0
 	}
 
-	return helper.Uint64Max(eval.CreateIndex, eval.SnapshotIndex)
+	return helper.Max(eval.CreateIndex, eval.SnapshotIndex)
 }
 
 // missedUnblock returns whether an evaluation missed an unblock while it was in
@@ -413,11 +413,18 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[computedClass] = index
+
+	// Capture chan in lock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	b.capacityChangeCh <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		computedClass: computedClass,
 		index:         index,
+	}:
 	}
 }
 
@@ -441,11 +448,16 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[quota] = index
+	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	b.capacityChangeCh <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		quotaChange: quota,
 		index:       index,
+	}:
 	}
 }
 
@@ -472,12 +484,16 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	// Capture chan inside the lock to prevent a race with it getting reset
 	// in Flush.
 	ch := b.capacityChangeCh
+	done := b.stopCh
 	b.l.Unlock()
 
-	ch <- &capacityUpdate{
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{
 		computedClass: class,
 		quotaChange:   quota,
 		index:         index,
+	}:
 	}
 }
 
@@ -528,7 +544,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	// because any node could potentially be feasible.
 	numEscaped := len(b.escaped)
 	numQuotaLimit := 0
-	unblocked := make(map[*structs.Evaluation]string, helper.MaxInt(numEscaped, 4))
+	unblocked := make(map[*structs.Evaluation]string, helper.Max(numEscaped, 4))
 
 	if numEscaped != 0 && computedClass != "" {
 		for id, wrapped := range b.escaped {
@@ -727,10 +743,10 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "memory"}, float32(v.MemoryMB), labels)
 			}
 
-			for k, v := range stats.BlockedResources.ByNodeInfo {
+			for k, v := range stats.BlockedResources.ByClassInDC {
 				labels := []metrics.Label{
-					{Name: "datacenter", Value: k.Datacenter},
-					{Name: "node_class", Value: k.NodeClass},
+					{Name: "datacenter", Value: k.dc},
+					{Name: "node_class", Value: k.class},
 				}
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "cpu"}, float32(v.CPU), labels)
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "memory"}, float32(v.MemoryMB), labels)

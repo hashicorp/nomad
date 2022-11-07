@@ -30,7 +30,7 @@ job "countdash" {
       port = "9001"
 
       connect {
-        sidecar_service = {}
+        sidecar_service {}
 
         sidecar_task {
           resources {
@@ -45,7 +45,7 @@ job "countdash" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -134,6 +134,7 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
   to the same user the Nomad client is being run as.
 
 - `config` `(map: nil)` - Configuration provided to the driver for initialization.
+  Keys and values support [runtime variable interpolation][interpolation].
 
 - `env` `(map: nil)` - Map of environment variables used by the driver.
 

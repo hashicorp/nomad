@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
@@ -108,9 +109,17 @@ func formatTokens(tokens []*api.ACLTokenListStub) string {
 	}
 
 	output := make([]string, 0, len(tokens)+1)
-	output = append(output, "Name|Type|Global|Accessor ID")
+	output = append(output, "Name|Type|Global|Accessor ID|Expired")
 	for _, p := range tokens {
-		output = append(output, fmt.Sprintf("%s|%s|%t|%s", p.Name, p.Type, p.Global, p.AccessorID))
+		expired := false
+		if p.ExpirationTime != nil && !p.ExpirationTime.IsZero() {
+			if p.ExpirationTime.Before(time.Now().UTC()) {
+				expired = true
+			}
+		}
+
+		output = append(output, fmt.Sprintf(
+			"%s|%s|%t|%s|%v", p.Name, p.Type, p.Global, p.AccessorID, expired))
 	}
 
 	return formatList(output)

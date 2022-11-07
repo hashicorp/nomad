@@ -9,23 +9,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/testutil"
 )
-
-func tmpDir(t testing.TB) string {
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return dir
-}
 
 func TestAgent_RPC_Ping(t *testing.T) {
 	ci.Parallel(t)
@@ -264,7 +259,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_handshake_timeout must be >= 0",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "-5s",
-				RPCMaxConnsPerClient: helper.IntToPtr(100),
+				RPCMaxConnsPerClient: pointer.Of(100),
 			},
 		},
 		{
@@ -272,7 +267,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "error parsing rpc_handshake_timeout",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "s",
-				RPCMaxConnsPerClient: helper.IntToPtr(100),
+				RPCMaxConnsPerClient: pointer.Of(100),
 			},
 		},
 		{
@@ -280,7 +275,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "error parsing rpc_handshake_timeout",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "",
-				RPCMaxConnsPerClient: helper.IntToPtr(100),
+				RPCMaxConnsPerClient: pointer.Of(100),
 			},
 		},
 		{
@@ -288,7 +283,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: -100",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
-				RPCMaxConnsPerClient: helper.IntToPtr(-100),
+				RPCMaxConnsPerClient: pointer.Of(-100),
 			},
 		},
 		{
@@ -296,7 +291,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: 20",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
-				RPCMaxConnsPerClient: helper.IntToPtr(config.LimitsNonStreamingConnsPerClient),
+				RPCMaxConnsPerClient: pointer.Of(config.LimitsNonStreamingConnsPerClient),
 			},
 		},
 	}
@@ -340,21 +335,21 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 			name: "Zeros are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "0s",
-				RPCMaxConnsPerClient: helper.IntToPtr(0),
+				RPCMaxConnsPerClient: pointer.Of(0),
 			},
 		},
 		{
 			name: "Low limits are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "1ms",
-				RPCMaxConnsPerClient: helper.IntToPtr(26),
+				RPCMaxConnsPerClient: pointer.Of(26),
 			},
 		},
 		{
 			name: "High limits are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5h",
-				RPCMaxConnsPerClient: helper.IntToPtr(100000),
+				RPCMaxConnsPerClient: pointer.Of(100000),
 			},
 		},
 	}
@@ -369,6 +364,82 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 			serverConf, err := convertServerConfig(conf)
 			assert.NoError(t, err)
 			require.NotNil(t, serverConf)
+		})
+	}
+}
+
+func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		trackerConfig  *PlanRejectionTracker
+		expectedConfig *PlanRejectionTracker
+		expectedErr    string
+	}{
+		{
+			name:          "default",
+			trackerConfig: nil,
+			expectedConfig: &PlanRejectionTracker{
+				NodeThreshold: 100,
+				NodeWindow:    5 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "valid config",
+			trackerConfig: &PlanRejectionTracker{
+				Enabled:       pointer.Of(true),
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedConfig: &PlanRejectionTracker{
+				Enabled:       pointer.Of(true),
+				NodeThreshold: 123,
+				NodeWindow:    17 * time.Minute,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "invalid node window",
+			trackerConfig: &PlanRejectionTracker{
+				NodeThreshold: 123,
+			},
+			expectedErr: "node_window must be greater than 0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := DevConfig(nil)
+			require.NoError(t, config.normalizeAddrs())
+
+			if tc.trackerConfig != nil {
+				config.Server.PlanRejectionTracker = tc.trackerConfig
+			}
+
+			serverConfig, err := convertServerConfig(config)
+
+			if tc.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				if tc.expectedConfig.Enabled != nil {
+					require.Equal(t,
+						*tc.expectedConfig.Enabled,
+						serverConfig.NodePlanRejectionEnabled,
+					)
+				}
+				require.Equal(t,
+					tc.expectedConfig.NodeThreshold,
+					serverConfig.NodePlanRejectionThreshold,
+				)
+				require.Equal(t,
+					tc.expectedConfig.NodeWindow,
+					serverConfig.NodePlanRejectionWindow,
+				)
+			}
 		})
 	}
 }
@@ -395,7 +466,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 		},
 
 		{
-			multiplier: helper.IntToPtr(0),
+			multiplier: pointer.Of(0),
 
 			electionTimout:     1 * time.Second,
 			heartbeatTimeout:   1 * time.Second,
@@ -403,7 +474,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      50 * time.Millisecond,
 		},
 		{
-			multiplier: helper.IntToPtr(1),
+			multiplier: pointer.Of(1),
 
 			electionTimout:     1 * time.Second,
 			heartbeatTimeout:   1 * time.Second,
@@ -411,7 +482,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      50 * time.Millisecond,
 		},
 		{
-			multiplier: helper.IntToPtr(5),
+			multiplier: pointer.Of(5),
 
 			electionTimout:     5 * time.Second,
 			heartbeatTimeout:   5 * time.Second,
@@ -419,7 +490,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      250 * time.Millisecond,
 		},
 		{
-			multiplier: helper.IntToPtr(6),
+			multiplier: pointer.Of(6),
 
 			electionTimout:     6 * time.Second,
 			heartbeatTimeout:   6 * time.Second,
@@ -427,7 +498,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      300 * time.Millisecond,
 		},
 		{
-			multiplier: helper.IntToPtr(10),
+			multiplier: pointer.Of(10),
 
 			electionTimout:     10 * time.Second,
 			heartbeatTimeout:   10 * time.Second,
@@ -480,6 +551,31 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 	}
 }
 
+func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []int{
+		0, 1, 2, 3, 4,
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("protocol_version %d", tc), func(t *testing.T) {
+			conf := DevConfig(nil)
+			conf.Server.RaftProtocol = tc
+			must.NoError(t, conf.normalizeAddrs())
+			_, err := convertServerConfig(conf)
+
+			switch tc {
+			case 0, 3: // 0 defers to default
+				must.NoError(t, err)
+			default:
+				exp := fmt.Sprintf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", tc)
+				must.EqError(t, err, exp)
+			}
+		})
+	}
+}
+
 func TestAgent_ClientConfig(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
@@ -526,7 +622,7 @@ func TestAgent_ClientConfig(t *testing.T) {
 	// Test the default, and then custom setting of the client service
 	// discovery boolean.
 	require.True(t, c.NomadServiceDiscovery)
-	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(false)
+	conf.Client.NomadServiceDiscovery = pointer.Of(false)
 	c, err = a.clientConfig()
 	require.NoError(t, err)
 	require.False(t, c.NomadServiceDiscovery)
@@ -578,7 +674,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
 				Consul: &config.ConsulConfig{
-					ChecksUseAdvertise: helper.BoolToPtr(false),
+					ChecksUseAdvertise: pointer.Of(false),
 				},
 				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
@@ -607,7 +703,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
-		a.config.Consul.ChecksUseAdvertise = helper.BoolToPtr(true)
+		a.config.Consul.ChecksUseAdvertise = pointer.Of(true)
 		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
@@ -748,9 +844,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 	}
 
 	assert.Nil(agent.Reload(newConfig))
-	assert.Equal(agent.Config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
-	assert.Equal(agent.Config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
-	assert.Equal(agent.Config.TLSConfig.GetKeyLoader(), originalKeyloader)
+	assert.Equal(agent.Agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.Agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.Agent.config.TLSConfig.GetKeyLoader(), originalKeyloader)
 
 	// Assert is passed through on the server correctly
 	if assert.NotNil(agent.server.GetConfig().TLSConfig) {
@@ -916,8 +1012,6 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	logger := testlog.HCLogger(t)
 
@@ -959,8 +1053,6 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	logger := testlog.HCLogger(t)
 
@@ -990,7 +1082,40 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 
-	assert.True(agentConfig.TLSConfig.IsEmpty())
+	assert.True(agent.config.TLSConfig.IsEmpty())
+}
+
+func TestServer_Reload_VaultConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Server.NumSchedulers = pointer.Of(0)
+		c.Vault = &config.VaultConfig{
+			Enabled:   pointer.Of(true),
+			Token:     "vault-token",
+			Namespace: "vault-namespace",
+			Addr:      "https://vault.consul:8200",
+		}
+	})
+	defer agent.Shutdown()
+
+	newConfig := agent.GetConfig().Copy()
+	newConfig.Vault = &config.VaultConfig{
+		Enabled:   pointer.Of(true),
+		Token:     "vault-token",
+		Namespace: "another-namespace",
+		Addr:      "https://vault.consul:8200",
+	}
+
+	sconf, err := convertServerConfig(newConfig)
+	must.NoError(t, err)
+	agent.finalizeServerConfig(sconf)
+
+	// TODO: the vault client isn't accessible here, and we don't actually
+	// overwrite the agent's server config on reload. We probably should? See
+	// tests in nomad/server_test.go for verification of this code path's
+	// behavior on the VaultClient
+	must.NoError(t, agent.server.Reload(sconf))
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
@@ -1002,8 +1127,6 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1042,8 +1165,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1082,8 +1203,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1124,8 +1243,6 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
 		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -1180,14 +1297,10 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	`
 
 	content := []byte(oldCertificate)
-	dir, err := ioutil.TempDir("", "certificate")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir) // clean up
+	dir := t.TempDir()
 
 	tmpfn := filepath.Join(dir, "testcert")
-	err = ioutil.WriteFile(tmpfn, content, 0666)
+	err := ioutil.WriteFile(tmpfn, content, 0666)
 	require.Nil(err)
 
 	const (
@@ -1269,8 +1382,6 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
 		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1345,10 +1456,17 @@ func TestAgent_ProxyRPC_Dev(t *testing.T) {
 		},
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	testutil.WaitForResultUntil(time.Second,
+		func() (bool, error) {
+			var resp cstructs.ClientStatsResponse
+			err := agent.RPC("ClientStats.Stats", req, &resp)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		},
+		func(err error) {
+			t.Fatalf("was unable to read ClientStats.Stats RPC: %v", err)
+		})
 
-	var resp cstructs.ClientStatsResponse
-	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
 }

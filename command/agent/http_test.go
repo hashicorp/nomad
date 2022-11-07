@@ -23,7 +23,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -535,16 +535,47 @@ func TestParseToken(t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
-	req, err := http.NewRequest("GET", "/v1/jobs", nil)
-	req.Header.Add("X-Nomad-Token", "foobar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	cases := []struct {
+		Name          string
+		HeaderKey     string
+		HeaderValue   string
+		ExpectedToken string
+	}{
+		{
+			Name:          "Parses token from X-Nomad-Token",
+			HeaderKey:     "X-Nomad-Token",
+			HeaderValue:   "foobar",
+			ExpectedToken: "foobar",
+		},
+		{
+			Name:          "Parses token from bearer authentication",
+			HeaderKey:     "Authorization",
+			HeaderValue:   "Bearer foobar",
+			ExpectedToken: "foobar",
+		},
+		{
+			Name:          "Fails to parse token from bad bearer authentication",
+			HeaderKey:     "Authorization",
+			HeaderValue:   "foobar",
+			ExpectedToken: "",
+		},
 	}
 
-	var token string
-	s.Server.parseToken(req, &token)
-	if token != "foobar" {
-		t.Fatalf("bad %s", token)
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/jobs", nil)
+			req.Header.Add(tc.HeaderKey, tc.HeaderValue)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			var token string
+			s.Server.parseToken(req, &token)
+			if token != tc.ExpectedToken {
+				t.Fatalf("bad %s", token)
+			}
+		})
 	}
 }
 
@@ -562,11 +593,11 @@ func TestParseBool(t *testing.T) {
 		},
 		{
 			Input:    "true",
-			Expected: helper.BoolToPtr(true),
+			Expected: pointer.Of(true),
 		},
 		{
 			Input:    "false",
-			Expected: helper.BoolToPtr(false),
+			Expected: pointer.Of(false),
 		},
 		{
 			Input: "1234",
@@ -609,11 +640,11 @@ func Test_parseInt(t *testing.T) {
 		},
 		{
 			Input:    "13",
-			Expected: helper.IntToPtr(13),
+			Expected: pointer.Of(13),
 		},
 		{
 			Input:    "99",
-			Expected: helper.IntToPtr(99),
+			Expected: pointer.Of(99),
 		},
 		{
 			Input: "ten",
@@ -904,7 +935,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert.Nil(err)
 
 	resp, err := client.Do(req)
-	if assert.Nil(err) {
+	if assert.NoError(err) {
 		resp.Body.Close()
 		assert.Equal(resp.StatusCode, 200)
 	}
@@ -948,13 +979,13 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		{
 			tls:         true,
 			timeout:     "5s",
-			limit:       helper.IntToPtr(-1),
+			limit:       pointer.Of(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 		{
 			tls:         false,
 			timeout:     "5s",
-			limit:       helper.IntToPtr(-1),
+			limit:       pointer.Of(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 	}
@@ -1051,28 +1082,28 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		{
 			tls:           false,
 			timeout:       "0",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "0",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           false,
 			timeout:       "5s",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "5s",
-			limit:         helper.IntToPtr(2),
+			limit:         pointer.Of(2),
 			assertTimeout: true,
 			assertLimit:   true,
 		},
@@ -1222,42 +1253,17 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 		// Create a new connection that will go over the connection limit.
 		limitConn, err := dial(t, addr, useTLS)
+		require.NoError(t, err)
 
-		// At this point, the state of the connection + handshake are up in the
-		// air.
-		//
-		// 1) dial failed, handshake never started
-		//     => Conn is nil + io.EOF
-		// 2) dial completed, handshake failed
-		//     => Conn is malformed + (net.OpError OR io.EOF)
-		// 3) dial completed, handshake succeeded
-		//     => Conn is not nil + no error, however using the Conn should
-		//        result in io.EOF
-		//
-		// At no point should Nomad actually write through the limited Conn.
-
-		if limitConn == nil || err != nil {
-			// Case 1 or Case 2 - returned Conn is useless and the error should
-			// be one of:
-			//   "EOF"
-			//   "closed network connection"
-			//   "connection reset by peer"
-			msg := err.Error()
-			acceptable := strings.Contains(msg, "EOF") ||
-				strings.Contains(msg, "closed network connection") ||
-				strings.Contains(msg, "connection reset by peer")
-			require.True(t, acceptable)
-		} else {
-			// Case 3 - returned Conn is usable, but Nomad should not write
-			// anything before closing it.
-			buf := make([]byte, bufSize)
-			deadline := time.Now().Add(10 * time.Second)
-			require.NoError(t, limitConn.SetReadDeadline(deadline))
-			n, err := limitConn.Read(buf)
-			require.Equal(t, io.EOF, err)
-			require.Zero(t, n)
-			require.NoError(t, limitConn.Close())
-		}
+		response := "HTTP/1.1 429"
+		buf := make([]byte, len(response))
+		deadline := time.Now().Add(10 * time.Second)
+		require.NoError(t, limitConn.SetReadDeadline(deadline))
+		n, err := limitConn.Read(buf)
+		require.Equal(t, response, string(buf))
+		require.Nil(t, err)
+		require.Equal(t, len(response), n)
+		require.NoError(t, limitConn.Close())
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)

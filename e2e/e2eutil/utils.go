@@ -1,13 +1,15 @@
 package e2eutil
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
+	"text/template"
 	"time"
 
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -58,7 +60,7 @@ func stringToPtrOrNil(s string) *string {
 	if s == "" {
 		return nil
 	}
-	return helper.StringToPtr(s)
+	return pointer.Of(s)
 }
 
 func Parse2(t *testing.T, jobFile string) (*api.Job, error) {
@@ -74,7 +76,7 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
-	job.ID = helper.StringToPtr(jobID)
+	job.ID = pointer.Of(jobID)
 
 	// Set a Consul "operator" token for the job, if provided.
 	job.ConsulToken = stringToPtrOrNil(cToken)
@@ -152,20 +154,27 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 }
 
 func WaitForAllocTaskRunning(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	WaitForAllocTaskState(t, nomadClient, allocID, task, structs.TaskStateRunning)
+}
+
+func WaitForAllocTaskComplete(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	WaitForAllocTaskState(t, nomadClient, allocID, task, structs.TaskStateDead)
+}
+
+func WaitForAllocTaskState(t *testing.T, nomadClient *api.Client, allocID, task, state string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 500)
 		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
 		}
-
-		state := "n/a"
-		if task := alloc.TaskStates[task]; task != nil {
-			state = task.State
+		currentState := "n/a"
+		if taskState := alloc.TaskStates[task]; taskState != nil {
+			currentState = taskState.State
 		}
-		return state == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", state)
+		return currentState == state, fmt.Errorf("expected status %s, but was: %s", state, currentState)
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		t.Fatalf("failed to wait on alloc task: %v", err)
 	})
 }
 
@@ -304,3 +313,76 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		require.NoError(t, err, "failed to wait on deployment")
 	})
 }
+
+// DumpEvals for a job. This is intended to be used during test development or
+// prior to exiting a test after an assertion failed.
+func DumpEvals(c *api.Client, jobID string) string {
+	evals, _, err := c.Jobs().Evaluations(jobID, nil)
+	if err != nil {
+		return fmt.Sprintf("error retrieving evals for job %q: %s", jobID, err)
+	}
+	if len(evals) == 0 {
+		return fmt.Sprintf("no evals found for job %q", jobID)
+	}
+	buf := bytes.NewBuffer(nil)
+	for i, e := range evals {
+		err := EvalTemplate.Execute(buf, map[string]interface{}{
+			"Index": i + 1,
+			"Total": len(evals),
+			"Eval":  e,
+		})
+		if err != nil {
+			fmt.Fprintf(buf, "error rendering eval: %s\n", err)
+		}
+	}
+	return buf.String()
+}
+
+var EvalTemplate = template.Must(template.New("dump_eval").Parse(
+	`{{.Index}}/{{.Total}} Job {{.Eval.JobID}} Eval {{.Eval.ID}}
+  Type:         {{.Eval.Type}}
+  TriggeredBy:  {{.Eval.TriggeredBy}}
+  {{- if .Eval.DeploymentID}}
+  Deployment:   {{.Eval.DeploymentID}}
+  {{- end}}
+  Status:       {{.Eval.Status}} {{if .Eval.StatusDescription}}({{.Eval.StatusDescription}}){{end}}
+  {{- if .Eval.Wait}}
+  Wait:         {{.Eval.Wait}} <- DEPRECATED
+  {{- end}}
+  {{- if not .Eval.WaitUntil.IsZero}}
+  WaitUntil:    {{.Eval.WaitUntil}}
+  {{- end}}
+  {{- if .Eval.NextEval}}
+  NextEval:     {{.Eval.NextEval}}
+  {{- end}}
+  {{- if .Eval.PreviousEval}}
+  PrevEval:     {{.Eval.PreviousEval}}
+  {{- end}}
+  {{- if .Eval.BlockedEval}}
+  BlockedEval:  {{.Eval.BlockedEval}}
+  {{- end}}
+  {{- if .Eval.FailedTGAllocs }}
+  Failed Allocs:
+  {{- end}}
+  {{- range $k, $v := .Eval.FailedTGAllocs}}
+    Failed Group: {{$k}}
+      NodesEvaluated: {{$v.NodesEvaluated}}
+      NodesFiltered:  {{$v.NodesFiltered}}
+      NodesAvailable: {{range $dc, $n := $v.NodesAvailable}}{{$dc}}:{{$n}} {{end}}
+      NodesExhausted: {{$v.NodesExhausted}}
+      ClassFiltered:  {{len $v.ClassFiltered}}
+      ConstraintFilt: {{len $v.ConstraintFiltered}}
+      DimensionExhst: {{range $d, $n := $v.DimensionExhausted}}{{$d}}:{{$n}} {{end}}
+      ResourcesExhst: {{range $r, $n := $v.ResourcesExhausted}}{{$r}}:{{$n}} {{end}}
+      QuotaExhausted: {{range $i, $q := $v.QuotaExhausted}}{{$q}} {{end}}
+      CoalescedFail:  {{$v.CoalescedFailures}}
+      ScoreMetaData:  {{len $v.ScoreMetaData}}
+      AllocationTime: {{$v.AllocationTime}}
+  {{- end}}
+  {{- if .Eval.QueuedAllocations}}
+  QueuedAllocs: {{range $k, $n := .Eval.QueuedAllocations}}{{$k}}:{{$n}} {{end}}
+  {{- end}}
+  SnapshotIdx:  {{.Eval.SnapshotIndex}}
+  CreateIndex:  {{.Eval.CreateIndex}}
+  ModifyIndex:  {{.Eval.ModifyIndex}}
+`))

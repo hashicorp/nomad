@@ -1,0 +1,3 @@
+```release-note:bug
+wi: Fixed a bug where clients running pre-1.4.0 allocations would erase the token used to query service registrations after upgrade
+```

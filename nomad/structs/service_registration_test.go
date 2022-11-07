@@ -3,6 +3,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +21,7 @@ func TestServiceRegistration_Copy(t *testing.T) {
 		Port:        23813,
 	}
 	newSR := sr.Copy()
-	require.True(t, sr.Equals(newSR))
+	require.True(t, sr.Equal(newSR))
 }
 
 func TestServiceRegistration_Equal(t *testing.T) {
@@ -376,7 +377,7 @@ func TestServiceRegistration_Equal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.serviceReg1.Equals(tc.serviceReg2)
+			actualOutput := tc.serviceReg1.Equal(tc.serviceReg2)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -446,4 +447,28 @@ func TestServiceRegistrationListRequest_StaleReadSupport(t *testing.T) {
 func TestServiceRegistrationByNameRequest_StaleReadSupport(t *testing.T) {
 	req := &ServiceRegistrationByNameRequest{}
 	require.True(t, req.IsRead())
+}
+
+func TestServiceRegistration_HashWith(t *testing.T) {
+	a := ServiceRegistration{
+		Address: "10.0.0.1",
+		Port:    9999,
+	}
+
+	// same service, same key -> same hash
+	must.Eq(t, a.HashWith("aaa"), a.HashWith("aaa"))
+
+	// same service, different key -> different hash
+	must.NotEq(t, a.HashWith("aaa"), a.HashWith("bbb"))
+
+	b := ServiceRegistration{
+		Address: "10.0.0.2",
+		Port:    9998,
+	}
+
+	// different service, same key -> different hash
+	must.NotEq(t, a.HashWith("aaa"), b.HashWith("aaa"))
+
+	// different service, different key -> different hash
+	must.NotEq(t, a.HashWith("aaa"), b.HashWith("bbb"))
 }

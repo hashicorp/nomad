@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -176,9 +175,8 @@ func TestConsulConfig_Exec(t *testing.T) {
 func TestConsulConfig_IpTemplateParse(t *testing.T) {
 	ci.Parallel(t)
 
-	privateIps, err := sockaddr.GetPrivateIP()
+	privateIp, err := sockaddr.GetPrivateIP()
 	require.NoError(t, err)
-	privateIp := strings.Split(privateIps, " ")[0]
 
 	testCases := []struct {
 		name        string
@@ -188,7 +186,7 @@ func TestConsulConfig_IpTemplateParse(t *testing.T) {
 	}{
 		{name: "string address keeps working", tmpl: "10.0.1.0:8500", expectedOut: "10.0.1.0:8500", expectErr: false},
 		{name: "single ip sock-addr template", tmpl: "{{ GetPrivateIP }}:8500", expectedOut: privateIp + ":8500", expectErr: false},
-		{name: "multi ip sock-addr template", tmpl: "{{ GetPrivateIPs }}:8500", expectedOut: "", expectErr: true},
+		{name: "multi ip sock-addr template", tmpl: "10.0.1.0 10.0.1.1:8500", expectedOut: "", expectErr: true},
 	}
 
 	for _, tc := range testCases {

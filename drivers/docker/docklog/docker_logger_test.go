@@ -2,6 +2,7 @@ package docklog
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -9,12 +10,12 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	ctu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func testContainerDetails() (image string, imageName string, imageTag string) {
@@ -22,7 +23,7 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 	tag := "1"
 
 	if runtime.GOOS == "windows" {
-		name = "hashicorpnomad/busybox-windows"
+		name = "hashicorpdev/busybox-windows"
 		tag = "server2016-0.1"
 	}
 

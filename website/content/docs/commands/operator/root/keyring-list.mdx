@@ -1,0 +1,41 @@
+---
+layout: docs
+page_title: 'Commands: operator root keyring list'
+description: |
+  List encryption key metadata
+---
+
+# Command: operator root keyring list
+
+The `operator root keyring list` command lists the currently installed
+keys. This list returns key metadata and not sensitive key material.
+
+If ACLs are enabled, this command requires a management token.
+
+## Usage
+
+```plaintext
+nomad operator root keyring list [options]
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## List Options
+
+- `-verbose`: Enable verbose output
+
+## Examples
+
+```shell-session
+$ nomad operator root keyring list
+Key       State     Create Time
+33374156  active    2022-07-11T19:11:07Z
+8d87a371  inactive  2022-07-11T19:10:37Z
+
+$ nomad operator root keyring list -verbose
+Key                                   State     Create Time
+33374156-9f81-b14c-83d4-a2f1f87dbf99  active    2022-07-11T19:11:07Z
+8d87a371-3594-e1e4-8ae1-3980122b0f25  inactive  2022-07-11T19:10:37Z
+```

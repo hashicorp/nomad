@@ -12,7 +12,7 @@ import (
 func newTaskConfig(variant string, command []string) TaskConfig {
 	// busyboxImageID is an id of an image containing nanoserver windows and
 	// a busybox exe.
-	busyboxImageID := "hashicorpnomad/busybox-windows:server2016-0.1"
+	busyboxImageID := "hashicorpdev/busybox-windows:server2016-0.1"
 
 	if tu.IsCI() {
 		// In CI, use HashiCorp Mirror to avoid DockerHub rate limiting

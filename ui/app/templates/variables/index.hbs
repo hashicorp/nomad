@@ -1,0 +1,70 @@
+{{page-title "Variables"}}
+<section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        {{#if this.namespaceOptions}}
+          <SingleSelectDropdown
+            data-test-variable-namespace-filter
+            @label="Namespace"
+            @options={{this.namespaceOptions}}
+            @selection={{this.namespaceSelection}}
+            @onSelect={{this.setNamespace}}
+          />
+        {{/if}}
+      <div class="button-bar">
+      {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+        <LinkTo
+          @route="variables.new"
+          class="button is-primary"
+          data-test-create-var
+        >
+          Create Variable
+        </LinkTo>
+      {{else}}
+        <button
+          class="button is-primary is-disabled tooltip is-right-aligned"
+          aria-label="You don’t have sufficient permissions"
+          disabled
+          type="button"
+          data-test-disabled-create-var
+        >
+          Create Variable
+        </button>
+      {{/if}}
+
+      </div>
+    </div>
+  </div>
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{#if this.hasVariables}}
+      <VariablePaths
+        @branch={{this.root}}
+      />
+    {{else}}
+      <div class="empty-message">
+        {{#if (eq this.namespaceSelection "*")}}
+          <h3 data-test-empty-variables-list-headline class="empty-message-headline">
+            No Variables
+          </h3>
+          {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+            <p class="empty-message-body">
+              Get started by <LinkTo @route="variables.new">creating a new variable</LinkTo>
+            </p>
+          {{/if}}
+        {{else}}
+          <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
+            No Matches
+          </h3>
+          <p class="empty-message-body">
+            No paths or variables match the namespace
+            <strong>
+              {{this.namespaceSelection}}
+            </strong>
+          </p>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{/if}}
+</section>

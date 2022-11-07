@@ -25,7 +25,7 @@ sudo docker --version
 sudo apt-get install unzip curl vim -y
 
 echo "Installing Nomad..."
-NOMAD_VERSION=1.0.1
+NOMAD_VERSION=1.3.1
 cd /tmp/
 curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
 unzip nomad.zip
@@ -35,7 +35,7 @@ sudo chmod a+w /etc/nomad.d
 
 
 echo "Installing Consul..."
-CONSUL_VERSION=1.9.0
+CONSUL_VERSION=1.12.2
 curl -sSL https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip > consul.zip
 unzip /tmp/consul.zip
 sudo install consul /usr/bin/consul
@@ -69,12 +69,17 @@ nomad -autocomplete-install
 SCRIPT
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "bento/ubuntu-18.04" # 18.04 LTS
+  config.vm.box = "bento/ubuntu-22.04" # 22.04 LTS, Jammy
   config.vm.hostname = "nomad"
   config.vm.provision "shell", inline: $script, privileged: false
 
   # Expose the nomad api and ui to the host
   config.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true, host_ip: "127.0.0.1"
+
+  # Increase memory for Libvirt
+  config.vm.provider "libvirt" do |libvirt|
+    libvirt.memory = 1024
+  end
 
   # Increase memory for Parallels Desktop
   config.vm.provider "parallels" do |p, o|

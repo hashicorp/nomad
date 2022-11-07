@@ -1,7 +1,6 @@
 package state
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sync"
@@ -17,43 +16,45 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
-func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
+// assert each implementation satisfies StateDB interface
+var (
+	_ StateDB = (*BoltStateDB)(nil)
+	_ StateDB = (*MemDB)(nil)
+	_ StateDB = (*NoopDB)(nil)
+	_ StateDB = (*ErrDB)(nil)
+)
+
+func setupBoltStateDB(t *testing.T) *BoltStateDB {
+	dir := t.TempDir()
 
 	db, err := NewBoltStateDB(testlog.HCLogger(t), dir)
 	if err != nil {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing boltdb dir: %v", err)
+		if rmErr := os.RemoveAll(dir); rmErr != nil {
+			t.Logf("error removing boltdb dir: %v", rmErr)
 		}
 		t.Fatalf("error creating boltdb: %v", err)
 	}
 
-	cleanup := func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing boltdb: %v", err)
+	t.Cleanup(func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Errorf("error closing boltdb: %v", closeErr)
 		}
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing boltdb dir: %v", err)
-		}
-	}
+	})
 
-	return db.(*BoltStateDB), cleanup
+	return db.(*BoltStateDB)
 }
 
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
-	boltdb, cleanup := setupBoltStateDB(t)
-	defer cleanup()
+	dbs := []StateDB{
+		setupBoltStateDB(t),
+		NewMemDB(testlog.HCLogger(t)),
+	}
 
-	memdb := NewMemDB(testlog.HCLogger(t))
-
-	impls := []StateDB{boltdb, memdb}
-
-	for _, db := range impls {
-		db := db
+	for _, db := range dbs {
 		t.Run(db.Name(), func(t *testing.T) {
 			f(t, db)
 		})
@@ -378,6 +379,79 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 		require.NotNil(ps)
 		require.Equal(state, ps)
 	})
+}
+
+func TestStateDB_CheckResult_keyForCheck(t *testing.T) {
+	ci.Parallel(t)
+
+	allocID := "alloc1"
+	checkID := structs.CheckID("id1")
+	result := keyForCheck(allocID, checkID)
+	exp := allocID + "_" + string(checkID)
+	must.Eq(t, exp, string(result))
+}
+
+func TestStateDB_CheckResult(t *testing.T) {
+	ci.Parallel(t)
+
+	qr := func(id string) *structs.CheckQueryResult {
+		return &structs.CheckQueryResult{
+			ID:        structs.CheckID(id),
+			Mode:      "healthiness",
+			Status:    "passing",
+			Output:    "nomad: tcp ok",
+			Timestamp: 1,
+			Group:     "group",
+			Task:      "task",
+			Service:   "service",
+			Check:     "check",
+		}
+	}
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		t.Run("put and get", func(t *testing.T) {
+			err := db.PutCheckResult("alloc1", qr("abc123"))
+			must.NoError(t, err)
+			results, err := db.GetCheckResults()
+			must.NoError(t, err)
+			must.MapContainsKeys(t, results, []string{"alloc1"})
+			must.MapContainsKeys(t, results["alloc1"], []structs.CheckID{"abc123"})
+		})
+	})
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		t.Run("delete", func(t *testing.T) {
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id1")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id2")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id3")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id4")))
+			must.NoError(t, db.PutCheckResult("alloc2", qr("id5")))
+			err := db.DeleteCheckResults("alloc1", []structs.CheckID{"id2", "id3"})
+			must.NoError(t, err)
+			results, err := db.GetCheckResults()
+			must.NoError(t, err)
+			must.MapContainsKeys(t, results, []string{"alloc1", "alloc2"})
+			must.MapContainsKeys(t, results["alloc1"], []structs.CheckID{"id1", "id4"})
+			must.MapContainsKeys(t, results["alloc2"], []structs.CheckID{"id5"})
+		})
+	})
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		t.Run("purge", func(t *testing.T) {
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id1")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id2")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id3")))
+			must.NoError(t, db.PutCheckResult("alloc1", qr("id4")))
+			must.NoError(t, db.PutCheckResult("alloc2", qr("id5")))
+			err := db.PurgeCheckResults("alloc1")
+			must.NoError(t, err)
+			results, err := db.GetCheckResults()
+			must.NoError(t, err)
+			must.MapContainsKeys(t, results, []string{"alloc2"})
+			must.MapContainsKeys(t, results["alloc2"], []structs.CheckID{"id5"})
+		})
+	})
+
 }
 
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always

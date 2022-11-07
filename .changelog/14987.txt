@@ -1,0 +1,15 @@
+```release-note:bug
+keyring: Fixed a bug where the root keyring replicator's rate limiting would be skipped if the keyring replication exceeded the burst rate.
+```
+
+```release-note:bug
+keyring: Fixed a bug where root keyring replication could make incorrectly stale queries and exit early if those queries did not return the expected key.
+```
+
+```release-note:bug
+keyring: Fixed a bug where root keyring initialization could occur before the raft FSM on the leader was verified to be up-to-date.
+```
+
+```release-note:bug
+keyring: Fixed a bug where if a key is rotated immediately following a leader election, plans that are in-flight may get signed before the new leader has the key. Allow for a short timeout-and-retry to avoid rejecting plans.
+```

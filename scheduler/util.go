@@ -9,8 +9,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -102,12 +102,18 @@ func diffSystemAllocsForNode(
 
 		supportsDisconnectedClients := exist.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
-		reconnected := false
-		// Only compute reconnected for unknown and running since they need to go through the reconnect process.
+		reconnect := false
+		expired := false
+
+		// Only compute reconnect for unknown and running since they need to go
+		// through the reconnect process.
 		if supportsDisconnectedClients &&
 			(exist.ClientStatus == structs.AllocClientStatusUnknown ||
 				exist.ClientStatus == structs.AllocClientStatusRunning) {
-			reconnected, _ = exist.Reconnected()
+			reconnect = exist.NeedsToReconnect()
+			if reconnect {
+				expired = exist.Expired(time.Now())
+			}
 		}
 
 		// If we have been marked for migration and aren't terminal, migrate
@@ -131,7 +137,7 @@ func diffSystemAllocsForNode(
 		}
 
 		// Expired unknown allocs are lost. Expired checks that status is unknown.
-		if supportsDisconnectedClients && exist.Expired(time.Now().UTC()) {
+		if supportsDisconnectedClients && expired {
 			result.lost = append(result.lost, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -157,11 +163,16 @@ func diffSystemAllocsForNode(
 		// Filter allocs on a node that is now re-connected to reconnecting.
 		if supportsDisconnectedClients &&
 			!nodeIsTainted &&
-			reconnected {
+			reconnect {
+
+			// Record the new ClientStatus to indicate to future evals that the
+			// alloc has already reconnected.
+			reconnecting := exist.Copy()
+			reconnecting.AppendState(structs.AllocStateFieldClientStatus, exist.ClientStatus)
 			result.reconnecting = append(result.reconnecting, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     reconnecting,
 			})
 			continue
 		}
@@ -524,6 +535,12 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
+	// Check if volumes are updated (no task driver can support
+	// altering mounts in-place)
+	if !reflect.DeepEqual(a.Volumes, b.Volumes) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -554,6 +571,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		if !reflect.DeepEqual(at.CSIPluginConfig, bt.CSIPluginConfig) {
 			return true
 		}
+		if !reflect.DeepEqual(at.VolumeMounts, bt.VolumeMounts) {
+			return true
+		}
 
 		// Check the metadata
 		if !reflect.DeepEqual(
@@ -576,7 +596,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
 			return true
-		} else if !ar.Devices.Equals(&br.Devices) {
+		} else if !ar.Devices.Equal(&br.Devices) {
 			return true
 		}
 	}
@@ -635,11 +655,11 @@ func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
 		return true
 	}
 
-	if !connectA.Gateway.Equals(connectB.Gateway) {
+	if !connectA.Gateway.Equal(connectB.Gateway) {
 		return true
 	}
 
-	if !connectA.SidecarTask.Equals(connectB.SidecarTask) {
+	if !connectA.SidecarTask.Equal(connectB.SidecarTask) {
 		return true
 	}
 
@@ -851,7 +871,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !helper.SliceStringContains(job.Datacenters, node.Datacenter) {
+		if !slices.Contains(job.Datacenters, node.Datacenter) {
 			continue
 		}
 
@@ -1139,7 +1159,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !helper.SliceStringContains(newJob.Datacenters, node.Datacenter) {
+		if !slices.Contains(newJob.Datacenters, node.Datacenter) {
 			return false, true, nil
 		}
 

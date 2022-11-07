@@ -3,27 +3,37 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
     labels:
       - "theme/dependencies"
   - package-ecosystem: gomod
     directory: "/api"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
     labels:
       - "theme/dependencies"
       - "theme/api"
   - package-ecosystem: npm
     directory: "/ui"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
     labels:
       - "theme/dependencies"
       - "theme/ui"
   - package-ecosystem: npm
     directory: "/website"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
+    assignees:
+      - "@hashicorp/web-platform"
     labels:
       - "theme/dependencies"
       - "theme/website"

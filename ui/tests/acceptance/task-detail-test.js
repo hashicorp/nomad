@@ -22,6 +22,10 @@ module('Acceptance | task detail', function (hooks) {
     allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
+    server.db.taskStates.update(
+      { allocationId: allocation.id },
+      { state: 'running' }
+    );
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -104,7 +108,7 @@ module('Acceptance | task detail', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Job breadcrumb links correctly'
     );
 
@@ -112,7 +116,7 @@ module('Acceptance | task detail', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/${taskGroup}`,
+      `/jobs/${job.id}@default/${taskGroup}`,
       'Task Group breadcrumb links correctly'
     );
 

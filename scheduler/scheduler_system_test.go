@@ -9,7 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1016,7 +1016,7 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = pointer.Of(true)
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1130,7 +1130,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = pointer.Of(true)
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1731,7 +1731,7 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = pointer.Of(true)
 	alloc.TaskGroup = "web"
 
 	alloc2 := mock.Alloc()
@@ -2160,11 +2160,16 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 		Time:  now.Add(-60 * time.Second),
 	}}
 
-	reconnectedEvent := structs.NewTaskEvent(structs.TaskClientReconnected)
-	reconnectedEvent.Time = time.Now().UnixNano()
-	systemJobReconnectTaskState := map[string]*structs.TaskState{
-		systemJob.TaskGroups[0].Tasks[0].Name: {
-			Events: []*structs.TaskEvent{reconnectedEvent},
+	reconnectedAllocState := []*structs.AllocState{
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusUnknown,
+			Time:  now.Add(-60 * time.Second),
+		},
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusRunning,
+			Time:  now,
 		},
 	}
 
@@ -2172,12 +2177,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 		systemJob.TaskGroups[0].Tasks[0].Name: {
 			State:  structs.TaskStateDead,
 			Failed: false,
-		},
-	}
-
-	sysBatchJobReconnectTaskState := map[string]*structs.TaskState{
-		sysBatchJob.TaskGroups[0].Tasks[0].Name: {
-			Events: []*structs.TaskEvent{reconnectedEvent},
 		},
 	}
 
@@ -2216,7 +2215,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2239,8 +2237,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			previousTerminal:       false,
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             unknownAllocState,
-			taskState:              systemJobReconnectTaskState,
+			allocState:             reconnectedAllocState,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2259,7 +2256,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusUnknown,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             expiredAllocState,
-			taskState:              systemJobReconnectTaskState,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2283,7 +2279,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2307,7 +2302,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2331,7 +2325,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusUnknown,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             unknownAllocState,
-			taskState:              nil,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2350,7 +2343,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusUnknown,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             unknownAllocState,
-			taskState:              nil,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2369,7 +2361,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusComplete,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             unknownAllocState,
-			taskState:              nil,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2387,8 +2378,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			previousTerminal:       false,
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             unknownAllocState,
-			taskState:              sysBatchJobReconnectTaskState,
+			allocState:             reconnectedAllocState,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2406,8 +2396,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			previousTerminal:       false,
 			clientStatus:           structs.AllocClientStatusFailed,
 			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             unknownAllocState,
-			taskState:              sysBatchJobReconnectTaskState,
+			allocState:             reconnectedAllocState,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2425,8 +2414,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			previousTerminal:       false,
 			clientStatus:           structs.AllocClientStatusComplete,
 			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             unknownAllocState,
-			taskState:              sysBatchJobReconnectTaskState,
+			allocState:             reconnectedAllocState,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2445,7 +2433,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusUnknown,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             expiredAllocState,
-			taskState:              sysBatchJobReconnectTaskState,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2469,7 +2456,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2493,7 +2479,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2517,7 +2502,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2541,7 +2525,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2706,7 +2689,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      1,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate: map[string]*structs.Allocation{
@@ -2730,7 +2712,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2759,7 +2740,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2807,7 +2787,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2831,7 +2810,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:      structs.AllocClientStatusRunning,
 			desiredStatus:     structs.AllocDesiredStatusRun,
 			allocState:        nil,
-			taskState:         nil,
 			expectedPlanCount: 1,
 			expectedNodeAllocation: map[string]*structs.Allocation{
 				"id": {
@@ -2860,7 +2838,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			clientStatus:           structs.AllocClientStatusRunning,
 			desiredStatus:          structs.AllocDesiredStatusRun,
 			allocState:             nil,
-			taskState:              nil,
 			expectedPlanCount:      0,
 			expectedNodeAllocation: nil,
 			expectedNodeUpdate:     nil,
@@ -2895,7 +2872,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				require.FailNow(t, "invalid jobType")
 			}
 
-			job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
+			job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
 
 			if !tc.required {
 				job.Stop = true
@@ -2914,7 +2891,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			alloc.TaskGroup = job.TaskGroups[0].Name
 			alloc.ClientStatus = tc.clientStatus
 			alloc.DesiredStatus = tc.desiredStatus
-			alloc.DesiredTransition.Migrate = helper.BoolToPtr(tc.migrate)
+			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
 			alloc.AllocStates = tc.allocState
 			alloc.TaskStates = tc.taskState
 

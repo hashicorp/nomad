@@ -3,19 +3,17 @@ package taskrunner
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
-	"os"
 	"testing"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 // Statically assert the logmon hook implements the expected interfaces
@@ -66,11 +64,7 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
-	}()
+	dir := t.TempDir()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}
@@ -102,7 +96,7 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 
 	// Running stop should shutdown logmon
 	stopReq := interfaces.TaskStopRequest{
-		ExistingState: helper.CopyMapStringString(resp.State),
+		ExistingState: maps.Clone(resp.State),
 	}
 	require.NoError(t, hook.Stop(context.Background(), &stopReq, nil))
 }

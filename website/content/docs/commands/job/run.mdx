@@ -78,11 +78,12 @@ that volume.
   such as from "nomad job inspect" or "nomad run -output", the value of the
   field is used as the job. See [JSON Jobs] for details.
 
-- `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
+- `-hcl1`: If set, HCL1 parser is used for parsing the job spec. Takes
+  precedence over `-hcl2-strict`.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
   a variable has been supplied which is not defined within the root variables.
-  Defaults to true.
+  Defaults to true, but ignored if `-hcl1` is defined.
 
 - `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
@@ -100,7 +101,7 @@ that volume.
 
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` stanza reading from Consul KV will
-  scoped to the the specified Consul namespace. If Consul ACLs are enabled and the
+  scoped to the specified Consul namespace. If Consul ACLs are enabled and the
   [`consul` stanza `allow_unauthenticated`] is disabled in the Nomad server configuration, then
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.
@@ -238,7 +239,7 @@ $ nomad job run example.nomad
 [`batch`]: /docs/schedulers#batch
 [`consul` stanza `allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
 [deployment status]: /docs/commands/deployment#status
-[eval status]: /docs/commands/eval-status
+[eval status]: /docs/commands/eval/status
 [`go-getter`]: https://github.com/hashicorp/go-getter
 [`job plan` command]: /docs/commands/job/plan
 [job specification]: /docs/job-specification

@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,12 +31,12 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat1"),
+						StringVal: pointer.Of("stat1"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(2),
+						IntNumeratorVal: pointer.Of(int64(2)),
 					},
 				},
 			},
@@ -47,12 +47,12 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat3"),
+						StringVal: pointer.Of("stat3"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(4),
+						IntNumeratorVal: pointer.Of(int64(4)),
 					},
 				},
 			},
@@ -61,16 +61,16 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 
 	expected := map[string]*api.StatValue{
 		"vendor1/type1/name1[id1]": {
-			StringVal: helper.StringToPtr("stat1"),
+			StringVal: pointer.Of("stat1"),
 		},
 		"vendor1/type1/name1[id2]": {
-			IntNumeratorVal: helper.Int64ToPtr(2),
+			IntNumeratorVal: pointer.Of(int64(2)),
 		},
 		"vendor2/type2[id1]": {
-			StringVal: helper.StringToPtr("stat3"),
+			StringVal: pointer.Of("stat3"),
 		},
 		"vendor2/type2[id2]": {
-			IntNumeratorVal: helper.Int64ToPtr(4),
+			IntNumeratorVal: pointer.Of(int64(4)),
 		},
 	}
 
@@ -82,7 +82,7 @@ func TestFormatDeviceStats(t *testing.T) {
 
 	statValue := func(v string) *api.StatValue {
 		return &api.StatValue{
-			StringVal: helper.StringToPtr(v),
+			StringVal: pointer.Of(v),
 		}
 	}
 
@@ -145,12 +145,12 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat1"),
+						StringVal: pointer.Of("stat1"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(2),
+						IntNumeratorVal: pointer.Of(int64(2)),
 					},
 				},
 			},
@@ -161,12 +161,12 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat3"),
+						StringVal: pointer.Of("stat3"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(4),
+						IntNumeratorVal: pointer.Of(int64(4)),
 					},
 				},
 			},
@@ -219,12 +219,12 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat1"),
+						StringVal: pointer.Of("stat1"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(2),
+						IntNumeratorVal: pointer.Of(int64(2)),
 					},
 				},
 			},
@@ -235,12 +235,12 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 			InstanceStats: map[string]*api.DeviceStats{
 				"id1": {
 					Summary: &api.StatValue{
-						StringVal: helper.StringToPtr("stat3"),
+						StringVal: pointer.Of("stat3"),
 					},
 				},
 				"id2": {
 					Summary: &api.StatValue{
-						IntNumeratorVal: helper.Int64ToPtr(4),
+						IntNumeratorVal: pointer.Of(int64(4)),
 					},
 				},
 			},
@@ -267,11 +267,11 @@ func TestGetDeviceAttributes(t *testing.T) {
 
 		Attributes: map[string]*api.Attribute{
 			"utilization": {
-				FloatVal: helper.Float64ToPtr(0.78),
+				FloatVal: pointer.Of(float64(0.78)),
 				Unit:     "%",
 			},
 			"filesystem": {
-				StringVal: helper.StringToPtr("ext4"),
+				StringVal: pointer.Of("ext4"),
 			},
 		},
 	}

@@ -1,11 +1,13 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/go-bexpr"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -129,6 +131,23 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	// Ensure there is a default timeout
 	if args.Timeout <= 0 {
 		args.Timeout = DefaultDequeueTimeout
+	}
+
+	// If the eval broker is paused, attempt to block and wait for a state
+	// change before returning. This avoids a tight loop and mimics the
+	// behaviour where there are no evals to process.
+	//
+	// The call can return because either the timeout is reached or the broker
+	// SetEnabled function was called to modify its state. It is possible this
+	// is because of leadership transition, therefore the RPC should exit to
+	// allow all safety checks and RPC forwarding to occur again.
+	//
+	// The log line is trace, because the default worker timeout is 500ms which
+	// produces a large amount of logging.
+	if !e.srv.evalBroker.Enabled() {
+		message := e.srv.evalBroker.enabledNotifier.WaitForChange(args.Timeout)
+		e.logger.Trace("eval broker wait for un-pause", "message", message)
+		return nil
 	}
 
 	// Attempt the dequeue
@@ -374,7 +393,7 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 }
 
 // Reap is used to cleanup dead evaluations and allocations
-func (e *Eval) Reap(args *structs.EvalDeleteRequest,
+func (e *Eval) Reap(args *structs.EvalReapRequest,
 	reply *structs.GenericResponse) error {
 
 	// Ensure the connection was initiated by another server if TLS is used.
@@ -399,6 +418,81 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	return nil
 }
 
+// Delete is used by operators to delete evaluations during severe outages. It
+// differs from Reap while duplicating some behavior to ensure we have the
+// correct controls for user initiated deletions.
+func (e *Eval) Delete(
+	args *structs.EvalDeleteRequest,
+	reply *structs.EvalDeleteResponse) error {
+
+	if done, err := e.srv.forward(structs.EvalDeleteRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "delete"}, time.Now())
+
+	// This RPC endpoint is very destructive and alters Nomad's core state,
+	// meaning only those with management tokens can call it.
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// The eval broker must be disabled otherwise Nomad's state will likely get
+	// wild in a very un-fun way.
+	if e.srv.evalBroker.Enabled() {
+		return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+	}
+
+	// Grab the state snapshot, so we can look up relevant eval information.
+	serverStateSnapshot, err := e.srv.State().Snapshot()
+	if err != nil {
+		return fmt.Errorf("failed to lookup state snapshot: %v", err)
+	}
+	ws := memdb.NewWatchSet()
+
+	// Iterate the evaluations and ensure they are safe to delete. It is
+	// possible passed evals are not safe to delete and would make Nomads state
+	// a little wonky. The nature of the RPC return error, means a single
+	// unsafe eval ID fails the whole call.
+	for _, evalID := range args.EvalIDs {
+
+		evalInfo, err := serverStateSnapshot.EvalByID(ws, evalID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup eval: %v", err)
+		}
+		if evalInfo == nil {
+			return errors.New("eval not found")
+		}
+		ok, err := serverStateSnapshot.EvalIsUserDeleteSafe(ws, evalInfo)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("eval %s is not safe to delete", evalInfo.ID)
+		}
+	}
+
+	// Generate the Raft request object using the reap request object. This
+	// avoids adding new Raft messages types and follows the existing reap
+	// flow.
+	raftReq := structs.EvalReapRequest{
+		Evals:         args.EvalIDs,
+		UserInitiated: true,
+		WriteRequest:  args.WriteRequest,
+	}
+
+	// Update via Raft.
+	_, index, err := e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+	if err != nil {
+		return err
+	}
+
+	// Update the index and return.
+	reply.Index = index
+	return nil
+}
+
 // List is used to get a list of the evaluations in the system
 func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
@@ -409,11 +503,14 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	namespace := args.RequestNamespace()
 
 	// Check for read-job permissions
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
 	if args.Filter != "" {
 		// Check for incompatible filtering.
@@ -434,57 +531,72 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			var iter memdb.ResultIterator
 			var opts paginator.StructsTokenizerOptions
 
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
-			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
-			} else {
-				iter, err = store.Evals(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
-			}
-			if err != nil {
+			// Get the namespaces the user is allowed to access.
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty evals if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Evaluations = make([]*structs.Evaluation, 0)
+			} else if err != nil {
 				return err
-			}
-
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-				if eval := raw.(*structs.Evaluation); eval != nil {
-					return args.ShouldBeFiltered(eval)
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithID: true,
+					}
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
+				} else {
+					iter, err = store.Evals(ws, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
 				}
-				return false
-			})
+				if err != nil {
+					return err
+				}
 
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			var evals []*structs.Evaluation
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					eval := raw.(*structs.Evaluation)
-					evals = append(evals, eval)
-					return nil
+				iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+					if eval := raw.(*structs.Evaluation); eval != nil {
+						return args.ShouldBeFiltered(eval)
+					}
+					return false
 				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
 
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
+				tokenizer := paginator.NewStructsTokenizer(iter, opts)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+				}
 
-			reply.QueryMeta.NextToken = nextToken
-			reply.Evaluations = evals
+				var evals []*structs.Evaluation
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						eval := raw.(*structs.Evaluation)
+						evals = append(evals, eval)
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Evaluations = evals
+			}
 
 			// Use the last index that affected the jobs table
 			index, err := store.Index("evals")
@@ -497,6 +609,104 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			e.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
+	return e.srv.blockingRPC(&opts)
+}
+
+// Count is used to get a list of the evaluations in the system
+func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountResponse) error {
+	if done, err := e.srv.forward("Eval.Count", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "count"}, time.Now())
+	namespace := args.RequestNamespace()
+
+	// Check for read-job permissions
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
+
+	var filter *bexpr.Evaluator
+	if args.Filter != "" {
+		filter, err = bexpr.CreateEvaluator(args.Filter)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup the blocking query. This is only superficially like Eval.List,
+	// because we don't any concerns about pagination, sorting, and legacy
+	// filter fields.
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			// Scan all the evaluations
+			var err error
+			var iter memdb.ResultIterator
+
+			// Get the namespaces the user is allowed to access.
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err != nil {
+				return err
+			}
+
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.EvalsByNamespace(ws, namespace)
+			} else {
+				iter, err = store.Evals(ws, state.SortDefault)
+			}
+			if err != nil {
+				return err
+			}
+
+			count := 0
+
+			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				if raw == nil {
+					return true
+				}
+				eval := raw.(*structs.Evaluation)
+				if allowableNamespaces != nil && !allowableNamespaces[eval.Namespace] {
+					return true
+				}
+				if filter != nil {
+					ok, err := filter.Evaluate(eval)
+					if err != nil {
+						return true
+					}
+					return !ok
+				}
+				return false
+			})
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				count++
+			}
+
+			// Use the last index that affected the jobs table
+			index, err := store.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			reply.Count = count
+
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+
 	return e.srv.blockingRPC(&opts)
 }
 

@@ -207,18 +207,18 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	go ar2.Run()
 	defer destroy(ar2)
 
-	// AR waitCh must be closed even when task doesn't run again
+	// AR waitCh must be open as the task waits for a possible alloc restart.
 	select {
 	case <-ar2.WaitCh():
-	case <-time.After(10 * time.Second):
-		require.Fail(t, "alloc.waitCh wasn't closed")
+		require.Fail(t, "alloc.waitCh was closed")
+	default:
 	}
 
-	// TR waitCh must be closed too!
+	// TR waitCh must be open too!
 	select {
 	case <-ar2.tasks[task.Name].WaitCh():
-	case <-time.After(10 * time.Second):
-		require.Fail(t, "tr.waitCh wasn't closed")
+		require.Fail(t, "tr.waitCh was closed")
+	default:
 	}
 
 	// Assert that events are unmodified, which they would if task re-run

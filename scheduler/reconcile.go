@@ -265,6 +265,16 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	}
 }
 
+// computeDeploymentPaused is responsible for setting flags on the
+// allocReconciler that indicate the state of the deployment if one
+// is required. The flags that are managed are:
+//  1. deploymentFailed: Did the current deployment fail just as named.
+//  2. deploymentPaused: Multiregion job types that use deployments run
+//     the deployments later during the fan-out stage. When the deployment
+//     is created it will be in a pending state. If an invariant violation
+//     is detected by the deploymentWatcher during it will enter a paused
+//     state. This flag tells Compute we're paused or pending, so we should
+//     not make placements on the deployment.
 func (a *allocReconciler) computeDeploymentPaused() {
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
@@ -272,10 +282,10 @@ func (a *allocReconciler) computeDeploymentPaused() {
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 	if a.deployment == nil {
-		// When we create the deployment later, it will be in a pending
-		// state. But we also need to tell Compute we're paused, otherwise we
-		// make placements on the paused deployment.
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() || a.job.IsParameterized()) {
+		if a.job.IsMultiregion() &&
+			a.job.UsesDeployments() &&
+			!(a.job.IsPeriodic() || a.job.IsParameterized()) {
+
 			a.deploymentPaused = true
 		}
 	}
@@ -766,7 +776,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		a.markStop(failed, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(failed))
 
-		min := helper.IntMin(len(place), underProvisionedBy)
+		min := helper.Min(len(place), underProvisionedBy)
 		underProvisionedBy -= min
 		return underProvisionedBy
 	}
@@ -778,7 +788,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// If allocs have been lost, determine the number of replacements that are needed
 	// and add placements to the result for the lost allocs.
 	if len(lost) != 0 {
-		allowed := helper.IntMin(len(lost), len(place))
+		allowed := helper.Min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
 		a.result.place = append(a.result.place, place[:allowed]...)
 	}
@@ -819,7 +829,7 @@ func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) {
 
 	// Do all destructive updates
-	min := helper.IntMin(len(destructive), underProvisionedBy)
+	min := helper.Min(len(destructive), underProvisionedBy)
 	desiredChanges.DestructiveUpdate += uint64(min)
 	desiredChanges.Ignore += uint64(len(destructive) - min)
 	for _, alloc := range destructive.nameOrder()[:min] {
@@ -903,7 +913,7 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 
 	// Final check to see if the deployment is complete is to ensure everything is healthy
 	if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
-		if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+		if dstate.HealthyAllocs < helper.Max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 			complete = false
 		}
@@ -1191,7 +1201,12 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 			continue
 		}
 
-		a.result.reconnectUpdates[alloc.ID] = alloc
+		// Record the new ClientStatus to indicate to future evals that the
+		// alloc has already reconnected.
+		// Use a copy to prevent mutating the object from statestore.
+		reconnectedAlloc := alloc.Copy()
+		reconnectedAlloc.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
+		a.result.reconnectUpdates[reconnectedAlloc.ID] = reconnectedAlloc
 	}
 }
 
@@ -1268,7 +1283,8 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
 	if err != nil || len(timeoutDelays) != len(disconnecting) {
-		a.logger.Error("error computing disconnecting timeouts for task_group", "task_group", tgName, "err", err)
+		a.logger.Error("error computing disconnecting timeouts for task_group",
+			"task_group", tgName, "error", err)
 		return map[string]string{}
 	}
 

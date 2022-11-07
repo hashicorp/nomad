@@ -126,7 +126,7 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *NodeDrainCommand) Name() string { return "node-drain" }
+func (c *NodeDrainCommand) Name() string { return "node drain" }
 
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, detach, force,

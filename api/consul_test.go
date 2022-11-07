@@ -39,7 +39,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 	testutil.Parallel(t)
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
-		ns := stringToPtr("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "foo", a.Namespace)
 		require.Equal(t, "bar", *ns)
@@ -47,7 +47,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 
 	t.Run("inherit", func(t *testing.T) {
 		a := &Consul{Namespace: ""}
-		ns := stringToPtr("bar")
+		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
 		require.Equal(t, "bar", a.Namespace)
 		require.Equal(t, "bar", *ns)
@@ -163,11 +163,12 @@ func TestConsulUpstream_Copy(t *testing.T) {
 
 	t.Run("complete upstream", func(t *testing.T) {
 		cu := &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: "remote"},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
 		}
 		result := cu.Copy()
 		require.Equal(t, cu, result)
@@ -185,19 +186,21 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 
 	t.Run("complete", func(t *testing.T) {
 		cu := &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 		}
 		cu.Canonicalize()
 		require.Equal(t, &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 		}, cu)
 	})
 }
@@ -225,9 +228,9 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 
 	t.Run("non empty sidecar_task resources", func(t *testing.T) {
 		exp := DefaultResources()
-		exp.MemoryMB = intToPtr(333)
+		exp.MemoryMB = pointerOf(333)
 		st := &SidecarTask{
-			Resources: &Resources{MemoryMB: intToPtr(333)},
+			Resources: &Resources{MemoryMB: pointerOf(333)},
 		}
 		st.Canonicalize()
 		require.Equal(t, exp, st.Resources)
@@ -260,7 +263,7 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 			},
 		}
 		cg.Canonicalize()
-		require.Equal(t, timeToPtr(5*time.Second), cg.Proxy.ConnectTimeout)
+		require.Equal(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
 		require.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
 		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
 		require.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
@@ -280,7 +283,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	gateway := &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  timeToPtr(3 * time.Second),
+			ConnectTimeout:                  pointerOf(3 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2000},
@@ -508,6 +511,35 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 	t.Run("instantiated", func(t *testing.T) {
 		c := &ConsulMeshGateway{
 			Mode: "local",
+		}
+		result := c.Copy()
+		require.Equal(t, c, result)
+	})
+}
+
+func TestConsulGatewayTLSConfig_Copy(t *testing.T) {
+	testutil.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		c := (*ConsulGatewayTLSConfig)(nil)
+		result := c.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		c := &ConsulGatewayTLSConfig{
+			Enabled: true,
+		}
+		result := c.Copy()
+		require.Equal(t, c, result)
+	})
+
+	t.Run("customized", func(t *testing.T) {
+		c := &ConsulGatewayTLSConfig{
+			Enabled:       true,
+			TLSMinVersion: "TLSv1_2",
+			TLSMaxVersion: "TLSv1_3",
+			CipherSuites:  []string{"foo", "bar"},
 		}
 		result := c.Copy()
 		require.Equal(t, c, result)

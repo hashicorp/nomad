@@ -1,7 +1,6 @@
 package command
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,10 +15,7 @@ import (
 func TestOperatorSnapshotSave_Works(t *testing.T) {
 	ci.Parallel(t)
 
-	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
-	require.NoError(t, err)
-
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	srv, _, url := testServer(t, false, func(c *agent.Config) {
 		c.DevMode = false

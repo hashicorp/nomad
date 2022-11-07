@@ -8,14 +8,12 @@ import (
 	"strings"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/posener/complete"
+	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type AllocStatusCommand struct {
@@ -201,9 +199,16 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		}
 		c.Ui.Output(output)
 
+		// add allocation network addresses
 		if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
 			c.Ui.Output("")
 			c.Ui.Output(formatAllocNetworkInfo(alloc))
+		}
+
+		// add allocation nomad service discovery checks
+		if checkOutput := formatAllocNomadServiceChecks(alloc.ID, client); checkOutput != "" {
+			c.Ui.Output("")
+			c.Ui.Output(checkOutput)
 		}
 	}
 
@@ -357,7 +362,28 @@ func formatAllocNetworkInfo(alloc *api.Allocation) string {
 		mode = fmt.Sprintf(" (mode = %q)", nw.Mode)
 	}
 
-	return fmt.Sprintf("Allocation Addresses%s\n%s", mode, formatList(addrs))
+	return fmt.Sprintf("Allocation Addresses%s:\n%s", mode, formatList(addrs))
+}
+
+func formatAllocNomadServiceChecks(allocID string, client *api.Client) string {
+	statuses, err := client.Allocations().Checks(allocID, nil)
+	if err != nil {
+		return ""
+	} else if len(statuses) == 0 {
+		return ""
+	}
+	results := []string{"Service|Task|Name|Mode|Status"}
+	for _, status := range statuses {
+		task := "(group)"
+		if status.Task != "" {
+			task = status.Task
+		}
+		// check | group | mode | status
+		s := fmt.Sprintf("%s|%s|%s|%s|%s", status.Service, task, status.Check, status.Mode, status.Status)
+		results = append(results, s)
+	}
+	sort.Strings(results[1:])
+	return fmt.Sprintf("Nomad Service Checks:\n%s", formatList(results))
 }
 
 // futureEvalTimePretty returns when the eval is eligible to reschedule
@@ -498,7 +524,7 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = strings.Join(parts, ", ")
 	case api.TaskRestarting:
 		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-		if event.RestartReason != "" && event.RestartReason != restarts.ReasonWithinPolicy {
+		if event.RestartReason != "" && event.RestartReason != api.AllocRestartReasonWithinPolicy {
 			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
 		} else {
 			desc = in
@@ -555,7 +581,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		return
 	}
 
-	c.Ui.Output("Task Resources")
+	c.Ui.Output("Task Resources:")
 	var addr []string
 	for _, nw := range resource.Networks {
 		ports := append(nw.DynamicPorts, nw.ReservedPorts...) //nolint:gocritic
@@ -597,7 +623,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 				// Nomad uses RSS as the top-level metric to report, for historical reasons,
 				// but it's not always measured (e.g. with cgroup-v2)
 				usage := ms.RSS
-				if usage == 0 && !helper.SliceStringContains(ms.Measured, "RSS") {
+				if usage == 0 && !slices.Contains(ms.Measured, "RSS") {
 					usage = ms.Usage
 				}
 				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(usage), memUsage)
@@ -821,14 +847,14 @@ FOUND:
 	for _, volMount := range task.VolumeMounts {
 		volReq := tg.Volumes[*volMount.Volume]
 		switch volReq.Type {
-		case structs.VolumeTypeHost:
+		case api.CSIVolumeTypeHost:
 			hostVolumesOutput = append(hostVolumesOutput,
 				fmt.Sprintf("%s|%v", volReq.Name, *volMount.ReadOnly))
-		case structs.VolumeTypeCSI:
+		case api.CSIVolumeTypeCSI:
 			if verbose {
 				source := volReq.Source
 				if volReq.PerAlloc {
-					source = source + structs.AllocSuffix(alloc.Name)
+					source = source + api.AllocSuffix(alloc.Name)
 				}
 
 				// there's an extra API call per volume here so we toggle it

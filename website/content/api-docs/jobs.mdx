@@ -46,6 +46,8 @@ The table below shows this endpoint's support for
 - `namespace` `(string: "default")` - Specifies the target namespace. Specifying
   `*` would return all jobs across all the authorized namespaces.
 
+- `meta` `(bool: false)` - If set, jobs returned will include a [meta](/docs/job-specification/meta) field containing key-value pairs provided in the job specification's `meta` block.
+
 ### Sample Request
 
 ```shell-session
@@ -168,7 +170,7 @@ The table below shows this endpoint's support for
         "Tasks": [
           {
             "Config": {
-              "image": "redis:3.2",
+              "image": "redis:7",
               "ports": ["db"]
             },
             "Driver": "docker",
@@ -667,7 +669,7 @@ $ curl \
               "Artifacts": null,
               "CSIPluginConfig": null,
               "Config": {
-                "image": "redis:3.2",
+                "image": "redis:7",
                 "ports": ["db"]
               },
               "Constraints": null,
@@ -881,7 +883,7 @@ $ curl \
               "Artifacts": null,
               "CSIPluginConfig": null,
               "Config": {
-                "image": "redis:3.2",
+                "image": "redis:7",
                 "ports": [
                   "db"
                 ]
@@ -1049,7 +1051,7 @@ $ curl \
               "Artifacts": null,
               "CSIPluginConfig": null,
               "Config": {
-                "image": "redis:3.2",
+                "image": "redis:7",
                 "ports": [
                   "db"
                 ]
@@ -1259,7 +1261,7 @@ $ curl \
             "VaultError": "",
             "TaskSignalReason": "",
             "TaskSignal": "",
-            "DriverMessage": "Downloading image redis:3.2"
+            "DriverMessage": "Downloading image redis:7"
           },
           {
             "Type": "Started",
@@ -2290,4 +2292,58 @@ This is the same payload as returned by job update.
   "LastContact": 0,
   "Warnings": ""
 }
+```
+
+## Job Services
+
+The endpoint is used to read all services registered within Nomad belonging to the passed job ID.
+
+| Method | Path                    | Produces           |
+| ------ | ----------------------- | ------------------ |
+| `GET`  | `/job/:job_id/services` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required         |
+| ---------------- | ----------------- | -------------------- |
+| `YES`            | `all`             | `namespace:read-job` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
+the job file during submission). This is specified as part of the path.
+
+- `namespace` `(string: "default")` - Specifies the target namespace.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/job/example/services
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Address": "127.0.0.1",
+    "AllocID": "177160af-26f6-619f-9c9f-5e46d1104395",
+    "CreateIndex": 14,
+    "Datacenter": "dc1",
+    "ID": "_nomad-task-177160af-26f6-619f-9c9f-5e46d1104395-redis-example-cache-redis-db",
+    "JobID": "example",
+    "ModifyIndex": 24,
+    "Namespace": "default",
+    "NodeID": "7406e90b-de16-d118-80fe-60d0f2730cb3",
+    "Port": 29702,
+    "ServiceName": "example-cache-redis",
+    "Tags": [
+      "db",
+      "cache"
+    ]
+  }
+]
 ```

@@ -1,0 +1,7 @@
+```release-note:improvement
+core: automatically mark clients with recurring plan rejections as ineligible
+```
+
+```release-note:improvement
+metrics: emit `nomad.nomad.plan.rejection_tracker.node_score` metric for the number of times a node had a plan rejection within the past time window
+```

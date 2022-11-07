@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -86,119 +84,6 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 
-}
-
-// Verifies monitor socket path for old qemu
-func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
-
-	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	d := NewQemuDriver(ctx, testlog.HCLogger(t))
-	harness := dtestutil.NewDriverHarness(t, d)
-
-	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "linux",
-		Resources: &drivers.Resources{
-			NomadResources: &structs.AllocatedTaskResources{
-				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: 512,
-				},
-				Cpu: structs.AllocatedCpuResources{
-					CpuShares: 100,
-				},
-				Networks: []*structs.NetworkResource{
-					{
-						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
-					},
-				},
-			},
-		},
-	}
-
-	cleanup := harness.MkAllocDir(task, true)
-	defer cleanup()
-
-	fingerPrint := &drivers.Fingerprint{
-		Attributes: map[string]*pstructs.Attribute{
-			driverVersionAttr: pstructs.NewStringAttribute("2.0.0"),
-		},
-	}
-	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*Driver)
-	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
-	require.Nil(err)
-
-	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
-	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
-	require.NotNil(err)
-
-	// Max length includes the '/' separator and socket name
-	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
-	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
-	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
-	require.Nil(err)
-}
-
-// Verifies monitor socket path for new qemu version
-func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
-
-	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	d := NewQemuDriver(ctx, testlog.HCLogger(t))
-	harness := dtestutil.NewDriverHarness(t, d)
-
-	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "linux",
-		Resources: &drivers.Resources{
-			NomadResources: &structs.AllocatedTaskResources{
-				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: 512,
-				},
-				Cpu: structs.AllocatedCpuResources{
-					CpuShares: 100,
-				},
-				Networks: []*structs.NetworkResource{
-					{
-						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
-					},
-				},
-			},
-		},
-	}
-
-	cleanup := harness.MkAllocDir(task, true)
-	defer cleanup()
-
-	fingerPrint := &drivers.Fingerprint{
-		Attributes: map[string]*pstructs.Attribute{
-			driverVersionAttr: pstructs.NewStringAttribute("2.99.99"),
-		},
-	}
-	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*Driver)
-	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
-	require.Nil(err)
-
-	// Should not return an error in this qemu version
-	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
-	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
-	require.Nil(err)
-
-	// Max length includes the '/' separator and socket name
-	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
-	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
-	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
-	require.Nil(err)
 }
 
 // copyFile moves an existing file to the destination
@@ -282,7 +167,8 @@ func TestQemuDriver_User(t *testing.T) {
 
 }
 
-//  Verifies getting resource usage stats
+//	Verifies getting resource usage stats
+//
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
@@ -390,6 +276,7 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
   image_path = "/tmp/image_path"
+  drive_interface = "virtio"
   accelerator = "kvm"
   args = ["arg1", "arg2"]
   port_map {
@@ -400,9 +287,10 @@ config {
 }`
 
 	expected := &TaskConfig{
-		ImagePath:   "/tmp/image_path",
-		Accelerator: "kvm",
-		Args:        []string{"arg1", "arg2"},
+		ImagePath:      "/tmp/image_path",
+		DriveInterface: "virtio",
+		Accelerator:    "kvm",
+		Args:           []string{"arg1", "arg2"},
 		PortMap: map[string]int{
 			"http":  80,
 			"https": 443,
@@ -414,6 +302,19 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestIsAllowedDriveInterface(t *testing.T) {
+	validInterfaces := []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
+	invalidInterfaces := []string{"foo", "virtio-foo"}
+
+	for _, i := range validInterfaces {
+		require.Truef(t, isAllowedDriveInterface(i), "drive_interface should be allowed: %v", i)
+	}
+
+	for _, i := range invalidInterfaces {
+		require.Falsef(t, isAllowedDriveInterface(i), "drive_interface should be not allowed: %v", i)
+	}
 }
 
 func TestIsAllowedImagePath(t *testing.T) {
@@ -449,7 +350,7 @@ func TestIsAllowedImagePath(t *testing.T) {
 
 func TestArgsAllowList(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	pluginConfigAllowList := []string{"-drive", "-net", "-snapshot"}
 
 	validArgs := [][]string{

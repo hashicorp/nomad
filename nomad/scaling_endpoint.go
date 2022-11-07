@@ -130,7 +130,7 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 				if err != nil {
 					return err
 				}
-				reply.Index = helper.Uint64Max(1, index)
+				reply.Index = helper.Max(1, index)
 			}
 			return nil
 		}}
@@ -194,7 +194,7 @@ func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(1, index)
+			reply.Index = helper.Max(1, index)
 
 			// Set the query response
 			p.srv.setQueryMeta(&reply.QueryMeta)

@@ -1,6 +1,8 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // Consul represents configuration related to consul.
 type Consul struct {
@@ -75,7 +77,6 @@ func (css *ConsulSidecarService) Canonicalize() {
 	css.Proxy.Canonicalize()
 }
 
-
 // SidecarTask represents a subset of Task fields that can be set to override
 // the fields of the Task generated for the sidecar
 type SidecarTask struct {
@@ -122,11 +123,11 @@ func (st *SidecarTask) Canonicalize() {
 	}
 
 	if st.KillTimeout == nil {
-		st.KillTimeout = timeToPtr(5 * time.Second)
+		st.KillTimeout = pointerOf(5 * time.Second)
 	}
 
 	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = timeToPtr(0)
+		st.ShutdownDelay = pointerOf(time.Duration(0))
 	}
 }
 
@@ -196,11 +197,12 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
-	DestinationName  string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
-	LocalBindPort    int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
-	Datacenter       string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
-	LocalBindAddress string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
-	MeshGateway      *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
+	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
+	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
+	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
+	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
+	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
+	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
 }
 
 func (cu *ConsulUpstream) Copy() *ConsulUpstream {
@@ -208,11 +210,12 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 		return nil
 	}
 	return &ConsulUpstream{
-		DestinationName:  cu.DestinationName,
-		LocalBindPort:    cu.LocalBindPort,
-		Datacenter:       cu.Datacenter,
-		LocalBindAddress: cu.LocalBindAddress,
-		MeshGateway:      cu.MeshGateway.Copy(),
+		DestinationName:      cu.DestinationName,
+		DestinationNamespace: cu.DestinationNamespace,
+		LocalBindPort:        cu.LocalBindPort,
+		Datacenter:           cu.Datacenter,
+		LocalBindAddress:     cu.LocalBindAddress,
+		MeshGateway:          cu.MeshGateway.Copy(),
 	}
 }
 
@@ -312,7 +315,7 @@ func (p *ConsulGatewayProxy) Canonicalize() {
 
 	if p.ConnectTimeout == nil {
 		// same as the default from consul
-		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
+		p.ConnectTimeout = pointerOf(defaultGatewayConnectTimeout)
 	}
 
 	if len(p.EnvoyGatewayBindAddresses) == 0 {
@@ -346,7 +349,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  timeToPtr(*p.ConnectTimeout),
+		ConnectTimeout:                  pointerOf(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
@@ -357,7 +360,10 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled bool `hcl:"enabled,optional"`
+	Enabled       bool     `hcl:"enabled,optional"`
+	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -368,9 +374,18 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		return nil
 	}
 
-	return &ConsulGatewayTLSConfig{
-		Enabled: tc.Enabled,
+	result := &ConsulGatewayTLSConfig{
+		Enabled:       tc.Enabled,
+		TLSMinVersion: tc.TLSMinVersion,
+		TLSMaxVersion: tc.TLSMaxVersion,
 	}
+	if len(tc.CipherSuites) != 0 {
+		cipherSuites := make([]string, len(tc.CipherSuites))
+		copy(cipherSuites, tc.CipherSuites)
+		result.CipherSuites = cipherSuites
+	}
+
+	return result
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.

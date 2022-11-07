@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -62,6 +63,11 @@ const (
 	// updates have come in since the last one was handled, we only need to
 	// handle the last one.
 	triggerUpdateChCap = 1
+
+	// restartChCap is the capacity for the restartCh used for triggering task
+	// restarts. It should be exactly 1 as even if multiple restarts have come
+	// we only need to handle the last one.
+	restartChCap = 1
 )
 
 type TaskRunner struct {
@@ -94,6 +100,9 @@ type TaskRunner struct {
 
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
+
+	// restartCh is used to signal that the task should restart.
+	restartCh chan struct{}
 
 	// shutdownCtx is used to exit the TaskRunner *without* affecting task state.
 	shutdownCtx context.Context
@@ -187,6 +196,11 @@ type TaskRunner struct {
 	vaultToken     string
 	vaultTokenLock sync.Mutex
 
+	// nomadToken is the current Nomad workload identity token. It
+	// should be accessed with the getter.
+	nomadToken     string
+	nomadTokenLock sync.Mutex
+
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -228,8 +242,8 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
-	// startConditionMetCtx is done when TR should start the task
-	startConditionMetCtx <-chan struct{}
+	// startConditionMetCh signals the TaskRunner when it should start the task
+	startConditionMetCh <-chan struct{}
 
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
@@ -244,6 +258,9 @@ type TaskRunner struct {
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 type Config struct {
@@ -296,8 +313,8 @@ type Config struct {
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
 
-	// startConditionMetCtx is done when TR should start the task
-	StartConditionMetCtx <-chan struct{}
+	// StartConditionMetCh signals the TaskRunner when it should start the task
+	StartConditionMetCh <-chan struct{}
 
 	// ShutdownDelayCtx is a context from the alloc runner which will
 	// tell us to exit early from shutdown_delay
@@ -309,6 +326,9 @@ type Config struct {
 	// ServiceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	ServiceRegWrapper *wrapper.HandlerWrapper
+
+	// Getter is an interface for retrieving artifacts.
+	Getter cinterfaces.ArtifactGetter
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -356,6 +376,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownCtx:            trCtx,
 		shutdownCtxCancel:      trCancel,
 		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
+		restartCh:              make(chan struct{}, restartChCap),
 		waitCh:                 make(chan struct{}),
 		csiManager:             config.CSIManager,
 		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
@@ -363,10 +384,11 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		driverManager:          config.DriverManager,
 		maxEvents:              defaultMaxEvents,
 		serversContactedCh:     config.ServersContactedCh,
-		startConditionMetCtx:   config.StartConditionMetCtx,
+		startConditionMetCh:    config.StartConditionMetCh,
 		shutdownDelayCtx:       config.ShutdownDelayCtx,
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
+		getter:                 config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -401,6 +423,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		tr.logger.Error("failed to create driver", "error", err)
 		return nil, err
 	}
+
+	// Use the client secret only as the initial value; the identity hook will
+	// update this with a workload identity if one is available
+	tr.setNomadToken(config.ClientConfig.Node.SecretID)
 
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities
@@ -494,20 +520,25 @@ func (tr *TaskRunner) Run() {
 
 	tr.stateLock.RLock()
 	dead := tr.state.State == structs.TaskStateDead
+	runComplete := tr.localState.RunComplete
 	tr.stateLock.RUnlock()
 
-	// if restoring a dead task, ensure that task is cleared and all post hooks
-	// are called without additional state updates
+	// If restoring a dead task, ensure the task is cleared and, if the local
+	// state indicates that the previous Run() call is complete, execute all
+	// post stop hooks and exit early, otherwise proceed until the
+	// ALLOC_RESTART loop skipping MAIN since the task is dead.
 	if dead {
 		// do cleanup functions without emitting any additional events/work
 		// to handle cases where we restored a dead task where client terminated
 		// after task finished before completing post-run actions.
 		tr.clearDriverHandle()
 		tr.stateUpdater.TaskStateUpdated()
-		if err := tr.stop(); err != nil {
-			tr.logger.Error("stop failed on terminal task", "error", err)
+		if runComplete {
+			if err := tr.stop(); err != nil {
+				tr.logger.Error("stop failed on terminal task", "error", err)
+			}
+			return
 		}
-		return
 	}
 
 	// Updates are handled asynchronously with the other hooks but each
@@ -529,27 +560,27 @@ func (tr *TaskRunner) Run() {
 		}
 	}
 
-	select {
-	case <-tr.startConditionMetCtx:
-		tr.logger.Debug("lifecycle start condition has been met, proceeding")
-		// yay proceed
-	case <-tr.killCtx.Done():
-	case <-tr.shutdownCtx.Done():
-		return
-	}
+	// Set the initial task state.
+	tr.stateUpdater.TaskStateUpdated()
 
 	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
 	defer stop()
 
 MAIN:
 	for !tr.shouldShutdown() {
+		if dead {
+			break
+		}
+
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
 			return
-		default:
+		case <-tr.startConditionMetCh:
+			tr.logger.Debug("lifecycle start condition has been met, proceeding")
+			// yay proceed
 		}
 
 		// Run the prestart hooks
@@ -658,6 +689,38 @@ MAIN:
 
 	// Mark the task as dead
 	tr.UpdateState(structs.TaskStateDead, nil)
+
+	// Wait here in case the allocation is restarted. Poststop tasks will never
+	// run again so skip them to avoid blocking forever.
+	if !tr.Task().IsPoststop() {
+	ALLOC_RESTART:
+		// Run in a loop to handle cases where restartCh is triggered but the
+		// task runner doesn't need to restart.
+		for {
+			select {
+			case <-tr.killCtx.Done():
+				break ALLOC_RESTART
+			case <-tr.shutdownCtx.Done():
+				return
+			case <-tr.restartCh:
+				// Restart without delay since the task is not running anymore.
+				restart, _ := tr.shouldRestart()
+				if restart {
+					// Set runner as not dead to allow the MAIN loop to run.
+					dead = false
+					goto MAIN
+				}
+			}
+		}
+	}
+
+	tr.stateLock.Lock()
+	tr.localState.RunComplete = true
+	err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
+	if err != nil {
+		tr.logger.Warn("error persisting task state on run loop exit", "error", err)
+	}
+	tr.stateLock.Unlock()
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
@@ -876,7 +939,7 @@ func (tr *TaskRunner) runDriver() error {
 	}
 	tr.stateLock.Unlock()
 
-	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), net))
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), tr.clientConfig.MaxKillTimeout, net))
 
 	// Emit an event that we started
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
@@ -922,6 +985,10 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 	// before waiting to kill task
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+
+		ev := structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
+			SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+		tr.UpdateState(structs.TaskStatePending, ev)
 
 		select {
 		case result := <-resultCh:
@@ -1042,10 +1109,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
 		if allocDNS != nil {
+			interpolatedNetworks := taskenv.InterpolateNetworks(env, alloc.AllocatedResources.Shared.Networks)
 			dns = &drivers.DNSConfig{
-				Servers:  allocDNS.Servers,
-				Searches: allocDNS.Searches,
-				Options:  allocDNS.Options,
+				Servers:  interpolatedNetworks[0].DNS.Servers,
+				Searches: interpolatedNetworks[0].DNS.Searches,
+				Options:  interpolatedNetworks[0].DNS.Options,
 			}
 		}
 	}
@@ -1174,7 +1242,7 @@ func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *drivers
 	}
 
 	// Update driver handle on task runner
-	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), net))
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), tr.clientConfig.MaxKillTimeout, net))
 	return true
 }
 
@@ -1184,8 +1252,10 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
 
+	tr.logger.Trace("setting task state", "state", state)
+
 	if event != nil {
-		tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+		tr.logger.Trace("appending task event", "state", state, "event", event.Type)
 
 		// Append the event
 		tr.appendEvent(event)
@@ -1400,7 +1470,7 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 	}
 }
 
-//TODO Remove Backwardscompat or use tr.Alloc()?
+// TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
@@ -1412,7 +1482,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	ms := ru.ResourceUsage.MemoryStats
 
 	publishMetric := func(v uint64, reported, measured string) {
-		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+		if v != 0 || slices.Contains(ms.Measured, measured) {
 			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
 				float32(v), tr.baseLabels)
 		}
@@ -1432,7 +1502,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	}
 }
 
-//TODO Remove Backwardscompat or use tr.Alloc()?
+// TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedCPU float32

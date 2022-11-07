@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -249,17 +250,6 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 			return err
 		} else if !allowable {
 			return fmt.Errorf("insufficient Consul ACL permissions to write service %q", service)
-		}
-	}
-
-	// verify token has service identity permission for connect services
-	for _, kind := range usage.Kinds {
-		service := kind.Value()
-		allowable, err := c.canWriteService(namespace, service, token)
-		if err != nil {
-			return err
-		} else if !allowable {
-			return fmt.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
 		}
 	}
 
@@ -593,7 +583,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		for _, s := range listener.Services {
 			services = append(services, api.IngressService{
 				Name:  s.Name,
-				Hosts: helper.CopySliceString(s.Hosts),
+				Hosts: slices.Clone(s.Hosts),
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -603,16 +593,19 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		})
 	}
 
-	tlsEnabled := false
-	if entry.TLS != nil && entry.TLS.Enabled {
-		tlsEnabled = true
+	tls := api.GatewayTLSConfig{}
+	if entry.TLS != nil {
+		tls.Enabled = entry.TLS.Enabled
+		tls.TLSMinVersion = entry.TLS.TLSMinVersion
+		tls.TLSMaxVersion = entry.TLS.TLSMaxVersion
+		tls.CipherSuites = slices.Clone(entry.TLS.CipherSuites)
 	}
 
 	return &api.IngressGatewayConfigEntry{
 		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
-		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
+		TLS:       tls,
 		Listeners: listeners,
 	}
 }

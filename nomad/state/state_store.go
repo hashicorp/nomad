@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -11,7 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -34,6 +35,17 @@ const (
 )
 
 const (
+	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
+	// is set to ineligible due to multiple plan failures.
+	// This is a preventive measure to signal scheduler workers to not consider
+	// the node for future placements.
+	// Plan rejections for a node are expected due to the optimistic and
+	// concurrent nature of the scheduling process, but repeated failures for
+	// the same node may indicate an underlying issue not detected by Nomad.
+	// The plan applier keeps track of plan rejection history and will mark
+	// nodes as ineligible if they cross a given threshold.
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
+
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
 	NodeRegisterEventRegistered = "Node registered"
@@ -358,6 +370,21 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+
+	// Mark nodes as ineligible.
+	for _, nodeID := range results.IneligibleNodes {
+		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+
+		nodeEvent := structs.NewNodeEvent().
+			SetSubsystem(structs.NodeEventSubsystemScheduler).
+			SetMessage(NodeEligibilityEventPlanRejectThreshold)
+
+		err := s.updateNodeEligibilityImpl(index, nodeID,
+			structs.NodeSchedulingIneligible, results.UpdatedAt, nodeEvent, txn)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
@@ -1136,10 +1163,15 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
 func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
-
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+	if err := s.updateNodeEligibilityImpl(index, nodeID, eligibility, updatedAt, event, txn); err != nil {
+		return err
+	}
+	return txn.Commit()
+}
 
+func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent, txn *txn) error {
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -1176,7 +1208,7 @@ func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index ui
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return txn.Commit()
+	return nil
 }
 
 // UpsertNodeEvents adds the node events to the nodes, rotating events as
@@ -2408,6 +2440,11 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	return s.csiVolumesByNamespaceImpl(txn, ws, namespace, prefix)
+}
+
+func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+
 	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
@@ -3106,12 +3143,111 @@ func (s *StateStore) updateEvalModifyIndex(txn *txn, index uint64, evalID string
 	return nil
 }
 
+// EvalIsUserDeleteSafe ensures an evaluation is safe to delete based on its
+// related allocation and job information. This follows similar, but different
+// rules to the eval reap checking, to ensure evaluations for running allocs or
+// allocs which need the evaluation detail are not deleted.
+//
+// Returns both a bool and an error so that error in querying the related
+// objects can be differentiated from reporting that the eval isn't safe to
+// delete.
+func (s *StateStore) EvalIsUserDeleteSafe(ws memdb.WatchSet, eval *structs.Evaluation) (bool, error) {
+
+	job, err := s.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup job for eval: %v", err)
+	}
+
+	allocs, err := s.AllocsByEval(ws, eval.ID)
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup eval allocs: %v", err)
+	}
+
+	return isEvalDeleteSafe(allocs, job), nil
+}
+
+func isEvalDeleteSafe(allocs []*structs.Allocation, job *structs.Job) bool {
+
+	// If the job is deleted, stopped, or dead, all allocs are terminal and
+	// the eval can be deleted.
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// Iterate the allocations associated to the eval, if any, and check
+	// whether we can delete the eval.
+	for _, alloc := range allocs {
+
+		// If the allocation is still classed as running on the client, or
+		// might be, we can't delete.
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusRunning, structs.AllocClientStatusUnknown:
+			return false
+		}
+
+		// If the alloc hasn't failed then we don't need to consider it for
+		// rescheduling. Rescheduling needs to copy over information from the
+		// previous alloc so that it can enforce the reschedule policy.
+		if alloc.ClientStatus != structs.AllocClientStatusFailed {
+			continue
+		}
+
+		var reschedulePolicy *structs.ReschedulePolicy
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+
+		if tg != nil {
+			reschedulePolicy = tg.ReschedulePolicy
+		}
+
+		// No reschedule policy or rescheduling is disabled
+		if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+			continue
+		}
+
+		// The restart tracking information has not been carried forward.
+		if alloc.NextAllocation == "" {
+			return false
+		}
+
+		// This task has unlimited rescheduling and the alloc has not been
+		// replaced, so we can't delete the eval yet.
+		if reschedulePolicy.Unlimited {
+			return false
+		}
+
+		// No restarts have been attempted yet.
+		if alloc.RescheduleTracker == nil || len(alloc.RescheduleTracker.Events) == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
 // DeleteEval is used to delete an evaluation
-func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
+func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitiated bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
+	// If this deletion has been initiated by an operator, ensure the eval
+	// broker is paused.
+	if userInitiated {
+		_, schedConfig, err := s.schedulerConfigTxn(txn)
+		if err != nil {
+			return err
+		}
+		if schedConfig == nil || !schedConfig.PauseEvalBroker {
+			return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+		}
+	}
+
 	jobs := make(map[structs.NamespacedID]string, len(evals))
+
+	// evalsTableUpdated and allocsTableUpdated allow us to track whether each
+	// table has been modified. This allows us to skip updating the index table
+	// entries if we do not need to.
+	var evalsTableUpdated, allocsTableUpdated bool
+
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
 		if err != nil {
@@ -3123,6 +3259,11 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("evals", existing); err != nil {
 			return fmt.Errorf("eval delete failed: %v", err)
 		}
+
+		// Mark that we have made a successful modification to the evals
+		// table.
+		evalsTableUpdated = true
+
 		eval := existing.(*structs.Evaluation)
 
 		tuple := structs.NamespacedID{
@@ -3143,14 +3284,22 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
+
+		// Mark that we have made a successful modification to the allocs
+		// table.
+		allocsTableUpdated = true
 	}
 
 	// Update the indexes
-	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if evalsTableUpdated {
+		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
-	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if allocsTableUpdated {
+		if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	// Set the job's status
@@ -3262,7 +3411,8 @@ func evalNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
-		return eval.Namespace != namespace
+		return namespace != structs.AllNamespacesSentinel &&
+			eval.Namespace != namespace
 	}
 }
 
@@ -3419,7 +3569,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		// We got new health information from the client
 		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
 			// Updated deployment health and timestamp
-			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Healthy = pointer.Of(*alloc.DeploymentStatus.Healthy)
 			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
 			copyAlloc.DeploymentStatus.ModifyIndex = index
 		}
@@ -4495,7 +4645,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 			copy.ModifyIndex = index
@@ -5501,6 +5651,20 @@ func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (me
 	return iter, nil
 }
 
+// ACLPolicyByJob is used to lookup policies that have been attached to a
+// specific job
+func (s *StateStore) ACLPolicyByJob(ws memdb.WatchSet, ns, jobID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("acl_policy", "job_prefix", ns, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // ACLPolicies returns an iterator over all the acl policies
 func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -5591,10 +5755,20 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 	}
 	ws.Add(watchCh)
 
-	if existing != nil {
-		return existing.(*structs.ACLToken), nil
+	// If the existing token is nil, this indicates it does not exist in state.
+	if existing == nil {
+		return nil, nil
 	}
-	return nil, nil
+
+	// Assert the token type which allows us to perform additional work on the
+	// token that is needed before returning the call.
+	token := existing.(*structs.ACLToken)
+
+	// Handle potential staleness of ACL role links.
+	if token, err = s.fixTokenRoleLinks(txn, token); err != nil {
+		return nil, err
+	}
+	return token, nil
 }
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
@@ -5611,10 +5785,20 @@ func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*st
 	}
 	ws.Add(watchCh)
 
-	if existing != nil {
-		return existing.(*structs.ACLToken), nil
+	// If the existing token is nil, this indicates it does not exist in state.
+	if existing == nil {
+		return nil, nil
 	}
-	return nil, nil
+
+	// Assert the token type which allows us to perform additional work on the
+	// token that is needed before returning the call.
+	token := existing.(*structs.ACLToken)
+
+	// Handle potential staleness of ACL role links.
+	if token, err = s.fixTokenRoleLinks(txn, token); err != nil {
+		return nil, err
+	}
+	return token, nil
 }
 
 // ACLTokenByAccessorIDPrefix is used to lookup tokens by prefix
@@ -5788,11 +5972,11 @@ func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // ExpireOneTimeTokens deletes tokens that have expired
-func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64) error {
+func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64, timestamp time.Time) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	iter, err := s.oneTimeTokensExpiredTxn(txn, nil)
+	iter, err := s.oneTimeTokensExpiredTxn(txn, nil, timestamp)
 	if err != nil {
 		return err
 	}
@@ -5823,14 +6007,14 @@ func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint
 }
 
 // oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
-func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet, timestamp time.Time) (memdb.ResultIterator, error) {
 	iter, err := txn.Get("one_time_token", "id")
 	if err != nil {
 		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
-	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(timestamp))
 	return iter, nil
 }
 
@@ -5871,9 +6055,13 @@ func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
 func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
 	tx := s.db.ReadTxn()
 	defer tx.Abort()
+	return s.schedulerConfigTxn(tx)
+}
+
+func (s *StateStore) schedulerConfigTxn(txn *txn) (uint64, *structs.SchedulerConfiguration, error) {
 
 	// Get the scheduler config
-	c, err := tx.First("scheduler_config", "id")
+	c, err := txn.First("scheduler_config", "id")
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed scheduler config lookup: %s", err)
 	}
@@ -6268,6 +6456,28 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 			}
 		}
 
+		vIter, err := s.csiVolumesByNamespaceImpl(txn, nil, name, "")
+		if err != nil {
+			return err
+		}
+		rawVol := vIter.Next()
+		if rawVol != nil {
+			vol := rawVol.(*structs.CSIVolume)
+			return fmt.Errorf("namespace %q contains at least one CSI volume %q. "+
+				"All CSI volumes in namespace must be deleted before it can be deleted", name, vol.ID)
+		}
+
+		varIter, err := s.getVariablesByNamespaceImpl(txn, nil, name)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			// unlike job/volume, don't show the path here because the user may
+			// not have List permissions on the vars in this namespace
+			return fmt.Errorf("namespace %q contains at least one variable. "+
+				"All variables in namespace must be deleted before it can be deleted", name)
+		}
+
 		// Delete the namespace
 		if err := txn.Delete(TableNamespaces, existing); err != nil {
 			return fmt.Errorf("namespace deletion failed: %v", err)
@@ -6589,4 +6799,189 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 
 func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
+}
+
+// UpsertRootKeyMeta saves root key meta or updates it in-place.
+func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta, rekey bool) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// get any existing key for updating
+	raw, err := txn.First(TableRootKeyMeta, indexID, rootKeyMeta.KeyID)
+	if err != nil {
+		return fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+
+	isRotation := false
+
+	if raw != nil {
+		existing := raw.(*structs.RootKeyMeta)
+		rootKeyMeta.CreateIndex = existing.CreateIndex
+		rootKeyMeta.CreateTime = existing.CreateTime
+		isRotation = !existing.Active() && rootKeyMeta.Active()
+	} else {
+		rootKeyMeta.CreateIndex = index
+		isRotation = rootKeyMeta.Active()
+	}
+	rootKeyMeta.ModifyIndex = index
+
+	if rekey && !isRotation {
+		return fmt.Errorf("cannot rekey without setting the new key active")
+	}
+
+	// if the upsert is for a newly-active key, we need to set all the
+	// other keys as inactive in the same transaction.
+	if isRotation {
+		iter, err := txn.Get(TableRootKeyMeta, indexID)
+		if err != nil {
+			return err
+		}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			key := raw.(*structs.RootKeyMeta)
+			modified := false
+
+			switch key.State {
+			case structs.RootKeyStateInactive:
+				if rekey {
+					key.SetRekeying()
+					modified = true
+				}
+			case structs.RootKeyStateActive:
+				if rekey {
+					key.SetRekeying()
+				} else {
+					key.SetInactive()
+				}
+				modified = true
+			case structs.RootKeyStateRekeying, structs.RootKeyStateDeprecated:
+				// nothing to do
+			}
+
+			if modified {
+				key.ModifyIndex = index
+				if err := txn.Insert(TableRootKeyMeta, key); err != nil {
+					return err
+				}
+			}
+
+		}
+	}
+
+	if err := txn.Insert(TableRootKeyMeta, rootKeyMeta); err != nil {
+		return err
+	}
+
+	// update the indexes table
+	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+// DeleteRootKeyMeta deletes a single root key, or returns an error if
+// it doesn't exist.
+func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// find the old key
+	existing, err := txn.First(TableRootKeyMeta, indexID, keyID)
+	if err != nil {
+		return fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("root key metadata not found")
+	}
+	if err := txn.Delete(TableRootKeyMeta, existing); err != nil {
+		return fmt.Errorf("root key metadata delete failed: %v", err)
+	}
+
+	// update the indexes table
+	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return txn.Commit()
+}
+
+// RootKeyMetas returns an iterator over all root key metadata
+func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// RootKeyMetaByID returns a specific root key meta
+func (s *StateStore) RootKeyMetaByID(ws memdb.WatchSet, id string) (*structs.RootKeyMeta, error) {
+	txn := s.db.ReadTxn()
+
+	watchCh, raw, err := txn.FirstWatch(TableRootKeyMeta, indexID, id)
+	if err != nil {
+		return nil, fmt.Errorf("root key metadata lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if raw != nil {
+		return raw.(*structs.RootKeyMeta), nil
+	}
+	return nil, nil
+}
+
+// GetActiveRootKeyMeta returns the metadata for the currently active root key
+func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMeta, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		key := raw.(*structs.RootKeyMeta)
+		if key.Active() {
+			return key, nil
+		}
+	}
+	return nil, nil
+}
+
+// IsRootKeyMetaInUse determines whether a key has been used to sign a workload
+// identity for a live allocation or encrypt any variables
+func (s *StateStore) IsRootKeyMetaInUse(keyID string) (bool, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableAllocs, indexSigningKey, keyID, true)
+	if err != nil {
+		return false, err
+	}
+	alloc := iter.Next()
+	if alloc != nil {
+		return true, nil
+	}
+
+	iter, err = txn.Get(TableVariables, indexKeyID, keyID)
+	if err != nil {
+		return false, err
+	}
+	variable := iter.Next()
+	if variable != nil {
+		return true, nil
+	}
+
+	return false, nil
 }

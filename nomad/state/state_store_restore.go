@@ -197,3 +197,39 @@ func (r *StateRestore) ServiceRegistrationRestore(service *structs.ServiceRegist
 	}
 	return nil
 }
+
+// VariablesRestore is used to restore a single variable into the variables
+// table.
+func (r *StateRestore) VariablesRestore(variable *structs.VariableEncrypted) error {
+	if err := r.txn.Insert(TableVariables, variable); err != nil {
+		return fmt.Errorf("variable insert failed: %v", err)
+	}
+	return nil
+}
+
+// VariablesQuotaRestore is used to restore a single variable quota into the
+// variables_quota table.
+func (r *StateRestore) VariablesQuotaRestore(quota *structs.VariablesQuota) error {
+	if err := r.txn.Insert(TableVariablesQuotas, quota); err != nil {
+		return fmt.Errorf("variable quota insert failed: %v", err)
+	}
+	return nil
+}
+
+// RootKeyMetaQuotaRestore is used to restore a single root key meta into the
+// root_key_meta table.
+func (r *StateRestore) RootKeyMetaRestore(quota *structs.RootKeyMeta) error {
+	if err := r.txn.Insert(TableRootKeyMeta, quota); err != nil {
+		return fmt.Errorf("root key meta insert failed: %v", err)
+	}
+	return nil
+}
+
+// ACLRoleRestore is used to restore a single ACL role into the acl_roles
+// table.
+func (r *StateRestore) ACLRoleRestore(aclRole *structs.ACLRole) error {
+	if err := r.txn.Insert(TableACLRoles, aclRole); err != nil {
+		return fmt.Errorf("ACL role insert failed: %v", err)
+	}
+	return nil
+}

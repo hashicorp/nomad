@@ -8,7 +8,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -301,18 +301,18 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 		{
 			name:                "has-pending-reconnects",
 			now:                 time.Now().UTC(),
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
+			maxClientDisconnect: pointer.Of(5 * time.Second),
 			expectedNodeStatus:  structs.NodeStatusDisconnected,
 		},
 		{
 			name:                "has-expired-reconnects",
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
+			maxClientDisconnect: pointer.Of(5 * time.Second),
 			now:                 time.Now().UTC().Add(-10 * time.Second),
 			expectedNodeStatus:  structs.NodeStatusDown,
 		},
 		{
 			name:                "has-expired-reconnects-equal-timestamp",
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
+			maxClientDisconnect: pointer.Of(5 * time.Second),
 			now:                 time.Now().UTC().Add(-5 * time.Second),
 			expectedNodeStatus:  structs.NodeStatusDown,
 		},

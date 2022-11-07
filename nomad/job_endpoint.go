@@ -14,8 +14,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -41,7 +43,7 @@ var (
 	// allocations to be force rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowForceRescheduleTransition = &structs.DesiredTransition{
-		ForceReschedule: helper.BoolToPtr(true),
+		ForceReschedule: pointer.Of(true),
 	}
 )
 
@@ -103,12 +105,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
-	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
+	nomadACLToken, err := j.srv.ResolveSecretToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
-	if tokenID != nil {
-		args.Job.NomadTokenID = tokenID.AccessorID
+	if nomadACLToken != nil {
+		args.Job.NomadTokenID = nomadACLToken.AccessorID
 	}
 
 	// Set the warning message
@@ -272,7 +274,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())
+	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
+	if err != nil {
+		return err
+	}
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(), nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
@@ -344,11 +350,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Check if the job has changed at all
-	if existingJob == nil || existingJob.SpecChanged(args.Job) {
+	specChanged, err := j.multiregionSpecChanged(existingJob, args)
+	if err != nil {
+		return err
+	}
+
+	if existingJob == nil || specChanged {
 
 		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
 		// 0.12.1 introduced atomic eval job registration
-		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
 			args.Eval = eval
 			submittedEval = true
 		}
@@ -464,10 +475,8 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 	}
 }
 
-// Summary retrieves the summary of a job
-func (j *Job) Summary(args *structs.JobSummaryRequest,
-	reply *structs.JobSummaryResponse) error {
-
+// Summary retrieves the summary of a job.
+func (j *Job) Summary(args *structs.JobSummaryRequest, reply *structs.JobSummaryResponse) error {
 	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
@@ -511,8 +520,14 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
-// Validate validates a job
+// Validate validates a job.
+//
+// Must forward to the leader, because only the leader will have a live Vault
+// client with which to validate vault tokens.
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
+	if done, err := j.srv.forward("Job.Validate", args, args, reply); done {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
@@ -833,7 +848,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 
 	// COMPAT(1.1.0): remove conditional and always set args.Eval
-	if ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+	if ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
 		args.Eval = eval
 	}
 
@@ -1013,6 +1028,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
+
+	// Since job is going to be mutated we must copy it since state store methods
+	// return a shared pointer.
+	job = job.Copy()
 
 	// Find target group in job TaskGroups
 	groupName := args.Target[structs.ScalingTargetGroup]
@@ -1297,29 +1316,16 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-	var allow func(string) bool
 
 	// Check for list-job permissions
 	aclObj, err := j.srv.ResolveToken(args.AuthToken)
-
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case aclObj == nil:
-		allow = func(string) bool {
-			return true
-		}
-	case namespace == structs.AllNamespacesSentinel:
-		allow = func(ns string) bool {
-			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
-		}
-	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs):
-		return structs.ErrPermissionDenied
-	default:
-		allow = func(string) bool {
-			return true
-		}
 	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -1330,7 +1336,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			var err error
 			var iter memdb.ResultIterator
 
-			// check if user has permission to all namespaces
+			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
@@ -1371,7 +1377,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 						if err != nil || summary == nil {
 							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						}
-						jobs = append(jobs, job.Stub(summary))
+						jobs = append(jobs, job.Stub(summary, args.Fields))
 						return nil
 					})
 				if err != nil {
@@ -1398,7 +1404,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
+			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
@@ -1631,20 +1637,28 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		}
 	}
 
+	// Acquire a snapshot of the state
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	// Enforce Sentinel policies
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	nomadACLToken, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+	if err != nil && !strings.Contains(err.Error(), "missing secret id") {
+		return err
+	}
+	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
+	if err != nil {
+		return err
+	}
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
 	if policyWarnings != nil {
 		warnings = append(warnings, policyWarnings)
 		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
-	}
-
-	// Acquire a snapshot of the state
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
 	}
 
 	// Interpolate the job for this region
@@ -1891,7 +1905,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Derive the child job and commit it via Raft - with initial status
 	dispatchJob := parameterizedJob.Copy()
-	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
+	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, args.IdPrefixTemplate, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()
@@ -1993,14 +2007,14 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		keys[k] = struct{}{}
 	}
 
-	required := helper.SliceStringToSet(job.ParameterizedJob.MetaRequired)
-	optional := helper.SliceStringToSet(job.ParameterizedJob.MetaOptional)
+	required := set.From(job.ParameterizedJob.MetaRequired)
+	optional := set.From(job.ParameterizedJob.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})
 	for k := range req.Meta {
-		_, req := required[k]
-		_, opt := optional[k]
+		req := required.Contains(k)
+		opt := optional.Contains(k)
 		if !req && !opt {
 			unpermitted[k] = struct{}{}
 		}

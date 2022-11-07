@@ -37,9 +37,11 @@ can be used to inject configuration directly into a task's arguments using
 could be used to lookup the work the job is suppose to do from a management
 service or database.
 
-Each time a job is dispatched, a unique job ID is generated. This allows a
-caller to track the status of the job, much like a future or promise in some
-programming languages.
+Each time a job is dispatched, a unique job ID is generated. This
+allows a caller to track the status of the job, much like a future or
+promise in some programming languages. The dispatched job cannot be
+updated after dispatching; to update the job definition you need to
+update the parent job.
 
 ```hcl
 job "docs" {
@@ -50,6 +52,9 @@ job "docs" {
   }
 }
 ```
+
+See the [multiregion] documentation for additional considerations when
+dispatching parameterized jobs.
 
 ## `parameterized` Requirements
 
@@ -152,3 +157,4 @@ job "email-blast" {
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [dispatch_payload]: /docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
+[multiregion]: /docs/job-specification/multiregion#parameterized-dispatch

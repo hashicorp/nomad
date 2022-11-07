@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -857,7 +858,66 @@ func TestServiceRegistration_List(t *testing.T) {
 						}},
 				}, serviceRegResp.Services)
 			},
-			name: "ACLs enabled with node secret toekn",
+			name: "ACLs enabled with node secret token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Create a namespace as this is needed when using an ACL like
+				// we do in this test.
+				ns := &structs.Namespace{
+					Name:        "platform",
+					Description: "test namespace",
+					CreateIndex: 5,
+					ModifyIndex: 5,
+				}
+				ns.SetHash()
+				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
+
+				// Generate an allocation with a signed identity
+				allocs := []*structs.Allocation{mock.Alloc()}
+				job := allocs[0].Job
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+
+				signedToken := allocs[0].SignedIdentities["web"]
+
+				// Generate and upsert some service registrations.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, services))
+
+				// Test a request while setting the auth token to the signed token
+				serviceRegReq := &structs.ServiceRegistrationListRequest{
+					QueryOptions: structs.QueryOptions{
+						Namespace: "platform",
+						Region:    DefaultRegion,
+						AuthToken: signedToken,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationListResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationListRPCMethod,
+					serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+					{
+						Namespace: "platform",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "countdash-api",
+								Tags:        []string{"bar"},
+							},
+						}},
+				}, serviceRegResp.Services)
+			},
+			name: "ACLs enabled with valid signed identity",
 		},
 	}
 
@@ -1022,6 +1082,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			name: "ACLs enabled",
 		},
+
 		{
 			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
 				return TestACLServer(t, nil)
@@ -1073,6 +1134,50 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				}, serviceRegResp.Services)
 			},
 			name: "ACLs enabled using node secret",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate mock services then upsert them individually using different indexes.
+				services := mock.ServiceRegistrations()
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 10, []*structs.ServiceRegistration{services[0]}))
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{services[1]}))
+
+				// Generate an allocation with a signed identity
+				allocs := []*structs.Allocation{mock.Alloc()}
+				job := allocs[0].Job
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+
+				signedToken := allocs[0].SignedIdentities["web"]
+
+				// Lookup the first registration.
+				serviceRegReq := &structs.ServiceRegistrationByNameRequest{
+					ServiceName: services[0].ServiceName,
+					QueryOptions: structs.QueryOptions{
+						Namespace: services[0].Namespace,
+						Region:    s.Region(),
+						AuthToken: signedToken,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationByNameResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ServiceRegistrationGetServiceRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.Equal(t, uint64(10), serviceRegResp.Services[0].CreateIndex)
+				require.Equal(t, uint64(20), serviceRegResp.Index)
+				require.Len(t, serviceRegResp.Services, 1)
+			},
+			name: "ACLs enabled using valid signed identity",
 		},
 		{
 			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
@@ -1174,6 +1279,148 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			name: "filtering and pagination",
 		},
+		{
+			name: "choose 2 of 3",
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// insert 3 instances of service s1
+				nodeID, jobID, allocID := "node_id", "job_id", "alloc_id"
+				services := []*structs.ServiceRegistration{
+					{
+						ID:          "id_1",
+						Namespace:   "default",
+						ServiceName: "s1",
+						NodeID:      nodeID,
+						Datacenter:  "dc1",
+						JobID:       jobID,
+						AllocID:     allocID,
+						Tags:        []string{"tag1"},
+						Address:     "10.0.0.1",
+						Port:        9001,
+						CreateIndex: 101,
+						ModifyIndex: 201,
+					},
+					{
+						ID:          "id_2",
+						Namespace:   "default",
+						ServiceName: "s1",
+						NodeID:      nodeID,
+						Datacenter:  "dc1",
+						JobID:       jobID,
+						AllocID:     allocID,
+						Tags:        []string{"tag2"},
+						Address:     "10.0.0.2",
+						Port:        9002,
+						CreateIndex: 102,
+						ModifyIndex: 202,
+					},
+					{
+						ID:          "id_3",
+						Namespace:   "default",
+						ServiceName: "s1",
+						NodeID:      nodeID,
+						Datacenter:  "dc1",
+						JobID:       jobID,
+						AllocID:     allocID,
+						Tags:        []string{"tag3"},
+						Address:     "10.0.0.3",
+						Port:        9003,
+						CreateIndex: 103,
+						ModifyIndex: 103,
+					},
+				}
+				must.NoError(t, s.fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
+
+				serviceRegReq := &structs.ServiceRegistrationByNameRequest{
+					ServiceName: "s1",
+					Choose:      "2|abc123", // select 2 in consistent order
+					QueryOptions: structs.QueryOptions{
+						Namespace: structs.DefaultNamespace,
+						Region:    DefaultRegion,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationByNameResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationGetServiceRPCMethod, serviceRegReq, &serviceRegResp)
+				must.NoError(t, err)
+
+				result := serviceRegResp.Services
+
+				must.Len(t, 2, result)
+				must.Eq(t, "10.0.0.3", result[0].Address)
+				must.Eq(t, "10.0.0.2", result[1].Address)
+			},
+		},
+		{
+			name: "choose 3 of 2", // gracefully handle requesting too many
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// insert 2 instances of service s1
+				nodeID, jobID, allocID := "node_id", "job_id", "alloc_id"
+				services := []*structs.ServiceRegistration{
+					{
+						ID:          "id_1",
+						Namespace:   "default",
+						ServiceName: "s1",
+						NodeID:      nodeID,
+						Datacenter:  "dc1",
+						JobID:       jobID,
+						AllocID:     allocID,
+						Tags:        []string{"tag1"},
+						Address:     "10.0.0.1",
+						Port:        9001,
+						CreateIndex: 101,
+						ModifyIndex: 201,
+					},
+					{
+						ID:          "id_2",
+						Namespace:   "default",
+						ServiceName: "s1",
+						NodeID:      nodeID,
+						Datacenter:  "dc1",
+						JobID:       jobID,
+						AllocID:     allocID,
+						Tags:        []string{"tag2"},
+						Address:     "10.0.0.2",
+						Port:        9002,
+						CreateIndex: 102,
+						ModifyIndex: 202,
+					},
+				}
+				must.NoError(t, s.fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
+
+				serviceRegReq := &structs.ServiceRegistrationByNameRequest{
+					ServiceName: "s1",
+					Choose:      "3|abc123", // select 3 in consistent order (though there are only 2 total)
+					QueryOptions: structs.QueryOptions{
+						Namespace: structs.DefaultNamespace,
+						Region:    DefaultRegion,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationByNameResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationGetServiceRPCMethod, serviceRegReq, &serviceRegResp)
+				must.NoError(t, err)
+
+				result := serviceRegResp.Services
+
+				must.Len(t, 2, result)
+				must.Eq(t, "10.0.0.2", result[0].Address)
+				must.Eq(t, "10.0.0.1", result[1].Address)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1183,4 +1430,80 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			tc.testFn(t, server, aclToken)
 		})
 	}
+}
+
+func TestServiceRegistration_chooseErr(t *testing.T) {
+	ci.Parallel(t)
+
+	sr := (*ServiceRegistration)(nil)
+	try := func(input []*structs.ServiceRegistration, parameter string) {
+		result, err := sr.choose(input, parameter)
+		must.SliceEmpty(t, result)
+		must.ErrorIs(t, err, structs.ErrMalformedChooseParameter)
+	}
+
+	regs := []*structs.ServiceRegistration{
+		{ID: "abc001", ServiceName: "s1"},
+		{ID: "abc002", ServiceName: "s2"},
+		{ID: "abc003", ServiceName: "s3"},
+	}
+
+	try(regs, "")
+	try(regs, "1|")
+	try(regs, "|abc")
+	try(regs, "a|abc")
+}
+
+func TestServiceRegistration_choose(t *testing.T) {
+	ci.Parallel(t)
+
+	sr := (*ServiceRegistration)(nil)
+	try := func(input, exp []*structs.ServiceRegistration, parameter string) {
+		result, err := sr.choose(input, parameter)
+		must.NoError(t, err)
+		must.Eq(t, exp, result)
+	}
+
+	// zero services
+	try(nil, []*structs.ServiceRegistration{}, "1|aaa")
+	try(nil, []*structs.ServiceRegistration{}, "2|aaa")
+
+	// some unique services
+	regs := []*structs.ServiceRegistration{
+		{ID: "abc001", ServiceName: "s1"},
+		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
+	}
+
+	// same key, increasing n -> maintains order (n=1)
+	try(regs, []*structs.ServiceRegistration{
+		{ID: "abc002", ServiceName: "s1"},
+	}, "1|aaa")
+
+	// same key, increasing n -> maintains order (n=2)
+	try(regs, []*structs.ServiceRegistration{
+		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
+	}, "2|aaa")
+
+	// same key, increasing n -> maintains order (n=3)
+	try(regs, []*structs.ServiceRegistration{
+		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
+		{ID: "abc001", ServiceName: "s1"},
+	}, "3|aaa")
+
+	// unique key -> different orders
+	try(regs, []*structs.ServiceRegistration{
+		{ID: "abc001", ServiceName: "s1"},
+		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
+	}, "3|bbb")
+
+	// another key -> another order
+	try(regs, []*structs.ServiceRegistration{
+		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
+		{ID: "abc001", ServiceName: "s1"},
+	}, "3|ccc")
 }

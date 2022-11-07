@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1176,7 +1176,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// Multiregion: region added
 			Old: &Job{
@@ -1319,6 +1318,21 @@ func TestJobDiff(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{
+			// VaultToken is filtered
+			Old: &Job{
+				ID:         "vault-job",
+				VaultToken: "secret",
+			},
+			New: &Job{
+				ID:         "vault-job",
+				VaultToken: "new-secret",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+				ID:   "vault-job",
 			},
 		},
 	}
@@ -2696,7 +2710,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+									ConnectTimeout:                  pointer.Of(1 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: false,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -2773,11 +2787,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName:  "foo",
-											LocalBindPort:    8000,
-											Datacenter:       "dc2",
-											LocalBindAddress: "127.0.0.2",
-											MeshGateway: &ConsulMeshGateway{
+											DestinationName:      "foo",
+											DestinationNamespace: "ns2",
+											LocalBindPort:        8000,
+											Datacenter:           "dc2",
+											LocalBindAddress:     "127.0.0.2",
+											MeshGateway: ConsulMeshGateway{
 												Mode: "remote",
 											},
 										},
@@ -2789,7 +2804,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+									ConnectTimeout:                  pointer.Of(2 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -3103,6 +3118,12 @@ func TestTaskGroupDiff(t *testing.T) {
 															},
 															{
 																Type: DiffTypeAdded,
+																Name: "DestinationNamespace",
+																Old:  "",
+																New:  "ns2",
+															},
+															{
+																Type: DiffTypeAdded,
 																Name: "LocalBindAddress",
 																Old:  "",
 																New:  "127.0.0.2",
@@ -3257,6 +3278,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "Enabled",
 																Old:  "false",
 																New:  "true",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMaxVersion",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMinVersion",
+																Old:  "",
+																New:  "",
 															},
 														},
 													},
@@ -3717,10 +3750,10 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay edited",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+				ShutdownDelay: pointer.Of(5 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3737,7 +3770,7 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay removed",
 			Old: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			New: &TaskGroup{},
 			Expected: &TaskGroupDiff{
@@ -3756,7 +3789,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "TaskGroup shutdown_delay added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
-				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+				ShutdownDelay: pointer.Of(30 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3924,7 +3957,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3943,11 +3976,11 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect updated",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+				MaxClientDisconnect: pointer.Of(20 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -3966,7 +3999,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "MaxClientDisconnect deleted",
 			Old: &TaskGroup{
 				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+				MaxClientDisconnect: pointer.Of(10 * time.Second),
 			},
 			New: &TaskGroup{
 				Name:                "foo",
@@ -7023,12 +7056,21 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
-						Splay:        1,
-						Perms:        "0644",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(5 * time.Second),
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
 						},
+						Splay: 1,
+						Perms: "0644",
+						Uid:   pointer.Of(1001),
+						Gid:   pointer.Of(21),
+						Wait: &WaitConfig{
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(5 * time.Second),
+						},
+						ErrMissingKey: false,
 					},
 					{
 						SourcePath:   "foo2",
@@ -7036,9 +7078,17 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz2",
 						ChangeMode:   "bam2",
 						ChangeSignal: "SIGHUP2",
-						Splay:        2,
-						Perms:        "0666",
-						Envvars:      true,
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo2",
+							Args:        []string{"-debugs"},
+							Timeout:     6,
+							FailOnError: false,
+						},
+						Splay:   2,
+						Perms:   "0666",
+						Uid:     pointer.Of(1000),
+						Gid:     pointer.Of(20),
+						Envvars: true,
 					},
 				},
 			},
@@ -7050,12 +7100,21 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz new",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
-						Splay:        1,
-						Perms:        "0644",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo",
+							Args:        []string{"-debug"},
+							Timeout:     5,
+							FailOnError: false,
 						},
+						Splay: 1,
+						Perms: "0644",
+						Uid:   pointer.Of(1001),
+						Gid:   pointer.Of(21),
+						Wait: &WaitConfig{
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
+						},
+						ErrMissingKey: true,
 					},
 					{
 						SourcePath:   "foo3",
@@ -7063,12 +7122,21 @@ func TestTaskDiff(t *testing.T) {
 						EmbeddedTmpl: "baz3",
 						ChangeMode:   "bam3",
 						ChangeSignal: "SIGHUP3",
-						Splay:        3,
-						Perms:        "0776",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
+						ChangeScript: &ChangeScript{
+							Command:     "/bin/foo3",
+							Args:        []string{"-debugss"},
+							Timeout:     7,
+							FailOnError: false,
 						},
+						Splay: 3,
+						Perms: "0776",
+						Uid:   pointer.Of(1002),
+						Gid:   pointer.Of(22),
+						Wait: &WaitConfig{
+							Min: pointer.Of(5 * time.Second),
+							Max: pointer.Of(10 * time.Second),
+						},
+						ErrMissingKey: true,
 					},
 				},
 			},
@@ -7084,6 +7152,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EmbeddedTmpl",
 								Old:  "baz",
 								New:  "baz new",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ErrMissingKey",
+								Old:  "false",
+								New:  "true",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -7137,6 +7211,18 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "ErrMissingKey",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Gid",
+								Old:  "",
+								New:  "22",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Perms",
 								Old:  "",
 								New:  "0776",
@@ -7152,6 +7238,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Splay",
 								Old:  "",
 								New:  "3",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Uid",
+								Old:  "",
+								New:  "1002",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7176,6 +7268,44 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Min",
 										Old:  "",
 										New:  "5000000000",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ChangeScript",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Command",
+										Old:  "",
+										New:  "/bin/foo3",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "FailOnError",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Timeout",
+										Old:  "",
+										New:  "7",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Args",
+												Old:  "",
+												New:  "-debugss",
+											},
+										},
 									},
 								},
 							},
@@ -7217,6 +7347,18 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
+								Name: "ErrMissingKey",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Gid",
+								Old:  "20",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "Perms",
 								Old:  "0666",
 								New:  "",
@@ -7235,9 +7377,55 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
+								Name: "Uid",
+								Old:  "1000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "VaultGrace",
 								Old:  "0",
 								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "ChangeScript",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Command",
+										Old:  "/bin/foo2",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "FailOnError",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Timeout",
+										Old:  "6",
+										New:  "",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Args",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Args",
+												Old:  "-debugs",
+												New:  "",
+											},
+										},
+									},
+								},
 							},
 						},
 					},
@@ -7881,6 +8069,100 @@ func TestServicesDiff(t *testing.T) {
 						{
 							Type: DiffTypeNone,
 							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service with different ingress tls",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{},
+						},
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{
+								TLS: &ConsulGatewayTLSConfig{
+									Enabled:       true,
+									TLSMinVersion: "TLSv1_2",
+									CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "ConsulConnect",
+							Objects: []*ObjectDiff{
+								{
+									Type: DiffTypeEdited,
+									Name: "Gateway",
+									Objects: []*ObjectDiff{
+										{
+											Type: DiffTypeEdited,
+											Name: "Ingress",
+											Objects: []*ObjectDiff{
+												{
+													Type: DiffTypeAdded,
+													Name: "TLS",
+													Fields: []*FieldDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "Enabled",
+															New:  "true",
+														},
+														{
+															Type: DiffTypeAdded,
+															Name: "TLSMinVersion",
+															New:  "TLSv1_2",
+														},
+													},
+													Objects: []*ObjectDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "CipherSuites",
+															Fields: []*FieldDiff{
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+																},
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},

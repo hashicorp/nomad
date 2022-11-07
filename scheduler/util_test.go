@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -163,7 +164,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: helper.BoolToPtr(true),
+				Migrate: pointer.Of(true),
 			},
 		},
 		// Mark the 4th lost
@@ -292,6 +293,153 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	require.Len(t, diff.lost, 0)
 }
 
+func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create job.
+	job := mock.SystemJob()
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+
+	// Create nodes.
+	readyNode := mock.Node()
+	readyNode.Status = structs.NodeStatusReady
+
+	disconnectedNode := mock.Node()
+	disconnectedNode.Status = structs.NodeStatusDisconnected
+
+	eligibleNodes := map[string]*structs.Node{
+		readyNode.ID: readyNode,
+	}
+
+	taintedNodes := map[string]*structs.Node{
+		disconnectedNode.ID: disconnectedNode,
+	}
+
+	// Create allocs.
+	required := materializeTaskGroups(job)
+	terminal := make(structs.TerminalByNodeByName)
+
+	type diffResultCount struct {
+		place, update, migrate, stop, ignore, lost, disconnecting, reconnecting int
+	}
+
+	testCases := []struct {
+		name    string
+		node    *structs.Node
+		allocFn func(*structs.Allocation)
+		expect  diffResultCount
+	}{
+		{
+			name: "alloc in disconnected client is marked as unknown",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+			},
+			expect: diffResultCount{
+				disconnecting: 1,
+			},
+		},
+		{
+			name: "disconnected alloc reconnects",
+			node: readyNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now().Add(-time.Minute),
+				}}
+			},
+			expect: diffResultCount{
+				reconnecting: 1,
+			},
+		},
+		{
+			name: "alloc not reconnecting after it reconnects",
+			node: readyNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				alloc.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: structs.AllocClientStatusUnknown,
+						Time:  time.Now().Add(-time.Minute),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: structs.AllocClientStatusRunning,
+						Time:  time.Now(),
+					},
+				}
+			},
+			expect: diffResultCount{
+				ignore: 1,
+			},
+		},
+		{
+			name: "disconnected alloc is lost after it expires",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusUnknown
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now().Add(-10 * time.Hour),
+				}}
+			},
+			expect: diffResultCount{
+				lost: 1,
+			},
+		},
+		{
+			name: "disconnected allocs are ignored",
+			node: disconnectedNode,
+			allocFn: func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusUnknown
+
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusUnknown,
+					Time:  time.Now(),
+				}}
+			},
+			expect: diffResultCount{
+				ignore: 1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := mock.AllocForNode(tc.node)
+			alloc.JobID = job.ID
+			alloc.Job = job
+			alloc.Name = fmt.Sprintf("%s.%s[0]", job.Name, job.TaskGroups[0].Name)
+
+			if tc.allocFn != nil {
+				tc.allocFn(alloc)
+			}
+
+			got := diffSystemAllocsForNode(
+				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
+				required, []*structs.Allocation{alloc}, terminal, true,
+			)
+
+			assert.Len(t, got.place, tc.expect.place, "place")
+			assert.Len(t, got.update, tc.expect.update, "update")
+			assert.Len(t, got.migrate, tc.expect.migrate, "migrate")
+			assert.Len(t, got.stop, tc.expect.stop, "stop")
+			assert.Len(t, got.ignore, tc.expect.ignore, "ignore")
+			assert.Len(t, got.lost, tc.expect.lost, "lost")
+			assert.Len(t, got.disconnecting, tc.expect.disconnecting, "disconnecting")
+			assert.Len(t, got.reconnecting, tc.expect.reconnecting, "reconnecting")
+		})
+	}
+}
+
 func TestDiffSystemAllocs(t *testing.T) {
 	ci.Parallel(t)
 
@@ -340,7 +488,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: helper.BoolToPtr(true),
+				Migrate: pointer.Of(true),
 			},
 		},
 		// Mark as lost on a dead node
@@ -793,8 +941,8 @@ func TestTasksUpdated(t *testing.T) {
 	j22.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(5 * time.Second),
 			},
 		},
 	}
@@ -802,15 +950,60 @@ func TestTasksUpdated(t *testing.T) {
 	j23.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(5 * time.Second),
+				Min: pointer.Of(5 * time.Second),
+				Max: pointer.Of(5 * time.Second),
 			},
 		},
 	}
 	require.False(t, tasksUpdated(j22, j23, name))
 	// Compare changed Template wait configs
-	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = helper.TimeToPtr(10 * time.Second)
+	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = pointer.Of(10 * time.Second)
 	require.True(t, tasksUpdated(j22, j23, name))
+
+	// Add a volume
+	j24 := mock.Job()
+	j25 := j24.Copy()
+	j25.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"myvolume": {
+			Name:   "myvolume",
+			Type:   "csi",
+			Source: "test-volume[0]",
+		}}
+	require.True(t, tasksUpdated(j24, j25, name))
+
+	// Alter a volume
+	j26 := j25.Copy()
+	j26.TaskGroups[0].Volumes["myvolume"].ReadOnly = true
+	require.True(t, tasksUpdated(j25, j26, name))
+
+	// Alter a CSI plugin
+	j27 := mock.Job()
+	j27.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "myplugin",
+		Type: "node",
+	}
+	j28 := j27.Copy()
+	j28.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = "monolith"
+	require.True(t, tasksUpdated(j27, j28, name))
+
+	// Compare identical Template ErrMissingKey
+	j29 := mock.Job()
+	j29.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			ErrMissingKey: false,
+		},
+	}
+	j30 := mock.Job()
+	j30.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			ErrMissingKey: false,
+		},
+	}
+	require.False(t, tasksUpdated(j29, j30, name))
+
+	// Compare changed Template ErrMissingKey
+	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
+	require.True(t, tasksUpdated(j29, j30, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

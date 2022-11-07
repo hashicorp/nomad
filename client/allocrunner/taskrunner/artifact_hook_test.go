@@ -14,11 +14,12 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 // Statically assert the artifact hook implements the expected interface
@@ -38,7 +39,7 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	ci.Parallel(t)
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, getter.TestDefaultGetter(t), testlog.HCLogger(t))
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
@@ -71,7 +72,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	ci.Parallel(t)
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, getter.TestDefaultGetter(t), testlog.HCLogger(t))
 
 	// Create a source directory with 1 of the 2 artifacts
 	srcdir := t.TempDir()
@@ -85,11 +86,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -112,7 +109,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// On first run file1 (foo) should download but file2 (bar) should
 	// fail.
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.NotNil(t, err)
 	require.True(t, structs.IsRecoverable(err))
@@ -129,7 +126,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(file2, []byte{'1'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 
 	resp = interfaces.TaskPrestartResponse{}
 
@@ -149,7 +146,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// Stop the test server entirely and assert that re-running works
 	ts.Close()
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 	resp = interfaces.TaskPrestartResponse{}
 	err = artifactHook.Prestart(context.Background(), req, &resp)
 	require.NoError(t, err)
@@ -163,7 +160,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, getter.TestDefaultGetter(t), testlog.HCLogger(t))
 
 	// Create a source directory all 7 artifacts
 	srcdir := t.TempDir()
@@ -179,11 +176,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -225,7 +218,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// start the hook
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.NoError(t, err)
 	require.True(t, resp.Done)
@@ -254,7 +247,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, getter.TestDefaultGetter(t), testlog.HCLogger(t))
 
 	// Create a source directory with 3 of the 4 artifacts
 	srcdir := t.TempDir()
@@ -273,11 +266,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -307,7 +296,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// On first run all files will be downloaded except file0.txt
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.Error(t, err)
 	require.True(t, structs.IsRecoverable(err))
@@ -326,7 +315,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(file0, []byte{'0'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
-	req.PreviousState = helper.CopyMapStringString(resp.State)
+	req.PreviousState = maps.Clone(resp.State)
 
 	resp = interfaces.TaskPrestartResponse{}
 

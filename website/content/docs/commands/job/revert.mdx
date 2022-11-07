@@ -71,7 +71,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:3.2" => "redis:4.0"
+      +/- image:           "redis:7" => "redis:4.0"
           port_map[0][db]: "6379"
         }
 
@@ -96,7 +96,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:4.0" => "redis:3.2"
+      +/- image:           "redis:4.0" => "redis:7"
           port_map[0][db]: "6379"
         }
 
@@ -108,7 +108,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:3.2" => "redis:4.0"
+      +/- image:           "redis:7" => "redis:4.0"
           port_map[0][db]: "6379"
         }
 
@@ -118,7 +118,7 @@ Submit Date = 07/25/17 21:27:18 UTC
 ```
 
 [`job history`]: /docs/commands/job/history
-[eval status]: /docs/commands/eval-status
+[eval status]: /docs/commands/eval/status
 [consul service identity]: /docs/configuration/consul#allow_unauthenticated
 [vault policy]: /docs/configuration/vault#allow_unauthenticated
 [run]: /docs/commands/job/run

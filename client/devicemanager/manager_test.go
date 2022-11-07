@@ -11,8 +11,8 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,7 +42,7 @@ var (
 		},
 		Attributes: map[string]*psstructs.Attribute{
 			"memory": {
-				Int:  helper.Int64ToPtr(4),
+				Int:  pointer.Of(int64(4)),
 				Unit: "GB",
 			},
 		},
@@ -61,7 +61,7 @@ var (
 		},
 		Attributes: map[string]*psstructs.Attribute{
 			"memory": {
-				Int:  helper.Int64ToPtr(2),
+				Int:  pointer.Of(int64(2)),
 				Unit: "GB",
 			},
 		},
@@ -74,14 +74,14 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			nvidiaDevice0ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: helper.Int64ToPtr(212),
+					IntNumeratorVal: pointer.Of(int64(212)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
 			},
 			nvidiaDevice1ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: helper.Int64ToPtr(218),
+					IntNumeratorVal: pointer.Of(int64(218)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -96,7 +96,7 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			intelDeviceID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: helper.Int64ToPtr(220),
+					IntNumeratorVal: pointer.Of(int64(220)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},

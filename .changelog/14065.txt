@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where job validation requeset was not sent to leader
+```

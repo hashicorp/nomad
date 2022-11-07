@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -95,12 +95,12 @@ Run Options:
     used as the job.
 
   -hcl1
-    Parses the job file as HCLv1.
+    Parses the job file as HCLv1. Takes precedence over "-hcl2-strict".
 
   -hcl2-strict
     Whether an error should be produced from the HCL2 parser where a variable
     has been supplied which is not defined within the root variables. Defaults
-    to true.
+    to true, but ignored if "-hcl1" is also defined.
 
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
@@ -223,6 +223,10 @@ func (c *JobRunCommand) Run(args []string) int {
 		return 1
 	}
 
+	if c.JobGetter.HCL1 {
+		c.JobGetter.Strict = false
+	}
+
 	if err := c.JobGetter.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
 		return 1
@@ -264,11 +268,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if consulToken != "" {
-		job.ConsulToken = helper.StringToPtr(consulToken)
+		job.ConsulToken = pointer.Of(consulToken)
 	}
 
 	if consulNamespace != "" {
-		job.ConsulNamespace = helper.StringToPtr(consulNamespace)
+		job.ConsulNamespace = pointer.Of(consulNamespace)
 	}
 
 	// Parse the Vault token
@@ -278,11 +282,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if vaultToken != "" {
-		job.VaultToken = helper.StringToPtr(vaultToken)
+		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	if vaultNamespace != "" {
-		job.VaultNamespace = helper.StringToPtr(vaultNamespace)
+		job.VaultNamespace = pointer.Of(vaultNamespace)
 	}
 
 	if output {

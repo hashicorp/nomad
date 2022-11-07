@@ -2,30 +2,10 @@ package apitests
 
 import (
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
-
-// boolToPtr returns the pointer to a boolean
-func boolToPtr(b bool) *bool {
-	return &b
-}
-
-// intToPtr returns the pointer to an int
-func intToPtr(i int) *int {
-	return &i
-}
-
-// timeToPtr returns the pointer to a time stamp
-func timeToPtr(t time.Duration) *time.Duration {
-	return &t
-}
-
-// stringToPtr returns the pointer to a string
-func stringToPtr(str string) *string {
-	return &str
-}
 
 func assertQueryMeta(t *testing.T, qm *api.QueryMeta) {
 	t.Helper()
@@ -48,18 +28,18 @@ func testJob() *api.Job {
 	task := api.NewTask("task1", "exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&api.Resources{
-			CPU:      intToPtr(100),
-			MemoryMB: intToPtr(256),
+			CPU:      pointer.Of(100),
+			MemoryMB: pointer.Of(256),
 		}).
 		SetLogConfig(&api.LogConfig{
-			MaxFiles:      intToPtr(1),
-			MaxFileSizeMB: intToPtr(2),
+			MaxFiles:      pointer.Of(1),
+			MaxFileSizeMB: pointer.Of(2),
 		})
 
 	group := api.NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
-			SizeMB: intToPtr(25),
+			SizeMB: pointer.Of(25),
 		})
 
 	job := api.NewBatchJob("job1", "redis", "global", 1).

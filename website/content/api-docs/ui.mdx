@@ -553,3 +553,34 @@ authenticate all future requests to allow read access to additional resources.
 | Path                  | Produces    |
 | --------------------- | ----------- |
 | `/ui/settings/tokens` | `text/html` |
+
+
+## Keyboard Shortcuts
+
+The Nomad UI supports several keyboard shortcuts in order to help users navigate and operate Nomad. You can use common key commands to dig into jobs, view logs, monitor evaluations, and more.
+
+Type `?` from anywhere in the UI to launch the Keyboard Shortcuts panel. 
+
+### Default key commands:
+
+| Command                  | Pattern    |
+| --------------------- | ----------- |
+| Go to Jobs | `g j` |
+| Go to Storage | `g r` |
+| Go to Servers | `g s` |
+| Go to Clients | `g c` |
+| Go to Topology | `g t` |
+| Go to Evaluations | `g e` |
+| Go to ACL Tokens | `g a` |
+| Next Subnav | `Shift + →` |
+| Previous Subnav | `Shift + ←` |
+| Next Main Section | `Shift + ↓` |
+| Previous Main Section | `Shift + ↑` |
+| Show Keyboard Shortcuts | `Shift + ?` |
+| Hide Keyboard Shortcuts | `Escape` |
+| Go Up a Level | `u` |
+
+### Rebinding and Disabling Commands
+
+From the Keyboard Shortcuts modal, you can click on any pattern to re-bind it to the shortcut of your choosing. This shortcut will persist via your browser's local storage and across refreshes. You can also toggle "Keyboard shortcuts enabled" to disable them completely.
+

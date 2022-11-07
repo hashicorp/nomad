@@ -84,6 +84,8 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 	}
 
 	switch tokens[1] {
+	case "checks":
+		return s.allocChecks(allocID, resp, req)
 	case "stop":
 		return s.allocStop(allocID, resp, req)
 	case "services":
@@ -213,6 +215,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	}
 	allocID := tokens[0]
 	switch tokens[1] {
+	case "checks":
+		return s.allocChecks(allocID, resp, req)
 	case "stats":
 		return s.allocStats(allocID, resp, req)
 	case "exec":
@@ -279,6 +283,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	// Explicitly parse the body separately to disallow overriding AllocID in req Body.
 	var reqBody struct {
 		TaskName string
+		AllTasks bool
 	}
 	err := json.NewDecoder(req.Body).Decode(&reqBody)
 	if err != nil && err != io.EOF {
@@ -286,6 +291,9 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	}
 	if reqBody.TaskName != "" {
 		args.TaskName = reqBody.TaskName
+	}
+	if reqBody.AllTasks {
+		args.AllTasks = reqBody.AllTasks
 	}
 
 	// Determine the handler to use
@@ -434,6 +442,39 @@ func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *h
 	}
 
 	return reply.Stats, rpcErr
+}
+
+func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Build the request and parse the ACL token
+	args := cstructs.AllocChecksRequest{
+		AllocID: allocID,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply cstructs.AllocChecksResponse
+	var rpcErr error
+	switch {
+	case useLocalClient:
+		rpcErr = s.agent.Client().ClientRPC("Allocations.Checks", &args, &reply)
+	case useClientRPC:
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Checks", &args, &reply)
+	case useServerRPC:
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Checks", &args, &reply)
+	default:
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply.Results, rpcErr
 }
 
 func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -600,7 +641,9 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 
 	// we won't return an error on ws close, but at least make it available in
 	// the logs so we can trace spurious disconnects
-	s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
+	if codedErr != nil {
+		s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
+	}
 
 	if isClosedError(codedErr) {
 		codedErr = nil

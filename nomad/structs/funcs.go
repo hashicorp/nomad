@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -173,7 +173,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.TerminalStatus() {
+		if alloc.ClientTerminalStatus() {
 			continue
 		}
 
@@ -207,8 +207,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		netIdx = NewNetworkIndex()
 		defer netIdx.Release()
 
-		if collision, reason := netIdx.SetNode(node); collision {
-			return false, fmt.Sprintf("reserved node port collision: %v", reason), used, nil
+		if err := netIdx.SetNode(node); err != nil {
+			// To maintain backward compatibility with when SetNode
+			// returned collision+reason like AddAllocs, return
+			// this as a reason instead of an error.
+			return false, fmt.Sprintf("reserved node port collision: %v", err), used, nil
 		}
 		if collision, reason := netIdx.AddAllocs(allocs); collision {
 			return false, fmt.Sprintf("reserved alloc port collision: %v", reason), used, nil
@@ -364,35 +367,29 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
-	set := make(map[string]struct{})
-
+	s := set.New[string](10)
 	for _, tgp := range policies {
 		for _, tp := range tgp {
 			if tp != nil {
-				for _, p := range tp.Policies {
-					set[p] = struct{}{}
-				}
+				s.InsertAll(tp.Policies)
 			}
 		}
 	}
-
-	return helper.SetToSliceString(set)
+	return s.List()
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
 // returns a set of required namespaces
 func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
-	set := make(map[string]struct{})
-
+	s := set.New[string](10)
 	for _, tgp := range policies {
 		for _, tp := range tgp {
 			if tp != nil && tp.Namespace != "" {
-				set[tp.Namespace] = struct{}{}
+				s.Insert(tp.Namespace)
 			}
 		}
 	}
-
-	return helper.SetToSliceString(set)
+	return s.List()
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
@@ -529,6 +526,10 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				port, err := strconv.ParseUint(val, 10, 0)
 				if err != nil {
 					return nil, err
+				}
+
+				if port > MaxValidPort {
+					return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
 				}
 				ports[port] = struct{}{}
 			}

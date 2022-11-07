@@ -402,39 +402,42 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		c.Build = "0.9.0+unittest"
 	})
 	defer cleanupS1()
-	codec := rpcClient(t, s1)
+	rpcCodec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	require := require.New(t)
-
-	// Disable preemption
+	// Disable preemption and pause the eval broker.
 	arg := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: false,
 			},
+			PauseEvalBroker: true,
 		},
 	}
 	arg.Region = s1.config.Region
 
 	var setResponse structs.SchedulerSetConfigurationResponse
-	err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
-	require.Nil(err)
-	require.NotZero(setResponse.Index)
+	err := msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.Nil(t, err)
+	require.NotZero(t, setResponse.Index)
 
-	// Read and verify that preemption is disabled
+	// Read and verify that preemption is disabled and the eval and blocked
+	// evals systems are disabled.
 	readConfig := structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
 			Region: s1.config.Region,
 		},
 	}
 	var reply structs.SchedulerConfigurationResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &readConfig, &reply); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerGetConfiguration", &readConfig, &reply)
+	require.NoError(t, err)
 
-	require.NotZero(reply.Index)
-	require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	require.NotZero(t, reply.Index)
+	require.False(t, reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+
+	require.False(t, s1.evalBroker.Enabled())
+	require.False(t, s1.blockedEvals.Enabled())
 }
 
 func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
@@ -539,9 +542,7 @@ func TestOperator_SnapshotSave(t *testing.T) {
 	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	server1, cleanupLS := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -646,9 +647,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s, root, cleanupLS := TestACLServer(t, func(c *Config) {
 		c.BootstrapExpect = 1
@@ -741,9 +740,7 @@ func TestOperator_SnapshotRestore(t *testing.T) {
 }
 
 func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	dir := t.TempDir()
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 1
@@ -762,7 +759,7 @@ func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
 	}
 	var jobResp structs.JobRegisterResponse
 	codec := rpcClient(t, s)
-	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
 	require.NoError(t, err)
 
 	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
@@ -780,9 +777,7 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 	assertionFn func(t *testing.T, server *Server)) {
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	server1, cleanupLS := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -886,9 +881,7 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	/////////  Actually run query now
 	cases := []struct {

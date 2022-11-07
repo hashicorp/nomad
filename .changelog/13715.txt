@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Add built-in support for checks on nomad services
+```

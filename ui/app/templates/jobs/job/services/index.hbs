@@ -1,0 +1,37 @@
+<section class="section service-list">
+	{{#if this.sortedServices.length}}
+		<ListTable
+			@source={{this.sortedServices}}
+			@sortProperty={{this.sortProperty}}
+			@sortDescending={{this.sortDescending}}
+			as |t|
+		>
+			<t.head>
+				<t.sort-by @prop="name">Name</t.sort-by>
+				<t.sort-by @prop="level">Level</t.sort-by>
+				<th>Tags</th>
+				<t.sort-by @prop="numAllocs">Number of Alocations</t.sort-by>
+			</t.head>
+			<t.body as |row|>
+				<JobServiceRow
+					{{keyboard-shortcut 
+						enumerated=true
+						action=(action "gotoService" row.model)
+					}}
+					@service={{row.model}}
+				/>
+			</t.body>
+		</ListTable>
+	{{else}}
+		<div class="boxed-section-body">
+			<div class="empty-message" data-test-empty-services-list>
+				<h3 class="empty-message-headline" data-test-empty-services-list-headline>
+					No Services
+				</h3>
+				<p class="empty-message-body">
+					No services running on {{this.job.name}}.
+				</p>
+			</div>
+		</div>
+	{{/if}}
+</section>

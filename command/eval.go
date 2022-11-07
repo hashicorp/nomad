@@ -19,9 +19,17 @@ Usage: nomad eval <subcommand> [options] [args]
   detail but can be useful for debugging placement failures when the cluster
   does not have the resources to run a given job.
 
+  List evaluations:
+
+      $ nomad eval list
+
   Examine an evaluations status:
 
       $ nomad eval status <eval-id>
+
+  Delete evaluations:
+
+      $ nomad eval delete <eval-id>
 
   Please see the individual subcommand help for detailed usage information.
 `
@@ -35,6 +43,4 @@ func (f *EvalCommand) Synopsis() string {
 
 func (f *EvalCommand) Name() string { return "eval" }
 
-func (f *EvalCommand) Run(args []string) int {
-	return cli.RunResultHelp
-}
+func (f *EvalCommand) Run(_ []string) int { return cli.RunResultHelp }

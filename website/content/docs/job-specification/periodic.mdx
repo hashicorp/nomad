@@ -48,6 +48,10 @@ consistent evaluation when Nomad spans multiple time zones.
   be parsable by Golang's
   [LoadLocation](https://golang.org/pkg/time/#LoadLocation).
 
+- `enabled` `(bool: true)` - Specifies if this job should run. This not only
+  prevents this job from running on the `cron` schedule but prevents force
+  launches.
+
 ## `periodic` Examples
 
 The following examples only show the `periodic` stanzas. Remember that the
@@ -86,6 +90,10 @@ when the following daylight saving time behavior is _desired:_
 - When falling back, periodic jobs scheduled for the duplicated hour (eg 1:30am
   in `America/New_York`) will be _run twice_ for that day (eg November 3rd).
 
+See the [multiregion] documentation for additional considerations when
+configuring time zones for periodic jobs.
+
 [batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
 [dst]: #daylight-saving-time
+[multiregion]: /docs/job-specification/multiregion#periodic-time-zones

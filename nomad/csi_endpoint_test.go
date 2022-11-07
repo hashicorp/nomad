@@ -7,6 +7,11 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
@@ -17,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCSIVolumeEndpoint_Get(t *testing.T) {
@@ -499,27 +503,52 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		},
 	}
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	type tc struct {
 		name           string
 		startingState  structs.CSIVolumeClaimState
+		endState       structs.CSIVolumeClaimState
+		nodeID         string
+		otherNodeID    string
 		expectedErrMsg string
 	}
 	testCases := []tc{
 		{
 			name:          "success",
 			startingState: structs.CSIVolumeClaimStateControllerDetached,
+			nodeID:        node.ID,
+			otherNodeID:   uuid.Generate(),
+		},
+		{
+			name:          "non-terminal allocation on same node",
+			startingState: structs.CSIVolumeClaimStateNodeDetached,
+			nodeID:        node.ID,
+			otherNodeID:   node.ID,
 		},
 		{
 			name:           "unpublish previously detached node",
 			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
+			otherNodeID:    uuid.Generate(),
+		},
+		{
+			name:           "unpublish claim on garbage collected node",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
+			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         uuid.Generate(),
+			otherNodeID:    uuid.Generate(),
 		},
 		{
 			name:           "first unpublish",
 			startingState:  structs.CSIVolumeClaimStateTaken,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
+			otherNodeID:    uuid.Generate(),
 		},
 	}
 
@@ -541,20 +570,25 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			index++
 			err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			// setup: create an alloc that will claim our volume
 			alloc := mock.BatchAlloc()
-			alloc.NodeID = node.ID
-			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.NodeID = tc.nodeID
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+
+			otherAlloc := mock.BatchAlloc()
+			otherAlloc.NodeID = tc.otherNodeID
+			otherAlloc.ClientStatus = structs.AllocClientStatusRunning
 
 			index++
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc, otherAlloc}))
 
-			// setup: claim the volume for our alloc
+			// setup: claim the volume for our to-be-failed alloc
 			claim := &structs.CSIVolumeClaim{
 				AllocationID:   alloc.ID,
-				NodeID:         node.ID,
+				NodeID:         tc.nodeID,
 				ExternalNodeID: "i-example",
 				Mode:           structs.CSIVolumeClaimRead,
 			}
@@ -562,7 +596,20 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			index++
 			claim.State = structs.CSIVolumeClaimStateTaken
 			err = state.CSIVolumeClaim(index, ns, volID, claim)
-			require.NoError(t, err)
+			must.NoError(t, err)
+
+			// setup: claim the volume for our other alloc
+			otherClaim := &structs.CSIVolumeClaim{
+				AllocationID:   otherAlloc.ID,
+				NodeID:         tc.otherNodeID,
+				ExternalNodeID: "i-example",
+				Mode:           structs.CSIVolumeClaimRead,
+			}
+
+			index++
+			otherClaim.State = structs.CSIVolumeClaimStateTaken
+			err = state.CSIVolumeClaim(index, ns, volID, otherClaim)
+			must.NoError(t, err)
 
 			// test: unpublish and check the results
 			claim.State = tc.startingState
@@ -576,20 +623,35 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 				},
 			}
 
+			alloc = alloc.Copy()
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+			index++
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc}))
+
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
 
+			snap, snapErr := state.Snapshot()
+			must.NoError(t, snapErr)
+
+			vol, volErr := snap.CSIVolumeByID(nil, ns, volID)
+			must.NoError(t, volErr)
+			must.NotNil(t, vol)
+
 			if tc.expectedErrMsg == "" {
-				require.NoError(t, err)
-				vol, err = state.CSIVolumeByID(nil, ns, volID)
-				require.NoError(t, err)
-				require.NotNil(t, vol)
-				require.Len(t, vol.ReadAllocs, 0)
+				must.NoError(t, err)
+				assert.Len(t, vol.ReadAllocs, 1)
 			} else {
-				require.Error(t, err)
-				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
-					"error message %q did not contain %q", err.Error(), tc.expectedErrMsg)
+				must.Error(t, err)
+				assert.Len(t, vol.ReadAllocs, 2)
+				test.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
+					test.Sprintf("error %v did not contain %q", err, tc.expectedErrMsg))
+				claim = vol.PastClaims[alloc.ID]
+				must.NotNil(t, claim)
+				test.Eq(t, tc.endState, claim.State)
 			}
+
 		})
 	}
 
@@ -983,8 +1045,10 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -1007,24 +1071,26 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
-				SupportsCreateDelete: true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+					SupportsCreateDelete: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1119,8 +1185,10 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -1143,23 +1211,25 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1256,8 +1326,10 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		// client RPCs not supported on early versions
+		c.Node.Attributes["nomad.version"] = "0.11.0"
+	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
 		Node:         node,
@@ -1278,24 +1350,26 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsAttachDetach: true,
-				SupportsListVolumes:  true,
+	node = client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsAttachDetach: true,
+					SupportsListVolumes:  true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
-		},
-	}
+		}
+		c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{},
+			},
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1349,10 +1423,8 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1372,16 +1444,18 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsCreateDeleteSnapshot: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsCreateDeleteSnapshot: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1442,10 +1516,8 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
-
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1465,16 +1537,18 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsCreateDeleteSnapshot: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsCreateDeleteSnapshot: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -1541,9 +1615,8 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	)
 	defer cleanup()
 
-	node := client.Node()
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
+		Node:         client.Node(),
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp0 structs.NodeUpdateResponse
@@ -1561,16 +1634,18 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	codec := rpcClient(t, srv)
 	index := uint64(1000)
 
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {
-			PluginID: "minnie",
-			Healthy:  true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsListSnapshots: true,
+	node := client.UpdateConfig(func(c *cconfig.Config) {
+		c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+			"minnie": {
+				PluginID: "minnie",
+				Healthy:  true,
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsListSnapshots: true,
+				},
+				RequiresControllerPlugin: true,
 			},
-			RequiresControllerPlugin: true,
-		},
-	}
+		}
+	}).Node
 	index++
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 

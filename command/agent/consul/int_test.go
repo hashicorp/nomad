@@ -3,7 +3,6 @@ package consul_test
 import (
 	"context"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -47,6 +46,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
+		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
@@ -66,16 +66,8 @@ func TestConsul_Integration(t *testing.T) {
 		t.Fatalf("error generating consul config: %v", err)
 	}
 
-	conf.StateDir, err = ioutil.TempDir("", "nomadtest-consulstate")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.StateDir)
-	conf.AllocDir, err = ioutil.TempDir("", "nomdtest-consulalloc")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.AllocDir)
+	conf.StateDir = t.TempDir()
+	conf.AllocDir = t.TempDir()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -136,6 +128,9 @@ func TestConsul_Integration(t *testing.T) {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
+	t.Cleanup(func() {
+		r.NoError(allocDir.Destroy())
+	})
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
@@ -150,26 +145,26 @@ func TestConsul_Integration(t *testing.T) {
 		close(consulRan)
 	}()
 
-	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Create a closed channel to mock TaskCoordinator.startConditionForTask.
 	// Closed channel indicates this task is not blocked on prestart hooks.
 	closedCh := make(chan struct{})
 	close(closedCh)
 
 	// Build the config
 	config := &taskrunner.Config{
-		Alloc:                alloc,
-		ClientConfig:         conf,
-		Consul:               serviceClient,
-		Task:                 task,
-		TaskDir:              taskDir,
-		Logger:               logger,
-		Vault:                vclient,
-		StateDB:              state.NoopDB{},
-		StateUpdater:         logUpdate,
-		DeviceManager:        devicemanager.NoopMockManager(),
-		DriverManager:        drivermanager.TestDriverManager(t),
-		StartConditionMetCtx: closedCh,
-		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
+		Alloc:               alloc,
+		ClientConfig:        conf,
+		Consul:              serviceClient,
+		Task:                task,
+		TaskDir:             taskDir,
+		Logger:              logger,
+		Vault:               vclient,
+		StateDB:             state.NoopDB{},
+		StateUpdater:        logUpdate,
+		DeviceManager:       devicemanager.NoopMockManager(),
+		DriverManager:       drivermanager.TestDriverManager(t),
+		StartConditionMetCh: closedCh,
+		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

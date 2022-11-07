@@ -8,7 +8,7 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-secure-stdlib/listenerutil"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // ConsulConfig contains the configuration information necessary to
@@ -16,11 +16,11 @@ import (
 //
 // - Register services and their checks with Consul
 //
-// - Bootstrap this Nomad Client with the list of Nomad Servers registered
-//   with Consul
+//   - Bootstrap this Nomad Client with the list of Nomad Servers registered
+//     with Consul
 //
-// - Establish how this Nomad Client will resolve Envoy Connect Sidecar
-//   images.
+//   - Establish how this Nomad Client will resolve Envoy Connect Sidecar
+//     images.
 //
 // Both the Agent and the executor need to be able to import ConsulConfig.
 type ConsulConfig struct {
@@ -141,17 +141,17 @@ func DefaultConsulConfig() *ConsulConfig {
 		ServerRPCCheckName:   "Nomad Server RPC Check",
 		ClientServiceName:    "nomad-client",
 		ClientHTTPCheckName:  "Nomad Client HTTP Check",
-		AutoAdvertise:        helper.BoolToPtr(true),
-		ChecksUseAdvertise:   helper.BoolToPtr(false),
-		ServerAutoJoin:       helper.BoolToPtr(true),
-		ClientAutoJoin:       helper.BoolToPtr(true),
-		AllowUnauthenticated: helper.BoolToPtr(true),
+		AutoAdvertise:        pointer.Of(true),
+		ChecksUseAdvertise:   pointer.Of(false),
+		ServerAutoJoin:       pointer.Of(true),
+		ClientAutoJoin:       pointer.Of(true),
+		AllowUnauthenticated: pointer.Of(true),
 		Timeout:              5 * time.Second,
 
 		// From Consul api package defaults
 		Addr:      def.Address,
-		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
-		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
+		EnableSSL: pointer.Of(def.Scheme == "https"),
+		VerifySSL: pointer.Of(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
 		Namespace: def.Namespace,
 	}
@@ -190,7 +190,7 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	result.Tags = append(result.Tags, b.Tags...)
 	if b.AutoAdvertise != nil {
-		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)
+		result.AutoAdvertise = pointer.Of(*b.AutoAdvertise)
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
@@ -211,13 +211,13 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.Auth = b.Auth
 	}
 	if b.EnableSSL != nil {
-		result.EnableSSL = helper.BoolToPtr(*b.EnableSSL)
+		result.EnableSSL = pointer.Of(*b.EnableSSL)
 	}
 	if b.VerifySSL != nil {
-		result.VerifySSL = helper.BoolToPtr(*b.VerifySSL)
+		result.VerifySSL = pointer.Of(*b.VerifySSL)
 	}
 	if b.ShareSSL != nil {
-		result.ShareSSL = helper.BoolToPtr(*b.ShareSSL)
+		result.ShareSSL = pointer.Of(*b.ShareSSL)
 	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
@@ -229,16 +229,16 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.KeyFile = b.KeyFile
 	}
 	if b.ServerAutoJoin != nil {
-		result.ServerAutoJoin = helper.BoolToPtr(*b.ServerAutoJoin)
+		result.ServerAutoJoin = pointer.Of(*b.ServerAutoJoin)
 	}
 	if b.ClientAutoJoin != nil {
-		result.ClientAutoJoin = helper.BoolToPtr(*b.ClientAutoJoin)
+		result.ClientAutoJoin = pointer.Of(*b.ClientAutoJoin)
 	}
 	if b.ChecksUseAdvertise != nil {
-		result.ChecksUseAdvertise = helper.BoolToPtr(*b.ChecksUseAdvertise)
+		result.ChecksUseAdvertise = pointer.Of(*b.ChecksUseAdvertise)
 	}
 	if b.AllowUnauthenticated != nil {
-		result.AllowUnauthenticated = helper.BoolToPtr(*b.AllowUnauthenticated)
+		result.AllowUnauthenticated = pointer.Of(*b.AllowUnauthenticated)
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
@@ -319,28 +319,28 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 
 	// Copy the bools
 	if nc.AutoAdvertise != nil {
-		nc.AutoAdvertise = helper.BoolToPtr(*nc.AutoAdvertise)
+		nc.AutoAdvertise = pointer.Of(*nc.AutoAdvertise)
 	}
 	if nc.ChecksUseAdvertise != nil {
-		nc.ChecksUseAdvertise = helper.BoolToPtr(*nc.ChecksUseAdvertise)
+		nc.ChecksUseAdvertise = pointer.Of(*nc.ChecksUseAdvertise)
 	}
 	if nc.EnableSSL != nil {
-		nc.EnableSSL = helper.BoolToPtr(*nc.EnableSSL)
+		nc.EnableSSL = pointer.Of(*nc.EnableSSL)
 	}
 	if nc.VerifySSL != nil {
-		nc.VerifySSL = helper.BoolToPtr(*nc.VerifySSL)
+		nc.VerifySSL = pointer.Of(*nc.VerifySSL)
 	}
 	if nc.ShareSSL != nil {
-		nc.ShareSSL = helper.BoolToPtr(*nc.ShareSSL)
+		nc.ShareSSL = pointer.Of(*nc.ShareSSL)
 	}
 	if nc.ServerAutoJoin != nil {
-		nc.ServerAutoJoin = helper.BoolToPtr(*nc.ServerAutoJoin)
+		nc.ServerAutoJoin = pointer.Of(*nc.ServerAutoJoin)
 	}
 	if nc.ClientAutoJoin != nil {
-		nc.ClientAutoJoin = helper.BoolToPtr(*nc.ClientAutoJoin)
+		nc.ClientAutoJoin = pointer.Of(*nc.ClientAutoJoin)
 	}
 	if nc.AllowUnauthenticated != nil {
-		nc.AllowUnauthenticated = helper.BoolToPtr(*nc.AllowUnauthenticated)
+		nc.AllowUnauthenticated = pointer.Of(*nc.AllowUnauthenticated)
 	}
 
 	return nc

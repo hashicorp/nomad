@@ -3,7 +3,7 @@
 package freeport
 
 import (
-	"fmt"
+	"errors"
 	"math/rand"
 	"net"
 	"sync"
@@ -110,7 +110,7 @@ func Free(n int) (ports []int, err error) {
 	defer mu.Unlock()
 
 	if n > blockSize-1 {
-		return nil, fmt.Errorf("freeport: block size too small")
+		return nil, errors.New("freeport: block size too small")
 	}
 
 	// Reserve a port block

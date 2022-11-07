@@ -515,6 +515,20 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(request.method, 'DELETE');
   });
 
+  test('purge requests include the activeRegion', async function (assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().purge(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(
+      request.url,
+      `/v1/job/${job.plainId}?purge=true&region=${region}`
+    );
+    assert.equal(request.method, 'DELETE');
+  });
+
   test('parse requests include the activeRegion', async function (assert) {
     const region = 'region-2';
     await this.initializeUI({ region });
@@ -522,7 +536,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().parse('job "name-goes-here" {');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/jobs/parse?region=${region}`);
+    assert.equal(request.url, `/v1/jobs/parse?namespace=*&region=${region}`);
     assert.equal(request.method, 'POST');
     assert.deepEqual(JSON.parse(request.requestBody), {
       JobHCL: 'job "name-goes-here" {',

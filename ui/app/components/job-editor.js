@@ -49,7 +49,6 @@ export default class JobEditor extends Component {
   planOutput = null;
 
   @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
-  @localStorageProperty('nomadMessageJobEditor', true) showEditorMessage;
 
   @computed('planOutput')
   get stage() {
@@ -62,7 +61,8 @@ export default class JobEditor extends Component {
     try {
       yield this.job.parse();
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not parse input';
+      const error =
+        messageFromAdapterError(err, 'parse jobs') || 'Could not parse input';
       this.set('parseError', error);
       this.scrollToError();
       return;
@@ -72,7 +72,8 @@ export default class JobEditor extends Component {
       const plan = yield this.job.plan();
       this.set('planOutput', plan);
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not plan job';
+      const error =
+        messageFromAdapterError(err, 'plan jobs') || 'Could not plan job';
       this.set('planError', error);
       this.scrollToError();
     }
@@ -114,5 +115,15 @@ export default class JobEditor extends Component {
     if (!this.get('config.isTest')) {
       window.scrollTo(0, 0);
     }
+  }
+
+  @action uploadJobSpec(event) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.updateCode(reader.result);
+    };
+
+    const [file] = event.target.files;
+    reader.readAsText(file);
   }
 }

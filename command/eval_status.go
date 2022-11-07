@@ -105,24 +105,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If args not specified but output format is specified, format and output the evaluations data list
-	if len(args) == 0 && (json || len(tmpl) > 0) {
-		evals, _, err := client.Evaluations().List(nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying evaluations: %v", err))
-			return 1
-		}
-
-		out, err := Format(json, tmpl, evals)
-		if err != nil {
-			c.Ui.Error(err.Error())
-			return 1
-		}
-
-		c.Ui.Output(out)
-		return 0
-	}
-
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument")
 		c.Ui.Error(commandErrorText(c))
@@ -143,6 +125,11 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	if json && len(tmpl) > 0 {
+		c.Ui.Error("Both json and template formatting are not allowed")
+		return 1
+	}
+
 	evalID = sanitizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
@@ -155,20 +142,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	if len(evals) > 1 {
-		// Format the evals
-		out := make([]string, len(evals)+1)
-		out[0] = "ID|Priority|Triggered By|Status|Placement Failures"
-		for i, eval := range evals {
-			failures, _ := evalFailureStatus(eval)
-			out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
-				limit(eval.ID, length),
-				eval.Priority,
-				eval.TriggeredBy,
-				eval.Status,
-				failures,
-			)
-		}
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatEvalList(evals, verbose)))
 		return 1
 	}
 
@@ -223,6 +197,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status Description|%s", statusDesc),
 		fmt.Sprintf("Type|%s", eval.Type),
 		fmt.Sprintf("TriggeredBy|%s", eval.TriggeredBy),
+		fmt.Sprintf("Job ID|%s", eval.JobID),
+		fmt.Sprintf("Namespace|%s", eval.Namespace),
 	}
 
 	if triggerNoun != "" && triggerSubj != "" {
@@ -282,8 +258,6 @@ func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []strin
 
 func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	switch eval.TriggeredBy {
-	case "job-register", "job-deregister", "periodic-job", "rolling-update", "deployment-watcher":
-		return "Job ID", eval.JobID
 	case "node-update":
 		return "Node ID", eval.NodeID
 	case "max-plan-attempts":

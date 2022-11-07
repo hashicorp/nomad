@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -162,6 +163,35 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 	require.True(d.AddAllocs(allocs))
 }
 
+// Assert that devices are not freed when an alloc's ServerTerminalStatus is
+// true, but only when ClientTerminalStatus is true.
+func TestDeviceAccounter_AddAllocs_TerminalStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	n := devNode()
+	d := NewDeviceAccounter(n)
+
+	// Create two allocations, both with the same device. First is being told to
+	// stop but has not stopped yet.
+	a1, a2 := nvidiaAlloc(), nvidiaAlloc()
+	a1.DesiredStatus = AllocDesiredStatusStop
+	a1.ClientStatus = AllocClientStatusRunning
+
+	nvidiaDev0ID := n.NodeResources.Devices[0].Instances[0].ID
+	a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+	a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+
+	allocs := []*Allocation{a1, a2}
+
+	// Since a1 has not stopped on the client, its device is still in use
+	must.True(t, d.AddAllocs(allocs))
+
+	// Assert that stop a1 on the client frees the device for use by a2
+	a1.ClientStatus = AllocClientStatusComplete
+	d = NewDeviceAccounter(n)
+	must.False(t, d.AddAllocs(allocs))
+}
+
 // Make sure that the device allocator works even if the node has no devices
 func TestDeviceAccounter_AddReserved_NoDeviceNode(t *testing.T) {
 	ci.Parallel(t)
@@ -211,7 +241,7 @@ func TestDeviceAccounter_AddReserved(t *testing.T) {
 // Test that collision detection works
 func TestDeviceAccounter_AddReserved_Collision(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)

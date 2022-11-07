@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Ensure all federated servers meet v.1.4.0 minimum before ACL roles can be written
+```

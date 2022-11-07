@@ -201,6 +201,8 @@ func (q *PlanQueue) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	defer stop()
 
 	for {
+		timer.Reset(period)
+
 		select {
 		case <-timer.C:
 			stats := q.Stats()

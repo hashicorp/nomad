@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/broker"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/delayheap"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -48,8 +50,10 @@ type EvalBroker struct {
 	nackTimeout   time.Duration
 	deliveryLimit int
 
-	enabled bool
-	stats   *BrokerStats
+	enabled         bool
+	enabledNotifier *broker.GenericNotifier
+
+	stats *BrokerStats
 
 	// evals tracks queued evaluations by ID to de-duplicate enqueue.
 	// The counter is the number of times we've attempted delivery,
@@ -131,6 +135,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		nackTimeout:          timeout,
 		deliveryLimit:        deliveryLimit,
 		enabled:              false,
+		enabledNotifier:      broker.NewGenericNotifier(),
 		stats:                new(BrokerStats),
 		evals:                make(map[string]int),
 		jobEvals:             make(map[structs.NamespacedID]string),
@@ -176,6 +181,9 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 	if !enabled {
 		b.flush()
 	}
+
+	// Notify all subscribers to state changes of the broker enabled value.
+	b.enabledNotifier.Notify("eval broker enabled status changed to " + strconv.FormatBool(enabled))
 }
 
 // Enqueue is used to enqueue a new evaluation
@@ -192,9 +200,9 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 // enqueued. The evaluation is handled in one of the following ways:
 // * Evaluation not outstanding: Process as a normal Enqueue
 // * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
-//    * Ack received:  Unblock the evaluation allowing it to be dequeued
-//    * Nack received: Drop the evaluation as it was created as a result of a
-//    scheduler run that was Nack'd
+//   - Ack received:  Unblock the evaluation allowing it to be dequeued
+//   - Nack received: Drop the evaluation as it was created as a result of a
+//     scheduler run that was Nack'd
 func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	// The lock needs to be held until all evaluations are enqueued. This is so
 	// that when Dequeue operations are unblocked they will pick the highest

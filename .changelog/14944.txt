@@ -1,0 +1,3 @@
+```release-note:bug
+consul: atomically register checks on initial service registration
+```

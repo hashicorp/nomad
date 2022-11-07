@@ -33,6 +33,11 @@ func (tr *TaskRunner) IsPoststopTask() bool {
 	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPoststop
 }
 
+// IsSidecarTask returns true if this task is a sidecar task in its task group.
+func (tr *TaskRunner) IsSidecarTask() bool {
+	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Sidecar
+}
+
 func (tr *TaskRunner) Task() *structs.Task {
 	tr.taskLock.RLock()
 	defer tr.taskLock.RUnlock()
@@ -69,6 +74,18 @@ func (tr *TaskRunner) setVaultToken(token string) {
 		ns = taskNamespace
 	}
 	tr.envBuilder.SetVaultToken(token, ns, tr.task.Vault.Env)
+}
+
+func (tr *TaskRunner) getNomadToken() string {
+	tr.nomadTokenLock.Lock()
+	defer tr.nomadTokenLock.Unlock()
+	return tr.nomadToken
+}
+
+func (tr *TaskRunner) setNomadToken(token string) {
+	tr.nomadTokenLock.Lock()
+	defer tr.nomadTokenLock.Unlock()
+	tr.nomadToken = token
 }
 
 // getDriverHandle returns a driver handle.

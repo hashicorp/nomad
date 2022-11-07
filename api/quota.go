@@ -90,7 +90,7 @@ func (q *Quotas) Register(spec *QuotaSpec, qo *WriteOptions) (*WriteMeta, error)
 
 // Delete is used to delete a quota spec
 func (q *Quotas) Delete(quota string, qo *WriteOptions) (*WriteMeta, error) {
-	wm, err := q.client.delete(fmt.Sprintf("/v1/quota/%s", quota), nil, qo)
+	wm, err := q.client.delete(fmt.Sprintf("/v1/quota/%s", quota), nil, nil, qo)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +125,11 @@ type QuotaLimit struct {
 	// unlimited and a negative value is treated as fully disallowed. This is
 	// useful for once we support GPUs
 	RegionLimit *Resources
+
+	// VariablesLimit is the maximum total size of all variables
+	// Variable.EncryptedData. A value of zero is treated as unlimited and a
+	// negative value is treated as fully disallowed.
+	VariablesLimit *int `mapstructure:"variables_limit" hcl:"variables_limit,optional"`
 
 	// Hash is the hash of the object and is used to make replication efficient.
 	Hash []byte
