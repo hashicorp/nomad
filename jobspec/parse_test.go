@@ -1866,8 +1866,10 @@ func TestIncorrectKey(t *testing.T) {
 	}
 }
 
-// TestPortParsing validates that the removal of the mapstructure tags on the Port
-// struct don't cause issues with HCL 1 parsing.
+// TestPortParsing validates that the removal of the mapstructure tags on the
+// Port struct don't cause issues with HCL 1 parsing.
+//
+// TODO: in the future, see if we need `mapstructure` tags on any of the API
 func TestPortParsing(t *testing.T) {
 	ci.Parallel(t)
 
