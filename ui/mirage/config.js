@@ -950,11 +950,11 @@ export default function () {
     const token = schema.tokens.findBy({
       secretId: secret
     });
-    console.log('secret token?', token);
+
     return new Response(200, {}, {
       ACLToken: token.secretId
     });
-  });
+  }, {timing: 1000});
 
 
 

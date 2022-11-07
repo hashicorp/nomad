@@ -64,8 +64,7 @@
             </div>
 
             <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
-
-            {{#if this.model.authMethods}}
+            {{#if this.authMethods}}
               <h3 class="title is-4">Sign in with SSO</h3>
               <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
               {{#each this.model.authMethods as |method|}}

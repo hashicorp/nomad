@@ -6,13 +6,13 @@ export default class OidcTestRoutePleaseDeleteController extends Controller {
 
   @action
   signIn(fakeAccount) {
-    window.location = `${this.redirect_uri.split('?')[0]}?code=${fakeAccount.secret}&state=success`;
+    window.location = `${this.redirect_uri.split('?')[0]}?code=${
+      fakeAccount.secret
+    }&state=success`;
   }
 
   @action
   failToSignIn() {
     window.location = `${this.redirect_uri.split('?')[0]}?state=failure`;
   }
-
-
 }

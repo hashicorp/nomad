@@ -122,7 +122,7 @@ export default class TokenService extends Service {
     this.fetchSelfTokenAndPolicies.cancelAll({ resetState: true });
     this.monitorTokenTime.cancelAll({ resetState: true });
     window.localStorage.removeItem('nomadOIDCNonce');
-    window.locaoStorage.removeItem('nomadOIDCAuthMethod');
+    window.localStorage.removeItem('nomadOIDCAuthMethod');
   }
 
   kickoffTokenTTLMonitoring() {

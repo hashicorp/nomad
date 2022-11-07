@@ -38,6 +38,11 @@ export default class Tokens extends Controller {
     // Clear out all data to ensure only data the anonymous token is privileged to see is shown
     this.resetStore();
     this.token.reset();
+    this.store.findAll('auth-method');
+  }
+
+  get authMethods() {
+    return this.store.peekAll('auth-method');
   }
 
   @action
@@ -86,7 +91,7 @@ export default class Tokens extends Controller {
     window.localStorage.setItem('nomadOIDCNonce', nonce);
     window.localStorage.setItem('nomadOIDCAuthMethod', provider);
 
-    let returned = method
+    method
       .getAuthURL({
         AuthMethod: provider,
         ClientNonce: nonce,
@@ -101,7 +106,7 @@ export default class Tokens extends Controller {
   @tracked state = null;
 
   get isValidatingToken() {
-    if (this.code && this.state === "success") {
+    if (this.code && this.state === 'success') {
       this.validateSSO();
       return true;
     } else {
@@ -110,22 +115,24 @@ export default class Tokens extends Controller {
   }
 
   validateSSO() {
-    this.token.authorizedRequest('/v1/acl/oidc/complete-auth', {
-      method: 'POST',
-      body: JSON.stringify({
-        AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
-        ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
-        Code: this.code,
-        State: this.state,
+    this.token
+      .authorizedRequest('/v1/acl/oidc/complete-auth', {
+        method: 'POST',
+        body: JSON.stringify({
+          AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+          ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
+          Code: this.code,
+          State: this.state,
+        }),
       })
-    }).then(async (response) => {
-      if (response.ok) {
-        let json = await response.json();
-        this.token.set('secret', json.ACLToken);
-        this.verifyToken();
-        this.code = null;
-        this.state = null;
-      }
-    });
+      .then(async (response) => {
+        if (response.ok) {
+          let json = await response.json();
+          this.token.set('secret', json.ACLToken);
+          this.verifyToken();
+          this.code = null;
+          this.state = null;
+        }
+      });
   }
 }
