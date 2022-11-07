@@ -210,7 +210,7 @@ This example uses path-based notation on a publicly-accessible bucket:
 
 ```hcl
 artifact {
-  source = "https://my-bucket-example.s3-us-west-2.amazonaws.com/my_app.tar.gz"
+  source = "s3://my-bucket-example.s3-us-west-2.amazonaws.com/my_app.tar.gz"
 }
 ```
 
@@ -240,7 +240,7 @@ Alternatively you can use virtual hosted style:
 
 ```hcl
 artifact {
-  source = "https://my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
+  source = "s3://my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
 }
 ```
 
