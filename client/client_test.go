@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -736,7 +735,7 @@ func TestClient_AddAllocError(t *testing.T) {
 func TestClient_Init(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomad")
+	dir, err := os.MkdirTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
