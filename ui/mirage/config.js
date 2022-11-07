@@ -938,13 +938,24 @@ export default function () {
     return schema.authMethods.all();
   });
   this.post('/acl/oidc/auth-url', (schema, req) => {
-    // console.log('Requesting a URL', schema, request);
     const {AuthMethod, ClientNonce, RedirectUri, Meta} = JSON.parse(req.requestBody);
-    console.log('from mirage', req);
     return new Response(200, {}, {
       AuthURL: `/ui/oidc-test-route-please-delete?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`
     });
   });
+
+  // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
+  this.post('/acl/oidc/complete-auth', function (schema, req) {
+    const secret = JSON.parse(req.requestBody).Code;
+    const token = schema.tokens.findBy({
+      secretId: secret
+    });
+    console.log('secret token?', token);
+    return new Response(200, {}, {
+      ACLToken: token.secretId
+    });
+  });
+
 
 
 

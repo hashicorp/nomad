@@ -8,6 +8,9 @@
         Sign In as {{fakeAccount.name}}
       </button>
     {{/each}}
+    <button type="button" class="button error" {{on "click" this.failToSignIn}}>
+      Simulate Failure
+    </button>
   </div>
 </section>
 {{outlet}}

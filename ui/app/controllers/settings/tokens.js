@@ -6,11 +6,14 @@ import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
+import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class Tokens extends Controller {
   @service token;
   @service store;
+
+  queryParams = ['code', 'state'];
 
   @reads('token.secret') secret;
 
@@ -90,9 +93,39 @@ export default class Tokens extends Controller {
         RedirectUri: window.location.toString(), // TODO: decide if you want them back on /tokens.
       })
       .then(({ AuthURL }) => {
-        console.log('AUTHURL BACK', AuthURL);
         window.location = AuthURL;
       });
-    console.log('returned', returned);
+  }
+
+  @tracked code = null;
+  @tracked state = null;
+
+  get isValidatingToken() {
+    if (this.code && this.state === "success") {
+      this.validateSSO();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  validateSSO() {
+    this.token.authorizedRequest('/v1/acl/oidc/complete-auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+        ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
+        Code: this.code,
+        State: this.state,
+      })
+    }).then(async (response) => {
+      if (response.ok) {
+        let json = await response.json();
+        this.token.set('secret', json.ACLToken);
+        this.verifyToken();
+        this.code = null;
+        this.state = null;
+      }
+    });
   }
 }

@@ -111,6 +111,9 @@
     button {
       background-color: #444;
       color: white;
+      &.error {
+        background-color: darkred;
+      }
     }
   }
 }
