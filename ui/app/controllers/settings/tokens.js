@@ -76,7 +76,7 @@ export default class Tokens extends Controller {
     return randomArray.join('').slice(0, 20);
   }
 
-  @action signInWithSSO(method) {
+  @action redirectToSSO(method) {
     const provider = method.name;
     const nonce = this.generateNonce();
 

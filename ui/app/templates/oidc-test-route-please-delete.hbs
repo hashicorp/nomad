@@ -1,6 +1,19 @@
 {{page-title "OidcTestRoutePleaseDelete"}}
 
-<h1>Just pretend like I'm {{this.auth_method}} for a sec</h1>
-    <button type="button" class="button is-primary" {{on "click" this.doGood}}>Do Good</button>
-    <button type="button" class="button is-primary" {{on "click" this.doBad}}>Do Bad</button>
+  <h1>Just pretend like I'm {{this.auth_method}} for a sec</h1>
+
+  <label>
+    <input
+      id="token-input"
+      class="input"
+      type="text"
+      placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+      value={{this.fakeUserName}}
+      oninput={{action (mut this.fakeUserName) value="target.value"}}
+      />
+  </label>
+
+  <button type="button" class="button is-primary" {{on "click" this.doGood}}>Do Good</button>
+  <button type="button" class="button is-primary" {{on "click" this.doBad}}>Do Bad</button>
+
 {{outlet}}

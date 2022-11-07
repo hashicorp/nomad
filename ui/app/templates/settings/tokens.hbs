@@ -67,7 +67,7 @@
             {{#each this.model.authMethods as |method|}}
               <button
                 class="button is-info"
-                onclick={{action "signInWithSSO" method}}
+                onclick={{action "redirectToSSO" method}}
                 type="button"
               >Sign in with with {{method.name}}
               </button>

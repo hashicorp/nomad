@@ -7,11 +7,13 @@ export default class OidcTestRoutePleaseDeleteController extends Controller {
 
   @action
   doGood() {
-    window.location = addToPath(this.redirect_uri, '?fakeRedirect=success');
+    window.location = addToPath(this.redirect_uri, `?code=${this.fakeUserName}&state=success`);
   }
 
   @action
   doBad() {
-    window.location = addToPath(this.redirect_uri, '?fakeRedirect=failure');
+    window.location = addToPath(this.redirect_uri, '?state=failure');
   }
+
+
 }

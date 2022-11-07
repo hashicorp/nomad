@@ -98,5 +98,5 @@ Router.map(function () {
       path: '/path/*absolutePath',
     });
   });
-  this.route('oidc-test-route-please-delete');
+  this.route('oidc-test-route-please-delete'); // TODO: TEMP
 });
