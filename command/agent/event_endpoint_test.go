@@ -205,7 +205,7 @@ func TestEventStream_QueryParse(t *testing.T) {
 	}
 }
 
-func TestHTTP_AllocPort_Parsing(t *testing.T) {
+func TestHTTP_Alloc_Port_Response(t *testing.T) {
 	ci.Parallel(t)
 
 	httpTest(t, nil, func(srv *TestAgent) {
