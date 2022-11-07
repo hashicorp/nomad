@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"testing"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 // NewTestClient returns an API client useful for testing.

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"context"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
