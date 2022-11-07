@@ -444,6 +444,11 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
+  // Note: Mirage-only route, for UI testing and not part of the Nomad API
+  this.get('/acl/tokens', function ({ tokens }, req) {
+    return this.serialize(tokens.all());
+  });
+
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });

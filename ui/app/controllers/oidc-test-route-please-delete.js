@@ -6,8 +6,9 @@ export default class OidcTestRoutePleaseDeleteController extends Controller {
   queryParams = ['auth_method', 'client_nonce', 'redirect_uri', 'meta'];
 
   @action
-  doGood() {
-    window.location = addToPath(this.redirect_uri, `?code=${this.fakeUserName}&state=success`);
+  signIn(fakeAccount) {
+    window.location = addToPath(this.redirect_uri, `?code=${fakeAccount.secret}&state=success`);
+    // console.log('signing in as', fakeAccount)
   }
 
   @action

@@ -1,19 +1,13 @@
 {{page-title "OidcTestRoutePleaseDelete"}}
 
-  <h1>Just pretend like I'm {{this.auth_method}} for a sec</h1>
-
-  <label>
-    <input
-      id="token-input"
-      class="input"
-      type="text"
-      placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-      value={{this.fakeUserName}}
-      oninput={{action (mut this.fakeUserName) value="target.value"}}
-      />
-  </label>
-
-  <button type="button" class="button is-primary" {{on "click" this.doGood}}>Do Good</button>
-  <button type="button" class="button is-primary" {{on "click" this.doBad}}>Do Bad</button>
-
+<section class="mock-sso-provider">
+  <h1>Pretend this is {{this.auth_method}} for a sec</h1>
+  <div class="providers">
+    {{#each this.model as |fakeAccount|}}
+      <button type="button" class="button" {{on "click" (fn this.signIn fakeAccount)}}>
+        Sign In as {{fakeAccount.name}}
+      </button>
+    {{/each}}
+  </div>
+</section>
 {{outlet}}

@@ -98,5 +98,7 @@ Router.map(function () {
       path: '/path/*absolutePath',
     });
   });
-  this.route('oidc-test-route-please-delete'); // TODO: TEMP
+  if (config['ember-cli-mirage']) {
+    this.route('oidc-test-route-please-delete'); // TODO: TEMP
+  }
 });
