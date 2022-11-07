@@ -128,6 +128,10 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
+	// Revision is a string that carries the version.GitCommit of Nomad that
+	// was compiled.
+	Revision string
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
