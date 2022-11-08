@@ -104,3 +104,21 @@ func MockRegionalJob() *api.Job {
 	j.Region = pointer.Of("north-america")
 	return j
 }
+
+// MockRunnableJob returns a mock job that has a configuration that allows it to be
+// placed on a TestAgent.
+func MockRunnableJob() *api.Job {
+	job := MockJob()
+
+	// Configure job so it can be run on a TestAgent
+	job.Constraints = nil
+	job.TaskGroups[0].Constraints = nil
+	job.TaskGroups[0].Count = pointer.Of(1)
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Services = nil
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	return job
+}
