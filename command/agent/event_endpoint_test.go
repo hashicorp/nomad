@@ -211,7 +211,6 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 	httpTest(t, nil, func(srv *TestAgent) {
 		client := srv.Client()
 		defer srv.Shutdown()
-		defer client.Close()
 
 		testutil.WaitForLeader(t, srv.Agent.RPC)
 		testutil.WaitForClient(t, srv.Agent.Client().RPC, srv.Agent.Client().NodeID(), srv.Agent.Client().Region())
