@@ -113,7 +113,7 @@ func MockRunnableJob() *api.Job {
 	// Configure job so it can be run on a TestAgent
 	job.Constraints = nil
 	job.TaskGroups[0].Constraints = nil
-	job.TaskGroups[0].Count = helper.IntToPtr(1)
+	job.TaskGroups[0].Count = pointer.Of(1)
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
