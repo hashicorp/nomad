@@ -7,7 +7,7 @@ export default class OidcTestRoutePleaseDeleteController extends Controller {
   @action
   signIn(fakeAccount) {
     window.location = `${this.redirect_uri.split('?')[0]}?code=${
-      fakeAccount.secret
+      fakeAccount.accessor
     }&state=success`;
   }
 

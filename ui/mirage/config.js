@@ -934,7 +934,6 @@ export default function () {
 
   //#region SSO
   this.get('/acl/auth-methods', function (schema, request) {
-    // console.log('Getting Auth Methods', schema, request);
     return schema.authMethods.all();
   });
   this.post('/acl/oidc/auth-url', (schema, req) => {
@@ -946,9 +945,9 @@ export default function () {
 
   // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
   this.post('/acl/oidc/complete-auth', function (schema, req) {
-    const secret = JSON.parse(req.requestBody).Code;
+    const code = JSON.parse(req.requestBody).Code;
     const token = schema.tokens.findBy({
-      secretId: secret
+      id: code
     });
 
     return new Response(200, {}, {

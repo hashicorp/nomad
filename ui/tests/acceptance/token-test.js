@@ -253,7 +253,6 @@ module('Acceptance | tokens', function (hooks) {
       ],
     };
     server.pretender.get('/v1/jobs', function () {
-      console.log('uhhhh');
       return [500, {}, JSON.stringify(expiredServerError)];
     });
 
