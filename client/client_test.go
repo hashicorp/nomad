@@ -727,6 +727,7 @@ func TestClient_Init(t *testing.T) {
 	ci.Parallel(t)
 
 	dir := t.TempDir()
+
 	allocDir := filepath.Join(dir, "alloc")
 
 	config := config.DefaultConfig()
