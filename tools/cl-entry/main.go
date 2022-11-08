@@ -61,7 +61,7 @@ func write(pr int, label, msg string) (string, error) {
 	sb.WriteString("\n")
 	sb.WriteString(msg)
 	sb.WriteString("\n")
-	sb.WriteString("```")
+	sb.WriteString("```\n")
 	s := sb.String()
 	if err := os.WriteFile(filename, []byte(s), 0o644); err != nil {
 		return "", err
