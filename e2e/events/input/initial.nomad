@@ -15,17 +15,25 @@ job "deployment_auto.nomad" {
       canary       = 2
     }
 
+    network {
+      port "db" {
+        static = 9000
+      }
+    }
+
     task "one" {
-      driver = "raw_exec"
+      driver = "docker"
 
       env {
         version = "0"
       }
       config {
-        command = "/bin/sleep"
+        image   = "busybox:1"
+        command = "nc"
 
         # change args to update the job, the only changes
-        args = ["1000000"]
+        args  = ["-ll", "-p", "1234", "-e", "/bin/cat"]
+        ports = ["db"]
       }
 
       resources {
