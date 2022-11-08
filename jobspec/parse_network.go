@@ -93,14 +93,12 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 		if knownPortLabels[l] {
 			return fmt.Errorf("found a port label collision: %s", label)
 		}
-		var p map[string]interface{}
+
 		var res api.Port
-		if err := hcl.DecodeObject(&p, port.Val); err != nil {
+		if err := hcl.DecodeObject(&res, port.Val); err != nil {
 			return err
 		}
-		if err := mapstructure.WeakDecode(p, &res); err != nil {
-			return err
-		}
+
 		res.Label = label
 		if res.Value > 0 {
 			nw.ReservedPorts = append(nw.ReservedPorts, res)

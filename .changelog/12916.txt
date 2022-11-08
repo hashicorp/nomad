@@ -1,0 +1,3 @@
+```release-note:bug
+event_stream: fixed a bug where dynamic port values would fail to serialize in the event stream
+```
