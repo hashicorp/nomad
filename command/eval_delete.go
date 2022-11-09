@@ -294,28 +294,26 @@ func correctGrammar(word string, num int) string {
 
 func (e *EvalDeleteCommand) handleDeleteByFilter(filterExpr string) (int, error) {
 
-	// TODO: querying for millions of evals is very expensive... can we add a count RPC?
-
-	// evals, _, err := e.client.Evaluations().List(&api.QueryOptions{
-	// 	Filter: filterExpr,
-	// })
-	// if err != nil {
-	// 	return 1, err
-	// }
-	// evals := []string{}
-
 	// If the user did not wish to bypass the confirmation step, ask this now
 	// and handle the response.
-	// if !e.yes && !e.deleteByArg {
-	// 	code, deleteEvals := e.askQuestion(fmt.Sprintf(
-	// 		"Are you sure you want to delete %v evals? [y/N]",
-	// 		len(evals)), "Cancelling eval deletion")
-	// 	e.Ui.Output("")
+	if !e.yes && !e.deleteByArg {
 
-	// 	if !deleteEvals {
-	// 		return code, nil
-	// 	}
-	// }
+		resp, _, err := e.client.Evaluations().Count(&api.QueryOptions{
+			Filter: filterExpr,
+		})
+		if err != nil {
+			return 1, err
+		}
+
+		code, deleteEvals := e.askQuestion(fmt.Sprintf(
+			"Are you sure you want to delete %d evals? [y/N]",
+			resp.Count), "Cancelling eval deletion")
+		e.Ui.Output("")
+
+		if !deleteEvals {
+			return code, nil
+		}
+	}
 
 	resp, _, err := e.client.Evaluations().DeleteOpts(&api.EvalDeleteRequest{
 		Filter: filterExpr,
