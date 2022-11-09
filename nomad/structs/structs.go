@@ -117,6 +117,8 @@ const (
 	RootKeyMetaDeleteRequestType                 MessageType = 52
 	ACLRolesUpsertRequestType                    MessageType = 53
 	ACLRolesDeleteByIDRequestType                MessageType = 54
+	ACLAuthMethodsUpsertRequestType              MessageType = 55
+	ACLAuthMethodsDeleteRequestType              MessageType = 56
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -12213,6 +12215,32 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+type ACLAuthMethod struct {
+	Name          string
+	Type          string
+	TokenLocality string
+	MaxTokenTTL   string
+	Default       bool
+	Config        struct {
+		OIDCDiscoveryURL    string
+		OIDCClientID        string
+		OIDCClientSecret    string
+		BoundAudiences      []string
+		AllowedRedirectURIs []string
+		DiscoveryCaPem      []string
+		SigningAlgs         []string
+		ClaimMappings       map[string]string
+		ListClaimMappings   map[string]string
+	}
+
+	Hash []byte
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // OneTimeToken is used to log into the web UI using a token provided by the
