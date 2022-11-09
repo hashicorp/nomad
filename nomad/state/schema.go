@@ -18,6 +18,7 @@ const (
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
+	TableACLAuthMethods       = "acl_auth_methods"
 	TableAllocs               = "allocs"
 )
 
@@ -85,6 +86,7 @@ func init() {
 		variablesQuotasTableSchema,
 		variablesRootKeyMetaSchema,
 		aclRolesTableSchema,
+		aclAuthMethodsTableSchema,
 	}...)
 }
 
@@ -1505,6 +1507,22 @@ func aclRolesTableSchema() *memdb.TableSchema {
 					Field: "ID",
 				},
 			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+		},
+	}
+}
+
+func aclAuthMethodsTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLAuthMethods,
+		Indexes: map[string]*memdb.IndexSchema{
 			indexName: {
 				Name:         indexName,
 				AllowMissing: false,
