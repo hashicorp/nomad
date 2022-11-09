@@ -12255,6 +12255,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	}
 
 	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Type))
 
 	// Finalize the hash.
 	hashVal := hash.Sum(nil)
