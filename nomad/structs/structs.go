@@ -12243,6 +12243,31 @@ type ACLAuthMethod struct {
 	ModifyIndex uint64
 }
 
+// SetHash is used to compute and set the hash of the ACL auth method. This
+// should be called every and each time a user specified field on the method is
+// changed before updating the Nomad state store.
+func (a *ACLAuthMethod) SetHash() []byte {
+
+	// Initialize a 256bit Blake2 hash (32 bytes).
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	_, _ = hash.Write([]byte(a.Name))
+
+	// Finalize the hash.
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash.
+	a.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLAuthMethod) Equal(other *ACLAuthMethod) bool {
+	return a.Name == other.Name
+}
+
 // OneTimeToken is used to log into the web UI using a token provided by the
 // command line.
 type OneTimeToken struct {
