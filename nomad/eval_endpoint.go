@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -23,6 +24,8 @@ const (
 	// DefaultDequeueTimeout is used if no dequeue timeout is provided
 	DefaultDequeueTimeout = time.Second
 )
+
+var minVersionEvalDeleteByFilter = version.Must(version.NewVersion("1.4.3"))
 
 // Eval endpoint is used for eval interactions
 type Eval struct {
@@ -438,6 +441,12 @@ func (e *Eval) Delete(
 		return structs.ErrPermissionDenied
 	}
 
+	if args.Filter != "" && !ServersMeetMinimumVersion(
+		e.srv.Members(), e.srv.Region(), minVersionEvalDeleteByFilter, true) {
+		return fmt.Errorf(
+			"all servers must be running version %v or later to delete evals by filter",
+			minVersionEvalDeleteByFilter)
+	}
 	if args.Filter != "" && len(args.EvalIDs) > 0 {
 		return fmt.Errorf("evals cannot be deleted by both ID and filter")
 	}
