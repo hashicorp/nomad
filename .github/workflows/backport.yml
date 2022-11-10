@@ -27,3 +27,43 @@ jobs:
           BACKPORT_LABEL_REGEXP: "backport/(?P<target>\\d+\\.\\d+\\.[+\\w]+)"
           BACKPORT_TARGET_TEMPLATE: "release/{{.target}}"
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+  handle-failure:
+    needs:
+      - backport
+    if: always() && needs.backport.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send slack notification on failure
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": ":x::arrow_right_hook::nomad-sob: Backport run *FAILED*",
+              "attachments": [
+                {
+                  "color": "#C41E3A",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Pull Request:*\n<${{ github.event.pull_request.html_url}}|${{ github.repository }}#${{ github.event.pull_request.number}}>"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*From:*\n@${{ github.event.sender.login }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
