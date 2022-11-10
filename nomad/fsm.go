@@ -2915,21 +2915,19 @@ func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item.
-		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+	// Get the next item.
+	for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
 
-			// Prepare the request struct.
-			role := raw.(*structs.ACLRole)
+		// Prepare the request struct.
+		role := raw.(*structs.ACLRole)
 
-			// Write out an ACL role snapshot.
-			sink.Write([]byte{byte(ACLRoleSnapshot)})
-			if err := encoder.Encode(role); err != nil {
-				return err
-			}
+		// Write out an ACL role snapshot.
+		sink.Write([]byte{byte(ACLRoleSnapshot)})
+		if err := encoder.Encode(role); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
 }
 
 func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
@@ -2942,18 +2940,16 @@ func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
-			method := raw.(*structs.ACLAuthMethod)
+	for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
+		method := raw.(*structs.ACLAuthMethod)
 
-			// write the snapshot
-			sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
-			if err := encoder.Encode(method); err != nil {
-				return err
-			}
+		// write the snapshot
+		sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
+		if err := encoder.Encode(method); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer
