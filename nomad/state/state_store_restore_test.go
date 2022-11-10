@@ -627,3 +627,26 @@ func TestStateStore_ACLRoleRestore(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, aclRole, out)
 }
+
+func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Set up our test registrations and index.
+	expectedIndex := uint64(13)
+	authMethod := mock.ACLAuthMethod()
+	authMethod.CreateIndex = expectedIndex
+	authMethod.ModifyIndex = expectedIndex
+
+	restore, err := testState.Restore()
+	require.NoError(t, err)
+	require.NoError(t, restore.ACLAuthMethodRestore(authMethod))
+	require.NoError(t, restore.Commit())
+
+	// Check the state is now populated as we expect and that we can find the
+	// restored registrations.
+	ws := memdb.NewWatchSet()
+	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
+	require.NoError(t, err)
+	require.Equal(t, authMethod, out)
+}

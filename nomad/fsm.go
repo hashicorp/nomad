@@ -59,6 +59,7 @@ const (
 	VariablesQuotaSnapshot               SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
 	ACLRoleSnapshot                      SnapshotType = 25
+	ACLAuthMethodSnapshot                SnapshotType = 26
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -1767,6 +1768,17 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := restore.ACLRoleRestore(aclRole); err != nil {
 				return err
 			}
+		case ACLAuthMethodSnapshot:
+			authMethod := new(structs.ACLAuthMethod)
+
+			if err := dec.Decode(authMethod); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ACLAuthMethodRestore(authMethod); err != nil {
+				return err
+			}
 
 		default:
 			// Check if this is an enterprise only object being restored
@@ -2259,6 +2271,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLRoles(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLAuthMethods(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2899,21 +2915,41 @@ func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item.
-		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+	// Get the next item.
+	for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
 
-			// Prepare the request struct.
-			role := raw.(*structs.ACLRole)
+		// Prepare the request struct.
+		role := raw.(*structs.ACLRole)
 
-			// Write out an ACL role snapshot.
-			sink.Write([]byte{byte(ACLRoleSnapshot)})
-			if err := encoder.Encode(role); err != nil {
-				return err
-			}
+		// Write out an ACL role snapshot.
+		sink.Write([]byte{byte(ACLRoleSnapshot)})
+		if err := encoder.Encode(role); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the ACL Auth methods.
+	ws := memdb.NewWatchSet()
+	aclAuthMethodsIter, err := s.snap.GetACLAuthMethods(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
+		method := raw.(*structs.ACLAuthMethod)
+
+		// write the snapshot
+		sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
+		if err := encoder.Encode(method); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer

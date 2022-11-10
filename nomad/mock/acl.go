@@ -218,3 +218,29 @@ func ACLManagementToken() *structs.ACLToken {
 		ModifyIndex: 20,
 	}
 }
+
+func ACLAuthMethod() *structs.ACLAuthMethod {
+	method := structs.ACLAuthMethod{
+		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
+		Type:          "acl-auth-mock-type",
+		TokenLocality: "locality",
+		MaxTokenTTL:   "3600s",
+		Default:       true,
+		Config: &structs.ACLAuthMethodConfig{
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			BoundAudiences:      []string{"audience1", "audience2"},
+			AllowedRedirectURIs: []string{"foo", "bar"},
+			DiscoveryCaPem:      []string{"foo"},
+			SigningAlgs:         []string{"bar"},
+			ClaimMappings:       map[string]string{"foo": "bar"},
+			ListClaimMappings:   map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	method.SetHash()
+	return &method
+}

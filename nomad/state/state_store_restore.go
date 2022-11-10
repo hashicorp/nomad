@@ -233,3 +233,12 @@ func (r *StateRestore) ACLRoleRestore(aclRole *structs.ACLRole) error {
 	}
 	return nil
 }
+
+// ACLAuthMethodRestore is used to restore a single ACL auth method into the
+// acl_auth_methods table.
+func (r *StateRestore) ACLAuthMethodRestore(aclAuthMethod *structs.ACLAuthMethod) error {
+	if err := r.txn.Insert(TableACLAuthMethods, aclAuthMethod); err != nil {
+		return fmt.Errorf("ACL auth method insert failed: %v", err)
+	}
+	return nil
+}
