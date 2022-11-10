@@ -12223,17 +12223,7 @@ type ACLAuthMethod struct {
 	TokenLocality string
 	MaxTokenTTL   string
 	Default       bool
-	Config        struct {
-		OIDCDiscoveryURL    string
-		OIDCClientID        string
-		OIDCClientSecret    string
-		BoundAudiences      []string
-		AllowedRedirectURIs []string
-		DiscoveryCaPem      []string
-		SigningAlgs         []string
-		ClaimMappings       map[string]string
-		ListClaimMappings   map[string]string
-	}
+	Config        ACLAuthMethodConfig
 
 	Hash []byte
 
@@ -12241,6 +12231,18 @@ type ACLAuthMethod struct {
 	ModifyTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+type ACLAuthMethodConfig struct {
+	OIDCDiscoveryURL    string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	BoundAudiences      []string
+	AllowedRedirectURIs []string
+	DiscoveryCaPem      []string
+	SigningAlgs         []string
+	ClaimMappings       map[string]string
+	ListClaimMappings   map[string]string
 }
 
 // SetHash is used to compute and set the hash of the ACL auth method. This

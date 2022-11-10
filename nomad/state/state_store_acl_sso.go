@@ -159,8 +159,9 @@ func (s *StateStore) GetACLAuthMethods(ws memdb.WatchSet) (memdb.ResultIterator,
 func (s *StateStore) GetACLAtuhMethodByName(ws memdb.WatchSet, authMethod string) (*structs.ACLAuthMethod, error) {
 	txn := s.db.ReadTxn()
 
-	// Perform the ACL auth method lookup using the "name" index.
-	watchCh, existing, err := txn.FirstWatch(TableACLAuthMethods, indexName, authMethod)
+	// Perform the ACL auth method lookup using the "ID" index (which points to
+	// "Name" column)
+	watchCh, existing, err := txn.FirstWatch(TableACLAuthMethods, indexID, authMethod)
 	if err != nil {
 		return nil, fmt.Errorf("ACL auth method lookup failed: %v", err)
 	}

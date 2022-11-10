@@ -1523,8 +1523,8 @@ func aclAuthMethodsTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableACLAuthMethods,
 		Indexes: map[string]*memdb.IndexSchema{
-			indexName: {
-				Name:         indexName,
+			indexID: {
+				Name:         indexID,
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
