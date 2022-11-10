@@ -59,6 +59,8 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.RootKeyMetaDeleteRequestType:                 "RootKeyMetaDeleteRequestType",
 	structs.ACLRolesUpsertRequestType:                    "ACLRolesUpsertRequestType",
 	structs.ACLRolesDeleteByIDRequestType:                "ACLRolesDeleteByIDRequestType",
+	structs.ACLAuthMethodsUpsertRequestType:              "ACLAuthMethodsUpsertRequestType",
+	structs.ACLAuthMethodsDeleteRequestType:              "ACLAuthMethodsDeleteRequestType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 }
