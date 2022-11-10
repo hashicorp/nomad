@@ -15,6 +15,7 @@ export default class Job extends Model {
   @attr('string') name;
   @attr('string') plainId;
   @attr('string') type;
+  @attr('string') file;
   @attr('number') priority;
   @attr('boolean') allAtOnce;
 

@@ -81,6 +81,7 @@ func (c *jobConfig) decodeBody(body hcl.Body) hcl.Diagnostics {
 	nctx := c.EvalContext()
 
 	diags = append(diags, c.decodeJob(content, nctx)...)
+
 	return diags
 }
 

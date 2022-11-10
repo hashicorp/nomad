@@ -19,9 +19,24 @@
           onclick={{action this.edit}}
           data-test-edit-job
         >Edit</button>
+        <button
+          class="button is-light is-compact pull-right"
+          type="button"
+          onclick={{perform this.parse}}
+          data-test-parse-job
+        >Parse</button>
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <JsonViewer data-test-definition-view @json={{this.definition}} />
+        {{!-- <JsonViewer data-test-definition-view @json={{this.definition}} /> --}}
+        <div
+          data-test-definition-view
+          {{code-mirror
+            screenReaderLabel="Job definition"
+            content=this.job.file
+            theme="hashi"
+            mode="terraform"
+          }}
+        />
       </div>
     </div>
   {{/if}}

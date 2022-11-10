@@ -917,6 +917,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Type:           *job.Type,
 		Priority:       *job.Priority,
 		AllAtOnce:      *job.AllAtOnce,
+		File:           *job.File,
 		Datacenters:    job.Datacenters,
 		Payload:        job.Payload,
 		Meta:           job.Meta,

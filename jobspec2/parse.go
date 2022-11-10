@@ -41,12 +41,17 @@ func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
 	args.normalize()
 
 	c := newJobConfig(args)
+	// fileString := string(args.Body)
+
 	err := decode(c)
 	if err != nil {
 		return nil, err
 	}
 
 	normalizeJob(c)
+
+	fileString := string(c.ParseConfig.Body)
+	c.Job.File = &fileString
 	return c.Job, nil
 }
 

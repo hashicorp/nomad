@@ -43,9 +43,16 @@
     <div class="boxed-section-body is-full-bleed">
       <div
         data-test-editor
-        {{code-mirror
+        {{!-- {{code-mirror
           screenReaderLabel="Job definition"
           content=this.job._newDefinition
+          theme="hashi"
+          onUpdate=this.updateCode
+          mode="javascript"
+        }} --}}
+        {{code-mirror
+          screenReaderLabel="Job definition"
+          content=this.job.file
           theme="hashi"
           onUpdate=this.updateCode
           mode="javascript"

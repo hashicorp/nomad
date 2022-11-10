@@ -907,6 +907,7 @@ type Job struct {
 	CreateIndex              *uint64
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
+	File                     *string
 }
 
 // IsPeriodic returns whether a job is periodic.
@@ -990,6 +991,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.JobModifyIndex == nil {
 		j.JobModifyIndex = pointerOf(uint64(0))
+	}
+	if j.File == nil {
+		j.File = pointerOf("")
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()

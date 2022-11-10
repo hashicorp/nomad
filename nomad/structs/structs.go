@@ -4187,6 +4187,9 @@ type Job struct {
 	// UTC
 	SubmitTime int64
 
+	// File is a TODO
+	File string
+
 	// Raft Indexes
 	CreateIndex    uint64
 	ModifyIndex    uint64
