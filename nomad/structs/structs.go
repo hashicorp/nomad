@@ -12217,10 +12217,12 @@ type ACLTokenUpsertResponse struct {
 	WriteMeta
 }
 
+// ACLAuthMethod is used to capture the properties of an authentication method
+// used for single sing-on
 type ACLAuthMethod struct {
 	Name          string
 	Type          string
-	TokenLocality string
+	TokenLocality string // is the token valid locally or globally?
 	MaxTokenTTL   string
 	Default       bool
 	Config        *ACLAuthMethodConfig
@@ -12246,6 +12248,35 @@ func (a *ACLAuthMethod) SetHash() []byte {
 
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Type))
+	_, _ = hash.Write([]byte(a.TokenLocality))
+	_, _ = hash.Write([]byte(a.MaxTokenTTL))
+	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
+
+	if a.Config != nil {
+		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
+		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
+		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		for _, ba := range a.Config.BoundAudiences {
+			_, _ = hash.Write([]byte(ba))
+		}
+		for _, uri := range a.Config.AllowedRedirectURIs {
+			_, _ = hash.Write([]byte(uri))
+		}
+		for _, pem := range a.Config.DiscoveryCaPem {
+			_, _ = hash.Write([]byte(pem))
+		}
+		for _, sa := range a.Config.SigningAlgs {
+			_, _ = hash.Write([]byte(sa))
+		}
+		for k, v := range a.Config.ClaimMappings {
+			_, _ = hash.Write([]byte(k))
+			_, _ = hash.Write([]byte(v))
+		}
+		for k, v := range a.Config.ListClaimMappings {
+			_, _ = hash.Write([]byte(k))
+			_, _ = hash.Write([]byte(v))
+		}
+	}
 
 	// Finalize the hash.
 	hashVal := hash.Sum(nil)
@@ -12256,10 +12287,17 @@ func (a *ACLAuthMethod) SetHash() []byte {
 }
 
 func (a *ACLAuthMethod) Equal(other *ACLAuthMethod) bool {
-	if a.Name == other.Name && a.Type == other.Type {
-		return true
+	if a == nil || other == nil {
+		return a == other
 	}
-	return false
+	if len(a.Hash) == 0 {
+		a.SetHash()
+	}
+	if len(other.Hash) == 0 {
+		other.SetHash()
+	}
+	return bytes.Equal(a.Hash, other.Hash)
+
 }
 
 // Copy creates a deep copy of the ACL auth method. This copy can then be safely
@@ -12278,6 +12316,7 @@ func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
 	return c
 }
 
+// ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
 	OIDCDiscoveryURL    string
 	OIDCClientID        string

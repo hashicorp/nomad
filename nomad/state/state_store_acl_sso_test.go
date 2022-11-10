@@ -199,7 +199,7 @@ func TestStateStore_GetACLAuthMethods(t *testing.T) {
 		expected[i].ModifyIndex = 10
 	}
 
-	must.Eq(t, aclAuthMethods, expected)
+	must.SliceContainsAll(t, aclAuthMethods, expected)
 }
 
 func TestStateStore_GetACLAuthMethodByName(t *testing.T) {
