@@ -646,7 +646,7 @@ func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
 	// Check the state is now populated as we expect and that we can find the
 	// restored registrations.
 	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLAtuhMethodByName(ws, authMethod.Name)
+	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
 	require.NoError(t, err)
 	require.Equal(t, authMethod, out)
 }

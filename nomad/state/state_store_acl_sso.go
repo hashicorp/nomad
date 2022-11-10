@@ -156,10 +156,10 @@ func (s *StateStore) GetACLAuthMethods(ws memdb.WatchSet) (memdb.ResultIterator,
 	return iter, nil
 }
 
-// GetACLAtuhMethodByName returns a single ACL auth method specified by the
+// GetACLAuthMethodByName returns a single ACL auth method specified by the
 // input name. The auth method object will be nil, if no matching entry was
 // found; it is the responsibility of the caller to check for this.
-func (s *StateStore) GetACLAtuhMethodByName(ws memdb.WatchSet, authMethod string) (*structs.ACLAuthMethod, error) {
+func (s *StateStore) GetACLAuthMethodByName(ws memdb.WatchSet, authMethod string) (*structs.ACLAuthMethod, error) {
 	txn := s.db.ReadTxn()
 
 	// Perform the ACL auth method lookup using the "ID" index (which points to

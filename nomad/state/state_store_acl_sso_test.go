@@ -174,3 +174,57 @@ func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
 	require.Len(t, aclAuthMethods, 0, "incorrect number of ACL roles found")
 }
 
+func TestStateStore_GetACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Generate a some mocked ACL auth methods for testing and upsert these
+	// straight into state.
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	require.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
+
+	// List the auth methods and ensure they are exactly as we expect.
+	ws := memdb.NewWatchSet()
+	iter, err := testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	var aclAuthMethods []*structs.ACLAuthMethod
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
+	}
+
+	expected := mockedACLAuthMethods
+	for i := range expected {
+		expected[i].CreateIndex = 10
+		expected[i].ModifyIndex = 10
+	}
+
+	require.ElementsMatch(t, aclAuthMethods, expected)
+}
+
+func TestStateStore_GetACLAuthMethodByName(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Generate a some mocked ACL auth methods for testing and upsert these
+	// straight into state.
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	require.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
+
+	ws := memdb.NewWatchSet()
+
+	// Try reading an auth method that does not exist.
+	authMethod, err := testState.GetACLAuthMethodByName(ws, "not-a-method")
+	require.NoError(t, err)
+	require.Nil(t, authMethod)
+
+	// Read the two ACL roles that we should find.
+	authMethod, err = testState.GetACLAuthMethodByName(ws, mockedACLAuthMethods[0].Name)
+	require.NoError(t, err)
+	require.Equal(t, mockedACLAuthMethods[0], authMethod)
+
+	authMethod, err = testState.GetACLAuthMethodByName(ws, mockedACLAuthMethods[1].Name)
+	require.NoError(t, err)
+	require.Equal(t, mockedACLAuthMethods[1], authMethod)
+}
