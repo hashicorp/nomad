@@ -111,3 +111,66 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 	require.Equal(t, 2, count, "incorrect number of ACL auth methods found")
 }
 
+func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Generate a some mocked ACL auth methods for testing and upsert these
+	// straight into state.
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	require.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
+
+	// Try and delete a method using a name that doesn't exist. This should
+	// return an error and not change the index for the table.
+	err := testState.DeleteACLAuthMethods(20, []string{"not-a-method"})
+	require.ErrorContains(t, err, "ACL auth method not found")
+
+	tableIndex, err := testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 10, tableIndex)
+
+	// Delete one of the previously upserted auth methods. This should succeed
+	// and modify the table index.
+	err = testState.DeleteACLAuthMethods(20, []string{mockedACLAuthMethods[0].Name})
+	require.NoError(t, err)
+
+	tableIndex, err = testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 20, tableIndex)
+
+	// List the ACL auth methods and ensure we now only have one present and
+	// that it is the one we expect.
+	ws := memdb.NewWatchSet()
+	iter, err := testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	var aclAuthMethods []*structs.ACLAuthMethod
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
+	}
+
+	require.Len(t, aclAuthMethods, 1, "incorrect number of auth methods found")
+	require.True(t, aclAuthMethods[0].Equal(mockedACLAuthMethods[1]))
+
+	// Delete the final remaining auth method. This should succeed and modify
+	// the table index.
+	err = testState.DeleteACLAuthMethods(30, []string{mockedACLAuthMethods[1].Name})
+	require.NoError(t, err)
+
+	tableIndex, err = testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 30, tableIndex)
+
+	// List the auth methods and ensure we have zero entries.
+	iter, err = testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	aclAuthMethods = []*structs.ACLAuthMethod{}
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
+	}
+	require.Len(t, aclAuthMethods, 0, "incorrect number of ACL roles found")
+}
+
