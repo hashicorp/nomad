@@ -12223,7 +12223,7 @@ type ACLAuthMethod struct {
 	TokenLocality string
 	MaxTokenTTL   string
 	Default       bool
-	Config        ACLAuthMethodConfig
+	Config        *ACLAuthMethodConfig
 
 	Hash []byte
 
@@ -12231,18 +12231,6 @@ type ACLAuthMethod struct {
 	ModifyTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
-}
-
-type ACLAuthMethodConfig struct {
-	OIDCDiscoveryURL    string
-	OIDCClientID        string
-	OIDCClientSecret    string
-	BoundAudiences      []string
-	AllowedRedirectURIs []string
-	DiscoveryCaPem      []string
-	SigningAlgs         []string
-	ClaimMappings       map[string]string
-	ListClaimMappings   map[string]string
 }
 
 // SetHash is used to compute and set the hash of the ACL auth method. This
@@ -12268,7 +12256,54 @@ func (a *ACLAuthMethod) SetHash() []byte {
 }
 
 func (a *ACLAuthMethod) Equal(other *ACLAuthMethod) bool {
-	return a.Name == other.Name
+	if a.Name == other.Name && a.Type == other.Type {
+		return true
+	}
+	return false
+}
+
+// Copy creates a deep copy of the ACL auth method. This copy can then be safely
+// modified. It handles nil objects.
+func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLAuthMethod)
+	*c = *a
+
+	c.Hash = slices.Clone(a.Hash)
+	c.Config = a.Config.Copy()
+
+	return c
+}
+
+type ACLAuthMethodConfig struct {
+	OIDCDiscoveryURL    string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	BoundAudiences      []string
+	AllowedRedirectURIs []string
+	DiscoveryCaPem      []string
+	SigningAlgs         []string
+	ClaimMappings       map[string]string
+	ListClaimMappings   map[string]string
+}
+
+func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLAuthMethodConfig)
+	*c = *a
+
+	c.BoundAudiences = slices.Clone(a.BoundAudiences)
+	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
+	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
+	c.SigningAlgs = slices.Clone(a.SigningAlgs)
+
+	return c
 }
 
 // OneTimeToken is used to log into the web UI using a token provided by the

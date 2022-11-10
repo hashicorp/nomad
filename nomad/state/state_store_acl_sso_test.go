@@ -1,0 +1,113 @@
+package state
+
+import (
+	"testing"
+
+	"github.com/hashicorp/go-memdb"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Create mock auth methods
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+
+	require.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
+
+	// Check that the index for the table was modified as expected.
+	initialIndex, err := testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 10, initialIndex)
+
+	// List all the auth methods in the table, so we can perform a number of
+	// tests on the return array.
+	ws := memdb.NewWatchSet()
+	iter, err := testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	// Count how many table entries we have, to ensure it is the expected
+	// number.
+	var count int
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		count++
+
+		// Ensure the create and modify indexes are populated correctly.
+		authMethod := raw.(*structs.ACLAuthMethod)
+		must.Eq(t, 10, authMethod.CreateIndex)
+		must.Eq(t, 10, authMethod.ModifyIndex)
+	}
+	require.Equal(t, 2, count, "incorrect number of ACL auth methods found")
+
+	// Try writing the same auth methods to state which should not result in an
+	// update to the table index.
+	require.NoError(t, testState.UpsertACLAuthMethods(20, mockedACLAuthMethods))
+	reInsertActualIndex, err := testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 10, reInsertActualIndex)
+
+	// Make a change to the auth methods and ensure this update is accepted and
+	// the table index is updated.
+	updatedMockedAuthMethod1 := mockedACLAuthMethods[0].Copy()
+	updatedMockedAuthMethod1.Type = "new type"
+	updatedMockedAuthMethod1.SetHash()
+	updatedMockedAuthMethod2 := mockedACLAuthMethods[1].Copy()
+	updatedMockedAuthMethod2.Type = "yet another new type"
+	updatedMockedAuthMethod2.SetHash()
+	require.NoError(t, testState.UpsertACLAuthMethods(20, []*structs.ACLAuthMethod{
+		updatedMockedAuthMethod1, updatedMockedAuthMethod2,
+	}))
+
+	// Check that the index for the table was modified as expected.
+	updatedIndex, err := testState.Index(TableACLAuthMethods)
+	require.NoError(t, err)
+	must.Eq(t, 20, updatedIndex)
+
+	// List the ACL auth methods in state.
+	iter, err = testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	// Count how many table entries we have, to ensure it is the expected
+	// number.
+	count = 0
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		count++
+
+		// Ensure the create and modify indexes are populated correctly.
+		aclAuthMethod := raw.(*structs.ACLAuthMethod)
+		must.Eq(t, 10, aclAuthMethod.CreateIndex)
+		must.Eq(t, 20, aclAuthMethod.ModifyIndex)
+	}
+	require.Equal(t, 2, count, "incorrect number of ACL auth methods found")
+
+	// Try adding a new auth method, which has a name clash with an existing
+	// entry.
+	dup := mock.ACLAuthMethod()
+	dup.Name = mockedACLAuthMethods[0].Name
+	dup.Type = mockedACLAuthMethods[0].Type
+
+	err = testState.UpsertACLAuthMethods(50, []*structs.ACLAuthMethod{dup})
+	require.NoError(t, err)
+
+	// Get all the ACL auth methods from state.
+	iter, err = testState.GetACLAuthMethods(ws)
+	require.NoError(t, err)
+
+	// Count how many table entries we have, to ensure it is the expected
+	// number.
+	count = 0
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		count++
+	}
+	require.Equal(t, 2, count, "incorrect number of ACL auth methods found")
+}
+

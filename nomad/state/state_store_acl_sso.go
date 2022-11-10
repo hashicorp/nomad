@@ -25,13 +25,13 @@ func (s *StateStore) UpsertACLAuthMethods(index uint64, aclAuthMethods []*struct
 	// fail via the txn.Abort() defer.
 	for _, method := range aclAuthMethods {
 
-		roleUpdated, err := s.upsertACLAuthMethodTxn(index, txn, method)
+		methodUpdated, err := s.upsertACLAuthMethodTxn(index, txn, method)
 		if err != nil {
 			return err
 		}
 
 		// Ensure we track whether any inserts have been made.
-		updated = updated || roleUpdated
+		updated = updated || methodUpdated
 	}
 
 	// If we did not perform any inserts, exit early.
@@ -64,12 +64,15 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 	// update has already written a method with the same name. We therefore
 	// need to check we are not trying to create a method with an existing
 	// name.
-	existingRaw, err := txn.First(TableACLAuthMethods, indexName, method.Name)
+	existingRaw, err := txn.First(TableACLAuthMethods, indexID, method.Name)
 	if err != nil {
 		return false, fmt.Errorf("ACL auth method lookup failed: %v", err)
 	}
 
-	existing := existingRaw.(*structs.ACLAuthMethod)
+	var existing *structs.ACLAuthMethod
+	if existingRaw != nil {
+		existing = existingRaw.(*structs.ACLAuthMethod)
+	}
 
 	// Depending on whether this is an initial create, or an update, we need to
 	// check and set certain parameters. The most important is to ensure any
