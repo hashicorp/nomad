@@ -565,7 +565,6 @@ func (tr *TaskRunner) Run() {
 
 	// start with a stopped timer; actual restart delay computed later
 	timer, stop := helper.NewStoppedTimer()
-	timer.Stop()
 	defer stop()
 
 MAIN:
