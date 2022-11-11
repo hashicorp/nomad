@@ -3,6 +3,7 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"math"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -369,6 +370,9 @@ type StopFunc func()
 //
 // Returns the time.Timer and also a StopFunc, forcing the caller to deal
 // with stopping the time.Timer to avoid leaking a goroutine.
+//
+// Note: If creating a Timer that should do nothing until Reset is called, use
+// NewStoppedTimer instead for safely creating the timer in a stopped state.
 func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	if duration <= 0 {
 		// Avoid panic by using the smallest positive value. This is close enough
@@ -384,6 +388,14 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	}
 
 	return t, cancel
+}
+
+// NewStoppedTimer creates a time.Timer in a stopped state. This is useful when
+// the actual wait time will computed and set later via Reset.
+func NewStoppedTimer() (*time.Timer, StopFunc) {
+	t, f := NewSafeTimer(math.MaxInt64)
+	t.Stop()
+	return t, f
 }
 
 // ConvertSlice takes the input slice and generates a new one using the
