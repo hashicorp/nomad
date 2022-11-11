@@ -1,4 +1,12 @@
 import Route from '@ember/routing/route';
-import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
+import notifyError from 'nomad-ui/utils/notify-error';
 
-export default class ServerRoute extends Route.extend(WithModelErrorHandling) {}
+export default class ServerRoute extends Route {
+  async model() {
+    try {
+      return super.model(...arguments);
+    } catch (e) {
+      notifyError.call(this, e);
+    }
+  }
+}
