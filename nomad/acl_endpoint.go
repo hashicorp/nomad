@@ -1667,3 +1667,83 @@ func (a *ACL) policyNamesFromRoleLinks(roleLinks []*structs.ACLTokenRoleLink) (*
 
 	return policyNameSet, nil
 }
+
+// UpsertAuthMethods is used to create or update a set of auth methods
+func (a *ACL) UpsertAuthMethods(args *structs.ACLAuthMethodUpsertRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLUpsertAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_auth_methods"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of auth methods
+	if len(args.AuthMethods) == 0 {
+		return structs.NewErrRPCCoded(400, "must specify as least one auth method")
+	}
+
+	// Validate each auth method, compute hash
+	for idx, authMethod := range args.AuthMethods {
+		if err := authMethod.Validate(); err != nil {
+			return structs.NewErrRPCCodedf(404, "auth method %d invalid: %v", idx, err)
+		}
+		authMethod.SetHash()
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
+// DeleteAuthMethodsByName is used to delete auth methods
+func (a *ACL) DeleteAuthMethodsByName(args *structs.ACLAuthMethodDeleteRequest, reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLDeleteAuthMethodsByNameRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
+
+	// Check management level permissions
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of policies
+	if len(args.Names) == 0 {
+		return structs.NewErrRPCCoded(400, "must specify as least one auth method")
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}

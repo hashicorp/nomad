@@ -78,6 +78,20 @@ const (
 	// Args: ACLRoleByNameRequest
 	// Reply: ACLRoleByNameResponse
 	ACLGetRoleByNameRPCMethod = "ACL.GetRoleByName"
+
+	// ACLUpsertAuthMethodsRPCMethod is the RPC method for batch creating or
+	// modifying auth methods.
+	//
+	// Args: ACLAuthMethodsUpsertRequest
+	// Reply: GenericResponse
+	ACLUpsertAuthMethodsRPCMethod = "ACL.UpsertAuthMethods"
+
+	// ACLDeleteAuthMethodsRPCMethod is the RPC method for batch deleting auth
+	// methods.
+	//
+	// Args: ACLAuthMethodDeleteRequest
+	// Reply: GenericResponse
+	ACLDeleteAuthMethodsByNameRPCMethod = "ACL.DeleteAuthMethodsByName"
 )
 
 const (
