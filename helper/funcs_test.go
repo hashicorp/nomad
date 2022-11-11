@@ -376,7 +376,7 @@ func TestCheckNamespaceScope(t *testing.T) {
 	}
 }
 
-func Test_NewSafeTimer(t *testing.T) {
+func TestTimer_NewSafeTimer(t *testing.T) {
 	t.Run("zero", func(t *testing.T) {
 		timer, stop := NewSafeTimer(0)
 		defer stop()
@@ -387,6 +387,42 @@ func Test_NewSafeTimer(t *testing.T) {
 		timer, stop := NewSafeTimer(1)
 		defer stop()
 		<-timer.C
+	})
+}
+
+func TestTimer_NewStoppedTimer(t *testing.T) {
+	timer, stop := NewStoppedTimer()
+	defer stop()
+
+	select {
+	case <-timer.C:
+		must.Unreachable(t)
+	default:
+	}
+}
+
+func Test_ConvertSlice(t *testing.T) {
+	t.Run("string wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id string }
+		input := []string{"foo", "bar", "bad", "had"}
+		cFn := func(id string) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: "foo"}, {id: "bar"}, {id: "bad"}, {id: "had"}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+	})
+
+	t.Run("int wrapper", func(t *testing.T) {
+
+		type wrapper struct{ id int }
+		input := []int{10, 13, 1987, 2020}
+		cFn := func(id int) *wrapper { return &wrapper{id: id} }
+
+		expectedOutput := []*wrapper{{id: 10}, {id: 13}, {id: 1987}, {id: 2020}}
+		actualOutput := ConvertSlice(input, cFn)
+		require.ElementsMatch(t, expectedOutput, actualOutput)
+
 	})
 }
 
