@@ -95,7 +95,7 @@ $ nomad var put secret/foo @spec.nv.json
 Or it can be read from standard input using the "-" symbol:
 
 ```shell-session
-$ echo "abcd1234" | vault var put secret/foo bar=-
+$ echo "abcd1234" | nomad var put secret/foo bar=-
 ```
 
 
