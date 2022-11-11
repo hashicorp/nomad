@@ -535,7 +535,8 @@ func (tr *TaskRunner) Run() {
 		return
 	}
 
-	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
+	// start with a stopped timer; actual restart delay computed later
+	timer, stop := helper.NewStoppedTimer()
 	defer stop()
 
 MAIN:
