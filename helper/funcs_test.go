@@ -376,7 +376,7 @@ func TestCheckNamespaceScope(t *testing.T) {
 	}
 }
 
-func Test_NewSafeTimer(t *testing.T) {
+func TestTimer_NewSafeTimer(t *testing.T) {
 	t.Run("zero", func(t *testing.T) {
 		timer, stop := NewSafeTimer(0)
 		defer stop()
@@ -388,6 +388,17 @@ func Test_NewSafeTimer(t *testing.T) {
 		defer stop()
 		<-timer.C
 	})
+}
+
+func TestTimer_NewStoppedTimer(t *testing.T) {
+	timer, stop := NewStoppedTimer()
+	defer stop()
+
+	select {
+	case <-timer.C:
+		must.Unreachable(t)
+	default:
+	}
 }
 
 func Test_ConvertSlice(t *testing.T) {
