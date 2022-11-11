@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import classic from 'ember-classic-decorator';
 
@@ -15,7 +14,7 @@ export default class JobRoute extends Route {
     return { job_name: model.get('idWithNamespace') };
   }
 
-  model(params) {
+  async model(params) {
     let name,
       namespace = 'default';
     const { job_name } = params;
@@ -29,27 +28,29 @@ export default class JobRoute extends Route {
 
     const fullId = JSON.stringify([name, namespace]);
 
-    return this.store
-      .findRecord('job', fullId, { reload: true })
-      .then((job) => {
-        const relatedModelsQueries = [
-          job.get('allocations'),
-          job.get('evaluations'),
-          this.store.query('job', { namespace, meta: true }),
-          this.store.findAll('namespace'),
-        ];
+    try {
+      const job = await this.store.findRecord('job', fullId, { reload: true });
 
-        if (this.can.can('accept recommendation')) {
-          relatedModelsQueries.push(job.get('recommendationSummaries'));
-        }
+      const relatedModelsQueries = [
+        job.get('allocations'),
+        job.get('evaluations'),
+        this.store.query('job', { namespace, meta: true }),
+        this.store.findAll('namespace'),
+      ];
 
-        // Optimizing future node look ups by preemptively loading everything
-        if (job.get('hasClientStatus') && this.can.can('read client')) {
-          relatedModelsQueries.push(this.store.findAll('node'));
-        }
+      if (this.can.can('accept recommendation')) {
+        relatedModelsQueries.push(job.get('recommendationSummaries'));
+      }
 
-        return RSVP.all(relatedModelsQueries).then(() => job);
-      })
-      .catch(notifyError(this));
+      // Optimizing future node look ups by preemptively loading everything
+      if (job.get('hasClientStatus') && this.can.can('read client')) {
+        relatedModelsQueries.push(this.store.findAll('node'));
+      }
+
+      await Promise.all(relatedModelsQueries);
+      return job;
+    } catch (e) {
+      notifyError.call(this, e);
+    }
   }
 }
