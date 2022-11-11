@@ -788,11 +788,15 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	return r
 }
 
-// lookupTaskBin finds the file `bin` in taskDir/local, taskDir in that order,
-// then performs a PATH search inside taskDir. It returns an absolute path
-// inside the container that will get passed as arg[0] to the launched process,
-// and the absolute path to that binary as seen by the host (these will be
-// identical for binaries that don't come from mounts).
+// lookupTaskBin finds the file `bin`, searching in order:
+//   - taskDir/local
+//   - taskDir
+//   - each mount, in order listed in the jobspec
+//   - a PATH-like search of usr/local/bin/, usr/bin/, and bin/ inside the taskDir
+//
+// Returns an absolute path inside the container that will get passed as arg[0]
+// to the launched process, and the absolute path to that binary as seen by the
+// host (these will be identical for binaries that don't come from mounts).
 //
 // See also executor.lookupBin for a version used by non-isolated drivers.
 func lookupTaskBin(command *ExecCommand) (string, string, error) {
@@ -853,13 +857,9 @@ func lookupTaskBin(command *ExecCommand) (string, string, error) {
 func getPathInTaskDir(taskDir, searchDir, bin string) (string, string, error) {
 
 	hostPath := filepath.Join(searchDir, bin)
-
-	f, err := os.Stat(hostPath)
+	err := filepathIsRegular(hostPath)
 	if err != nil {
 		return "", "", err
-	}
-	if m := f.Mode(); m.IsDir() {
-		return "", "", fmt.Errorf("path was directory, not file")
 	}
 
 	// Find the path relative to the task directory
@@ -893,12 +893,9 @@ func getPathInMount(mountHostPath, mountTaskPath, bin string) (string, string, e
 
 	hostPath := filepath.Join(mountHostPath, mountRel)
 
-	f, err := os.Stat(hostPath)
+	err = filepathIsRegular(hostPath)
 	if err != nil {
 		return "", "", err
-	}
-	if m := f.Mode(); m.IsDir() {
-		return "", "", fmt.Errorf("path was directory, not file")
 	}
 
 	// Turn relative-to-taskdir path into re-rooted absolute path to avoid
@@ -907,6 +904,19 @@ func getPathInMount(mountHostPath, mountTaskPath, bin string) (string, string, e
 	// filepath.Rel. Prepending "/" will cause the path to be rooted in the
 	// chroot which is the desired behavior.
 	return filepath.Clean("/" + bin), hostPath, nil
+}
+
+// filepathIsRegular verifies that a filepath is a regular file (i.e. not a
+// directory, socket, device, etc.)
+func filepathIsRegular(path string) error {
+	f, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !f.Mode().Type().IsRegular() {
+		return fmt.Errorf("path was not a regular file")
+	}
+	return nil
 }
 
 func newSetCPUSetCgroupHook(cgroupPath string) lconfigs.Hook {
