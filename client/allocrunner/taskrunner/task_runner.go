@@ -554,7 +554,8 @@ func (tr *TaskRunner) Run() {
 	// Set the initial task state.
 	tr.stateUpdater.TaskStateUpdated()
 
-	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
+	// start with a stopped timer; actual restart delay computed later
+	timer, stop := helper.NewStoppedTimer()
 	defer stop()
 
 MAIN:
