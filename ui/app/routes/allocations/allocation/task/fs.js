@@ -1,9 +1,8 @@
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
 export default class FsRoute extends Route {
-  model({ path = '/' }) {
+  async model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const taskState = this.modelFor('allocations.allocation.task');
 
@@ -14,30 +13,36 @@ export default class FsRoute extends Route {
       decodedPath.startsWith('/') ? '' : '/'
     }${decodedPath}`;
 
-    return RSVP.all([
+    try {
+      const [statJson] = await Promise.all([
+        allocation.stat(pathWithTaskName),
+        taskState.get('allocation.node'),
+      ]);
+
+      if (statJson.IsDir) {
+        const directoryEntries = await allocation.ls(pathWithTaskName);
+        return {
+          path: decodedPath,
+          taskState,
+          directoryEntries,
+          isFile: false,
+        };
+      } else {
+        return {
+          path: decodedPath,
+          taskState,
+          isFile: true,
+          stat: statJson,
+        };
+      }
+    } catch (e) {
+      notifyError.call(this, e);
+    }
+
+    return Promise.all([
       allocation.stat(pathWithTaskName),
       taskState.get('allocation.node'),
-    ])
-      .then(([statJson]) => {
-        if (statJson.IsDir) {
-          return RSVP.hash({
-            path: decodedPath,
-            taskState,
-            directoryEntries: allocation
-              .ls(pathWithTaskName)
-              .catch(notifyError(this)),
-            isFile: false,
-          });
-        } else {
-          return {
-            path: decodedPath,
-            taskState,
-            isFile: true,
-            stat: statJson,
-          };
-        }
-      })
-      .catch(notifyError(this));
+    ]);
   }
 
   setupController(
