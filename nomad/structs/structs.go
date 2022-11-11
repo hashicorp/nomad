@@ -12036,6 +12036,18 @@ type ACLAuthMethodListResponse struct {
 	QueryMeta
 }
 
+// ACLAuthMethodByNameRequest is used to query a specific auth method
+type ACLAuthMethodByNameRequest struct {
+	MethodName string
+	QueryOptions
+}
+
+// ACLAuthMethodByNameResponse is used to return a single auth method
+type ACLAuthMethodByNameResponse struct {
+	AuthMethod *ACLAuthMethod
+	QueryMeta
+}
+
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
 	AccessorID string   // Public Accessor ID (UUID)

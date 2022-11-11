@@ -1669,8 +1669,11 @@ func (a *ACL) policyNamesFromRoleLinks(roleLinks []*structs.ACLTokenRoleLink) (*
 }
 
 // UpsertAuthMethods is used to create or update a set of auth methods
-func (a *ACL) UpsertAuthMethods(args *structs.ACLAuthMethodUpsertRequest, reply *structs.GenericResponse) error {
-	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+func (a *ACL) UpsertAuthMethods(
+	args *structs.ACLAuthMethodUpsertRequest,
+	reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
@@ -1713,14 +1716,18 @@ func (a *ACL) UpsertAuthMethods(args *structs.ACLAuthMethodUpsertRequest, reply 
 }
 
 // DeleteAuthMethodsByName is used to delete auth methods
-func (a *ACL) DeleteAuthMethodsByName(args *structs.ACLAuthMethodDeleteRequest, reply *structs.GenericResponse) error {
-	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
+func (a *ACL) DeleteAuthMethodsByName(
+	args *structs.ACLAuthMethodDeleteRequest,
+	reply *structs.GenericResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
 
-	if done, err := a.srv.forward(structs.ACLDeleteAuthMethodsByNameRPCMethod, args, args, reply); done {
+	if done, err := a.srv.forward(
+		structs.ACLDeleteAuthMethodsByNameRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
@@ -1749,13 +1756,16 @@ func (a *ACL) DeleteAuthMethodsByName(args *structs.ACLAuthMethodDeleteRequest, 
 }
 
 // ListAuthMethods returns a list of ACL auth methods
-func (a *ACL) ListAuthMethods(args *structs.ACLAuthMethodListRequest, reply *structs.ACLAuthMethodListResponse) error {
-	// Only allow operators to list ACL roles when ACLs are enabled.
+func (a *ACL) ListAuthMethods(
+	args *structs.ACLAuthMethodListRequest,
+	reply *structs.ACLAuthMethodListResponse) error {
+	// Only allow operators to list auth methods when ACLs are enabled.
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
 
-	if done, err := a.srv.forward(structs.ACLListAuthMethodsRPCMethod, args, args, reply); done {
+	if done, err := a.srv.forward(
+		structs.ACLListAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_auth_methods"}, time.Now())
@@ -1800,6 +1810,62 @@ func (a *ACL) ListAuthMethods(args *structs.ACLAuthMethodListRequest, reply *str
 			return a.srv.setReplyQueryMeta(
 				stateStore, state.TableACLAuthMethods, &reply.QueryMeta,
 			)
+		},
+	})
+}
+
+func (a *ACL) GetAuthMethodByName(
+	args *structs.ACLAuthMethodByNameRequest,
+	reply *structs.ACLAuthMethodByNameResponse) error {
+
+	// Only allow operators to read an auth method when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(
+		structs.ACLGetAuthMethodByNameRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
+
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if acl == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Perform a lookup
+			out, err := stateStore.GetACLAuthMethodByName(ws, args.MethodName)
+			if err != nil {
+				return err
+			}
+
+			// Set the index correctly depending on whether the auth method was
+			// found.
+			switch out {
+			case nil:
+				index, err := stateStore.Index(state.TableACLAuthMethods)
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			default:
+				reply.Index = out.ModifyIndex
+			}
+
+			// We didn't encounter an error looking up the index; set the auth
+			// method on the reply and exit successfully.
+			reply.AuthMethod = out
+			return nil
 		},
 	})
 }
