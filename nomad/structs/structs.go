@@ -12000,6 +12000,42 @@ type ACLPolicyUpsertRequest struct {
 	WriteRequest
 }
 
+// ACLAuthMethodUpsertRequest is used to upsert a set of auth methods
+type ACLAuthMethodUpsertRequest struct {
+	AuthMethods []*ACLAuthMethod
+	WriteRequest
+}
+
+// ACLAuthMethodDeleteRequest is used to delete a set of auth methods by their
+// name
+type ACLAuthMethodDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLAuthMethodStub is used for listing ACL auth methods
+type ACLAuthMethodStub struct {
+	Name        string
+	Type        string
+	MaxTokenTTL string
+	Config      ACLAuthMethodConfig
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+	Hash        []byte
+}
+
+// ACLAuthMethodListRequest is used to list auth methods
+type ACLAuthMethodListRequest struct {
+	QueryOptions
+}
+
+// ACLAuthMethodListResponse is used to list auth methods
+type ACLAuthMethodListResponse struct {
+	AuthMethods []*ACLAuthMethodStub
+	QueryMeta
+}
+
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
 	AccessorID string   // Public Accessor ID (UUID)
@@ -12314,6 +12350,15 @@ func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
 	c.Config = a.Config.Copy()
 
 	return c
+}
+
+func (a *ACLAuthMethod) Validate() error {
+	var mErr multierror.Error
+
+	// TODO what are validity conditions for an auth method?
+	// ¯\_(ツ)_/¯
+
+	return mErr.ErrorOrNil()
 }
 
 // ACLAuthMethodConfig is used to store configuration of an auth method
