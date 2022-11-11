@@ -18,10 +18,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/go-kms-wrapping/v2/aead"
-	"golang.org/x/time/rate"
+	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -434,15 +435,11 @@ func (krr *KeyringReplicator) stop() {
 const keyringReplicationRate = 10
 
 func (krr *KeyringReplicator) run(ctx context.Context) {
-	limiter := rate.NewLimiter(keyringReplicationRate, keyringReplicationRate)
 	krr.logger.Debug("starting encryption key replication")
 	defer krr.logger.Debug("exiting key replication")
 
-	retryErrTimer, stop := helper.NewSafeTimer(time.Second * 1)
-	defer stop()
-
-START:
 	store := krr.srv.fsm.State()
+	minIndex := uint64(0)
 
 	for {
 		select {
@@ -450,19 +447,26 @@ START:
 			return
 		case <-ctx.Done():
 			return
+		case <-store.AbandonCh():
+			store = krr.srv.fsm.State()
+			minIndex = uint64(0)
 		default:
-			// Rate limit how often we attempt replication
-			err := limiter.Wait(ctx)
-			if err != nil {
-				goto ERR_WAIT // rate limit exceeded
-			}
+			// ensure that we can abandon the blocking query periodically and
+			// give our other contexts a chance to fire
+			queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
+			defer queryCancel()
 
-			ws := store.NewWatchSet()
-			iter, err := store.RootKeyMetas(ws)
+			var rawIter any
+			var err error
+			rawIter, minIndex, err = store.BlockingQuery(getRootKeyMetas, minIndex, queryCtx)
 			if err != nil {
-				krr.logger.Error("failed to fetch keyring", "error", err)
-				goto ERR_WAIT
+				if queryCtx.Err() == nil {
+					// we get errors for closed context but don't want to log on that
+					krr.logger.Error("failed to fetch keyring", "error", err)
+				}
+				continue
 			}
+			iter := rawIter.(memdb.ResultIterator)
 
 			for {
 				raw := iter.Next()
@@ -488,16 +492,20 @@ START:
 		}
 	}
 
-ERR_WAIT:
-	retryErrTimer.Reset(1 * time.Second)
+}
 
-	select {
-	case <-retryErrTimer.C:
-		goto START
-	case <-ctx.Done():
-		return
+// getRootKeyMetas implements state.QueryFn and is run as a blocking query to
+// detect new key metadata
+func getRootKeyMetas(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
+	iter, err := store.RootKeyMetas(ws)
+	if err != nil {
+		return nil, 0, err
 	}
-
+	index, err := store.Index(state.TableRootKeyMeta)
+	if err != nil {
+		return nil, 0, err
+	}
+	return iter, index, nil
 }
 
 // replicateKey replicates a single key from peer servers that was present in
