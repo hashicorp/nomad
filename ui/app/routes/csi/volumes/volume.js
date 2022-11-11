@@ -1,7 +1,6 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
-import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
@@ -24,7 +23,7 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
     return { volume_name: JSON.parse(model.get('id')).join('@') };
   }
 
-  model(params) {
+  async model(params) {
     // Issue with naming collissions
     const url = params.volume_name.split('@');
     const namespace = url.pop();
@@ -32,12 +31,16 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
 
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
 
-    return RSVP.hash({
-      volume: this.store.findRecord('volume', fullId, { reload: true }),
-      namespaces: this.store.findAll('namespace'),
-    })
-      .then((hash) => hash.volume)
-      .catch(notifyError(this));
+    try {
+      const [volume] = await Promise.all([
+        this.store.findRecord('volume', fullId, { reload: true }),
+        this.store.findAll('namespace'),
+      ]);
+
+      return volume;
+    } catch (e) {
+      notifyError.call(this, e);
+    }
   }
 
   // Since volume includes embedded records for allocations,
