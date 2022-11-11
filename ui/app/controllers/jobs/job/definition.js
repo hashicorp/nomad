@@ -12,12 +12,17 @@ export default class DefinitionController extends Controller.extend(
   @alias('model.job') job;
   @alias('model.definition') definition;
   @service router;
+  jsonView = false;
 
   isEditing = false;
 
   edit() {
     this.job.set('_newDefinition', JSON.stringify(this.definition, null, 2));
     this.set('isEditing', true);
+  }
+
+  toggleJsonView() {
+    this.set('jsonView', !this.jsonView);
   }
 
   @task(function* () {

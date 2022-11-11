@@ -13,6 +13,15 @@
     <div class="boxed-section">
       <div class="boxed-section-head">
         Job Definition
+        <Toggle
+          data-test-enable-shortcuts-toggle
+          class="pull-right"
+          @isActive={{this.jsonView}}
+          @onToggle={{action this.toggleJsonView}}
+          title="{{if this.jsonView "HCL View" "JSON View"}}"
+        >
+          {{if this.jsonView "JSON View" "HCL View"}}
+        </Toggle>
         <button
           class="button is-light is-compact pull-right"
           type="button"
@@ -27,16 +36,19 @@
         >Parse</button>
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{!-- <JsonViewer data-test-definition-view @json={{this.definition}} /> --}}
-        <div
-          data-test-definition-view
-          {{code-mirror
-            screenReaderLabel="Job definition"
-            content=this.job.file
-            theme="hashi"
-            mode="terraform"
-          }}
-        />
+        {{#if this.jsonView}}
+          <JsonViewer data-test-definition-view @json={{this.definition}} />
+        {{else}}
+          <div
+            data-test-definition-view
+            {{code-mirror
+              screenReaderLabel="Job definition"
+              content=this.job.file
+              theme="hashi"
+              mode="javascript"
+            }}
+          />
+        {{/if}}
       </div>
     </div>
   {{/if}}
