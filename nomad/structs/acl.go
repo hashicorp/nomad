@@ -92,6 +92,12 @@ const (
 	// Args: ACLAuthMethodDeleteRequest
 	// Reply: GenericResponse
 	ACLDeleteAuthMethodsByNameRPCMethod = "ACL.DeleteAuthMethodsByName"
+
+	// ACLListAuthMethodsRPCMethod is the RPC method for listing auth methods.
+	//
+	// Args: ACLAuthMethodListRequest
+	// Reply: ACLAuthMethodListResponse
+	ACLListAuthMethodsRPCMethod = "ACL.ListAuthMethods"
 )
 
 const (

@@ -12018,7 +12018,7 @@ type ACLAuthMethodStub struct {
 	Name        string
 	Type        string
 	MaxTokenTTL string
-	Config      ACLAuthMethodConfig
+	Config      *ACLAuthMethodConfig
 	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -12320,6 +12320,18 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	// Set and return the hash.
 	a.Hash = hashVal
 	return hashVal
+}
+
+func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
+	return &ACLAuthMethodStub{
+		Config:      a.Config,
+		CreateIndex: a.CreateIndex,
+		Hash:        a.Hash,
+		MaxTokenTTL: a.MaxTokenTTL,
+		ModifyIndex: a.ModifyIndex,
+		Name:        a.Name,
+		Type:        a.Type,
+	}
 }
 
 func (a *ACLAuthMethod) Equal(other *ACLAuthMethod) bool {

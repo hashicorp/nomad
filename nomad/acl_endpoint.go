@@ -1747,3 +1747,59 @@ func (a *ACL) DeleteAuthMethodsByName(args *structs.ACLAuthMethodDeleteRequest, 
 	reply.Index = index
 	return nil
 }
+
+// ListAuthMethods returns a list of ACL auth methods
+func (a *ACL) ListAuthMethods(args *structs.ACLAuthMethodListRequest, reply *structs.ACLAuthMethodListResponse) error {
+	// Only allow operators to list ACL roles when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLListAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "list_auth_methods"}, time.Now())
+
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if acl == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// The iteration below appends directly to the reply object, so in
+			// order for blocking queries to work properly we must ensure the
+			// auth methods are reset. This allows the blocking query run
+			// function to work as expected.
+			reply.AuthMethods = nil
+
+			var (
+				err  error
+				iter memdb.ResultIterator
+			)
+
+			iter, err = stateStore.GetACLAuthMethods(ws)
+			if err != nil {
+				return err
+			}
+
+			// Iterate all the results and add these to our reply object.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				method := raw.(*structs.ACLAuthMethod)
+				reply.AuthMethods = append(reply.AuthMethods, method.Stub())
+			}
+
+			// Use the index table to populate the query meta
+			return a.srv.setReplyQueryMeta(
+				stateStore, state.TableACLAuthMethods, &reply.QueryMeta,
+			)
+		},
+	})
+}
