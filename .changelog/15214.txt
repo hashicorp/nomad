@@ -1,0 +1,3 @@
+```release-note:bug
+client: fixed a bug where non-`docker` tasks with network isolation would leak network namespaces and iptables rules if the client was restarted while they were running
+```
