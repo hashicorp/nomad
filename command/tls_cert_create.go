@@ -241,7 +241,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 
 	if c.server {
-		c.Ui.Info(
+		c.Ui.Warn(
 			`==> WARNING: Server Certificates grants authority to become a
     server and access all state in the cluster including root keys
     and all ACL tokens. Do not distribute them to production hosts
