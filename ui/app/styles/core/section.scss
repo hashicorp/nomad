@@ -1,6 +1,7 @@
 .section {
   padding: 1.5rem;
   max-width: 1200px;
+  overflow-x: auto;
 
   &.with-headspace {
     margin-top: 1.5rem;
