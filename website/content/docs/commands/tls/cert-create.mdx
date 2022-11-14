@@ -1,16 +1,16 @@
 ---
 layout: docs
 page_title: 'Commands: TLS Cert Create'
+description: |
+  This command creates a Certificate that can be used for Nomad TLS setup.
 ---
 
-# Nomad TLS Cert Create
+# Command: nomad tls cert create
 
-Command: `nomad tls cert create`
-
-The `tls cert create` command is used to create certificates to be used in 
-for your Nomad cluster for TLS setup. You can then copy these to your server
-as part fo the configurstion. This command will not automatically update the 
-settings in the agents.
+The `tls cert create` command is used to create certificates to be used for
+[TLS encryption][] for your Nomad cluster. You can then copy these to your 
+servers and clients. This command will not automatically update the 
+configuration of the agents.
 
 ## Examples
 
@@ -82,3 +82,5 @@ Usage: `nomad tls cert create [options]`
   `<node>.server.<datacenter>.<domain>`.
 
 - `-server` - Generate server certificate.
+
+[TLS encryption]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls?in=nomad/transport-security
