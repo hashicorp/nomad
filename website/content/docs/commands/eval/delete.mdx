@@ -36,7 +36,10 @@ When ACLs are enabled, this command requires a `management` token.
 ## Delete Options
 
 - `-filter`: Specifies an expression used to filter evaluations by for
-  deletion.
+  deletion. When using this flag, it is advisable to ensure the syntax is
+  correct using the eval list command first. Note that deleting evals by filter
+  is imprecise: for sets of evals larger than a single raft log batch, evals can
+  be inserted behind the cursor and therefore be missed.
 
 - `-yes`: Bypass the confirmation prompt if an evaluation ID was not provided.
 
@@ -53,13 +56,6 @@ Delete all evaluations with status `pending` for the `example` job:
 
 ```shell-session
 $ nomad eval delete -filter='Stauts == "pending" and JobID == "example"'
-Do you want to list evals (3) before deletion? [y/N] y
-
-ID        Priority  Triggered By  Job ID   Namespace   Node ID   Status   Placement Failures
-cef92121  50        job-register  example  default     <none>    pending  false
-1c905ca0  50        job-register  example  default     <none>    pending  false
-b9e77692  50        job-register  example  default     <none>    pending  false
-
 Are you sure you want to delete 3 evals? [y/N] y
 
 Successfuly deleted 3 evaluations
