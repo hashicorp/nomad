@@ -63,7 +63,7 @@ export default class Tokens extends Controller {
 
         this.setProperties({
           tokenIsValid: true,
-          tokenIsInvalid: false
+          tokenIsInvalid: false,
         });
         this.token.set('tokenNotFound', false);
       },
