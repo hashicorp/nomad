@@ -73,6 +73,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 		expectCN  string
 		expectDNS []string
 		expectIP  []net.IP
+		errOut    string
 	}
 
 	// The following subtests must run serially.
@@ -88,6 +89,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
+			"==> WARNING: Server Certificates grants authority to become a\n    server and access all state in the cluster including root keys\n    and all ACL tokens. Do not distribute them to production hosts\n    that are not server nodes. Store them as securely as CA keys.\n",
 		},
 		{"server0-region2-altdomain",
 			"server",
@@ -100,6 +102,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
+			"==> WARNING: Server Certificates grants authority to become a\n    server and access all state in the cluster including root keys\n    and all ACL tokens. Do not distribute them to production hosts\n    that are not server nodes. Store them as securely as CA keys.\n",
 		},
 		{"client0",
 			"client",
@@ -112,6 +115,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
+			"",
 		},
 		{"client0-region2-altdomain",
 			"client",
@@ -124,6 +128,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
+			"",
 		},
 		{"cli0",
 			"cli",
@@ -136,6 +141,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			nil,
+			"",
 		},
 		{"cli0-region2-altdomain",
 			"cli",
@@ -148,6 +154,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 				"localhost",
 			},
 			nil,
+			"",
 		},
 	}
 
@@ -157,7 +164,7 @@ func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
 			require.Equal(t, 0, cmd.Run(tc.args))
-			require.Equal(t, "", ui.ErrorWriter.String())
+			require.Equal(t, tc.errOut, ui.ErrorWriter.String())
 
 			// is a valid cert expects the cert
 			cert := testutil.IsValidCertificate(t, tc.certPath)
