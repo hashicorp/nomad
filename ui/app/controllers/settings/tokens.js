@@ -19,7 +19,7 @@ export default class Tokens extends Controller {
 
   tokenIsValid = false;
   tokenIsInvalid = false;
-  SSOFailure = false;
+
   @alias('token.selfToken') tokenRecord;
 
   resetStore() {
@@ -63,8 +63,7 @@ export default class Tokens extends Controller {
 
         this.setProperties({
           tokenIsValid: true,
-          tokenIsInvalid: false,
-          SSOFailure: false,
+          tokenIsInvalid: false
         });
         this.token.set('tokenNotFound', false);
       },
@@ -112,9 +111,6 @@ export default class Tokens extends Controller {
       this.validateSSO();
       return true;
     } else {
-      if (this.state === 'failure') {
-        this.SSOFailure = true;
-      }
       return false;
     }
   }
@@ -139,5 +135,9 @@ export default class Tokens extends Controller {
           this.state = null;
         }
       });
+  }
+
+  get SSOFailure() {
+    return this.state === 'failure';
   }
 }

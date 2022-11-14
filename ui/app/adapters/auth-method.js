@@ -1,7 +1,9 @@
 // @ts-check
 import { default as ApplicationAdapter, namespace } from './application';
 import { dasherize } from '@ember/string';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class AuthMethodAdapter extends ApplicationAdapter {
   namespace = `${namespace}/acl`;
 

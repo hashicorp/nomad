@@ -193,7 +193,6 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
 
     // Token with no TTL
-    await Tokens.clear();
     await Tokens.secret(clientToken.secretId).submit();
     assert
       .dom('[data-test-token-expiry]')
@@ -306,7 +305,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     await Tokens.visit();
-    await Tokens.clear();
+    // await Tokens.clear();
     // Ember Concurrency makes testing iterations convoluted: https://ember-concurrency.com/docs/testing-debugging/
     // Waiting for half a second to validate that there's no warning;
     // then a further 5 seconds to validate that there is a warning, and to explicitly cancelAllTimers(),

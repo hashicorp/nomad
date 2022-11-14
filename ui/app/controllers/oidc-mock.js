@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 
-export default class OidcTestRoutePleaseDeleteController extends Controller {
+export default class OidcMockController extends Controller {
   queryParams = ['auth_method', 'client_nonce', 'redirect_uri', 'meta'];
 
   @action
