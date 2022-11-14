@@ -57,7 +57,9 @@ Eval Delete Options:
   -filter
     Specifies an expression used to filter evaluations by for deletion. When
     using this flag, it is advisable to ensure the syntax is correct using the
-    eval list command first.
+    eval list command first. Note that deleting evals by filter is imprecise:
+    for sets of evals larger than a single raft log batch, evals can be inserted
+    behind the cursor and therefore be missed.
 
   -yes
     Bypass the confirmation prompt if an evaluation ID was not provided.
