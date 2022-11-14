@@ -105,6 +105,13 @@ const (
 	// Args: ACLAuthMethodByNameRequest
 	// Reply: ACLAuthMethodByNameResponse
 	ACLGetAuthMethodByNameRPCMethod = "ACL.GetAuthMethodByName"
+
+	// ACLGetAuthMethodsByNameRPCMethod is the RPC method for getting multiple
+	// auth methods using their names.
+	//
+	// Args: ACLAuthMethodsByNameRequest
+	// Reply: ACLAuthMethodsByNameResponse
+	ACLGetAuthMethodsByNameRPCMethod = "ACL.GetAuthMethodsByName"
 )
 
 const (

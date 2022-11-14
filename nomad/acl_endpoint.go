@@ -1869,3 +1869,61 @@ func (a *ACL) GetAuthMethodByName(
 		},
 	})
 }
+
+// GetAuthMethodsByName is used to get a set of auth methods
+func (a *ACL) GetAuthMethodsByName(
+	args *structs.ACLAuthMethodsByNameRequest,
+	reply *structs.ACLAuthMethodsByNameResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	if done, err := a.srv.forward(
+		structs.ACLGetAuthMethodsByNameRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_methods"}, time.Now())
+
+	// For client typed tokens, allow them to query any auth methods associated
+	// with that token. This is used by clients which are resolving the auth
+	// methods to enforce. Any associated auth methods need to be fetched so
+	// that the client can determine what to allow.
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken {
+		return structs.ErrPermissionDenied
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Setup the output
+			reply.AuthMethods = make(map[string]*structs.ACLAuthMethod, len(args.Names))
+
+			// Look for the auth method
+			for _, methodName := range args.Names {
+				out, err := state.GetACLAuthMethodByName(ws, methodName)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.AuthMethods[methodName] = out
+				}
+			}
+
+			// Use the last index that affected the auth methods table
+			index, err := state.Index("acl_auth_methods")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
