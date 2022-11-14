@@ -847,8 +847,14 @@ type EvalUpdateRequest struct {
 // Eval.Delete use the same Raft message when performing deletes so we do not
 // need more Raft message types.
 type EvalReapRequest struct {
-	Evals  []string
-	Allocs []string
+	Evals  []string // slice of Evaluation IDs
+	Allocs []string // slice of Allocation IDs
+
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter    string
+	PerPage   int32
+	NextToken string
 
 	// UserInitiated tracks whether this reap request is the result of an
 	// operator request. If this is true, the FSM needs to ensure the eval

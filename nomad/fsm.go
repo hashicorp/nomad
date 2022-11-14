@@ -803,6 +803,14 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	if req.Filter != "" {
+		if err := n.state.DeleteEvalsByFilter(index, req.Filter, req.NextToken, req.PerPage); err != nil {
+			n.logger.Error("DeleteEvalsByFilter failed", "error", err)
+			return err
+		}
+		return nil
+	}
+
 	if err := n.state.DeleteEval(index, req.Evals, req.Allocs, req.UserInitiated); err != nil {
 		n.logger.Error("DeleteEval failed", "error", err)
 		return err

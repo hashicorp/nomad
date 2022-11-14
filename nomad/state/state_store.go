@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -3141,6 +3142,66 @@ func (s *StateStore) updateEvalModifyIndex(txn *txn, index uint64, evalID string
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	return nil
+}
+
+// DeleteEvalsByFilter is used to delete all evals that are both safe to delete
+// and match a filter.
+func (s *StateStore) DeleteEvalsByFilter(index uint64, filterExpr string, pageToken string, perPage int32) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// These are always user-initiated, so ensure the eval broker is paused.
+	_, schedConfig, err := s.schedulerConfigTxn(txn)
+	if err != nil {
+		return err
+	}
+	if schedConfig == nil || !schedConfig.PauseEvalBroker {
+		return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+	}
+
+	filter, err := bexpr.CreateEvaluator(filterExpr)
+	if err != nil {
+		return err
+	}
+
+	iter, err := s.Evals(nil, SortDefault)
+	if err != nil {
+		return fmt.Errorf("failed to lookup evals: %v", err)
+	}
+
+	// Note: Paginator imports this package for testing so we can't just use
+	// Paginator
+	pageCount := int32(0)
+
+	for {
+		if pageCount >= perPage {
+			break
+		}
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+		if eval.ID < pageToken {
+			continue
+		}
+
+		deleteOk, err := s.EvalIsUserDeleteSafe(nil, eval)
+		if !deleteOk || err != nil {
+			continue
+		}
+		match, err := filter.Evaluate(eval)
+		if !match || err != nil {
+			continue
+		}
+		if err := txn.Delete("evals", eval); err != nil {
+			return fmt.Errorf("eval delete failed: %v", err)
+		}
+		pageCount++
+	}
+
+	err = txn.Commit()
+	return err
 }
 
 // EvalIsUserDeleteSafe ensures an evaluation is safe to delete based on its
