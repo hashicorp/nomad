@@ -71,20 +71,22 @@
             data-test-volume-row
             {{on "click" (action "gotoVolume" row.model)}}
           >
-            <td data-test-volume-name
-              {{keyboard-shortcut 
-                enumerated=true
-                action=(action "gotoVolume" row.model)
-              }}
-            >
-              <LinkTo
-                @route="csi.volumes.volume"
-                @model={{row.model.idWithNamespace}}
-                class="is-primary"
+            <Tooltip @text={{row.model.plainId}}>
+              <td data-test-volume-name
+                {{keyboard-shortcut 
+                  enumerated=true
+                  action=(action "gotoVolume" row.model)
+                }}
               >
-                {{row.model.name}}
-              </LinkTo>
-            </td>
+                <LinkTo
+                  @route="csi.volumes.volume"
+                  @model={{row.model.idWithNamespace}}
+                  class="is-primary"
+                >
+                  {{row.model.name}}
+                </LinkTo>
+              </td>
+            </Tooltip>
             {{#if this.system.shouldShowNamespaces}}
               <td data-test-volume-namespace>
                 {{row.model.namespace.name}}
