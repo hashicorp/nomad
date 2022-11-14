@@ -3172,7 +3172,6 @@ func (s *StateStore) DeleteEvalsByFilter(index uint64, filterExpr string, pageTo
 	// Note: Paginator imports this package for testing so we can't just use
 	// Paginator
 	pageCount := int32(0)
-	pageTokenFound := false
 
 	for {
 		if pageCount >= perPage {
@@ -3183,10 +3182,8 @@ func (s *StateStore) DeleteEvalsByFilter(index uint64, filterExpr string, pageTo
 			break
 		}
 		eval := raw.(*structs.Evaluation)
-		if !pageTokenFound {
-			if eval.ID < pageToken {
-				continue
-			}
+		if eval.ID < pageToken {
+			continue
 		}
 
 		deleteOk, err := s.EvalIsUserDeleteSafe(nil, eval)
