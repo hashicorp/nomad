@@ -71,7 +71,7 @@ func (c *TLSCertInfoCommand) Run(args []string) int {
 		file = args[0]
 		certFile, err = os.ReadFile(file)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error reading Certifiate file: %v", err))
+			c.Ui.Error(fmt.Sprintf("Error reading Certificate file: %v", err))
 			return 1
 		}
 	}
@@ -83,6 +83,7 @@ func (c *TLSCertInfoCommand) Run(args []string) int {
 	}
 	// Format the certificate info
 	basic := []string{
+		fmt.Sprintf("Serial Number|%s", certInfo.SerialNumber),
 		fmt.Sprintf("Issuer CN|%s", certInfo.Issuer.CommonName),
 		fmt.Sprintf("Common Name|%s", certInfo.Subject),
 		fmt.Sprintf("Expiry Date|%s", certInfo.NotAfter),
