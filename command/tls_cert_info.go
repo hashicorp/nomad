@@ -21,6 +21,7 @@ Usage: nomad tls cert info [Certificate File]
 Show certificate information
 
 $ nomad tls cert info global-server-nomad.pem
+Serial Number 314623649437549144006237783956683542664
 Issuer CN     Nomad Agent CA 58896012363767591697986789371079092261
 Common Name   CN=server.global.nomad
 Expiry Date   2023-09-25 22:32:55 +0000 UTC
