@@ -536,11 +536,11 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 		return count, index, err
 	}
 
-	// Note: this snapshot will be stale as soon as we start deleting. For small
-	// sets this doesn't matter because we'll delete in a single raft request,
-	// but for large sets we don't want reset our pagination state. For the
-	// intended use case it's ok if we miss a handful of evals if they're
-	// inserted behind the paginator's cursor.
+// Note that deleting evals by filter is imprecise: For sets of evals larger
+// than a single batch eval inserts may occur behind the cursor and therefore
+// be missed. This imprecision is not considered to hurt this endpoint's
+// purpose of reducing pressure on servers during periods of heavy scheduling
+// activity.
 	snap, err := e.srv.State().Snapshot()
 	if err != nil {
 		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
