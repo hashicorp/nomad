@@ -536,11 +536,11 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 		return count, index, err
 	}
 
-// Note that deleting evals by filter is imprecise: For sets of evals larger
-// than a single batch eval inserts may occur behind the cursor and therefore
-// be missed. This imprecision is not considered to hurt this endpoint's
-// purpose of reducing pressure on servers during periods of heavy scheduling
-// activity.
+	// Note that deleting evals by filter is imprecise: For sets of evals larger
+	// than a single batch eval inserts may occur behind the cursor and therefore
+	// be missed. This imprecision is not considered to hurt this endpoint's
+	// purpose of reducing pressure on servers during periods of heavy scheduling
+	// activity.
 	snap, err := e.srv.State().Snapshot()
 	if err != nil {
 		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
