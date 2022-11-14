@@ -100,6 +100,20 @@
             </div>
           {{/if}}
 
+          {{#if this.SSOFailure}}
+            <div data-test-token-error class="notification is-danger">
+              <div class="columns">
+                <div class="column">
+                  <h3 class="title is-4">Failed to sign in with SSO</h3>
+                  <p>Your OIDC has failed to sign in; please try again or contact your SSO administrator.</p>
+                </div>
+                <div class="column is-centered is-minimum">
+                  <button data-test-token-clear class="button is-info" {{action (mut this.SSOFailure) false}} type="button">Clear</button>
+                </div>
+              </div>
+            </div>
+          {{/if}}
+
         {{/if}}
 
         {{#if this.tokenRecord}}
