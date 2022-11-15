@@ -54,6 +54,11 @@ var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.
 // before the feature can be used.
 var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 
+// minACLAuthMethodVersion is the Nomad version at which the ACL auth methods
+// table was introduced. It forms the minimum version all federated servers must
+// meet before the feature can be used.
+var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0"))
+
 // minNomadServiceRegistrationVersion is the Nomad version at which the service
 // registrations table was introduced. It forms the minimum version all local
 // servers must meet before the feature can be used.

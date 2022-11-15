@@ -1671,7 +1671,7 @@ func (a *ACL) policyNamesFromRoleLinks(roleLinks []*structs.ACLTokenRoleLink) (*
 // UpsertAuthMethods is used to create or update a set of auth methods
 func (a *ACL) UpsertAuthMethods(
 	args *structs.ACLAuthMethodUpsertRequest,
-	reply *structs.GenericResponse) error {
+	reply *structs.ACLAuthMethodUpsertResponse) error {
 	// Ensure ACLs are enabled, and always flow modification requests to the
 	// authoritative region
 	if !a.srv.config.ACLEnabled {
@@ -1684,6 +1684,13 @@ func (a *ACL) UpsertAuthMethods(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_auth_methods"}, time.Now())
 
+	// ACL auth methods can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
+			minACLAuthMethodVersion)
+	}
+
 	// Check management level permissions
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -1693,13 +1700,13 @@ func (a *ACL) UpsertAuthMethods(
 
 	// Validate non-zero set of auth methods
 	if len(args.AuthMethods) == 0 {
-		return structs.NewErrRPCCoded(400, "must specify as least one auth method")
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
 	}
 
 	// Validate each auth method, compute hash
 	for idx, authMethod := range args.AuthMethods {
 		if err := authMethod.Validate(); err != nil {
-			return structs.NewErrRPCCodedf(404, "auth method %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth method %d invalid: %v", idx, err)
 		}
 		authMethod.SetHash()
 	}
@@ -1718,7 +1725,7 @@ func (a *ACL) UpsertAuthMethods(
 // DeleteAuthMethodsByName is used to delete auth methods
 func (a *ACL) DeleteAuthMethodsByName(
 	args *structs.ACLAuthMethodDeleteRequest,
-	reply *structs.GenericResponse) error {
+	reply *structs.ACLAuthMethodDeleteResponse) error {
 	// Ensure ACLs are enabled, and always flow modification requests to the
 	// authoritative region
 	if !a.srv.config.ACLEnabled {
@@ -1732,6 +1739,13 @@ func (a *ACL) DeleteAuthMethodsByName(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
 
+	// ACL auth methods can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
+			minACLAuthMethodVersion)
+	}
+
 	// Check management level permissions
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -1739,9 +1753,9 @@ func (a *ACL) DeleteAuthMethodsByName(
 		return structs.ErrPermissionDenied
 	}
 
-	// Validate non-zero set of policies
+	// Validate non-zero set of auth methods
 	if len(args.Names) == 0 {
-		return structs.NewErrRPCCoded(400, "must specify as least one auth method")
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
 	}
 
 	// Update via Raft
@@ -1790,12 +1804,7 @@ func (a *ACL) ListAuthMethods(
 			// function to work as expected.
 			reply.AuthMethods = nil
 
-			var (
-				err  error
-				iter memdb.ResultIterator
-			)
-
-			iter, err = stateStore.GetACLAuthMethods(ws)
+			iter, err := stateStore.GetACLAuthMethods(ws)
 			if err != nil {
 				return err
 			}
@@ -1833,7 +1842,7 @@ func (a *ACL) GetAuthMethodByName(
 	acl, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	} else if acl == nil {
+	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1883,10 +1892,7 @@ func (a *ACL) GetAuthMethodsByName(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_methods"}, time.Now())
 
-	// For client typed tokens, allow them to query any auth methods associated
-	// with that token. This is used by clients which are resolving the auth
-	// methods to enforce. Any associated auth methods need to be fetched so
-	// that the client can determine what to allow.
+	// allow only management token holders to query this endpoint
 	token, err := a.requestACLToken(args.AuthToken)
 	if err != nil {
 		return err
@@ -1899,16 +1905,16 @@ func (a *ACL) GetAuthMethodsByName(
 	}
 
 	// Setup the blocking query
-	opts := blockingOptions{
+	return a.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, statestore *state.StateStore) error {
 			// Setup the output
 			reply.AuthMethods = make(map[string]*structs.ACLAuthMethod, len(args.Names))
 
 			// Look for the auth method
 			for _, methodName := range args.Names {
-				out, err := state.GetACLAuthMethodByName(ws, methodName)
+				out, err := statestore.GetACLAuthMethodByName(ws, methodName)
 				if err != nil {
 					return err
 				}
@@ -1917,13 +1923,10 @@ func (a *ACL) GetAuthMethodsByName(
 				}
 			}
 
-			// Use the last index that affected the auth methods table
-			index, err := state.Index("acl_auth_methods")
-			if err != nil {
-				return err
-			}
-			reply.Index = index
-			return nil
-		}}
-	return a.srv.blockingRPC(&opts)
+			// Use the index table to populate the query meta
+			return a.srv.setReplyQueryMeta(
+				statestore, state.TableACLAuthMethods, &reply.QueryMeta,
+			)
+		}},
+	)
 }
