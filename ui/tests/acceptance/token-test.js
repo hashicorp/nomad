@@ -305,7 +305,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     await Tokens.visit();
-    // await Tokens.clear();
+
     // Ember Concurrency makes testing iterations convoluted: https://ember-concurrency.com/docs/testing-debugging/
     // Waiting for half a second to validate that there's no warning;
     // then a further 5 seconds to validate that there is a warning, and to explicitly cancelAllTimers(),
@@ -315,7 +315,8 @@ module('Acceptance | tokens', function (hooks) {
         .dom('.flash-message.alert-error')
         .doesNotExist('No notification yet for a token with 10m5s left');
       notificationNotRendered();
-      setTimeout(() => {
+      setTimeout(async () => {
+        await percySnapshot(assert);
         assert
           .dom('.flash-message.alert-error')
           .exists('Notification is rendered at the 10m mark');
@@ -357,8 +358,11 @@ module('Acceptance | tokens', function (hooks) {
     let managerButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Manager')
     )[0];
-    console.log('mgr', managerButton, currentURL());
+
     assert.dom(managerButton).exists();
+
+    await percySnapshot(assert);
+
     await click(managerButton);
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
@@ -397,6 +401,8 @@ module('Acceptance | tokens', function (hooks) {
       '/settings/tokens?state=failure',
       'Redirected with failure state'
     );
+
+    await percySnapshot(assert);
     assert.ok(Tokens.ssoErrorMessage);
   });
 
