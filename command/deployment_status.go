@@ -90,6 +90,7 @@ func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
 	var json, verbose, monitor bool
+	var waitTime time.Duration
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -176,7 +177,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 		c.Ui.Output(fmt.Sprintf("%s: Monitoring deployment %q",
 			formatTime(time.Now()), limit(deploy.ID, length)))
-		c.monitor(client, deploy.ID, meta.LastIndex, verbose)
+		c.monitor(client, deploy.ID, meta.LastIndex, waitTime, verbose)
 
 		return 0
 	}
@@ -184,11 +185,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
 	if isStdoutTerminal() {
-		return c.ttyMonitor(client, deployID, index, verbose)
+		return c.ttyMonitor(client, deployID, index, wait, verbose)
 	} else {
-		return c.defaultMonitor(client, deployID, index, verbose)
+		return c.defaultMonitor(client, deployID, index, wait, verbose)
 	}
 }
 
@@ -211,7 +212,7 @@ func isStdoutTerminal() bool {
 // but only used for tty and non-Windows machines since glint doesn't work with
 // cmd/PowerShell and non-interactive interfaces
 // Margins are used to match the text alignment from job run
-func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
 	var length int
 	if verbose {
 		length = fullId
@@ -237,7 +238,7 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	q := api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
-		WaitTime:   2 * time.Second,
+		WaitTime:   wait,
 	}
 
 	var statusComponent *glint.LayoutComponent
@@ -335,7 +336,7 @@ UPDATE:
 				}
 
 				d.Close()
-				c.ttyMonitor(client, rollback.ID, index, verbose)
+				c.ttyMonitor(client, rollback.ID, index, wait, verbose)
 				return
 			} else {
 				endSpinner = glint.Layout(
@@ -365,7 +366,7 @@ UPDATE:
 }
 
 // Used for Windows and non-tty
-func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
 	writer := uilive.New()
 	writer.Start()
 	defer writer.Stop()
@@ -380,7 +381,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 	q := api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
-		WaitTime:   2 * time.Second,
+		WaitTime:   wait,
 	}
 
 	for {
@@ -442,7 +443,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 				if rollback.ID == deploy.ID {
 					return
 				}
-				c.defaultMonitor(client, rollback.ID, index, verbose)
+				c.defaultMonitor(client, rollback.ID, index, wait, verbose)
 			}
 			return
 
