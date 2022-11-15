@@ -72,7 +72,7 @@ func (s *HTTPServer) aclPolicyUpdate(resp http.ResponseWriter, req *http.Request
 	// Parse the policy
 	var policy structs.ACLPolicy
 	if err := decodeBody(req, &policy); err != nil {
-		return nil, CodedError(500, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Ensure the policy name matches
@@ -237,7 +237,7 @@ func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
 	// Parse the token
 	var token structs.ACLToken
 	if err := decodeBody(req, &token); err != nil {
-		return nil, CodedError(500, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Ensure the token accessor matches
@@ -304,7 +304,7 @@ func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Re
 
 	var args structs.OneTimeTokenExchangeRequest
 	if err := decodeBody(req, &args); err != nil {
-		return nil, CodedError(500, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
