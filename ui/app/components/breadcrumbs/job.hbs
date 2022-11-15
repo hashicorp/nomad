@@ -49,6 +49,9 @@
           <dd>
             {{this.job.trimmedName}}
           </dd>
+            {{#if this.job.namespace}}
+              <dt>{{this.job.namespace.name}}</dt>
+            {{/if}}
         </dl>
       </LinkTo>
     </li>
