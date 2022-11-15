@@ -129,9 +129,9 @@ $ curl \
 
 This endpoint creates or updates a variable.
 
-| Method | Path      | Produces           |
-|--------|-----------|--------------------|
-| `PUT`  | `/v1/var` | `application/json` |
+| Method | Path                | Produces           |
+|--------|---------------------|--------------------|
+| `PUT`  | `/v1/var/:var_path` | `application/json` |
 
 The table below shows this endpoint's support for [blocking queries] and
 [required ACLs].
@@ -179,7 +179,7 @@ $ curl \
   "CreateIndex": 1457,
   "ModifyIndex": 1457,
   "CreateTime": 1662061225600373000,
-  "ModifyTime": 1662061225600373000
+  "ModifyTime": 1662061225600373000,
   "Items": {
     "user": "me",
     "password": "passw0rd1"
