@@ -1712,8 +1712,13 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Update via Raft
-	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
+	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
 	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -1759,8 +1764,13 @@ func (a *ACL) DeleteAuthMethodsByName(
 	}
 
 	// Update via Raft
-	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
+	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
 	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 

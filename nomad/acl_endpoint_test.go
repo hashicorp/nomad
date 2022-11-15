@@ -2994,40 +2994,20 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 	var resp structs.ACLAuthMethodDeleteResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsByNameRPCMethod, req, &resp))
 	must.NotEq(t, uint64(0), resp.Index)
-}
 
-func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
-	t.Parallel()
-
-	s1, root, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	p1 := mock.ACLAuthMethod()
-
-	// Lookup the authMethods
-	req := &structs.ACLAuthMethodUpsertRequest{
-		AuthMethods: []*structs.ACLAuthMethod{p1},
+	// Try to delete a non-existing auth method
+	req = &structs.ACLAuthMethodDeleteRequest{
+		Names: []string{"non-existing-auth-method"},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			AuthToken: root.SecretID,
 		},
 	}
-	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	must.NotEq(t, uint64(0), resp.Index)
-
-	// Check we created the authMethod
-	out, err := s1.fsm.State().GetACLAuthMethodByName(nil, p1.Name)
-	must.Nil(t, err)
-	must.NotNil(t, out)
+	var resp2 structs.ACLAuthMethodDeleteResponse
+	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsByNameRPCMethod, req, &resp2))
 }
 
-func TestACLEndpoint_UpsertACLAuthMethods_Invalid(t *testing.T) {
+func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -3046,10 +3026,14 @@ func TestACLEndpoint_UpsertACLAuthMethods_Invalid(t *testing.T) {
 			AuthToken: root.SecretID,
 		},
 	}
-	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp)
-	must.NotNil(t, err)
-	if !strings.Contains(err.Error(), "failed to parse") {
-		t.Fatalf("bad: %s", err)
+	var resp structs.ACLAuthMethodUpsertResponse
+	if err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
 	}
+	must.NotEq(t, uint64(0), resp.Index)
+
+	// Check we created the authMethod
+	out, err := s1.fsm.State().GetACLAuthMethodByName(nil, am1.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
 }
