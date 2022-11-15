@@ -77,13 +77,15 @@
                 action=(action "gotoVolume" row.model)
               }}
             >
-              <LinkTo
-                @route="csi.volumes.volume"
-                @model={{row.model.idWithNamespace}}
-                class="is-primary"
-              >
-                {{row.model.name}}
-              </LinkTo>
+              <Tooltip @text={{row.model.plainId}}>
+                <LinkTo
+                  @route="csi.volumes.volume"
+                  @model={{row.model.idWithNamespace}}
+                  class="is-primary"
+                >
+                  {{row.model.name}}
+                </LinkTo>
+              </Tooltip>
             </td>
             {{#if this.system.shouldShowNamespaces}}
               <td data-test-volume-namespace>
