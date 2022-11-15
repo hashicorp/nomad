@@ -130,6 +130,9 @@ const (
 var (
 	// validACLRoleName is used to validate an ACL role name.
 	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// validACLAuthMethodName is used to validate an ACL auth method name.
+	validACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
@@ -667,8 +670,11 @@ func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
 func (a *ACLAuthMethod) Validate() error {
 	var mErr multierror.Error
 
-	// TODO what are validity conditions for an auth method?
-	// ¯\_(ツ)_/¯
+	if !validACLAuthMethod.MatchString(a.Name) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
+	}
+
+	// TODO revisit possible other validity conditions in the future
 
 	return mErr.ErrorOrNil()
 }
