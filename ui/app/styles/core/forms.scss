@@ -101,9 +101,12 @@
   text-align: center;
   background-color: white;
   h1 {
-    margin-bottom: 1rem;
     font-size: 2rem;
     font-weight: 400;
+  }
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
   }
   .providers {
     display: grid;

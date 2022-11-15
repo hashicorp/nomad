@@ -1,7 +1,8 @@
 {{page-title "Mock OIDC Test Page"}}
 
 <section class="mock-sso-provider">
-  <h1>Pretend this is {{this.auth_method}} for a sec</h1>
+  <h1>OIDC Test route: {{this.auth_method}}</h1>
+  <h2>(Mirage only)</h2>
   <div class="providers">
     {{#each this.model as |fakeAccount|}}
       <button type="button" class="button" {{on "click" (fn this.signIn fakeAccount)}}>
