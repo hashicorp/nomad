@@ -48,10 +48,10 @@
           </dt>
           <dd>
             {{this.job.trimmedName}}
-          </dd>
             {{#if this.job.namespace}}
-              <dt>{{this.job.namespace.name}}</dt>
+              <span>@{{this.job.namespace.name}}</span>
             {{/if}}
+          </dd>
         </dl>
       </LinkTo>
     </li>
