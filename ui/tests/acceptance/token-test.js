@@ -1,5 +1,5 @@
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, visit, click } from '@ember/test-helpers';
+import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -343,6 +343,61 @@ module('Acceptance | tokens', function (hooks) {
       secretId,
       'Token secret was set'
     );
+  });
+
+  test('SSO Sign-in flow', async function (assert) {
+    server.create('auth-method', { name: 'vault' });
+    server.create('auth-method', { name: 'cognito' });
+    server.create('token', { name: 'Thelonious' });
+
+    await Tokens.visit();
+    assert.dom('[data-test-auth-method]').exists({ count: 2 });
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+    let managerButton = [...findAll('button')].filter((btn) =>
+      btn.textContent.includes('Sign In as Manager')
+    )[0];
+    console.log('mgr', managerButton, currentURL());
+    assert.dom(managerButton).exists();
+    await click(managerButton);
+
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Manager');
+    await Tokens.clear();
+
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+
+    let newTokenButton = [...findAll('button')].filter((btn) =>
+      btn.textContent.includes('Sign In as Thelonious')
+    )[0];
+    assert.dom(newTokenButton).exists();
+    await click(newTokenButton);
+
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
+  });
+
+  test('It shows an error on failed SSO', async function (assert) {
+    server.create('auth-method', { name: 'vault' });
+    await visit('/settings/tokens?state=failure');
+    assert.ok(Tokens.ssoErrorMessage);
+    await Tokens.clearSSOError();
+    assert.equal(currentURL(), '/settings/tokens', 'State query param cleared');
+    assert.notOk(Tokens.ssoErrorMessage);
+
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+
+    let failureButton = find('.button.error');
+    assert.dom(failureButton).exists();
+    await click(failureButton);
+    assert.equal(
+      currentURL(),
+      '/settings/tokens?state=failure',
+      'Redirected with failure state'
+    );
+    assert.ok(Tokens.ssoErrorMessage);
   });
 
   test('when the ott exchange fails an error is shown', async function (assert) {

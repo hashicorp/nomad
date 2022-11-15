@@ -28,9 +28,7 @@ export default class AuthMethodAdapter extends ApplicationAdapter {
    * @returns
    */
   getAuthURL({ AuthMethod, RedirectUri, ClientNonce, Meta }) {
-    console.log('paramas', AuthMethod, RedirectUri, ClientNonce, Meta);
     const url = `/${this.namespace}/oidc/auth-url`;
-    // return this.ajax(url, 'GET');
     return this.ajax(url, 'POST', {
       data: {
         AuthMethod,

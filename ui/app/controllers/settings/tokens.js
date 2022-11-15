@@ -7,11 +7,13 @@ import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
+import Ember from 'ember';
 
 @classic
 export default class Tokens extends Controller {
   @service token;
   @service store;
+  @service router;
 
   queryParams = ['code', 'state'];
 
@@ -96,10 +98,16 @@ export default class Tokens extends Controller {
       .getAuthURL({
         AuthMethod: provider,
         ClientNonce: nonce,
-        RedirectUri: window.location.toString(), // TODO: decide if you want them back on /tokens.
+        RedirectUri: Ember.testing
+          ? this.router.currentURL
+          : window.location.toString(),
       })
       .then(({ AuthURL }) => {
-        window.location = AuthURL;
+        if (Ember.testing) {
+          this.router.transitionTo(AuthURL.split('/ui')[1]);
+        } else {
+          window.location = AuthURL;
+        }
       });
   }
 

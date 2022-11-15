@@ -58,6 +58,7 @@
               <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
               {{#each this.model.authMethods as |method|}}
                 <button
+                  data-test-auth-method
                   class="button is-info"
                   onclick={{action "redirectToSSO" method}}
                   type="button"
@@ -90,14 +91,14 @@
           {{/if}}
 
           {{#if this.SSOFailure}}
-            <div data-test-token-error class="notification is-danger">
+            <div data-test-sso-error class="notification is-danger">
               <div class="columns">
                 <div class="column">
                   <h3 class="title is-4">Failed to sign in with SSO</h3>
-                  <p>Your OIDC has failed to sign in; please try again or contact your SSO administrator.</p>
+                  <p>Your OIDC provider has failed on sign in; please try again or contact your SSO administrator.</p>
                 </div>
                 <div class="column is-centered is-minimum">
-                  <button data-test-token-clear class="button is-info" {{action (mut this.state)}} type="button">Clear</button>
+                  <button data-test-sso-error-clear class="button is-info" {{action (mut this.state)}} type="button">Clear</button>
                 </div>
               </div>
             </div>
@@ -120,7 +121,7 @@
           </div>
 
           {{#unless this.tokenRecord.isExpired}}
-            <h3 class="title is-4">Token: {{this.tokenRecord.name}}</h3>
+            <h3 data-test-token-name class="title is-4">Token: {{this.tokenRecord.name}}</h3>
             <div class="content">
               <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
               <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
