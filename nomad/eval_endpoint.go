@@ -234,6 +234,9 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 		return err
 	}
 
+	// It's not necessary to cancel evals before Ack returns, but it's done here
+	// to commit canceled evals as close to the Ack'd eval being committed as
+	// possible.
 	return cancelCancelableEvals(e.srv)
 }
 
