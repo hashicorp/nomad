@@ -443,6 +443,11 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
+  // Note: Mirage-only route, for UI testing and not part of the Nomad API
+  this.get('/acl/tokens', function ({ tokens }, req) {
+    return this.serialize(tokens.all());
+  });
+
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
@@ -925,6 +930,34 @@ export default function () {
   this.get('/client/allocation/:id/checks', allocationServiceChecksHandler);
 
   //#endregion Services
+
+  //#region SSO
+  this.get('/acl/auth-methods', function (schema, request) {
+    return schema.authMethods.all();
+  });
+  this.post('/acl/oidc/auth-url', (schema, req) => {
+    const {AuthMethod, ClientNonce, RedirectUri, Meta} = JSON.parse(req.requestBody);
+    return new Response(200, {}, {
+      AuthURL: `/ui/oidc-mock?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`
+    });
+  });
+
+  // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
+  this.post('/acl/oidc/complete-auth', function (schema, req) {
+    const code = JSON.parse(req.requestBody).Code;
+    const token = schema.tokens.findBy({
+      id: code
+    });
+
+    return new Response(200, {}, {
+      ACLToken: token.secretId
+    });
+  }, {timing: 1000});
+
+
+
+
+  //#endregion SSO
 }
 
 function filterKeys(object, ...keys) {

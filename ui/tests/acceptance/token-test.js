@@ -1,5 +1,5 @@
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, visit, click } from '@ember/test-helpers';
+import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -193,7 +193,6 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
 
     // Token with no TTL
-    await Tokens.clear();
     await Tokens.secret(clientToken.secretId).submit();
     assert
       .dom('[data-test-token-expiry]')
@@ -253,7 +252,6 @@ module('Acceptance | tokens', function (hooks) {
       ],
     };
     server.pretender.get('/v1/jobs', function () {
-      console.log('uhhhh');
       return [500, {}, JSON.stringify(expiredServerError)];
     });
 
@@ -307,7 +305,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     await Tokens.visit();
-    await Tokens.clear();
+
     // Ember Concurrency makes testing iterations convoluted: https://ember-concurrency.com/docs/testing-debugging/
     // Waiting for half a second to validate that there's no warning;
     // then a further 5 seconds to validate that there is a warning, and to explicitly cancelAllTimers(),
@@ -317,7 +315,8 @@ module('Acceptance | tokens', function (hooks) {
         .dom('.flash-message.alert-error')
         .doesNotExist('No notification yet for a token with 10m5s left');
       notificationNotRendered();
-      setTimeout(() => {
+      setTimeout(async () => {
+        await percySnapshot(assert);
         assert
           .dom('.flash-message.alert-error')
           .exists('Notification is rendered at the 10m mark');
@@ -345,6 +344,66 @@ module('Acceptance | tokens', function (hooks) {
       secretId,
       'Token secret was set'
     );
+  });
+
+  test('SSO Sign-in flow', async function (assert) {
+    server.create('auth-method', { name: 'vault' });
+    server.create('auth-method', { name: 'cognito' });
+    server.create('token', { name: 'Thelonious' });
+
+    await Tokens.visit();
+    assert.dom('[data-test-auth-method]').exists({ count: 2 });
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+    let managerButton = [...findAll('button')].filter((btn) =>
+      btn.textContent.includes('Sign In as Manager')
+    )[0];
+
+    assert.dom(managerButton).exists();
+
+    await percySnapshot(assert);
+
+    await click(managerButton);
+
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Manager');
+    await Tokens.clear();
+
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+
+    let newTokenButton = [...findAll('button')].filter((btn) =>
+      btn.textContent.includes('Sign In as Thelonious')
+    )[0];
+    assert.dom(newTokenButton).exists();
+    await click(newTokenButton);
+
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
+  });
+
+  test('It shows an error on failed SSO', async function (assert) {
+    server.create('auth-method', { name: 'vault' });
+    await visit('/settings/tokens?state=failure');
+    assert.ok(Tokens.ssoErrorMessage);
+    await Tokens.clearSSOError();
+    assert.equal(currentURL(), '/settings/tokens', 'State query param cleared');
+    assert.notOk(Tokens.ssoErrorMessage);
+
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+
+    let failureButton = find('.button.error');
+    assert.dom(failureButton).exists();
+    await click(failureButton);
+    assert.equal(
+      currentURL(),
+      '/settings/tokens?state=failure',
+      'Redirected with failure state'
+    );
+
+    await percySnapshot(assert);
+    assert.ok(Tokens.ssoErrorMessage);
   });
 
   test('when the ott exchange fails an error is shown', async function (assert) {

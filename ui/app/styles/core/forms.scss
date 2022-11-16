@@ -88,3 +88,35 @@
     font-weight: $weight-medium;
   }
 }
+
+
+.mock-sso-provider {
+  margin: 25vh auto;
+  width: 500px;
+  top: 25vh;
+  height: auto;
+  max-height: 50vh;
+  box-shadow: 0 0 0 100vw rgba(0, 2, 30, 0.8);
+  padding: 1rem;
+  text-align: center;
+  background-color: white;
+  h1 {
+    font-size: 2rem;
+    font-weight: 400;
+  }
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+  .providers {
+    display: grid;
+    gap: 0.5rem;
+    button {
+      background-color: #444;
+      color: white;
+      &.error {
+        background-color: darkred;
+      }
+    }
+  }
+}

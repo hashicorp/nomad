@@ -16,6 +16,9 @@ export default Factory.extend({
     UI: {
       Enabled: true,
     },
+    ACL: {
+      Enabled: true
+    },
     Version: {
       Version: '1.1.0',
       VersionMetadata: 'ent',
