@@ -1686,7 +1686,7 @@ func (a *ACL) UpsertAuthMethods(
 
 	// ACL auth methods can only be used once all servers in all federated
 	// regions have been upgraded to 1.5.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLAuthMethodVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
 			minACLAuthMethodVersion)
 	}
