@@ -3,7 +3,7 @@ locals {
 }
 
 resource "aws_instance" "server" {
-  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
+  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
@@ -19,18 +19,18 @@ resource "aws_instance" "server" {
   }
 }
 
-resource "aws_instance" "client_ubuntu_bionic_amd64" {
-  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
+resource "aws_instance" "client_ubuntu_jammy_amd64" {
+  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
-  count                  = var.client_count_ubuntu_bionic_amd64
+  count                  = var.client_count_ubuntu_jammy_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
   # Instance tags
   tags = {
-    Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
+    Name           = "${local.random_name}-client-ubuntu-jammy-amd64-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
     User           = data.aws_caller_identity.current.arn
   }
@@ -64,13 +64,13 @@ EOT
 
 }
 
-data "aws_ami" "ubuntu_bionic_amd64" {
+data "aws_ami" "ubuntu_jammy_amd64" {
   most_recent = true
   owners      = ["self"]
 
   filter {
     name   = "name"
-    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
+    values = ["${local.ami_prefix}-ubuntu-jammy-amd64-*"]
   }
 
   filter {
