@@ -2689,11 +2689,11 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 
 	// Create the register request
 	authMethod := mock.ACLAuthMethod()
-	s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod})
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod}))
 
 	anonymousAuthMethod := mock.ACLAuthMethod()
 	anonymousAuthMethod.Name = "anonymous"
-	s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod})
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod}))
 
 	// Lookup the authMethod
 	get := &structs.ACLAuthMethodByNameRequest{
@@ -2786,7 +2786,7 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 	// Create the register request
 	authMethod := mock.ACLAuthMethod()
 	authMethod2 := mock.ACLAuthMethod()
-	s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2})
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2}))
 
 	// Lookup the authMethod
 	get := &structs.ACLAuthMethodsByNameRequest{
@@ -2885,11 +2885,11 @@ func TestACLEndpoint_ListAuthMethods(t *testing.T) {
 
 	am1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	am2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2})
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
 
 	// Create a token
 	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token})
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token}))
 
 	// Lookup the authMethods with a management token
 	get := &structs.ACLAuthMethodListRequest{
@@ -2981,7 +2981,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 
 	// Create the register request
 	am1 := mock.ACLAuthMethod()
-	s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1})
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1}))
 
 	// Lookup the authMethods
 	req := &structs.ACLAuthMethodDeleteRequest{
