@@ -100,18 +100,18 @@ const (
 	// Reply: ACLAuthMethodListResponse
 	ACLListAuthMethodsRPCMethod = "ACL.ListAuthMethods"
 
-	// ACLGetAuthMethodRPCMethod is the RPC method for detailing an
-	// individual auth method using its name.
+	// ACLGetAuthMethodRPCMethod is the RPC method for detailing an individual
+	// auth method using its name.
 	//
-	// Args: ACLAuthMethodRequest
-	// Reply: ACLAuthMethodResponse
+	// Args: ACLAuthMethodGetRequest
+	// Reply: ACLAuthMethodGetResponse
 	ACLGetAuthMethodRPCMethod = "ACL.GetAuthMethod"
 
-	// ACLGetAuthMethodsRPCMethod is the RPC method for getting multiple
-	// auth methods using their names.
+	// ACLGetAuthMethodsRPCMethod is the RPC method for getting multiple auth
+	// methods using their names.
 	//
-	// Args: ACLAuthMethodsRequest
-	// Reply: ACLAuthMethodsResponse
+	// Args: ACLAuthMethodsGetRequest
+	// Reply: ACLAuthMethodsGetResponse
 	ACLGetAuthMethodsRPCMethod = "ACL.GetAuthMethods"
 )
 
@@ -708,31 +708,6 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	return c
 }
 
-// ACLAuthMethodUpsertRequest is used to upsert a set of auth methods
-type ACLAuthMethodUpsertRequest struct {
-	AuthMethods []*ACLAuthMethod
-	WriteRequest
-}
-
-// ACLAuthMethodUpsertResponse is a response of the upsert ACL auth methods
-// operation
-type ACLAuthMethodUpsertResponse struct {
-	WriteMeta
-}
-
-// ACLAuthMethodDeleteRequest is used to delete a set of auth methods by their
-// name
-type ACLAuthMethodDeleteRequest struct {
-	Names []string
-	WriteRequest
-}
-
-// ACLAuthMethodDeleteResponse is a response of the delete ACL auth methods
-// operation
-type ACLAuthMethodDeleteResponse struct {
-	WriteMeta
-}
-
 // ACLAuthMethodStub is used for listing ACL auth methods
 type ACLAuthMethodStub struct {
 	Name        string
@@ -756,26 +731,51 @@ type ACLAuthMethodListResponse struct {
 	QueryMeta
 }
 
-// ACLAuthMethodRequest is used to query a specific auth method
-type ACLAuthMethodRequest struct {
+// ACLAuthMethodGetRequest is used to query a specific auth method
+type ACLAuthMethodGetRequest struct {
 	MethodName string
 	QueryOptions
 }
 
-// ACLAuthMethodResponse is used to return a single auth method
-type ACLAuthMethodResponse struct {
+// ACLAuthMethodGetResponse is used to return a single auth method
+type ACLAuthMethodGetResponse struct {
 	AuthMethod *ACLAuthMethod
 	QueryMeta
 }
 
-// ACLAuthMethodsRequest is used to query a set of auth methods
-type ACLAuthMethodsRequest struct {
+// ACLAuthMethodsGetRequest is used to query a set of auth methods
+type ACLAuthMethodsGetRequest struct {
 	Names []string
 	QueryOptions
 }
 
-// ACLAuthMethodsResponse is used to return a set of auth methods
-type ACLAuthMethodsResponse struct {
+// ACLAuthMethodsGetResponse is used to return a set of auth methods
+type ACLAuthMethodsGetResponse struct {
 	AuthMethods map[string]*ACLAuthMethod
 	QueryMeta
+}
+
+// ACLAuthMethodUpsertRequest is used to upsert a set of auth methods
+type ACLAuthMethodUpsertRequest struct {
+	AuthMethods []*ACLAuthMethod
+	WriteRequest
+}
+
+// ACLAuthMethodUpsertResponse is a response of the upsert ACL auth methods
+// operation
+type ACLAuthMethodUpsertResponse struct {
+	WriteMeta
+}
+
+// ACLAuthMethodDeleteRequest is used to delete a set of auth methods by their
+// name
+type ACLAuthMethodDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLAuthMethodDeleteResponse is a response of the delete ACL auth methods
+// operation
+type ACLAuthMethodDeleteResponse struct {
+	WriteMeta
 }

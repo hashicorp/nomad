@@ -1834,8 +1834,8 @@ func (a *ACL) ListAuthMethods(
 }
 
 func (a *ACL) GetAuthMethod(
-	args *structs.ACLAuthMethodRequest,
-	reply *structs.ACLAuthMethodResponse) error {
+	args *structs.ACLAuthMethodGetRequest,
+	reply *structs.ACLAuthMethodGetResponse) error {
 
 	// Only allow operators to read an auth method when ACLs are enabled.
 	if !a.srv.config.ACLEnabled {
@@ -1891,8 +1891,8 @@ func (a *ACL) GetAuthMethod(
 
 // GetAuthMethods is used to get a set of auth methods
 func (a *ACL) GetAuthMethods(
-	args *structs.ACLAuthMethodsRequest,
-	reply *structs.ACLAuthMethodsResponse) error {
+	args *structs.ACLAuthMethodsGetRequest,
+	reply *structs.ACLAuthMethodsGetResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}

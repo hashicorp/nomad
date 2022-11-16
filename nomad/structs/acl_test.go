@@ -833,6 +833,16 @@ func Test_ACLRoleByNameRequest(t *testing.T) {
 	require.True(t, req.IsRead())
 }
 
+func Test_ACLAuthMethodListRequest(t *testing.T) {
+	req := ACLAuthMethodListRequest{}
+	must.True(t, req.IsRead())
+}
+
+func Test_ACLAuthMethodGetRequest(t *testing.T) {
+	req := ACLAuthMethodGetRequest{}
+	must.True(t, req.IsRead())
+}
+
 func TestACLAuthMethodSetHash(t *testing.T) {
 	ci.Parallel(t)
 
