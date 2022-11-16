@@ -2089,14 +2089,14 @@ func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface
 }
 
 func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete_by_name"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
 	var req structs.ACLAuthMethodDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
 	if err := n.state.DeleteACLAuthMethods(index, req.Names); err != nil {
-		n.logger.Error("DeleteACLAuthMethodsByName failed", "error", err)
+		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
 		return err
 	}
 

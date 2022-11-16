@@ -1727,8 +1727,8 @@ func (a *ACL) UpsertAuthMethods(
 	return nil
 }
 
-// DeleteAuthMethodsByName is used to delete auth methods
-func (a *ACL) DeleteAuthMethodsByName(
+// DeleteAuthMethods is used to delete auth methods
+func (a *ACL) DeleteAuthMethods(
 	args *structs.ACLAuthMethodDeleteRequest,
 	reply *structs.ACLAuthMethodDeleteResponse) error {
 	// Ensure ACLs are enabled, and always flow modification requests to the
@@ -1739,7 +1739,7 @@ func (a *ACL) DeleteAuthMethodsByName(
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward(
-		structs.ACLDeleteAuthMethodsByNameRPCMethod, args, args, reply); done {
+		structs.ACLDeleteAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
@@ -1833,9 +1833,9 @@ func (a *ACL) ListAuthMethods(
 	})
 }
 
-func (a *ACL) GetAuthMethodByName(
-	args *structs.ACLAuthMethodByNameRequest,
-	reply *structs.ACLAuthMethodByNameResponse) error {
+func (a *ACL) GetAuthMethod(
+	args *structs.ACLAuthMethodRequest,
+	reply *structs.ACLAuthMethodResponse) error {
 
 	// Only allow operators to read an auth method when ACLs are enabled.
 	if !a.srv.config.ACLEnabled {
@@ -1843,7 +1843,7 @@ func (a *ACL) GetAuthMethodByName(
 	}
 
 	if done, err := a.srv.forward(
-		structs.ACLGetAuthMethodByNameRPCMethod, args, args, reply); done {
+		structs.ACLGetAuthMethodRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
@@ -1889,15 +1889,15 @@ func (a *ACL) GetAuthMethodByName(
 	})
 }
 
-// GetAuthMethodsByName is used to get a set of auth methods
-func (a *ACL) GetAuthMethodsByName(
-	args *structs.ACLAuthMethodsByNameRequest,
-	reply *structs.ACLAuthMethodsByNameResponse) error {
+// GetAuthMethods is used to get a set of auth methods
+func (a *ACL) GetAuthMethods(
+	args *structs.ACLAuthMethodsRequest,
+	reply *structs.ACLAuthMethodsResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
 	if done, err := a.srv.forward(
-		structs.ACLGetAuthMethodsByNameRPCMethod, args, args, reply); done {
+		structs.ACLGetAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_methods"}, time.Now())

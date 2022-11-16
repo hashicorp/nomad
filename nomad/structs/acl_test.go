@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -830,4 +831,24 @@ func Test_ACLRoleByIDRequest(t *testing.T) {
 func Test_ACLRoleByNameRequest(t *testing.T) {
 	req := ACLRoleByNameRequest{}
 	require.True(t, req.IsRead())
+}
+
+func TestACLAuthMethodSetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	am := &ACLAuthMethod{
+		Name: "foo",
+		Type: "bad type",
+	}
+	out1 := am.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, am.Hash)
+	must.Eq(t, out1, am.Hash)
+
+	am.Type = "good type"
+	out2 := am.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, am.Hash)
+	must.Eq(t, out2, am.Hash)
+	must.NotEq(t, out1, out2)
 }

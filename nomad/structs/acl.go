@@ -87,12 +87,12 @@ const (
 	// Reply: ACLAuthMethodUpsertResponse
 	ACLUpsertAuthMethodsRPCMethod = "ACL.UpsertAuthMethods"
 
-	// ACLDeleteAuthMethodsByNameRPCMethod is the RPC method for batch deleting auth
+	// ACLDeleteAuthMethodsRPCMethod is the RPC method for batch deleting auth
 	// methods.
 	//
 	// Args: ACLAuthMethodDeleteRequest
 	// Reply: ACLAuthMethodDeleteResponse
-	ACLDeleteAuthMethodsByNameRPCMethod = "ACL.DeleteAuthMethodsByName"
+	ACLDeleteAuthMethodsRPCMethod = "ACL.DeleteAuthMethods"
 
 	// ACLListAuthMethodsRPCMethod is the RPC method for listing auth methods.
 	//
@@ -100,19 +100,19 @@ const (
 	// Reply: ACLAuthMethodListResponse
 	ACLListAuthMethodsRPCMethod = "ACL.ListAuthMethods"
 
-	// ACLGetAuthMethodByNameRPCMethod is the RPC method for detailing an
+	// ACLGetAuthMethodRPCMethod is the RPC method for detailing an
 	// individual auth method using its name.
 	//
-	// Args: ACLAuthMethodByNameRequest
-	// Reply: ACLAuthMethodByNameResponse
-	ACLGetAuthMethodByNameRPCMethod = "ACL.GetAuthMethodByName"
+	// Args: ACLAuthMethodRequest
+	// Reply: ACLAuthMethodResponse
+	ACLGetAuthMethodRPCMethod = "ACL.GetAuthMethod"
 
-	// ACLGetAuthMethodsByNameRPCMethod is the RPC method for getting multiple
+	// ACLGetAuthMethodsRPCMethod is the RPC method for getting multiple
 	// auth methods using their names.
 	//
-	// Args: ACLAuthMethodsByNameRequest
-	// Reply: ACLAuthMethodsByNameResponse
-	ACLGetAuthMethodsByNameRPCMethod = "ACL.GetAuthMethodsByName"
+	// Args: ACLAuthMethodsRequest
+	// Reply: ACLAuthMethodsResponse
+	ACLGetAuthMethodsRPCMethod = "ACL.GetAuthMethods"
 )
 
 const (
@@ -756,26 +756,26 @@ type ACLAuthMethodListResponse struct {
 	QueryMeta
 }
 
-// ACLAuthMethodByNameRequest is used to query a specific auth method
-type ACLAuthMethodByNameRequest struct {
+// ACLAuthMethodRequest is used to query a specific auth method
+type ACLAuthMethodRequest struct {
 	MethodName string
 	QueryOptions
 }
 
-// ACLAuthMethodByNameResponse is used to return a single auth method
-type ACLAuthMethodByNameResponse struct {
+// ACLAuthMethodResponse is used to return a single auth method
+type ACLAuthMethodResponse struct {
 	AuthMethod *ACLAuthMethod
 	QueryMeta
 }
 
-// ACLAuthMethodsByNameRequest is used to query a set of auth methods
-type ACLAuthMethodsByNameRequest struct {
+// ACLAuthMethodsRequest is used to query a set of auth methods
+type ACLAuthMethodsRequest struct {
 	Names []string
 	QueryOptions
 }
 
-// ACLAuthMethodsByNameResponse is used to return a set of auth methods
-type ACLAuthMethodsByNameResponse struct {
+// ACLAuthMethodsResponse is used to return a set of auth methods
+type ACLAuthMethodsResponse struct {
 	AuthMethods map[string]*ACLAuthMethod
 	QueryMeta
 }

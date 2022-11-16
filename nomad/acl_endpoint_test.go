@@ -2696,21 +2696,21 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod}))
 
 	// Lookup the authMethod
-	get := &structs.ACLAuthMethodByNameRequest{
+	get := &structs.ACLAuthMethodRequest{
 		MethodName: authMethod.Name,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			AuthToken: root.SecretID,
 		},
 	}
-	var resp structs.ACLAuthMethodByNameResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodByNameRPCMethod, get, &resp))
+	var resp structs.ACLAuthMethodResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, get, &resp))
 	must.Eq(t, uint64(1000), resp.Index)
 	must.Eq(t, authMethod, resp.AuthMethod)
 
 	// Lookup non-existing authMethod
 	get.MethodName = uuid.Generate()
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodByNameRPCMethod, get, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, get, &resp))
 	must.Eq(t, uint64(1001), resp.Index)
 	must.Nil(t, resp.AuthMethod)
 }
@@ -2739,7 +2739,7 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 	})
 
 	// Lookup the authMethod
-	req := &structs.ACLAuthMethodByNameRequest{
+	req := &structs.ACLAuthMethodRequest{
 		MethodName: am2.Name,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
@@ -2747,9 +2747,9 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 			AuthToken:     root.SecretID,
 		},
 	}
-	var resp structs.ACLAuthMethodByNameResponse
+	var resp structs.ACLAuthMethodResponse
 	start := time.Now()
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodByNameRPCMethod, req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, req, &resp))
 
 	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
@@ -2764,9 +2764,9 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 	})
 
 	req.QueryOptions.MinQueryIndex = 250
-	var resp2 structs.ACLAuthMethodByNameResponse
+	var resp2 structs.ACLAuthMethodResponse
 	start = time.Now()
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodByNameRPCMethod, req, &resp2))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, req, &resp2))
 
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
@@ -2789,15 +2789,15 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2}))
 
 	// Lookup the authMethod
-	get := &structs.ACLAuthMethodsByNameRequest{
+	get := &structs.ACLAuthMethodsRequest{
 		Names: []string{authMethod.Name, authMethod2.Name},
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			AuthToken: root.SecretID,
 		},
 	}
-	var resp structs.ACLAuthMethodsByNameResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsByNameRPCMethod, get, &resp))
+	var resp structs.ACLAuthMethodsResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, get, &resp))
 	must.Eq(t, uint64(1000), resp.Index)
 	must.Eq(t, 2, len(resp.AuthMethods))
 	must.Eq(t, authMethod, resp.AuthMethods[authMethod.Name])
@@ -2805,8 +2805,8 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 
 	// Lookup non-existing authMethod
 	get.Names = []string{uuid.Generate()}
-	resp = structs.ACLAuthMethodsByNameResponse{}
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsByNameRPCMethod, get, &resp))
+	resp = structs.ACLAuthMethodsResponse{}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, get, &resp))
 	must.Eq(t, uint64(1000), resp.Index)
 	must.Eq(t, 0, len(resp.AuthMethods))
 }
@@ -2835,7 +2835,7 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 	})
 
 	// Lookup the authMethod
-	req := &structs.ACLAuthMethodsByNameRequest{
+	req := &structs.ACLAuthMethodsRequest{
 		Names: []string{am2.Name},
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
@@ -2843,9 +2843,9 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 			AuthToken:     root.SecretID,
 		},
 	}
-	var resp structs.ACLAuthMethodsByNameResponse
+	var resp structs.ACLAuthMethodsResponse
 	start := time.Now()
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsByNameRPCMethod, req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, req, &resp))
 
 	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
@@ -2860,9 +2860,9 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 	})
 
 	req.QueryOptions.MinQueryIndex = 250
-	var resp2 structs.ACLAuthMethodsByNameResponse
+	var resp2 structs.ACLAuthMethodsResponse
 	start = time.Now()
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsByNameRPCMethod, req, &resp2))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, req, &resp2))
 
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
@@ -2992,7 +2992,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 		},
 	}
 	var resp structs.ACLAuthMethodDeleteResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsByNameRPCMethod, req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsRPCMethod, req, &resp))
 	must.NotEq(t, uint64(0), resp.Index)
 
 	// Try to delete a non-existing auth method
@@ -3004,7 +3004,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 		},
 	}
 	var resp2 structs.ACLAuthMethodDeleteResponse
-	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsByNameRPCMethod, req, &resp2))
+	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsRPCMethod, req, &resp2))
 }
 
 func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
