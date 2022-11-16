@@ -1190,8 +1190,10 @@ func TestLeader_Reelection(t *testing.T) {
 		}
 	}
 
-	// Shutdown the leader
+	// make sure we still have a leader, then shut it down
+	must.NotNil(t, leader, must.Sprint("expected there to be a leader"))
 	leader.Shutdown()
+
 	// Wait for new leader to elect
 	testutil.WaitForLeader(t, nonLeader.RPC)
 }
