@@ -3015,6 +3015,11 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	minTTL, _ := time.ParseDuration("10s")
+	maxTTL, _ := time.ParseDuration("24h")
+	s1.config.ACLAuthMethodMinExpirationTTL = minTTL
+	s1.config.ACLAuthMethodMaxExpirationTTL = maxTTL
+
 	// Create the register request
 	am1 := mock.ACLAuthMethod()
 
