@@ -562,7 +562,7 @@ type ACLAuthMethod struct {
 	Name          string
 	Type          string
 	TokenLocality string // is the token valid locally or globally?
-	MaxTokenTTL   string
+	MaxTokenTTL   time.Duration
 	Default       bool
 	Config        *ACLAuthMethodConfig
 
@@ -588,7 +588,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Type))
 	_, _ = hash.Write([]byte(a.TokenLocality))
-	_, _ = hash.Write([]byte(a.MaxTokenTTL))
+	_, _ = hash.Write([]byte(a.MaxTokenTTL.String()))
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
 	if a.Config != nil {
@@ -737,7 +737,7 @@ type ACLAuthMethodDeleteResponse struct {
 type ACLAuthMethodStub struct {
 	Name        string
 	Type        string
-	MaxTokenTTL string
+	MaxTokenTTL time.Duration
 	Config      *ACLAuthMethodConfig
 	CreateTime  time.Time
 	CreateIndex uint64
