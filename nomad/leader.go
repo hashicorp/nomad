@@ -365,6 +365,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Reap any duplicate blocked evaluations
 	go s.reapDupBlockedEvaluations(stopCh)
 
+	// Reap any cancelable evaluations
+	s.reapCancelableEvalsCh = s.reapCancelableEvaluations(stopCh)
+
 	// Periodically unblock failed allocations
 	go s.periodicUnblockFailedEvals(stopCh)
 
@@ -990,6 +993,66 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 			}
 		}
 	}
+}
+
+// reapCancelableEvaluations is used to reap evaluations that were marked
+// cancelable by the eval broker and should be canceled. These get swept up
+// whenever an eval Acks, but this ensures that we don't have a straggling batch
+// when the cluster doesn't have any more work to do. Returns a wake-up channel
+// that can be used to trigger a new reap without waiting for the timer
+func (s *Server) reapCancelableEvaluations(stopCh chan struct{}) chan struct{} {
+
+	wakeCh := make(chan struct{}, 1)
+	go func() {
+
+		timer, cancel := helper.NewSafeTimer(s.config.EvalReapCancelableInterval)
+		defer cancel()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-wakeCh:
+				cancelCancelableEvals(s)
+			case <-timer.C:
+				cancelCancelableEvals(s)
+				timer.Reset(s.config.EvalReapCancelableInterval)
+			}
+		}
+	}()
+
+	return wakeCh
+}
+
+// cancelCancelableEvals pulls a batch of cancelable evaluations from the eval
+// broker and updates their status to canceled.
+func cancelCancelableEvals(srv *Server) error {
+
+	const cancelDesc = "canceled after more recent eval was processed"
+
+	// We *can* send larger raft logs but rough benchmarks show that a smaller
+	// page size strikes a balance between throughput and time we block the FSM
+	// apply for other operations
+	cancelable := srv.evalBroker.Cancelable(structs.MaxUUIDsPerWriteRequest / 10)
+	if len(cancelable) > 0 {
+		for i, eval := range cancelable {
+			eval = eval.Copy()
+			eval.Status = structs.EvalStatusCancelled
+			eval.StatusDescription = cancelDesc
+			eval.UpdateModifyTime()
+			cancelable[i] = eval
+		}
+
+		update := &structs.EvalUpdateRequest{
+			Evals:        cancelable,
+			WriteRequest: structs.WriteRequest{Region: srv.Region()},
+		}
+		_, _, err := srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			srv.logger.Warn("eval cancel failed", "error", err, "method", "ack")
+			return err
+		}
+	}
+	return nil
 }
 
 // periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
