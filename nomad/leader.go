@@ -996,7 +996,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 }
 
 // reapCancelableEvaluations is used to reap evaluations that were marked
-// cancelable by the eval broker and should be cancelled. These get swept up
+// cancelable by the eval broker and should be canceled. These get swept up
 // whenever an eval Acks, but this ensures that we don't have a straggling batch
 // when the cluster doesn't have any more work to do
 func (s *Server) reapCancelableEvaluations(stopCh chan struct{}) {

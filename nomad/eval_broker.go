@@ -147,7 +147,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		evals:                make(map[string]int),
 		jobEvals:             make(map[structs.NamespacedID]string),
 		blocked:              make(map[structs.NamespacedID]BlockedEvaluations),
-		cancelable:           []*structs.Evaluation{},
+		cancelable:           make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
 		ready:                make(map[string]PendingEvaluations),
 		unack:                make(map[string]*unackEval),
 		waiting:              make(map[string]chan struct{}),
@@ -760,7 +760,7 @@ func (b *EvalBroker) flush() {
 	b.evals = make(map[string]int)
 	b.jobEvals = make(map[structs.NamespacedID]string)
 	b.blocked = make(map[structs.NamespacedID]BlockedEvaluations)
-	b.cancelable = []*structs.Evaluation{}
+	b.cancelable = make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest)
 	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
@@ -1023,10 +1023,7 @@ func (p *BlockedEvaluations) MarkForCancel() []*structs.Evaluation {
 	// will want to cancel most of them. Using heap.Remove requires we re-sort
 	// for each eval we remove. Because we expect to have at most one remaining,
 	// we'll just create a new heap.
-	retain := BlockedEvaluations{}
-
-	raw := heap.Pop(p)
-	heap.Push(&retain, raw)
+	retain := BlockedEvaluations{(heap.Pop(p)).(*structs.Evaluation)}
 
 	cancelable := make([]*structs.Evaluation, len(*p))
 	copy(cancelable, *p)
