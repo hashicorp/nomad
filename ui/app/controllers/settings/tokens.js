@@ -125,15 +125,18 @@ export default class Tokens extends Controller {
   }
 
   async validateSSO() {
-    const res = await this.token.authorizedRequest('/v1/acl/oidc/complete-auth', {
-      method: 'POST',
-      body: JSON.stringify({
-        AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
-        ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
-        Code: this.code,
-        State: this.state,
-      }),
-    });
+    const res = await this.token.authorizedRequest(
+      '/v1/acl/oidc/complete-auth',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+          ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
+          Code: this.code,
+          State: this.state,
+        }),
+      }
+    );
 
     if (res.ok) {
       const data = await res.json();
@@ -143,7 +146,7 @@ export default class Tokens extends Controller {
       this.state = null;
     } else {
       this.flashMessages.add({
-        title: "Error completing authentication",
+        title: 'Error completing authentication',
         message: res.statusText,
         type: 'error',
         destroyOnClick: false,
