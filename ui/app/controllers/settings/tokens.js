@@ -14,6 +14,7 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
+  @service flashMessages;
 
   queryParams = ['code', 'state'];
 
@@ -123,26 +124,34 @@ export default class Tokens extends Controller {
     }
   }
 
-  validateSSO() {
-    this.token
-      .authorizedRequest('/v1/acl/oidc/complete-auth', {
-        method: 'POST',
-        body: JSON.stringify({
-          AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
-          ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
-          Code: this.code,
-          State: this.state,
-        }),
-      })
-      .then(async (response) => {
-        if (response.ok) {
-          let json = await response.json();
-          this.token.set('secret', json.ACLToken);
-          this.verifyToken();
-          this.code = null;
-          this.state = null;
-        }
+  async validateSSO() {
+    const res = await this.token.authorizedRequest('/v1/acl/oidc/complete-auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+        ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
+        Code: this.code,
+        State: this.state,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      this.token.set('secret', data.ACLToken);
+      this.verifyToken();
+      this.code = null;
+      this.state = null;
+    } else {
+      this.flashMessages.add({
+        title: "Error completing authentication",
+        message: res.statusText,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
       });
+      this.code = null;
+      this.state = null;
+    }
   }
 
   get SSOFailure() {
