@@ -84,14 +84,14 @@ const (
 	// modifying auth methods.
 	//
 	// Args: ACLAuthMethodsUpsertRequest
-	// Reply: GenericResponse
+	// Reply: ACLAuthMethodUpsertResponse
 	ACLUpsertAuthMethodsRPCMethod = "ACL.UpsertAuthMethods"
 
 	// ACLDeleteAuthMethodsByNameRPCMethod is the RPC method for batch deleting auth
 	// methods.
 	//
 	// Args: ACLAuthMethodDeleteRequest
-	// Reply: GenericResponse
+	// Reply: ACLAuthMethodDeleteResponse
 	ACLDeleteAuthMethodsByNameRPCMethod = "ACL.DeleteAuthMethodsByName"
 
 	// ACLListAuthMethodsRPCMethod is the RPC method for listing auth methods.
