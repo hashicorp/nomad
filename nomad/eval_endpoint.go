@@ -233,7 +233,11 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
 	}
-	return nil
+
+	// It's not necessary to cancel evals before Ack returns, but it's done here
+	// to commit canceled evals as close to the Ack'd eval being committed as
+	// possible.
+	return cancelCancelableEvals(e.srv)
 }
 
 // Nack is used to negative acknowledge completion of a dequeued evaluation.
