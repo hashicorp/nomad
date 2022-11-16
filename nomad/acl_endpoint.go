@@ -1705,7 +1705,9 @@ func (a *ACL) UpsertAuthMethods(
 
 	// Validate each auth method, compute hash
 	for idx, authMethod := range args.AuthMethods {
-		if err := authMethod.Validate(); err != nil {
+		if err := authMethod.Validate(
+			a.srv.config.ACLAuthMethodMinExpirationTTL,
+			a.srv.config.ACLAuthMethodMaxExpirationTTL); err != nil {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth method %d invalid: %v", idx, err)
 		}
 		authMethod.SetHash()

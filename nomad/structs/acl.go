@@ -627,13 +627,8 @@ func (a *ACLAuthMethod) SetHash() []byte {
 
 func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
 	return &ACLAuthMethodStub{
-		Config:      a.Config,
-		CreateIndex: a.CreateIndex,
-		Hash:        a.Hash,
-		MaxTokenTTL: a.MaxTokenTTL,
-		ModifyIndex: a.ModifyIndex,
-		Name:        a.Name,
-		Type:        a.Type,
+		Name:    a.Name,
+		Default: a.Default,
 	}
 }
 
@@ -667,14 +662,31 @@ func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
 	return c
 }
 
-func (a *ACLAuthMethod) Validate() error {
+// Validate returns an error is the ACLAuthMethod is invalid.
+//
+// TODO revisit possible other validity conditions in the future
+func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	var mErr multierror.Error
 
 	if !validACLAuthMethod.MatchString(a.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
-	// TODO revisit possible other validity conditions in the future
+	if !slices.Contains([]string{"local", "global"}, a.TokenLocality) {
+		mErr.Errors = append(
+			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
+	}
+
+	if a.Type != "OIDC" {
+		mErr.Errors = append(
+			mErr.Errors, fmt.Errorf("invalid token type '%s'", a.Type))
+	}
+
+	if minTTL > a.MaxTokenTTL || a.MaxTokenTTL > maxTTL {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf(
+			"invalid MaxTokenTTL value '%s' (should be between %s and %s)",
+			a.MaxTokenTTL.String(), minTTL.String(), maxTTL.String()))
+	}
 
 	return mErr.ErrorOrNil()
 }
@@ -710,14 +722,8 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 
 // ACLAuthMethodStub is used for listing ACL auth methods
 type ACLAuthMethodStub struct {
-	Name        string
-	Type        string
-	MaxTokenTTL time.Duration
-	Config      *ACLAuthMethodConfig
-	CreateTime  time.Time
-	CreateIndex uint64
-	ModifyIndex uint64
-	Hash        []byte
+	Name    string
+	Default bool
 }
 
 // ACLAuthMethodListRequest is used to list auth methods
