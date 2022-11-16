@@ -439,6 +439,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 	defer krr.logger.Debug("exiting key replication")
 
 	store := krr.srv.fsm.State()
+	abandonCh := store.AbandonCh()
 	minIndex := uint64(0)
 
 	for {
@@ -447,12 +448,15 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 			return
 		case <-ctx.Done():
 			return
-		case <-store.AbandonCh():
+		case <-abandonCh:
+			// reset the blocking query to make sure we get all the keys from a
+			// restored snapshot
 			store = krr.srv.fsm.State()
+			abandonCh = store.AbandonCh()
 			minIndex = uint64(0)
 		default:
-			// ensure that we can abandon the blocking query periodically and
-			// give our other contexts a chance to fire
+			// ensure that we abandon the blocking query periodically to give
+			// other contexts a chance to fire
 			queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
 			defer queryCancel()
 
