@@ -119,7 +119,13 @@ The metric value can be:
 - `cpu` - allocated CPU as reported by calculating total allocatable against the
   total allocated by the scheduler.
 
+- `cpu-allocated` - the percentage of CPU used out of the total CPU allocated
+  for the allocation.
+
 - `memory` - allocated memory as reported by calculating total allocatable against
   the total allocated by the scheduler.
+
+- `memory-allocated` - the percentage of memory used out of the total memory
+  allocated for the allocation.
 
 [nomad_telemetry_stanza]: /docs/configuration/telemetry#inlinecode-publish_allocation_metrics
