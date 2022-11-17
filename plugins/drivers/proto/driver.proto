@@ -564,6 +564,10 @@ message Mount {
 
     // Readonly if set true, mounts the path in readonly mode
     bool readonly = 3;
+
+    // Propagation mode for the mount. Not exactly the same as the unix mount
+    // propagation flags. See callsite usage for details.
+    string propagation_mode = 4;
 }
 
 message Device {
