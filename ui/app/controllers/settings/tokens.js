@@ -51,6 +51,7 @@ export default class Tokens extends Controller {
   @action
   verifyToken() {
     const { secret } = this;
+    if (!secret) return;
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
     this.set('token.secret', secret);
@@ -145,7 +146,7 @@ export default class Tokens extends Controller {
       this.state = null;
       this.code = null;
     } else {
-      this.state = "failure";
+      this.state = 'failure';
       this.code = null;
     }
   }
@@ -161,5 +162,4 @@ export default class Tokens extends Controller {
   get shouldShowPolicies() {
     return this.tokenRecord;
   }
-
 }

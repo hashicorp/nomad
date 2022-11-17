@@ -50,7 +50,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.equal(document.title, 'Tokens - Nomad');
+    assert.equal(document.title, 'Authorization - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(

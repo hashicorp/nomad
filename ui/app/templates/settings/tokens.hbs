@@ -6,44 +6,6 @@
     <h1 class="title">Authorization and access control</h1>
 
     <div class="status-notifications">
-      {{#if this.tokenRecord.isExpired}}
-        <div data-test-token-expired class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Your token has expired</h3>
-              <p>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</p>
-            </div>
-            <div class="column is-centered is-minimum">
-              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
-            </div>
-          </div>
-        </div>
-      {{/if}}
-
-      {{#if this.token.tokenNotFound}}
-        <div data-test-token-not-found class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Your token was not found</h3>
-              <p>It may have expired, or been entered incorrectly.</p>
-            </div>
-            <div class="column is-centered is-minimum">
-              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
-            </div>
-          </div>
-        </div>
-      {{/if}}
-
-      {{#if this.successfulSignIn}}
-        <div data-test-token-success class="notification is-success">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Token Authenticated!</h3>
-              <p>Your token is valid and authorized for the following policies.</p>
-            </div>
-          </div>
-        </div>
-      {{/if}}
 
       {{#if this.unsuccessfulSignIn}}
         <div data-test-token-error class="notification is-danger">
@@ -56,8 +18,47 @@
         </div>
       {{/if}}
 
+      {{#if this.tokenRecord.isExpired}}
+        <div data-test-token-expired class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">Your authentication has expired</h3>
+              <p>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Sign In Again</button>
+            </div>
+          </div>
+        </div>
+      {{else}}
+        {{#if this.successfulSignIn}}
+          <div data-test-token-success class="notification is-success">
+            <div class="columns">
+              <div class="column">
+                <h3 class="title is-4">Token Authenticated!</h3>
+                <p>Your token is valid and authorized for the following policies.</p>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/if}}
+
+      {{#if this.token.tokenNotFound}}
+        <div data-test-token-not-found class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">Your token was not found</h3>
+              <p>It may have expired, or been entered incorrectly.</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Sign In Again</button>
+            </div>
+          </div>
+        </div>
+      {{/if}}
+
       {{#if this.SSOFailure}}
-        <div data-test-sso-error class="notification is-danger column is-half">
+        <div data-test-sso-error class="notification is-danger column">
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Failed to sign in with SSO</h3>
@@ -95,15 +96,17 @@
           <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID, each future request will be authenticated, potentially authorizing read access to additional information.</p>
           <label class="label" for="token-input">Secret ID</label>
           <div class="control">
-            <input
+            <Input
               id="token-input"
               class="input"
-              type="text"
+              @type="text"
               placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
               {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
-              value={{this.token.secret}}
-              oninput={{action (mut this.secret) value="target.value"}}
-              data-test-token-secret>
+              @value={{this.token.secret}}
+              {{autofocus}}
+              {{on "input" (action (mut this.secret) value="target.value")}}
+              @enter={{this.verifyToken}}
+              data-test-token-secret />
           </div>
           <p class="help">Sent with every request to determine authorization</p>
           <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button>
@@ -156,69 +159,6 @@
         </div>
       {{/if}}
     </div>
-
-{{!-- 
-      <div class="column is-two-thirds">
-        {{#if this.tokenRecord.isExpired}}
-          <div data-test-token-expired class="notification is-danger">
-            <div class="columns">
-              <div class="column">
-                <h3 class="title is-4">Your token has expired</h3>
-                <p>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</p>
-              </div>
-              <div class="column is-centered is-minimum">
-                <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
-              </div>
-            </div>
-          </div>
-        {{else if this.token.tokenNotFound}}
-          <div data-test-token-not-found class="notification is-danger">
-            <div class="columns">
-              <div class="column">
-                <h3 class="title is-4">Your token was not found</h3>
-                <p>It may have expired, or been entered incorrectly.</p>
-              </div>
-              <div class="column is-centered is-minimum">
-                <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Clear Token</button>
-              </div>
-            </div>
-          </div>
-        {{else}}
-
-          {{#unless this.tokenIsValid}}
-            <div class="field">
-              <label class="label" for="token-input">Secret ID</label>
-              <div class="control">
-                <input
-                  id="token-input"
-                  class="input"
-                  type="text"
-                  placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                  value={{this.token.secret}}
-                  oninput={{action (mut this.secret) value="target.value"}}
-                  data-test-token-secret>
-              </div>
-              <p class="help">Sent with every request to determine authorization</p>
-            </div>
-
-            <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
-            {{#if this.authMethods}}
-              <h3 class="title is-4">Sign in with SSO</h3>
-              <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
-              {{#each this.model.authMethods as |method|}}
-                <button
-                  data-test-auth-method
-                  class="button is-info"
-                  onclick={{action "redirectToSSO" method}}
-                  type="button"
-                >Sign in with with {{method.name}}
-                </button>
-              {{/each}}
-            {{/if}}
-          {{/unless}}
-
-        {{/if}}
-      </div> --}}
 
   {{/if}}
 </section>
