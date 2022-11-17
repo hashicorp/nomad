@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"time"
 
@@ -145,7 +146,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+			s.logger.Error("processing eval panicked scheduler - please report this as a bug!", "eval_id", eval.ID, "error", r, "stack_trace", string(debug.Stack()))
+			err = fmt.Errorf("failed to process eval: %v", r)
 		}
 	}()
 
