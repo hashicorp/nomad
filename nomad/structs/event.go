@@ -24,6 +24,7 @@ const (
 	TopicACLPolicy  Topic = "ACLPolicy"
 	TopicACLToken   Topic = "ACLToken"
 	TopicACLRole    Topic = "ACLRole"
+	TopicACLAuth    Topic = "ACLAuthMethod"
 	TopicService    Topic = "Service"
 	TopicAll        Topic = "*"
 
@@ -49,6 +50,8 @@ const (
 	TypeACLPolicyUpserted             = "ACLPolicyUpserted"
 	TypeACLRoleDeleted                = "ACLRoleDeleted"
 	TypeACLRoleUpserted               = "ACLRoleUpserted"
+	TypeACLAuthMethodUpserted         = "ACLAuthMethodUpserted"
+	TypeACLAuthMethodDeleted          = "ACLAuthMethodDeleted"
 	TypeServiceRegistration           = "ServiceRegistration"
 	TypeServiceDeregistration         = "ServiceDeregistration"
 )
