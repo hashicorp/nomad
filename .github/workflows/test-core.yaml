@@ -1,0 +1,109 @@
+name: Core CI Tests
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+env:
+  VERBOSE: 1
+  GOTESTARCH: amd64
+  CONSUL_VERSION: 1.12.6
+  VAULT_VERSION: 1.12.0
+  NOMAD_SLOW_TEST: 0
+  NOMAD_TEST_LOG_LEVEL: OFF
+jobs:
+  mods:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-golang@v1
+      - name: Get Go modules
+        run: |
+          make tidy
+          make bootstrap
+  checks:
+    needs: [mods]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # needs tags for checkproto
+      - uses: hashicorp/setup-golang@v1
+      - name: Run make check
+        run: |
+          make missing
+          make bootstrap
+          make check
+  compile:
+    needs: [mods, checks]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-11, windows-2019]
+    runs-on: ${{matrix.os}}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-golang@v1
+      - name: Run make dev
+        run: |
+          make bootstrap
+          make dev
+  tests-api:
+    needs: [mods]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-golang@v1
+      - name: Run API tests
+        env:
+          GOTEST_MOD: api
+        run: |
+          make bootstrap
+          make generate-all
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make test-nomad-module
+  tests-groups:
+    needs: [mods]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        groups:
+          - nomad
+          - client
+          - command
+          - drivers
+          - quick
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-golang@v1
+      - name: Run Matrix Tests
+        env:
+          GOTEST_GROUP: ${{matrix.groups}}
+        run: |
+          make bootstrap
+          make generate-all
+          make dev
+          hc-install install -version ${{env.VAULT_VERSION}} -path ${{env.GOBIN}} vault
+          hc-install install -version ${{env.CONSUL_VERSION}} -path ${{env.GOBIN}} consul
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make test-nomad
+

@@ -124,7 +124,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.7.0
+	go install gotest.tools/gotestsum@v1.8.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
@@ -137,7 +137,7 @@ deps:  ## Install build and development dependencies
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.5
 
@@ -289,30 +289,26 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 		fi
 
 .PHONY: test-nomad
-test-nomad: dev ## Run Nomad test suites
-	@echo "==> Running Nomad test suites:"
-	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad: GOTEST_PKGS=$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(GOTEST_GROUP))
+test-nomad: # dev ## Run Nomad unit tests
+	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
+	@echo "==> with packages $(GOTEST_PKGS)"
+	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		$(GOTEST_PKGS)
 
 .PHONY: test-nomad-module
-test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
-	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad-module: dev ## Run Nomad unit tests on sub-module
+	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
+	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		./...
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
@@ -415,3 +411,17 @@ ifneq (,$(wildcard version/version_ent.go))
 else
 	@$(CURDIR)/scripts/version.sh version/version.go version/version.go
 endif
+
+.PHONY: missing
+missing: ## Check for packages not being tested
+	@echo "==> Checking for packages not being tested ..."
+	@go run -modfile tools/go.mod tools/missing/main.go ci/test-core.json
+
+.PHONY: ec2info
+ec2info: ## Generate AWS EC2 CPU specification table
+	@echo "==> Generating AWS EC2 specifications ..."
+	@go run -modfile tools/go.mod tools/ec2info/main.go
+
+.PHONY: cl
+cl: ## Create a new Changelog entry
+	@go run -modfile tools/go.mod tools/cl-entry/main.go
