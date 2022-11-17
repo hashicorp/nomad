@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/shoenig/netlog"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
@@ -228,32 +230,46 @@ func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *a
 	}
 }
 
+var nlog = netlog.New("SC")
+
 // different compares the wanted state of the service registration with the actual
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
 func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+	nlog.Info("doing diff", "wanted", wanted.Name, "existing", existing.ID, "sidecar", sidecar)
 	switch {
 	case wanted.Kind != existing.Kind:
+		nlog.Info("kind")
 		return true
 	case wanted.ID != existing.ID:
+		nlog.Info("id")
 		return true
 	case wanted.Port != existing.Port:
+		nlog.Info("port")
 		return true
 	case wanted.Address != existing.Address:
+		nlog.Info("address")
 		return true
 	case wanted.Name != existing.Service:
+		nlog.Info("name")
 		return true
 	case wanted.EnableTagOverride != existing.EnableTagOverride:
+		nlog.Info("eto")
 		return true
 	case !maps.Equal(wanted.Meta, existing.Meta):
+		nlog.Info("eq meta")
 		return true
 	case !maps.Equal(wanted.TaggedAddresses, existing.TaggedAddresses):
+		nlog.Info("eq tag addr")
 		return true
 	case !helper.SliceSetEq(wanted.Tags, existing.Tags):
+		nlog.Info("tags")
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
+		nlog.Info("connect sidecar")
 		return true
 	}
+	nlog.Info("not different")
 	return false
 }
 
@@ -804,6 +820,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		sidecarInConsul := getNomadSidecar(id, servicesInConsul)
 
 		if !exists || agentServiceUpdateRequired(reason, serviceInNomad, serviceInConsul, sidecarInConsul) {
+			nlog.Info("reconcile", "register", "yes", "exists", exists, "reason", reason, "sInNomad", serviceInNomad)
 			if err = c.agentAPI.ServiceRegister(serviceInNomad); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
