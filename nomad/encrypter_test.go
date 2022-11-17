@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -299,6 +301,32 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	require.Eventually(t, checkReplicationFn(keyID3),
 		time.Second*5, time.Second,
 		"expected new servers to get replicated keys")
+
+	// Scenario: reload a snapshot
+
+	t.Logf("taking snapshot of node5")
+
+	snapshot, err := srv5.fsm.Snapshot()
+	must.NoError(t, err)
+
+	defer snapshot.Release()
+
+	// Persist so we can read it back
+	buf := bytes.NewBuffer(nil)
+	sink := &MockSink{buf, false}
+	must.NoError(t, snapshot.Persist(sink))
+
+	must.NoError(t, srv5.fsm.Restore(sink))
+
+	// rotate the key
+
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	require.NoError(t, err)
+	keyID4 := rotateResp.Key.KeyID
+
+	require.Eventually(t, checkReplicationFn(keyID4),
+		time.Second*5, time.Second,
+		"expected new servers to get replicated keys after snapshot restore")
 
 }
 
