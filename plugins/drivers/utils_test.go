@@ -76,9 +76,10 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 		},
 		Mounts: []*MountConfig{
 			{
-				TaskPath: "task",
-				HostPath: "host",
-				Readonly: true,
+				TaskPath:        "task",
+				HostPath:        "host",
+				Readonly:        true,
+				PropagationMode: "private",
 			},
 		},
 		Env:        map[string]string{"gir": "zim"},
