@@ -13,6 +13,9 @@
   }
 
   .status-notifications {
+    &.is-half {
+      width: 50%;
+    }
     margin-bottom: 1.5rem;
   }
 

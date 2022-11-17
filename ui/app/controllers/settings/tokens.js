@@ -51,7 +51,7 @@ export default class Tokens extends Controller {
   @action
   verifyToken() {
     const { secret } = this;
-    if (!secret) return;
+    this.clearTokenProperties();
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
     this.set('token.secret', secret);

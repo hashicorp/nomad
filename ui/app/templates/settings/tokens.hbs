@@ -5,7 +5,7 @@
   {{else}}
     <h1 class="title">Authorization and access control</h1>
 
-    <div class="status-notifications">
+    <div class="status-notifications {{if this.canSignIn "is-half"}}">
 
       {{#if this.unsuccessfulSignIn}}
         <div data-test-token-error class="notification is-danger">
@@ -49,9 +49,6 @@
             <div class="column">
               <h3 class="title is-4">Your token was not found</h3>
               <p>It may have expired, or been entered incorrectly.</p>
-            </div>
-            <div class="column is-centered is-minimum">
-              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Sign In Again</button>
             </div>
           </div>
         </div>
@@ -102,7 +99,6 @@
               @type="text"
               placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
               {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
-              @value={{this.token.secret}}
               {{autofocus}}
               {{on "input" (action (mut this.secret) value="target.value")}}
               @enter={{this.verifyToken}}
