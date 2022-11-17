@@ -187,7 +187,8 @@ func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch c
 	}
 
 	// Join the passed context and the shutdown context
-	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)
+	joinedCtx, joinedCtxCancel := joincontext.Join(ctx, d.doneCtx)
+	defer joinedCtxCancel()
 
 	resp, err := d.client.WaitTask(joinedCtx, req)
 	if err != nil {
