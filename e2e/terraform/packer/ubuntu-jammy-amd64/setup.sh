@@ -119,10 +119,14 @@ fi
 
 echo "Configuring dnsmasq"
 
+# disable systemd stub resolver
+sudo sed -i 's|#DNSStubListener=yes|DNSStubListener=no|g' /etc/systemd/resolved.conf
+
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC
 # address and docker bridge IP, so those will be rewritten at boot time.
 sudo systemctl disable systemd-resolved.service
+sudo systemctl stop systemd-resolved.service
 sudo mv /tmp/linux/dnsmasq /etc/dnsmasq.d/default
 sudo chown root:root /etc/dnsmasq.d/default
 
