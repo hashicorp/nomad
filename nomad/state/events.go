@@ -12,7 +12,6 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.EvalUpdateRequestType:                        structs.TypeEvalUpdated,
 	structs.AllocClientUpdateRequestType:                 structs.TypeAllocationUpdated,
 	structs.JobRegisterRequestType:                       structs.TypeJobRegistered,
-	structs.AllocUpdateRequestType:                       structs.TypeAllocationUpdated,
 	structs.NodeUpdateStatusRequestType:                  structs.TypeNodeEvent,
 	structs.JobDeregisterRequestType:                     structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:                structs.TypeJobBatchDeregistered,
