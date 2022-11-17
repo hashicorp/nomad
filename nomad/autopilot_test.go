@@ -190,6 +190,42 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	waitForStableLeadership(t, servers)
 }
 
+func TestAutopilot_MultiRegion(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := func(c *Config) {
+		c.NumSchedulers = 0 // reduces test log noise
+		c.BootstrapExpect = 3
+	}
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
+
+	s2, cleanupS2 := TestServer(t, conf)
+	defer cleanupS2()
+
+	s3, cleanupS3 := TestServer(t, conf)
+	defer cleanupS3()
+
+	// federated regions should not be considered raft peers or show up in the
+	// known servers list
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.Region = "other"
+	})
+	defer cleanupS4()
+
+	servers := []*Server{s1, s2, s3}
+	TestJoin(t, s1, s2, s3, s4)
+
+	t.Logf("waiting for initial stable cluster")
+	waitForStableLeadership(t, servers)
+
+	apDelegate := &AutopilotDelegate{s3}
+	known := apDelegate.KnownServers()
+	must.Eq(t, 3, len(known))
+
+}
+
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	ci.Parallel(t)
 
