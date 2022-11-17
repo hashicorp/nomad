@@ -160,7 +160,7 @@ type ACLsAPI interface {
 //	sidecar - Consul's view (agent, not catalog) of the service definition of the sidecar
 //	         associated with existing that may or may not exist.
 //	         May be nil.
-func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+func (s *ServiceClient) agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 	switch reason {
 	case syncPeriodic:
 		// In a periodic sync with Consul, we need to respect the value of
@@ -180,7 +180,7 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 		maybeTweakTaggedAddresses(wanted, existing)
 
 		// Okay now it is safe to compare.
-		return different(wanted, existing, sidecar)
+		return s.different(wanted, existing, sidecar)
 
 	default:
 		// A non-periodic sync with Consul indicates an operation has been set
@@ -192,7 +192,7 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 		maybeTweakTaggedAddresses(wanted, existing)
 
 		// Okay now it is safe to compare.
-		return different(wanted, existing, sidecar)
+		return s.different(wanted, existing, sidecar)
 	}
 }
 
@@ -231,27 +231,43 @@ func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *a
 // different compares the wanted state of the service registration with the actual
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
-func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+	trace := func(field string, left, right any) {
+		s.logger.Trace("registrations different", "id", wanted.ID,
+			"field", field, "wanted", fmt.Sprintf("%#v", left), "existing", fmt.Sprintf("%#v", right),
+		)
+	}
+
 	switch {
 	case wanted.Kind != existing.Kind:
+		trace("kind", wanted.Kind, existing.Kind)
 		return true
 	case wanted.ID != existing.ID:
+		trace("id", wanted.ID, existing.ID)
 		return true
 	case wanted.Port != existing.Port:
+		trace("port", wanted.Port, existing.Port)
 		return true
 	case wanted.Address != existing.Address:
+		trace("address", wanted.Address, existing.Address)
 		return true
 	case wanted.Name != existing.Service:
+		trace("service name", wanted.Name, existing.Service)
 		return true
 	case wanted.EnableTagOverride != existing.EnableTagOverride:
+		trace("enable_tag_override", wanted.EnableTagOverride, existing.EnableTagOverride)
 		return true
 	case !maps.Equal(wanted.Meta, existing.Meta):
+		trace("meta", wanted.Meta, existing.Meta)
 		return true
 	case !maps.Equal(wanted.TaggedAddresses, existing.TaggedAddresses):
+		trace("tagged_addresses", wanted.TaggedAddresses, existing.TaggedAddresses)
 		return true
 	case !helper.SliceSetEq(wanted.Tags, existing.Tags):
+		trace("tags", wanted.Tags, existing.Tags)
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
+		trace("connect_sidecar", wanted.Name, existing.Service)
 		return true
 	}
 	return false
@@ -803,7 +819,8 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		serviceInConsul, exists := servicesInConsul[id]
 		sidecarInConsul := getNomadSidecar(id, servicesInConsul)
 
-		if !exists || agentServiceUpdateRequired(reason, serviceInNomad, serviceInConsul, sidecarInConsul) {
+		if !exists || c.agentServiceUpdateRequired(reason, serviceInNomad, serviceInConsul, sidecarInConsul) {
+			c.logger.Trace("must register service", "id", id, "exists", exists, "reason", reason)
 			if err = c.agentAPI.ServiceRegister(serviceInNomad); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
