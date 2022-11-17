@@ -639,10 +639,6 @@ func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestEventsFromChanges_AllocUpdateRequestType(t *testing.T) {
-	t.SkipNow()
-}
-
 func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
 	t.SkipNow()
 }
