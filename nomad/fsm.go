@@ -819,41 +819,10 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
-	var req structs.AllocUpdateRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	// Attach the job to all the allocations. It is pulled out in the
-	// payload to avoid the redundancy of encoding, but should be denormalized
-	// prior to being inserted into MemDB.
-	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
-
-	for _, alloc := range req.Alloc {
-		// COMPAT(0.11): Remove in 0.11
-		// Calculate the total resources of allocations. It is pulled out in the
-		// payload to avoid encoding something that can be computed, but should be
-		// denormalized prior to being inserted into MemDB.
-		if alloc.Resources == nil {
-			alloc.Resources = new(structs.Resources)
-			for _, task := range alloc.TaskResources {
-				alloc.Resources.Add(task)
-			}
-
-			// Add the shared resources
-			alloc.Resources.Add(alloc.SharedResources)
-		}
-
-		// Handle upgrade path
-		alloc.Canonicalize()
-	}
-
-	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
-		n.logger.Error("UpsertAllocs failed", "error", err)
-		return err
-	}
+// DEPRECATED: AllocUpdateRequestType was removed in Nomad 0.6.0 when we built
+// Deployments. This handler remains so that older raft logs can be read without
+// panicking.
+func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) interface{} {
 	return nil
 }
 
