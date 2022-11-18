@@ -80,7 +80,7 @@ func (s *HTTPServer) namespaceUpdate(resp http.ResponseWriter, req *http.Request
 	// Parse the namespace
 	var namespace structs.Namespace
 	if err := decodeBody(req, &namespace); err != nil {
-		return nil, CodedError(500, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Ensure the namespace name matches
