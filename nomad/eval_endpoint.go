@@ -234,8 +234,13 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 		return err
 	}
 
-	// Wake up the eval cancelation reaper
-	e.srv.reapCancelableEvalsCh <- struct{}{}
+	// Wake up the eval cancelation reaper. This never blocks; if the buffer is
+	// full we know it's going to get picked up by the reaper so we don't need
+	// another send on that channel.
+	select {
+	case e.srv.reapCancelableEvalsCh <- struct{}{}:
+	default:
+	}
 	return nil
 }
 
