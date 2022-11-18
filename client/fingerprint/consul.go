@@ -9,7 +9,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -199,13 +198,9 @@ func (f *ConsulFingerprint) grpc(scheme string) func(info agentconsul.Self) (str
 			return "", false
 		}
 
-		// This check ensures that users running a 1.14.0 pre-release get the
-		// desired behaviour, otherwise 1.14.0-beta1 < 1.14.0 will be truthy.
-		versionsMatch := slices.Equal(consulGRPCPortChangeVersion.Segments(), consulVersion.Segments())
-
 		// If the Consul agent being fingerprinted is running a version less
 		// than 1.14.0 we use the original single gRPC port.
-		if consulVersion.LessThan(consulGRPCPortChangeVersion) && !versionsMatch {
+		if consulVersion.Core().LessThan(consulGRPCPortChangeVersion.Core()) {
 			return f.grpcPort(info)
 		}
 
