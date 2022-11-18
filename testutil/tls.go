@@ -47,24 +47,3 @@ func IsValidSigner(t *testing.T, keyPath string) bool {
 
 	return true
 }
-
-// switchToTempDir is meant to be used in a defer statement like:
-//
-//	defer switchToTempDir(t, testDir)()
-//
-// This exploits the fact that the body of a defer is evaluated
-// EXCEPT for the final function call invocation inline with the code
-// where it is found. Only the final evaluation happens in the defer
-// at a later time. In this case it means we switch to the temp
-// directory immediately and defer switching back in one line of test
-// code.
-func SwitchToTempDir(t *testing.T, testDir string) func() {
-	t.Helper()
-
-	previousDirectory, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(testDir))
-	return func() {
-		os.Chdir(previousDirectory)
-	}
-}
