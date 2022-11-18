@@ -27,9 +27,11 @@ destroy:
 
 # deploy what's in E2E nightly
 
+plan_full: export TF_LOG=TRACE
 plan_full:
 	terraform plan
 
+apply_full: export TF_LOG=TRACE
 apply_full:
 	@terraform apply -auto-approve \
 		-var="nomad_license=$(shell cat $(LICENSE_PATH))"
