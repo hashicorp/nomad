@@ -1076,7 +1076,7 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	receivedChange := eventsFromChanges(writeTxn, upsertChange)
 	must.NotNil(t, receivedChange)
 
-	// Check the event, and it's payload are what we are expecting.
+	// Check the event, and its payload are what we are expecting.
 	must.Len(t, 1, receivedChange.Events)
 	must.Eq(t, structs.TopicACLAuthMethod, receivedChange.Events[0].Topic)
 	must.Eq(t, authMethod.Name, receivedChange.Events[0].Key)
@@ -1097,7 +1097,7 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
 	must.NotNil(t, receivedDeleteChange)
 
-	// Check the event, and it's payload are what we are expecting.
+	// Check the event, and its payload are what we are expecting.
 	must.Len(t, 1, receivedDeleteChange.Events)
 	must.Eq(t, structs.TopicACLAuthMethod, receivedDeleteChange.Events[0].Topic)
 	must.Eq(t, authMethod.Name, receivedDeleteChange.Events[0].Key)
