@@ -5,9 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
+
+	"github.com/hashicorp/nomad/helper/tlsutil"
 )
 
 type TLSCertInfoCommand struct {
@@ -16,17 +17,9 @@ type TLSCertInfoCommand struct {
 
 func (c *TLSCertInfoCommand) Help() string {
 	helpText := `
-Usage: nomad tls cert info [Certificate File]
+Usage: nomad tls cert info <certificate file>
 
-Show certificate information
-
-$ nomad tls cert info global-server-nomad.pem
-Serial Number 314623649437549144006237783956683542664
-Issuer CN     Nomad Agent CA 58896012363767591697986789371079092261
-Common Name   CN=server.global.nomad
-Expiry Date   2023-09-25 22:32:55 +0000 UTC
-DNS Names     [server.global.nomad localhost]
-IP Addresses  [127.0.0.1] 
+  Show information about a TLS certificate.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,7 +36,7 @@ func (c *TLSCertInfoCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCertInfoCommand) Synopsis() string {
-	return "Show Certificate Information"
+	return "Show certificate information"
 }
 
 func (c *TLSCertInfoCommand) Name() string { return "tls cert info" }
@@ -72,7 +65,7 @@ func (c *TLSCertInfoCommand) Run(args []string) int {
 		file = args[0]
 		certFile, err = os.ReadFile(file)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error reading Certificate file: %v", err))
+			c.Ui.Error(fmt.Sprintf("Error reading certificate file: %v", err))
 			return 1
 		}
 	}

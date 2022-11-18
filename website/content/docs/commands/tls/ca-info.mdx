@@ -2,18 +2,19 @@
 layout: docs
 page_title: 'Commands: tls ca info'
 description: |
-  This command displays relevant information that is contained within a 
+  This command displays relevant information that is contained within a
   Certificate Authority certificate.
 ---
 
 # Command: nomad tls ca info
 
-Info is used to display relevant information that is contained within the provided certificate file.
+Info is used to display relevant information that is contained within the
+provided certificate file.
 
 ## Usage
 
 ```plaintext
-nomad tls ca info [file-name]
+nomad tls ca info <CA file>
 ```
 
 ## Example
@@ -29,7 +30,7 @@ Expiry Date            2027-11-13 21:37:38 +0000 UTC
 Permitted DNS Domains  []
 ```
 
-Display CA with a custom domain foo.com:
+Display CA with a custom domain "foo.com":
 
 ```shell-session
 $ nomad tls ca info foo.com-agent-ca.pem

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/posener/complete"
+
 	"github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/file"
-	"github.com/posener/complete"
 )
 
 type TLSCACreateCommand struct {
@@ -16,8 +17,9 @@ type TLSCACreateCommand struct {
 	// days is the number of days the CA will be valid for
 	days int
 
-	// constraint boolean enables the name constraint option in the CA which will then
-	// reject any domains other than the ones stipulated in -domain and -additional-domain.
+	// constraint boolean enables the name constraint option in the CA which
+	// will then reject any domains other than the ones stiputalted in -domain
+	// and -addtitional-domain.
 	constraint bool
 
 	// domain is used to provide a custom domain for the CA
@@ -26,8 +28,8 @@ type TLSCACreateCommand struct {
 	// commonName is used to set a common name for the CA
 	commonName string
 
-	// additionalDomain provides a list of restricted domains to the CA which will then
-	// reject any domains other than these.
+	// additionalDomain provides a list of restricted domains to the CA which
+	// will then reject any domains other than these.
 	additionalDomain flags.StringFlag
 }
 
@@ -35,27 +37,15 @@ func (c *TLSCACreateCommand) Help() string {
 	helpText := `
 Usage: nomad tls ca create [options]
 
-Here are some simple examples, more details can be found below or in 
-the documentation.
-
-Create a new Nomad CA
-
-  $ nomad tls ca create
-  ==> CA Certificate saved to: nomad-agent-ca.pem
-  ==> CA Certificate key saved to: nomad-agent-ca-key.pem
-
-  Create a new Nomad Certificate Authority
-
-  $ nomad tls ca create -domain foo
-  ==> CA Certificate saved to: foo-agent-ca.pem
-  ==> CA Certificate key saved to: foo-agent-ca-key.pem
-
+  Create a new certificate authority.
 
 CA Create Options:
+
   -additional-domain
-    Add additional DNS domains to the allowed list for the CA. Results in rejecting certificates
-    for other DNS domains than the ones specified in -domain and -additional-domain. 
-	This flag can be used multiple times. Only used in combination with -domain and -name-constraint.
+    Add additional DNS zones to the allowed list for the CA. The server will
+    reject certificates for DNS names other than those specified in -domain and
+    -additional-domain. This flag can be used multiple times. Only used in
+    combination with -domain and -name-constraint.
 
   -common-name
     Common Name of CA. Defaults to "Nomad Agent CA".
@@ -65,16 +55,15 @@ CA Create Options:
     Defaults to 5 years or 1825 days.
 
   -domain
-    Domain of Nomad cluster. Only used in combination with -name-constraint. 
-    Defaults to 'nomad'.
+    Domain of Nomad cluster. Only used in combination with -name-constraint.
+    Defaults to "nomad".
 
   -name-constraint
-    Enables the DNS name restriction functionality to the CA. Results in the CA rejecting
-    certificates for any other DNS zone. If enabled localhost and the value of
-    -domain will be added to the allowed DNS zones field. If the UI is going to be served 
-    over HTTPS its DNS has to be added with -additional-domain. It is not
-    possible to add that after the fact! Defaults to false.
-
+    Enables the DNS name restriction functionality to the CA. Results in the CA
+    rejecting certificates for any other DNS zone. If enabled, localhost and the
+    value of -domain will be added to the allowed DNS zones field. If the UI is
+    going to be served over HTTPS its hostname must be added with
+    -additional-domain. Defaults to false.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -95,7 +84,7 @@ func (c *TLSCACreateCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCACreateCommand) Synopsis() string {
-	return "Create a Certificate Authority for Nomad"
+	return "Create a certificate authority for Nomad"
 }
 
 func (c *TLSCACreateCommand) Name() string { return "tls ca create" }
