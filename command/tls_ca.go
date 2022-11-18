@@ -15,7 +15,7 @@ func (c *TLSCACommand) Help() string {
 	helpText := `
 Usage: nomad tls ca <subcommand> [options]
 
-This command has subcommands for interacting with Certificate Authorities.
+This command has subcommands for interacting with a local Certificate Authority.
 
 Here is a simple example, and more detailed examples are available
 in the subcommands or the documentation.
@@ -31,8 +31,6 @@ Create a CA
   Common Name            CN=Nomad Agent CA 58896012363767591697986789371079092261,O=HashiCorp Inc.,...
   Expiry Date            2027-09-24 22:24:08 +0000 UTC
   Permitted DNS Domains  []
-
-For more examples, ask for subcommand help or view the documentation.
 
 `
 	return strings.TrimSpace(helpText)

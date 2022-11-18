@@ -19,17 +19,17 @@ nomad tls ca create [options]
 ## CA Create Options
 
 - `-additional-name-constraint=<value>` : Add name constraints for the CA.
-  Results in rejecting certificates for other DNS than specified. Can be used
-  multiple times. Only used in combination with `-name-constraint`.
-- `common-name` : Common Name of CA. Defaults to Nomad Agent CA.
+  The server will reject certificates for DNS names other than those specified. Can be used
+  multiple times. This option can only used in combination with `-name-constraint`.
+- `common-name` : Common Name of CA. Defaults to `Nomad Agent CA`.
 - `-days=<int>` : Provide number of days the CA is valid for from now on, defaults to 5 years.
-- `-domain=<string>` : Domain of nomad cluster. Only used in combination with
+- `-domain=<string>` : Domain of Nomad cluster. Only used in combination with
   `-name-constraint`. Defaults to `nomad`.
 - `-name-constraint` : Add name constraints for the CA. Results in rejecting
   certificates for other DNS than specified. If turned on localhost and -domain
   will be added to the allowed DNS. If the UI is going to be served over HTTPS
   its DNS has to be added with `-additional-constraint`. It is not possible to
-  add that after the fact! Defaults to false.
+  add that after the fact. Defaults to false.
 
 
 ## Example

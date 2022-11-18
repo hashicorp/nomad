@@ -41,8 +41,6 @@ Create a client certificate
 
     $ nomad tls cert create -client
 
-For more examples, ask for subcommand help or view the documentation.
-
 `
 	return strings.TrimSpace(helpText)
 }
