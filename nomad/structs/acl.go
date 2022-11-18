@@ -133,6 +133,9 @@ var (
 
 	// validACLAuthMethodName is used to validate an ACL auth method name.
 	validACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// ACLAuthMethodSupportedTypes is a list of supported auth method types
+	ACLAuthMethodSupportedTypes []string = []string{"OIDC"}
 )
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
