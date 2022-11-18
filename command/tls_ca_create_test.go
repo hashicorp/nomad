@@ -14,8 +14,10 @@ import (
 
 func TestCACreateCommand(t *testing.T) {
 	testDir := t.TempDir()
-	defer testutil.SwitchToTempDir(t, testDir)()
-	t.TempDir()
+	previousDirectory, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(testDir))
+	defer os.Chdir(previousDirectory)
 
 	type testcase struct {
 		name       string
@@ -73,7 +75,7 @@ func TestCACreateCommand(t *testing.T) {
 	}
 	for _, tc := range cases {
 		tc := tc
-		require.True(t, t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
 			require.Equal(t, 0, cmd.Run(tc.args), ui.ErrorWriter.String())
@@ -90,7 +92,7 @@ func TestCACreateCommand(t *testing.T) {
 			tc.extraCheck(t, ca)
 			require.NoError(t, os.Remove(tc.caPath))
 			require.NoError(t, os.Remove(tc.keyPath))
-		}))
+		})
 	}
 
 }

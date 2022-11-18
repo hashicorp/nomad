@@ -3,6 +3,7 @@ package command
 import (
 	"crypto/x509"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -55,8 +56,10 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 
 func TestTlsCertCreateCommand_fileCreate(t *testing.T) {
 	testDir := t.TempDir()
-
-	defer testutil.SwitchToTempDir(t, testDir)()
+	previousDirectory, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(testDir))
+	defer os.Chdir(previousDirectory)
 
 	ui := cli.NewMockUi()
 	caCmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
