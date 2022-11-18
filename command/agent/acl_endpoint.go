@@ -477,7 +477,7 @@ func (s *HTTPServer) aclRoleUpsertRequest(
 	// Decode the ACL role.
 	var aclRole structs.ACLRole
 	if err := decodeBody(req, &aclRole); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Ensure the request path ID matches the ACL role ID that was decoded.
