@@ -300,7 +300,11 @@
                 {{#if (eq row.model.provider "nomad")}}
                   <FlightIcon @name="nomad-color" />
                 {{else}}
-                  <FlightIcon @name="consul-color" />
+                  {{#if row.model.connect}}
+                    <FlightIcon @name="mesh" @color="#c62a71" />
+                  {{else}}
+                    <FlightIcon @name="consul-color" />
+                  {{/if}}
                 {{/if}}
               </td>
               <td data-test-service-name class="is-long-text">
