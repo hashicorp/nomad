@@ -912,12 +912,20 @@
             "path": "commands/tls"
           },
           {
-            "title": "ca",
-            "path": "commands/tls/ca"
+            "title": "ca create",
+            "path": "commands/tls/ca-create"
           },
           {
-            "title": "cert",
-            "path": "commands/tls/cert"
+            "title": "ca info",
+            "path": "commands/tls/ca-info"
+          },
+          {
+            "title": "cert create",
+            "path": "commands/tls/cert-create"
+          },
+          {
+            "title": "cert info",
+            "path": "commands/tls/cert-info"
           }
         ]
       },
