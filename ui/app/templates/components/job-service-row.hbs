@@ -17,7 +17,11 @@
 			<FlightIcon @name="nomad-color" />
 			<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
 		{{else}}
-			<FlightIcon @name="consul-color" />
+      {{#if @service.connect}}
+        <FlightIcon @name="mesh" @color="#c62a71" />
+      {{else}}
+        <FlightIcon @name="consul-color" />
+      {{/if}}
 			{{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
 				<a class="is-primary" href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">
 					{{@service.name}}
