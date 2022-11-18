@@ -25,6 +25,11 @@ const (
 	// socketProxyStopWaitTime is the amount of time to wait for a socket proxy
 	// to stop before assuming something went awry and return a timeout error.
 	socketProxyStopWaitTime = 3 * time.Second
+
+	// consulGRPCFallbackPort is the last resort fallback port to use in
+	// combination with the Consul HTTP config address when creating the
+	// socket.
+	consulGRPCFallbackPort = "8502"
 )
 
 var (
@@ -45,10 +50,20 @@ type consulGRPCSocketHook struct {
 	proxy *grpcSocketProxy
 }
 
-func newConsulGRPCSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *consulGRPCSocketHook {
+func newConsulGRPCSocketHook(
+	logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir,
+	config *config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
+
+	// Attempt to find the gRPC port via the node attributes, otherwise use the
+	// default fallback.
+	consulGRPCPort, ok := nodeAttrs["consul.grpc"]
+	if !ok {
+		consulGRPCPort = consulGRPCFallbackPort
+	}
+
 	return &consulGRPCSocketHook{
 		alloc:  alloc,
-		proxy:  newGRPCSocketProxy(logger, allocDir, config),
+		proxy:  newGRPCSocketProxy(logger, allocDir, config, consulGRPCPort),
 		logger: logger.Named(consulGRPCSockHookName),
 	}
 }
@@ -119,21 +134,29 @@ type grpcSocketProxy struct {
 	allocDir *allocdir.AllocDir
 	config   *config.ConsulConfig
 
+	// consulGRPCFallbackPort is the port to use if the operator did not
+	// specify a gRPC config address.
+	consulGRPCFallbackPort string
+
 	ctx     context.Context
 	cancel  func()
 	doneCh  chan struct{}
 	runOnce bool
 }
 
-func newGRPCSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *grpcSocketProxy {
+func newGRPCSocketProxy(
+	logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig,
+	consulGRPCFallbackPort string) *grpcSocketProxy {
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &grpcSocketProxy{
-		allocDir: allocDir,
-		config:   config,
-		ctx:      ctx,
-		cancel:   cancel,
-		doneCh:   make(chan struct{}),
-		logger:   logger,
+		allocDir:               allocDir,
+		config:                 config,
+		consulGRPCFallbackPort: consulGRPCFallbackPort,
+		ctx:                    ctx,
+		cancel:                 cancel,
+		doneCh:                 make(chan struct{}),
+		logger:                 logger,
 	}
 }
 
@@ -173,7 +196,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 				p.config.Addr, err)
 		}
 
-		destAddr = net.JoinHostPort(host, "8502")
+		destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
 	}
 
 	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocGRPCSocket)
