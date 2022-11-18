@@ -35,7 +35,7 @@ type TLSCertCreateCommand struct {
 	// days is the number of days the certificate will be valid for.
 	days int
 
-	// cluster_region is used to add the region name to the certifacte SAN records
+	// cluster_region is used to add the region name to the certificate SAN records
 	cluster_region string
 
 	// domain is used to provide a custom domain for the certificate.
@@ -50,18 +50,10 @@ Usage: nomad tls cert create [options]
 
 Create a new certificate
 
-$ nomad tls cert create -server
-==> WARNING: Server Certificates grants authority to become a
-    server and access all state in the cluster including root keys
-    and all ACL tokens. Do not distribute them to production hosts
-    that are not server nodes. Store them as securely as CA keys.
-==> Using nomad-agent-ca.pem and nomad-agent-ca-key.pem
-==> Server Certificate saved to: global-server-nomad.pem
-==> Server Certificate key saved to: global-server-nomad-key.pem
-$ nomad tls cert create -client
-==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
-==> Client Certificate saved to global-client-nomad.pem
-==> Client Certificate key saved to global-client-nomad-key.pem
+This command allows you to create certificates to use within the Nomad cluster TLS configuration.
+You should use the -client, -server or -cli options to create certificates for these roles.
+The defaults for the commands should be good for most use cases.
+
 
 Certificate Create Options:
   -additional-dnsname
@@ -95,7 +87,7 @@ Certificate Create Options:
   -key
     Provide path to the key. Defaults to #DOMAIN#-agent-ca-key.pem.
 
-  - server
+  -server
     Generate server certificate.
 `
 	return strings.TrimSpace(helpText)

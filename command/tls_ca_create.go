@@ -17,7 +17,7 @@ type TLSCACreateCommand struct {
 	days int
 
 	// constraint boolean enables the name constraint option in the CA which will then
-	// reject any domains other than the ones stiputalted in -domain and -addtitiona-domain.
+	// reject any domains other than the ones stipulated in -domain and -additional-domain.
 	constraint bool
 
 	// domain is used to provide a custom domain for the CA
@@ -35,8 +35,6 @@ func (c *TLSCACreateCommand) Help() string {
 	helpText := `
 Usage: nomad tls ca create [options]
 
-Create a new Certificate Authority.
-
 Here are some simple examples, more details can be found below or in 
 the documentation.
 
@@ -46,7 +44,7 @@ Create a new Nomad CA
   ==> CA Certificate saved to: nomad-agent-ca.pem
   ==> CA Certificate key saved to: nomad-agent-ca-key.pem
 
-  Create a new Nomad CA with a Custiom Domain
+  Create a new Nomad Certificate Authority
 
   $ nomad tls ca create -domain foo
   ==> CA Certificate saved to: foo-agent-ca.pem
@@ -55,20 +53,20 @@ Create a new Nomad CA
 
 CA Create Options:
   -additional-domain
-    Add additional DNS zones to the allowed list for the CA. Results in rejecting certificates
-    for other DNS zone than the ones specified in -domain and -additional-domain. 
+    Add additional DNS domains to the allowed list for the CA. Results in rejecting certificates
+    for other DNS domains than the ones specified in -domain and -additional-domain. 
 	This flag can be used multiple times. Only used in combination with -domain and -name-constraint.
 
   -common-name
-    Common Name of CA. Defaults to Nomad Agent CA..
+    Common Name of CA. Defaults to "Nomad Agent CA".
 
   -days
     Provide number of days the CA is valid for from now on.
     Defaults to 5 years or 1825 days.
 
   -domain
-    Domain of nomad cluster. Only used in combination with -name-constraint. 
-    Defaults to nomad.
+    Domain of Nomad cluster. Only used in combination with -name-constraint. 
+    Defaults to 'nomad'.
 
   -name-constraint
     Enables the DNS name restriction functionality to the CA. Results in the CA rejecting
@@ -139,11 +137,11 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	pkFileName := fmt.Sprintf("%s-agent-ca-key.pem", c.domain)
 
 	if !(fileDoesNotExist(certFileName)) {
-		c.Ui.Error(fmt.Sprintf("CA Certificate File '%s' already exists", certFileName))
+		c.Ui.Error(fmt.Sprintf("CA certificate file '%s' already exists", certFileName))
 		return 1
 	}
 	if !(fileDoesNotExist(pkFileName)) {
-		c.Ui.Error(fmt.Sprintf("CA Key File '%s' already exists", pkFileName))
+		c.Ui.Error(fmt.Sprintf("CA key file '%s' already exists", pkFileName))
 		return 1
 	}
 
@@ -163,13 +161,13 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> CA Certificate saved to: " + certFileName)
+	c.Ui.Output("==> CA certificate saved to: " + certFileName)
 
 	if err := file.WriteAtomicWithPerms(pkFileName, []byte(pk), 0755, 0600); err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	c.Ui.Output("==> CA Certificate key saved to: " + pkFileName)
+	c.Ui.Output("==> CA certificate key saved to: " + pkFileName)
 
 	return 0
 }
