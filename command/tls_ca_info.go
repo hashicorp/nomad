@@ -16,17 +16,9 @@ type TLSCAInfoCommand struct {
 
 func (c *TLSCAInfoCommand) Help() string {
 	helpText := `
-Usage: nomad tls ca info [CA File Name]
+Usage: nomad tls ca info <CA file>
 
-Show certificate information
-
-$ nomad tls ca info nomad-agent-ca.pem
-nomad-agent-ca.pem
-Serial Number          314623649437549144006237783956683542664
-Issuer CN              Nomad Agent CA 58896012363767591697986789371079092261
-Common Name            CN=Nomad Agent CA 58896012363767591697986789371079092261,O=HashiCorp Inc.,...
-Expiry Date            2027-09-24 22:24:08 +0000 UTC
-Permitted DNS Domains  []
+  Show information about a certificate authority.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,7 +35,7 @@ func (c *TLSCAInfoCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCAInfoCommand) Synopsis() string {
-	return "Show CA Certificate Information"
+	return "Show certificate authority information"
 }
 
 func (c *TLSCAInfoCommand) Name() string { return "tls cert info" }

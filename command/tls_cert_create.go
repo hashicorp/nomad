@@ -7,10 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/posener/complete"
+
 	"github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/file"
-	"github.com/posener/complete"
 )
 
 type TLSCertCreateCommand struct {
@@ -29,13 +30,15 @@ type TLSCertCreateCommand struct {
 	cli    bool
 	client bool
 
-	// key is used to set the custom CA certificate key when creating certificates.
+	// key is used to set the custom CA certificate key when creating
+	// certificates.
 	key string
 
 	// days is the number of days the certificate will be valid for.
 	days int
 
-	// cluster_region is used to add the region name to the certificate SAN records
+	// cluster_region is used to add the region name to the certifacte SAN
+	// records
 	cluster_region string
 
 	// domain is used to provide a custom domain for the certificate.
@@ -48,47 +51,47 @@ func (c *TLSCertCreateCommand) Help() string {
 	helpText := `
 Usage: nomad tls cert create [options]
 
-Create a new certificate
-
-This command allows you to create certificates to use within the Nomad cluster TLS configuration.
-You should use the -client, -server or -cli options to create certificates for these roles.
-The defaults for the commands should be good for most use cases.
-
+  Create a new TLS certificate to use within the Nomad cluster TLS
+  configuration. You should use the -client, -server or -cli options to create
+  certificates for these roles.
 
 Certificate Create Options:
+
   -additional-dnsname
     Provide an additional dnsname for Subject Alternative Names.
-    localhost is always included. This flag may be provided multiple times.
+    "localhost" is always included. This flag may be provided multiple times.
 
   -additional-ipaddress
     Provide an additional ipaddress for Subject Alternative Names.
-    "127.0.0.1 is always included. This flag may be provided multiple times.")
+    "127.0.0.1" is always included. This flag may be provided multiple times.
 
   -ca
-    Provide path to the ca. Defaults to #DOMAIN#-agent-ca.pem.
+    Provide path to the certificate authority certificate. Defaults to
+    #DOMAIN#-agent-ca.pem.
 
   -cli
-    Generate cli certificate.
+    Generate a certificate for use with the Nomad CLI.
 
   -client
-    Generate client certificate.
-
-  -days
-    Provide number of days the certificate is valid for from now on. 
-    Defaults to 1 year.
+    Generate a client certificate.
 
   -cluster-region
-    Provide the datacenter. Matters only for -server certificates. 
-    Defaults to global.
+    Provide the datacenter. Only used for -server certificates.
+    Defaults to "global".
+
+  -days
+    Provide number of days the certificate is valid for from now on.
+    Defaults to 1 year.
 
   -domain
-    Provide the domain. Matters only for -server certificates.
-  
+    Provide the domain. Only used for -server certificates.
+
   -key
-    Provide path to the key. Defaults to #DOMAIN#-agent-ca-key.pem.
+    Provide path to the certificate authority key. Defaults to
+    #DOMAIN#-agent-ca-key.pem.
 
   -server
-    Generate server certificate.
+    Generate a server certificate.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -114,7 +117,7 @@ func (c *TLSCertCreateCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCertCreateCommand) Synopsis() string {
-	return "Create a new certificate"
+	return "Create a new TLS certificate"
 }
 
 func (c *TLSCertCreateCommand) Name() string { return "tls cert create" }
@@ -207,12 +210,12 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 
 	// Check if the CA file already exists
 	if !(fileDoesNotExist(tmpCert)) {
-		c.Ui.Error(fmt.Sprintf("Certificate File '%s' already exists", tmpCert))
+		c.Ui.Error(fmt.Sprintf("Certificate file '%s' already exists", tmpCert))
 		return 1
 	}
 	// Check if the Key file file already exists
 	if !(fileDoesNotExist(tmpPk)) {
-		c.Ui.Error(fmt.Sprintf("Key File '%s' already exists", tmpPk))
+		c.Ui.Error(fmt.Sprintf("Key file '%s' already exists", tmpPk))
 		return 1
 	}
 
@@ -283,7 +286,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	} else if c.client {
 		c.Ui.Output("==> Client Certificate key saved to " + pkFileName)
 	} else if c.cli {
-		c.Ui.Output("==> Cli Certificate key saved to " + pkFileName)
+		c.Ui.Output("==> CLI Certificate key saved to " + pkFileName)
 	}
 
 	return 0

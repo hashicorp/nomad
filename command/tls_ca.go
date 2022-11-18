@@ -15,23 +15,16 @@ func (c *TLSCACommand) Help() string {
 	helpText := `
 Usage: nomad tls ca <subcommand> [options]
 
-This command has subcommands for interacting with a local Certificate Authority.
+  This command groups subcommands for interacting with certificate authorities.
+  For examples, see the documentation.
 
-Here is a simple example, and more detailed examples are available
-in the subcommands or the documentation.
+  Create a certificate authority.
 
-Create a CA
+      $ nomad tls ca create
 
-  $ nomad tls ca create
-  ==> CA Certificate saved to: nomad-agent-ca.pem
-  ==> CA Certificate key saved to: nomad-agent-ca-key.pem
-  $ nomad tls ca info nomad-agent-ca.pem
-  nomad-agent-ca.pem
-  Issuer CN              Nomad Agent CA 58896012363767591697986789371079092261
-  Common Name            CN=Nomad Agent CA 58896012363767591697986789371079092261,O=HashiCorp Inc.,...
-  Expiry Date            2027-09-24 22:24:08 +0000 UTC
-  Permitted DNS Domains  []
+  Show information about a certificate authority.
 
+      $ nomad tls ca info
 `
 	return strings.TrimSpace(helpText)
 }
@@ -41,7 +34,7 @@ func (c *TLSCACommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *TLSCACommand) Synopsis() string {
-	return "Helpers for creating CAs"
+	return "Helpers for managing certificate authorities"
 }
 
 func (c *TLSCACommand) Name() string { return "tls ca" }
