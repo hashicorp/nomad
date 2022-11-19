@@ -5,6 +5,7 @@ package getter
 import (
 	"fmt"
 	"path/filepath"
+	"syscall"
 )
 
 // attributes returns the system process attributes to run
