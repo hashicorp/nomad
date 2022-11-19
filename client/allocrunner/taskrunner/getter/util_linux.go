@@ -34,7 +34,7 @@ func credentials() (uint32, uint32) {
 func minimalVars(taskDir string) []string {
 	tmpDir := filepath.Join(taskDir, "tmp")
 	return []string{
-		fmt.Sprintf("PATH=/usr/local/bin:/usr/bin:/bin"),
+		"PATH=/usr/local/bin:/usr/bin:/bin",
 		fmt.Sprintf("TMPDIR=%s", tmpDir),
 	}
 }
