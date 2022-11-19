@@ -2,6 +2,10 @@
 
 package getter
 
+import (
+	"path/filepath"
+)
+
 func minimalVars(taskDir string) []string {
 	tmpDir := filepath.Join(taskDir, "tmp")
 	return []string{

@@ -3,6 +3,9 @@
 package getter
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/shoenig/go-landlock"
 )

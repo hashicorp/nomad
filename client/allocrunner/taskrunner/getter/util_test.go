@@ -2,6 +2,7 @@ package getter
 
 import (
 	"errors"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -128,10 +129,20 @@ func TestUtil_getTaskDir(t *testing.T) {
 }
 
 func TestUtil_minimalVars(t *testing.T) {
+	var exp []string
+	switch runtime.GOOS {
+	case "windows":
+		exp = []string{
+			`PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;`,
+			`TMP=C:\path\to\task\tmp`,
+			`TEMP=C:\path\to\task\tmp`,
+		}
+	default:
+		exp = []string{
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/path/to/task/tmp",
+		}
+	}
 	result := minimalVars("/path/to/task")
-	must.Eq(t, []string{
-		"PATH=/usr/local/bin:/usr/bin:/bin",
-		"TMPDIR=/path/to/task/tmp",
-		"TMP=/path/to/task/tmp",
-	}, result)
+	must.Eq(t, exp, result)
 }
