@@ -41,6 +41,14 @@
 				</span>
 
 				<div>
+					{{#if @service.connect}}
+						<span class="pair">
+							<span class="term">
+								Connect
+							</span>
+              <span>True</span>
+						</span>
+					{{/if}}
 					<span class="pair">
 						<span class="term">
 							Allocation
@@ -139,6 +147,30 @@
 					</tr>
 				</t.body>
 			</ListTable>
+		{{/if}}
+		{{#if (eq @service.provider "consul")}}
+		<table class="table is-fixed connect-info">
+			<tbody>
+        {{#if @service.onUpdate}}
+          <tr>
+            <td><strong>On Update</strong></td>
+            <td>{{@service.onUpdate}}</td>
+          </tr>
+        {{/if}}
+        {{#if @service.connect.sidecarService.proxy.upstreams}}
+          <tr>
+            <td><strong>Upstreams</strong></td>
+            <td>
+                {{#each
+                  @service.connect.sidecarService.proxy.upstreams as |upstream|
+                }}
+                  <span class="tag">{{upstream.destinationName}}:{{upstream.localBindPort}}</span>
+                {{/each}}
+            </td>
+          </tr>
+        {{/if}}
+			</tbody>
+		</table>
 		{{/if}}
 		{{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
 		<div data-test-consul-link-notice class="notification is-info">

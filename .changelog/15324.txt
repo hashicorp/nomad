@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: add consul connect service upstream and on-update info to the service sidebar
+```

@@ -301,6 +301,9 @@
                   <FlightIcon @name="nomad-color" />
                 {{else}}
                   <FlightIcon @name="consul-color" />
+                  {{#if row.model.connect}}
+                    <FlightIcon @name="mesh" @color="#444444" />
+                  {{/if}}
                 {{/if}}
               </td>
               <td data-test-service-name class="is-long-text">
