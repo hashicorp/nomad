@@ -484,11 +484,10 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 		return nil, nil, err
 	}
 
-	l := len(deploys)
-	switch {
-	case l == 0:
+	switch len(deploys) {
+	case 0:
 		return nil, nil, fmt.Errorf("Deployment ID %q matched no deployments", dID)
-	case l == 1:
+	case 1:
 		return deploys[0], nil, nil
 	default:
 		return nil, deploys, nil
@@ -514,7 +513,8 @@ func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 	if d.IsMultiregion {
 		regions, err := fetchMultiRegionDeployments(c, d)
 		if err != nil {
-			base += "\n\nError fetching Multiregion deployments\n\n"
+			base += "\n\nError fetching multiregion deployment\n\n"
+			base += fmt.Sprintf("%v\n\n", err)
 		} else if len(regions) > 0 {
 			base += "\n\n[bold]Multiregion Deployment[reset]\n"
 			base += formatMultiregionDeployment(regions, uuidLength)
@@ -540,7 +540,7 @@ func fetchMultiRegionDeployments(c *api.Client, d *api.Deployment) (map[string]*
 
 	job, _, err := c.Jobs().Info(d.JobID, &api.QueryOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error fetching job: %v", err)
 	}
 
 	requests := make(chan regionResult, len(job.Multiregion.Regions))
@@ -572,7 +572,7 @@ func fetchRegionDeployment(c *api.Client, d *api.Deployment, region *api.Multire
 	opts := &api.QueryOptions{Region: region.Name}
 	deploys, _, err := c.Jobs().Deployments(d.JobID, false, opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error fetching deployments for job %s: %v", d.JobID, err)
 	}
 	for _, dep := range deploys {
 		if dep.JobVersion == d.JobVersion {
