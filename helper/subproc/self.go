@@ -1,11 +1,24 @@
 package subproc
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
-func Self() string {
+var (
+	// executable is the executable of this process
+	executable string
+)
+
+func init() {
 	s, err := os.Executable()
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to detect executable: %v", err))
 	}
-	return s
+	executable = s
+}
+
+// Self returns the path to the executable of this process.
+func Self() string {
+	return executable
 }
