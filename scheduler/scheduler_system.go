@@ -140,8 +140,8 @@ func (s *SystemScheduler) process() (bool, error) {
 		}
 	}
 
-	// Create a plan
-	s.plan = s.eval.MakePlan(s.job)
+	// Initialize plan
+	s.plan = s.eval.NewPlan(s.job)
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil

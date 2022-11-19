@@ -426,6 +426,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		PolicyOverride: args.PolicyOverride,
 		PreserveCounts: args.PreserveCounts,
 		EvalPriority:   args.EvalPriority,
+		Online:         args.Online,
 		WriteRequest:   *writeReq,
 	}
 

@@ -402,7 +402,9 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	if results.EvalID != "" {
 		// Update the modify index of the eval id
 		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
-			return err
+			//FIXME(schmichael) online job submission doesn't save the eval so this
+			//doesn't work, but I couldn't figure out how to get EvalID="" here
+			//return err
 		}
 	}
 

@@ -189,8 +189,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	ws := memdb.NewWatchSet()
-	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+
+	existingJob, err := snap.JobByID(nil, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
 	}
@@ -364,15 +364,26 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			submittedEval = true
 		}
 
-		// Commit this update via Raft
-		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-		if err, ok := fsmErr.(error); ok && err != nil {
-			j.logger.Error("registering job failed", "error", err, "fsm", true)
-			return err
-		}
-		if err != nil {
-			j.logger.Error("registering job failed", "error", err, "raft", true)
-			return err
+		var index uint64
+		if !args.Online {
+			// Commit this update via Raft
+			var fsmErr any
+			fsmErr, index, err = j.srv.raftApply(structs.JobRegisterRequestType, args)
+			if err, ok := fsmErr.(error); ok && err != nil {
+				j.logger.Error("registering job failed", "error", err, "fsm", true)
+				return err
+			}
+			if err != nil {
+				j.logger.Error("registering job failed", "error", err, "raft", true)
+				return err
+			}
+		} else {
+			// Schedule this job online and submit plan
+			index, err = j.scheduleJob(snap, args.Job, args.Eval)
+			if err != nil {
+				j.logger.Error("registering job online failed", "error", err)
+				return err
+			}
 		}
 
 		// Populate the reply with job information
@@ -437,6 +448,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	return nil
+}
+
+func (j *Job) scheduleJob(snap *state.StateSnapshot, job *structs.Job, eval *structs.Evaluation) (uint64, error) {
+
+	// Insert objects into state snapshot but ensure it's ignored
+	if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 1, job); err != nil {
+		return 0, err
+	}
+	if err := snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 1, []*structs.Evaluation{eval}); err != nil {
+		return 0, err
+	}
+
+	planner := NewLocalPlanner(j.logger, j.srv.planQueue)
+
+	// Create the scheduler and run it
+	sched, err := scheduler.NewScheduler(eval.Type, j.logger, j.srv.workersEventCh, snap, planner)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := sched.Process(eval); err != nil {
+		return 0, err
+	}
+
+	return planner.Result.AllocIndex, nil
 }
 
 // propagateScalingPolicyIDs propagates scaling policy IDs from existing job
