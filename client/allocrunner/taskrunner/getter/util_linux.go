@@ -5,6 +5,7 @@ package getter
 import (
 	"fmt"
 	"path/filepath"
+	"syscall"
 
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/shoenig/go-landlock"
@@ -27,8 +28,8 @@ func init() {
 		version = v
 	}
 
-	userUID = syscall.Getuid()
-	userGID = syscall.Getgid()
+	userUID = uint32(syscall.Getuid())
+	userGID = uint32(syscall.Getgid())
 }
 
 // attributes returns the system process attributes to run
