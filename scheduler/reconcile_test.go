@@ -6074,22 +6074,6 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			expected:        true,
 		},
 		{
-			name:            "multiregion periodic service is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      true,
-			isParameterized: false,
-			expected:        false,
-		},
-		{
-			name:            "multiregion parameterized service is not paused",
-			jobType:         structs.JobTypeService,
-			isMultiregion:   true,
-			isPeriodic:      false,
-			isParameterized: true,
-			expected:        false,
-		},
-		{
 			name:            "single region batch job is not paused",
 			jobType:         structs.JobTypeBatch,
 			isMultiregion:   false,
@@ -6102,6 +6086,22 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			jobType:         structs.JobTypeBatch,
 			isMultiregion:   false,
 			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion parameterized batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: true,
+			expected:        false,
+		},
+		{
+			name:            "multiregion periodic batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      true,
 			isParameterized: false,
 			expected:        false,
 		},
@@ -6119,8 +6119,18 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			require.NotNil(t, job, "invalid job type", tc.jobType)
 
+			var deployment *structs.Deployment
 			if tc.isMultiregion {
 				job.Multiregion = multiregionCfg
+
+				// This deployment is created by the Job.Register RPC and
+				// fetched by the scheduler before handing it to the
+				// reconciler.
+				if job.UsesDeployments() {
+					deployment = structs.NewDeployment(job, 100)
+					deployment.Status = structs.DeploymentStatusInitializing
+					deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+				}
 			}
 
 			if tc.isPeriodic {
@@ -6132,8 +6142,8 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(
-				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-				nil, nil, nil, "", job.Priority, true)
+				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, deployment,
+				nil, nil, "", job.Priority, true)
 
 			_ = reconciler.Compute()
 
