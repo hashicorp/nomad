@@ -594,10 +594,41 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
+	if req.Deployment != nil {
+		// Cancel any preivous deployment.
+		lastDeployment, err := n.state.LatestDeploymentByJobID(ws, req.Job.Namespace, req.Job.ID)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve latest deployment: %v", err)
+		}
+		if lastDeployment != nil && lastDeployment.Active() {
+			activeDeployment := lastDeployment.Copy()
+			activeDeployment.Status = structs.DeploymentStatusCancelled
+			activeDeployment.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
+			if err := n.state.UpsertDeployment(index, activeDeployment); err != nil {
+				return err
+			}
+		}
+
+		// Update the deployment with the latest job indexes.
+		req.Deployment.JobCreateIndex = req.Job.CreateIndex
+		req.Deployment.JobModifyIndex = req.Job.ModifyIndex
+		req.Deployment.JobSpecModifyIndex = req.Job.JobModifyIndex
+		req.Deployment.JobVersion = req.Job.Version
+
+		if err := n.state.UpsertDeployment(index, req.Deployment); err != nil {
+			return err
+		}
+	}
+
 	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
 	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
+
+		if req.Deployment != nil {
+			req.Eval.DeploymentID = req.Deployment.ID
+		}
+
 		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}

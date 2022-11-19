@@ -364,6 +364,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			submittedEval = true
 		}
 
+		// Pre-register a deployment if necessary.
+		args.Deployment = j.multiregionCreateDeployment(job, eval)
+
 		// Commit this update via Raft
 		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err, ok := fsmErr.(error); ok && err != nil {
