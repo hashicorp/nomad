@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-hclog"
@@ -104,19 +103,11 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 	ctx, cancel := subproc.Context(env.deadline())
 	defer cancel()
 
-	// on unix systems, suprocess runs as nobody
-	uid, gid := credentials()
-
-	// start the subprocess, passing in parameters via stdin
+	// start the subprocess, passing in parameters via standard in
 	cmd := exec.CommandContext(ctx, bin, SubCommand)
 	cmd.Env = minimalVars(env.TaskDir)
 	cmd.Stdin = env.reader()
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
+	cmd.SysProcAttr = attributes()
 
 	// wait for the subprocess to terminate
 	output, err := cmd.CombinedOutput()

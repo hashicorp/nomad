@@ -13,6 +13,12 @@ import (
 var (
 	// version of landlock available, 0 otherwise
 	version int
+
+	// userUID is the current user's uid
+	userUID uint32
+
+	// userGID is the current user's gid
+	userGID uint32
 )
 
 func init() {
@@ -20,13 +26,34 @@ func init() {
 	if err == nil {
 		version = v
 	}
+
+	userUID = syscall.Getuid()
+	userGID = syscall.Getgid()
+}
+
+// attributes returns the system process attributes to run
+// the sandbox process with
+func attributes() *syscall.SysProcAttr {
+	uid, gid := credentials()
+	return &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uid,
+			Gid: gid,
+		},
+	}
 }
 
 // credentials returns the UID and GID of the user the child process
-// will run as. On unix systems this will be the nobody user if available.
+// will run as. On Linux systems this will be the nobody user if Nomad
+// is being run as the root user, or the user Nomad is being run as
+// otherwise.
 func credentials() (uint32, uint32) {
-	uid, gid := users.NobodyIDs()
-	return uid, gid
+	switch userUID {
+	case 0:
+		return users.NobodyIDs()
+	default:
+		return userUID, userGID
+	}
 }
 
 // minimalVars returns the minimal environment set for artifact

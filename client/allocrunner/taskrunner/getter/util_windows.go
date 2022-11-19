@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 )
 
-// credentials returns 0, 0 on windows
-func credentials() (uint32, uint32) {
-	return 0, 0
+// attributes returns the system process attributes to run
+// the sandbox process with
+func attributes() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{}
 }
 
 // lockdown has no effect on windows

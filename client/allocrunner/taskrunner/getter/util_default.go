@@ -8,7 +8,19 @@ import (
 	"syscall"
 )
 
-// credentials returns root ids outside of Linux
+// attributes returns the system process attributes to run
+// the sandbox process with
+func attributes() *syscall.SysProcAttr {
+	uid, gid := credentials()
+	return &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uid,
+			Gid: gid,
+		},
+	}
+}
+
+// credentials returns the credentials of the user Nomad is running as
 func credentials() (uint32, uint32) {
 	uid := syscall.Getuid()
 	gid := syscall.Getgid()
