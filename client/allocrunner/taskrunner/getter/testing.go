@@ -1,5 +1,3 @@
-//go:build !windows
-
 package getter
 
 import (
@@ -9,7 +7,6 @@ import (
 
 	cconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/users"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
@@ -27,7 +24,7 @@ func TestSandbox(t *testing.T) Sandbox {
 //
 // returns alloc_dir, task_dir
 func SetupDir(t *testing.T) (string, string) {
-	uid, gid := users.NobodyIDs()
+	uid, gid := credentials()
 
 	allocDir := t.TempDir()
 	taskDir := filepath.Join(allocDir, "local")

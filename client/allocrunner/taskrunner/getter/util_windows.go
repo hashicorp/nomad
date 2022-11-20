@@ -14,6 +14,10 @@ func attributes() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{}
 }
 
+func credentials() (uint32, uint32) {
+	return 0, 0
+}
+
 // lockdown has no effect on windows
 func lockdown(string, bool) error {
 	return nil
