@@ -14,8 +14,9 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter/gettertest"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	ci.Parallel(t)
 
 	me := &mockEmitter{}
-	sbox := gettertest.NewSandbox(t)
+	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
 	req := &interfaces.TaskPrestartRequest{
@@ -70,10 +71,11 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 // already downloaded artifacts when subsequent artifacts fail and cause a
 // restart.
 func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
+	testutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	me := &mockEmitter{}
-	sbox := gettertest.NewSandbox(t)
+	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
 	// Create a source directory with 1 of the 2 artifacts
@@ -88,7 +90,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir := t.TempDir()
+	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -162,7 +164,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	sbox := gettertest.NewSandbox(t)
+	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
 	// Create a source directory all 7 artifacts
@@ -179,7 +181,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir := t.TempDir()
+	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -250,7 +252,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	sbox := gettertest.NewSandbox(t)
+	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
 	// Create a source directory with 3 of the 4 artifacts
@@ -270,7 +272,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir := t.TempDir()
+	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),

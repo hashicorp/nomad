@@ -9,29 +9,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
-
-func setupDir(t *testing.T) (string, string) {
-	uid, gid := users.NobodyIDs()
-
-	allocDir := t.TempDir()
-	taskDir := filepath.Join(allocDir, "local")
-	topDir := filepath.Dir(allocDir)
-
-	must.NoError(t, os.Chown(topDir, int(uid), int(gid)))
-	must.NoError(t, os.Chmod(topDir, 0o755))
-
-	must.NoError(t, os.Chown(allocDir, int(uid), int(gid)))
-	must.NoError(t, os.Chmod(allocDir, 0o755))
-
-	must.NoError(t, os.Mkdir(taskDir, 0o755))
-	must.NoError(t, os.Chown(taskDir, int(uid), int(gid)))
-	must.NoError(t, os.Chmod(taskDir, 0o755))
-	return allocDir, taskDir
-}
 
 func artifactConfig(timeout time.Duration) *config.ArtifactConfig {
 	return &config.ArtifactConfig{
@@ -53,7 +33,7 @@ func TestSandbox_Get_http(t *testing.T) {
 	ac := artifactConfig(10 * time.Second)
 	sbox := New(ac, logger)
 
-	_, taskDir := setupDir(t)
+	_, taskDir := SetupDir(t)
 	env := noopTaskEnv(taskDir)
 
 	artifact := &structs.TaskArtifact{

@@ -3,6 +3,8 @@ package subproc
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 var (
@@ -14,6 +16,14 @@ func init() {
 	s, err := os.Executable()
 	if err != nil {
 		panic(fmt.Sprintf("failed to detect executable: %v", err))
+	}
+
+	// when running tests, we need to use the real nomad binary
+	// make sure you recompile between changes!
+	if strings.HasSuffix(s, ".test") {
+		if s, err = exec.LookPath("nomad"); err != nil {
+			panic(fmt.Sprintf("failed to find nomad binary: %v", err))
+		}
 	}
 	executable = s
 }

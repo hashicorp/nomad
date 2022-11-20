@@ -112,7 +112,7 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 	// wait for the subprocess to terminate
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		subproc.Log(output, logger.Warn)
+		subproc.Log(output, logger.Error)
 		return &Error{
 			URL:         env.Source,
 			Err:         fmt.Errorf("getter subprocess failed: %v", err),
