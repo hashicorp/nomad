@@ -1,6 +1,10 @@
 resource "null_resource" "install_nomad_binary_windows" {
   count    = var.platform == "windows" ? 1 : 0
   triggers = { nomad_binary_sha = filemd5(var.nomad_local_binary) }
+  
+  lifecycle {
+    create_before_destroy = false
+  }
 
   connection {
     type            = "ssh"
