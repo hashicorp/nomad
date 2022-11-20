@@ -73,6 +73,10 @@
     top: 3px;
   }
 
+  &.is-service {
+    text-transform: none;
+  }
+
   .icon {
     height: 1rem;
     width: 1rem;
