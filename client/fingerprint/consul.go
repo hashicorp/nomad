@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -207,8 +208,8 @@ func (f *ConsulFingerprint) grpc(scheme string) func(info agentconsul.Self) (str
 		// Now that we know we are querying a Consul agent running v1.14.0 or
 		// greater, we need to select the correct port parameter from the
 		// config depending on whether we have been asked to speak TLS or not.
-		switch scheme {
-		case "https", "HTTPS":
+		switch strings.ToLower(scheme) {
+		case "https":
 			return f.grpcTLSPort(info)
 		default:
 			return f.grpcPort(info)
