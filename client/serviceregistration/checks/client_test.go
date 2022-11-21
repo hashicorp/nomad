@@ -270,6 +270,13 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			),
 		},
 		{
+			name:   "host header",
+			method: "GET",
+			headers: makeHeaders(encoding, agent,
+				[2]string{"Host", "hello"},
+			),
+		},
+		{
 			name:    "with body",
 			method:  "POST",
 			headers: makeHeaders(encoding, agent),
