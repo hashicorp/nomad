@@ -1,6 +1,7 @@
 package taskenv
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -126,10 +127,11 @@ func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
 	})
 
 	t.Run("not nil", func(t *testing.T) {
-		require.Equal(t, map[string][]string{
-			"a":   {"b"},
-			"bar": {"blah", "c"},
-		}, interpolateMapStringSliceString(testEnv, map[string][]string{
+		expected := http.Header{}
+		expected.Add("a", "b")
+		expected.Add("bar", "blah")
+		expected.Add("bar", "c")
+		require.Equal(t, expected, interpolateMapStringSliceString(testEnv, map[string][]string{
 			"a":      {"b"},
 			"${foo}": {"${baz}", "c"},
 		}))
