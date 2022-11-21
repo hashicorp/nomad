@@ -84,7 +84,9 @@ module('Acceptance | task logs', function (hooks) {
     assert
       .dom('.task-context-sidebar h1.title')
       .includesText(task.state, 'Task state is correctly displayed');
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: '.allocation-row td { display: none; }',
+    });
 
     await click('.sidebar button.close');
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');
