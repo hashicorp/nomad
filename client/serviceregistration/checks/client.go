@@ -164,6 +164,10 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		return qr
 	}
 	request.Header = q.Headers
+
+	if host, ok := q.Headers["Host"]; ok && len(host) > 0 {
+		request.Host = host[0]
+	}
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
 
