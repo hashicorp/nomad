@@ -276,7 +276,19 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			method: "GET",
 			headers: makeHeaders(encoding, agent,
 				[2]string{"Host", "hello"},
+				[2]string{"Test-Abc", "hello"},
 			),
+		},
+		{
+			name:   "host header",
+			method: "GET",
+			body:   "",
+			// This is needed to prevent header normalization by http.Header.Set
+			headers: func() map[string][]string {
+				h := makeHeaders(encoding, agent, [2]string{"Test-Abc", "hello"})
+				h["hoST"] = []string{"heLLO"}
+				return h
+			}(),
 		},
 		{
 			name:    "with body",
@@ -321,15 +333,24 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			must.Eq(t, http.StatusOK, result.StatusCode,
 				must.Sprintf("test.URL: %s", ts.URL),
 				must.Sprintf("headers: %v", tc.headers),
+				must.Sprintf("received headers: %v", tc.headers),
 			)
 			must.Eq(t, tc.method, method)
 			must.Eq(t, tc.body, string(body))
-			if hostHeader, ok := tc.headers["Host"]; ok && len(hostHeader) > 0 {
-				must.Eq(t, hostHeader[0], host)
-				delete(tc.headers, "Host")
-			} else {
+
+			hostSent := false
+
+			for key, values := range tc.headers {
+				if strings.EqualFold(key, "Host") && len(values) > 0 {
+					must.Eq(t, values[0], host)
+					hostSent = true
+
+				}
+			}
+			if !hostSent {
 				must.Eq(t, nil, tc.headers["Host"])
 			}
+
 			must.Eq(t, tc.headers, headers)
 		})
 	}
