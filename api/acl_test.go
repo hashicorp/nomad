@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -584,5 +585,72 @@ func TestACLRoles(t *testing.T) {
 	aclRoleListResp, queryMeta, err = testClient.ACLRoles().List(nil)
 	require.NoError(t, err)
 	require.Empty(t, aclRoleListResp)
+	assertQueryMeta(t, queryMeta)
+}
+
+func TestACLAuthMethods(t *testing.T) {
+	testutil.Parallel(t)
+
+	testClient, testServer, _ := makeACLClient(t, nil, nil)
+	defer testServer.Stop()
+
+	// An initial listing shouldn't return any results.
+	aclAuthMethodsListResp, queryMeta, err := testClient.ACLAuthMethods().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 0, aclAuthMethodsListResp)
+	assertQueryMeta(t, queryMeta)
+
+	// Create an ACL auth-method.
+	authMethod := ACLAuthMethod{
+		Name:          "acl-auth-method-api-test",
+		Type:          ACLAuthMethodTypeOIDC,
+		TokenLocality: ACLAuthMethodTokenLocalityLocal,
+		MaxTokenTTL:   15 * time.Minute,
+		Default:       true,
+	}
+	writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Another listing should return one result.
+	aclAuthMethodsListResp, queryMeta, err = testClient.ACLAuthMethods().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 1, aclAuthMethodsListResp)
+	must.Eq(t, authMethod.Name, aclAuthMethodsListResp[0].Name)
+	must.True(t, aclAuthMethodsListResp[0].Default)
+	assertQueryMeta(t, queryMeta)
+
+	// Read the auth-method.
+	aclAuthMethodReadResp, queryMeta, err := testClient.ACLAuthMethods().Get(authMethod.Name, nil)
+	must.NoError(t, err)
+	assertQueryMeta(t, queryMeta)
+	must.NotNil(t, aclAuthMethodReadResp)
+	must.Eq(t, authMethod.Name, aclAuthMethodReadResp.Name)
+	must.Eq(t, authMethod.TokenLocality, aclAuthMethodReadResp.TokenLocality)
+	must.Eq(t, authMethod.Type, aclAuthMethodReadResp.Type)
+
+	// Update the auth-method token locality.
+	authMethod.TokenLocality = ACLAuthMethodTokenLocalityGlobal
+	writeMeta, err = testClient.ACLAuthMethods().Update(&authMethod, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Re-read the auth-method and check the locality.
+	aclAuthMethodReadResp, queryMeta, err = testClient.ACLAuthMethods().Get(authMethod.Name, nil)
+	must.NoError(t, err)
+	assertQueryMeta(t, queryMeta)
+	must.NotNil(t, aclAuthMethodReadResp)
+	must.Eq(t, authMethod.Name, aclAuthMethodReadResp.Name)
+	must.Eq(t, authMethod.TokenLocality, aclAuthMethodReadResp.TokenLocality)
+
+	// Delete the role.
+	writeMeta, err = testClient.ACLAuthMethods().Delete(authMethod.Name, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Make sure there are no ACL auth-methods now present.
+	aclAuthMethodsListResp, queryMeta, err = testClient.ACLAuthMethods().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 0, aclAuthMethodsListResp)
 	assertQueryMeta(t, queryMeta)
 }
