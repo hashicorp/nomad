@@ -246,7 +246,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 		name    string
 		method  string
 		body    string
-		headers map[string][]string
+		headers http.Header
 	}{
 		{
 			name:    "method GET",
@@ -344,6 +344,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 				if strings.EqualFold(key, "Host") && len(values) > 0 {
 					must.Eq(t, values[0], host)
 					hostSent = true
+					delete(tc.headers, key)
 
 				}
 			}

@@ -163,14 +163,13 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
-	request.Header = q.Headers
-
-	for key, values := range q.Headers {
-		if strings.EqualFold(key, "Host") && len(values) > 0 {
-			request.Host = values[0]
-			delete(q.Headers, key)
+	for header, values := range q.Headers {
+		for _, value := range values {
+			request.Header.Add(header, value)
 		}
 	}
+
+	request.Host = request.Header.Get("Host")
 
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
