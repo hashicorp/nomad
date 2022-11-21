@@ -296,29 +296,91 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 
 	fp := newConsulFingerPrint(t)
 
-	t.Run("grpc set", func(t *testing.T) {
-		s, ok := fp.grpc(agentconsul.Self{
+	t.Run("grpc set pre-1.14 http", func(t *testing.T) {
+		s, ok := fp.grpc("http")(agentconsul.Self{
+			"Config":      {"Version": "1.13.3"},
 			"DebugConfig": {"GRPCPort": 8502.0}, // JSON numbers are floats
 		})
 		require.True(t, ok)
 		require.Equal(t, "8502", s)
 	})
 
-	t.Run("grpc disabled", func(t *testing.T) {
-		s, ok := fp.grpc(agentconsul.Self{
+	t.Run("grpc disabled pre-1.14 http", func(t *testing.T) {
+		s, ok := fp.grpc("http")(agentconsul.Self{
+			"Config":      {"Version": "1.13.3"},
 			"DebugConfig": {"GRPCPort": -1.0}, // JSON numbers are floats
 		})
 		require.True(t, ok)
 		require.Equal(t, "-1", s)
 	})
 
-	t.Run("grpc missing", func(t *testing.T) {
-		_, ok := fp.grpc(agentconsul.Self{
+	t.Run("grpc set pre-1.14 https", func(t *testing.T) {
+		s, ok := fp.grpc("https")(agentconsul.Self{
+			"Config":      {"Version": "1.13.3"},
+			"DebugConfig": {"GRPCPort": 8502.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "8502", s)
+	})
+
+	t.Run("grpc disabled pre-1.14 https", func(t *testing.T) {
+		s, ok := fp.grpc("https")(agentconsul.Self{
+			"Config":      {"Version": "1.13.3"},
+			"DebugConfig": {"GRPCPort": -1.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "-1", s)
+	})
+
+	t.Run("grpc set post-1.14 http", func(t *testing.T) {
+		s, ok := fp.grpc("http")(agentconsul.Self{
+			"Config":      {"Version": "1.14.0"},
+			"DebugConfig": {"GRPCPort": 8502.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "8502", s)
+	})
+
+	t.Run("grpc disabled post-1.14 http", func(t *testing.T) {
+		s, ok := fp.grpc("http")(agentconsul.Self{
+			"Config":      {"Version": "1.14.0"},
+			"DebugConfig": {"GRPCPort": -1.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "-1", s)
+	})
+
+	t.Run("grpc disabled post-1.14 https", func(t *testing.T) {
+		s, ok := fp.grpc("https")(agentconsul.Self{
+			"Config":      {"Version": "1.14.0"},
+			"DebugConfig": {"GRPCTLSPort": -1.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "-1", s)
+	})
+
+	t.Run("grpc set post-1.14 https", func(t *testing.T) {
+		s, ok := fp.grpc("https")(agentconsul.Self{
+			"Config":      {"Version": "1.14.0"},
+			"DebugConfig": {"GRPCTLSPort": 8503.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "8503", s)
+	})
+
+	t.Run("grpc missing http", func(t *testing.T) {
+		_, ok := fp.grpc("http")(agentconsul.Self{
 			"DebugConfig": {},
 		})
 		require.False(t, ok)
 	})
 
+	t.Run("grpc missing https", func(t *testing.T) {
+		_, ok := fp.grpc("https")(agentconsul.Self{
+			"DebugConfig": {},
+		})
+		require.False(t, ok)
+	})
 }
 
 func TestConsulFingerprint_namespaces(t *testing.T) {
