@@ -85,12 +85,16 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	type asr = api.AgentServiceRegistration
 	type tweaker func(w asr) *asr // create a conveniently modifiable copy
 
+	s := &ServiceClient{
+		logger: testlog.HCLogger(t),
+	}
+
 	try := func(
 		t *testing.T,
 		exp bool,
 		reason syncReason,
 		tweak tweaker) {
-		result := agentServiceUpdateRequired(reason, tweak(wanted()), existing, sidecar)
+		result := s.agentServiceUpdateRequired(reason, tweak(wanted()), existing, sidecar)
 		require.Equal(t, exp, result)
 	}
 
