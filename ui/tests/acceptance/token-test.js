@@ -50,7 +50,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.equal(document.title, 'Tokens - Nomad');
+    assert.equal(document.title, 'Authorization - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -346,7 +346,7 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
-  test('SSO Sign-in flow', async function (assert) {
+  test('SSO Sign-in flow: Manager', async function (assert) {
     server.create('auth-method', { name: 'vault' });
     server.create('auth-method', { name: 'cognito' });
     server.create('token', { name: 'Thelonious' });
@@ -360,18 +360,22 @@ module('Acceptance | tokens', function (hooks) {
     )[0];
 
     assert.dom(managerButton).exists();
+    await click(managerButton);
 
     await percySnapshot(assert);
 
-    await click(managerButton);
-
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
-    await Tokens.clear();
+  });
 
+  test('SSO Sign-in flow: Regular User', async function (assert) {
+    server.create('auth-method', { name: 'vault' });
+    server.create('token', { name: 'Thelonious' });
+
+    await Tokens.visit();
+    assert.dom('[data-test-auth-method]').exists({ count: 1 });
     await click('button[data-test-auth-method]');
     assert.ok(currentURL().startsWith('/oidc-mock'));
-
     let newTokenButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Thelonious')
     )[0];

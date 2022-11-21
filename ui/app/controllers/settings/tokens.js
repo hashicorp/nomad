@@ -14,14 +14,16 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
-  @service flashMessages;
 
   queryParams = ['code', 'state'];
 
   @reads('token.secret') secret;
 
-  tokenIsValid = false;
-  tokenIsInvalid = false;
+  /**
+   * @type {(null | "success" | "failure")} signInStatus
+   */
+  @tracked
+  signInStatus = null;
 
   @alias('token.selfToken') tokenRecord;
 
@@ -35,10 +37,7 @@ export default class Tokens extends Controller {
       secret: undefined,
       tokenNotFound: false,
     });
-    this.setProperties({
-      tokenIsValid: false,
-      tokenIsInvalid: false,
-    });
+    this.signInStatus = null;
     // Clear out all data to ensure only data the anonymous token is privileged to see is shown
     this.resetStore();
     this.token.reset();
@@ -52,9 +51,11 @@ export default class Tokens extends Controller {
   @action
   verifyToken() {
     const { secret } = this;
+    this.clearTokenProperties();
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
     this.set('token.secret', secret);
+    this.set('secret', null);
 
     TokenAdapter.findSelf().then(
       () => {
@@ -64,18 +65,12 @@ export default class Tokens extends Controller {
         // Refetch the token and associated policies
         this.get('token.fetchSelfTokenAndPolicies').perform().catch();
 
-        this.setProperties({
-          tokenIsValid: true,
-          tokenIsInvalid: false,
-        });
+        this.signInStatus = 'success';
         this.token.set('tokenNotFound', false);
       },
       () => {
         this.set('token.secret', undefined);
-        this.setProperties({
-          tokenIsValid: false,
-          tokenIsInvalid: true,
-        });
+        this.signInStatus = 'failure';
       }
     );
   }
@@ -142,22 +137,23 @@ export default class Tokens extends Controller {
       const data = await res.json();
       this.token.set('secret', data.ACLToken);
       this.verifyToken();
-      this.code = null;
       this.state = null;
+      this.code = null;
     } else {
-      this.flashMessages.add({
-        title: 'Error completing authentication',
-        message: res.statusText,
-        type: 'error',
-        destroyOnClick: false,
-        sticky: true,
-      });
+      this.state = 'failure';
       this.code = null;
-      this.state = null;
     }
   }
 
   get SSOFailure() {
     return this.state === 'failure';
+  }
+
+  get canSignIn() {
+    return !this.tokenRecord || this.tokenRecord.isExpired;
+  }
+
+  get shouldShowPolicies() {
+    return this.tokenRecord;
   }
 }
