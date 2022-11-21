@@ -215,12 +215,14 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 		method  string
 		body    []byte
 		headers map[string][]string
+		host    string
 	)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		body, _ = io.ReadAll(r.Body)
 		headers = maps.Clone(r.Header)
+		host = r.Host
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -322,6 +324,12 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			)
 			must.Eq(t, tc.method, method)
 			must.Eq(t, tc.body, string(body))
+			if hostHeader, ok := tc.headers["Host"]; ok && len(hostHeader) > 0 {
+				must.Eq(t, hostHeader[0], host)
+				delete(tc.headers, "Host")
+			} else {
+				must.Eq(t, nil, tc.headers["Host"])
+			}
 			must.Eq(t, tc.headers, headers)
 		})
 	}
