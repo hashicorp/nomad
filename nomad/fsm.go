@@ -329,6 +329,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLRolesDeleteByIDRequestType:
 		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
+	case structs.ACLAuthMethodsUpsertRequestType:
+		return n.applyACLAuthMethodsUpsert(buf[1:], log.Index)
+	case structs.ACLAuthMethodsDeleteRequestType:
+		return n.applyACLAuthMethodsDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -2040,6 +2044,36 @@ func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []by
 
 	if err := n.state.DeleteACLRolesByID(msgType, index, req.ACLRoleIDs); err != nil {
 		n.logger.Error("DeleteACLRolesByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_upsert"}, time.Now())
+	var req structs.ACLAuthMethodUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLAuthMethods(index, req.AuthMethods); err != nil {
+		n.logger.Error("UpsertACLAuthMethods failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
+	var req structs.ACLAuthMethodDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteACLAuthMethods(index, req.Names); err != nil {
+		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
 		return err
 	}
 

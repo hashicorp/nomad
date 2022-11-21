@@ -328,6 +328,14 @@ type Config struct {
 	// for ACL token expiration.
 	ACLTokenMaxExpirationTTL time.Duration
 
+	// ACLAuthMethodMinExpirationTTL is used to enforce the lowest acceptable
+	// value for ACL auth method expiration.
+	ACLAuthMethodMinExpirationTTL time.Duration
+
+	// ACLAuthMethodMaxExpirationTTL is used to enforce the highest acceptable
+	// value for ACL auth method expiration.
+	ACLAuthMethodMaxExpirationTTL time.Duration
+
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration
 

@@ -2678,3 +2678,367 @@ func TestACL_GetRoleByName(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetRoleByNameRPCMethod, aclRoleReq6, &aclRoleResp6)
 	require.ErrorContains(t, err, "Permission denied")
 }
+
+func TestACLEndpoint_GetAuthMethod(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	authMethod := mock.ACLAuthMethod()
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod}))
+
+	anonymousAuthMethod := mock.ACLAuthMethod()
+	anonymousAuthMethod.Name = "anonymous"
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod}))
+
+	// Lookup the authMethod
+	get := &structs.ACLAuthMethodGetRequest{
+		MethodName: authMethod.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodGetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, authMethod, resp.AuthMethod)
+
+	// Lookup non-existing authMethod
+	get.MethodName = uuid.Generate()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, get, &resp))
+	must.Eq(t, uint64(1001), resp.Index)
+	must.Nil(t, resp.AuthMethod)
+}
+
+func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the authMethods
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+
+	// First create an unrelated authMethod
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.UpsertACLAuthMethods(100, []*structs.ACLAuthMethod{am1}))
+	})
+
+	// Upsert the authMethod we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		must.NoError(t, state.UpsertACLAuthMethods(200, []*structs.ACLAuthMethod{am2}))
+	})
+
+	// Lookup the authMethod
+	req := &structs.ACLAuthMethodGetRequest{
+		MethodName: am2.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+			AuthToken:     root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodGetResponse
+	start := time.Now()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, req, &resp))
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	must.Eq(t, resp.Index, 200)
+	must.NotNil(t, resp.AuthMethod)
+	must.Eq(t, resp.AuthMethod.Name, am2.Name)
+
+	// Auth method delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.DeleteACLAuthMethods(300, []string{am2.Name}))
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.ACLAuthMethodGetResponse
+	start = time.Now()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodRPCMethod, req, &resp2))
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	must.Eq(t, resp2.Index, 300)
+	must.Nil(t, resp2.AuthMethod)
+}
+
+func TestACLEndpoint_GetAuthMethods(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	authMethod := mock.ACLAuthMethod()
+	authMethod2 := mock.ACLAuthMethod()
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2}))
+
+	// Lookup the authMethod
+	get := &structs.ACLAuthMethodsGetRequest{
+		Names: []string{authMethod.Name, authMethod2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodsGetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, 2, len(resp.AuthMethods))
+	must.Eq(t, authMethod, resp.AuthMethods[authMethod.Name])
+	must.Eq(t, authMethod2, resp.AuthMethods[authMethod2.Name])
+
+	// Lookup non-existing authMethod
+	get.Names = []string{uuid.Generate()}
+	resp = structs.ACLAuthMethodsGetResponse{}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, 0, len(resp.AuthMethods))
+}
+
+func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the authMethods
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+
+	// First create an unrelated authMethod
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.UpsertACLAuthMethods(100, []*structs.ACLAuthMethod{am1}))
+	})
+
+	// Upsert the authMethod we are watching later
+	time.AfterFunc(200*time.Millisecond, func() {
+		must.NoError(t, state.UpsertACLAuthMethods(200, []*structs.ACLAuthMethod{am2}))
+	})
+
+	// Lookup the authMethod
+	req := &structs.ACLAuthMethodsGetRequest{
+		Names: []string{am2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+			AuthToken:     root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodsGetResponse
+	start := time.Now()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, req, &resp))
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	must.Eq(t, resp.Index, 200)
+	must.NotEq(t, len(resp.AuthMethods), 0)
+	must.NotNil(t, resp.AuthMethods[am2.Name])
+
+	// Auth method delete triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.DeleteACLAuthMethods(300, []string{am2.Name}))
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.ACLAuthMethodsGetResponse
+	start = time.Now()
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLGetAuthMethodsRPCMethod, req, &resp2))
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	must.Eq(t, resp2.Index, 300)
+	must.Eq(t, len(resp2.AuthMethods), 0)
+}
+
+func TestACLEndpoint_ListAuthMethods(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+
+	am1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	am2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
+
+	// Create a token
+	token := mock.ACLToken()
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token}))
+
+	// Lookup the authMethods with a management token
+	get := &structs.ACLAuthMethodListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLListAuthMethodsRPCMethod, get, &resp))
+	must.Eq(t, 1000, resp.Index)
+	must.Len(t, 2, resp.AuthMethods)
+
+	// List authMethods using the created token
+	get = &structs.ACLAuthMethodListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: token.SecretID,
+		},
+	}
+	var resp3 structs.ACLAuthMethodListResponse
+	if err := msgpackrpc.CallWithCodec(codec, structs.ACLListAuthMethodsRPCMethod, get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	must.Eq(t, 1000, resp3.Index)
+	must.Len(t, 2, resp3.AuthMethods)
+	must.Eq(t, resp3.AuthMethods[0].Name, am1.Name)
+}
+
+func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the authMethod
+	authMethod := mock.ACLAuthMethod()
+
+	// Upsert auth method triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.UpsertACLAuthMethods(2, []*structs.ACLAuthMethod{authMethod}))
+	})
+
+	req := &structs.ACLAuthMethodListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1,
+			AuthToken:     root.SecretID,
+		},
+	}
+	start := time.Now()
+	var resp structs.ACLAuthMethodListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLListAuthMethodsRPCMethod, req, &resp))
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	must.Eq(t, uint64(2), resp.Index)
+	must.Len(t, 1, resp.AuthMethods)
+	must.Eq(t, resp.AuthMethods[0].Name, authMethod.Name)
+
+	// Eval deletion triggers watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, state.DeleteACLAuthMethods(3, []string{authMethod.Name}))
+	})
+
+	req.MinQueryIndex = 2
+	start = time.Now()
+	var resp2 structs.ACLAuthMethodListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLListAuthMethodsRPCMethod, req, &resp2))
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	must.Eq(t, uint64(3), resp2.Index)
+	must.Eq(t, 0, len(resp2.AuthMethods))
+}
+
+func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	am1 := mock.ACLAuthMethod()
+	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1}))
+
+	// Lookup the authMethods
+	req := &structs.ACLAuthMethodDeleteRequest{
+		Names: []string{am1.Name},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodDeleteResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsRPCMethod, req, &resp))
+	must.NotEq(t, uint64(0), resp.Index)
+
+	// Try to delete a non-existing auth method
+	req = &structs.ACLAuthMethodDeleteRequest{
+		Names: []string{"non-existing-auth-method"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp2 structs.ACLAuthMethodDeleteResponse
+	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLDeleteAuthMethodsRPCMethod, req, &resp2))
+}
+
+func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	minTTL, _ := time.ParseDuration("10s")
+	maxTTL, _ := time.ParseDuration("24h")
+	s1.config.ACLAuthMethodMinExpirationTTL = minTTL
+	s1.config.ACLAuthMethodMaxExpirationTTL = maxTTL
+
+	// Create the register request
+	am1 := mock.ACLAuthMethod()
+
+	// Lookup the authMethods
+	req := &structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{am1},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.ACLAuthMethodUpsertResponse
+	if err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	must.NotEq(t, uint64(0), resp.Index)
+
+	// Check we created the authMethod
+	out, err := s1.fsm.State().GetACLAuthMethodByName(nil, am1.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+}

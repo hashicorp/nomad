@@ -6117,26 +6117,6 @@ func TestACLPolicySetHash(t *testing.T) {
 	assert.NotEqual(t, out1, out2)
 }
 
-func TestACLAuthMethodSetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	am := &ACLAuthMethod{
-		Name: "foo",
-		Type: "bad type",
-	}
-	out1 := am.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, am.Hash)
-	assert.Equal(t, out1, am.Hash)
-
-	am.Type = "good type"
-	out2 := am.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, am.Hash)
-	assert.Equal(t, out2, am.Hash)
-	assert.NotEqual(t, out1, out2)
-}
-
 func TestTaskEventPopulate(t *testing.T) {
 	ci.Parallel(t)
 

@@ -220,11 +220,12 @@ func ACLManagementToken() *structs.ACLToken {
 }
 
 func ACLAuthMethod() *structs.ACLAuthMethod {
+	maxTokenTTL, _ := time.ParseDuration("3600s")
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
-		Type:          "acl-auth-mock-type",
-		TokenLocality: "locality",
-		MaxTokenTTL:   "3600s",
+		Type:          "OIDC",
+		TokenLocality: "local",
+		MaxTokenTTL:   maxTokenTTL,
 		Default:       true,
 		Config: &structs.ACLAuthMethodConfig{
 			OIDCDiscoveryURL:    "http://example.com",

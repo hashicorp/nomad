@@ -13,6 +13,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+  "github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -3476,4 +3477,54 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 
 	require.Len(t, events, 1)
 	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
+}
+
+func TestFSM_UpsertACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+	req := structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{am1, am2},
+	}
+	buf, err := structs.Encode(structs.ACLAuthMethodsUpsertRequestType, req)
+	must.Nil(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+
+	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+	must.Nil(t, fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
+
+	req := structs.ACLAuthMethodDeleteRequest{
+		Names: []string{am1.Name, am2.Name},
+	}
+	buf, err := structs.Encode(structs.ACLAuthMethodsDeleteRequestType, req)
+	must.Nil(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
+	must.Nil(t, err)
+	must.Nil(t, out)
+
+	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
+	must.Nil(t, err)
+	must.Nil(t, out)
 }
