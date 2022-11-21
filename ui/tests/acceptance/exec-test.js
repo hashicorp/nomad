@@ -297,7 +297,11 @@ module('Acceptance | exec', function (hooks) {
       } /bin/bash`
     );
 
-    await percySnapshot(assert);
+    const terminalTextRendered = assert.async();
+    setTimeout(async () => {
+      await percySnapshot(assert);
+      terminalTextRendered();
+    }, 1000);
   });
 
   test('an allocation can be specified', async function (assert) {
