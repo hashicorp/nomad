@@ -7,6 +7,12 @@ job "oversubscription-docker" {
     value     = "darwin,linux"
   }
 
+  constraint {
+    attribute = "${attr.unique.cgroup.version}"
+    operator  = "="
+    value     = "v2"
+  }
+
   group "group" {
     task "task" {
       driver = "docker"
