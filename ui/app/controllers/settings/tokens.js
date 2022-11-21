@@ -19,8 +19,11 @@ export default class Tokens extends Controller {
 
   @reads('token.secret') secret;
 
-  successfulSignIn = false;
-  unsuccessfulSignIn = false;
+  /**
+   * @type {(null | "success" | "failure")} signInStatus
+   */
+  @tracked
+  signInStatus = null;
 
   @alias('token.selfToken') tokenRecord;
 
@@ -34,10 +37,7 @@ export default class Tokens extends Controller {
       secret: undefined,
       tokenNotFound: false,
     });
-    this.setProperties({
-      successfulSignIn: false,
-      unsuccessfulSignIn: false,
-    });
+    this.signInStatus = null;
     // Clear out all data to ensure only data the anonymous token is privileged to see is shown
     this.resetStore();
     this.token.reset();
@@ -65,18 +65,12 @@ export default class Tokens extends Controller {
         // Refetch the token and associated policies
         this.get('token.fetchSelfTokenAndPolicies').perform().catch();
 
-        this.setProperties({
-          successfulSignIn: true,
-          unsuccessfulSignIn: false,
-        });
+        this.signInStatus = 'success';
         this.token.set('tokenNotFound', false);
       },
       () => {
         this.set('token.secret', undefined);
-        this.setProperties({
-          successfulSignIn: false,
-          unsuccessfulSignIn: true,
-        });
+        this.signInStatus = 'failure';
       }
     );
   }

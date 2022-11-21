@@ -7,7 +7,7 @@
 
     <div class="status-notifications {{if this.canSignIn "is-half"}}">
 
-      {{#if this.unsuccessfulSignIn}}
+      {{#if (eq this.signInStatus "failure")}}
         <div data-test-token-error class="notification is-danger">
           <div class="columns">
             <div class="column">
@@ -31,7 +31,7 @@
           </div>
         </div>
       {{else}}
-        {{#if this.successfulSignIn}}
+        {{#if (eq this.signInStatus "success")}}
           <div data-test-token-success class="notification is-success">
             <div class="columns">
               <div class="column">
