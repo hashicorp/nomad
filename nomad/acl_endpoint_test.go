@@ -3017,8 +3017,8 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 
 	minTTL, _ := time.ParseDuration("10s")
 	maxTTL, _ := time.ParseDuration("24h")
-	s1.config.ACLAuthMethodMinExpirationTTL = minTTL
-	s1.config.ACLAuthMethodMaxExpirationTTL = maxTTL
+	s1.config.ACLTokenMinExpirationTTL = minTTL
+	s1.config.ACLTokenMaxExpirationTTL = maxTTL
 
 	// Create the register request
 	am1 := mock.ACLAuthMethod()
