@@ -25,6 +25,9 @@
 			{{else}}
 				{{@service.name}}
 			{{/if}}
+      {{#if @service.connect}}
+        <FlightIcon @name="mesh" @color="#444444" />
+      {{/if}}
 		{{/if}}
   </td>
 	<td>

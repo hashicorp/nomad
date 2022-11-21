@@ -1,0 +1,22 @@
+rules:
+  - id: "http-endpoint-request-decode-error-code"
+    patterns:
+      - pattern: |
+          if err := decodeBody(...); err != nil {
+          	return nil, CodedError(...)
+          }
+      - pattern-not-inside: |
+          if err := decodeBody(...); err != nil {
+          	return nil, CodedError(400, ...)
+          }
+      - pattern-not-inside: |
+          if err := decodeBody(...); err != nil {
+          	return nil, CodedError(http.StatusBadRequest, ...)
+          }
+    message: "HTTP endpoint request decode should return http.StatusBadRequest"
+    languages:
+      - "go"
+    severity: "ERROR"
+    paths:
+      include:
+        - "command/agent/*_endpoint.go"

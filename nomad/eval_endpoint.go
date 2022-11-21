@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -23,6 +24,8 @@ const (
 	// DefaultDequeueTimeout is used if no dequeue timeout is provided
 	DefaultDequeueTimeout = time.Second
 )
+
+var minVersionEvalDeleteByFilter = version.Must(version.NewVersion("1.4.3"))
 
 // Eval endpoint is used for eval interactions
 type Eval struct {
@@ -229,6 +232,14 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	// Ack the EvalID
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
+	}
+
+	// Wake up the eval cancelation reaper. This never blocks; if the buffer is
+	// full we know it's going to get picked up by the reaper so we don't need
+	// another send on that channel.
+	select {
+	case e.srv.reapCancelableEvalsCh <- struct{}{}:
+	default:
 	}
 	return nil
 }
@@ -438,10 +449,35 @@ func (e *Eval) Delete(
 		return structs.ErrPermissionDenied
 	}
 
+	if args.Filter != "" && !ServersMeetMinimumVersion(
+		e.srv.Members(), e.srv.Region(), minVersionEvalDeleteByFilter, true) {
+		return fmt.Errorf(
+			"all servers must be running version %v or later to delete evals by filter",
+			minVersionEvalDeleteByFilter)
+	}
+	if args.Filter != "" && len(args.EvalIDs) > 0 {
+		return fmt.Errorf("evals cannot be deleted by both ID and filter")
+	}
+	if args.Filter == "" && len(args.EvalIDs) == 0 {
+		return fmt.Errorf("evals must be deleted by either ID or filter")
+	}
+
 	// The eval broker must be disabled otherwise Nomad's state will likely get
 	// wild in a very un-fun way.
 	if e.srv.evalBroker.Enabled() {
 		return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+	}
+
+	if args.Filter != "" {
+		count, index, err := e.deleteEvalsByFilter(args)
+		if err != nil {
+			return err
+		}
+
+		// Update the index and return.
+		reply.Index = index
+		reply.Count = count
+		return nil
 	}
 
 	// Grab the state snapshot, so we can look up relevant eval information.
@@ -450,6 +486,8 @@ func (e *Eval) Delete(
 		return fmt.Errorf("failed to lookup state snapshot: %v", err)
 	}
 	ws := memdb.NewWatchSet()
+
+	count := 0
 
 	// Iterate the evaluations and ensure they are safe to delete. It is
 	// possible passed evals are not safe to delete and would make Nomads state
@@ -471,6 +509,7 @@ func (e *Eval) Delete(
 		if !ok {
 			return fmt.Errorf("eval %s is not safe to delete", evalInfo.ID)
 		}
+		count++
 	}
 
 	// Generate the Raft request object using the reap request object. This
@@ -490,7 +529,95 @@ func (e *Eval) Delete(
 
 	// Update the index and return.
 	reply.Index = index
+	reply.Count = count
 	return nil
+}
+
+// deleteEvalsByFilter deletes evaluations in batches based on the filter. It
+// returns a count, the index, and any error
+func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64, error) {
+	count := 0
+	index := uint64(0)
+
+	filter, err := bexpr.CreateEvaluator(args.Filter)
+	if err != nil {
+		return count, index, err
+	}
+
+	// Note that deleting evals by filter is imprecise: For sets of evals larger
+	// than a single batch eval inserts may occur behind the cursor and therefore
+	// be missed. This imprecision is not considered to hurt this endpoint's
+	// purpose of reducing pressure on servers during periods of heavy scheduling
+	// activity.
+	snap, err := e.srv.State().Snapshot()
+	if err != nil {
+		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
+	}
+
+	iter, err := snap.Evals(nil, state.SortDefault)
+	if err != nil {
+		return count, index, err
+	}
+
+	// We *can* send larger raft logs but rough benchmarks for deleting 1M evals
+	// show that a smaller page size strikes a balance between throughput and
+	// time we block the FSM apply for other operations
+	perPage := structs.MaxUUIDsPerWriteRequest / 10
+
+	raftReq := structs.EvalReapRequest{
+		Filter:        args.Filter,
+		PerPage:       int32(perPage),
+		UserInitiated: true,
+		WriteRequest:  args.WriteRequest,
+	}
+
+	// Note: Paginator is designed around fetching a single page for a single
+	// RPC call and finalizes its state after that page. So we're doing our own
+	// pagination here.
+	pageCount := 0
+	lastToken := ""
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+		deleteOk, err := snap.EvalIsUserDeleteSafe(nil, eval)
+		if !deleteOk || err != nil {
+			continue
+		}
+		match, err := filter.Evaluate(eval)
+		if !match || err != nil {
+			continue
+		}
+		pageCount++
+		lastToken = eval.ID
+
+		if pageCount >= perPage {
+			raftReq.PerPage = int32(pageCount)
+			_, index, err = e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+			if err != nil {
+				return count, index, err
+			}
+			count += pageCount
+
+			pageCount = 0
+			raftReq.NextToken = lastToken
+		}
+	}
+
+	// send last batch if it's partial
+	if pageCount > 0 {
+		raftReq.PerPage = int32(pageCount)
+		_, index, err = e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+		if err != nil {
+			return count, index, err
+		}
+		count += pageCount
+	}
+
+	return count, index, nil
 }
 
 // List is used to get a list of the evaluations in the system

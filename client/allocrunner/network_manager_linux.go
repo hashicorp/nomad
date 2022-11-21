@@ -122,7 +122,18 @@ func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCr
 			nsPath := path.Join(nsutil.NetNSRunDir, allocID)
 			_, err := os.Stat(nsPath)
 			if err == nil {
-				return nil, false, nil
+				// Let's return a spec that points to the tested nspath, but indicate
+				// that we didn't make the namespace. That will stop the network_hook
+				// from calling its networkConfigurator.Setup function in the reconnect
+				// case, but provide the spec value necessary for the network_hook's
+				// Postrun function to not fast exit.
+				spec := &drivers.NetworkIsolationSpec{
+					Mode:   drivers.NetIsolationModeGroup,
+					Path:   nsPath,
+					Labels: make(map[string]string),
+				}
+
+				return spec, false, nil
 			}
 		}
 		return nil, false, err

@@ -25,6 +25,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -410,43 +412,121 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	}
 }
 
-func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
+func TestExecutor_LookupTaskBin(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Create a temp dir
-	tmpDir := t.TempDir()
+	taskDir := t.TempDir()
+	mountDir := t.TempDir()
 
-	// Create the command
-	cmd := &ExecCommand{Env: []string{"PATH=/bin"}, TaskDir: tmpDir}
+	// Create the command with mounts
+	cmd := &ExecCommand{
+		Env:     []string{"PATH=/bin"},
+		TaskDir: taskDir,
+		Mounts:  []*drivers.MountConfig{{TaskPath: "/srv", HostPath: mountDir}},
+	}
 
-	// Make a foo subdir
-	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
+	// Make a /foo /local/foo and /usr/local/bin subdirs under task dir
+	// and /bar under mountdir
+	must.NoError(t, os.MkdirAll(filepath.Join(taskDir, "foo"), 0700))
+	must.NoError(t, os.MkdirAll(filepath.Join(taskDir, "local/foo"), 0700))
+	must.NoError(t, os.MkdirAll(filepath.Join(taskDir, "usr/local/bin"), 0700))
+	must.NoError(t, os.MkdirAll(filepath.Join(mountDir, "bar"), 0700))
 
-	// Write a file under foo
-	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err := ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
-	require.NoError(err)
+	writeFile := func(paths ...string) {
+		t.Helper()
+		path := filepath.Join(paths...)
+		must.NoError(t, os.WriteFile(path, []byte("hello"), 0o700))
+	}
 
-	// Lookout with an absolute path to the binary
-	cmd.Cmd = "/foo/tmp.txt"
-	_, err = lookupTaskBin(cmd)
-	require.NoError(err)
+	// Write some files
+	writeFile(taskDir, "usr/local/bin", "tmp0.txt") // under /usr/local/bin in taskdir
+	writeFile(taskDir, "foo", "tmp1.txt")           // under foo in taskdir
+	writeFile(taskDir, "local", "tmp2.txt")         // under root of task-local dir
+	writeFile(taskDir, "local/foo", "tmp3.txt")     // under foo in task-local dir
+	writeFile(mountDir, "tmp4.txt")                 // under root of mount dir
+	writeFile(mountDir, "bar/tmp5.txt")             // under bar in mount dir
 
-	// Write a file under local subdir
-	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
-	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
-	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+	testCases := []struct {
+		name           string
+		cmd            string
+		expectErr      string
+		expectTaskPath string
+		expectHostPath string
+	}{
+		{
+			name:           "lookup with file name in PATH",
+			cmd:            "tmp0.txt",
+			expectTaskPath: "/usr/local/bin/tmp0.txt",
+			expectHostPath: filepath.Join(taskDir, "usr/local/bin/tmp0.txt"),
+		},
+		{
+			name:           "lookup with absolute path to binary",
+			cmd:            "/foo/tmp1.txt",
+			expectTaskPath: "/foo/tmp1.txt",
+			expectHostPath: filepath.Join(taskDir, "foo/tmp1.txt"),
+		},
+		{
+			name:           "lookup in task local dir with absolute path to binary",
+			cmd:            "/local/tmp2.txt",
+			expectTaskPath: "/local/tmp2.txt",
+			expectHostPath: filepath.Join(taskDir, "local/tmp2.txt"),
+		},
+		{
+			name:           "lookup in task local dir with relative path to binary",
+			cmd:            "local/tmp2.txt",
+			expectTaskPath: "/local/tmp2.txt",
+			expectHostPath: filepath.Join(taskDir, "local/tmp2.txt"),
+		},
+		{
+			name:           "lookup in task local dir with file name",
+			cmd:            "tmp2.txt",
+			expectTaskPath: "/local/tmp2.txt",
+			expectHostPath: filepath.Join(taskDir, "local/tmp2.txt"),
+		},
+		{
+			name:           "lookup in task local subdir with absolute path to binary",
+			cmd:            "/local/foo/tmp3.txt",
+			expectTaskPath: "/local/foo/tmp3.txt",
+			expectHostPath: filepath.Join(taskDir, "local/foo/tmp3.txt"),
+		},
+		{
+			name:      "lookup host absolute path outside taskdir",
+			cmd:       "/bin/sh",
+			expectErr: "file /bin/sh not found under path " + taskDir,
+		},
+		{
+			name:           "lookup file from mount with absolute path",
+			cmd:            "/srv/tmp4.txt",
+			expectTaskPath: "/srv/tmp4.txt",
+			expectHostPath: filepath.Join(mountDir, "tmp4.txt"),
+		},
+		{
+			name:      "lookup file from mount with file name fails",
+			cmd:       "tmp4.txt",
+			expectErr: "file tmp4.txt not found under path",
+		},
+		{
+			name:           "lookup file from mount with subdir",
+			cmd:            "/srv/bar/tmp5.txt",
+			expectTaskPath: "/srv/bar/tmp5.txt",
+			expectHostPath: filepath.Join(mountDir, "bar/tmp5.txt"),
+		},
+	}
 
-	// Lookup with file name, should find the one we wrote above
-	cmd.Cmd = "tmp.txt"
-	_, err = lookupTaskBin(cmd)
-	require.NoError(err)
-
-	// Lookup a host absolute path
-	cmd.Cmd = "/bin/sh"
-	_, err = lookupTaskBin(cmd)
-	require.Error(err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd.Cmd = tc.cmd
+			taskPath, hostPath, err := lookupTaskBin(cmd)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				test.Eq(t, tc.expectTaskPath, taskPath)
+				test.Eq(t, tc.expectHostPath, hostPath)
+			} else {
+				test.EqError(t, err, tc.expectErr)
+			}
+		})
+	}
 }
 
 // Exec Launch looks for the binary only inside the chroot

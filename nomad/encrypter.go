@@ -431,18 +431,13 @@ func (krr *KeyringReplicator) stop() {
 	krr.stopFn()
 }
 
-const keyringReplicationRate = 10
+const keyringReplicationRate = 5
 
 func (krr *KeyringReplicator) run(ctx context.Context) {
-	limiter := rate.NewLimiter(keyringReplicationRate, keyringReplicationRate)
 	krr.logger.Debug("starting encryption key replication")
 	defer krr.logger.Debug("exiting key replication")
 
-	retryErrTimer, stop := helper.NewSafeTimer(time.Second * 1)
-	defer stop()
-
-START:
-	store := krr.srv.fsm.State()
+	limiter := rate.NewLimiter(keyringReplicationRate, keyringReplicationRate)
 
 	for {
 		select {
@@ -451,19 +446,17 @@ START:
 		case <-ctx.Done():
 			return
 		default:
-			// Rate limit how often we attempt replication
 			err := limiter.Wait(ctx)
 			if err != nil {
-				goto ERR_WAIT // rate limit exceeded
+				continue // rate limit exceeded
 			}
 
-			ws := store.NewWatchSet()
-			iter, err := store.RootKeyMetas(ws)
+			store := krr.srv.fsm.State()
+			iter, err := store.RootKeyMetas(nil)
 			if err != nil {
 				krr.logger.Error("failed to fetch keyring", "error", err)
-				goto ERR_WAIT
+				continue
 			}
-
 			for {
 				raw := iter.Next()
 				if raw == nil {
@@ -486,16 +479,6 @@ START:
 				}
 			}
 		}
-	}
-
-ERR_WAIT:
-	retryErrTimer.Reset(1 * time.Second)
-
-	select {
-	case <-retryErrTimer.C:
-		goto START
-	case <-ctx.Done():
-		return
 	}
 
 }

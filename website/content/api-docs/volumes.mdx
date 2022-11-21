@@ -600,7 +600,7 @@ provider. Only CSI plugins that implement the
 
 | Method   | Path                              | Produces           |
 | -------- | --------------------------------- | ------------------ |
-| `PUT`    | `/v1/volumes/snapshot/:volume_id` | `application/json` |
+| `POST`    | `/v1/volumes/snapshot`           | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
@@ -633,18 +633,14 @@ parameters.
   ]
 }
 ```
-### Parameters
-
-- `:volume_id` `(string: <required>)` - Specifies the ID of the volume to
-  snapshot. This must be the full ID. This is specified as part of the path.
 
 ### Sample Request
 
 ```shell-session
 $ curl \
-    --request PUT \
+    --request POST \
     --data @payload.json \
-    https://localhost:4646/v1/volume/csi/volume-id1/snapshot
+    https://localhost:4646/v1/volumes/snapshot
 ```
 
 ### Sample Response

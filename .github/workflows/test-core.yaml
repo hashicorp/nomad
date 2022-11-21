@@ -19,8 +19,6 @@ on:
       - 'website/**'
 env:
   VERBOSE: 1
-  GO_VERSION: 1.19.3
-  GOBIN: /usr/local/bin
   GOTESTARCH: amd64
   CONSUL_VERSION: 1.12.6
   VAULT_VERSION: 1.12.0
@@ -32,11 +30,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - uses: magnetikonline/action-golang-cache@v1
-        with:
-          go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -core
-      - name: Pre-cache Go modules
+      - uses: hashicorp/setup-golang@v1
+      - name: Get Go modules
         run: |
           make tidy
           make bootstrap
@@ -48,10 +43,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # needs tags for checkproto
-      - uses: magnetikonline/action-golang-cache@v1
-        with:
-          go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -core
+      - uses: hashicorp/setup-golang@v1
       - name: Run make check
         run: |
           make missing
@@ -67,13 +59,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
-      - uses: magnetikonline/action-golang-cache@v1
-        with:
-          go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -core
+      - uses: hashicorp/setup-golang@v1
       - name: Run make dev
-        env:
-          GOBIN: ${{env.GOROOT}}/bin # windows kludge
         run: |
           make bootstrap
           make dev
@@ -83,10 +70,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
-      - uses: magnetikonline/action-golang-cache@v1
-        with:
-          go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -core
+      - uses: hashicorp/setup-golang@v1
       - name: Run API tests
         env:
           GOTEST_MOD: api
@@ -110,10 +94,7 @@ jobs:
           - quick
     steps:
       - uses: actions/checkout@v3
-      - uses: magnetikonline/action-golang-cache@v1
-        with:
-          go-version: ${{env.GO_VERSION}}
-          cache-key-suffix: -core
+      - uses: hashicorp/setup-golang@v1
       - name: Run Matrix Tests
         env:
           GOTEST_GROUP: ${{matrix.groups}}
@@ -121,7 +102,7 @@ jobs:
           make bootstrap
           make generate-all
           make dev
-          sudo hc-install install -version ${{env.VAULT_VERSION}} -path /usr/local/bin vault
-          sudo hc-install install -version ${{env.CONSUL_VERSION}} -path /usr/local/bin consul
+          hc-install install -version ${{env.VAULT_VERSION}} -path ${{env.GOBIN}} vault
+          hc-install install -version ${{env.CONSUL_VERSION}} -path ${{env.GOBIN}} consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
