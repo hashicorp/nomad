@@ -63,7 +63,10 @@ $ consul agent -dev
 
 To use service mesh on a non-dev Consul agent, you will minimally need to enable the
 GRPC port and set `connect` to enabled by adding some additional information to
-your Consul client configurations, depending on format.
+your Consul client configurations, depending on format. Consul agents running TLS
+and a version greater than [1.14.0](https://releases.hashicorp.com/consul/1.14.0)
+should set the `grpc_tls` configuration parameter instead of `grpc`. Please see
+the Consul [port documentation](consul_ports) for further reference material.
 
 For HCL configurations:
 
@@ -352,3 +355,4 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 [gh-9907]: https://github.com/hashicorp/nomad/issues/9907
 [`Local`]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#token-attributes
 [anon_token]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#special-purpose-tokens
+[consul_ports]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#ports

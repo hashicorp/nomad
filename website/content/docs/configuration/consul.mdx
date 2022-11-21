@@ -90,8 +90,8 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `grpc_address` `(string: "127.0.0.1:8502")` - Specifies the address to the local
   Consul agent for `gRPC` requests, given in the format `host:port`. Note that
-  Consul does not enable the [`grpc`](https://developer.hashicorp.com/consul/docs/agent/config/config-files#_grpc_port)
-  listener by default.
+  Consul does not enable the [`grpc`][grpc_port] or [`grpc_tls`][grpctls_port]
+  listeners by default.
 
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
@@ -227,3 +227,5 @@ namespace "nomad-ns" {
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [bootstrap]: https://learn.hashicorp.com/tutorials/nomad/clustering 'Automatic Bootstrapping'
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
+[grpc_port]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#grpc_port
+[grpctls_port]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#grpc_tls_port
