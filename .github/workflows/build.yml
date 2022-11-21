@@ -23,7 +23,7 @@ env:
 
 jobs:
   get-go-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
@@ -38,7 +38,7 @@ jobs:
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
@@ -52,7 +52,7 @@ jobs:
           echo "::set-output name=product-version::$(make version)"
   generate-metadata-file:
     needs: get-product-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
@@ -75,7 +75,7 @@ jobs:
 
   build-other:
     needs: [get-go-version, get-product-version]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         goos: [windows]
@@ -126,7 +126,7 @@ jobs:
 
   build-linux:
     needs: [get-go-version, get-product-version]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         goos: [linux]
@@ -293,7 +293,7 @@ jobs:
   #   needs:
   #     - get-product-version
   #     - build
-  #   runs-on: ubuntu-latest
+  #   runs-on: ubuntu-20.04
   #   strategy:
   #     matrix:
   #       arch: ["arm", "arm64", "386", "amd64"]
