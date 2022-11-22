@@ -1,3 +1,46 @@
+## 1.4.3 (November 21, 2022)
+
+IMPROVEMENTS:
+
+* api: Added an API for counting evaluations that match a filter [[GH-15147](https://github.com/hashicorp/nomad/issues/15147)]
+* cli: Improved performance of eval delete with large filter sets [[GH-15117](https://github.com/hashicorp/nomad/issues/15117)]
+* consul: add trace logging around service registrations [[GH-6115](https://github.com/hashicorp/nomad/issues/6115)]
+* deps: Updated github.com/aws/aws-sdk-go from 1.44.84 to 1.44.126 [[GH-15081](https://github.com/hashicorp/nomad/issues/15081)]
+* deps: Updated github.com/docker/cli from 20.10.18+incompatible to 20.10.21+incompatible [[GH-15078](https://github.com/hashicorp/nomad/issues/15078)]
+* exec: Allow running commands from mounted host volumes [[GH-14851](https://github.com/hashicorp/nomad/issues/14851)]
+* scheduler: when multiple evaluations are pending for the same job, evaluate the latest and cancel the intermediaries on success [[GH-14621](https://github.com/hashicorp/nomad/issues/14621)]
+* server: Add a git `revision` tag to the serf tags gossiped between servers. [[GH-9159](https://github.com/hashicorp/nomad/issues/9159)]
+* template: Expose per-template configuration for `error_on_missing_key`. This allows jobspec authors to specify that a
+template should fail if it references a struct or map key that does not exist. The default value is false and should be
+fully backward compatible. [[GH-14002](https://github.com/hashicorp/nomad/issues/14002)]
+* ui: Adds a "Pack" tag and logo on the jobs list index when appropriate [[GH-14833](https://github.com/hashicorp/nomad/issues/14833)]
+* ui: add consul connect service upstream and on-update info to the service sidebar [[GH-15324](https://github.com/hashicorp/nomad/issues/15324)]
+* ui: allow users to upload files by click or drag in the web ui [[GH-14747](https://github.com/hashicorp/nomad/issues/14747)]
+
+BUG FIXES:
+
+* api: Ensure all request body decode errors return a 400 status code [[GH-15252](https://github.com/hashicorp/nomad/issues/15252)]
+* autopilot: Fixed a bug where autopilot would try to fetch raft stats from other regions [[GH-15290](https://github.com/hashicorp/nomad/issues/15290)]
+* cleanup: fixed missing timer.Reset for plan queue stat emitter [[GH-15134](https://github.com/hashicorp/nomad/issues/15134)]
+* client: Fixed a bug where tasks would restart without waiting for interval [[GH-15215](https://github.com/hashicorp/nomad/issues/15215)]
+* client: fixed a bug where non-`docker` tasks with network isolation would leak network namespaces and iptables rules if the client was restarted while they were running [[GH-15214](https://github.com/hashicorp/nomad/issues/15214)]
+* client: prevent allocations from failing on client reconnect by retrying RPC requests when no servers are available yet [[GH-15140](https://github.com/hashicorp/nomad/issues/15140)]
+* csi: Fixed race condition that can cause a panic when volume is garbage collected [[GH-15101](https://github.com/hashicorp/nomad/issues/15101)]
+* device: Fixed a bug where device plugins would not fingerprint on startup [[GH-15125](https://github.com/hashicorp/nomad/issues/15125)]
+* drivers: Fixed a bug where one goroutine was leaked per task [[GH-15180](https://github.com/hashicorp/nomad/issues/15180)]
+* drivers: pass missing `propagation_mode` configuration for volume mounts to external plugins [[GH-15096](https://github.com/hashicorp/nomad/issues/15096)]
+* event_stream: fixed a bug where dynamic port values would fail to serialize in the event stream [[GH-12916](https://github.com/hashicorp/nomad/issues/12916)]
+* fingerprint: Ensure Nomad can correctly fingerprint Consul gRPC where the Consul agent is running v1.14.0 or greater [[GH-15309](https://github.com/hashicorp/nomad/issues/15309)]
+* keyring: Fixed a bug where a missing key would prevent any further replication. [[GH-15092](https://github.com/hashicorp/nomad/issues/15092)]
+* keyring: Fixed a bug where replication would stop after snapshot restores [[GH-15227](https://github.com/hashicorp/nomad/issues/15227)]
+* keyring: Re-enabled keyring garbage collection after fixing a bug where keys would be garbage collected even if they were used to sign a live allocation's workload identity. [[GH-15092](https://github.com/hashicorp/nomad/issues/15092)]
+* scheduler: Fixed a bug that prevented disconnected allocations to be updated after they reconnect. [[GH-15068](https://github.com/hashicorp/nomad/issues/15068)]
+* scheduler: Prevent unnecessary placements when disconnected allocations reconnect. [[GH-15068](https://github.com/hashicorp/nomad/issues/15068)]
+* template: Fixed a bug where template could cause agent panic on startup [[GH-15192](https://github.com/hashicorp/nomad/issues/15192)]
+* ui: Fixed a bug where the task log sidebar would close and re-open if the parent job state changed [[GH-15146](https://github.com/hashicorp/nomad/issues/15146)]
+* variables: Fixed a bug where a long-running rekey could hit the nack timeout [[GH-15102](https://github.com/hashicorp/nomad/issues/15102)]
+* wi: Fixed a bug where clients running pre-1.4.0 allocations would erase the token used to query service registrations after upgrade [[GH-15121](https://github.com/hashicorp/nomad/issues/15121)]
+
 ## 1.4.2 (October 26, 2022)
 
 SECURITY:
@@ -127,6 +170,25 @@ BUG FIXES:
 * scheduler (Enterprise): Fixed bug where the scheduler would treat multiregion jobs as paused for job types that don't use deployments [[GH-14659](https://github.com/hashicorp/nomad/issues/14659)]
 * template: Fixed a bug where the `splay` timeout was not being applied when `change_mode` was set to `script`. [[GH-14749](https://github.com/hashicorp/nomad/issues/14749)]
 * ui: Remove extra space when displaying the version in the menu footer. [[GH-14457](https://github.com/hashicorp/nomad/issues/14457)]
+
+## 1.3.8 (November 21, 2022)
+
+BUG FIXES:
+
+* api: Ensure all request body decode errors return a 400 status code [[GH-15252](https://github.com/hashicorp/nomad/issues/15252)]
+* cleanup: fixed missing timer.Reset for plan queue stat emitter [[GH-15134](https://github.com/hashicorp/nomad/issues/15134)]
+* client: Fixed a bug where tasks would restart without waiting for interval [[GH-15215](https://github.com/hashicorp/nomad/issues/15215)]
+* client: fixed a bug where non-`docker` tasks with network isolation would leak network namespaces and iptables rules if the client was restarted while they were running [[GH-15214](https://github.com/hashicorp/nomad/issues/15214)]
+* client: prevent allocations from failing on client reconnect by retrying RPC requests when no servers are available yet [[GH-15140](https://github.com/hashicorp/nomad/issues/15140)]
+* csi: Fixed race condition that can cause a panic when volume is garbage collected [[GH-15101](https://github.com/hashicorp/nomad/issues/15101)]
+* device: Fixed a bug where device plugins would not fingerprint on startup [[GH-15125](https://github.com/hashicorp/nomad/issues/15125)]
+* drivers: Fixed a bug where one goroutine was leaked per task [[GH-15180](https://github.com/hashicorp/nomad/issues/15180)]
+* drivers: pass missing `propagation_mode` configuration for volume mounts to external plugins [[GH-15096](https://github.com/hashicorp/nomad/issues/15096)]
+* event_stream: fixed a bug where dynamic port values would fail to serialize in the event stream [[GH-12916](https://github.com/hashicorp/nomad/issues/12916)]
+* fingerprint: Ensure Nomad can correctly fingerprint Consul gRPC where the Consul agent is running v1.14.0 or greater [[GH-15309](https://github.com/hashicorp/nomad/issues/15309)]
+* scheduler: Fixed a bug that prevented disconnected allocations to be updated after they reconnect. [[GH-15068](https://github.com/hashicorp/nomad/issues/15068)]
+* scheduler: Prevent unnecessary placements when disconnected allocations reconnect. [[GH-15068](https://github.com/hashicorp/nomad/issues/15068)]
+* template: Fixed a bug where template could cause agent panic on startup [[GH-15192](https://github.com/hashicorp/nomad/issues/15192)]
 
 ## 1.3.7 (October 26, 2022)
 
@@ -454,6 +516,21 @@ BUG FIXES:
 * ui: Fixed a bug where volumes were being incorrectly linked when per_alloc=true [[GH-12713](https://github.com/hashicorp/nomad/issues/12713)]
 * ui: fix broken link to task-groups in the Recent Allocations table in the Job Detail overview page. [[GH-12765](https://github.com/hashicorp/nomad/issues/12765)]
 * ui: fix the unit for the task row memory usage metric [[GH-11980](https://github.com/hashicorp/nomad/issues/11980)]
+
+## 1.2.15 (November 21, 2022)
+
+BUG FIXES:
+
+* api: Ensure all request body decode errors return a 400 status code [[GH-15252](https://github.com/hashicorp/nomad/issues/15252)]
+* cleanup: fixed missing timer.Reset for plan queue stat emitter [[GH-15134](https://github.com/hashicorp/nomad/issues/15134)]
+* client: Fixed a bug where tasks would restart without waiting for interval [[GH-15215](https://github.com/hashicorp/nomad/issues/15215)]
+* client: fixed a bug where non-`docker` tasks with network isolation would leak network namespaces and iptables rules if the client was restarted while they were running [[GH-15214](https://github.com/hashicorp/nomad/issues/15214)]
+* csi: Fixed race condition that can cause a panic when volume is garbage collected [[GH-15101](https://github.com/hashicorp/nomad/issues/15101)]
+* device: Fixed a bug where device plugins would not fingerprint on startup [[GH-15125](https://github.com/hashicorp/nomad/issues/15125)]
+* drivers: Fixed a bug where one goroutine was leaked per task [[GH-15180](https://github.com/hashicorp/nomad/issues/15180)]
+* drivers: pass missing `propagation_mode` configuration for volume mounts to external plugins [[GH-15096](https://github.com/hashicorp/nomad/issues/15096)]
+* event_stream: fixed a bug where dynamic port values would fail to serialize in the event stream [[GH-12916](https://github.com/hashicorp/nomad/issues/12916)]
+* fingerprint: Ensure Nomad can correctly fingerprint Consul gRPC where the Consul agent is running v1.14.0 or greater [[GH-15309](https://github.com/hashicorp/nomad/issues/15309)]
 
 ## 1.2.14 (October 26, 2022)
 
