@@ -111,34 +111,36 @@ export default class Watchable extends ApplicationAdapter {
     return this.ajax(urlPath, 'GET', {
       signal,
       data: params,
-    }).then((payload) => {
-      const adapter = store.adapterFor(type.modelName);
+    })
+      .then((payload) => {
+        const adapter = store.adapterFor(type.modelName);
 
-      // Query params may not necessarily map one-to-one to attribute names.
-      // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(
-        adapter.queryParamsToAttrs || {}
-      ).map((key) => ({
-        queryParam: key,
-        attr: adapter.queryParamsToAttrs[key],
-      }));
+        // Query params may not necessarily map one-to-one to attribute names.
+        // Adapters are responsible for declaring param mappings.
+        const queryParamsToAttrs = Object.keys(
+          adapter.queryParamsToAttrs || {}
+        ).map((key) => ({
+          queryParam: key,
+          attr: adapter.queryParamsToAttrs[key],
+        }));
 
-      // Remove existing records that match this query. This way if server-side
-      // deletes have occurred, the store won't have stale records.
-      const matchingRecords = store.peekAll(type.modelName).filter((record) =>
-        queryParamsToAttrs.some((mapping) => {
-          if (mapping.queryParam === 'namespace' && query.namespace === '*')
-            return true;
-          return get(record, mapping.attr) === query[mapping.queryParam];
-        })
-      );
+        // Remove existing records that match this query. This way if server-side
+        // deletes have occurred, the store won't have stale records.
+        const matchingRecords = store.peekAll(type.modelName).filter((record) =>
+          queryParamsToAttrs.some((mapping) => {
+            if (mapping.queryParam === 'namespace' && query.namespace === '*')
+              return true;
+            return get(record, mapping.attr) === query[mapping.queryParam];
+          })
+        );
 
-      matchingRecords.forEach((record) => {
-        removeRecord(store, record);
-      });
+        matchingRecords.forEach((record) => {
+          removeRecord(store, record);
+        });
 
-      return payload;
-    });
+        return payload;
+      })
+      .finally(() => this.watchList.notifyController());
   }
 
   reloadRelationship(
