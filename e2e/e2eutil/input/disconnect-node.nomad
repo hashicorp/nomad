@@ -33,6 +33,7 @@ job "disconnect-node" {
 
     task "task" {
       driver = "raw_exec"
+      user   = "root"
       config {
         command = "/bin/sh"
         args = ["-c",
