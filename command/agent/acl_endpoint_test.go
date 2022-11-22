@@ -1103,12 +1103,12 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 				mockACLRole.ID = ""
 
 				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodPut, "/v1/acl/role", encodeReq(mockACLRole))
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLRole))
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
-				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
 				require.Error(t, err)
 				require.ErrorContains(t, err, "Permission denied")
 				require.Nil(t, obj)
@@ -1119,7 +1119,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/role", nil)
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/auth-method", nil)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1127,7 +1127,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 				setToken(req, srv.RootToken)
 
 				// Send the HTTP request.
-				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
 				require.Error(t, err)
 				require.ErrorContains(t, err, "Invalid method")
 				require.Nil(t, obj)
@@ -1137,21 +1137,11 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 			name: "successful upsert",
 			testFn: func(srv *TestAgent) {
 
-				// Create the policies our ACL roles wants to link to.
-				policy1 := mock.ACLPolicy()
-				policy1.Name = "mocked-test-policy-1"
-				policy2 := mock.ACLPolicy()
-				policy2.Name = "mocked-test-policy-2"
-
-				require.NoError(t, srv.server.State().UpsertACLPolicies(
-					structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy1, policy2}))
-
-				// Create a mock role to use in the request body.
-				mockACLRole := mock.ACLRole()
-				mockACLRole.ID = ""
+				// Create a mock auth-method to use in the request body.
+				mockACLAuthMethod := mock.ACLAuthMethod()
 
 				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodPut, "/v1/acl/role", encodeReq(mockACLRole))
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLAuthMethod))
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1159,10 +1149,9 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 				setToken(req, srv.RootToken)
 
 				// Send the HTTP request.
-				obj, err := srv.Server.ACLRoleRequest(respW, req)
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
 				require.NoError(t, err)
-				require.NotNil(t, obj)
-				require.Equal(t, obj.(*structs.ACLRole).Hash, mockACLRole.Hash)
+				require.Nil(t, obj)
 			},
 		},
 	}

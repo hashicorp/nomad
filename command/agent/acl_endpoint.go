@@ -556,8 +556,8 @@ func (s *HTTPServer) ACLAuthMethodListRequest(resp http.ResponseWriter, req *htt
 	return reply.AuthMethods, nil
 }
 
-// ACLAuthMethodRequest creates a new ACL role and is callable via the
-// /v1/acl/role HTTP API.
+// ACLAuthMethodRequest creates a new ACL auth-method and is callable via the
+// /v1/acl/auth-method HTTP API.
 func (s *HTTPServer) ACLAuthMethodRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	// // The endpoint only supports PUT or POST requests.
@@ -652,9 +652,10 @@ func (s *HTTPServer) aclAuthMethodUpsertRequest(
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	// Ensure the request path ID matches the ACL role ID that was decoded.
-	// Only perform this check on updates as a generic error on creation might
-	// be confusing to operators as there is no specific role request path.
+	// Ensure the request path name matches the ACL auth-method name that was
+	// decoded. Only perform this check on updates as a generic error on
+	// creation might be confusing to operators as there is no specific
+	// auth-method request path.
 	if methodName != "" && methodName != aclAuthMethod.Name {
 		return nil, CodedError(http.StatusBadRequest, "ACL auth-method name does not match request path")
 	}
