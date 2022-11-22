@@ -1,11 +1,13 @@
+$taskSubRowBackground: #f9f9f9;
+
 table tbody .task-sub-row {
   td {
-    border-top: 2px solid white;
-
+    border-top: 2px solid $taskSubRowBackground;
+    background-color: $taskSubRowBackground;
+    padding: 0.75em 1.5em;
     .name-grid {
       display: inline-grid;
       grid-template-columns: auto 1fr;
-      margin-left: 4rem;
       gap: 1rem;
 
       .task-name {
@@ -27,6 +29,7 @@ table tbody .task-sub-row {
         color: $blue;
         text-decoration: underline;
         font-weight: normal;
+        background-color: transparent;
         svg {
           color: black;
           margin-right: 5px;
