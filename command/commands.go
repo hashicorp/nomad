@@ -926,6 +926,41 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"tls": func() (cli.Command, error) {
+			return &TLSCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca": func() (cli.Command, error) {
+			return &TLSCACommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca create": func() (cli.Command, error) {
+			return &TLSCACreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca info": func() (cli.Command, error) {
+			return &TLSCAInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert": func() (cli.Command, error) {
+			return &TLSCertCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert create": func() (cli.Command, error) {
+			return &TLSCertCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert info": func() (cli.Command, error) {
+			return &TLSCertInfoCommand{
+				Meta: meta,
+			}, nil
+		},
 		"ui": func() (cli.Command, error) {
 			return &UiCommand{
 				Meta: meta,
