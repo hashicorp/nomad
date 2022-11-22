@@ -1,0 +1,42 @@
+---
+layout: docs
+page_title: 'Commands: tls ca info'
+description: |
+  This command displays relevant information that is contained within a
+  Certificate Authority certificate.
+---
+
+# Command: nomad tls ca info
+
+Info is used to display relevant information that is contained within the
+provided certificate file.
+
+## Usage
+
+```plaintext
+nomad tls ca info <CA file>
+```
+
+## Example
+
+Display default CA:
+
+```shell-session
+$ nomad tls ca info nomad-agent-ca.pem
+Serial Number          314623649437549144006237783956683542664
+Issuer CN              Nomad Agent CA 314623649437549144006237783956683542664
+Common Name            CN=Nomad Agent CA 314623649437549144006237783956683542664,O=HashiCorp Inc.,POSTALCODE=94105,STREET=101 Second Street,L=San Francisco,ST=CA,C=US
+Expiry Date            2027-11-13 21:37:38 +0000 UTC
+Permitted DNS Domains  []
+```
+
+Display CA with a custom domain "foo.com":
+
+```shell-session
+$ nomad tls ca info foo.com-agent-ca.pem
+Serial Number          189027561135335847320487296530900061259
+Issuer CN              Nomad Agent CA 189027561135335847320487296530900061259
+Common Name            CN=Nomad Agent CA 189027561135335847320487296530900061259,O=HashiCorp Inc.,POSTALCODE=94105,STREET=101 Second Street,L=San Francisco,ST=CA,C=US
+Expiry Date            2027-11-13 21:38:15 +0000 UTC
+Permitted DNS Domains  [foo.com localhost]
+```

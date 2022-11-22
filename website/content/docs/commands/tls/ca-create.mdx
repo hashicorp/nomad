@@ -1,0 +1,59 @@
+---
+layout: docs
+page_title: 'Commands: tls ca create'
+description: |
+  This command creates a Certificate Authority that can be used to create
+  self signed certificates to be used for Nomad TLS setup.
+---
+
+# Command: nomad tls ca create
+
+Create is used to create a self signed Certificate Authority to be used for
+Nomad TLS setup.
+
+## Usage
+
+```plaintext
+nomad tls ca create [options]
+```
+
+## CA Create Options
+
+- `-additional-domain=<value>`: Add name constraints for the CA. The server will
+  reject certificates for DNS names other than those specified in `-domain` and
+  `-additional-domain`. Can be used multiple times. This option can only used in
+  combination with `-domain` and `-name-constraint`.
+
+- `common-name`: Common Name of CA. Defaults to Nomad Agent CA.
+
+- `-days=<int>`: Provide number of days the CA is valid for from now on,
+  defaults to 5 years.
+
+- `-domain=<string>`: Domain of nomad cluster. Only used in combination with
+  `-name-constraint`. Defaults to `nomad`.
+
+- `-name-constraint`: Add name constraints for the CA. Results in rejecting
+  certificates for other DNS than specified. If set to true, "localhost" and
+  `-domain` will be added to the allowed DNS. Defaults to false.
+
+~> **Warning:** If `-name-constraint` is enabled and you intend to serve the
+  Nomad web UI over HTTPS its DNS must be added with `additional-domain`. It is
+  not possible to add that after the fact.
+
+## Example
+
+Create CA:
+
+```shell-session
+$ nomad tls ca create
+==> CA Certificate saved to: nomad-agent-ca.pem
+==> CA Certificate key saved to: nomad-agent-ca-key.pem
+```
+
+Create a CA with a specified domain:
+
+```shell-session
+$ nomad tls ca create -name-constraint="true" -domain="foo.com"
+==> CA Certificate saved to: foo.com-agent-ca.pem
+==> CA Certificate key saved to: foo.com-agent-ca-key.pem
+```
