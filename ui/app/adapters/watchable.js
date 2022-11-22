@@ -125,16 +125,17 @@ export default class Watchable extends ApplicationAdapter {
 
       // Remove existing records that match this query. This way if server-side
       // deletes have occurred, the store won't have stale records.
-      store
-        .peekAll(type.modelName)
-        .filter((record) =>
-          queryParamsToAttrs.some(
-            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
-          )
-        )
-        .forEach((record) => {
-          removeRecord(store, record);
-        });
+      const matchingRecords = store.peekAll(type.modelName).filter((record) =>
+        queryParamsToAttrs.some((mapping) => {
+          if (mapping.queryParam === 'namespace' && query.namespace === '*')
+            return true;
+          return get(record, mapping.attr) === query[mapping.queryParam];
+        })
+      );
+
+      matchingRecords.forEach((record) => {
+        removeRecord(store, record);
+      });
 
       return payload;
     });
