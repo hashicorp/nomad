@@ -1796,6 +1796,31 @@
     ]
   },
   {
+    "title": "Networking",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "networking"
+      },
+      {
+        "title": "Service Discovery",
+        "path": "networking/service-discovery"
+      },
+      {
+        "title": "Service Mesh",
+        "path": "networking/service-mesh"
+      },
+      {
+        "title": "Host network",
+        "path": "networking/host-network"
+      },
+      {
+        "title": "CNI",
+        "path": "networking/cni"
+      }
+    ]
+  },
+  {
     "title": "Autoscaling",
     "routes": [
       {
