@@ -12,14 +12,15 @@ Nomad is a workload orchestrator and so it focuses on the scheduling aspects of
 a deployment, touching areas such as networking as little as possible.
 
 **Networking in Nomad is usually done via _configuration_ instead of
-_infrastructure_**. This means that Nomad provides you ways of accessing the
+_infrastructure_**. This means that Nomad provides ways for you to access the
 information you need to connect your workloads instead of running additional
-components that are often hidden and hard to debug and troubleshoot.
+components, such as DNS servers and load balancers, that are often hidden and
+can be hard to debug and troubleshoot.
 
-This can be confusing at first since it is quite a different approach from what
-you may find in other tools. This section explains how networking works in
-Nomad, some of the different patterns and configuration you are likely to find
-and use, and how Nomad differs from other tools.
+This can be confusing at first since it is quite different from what you may
+find in other tools. This section explains how networking works in Nomad, some
+of the different patterns and configurations you are likely to find and use,
+and how Nomad differs from other tools in this aspect.
 
 ## Allocation networking
 
