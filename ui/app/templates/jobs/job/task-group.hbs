@@ -71,6 +71,12 @@
         </span>
         {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}
       </span>
+      <span class="pair">
+        <span class="term">
+          Namespace
+        </span>
+        {{this.model.job.namespace.name}}
+      </span>
       {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min>
           <span class="term">
