@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -21,7 +22,7 @@ func (a *ACLAuthMethodListCommand) Help() string {
 	helpText := `
 Usage: nomad acl auth-method list [options]
 
-  List is used to list existing ACL auth method.
+  List is used to list existing ACL auth methods.
 
 General Options:
 
@@ -30,7 +31,10 @@ General Options:
 ACL List Options:
 
   -json
-    Output the ACL roles in a JSON format.
+    Output the ACL auth methods in a JSON format.
+
+  -t
+    Format and display the ACL auth methods using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -39,6 +43,7 @@ func (a *ACLAuthMethodListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
 		})
 }
 
@@ -55,10 +60,12 @@ func (a *ACLAuthMethodListCommand) Name() string { return "acl auth-method list"
 // Run satisfies the cli.Command Run function.
 func (a *ACLAuthMethodListCommand) Run(args []string) int {
 	var json bool
+	var tmpl string
 
 	flags := a.Meta.FlagSet(a.Name(), FlagSetClient)
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
 	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -78,10 +85,10 @@ func (a *ACLAuthMethodListCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Fetch info on the policy
-	methods, _, err := client.ACLRoles().List(nil)
+	// Fetch info on the method
+	methods, _, err := client.ACLAuthMethods().List(nil)
 	if err != nil {
-		a.Ui.Error(fmt.Sprintf("Error listing ACL roles: %s", err))
+		a.Ui.Error(fmt.Sprintf("Error listing ACL auth methods: %s", err))
 		return 1
 	}
 
@@ -100,6 +107,18 @@ func (a *ACLAuthMethodListCommand) Run(args []string) int {
 	return 0
 }
 
-func formatAuthMethods(methods []*api.ACLAuthMethodStub) string {
-	return ""
+func formatAuthMethods(methods []*api.ACLAuthMethodListStub) string {
+	if len(methods) == 0 {
+		return "No ACL auth methods found"
+	}
+
+	output := make([]string, 0, len(methods)+1)
+	output = append(output, "Name|Default")
+	for _, method := range methods {
+		output = append(output, fmt.Sprintf(
+			"%s|%v",
+			method.Name, method.Default))
+	}
+
+	return formatList(output)
 }

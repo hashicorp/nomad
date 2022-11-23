@@ -20,6 +20,28 @@ func (a *ACLAuthMethodCommand) Help() string {
 Usage: nomad acl auth-method <subcommand> [options] [args]
 
   This command groups subcommands for interacting with ACL auth methods. 
+
+  Create an ACL auth method:
+
+      $ nomad acl auth-method create -name="name" -policy-name="policy-name"
+
+  List all ACL auth methods:
+
+      $ nomad acl auth-method list
+
+  Lookup a specific ACL auth method:
+
+      $ nomad acl auth-method info <acl_auth_method_name>
+
+  Update an ACL auth method:
+
+      $ nomad acl auth-method update -name="updated-name" <acl_auth_method_name>
+
+  Delete an ACL auth method:
+
+      $ nomad acl auth-method delete <acl_auth_method_name>
+
+  Please see the individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)
 }
