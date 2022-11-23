@@ -1,5 +1,10 @@
 <SafeLinkTo
   @query={{hash sortProperty=this.prop sortDescending=this.shouldSortDescending}}
   data-test-sort-by={{this.prop}}>
+  {{#if this.canResize}}
+    <span class="resize-handle"
+    {{on "mousedown" (action this.startResize)}}
+    ></span>
+  {{/if}}
   {{yield}}
 </SafeLinkTo>

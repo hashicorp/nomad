@@ -65,13 +65,14 @@
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
           @class="with-foot"
+          @resizable={{true}}
           as |t|
         >
           <t.head>
             <th class="is-narrow"></th>
             <t.sort-by @prop="id">ID</t.sort-by>
             <t.sort-by
-              @class="is-200px is-truncatable"
+              @class="is-truncatable"
               @prop="name"
             >Name</t.sort-by>
             <t.sort-by @prop="compositeStatus">State</t.sort-by>

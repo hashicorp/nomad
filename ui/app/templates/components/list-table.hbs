@@ -1,8 +1,10 @@
 {{yield (hash
-  head=(component "list-table/table-head")
+  head=(component "list-table/table-head" resizable=@resizable)
   body=(component "list-table/table-body" rows=this.decoratedSource)
   sort-by=(component "list-table/sort-by"
+    resizable=@resizable
     currentProp=this.sortProperty
     sortDescending=this.sortDescending
+
   )
 )}}

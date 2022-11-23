@@ -218,6 +218,17 @@
       a {
         color: $grey;
       }
+
+      .resize-handle {
+        display: block;
+        background: #f00;
+        width: 2px;
+        height: 100%;
+        position: absolute;
+        right: 0;
+        top: 0;
+        cursor: col-resize;
+      }
     }
   }
 
@@ -326,3 +337,5 @@
     }
   }
 }
+
+
