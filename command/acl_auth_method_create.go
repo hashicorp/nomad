@@ -1,9 +1,12 @@
 package command
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"golang.org/x/exp/slices"
@@ -22,6 +25,8 @@ type ACLAuthMethodCreateCommand struct {
 	maxTokenTTL   time.Duration
 	isDefault     bool
 	config        string
+	json          bool
+	tmpl          string
 }
 
 // Help satisfies the cli.Command Help function.
@@ -45,6 +50,10 @@ ACL Auth Method Create Options:
     Sets the type of the auth method. Currently the only supported type is
     'OIDC'.
 
+  -max-token-ttl
+    Sets the duration of time all tokens created by this auth method should be
+    valid for.
+
   -token-locality
     Defines the kind of token that this auth method should produce. This can be
     either 'local' or 'global'. If empty the value of 'local' is assumed.
@@ -55,6 +64,12 @@ ACL Auth Method Create Options:
 
   -config
     Auth method configuration in JSON format.
+
+  -json
+    Output the auth method in a JSON format.
+
+  -t
+    Format and display the auth method using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -62,11 +77,14 @@ ACL Auth Method Create Options:
 func (a *ACLAuthMethodCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-name":        complete.PredictAnything,
-			"-description": complete.PredictAnything,
-			"-policy":      complete.PredictAnything,
-			"-json":        complete.PredictNothing,
-			"-t":           complete.PredictAnything,
+			"-name":           complete.PredictAnything,
+			"-type":           complete.PredictAnything,
+			"-max-token-ttl":  complete.PredictAnything,
+			"-token-locality": complete.PredictAnything,
+			"-default":        complete.PredictAnything,
+			"-config":         complete.PredictNothing,
+			"-json":           complete.PredictNothing,
+			"-t":              complete.PredictAnything,
 		})
 }
 
@@ -107,39 +125,76 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("ACL auth method name must be specified using the -name flag")
 		return 1
 	}
-	// FIXME use var from James' PR once merged
-	if !slices.Contains([]string{"oidc"}, a.tokenLocality) {
+	if !slices.Contains([]string{"global", "local"}, a.tokenLocality) {
 		a.Ui.Error("Token locality must be set to either 'local' or 'global'")
 		return 1
 	}
-	if a.methodType != "OIDC" {
+	if strings.ToLower(a.methodType) != "oidc" {
 		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
 		return 1
 	}
-	if a.methodType != "OIDC" {
-		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
+	if len(a.config) == 0 || !isJSONString(a.config) {
+		a.Ui.Error("Must provide ACL auth method config in JSON format")
 		return 1
 	}
 
-	// // Set up the auth method with the passed parameters.
-	// authMethod := api.AuthMethod{
-	// 	Name: a.name,
-	// }
+	configJSON, err := configStringToAuthConfig(a.config)
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Unable to parse JSON config: %v", err))
+		return 1
+	}
 
-	// // Get the HTTP client.
-	// client, err := a.Meta.Client()
-	// if err != nil {
-	// 	a.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-	// 	return 1
-	// }
+	// Set up the auth method with the passed parameters.
+	authMethod := api.ACLAuthMethod{
+		Name:          a.name,
+		Type:          a.methodType,
+		TokenLocality: a.tokenLocality,
+		MaxTokenTTL:   a.maxTokenTTL,
+		Default:       a.isDefault,
+		Config:        configJSON,
+	}
 
-	// // Create the auth method via the API.
-	// method, _, err := client.ACLAuthMethods().Create(&authMethod, nil)
-	// if err != nil {
-	// 	a.Ui.Error(fmt.Sprintf("Error creating ACL auth method: %s", err))
-	// 	return 1
-	// }
+	// Get the HTTP client.
+	client, err := a.Meta.Client()
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 1
+	}
 
-	// a.Ui.Output(formatAuthMethod(method))
+	// Create the auth method via the API.
+	method, _, err := client.ACLAuthMethods().Create(&authMethod, nil)
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Error creating ACL auth method: %s", err))
+		return 1
+	}
+
+	if a.json || len(a.tmpl) > 0 {
+		out, err := Format(a.json, a.tmpl, method)
+		if err != nil {
+			a.Ui.Error(err.Error())
+			return 1
+		}
+
+		a.Ui.Output(out)
+		return 0
+	}
+
+	a.Ui.Output(fmt.Sprintf("Created ACL auth method %s", a.name))
 	return 0
+}
+
+func configStringToAuthConfig(conf string) (*api.ACLAuthMethodConfig, error) {
+	configJSON := api.ACLAuthMethodConfig{}
+	err := json.Unmarshal([]byte(conf), &configJSON)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &configJSON, nil
+}
+
+func isJSONString(s string) bool {
+	var js string
+	return json.Unmarshal([]byte(s), &js) == nil
 }
