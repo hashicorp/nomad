@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"net/http"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
@@ -55,28 +53,28 @@ const (
 // The fields available depend on the service provider the check is being
 // registered into.
 type ServiceCheck struct {
-	Name                   string        // Name of the check, defaults to a generated label
-	Type                   string        // Type of the check - tcp, http, docker and script
-	Command                string        // Command is the command to run for script checks
-	Args                   []string      // Args is a list of arguments for script checks
-	Path                   string        // path of the health check url for http type check
-	Protocol               string        // Protocol to use if check is http, defaults to http
-	PortLabel              string        // The port to use for tcp/http checks
-	Expose                 bool          // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode            string        // Must be empty, "alloc", "host", or "driver"
-	Interval               time.Duration // Interval of the check
-	Timeout                time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus          string        // Initial status of the check
-	TLSSkipVerify          bool          // Skip TLS verification when Protocol=https
-	Method                 string        // HTTP Method to use (GET by default)
-	Header                 http.Header   // HTTP Headers for Consul to set when making HTTP checks
-	CheckRestart           *CheckRestart // If and when a task should be restarted based on checks
-	GRPCService            string        // Service for GRPC checks
-	GRPCUseTLS             bool          // Whether or not to use TLS for GRPC checks
-	TaskName               string        // What task to execute this check in
-	SuccessBeforePassing   int           // Number of consecutive successes required before considered healthy
-	FailuresBeforeCritical int           // Number of consecutive failures required before considered unhealthy
-	Body                   string        // Body to use in HTTP check
+	Name                   string              // Name of the check, defaults to a generated label
+	Type                   string              // Type of the check - tcp, http, docker and script
+	Command                string              // Command is the command to run for script checks
+	Args                   []string            // Args is a list of arguments for script checks
+	Path                   string              // path of the health check url for http type check
+	Protocol               string              // Protocol to use if check is http, defaults to http
+	PortLabel              string              // The port to use for tcp/http checks
+	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
+	AddressMode            string              // Must be empty, "alloc", "host", or "driver"
+	Interval               time.Duration       // Interval of the check
+	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus          string              // Initial status of the check
+	TLSSkipVerify          bool                // Skip TLS verification when Protocol=https
+	Method                 string              // HTTP Method to use (GET by default)
+	Header                 map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	CheckRestart           *CheckRestart       // If and when a task should be restarted based on checks
+	GRPCService            string              // Service for GRPC checks
+	GRPCUseTLS             bool                // Whether or not to use TLS for GRPC checks
+	TaskName               string              // What task to execute this check in
+	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
+	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
+	Body                   string              // Body to use in HTTP check
 	OnUpdate               string
 }
 
