@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"golang.org/x/exp/slices"
@@ -44,7 +43,7 @@ ACL Auth Method Create Options:
 
   -type
     Sets the type of the auth method. Currently the only supported type is
-    'OIDC'. 
+    'OIDC'.
 
   -token-locality
     Defines the kind of token that this auth method should produce. This can be
@@ -52,10 +51,10 @@ ACL Auth Method Create Options:
 
   -default
     Specifies whether this auth method should be treated as a default one in
-    case no auth method is explicitly specified for a login command. 
+    case no auth method is explicitly specified for a login command.
 
   -config
-    Auth method configuration in JSON format. 
+    Auth method configuration in JSON format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -108,7 +107,8 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("ACL auth method name must be specified using the -name flag")
 		return 1
 	}
-	if !slices.Contains(structs.ACLAuthMethodSupportedTypes, a.tokenLocality) {
+	// FIXME use var from James' PR once merged
+	if !slices.Contains([]string{"oidc"}, a.tokenLocality) {
 		a.Ui.Error("Token locality must be set to either 'local' or 'global'")
 		return 1
 	}
