@@ -889,7 +889,14 @@ func TestACLAuthMethod_Stub(t *testing.T) {
 		ModifyIndex: 10,
 	}
 	am.SetHash()
-	must.Eq(t, am.Stub(), &ACLAuthMethodStub{am.Name, am.Default})
+
+	must.Eq(t, am.Stub(), &ACLAuthMethodStub{
+		Name:        am.Name,
+		Default:     am.Default,
+		Hash:        am.Hash,
+		CreateIndex: am.CreateIndex,
+		ModifyIndex: am.ModifyIndex,
+	})
 
 	nilAuthMethod := &ACLAuthMethod{}
 	must.Eq(t, nilAuthMethod.Stub(), &ACLAuthMethodStub{})

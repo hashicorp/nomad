@@ -414,6 +414,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			go s.replicateACLPolicies(stopCh)
 			go s.replicateACLTokens(stopCh)
 			go s.replicateACLRoles(stopCh)
+			go s.replicateACLAuthMethods(stopCh)
 			go s.replicateNamespaces(stopCh)
 		}
 	}
@@ -1911,31 +1912,6 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 	}
 }
 
-// replicationBackoffContinue should be used when a replication loop encounters
-// an error and wants to wait until either the backoff time has been met, or
-// the stopCh has been closed. The boolean indicates whether the replication
-// process should continue.
-//
-// Typical use:
-//
-//	  if s.replicationBackoffContinue(stopCh) {
-//		   continue
-//		 } else {
-//	    return
-//	  }
-func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
-
-	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
-	defer timerStopFn()
-
-	select {
-	case <-timer.C:
-		return true
-	case <-stopCh:
-		return false
-	}
-}
-
 // diffACLRoles is used to perform a two-way diff between the local ACL Roles
 // and the remote Roles to determine which tokens need to be deleted or
 // updated. The returned array's contain ACL Role IDs.
@@ -1989,6 +1965,226 @@ func diffACLRoles(
 		}
 	}
 	return
+}
+
+// replicateACLAuthMethods is used to replicate ACL Authentication Methods from
+// the authoritative region to this region. The loop should only be run on the
+// leader within the federated region.
+func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
+
+	// Generate our request object. We only need to do this once and reuse it
+	// for every RPC request. The MinQueryIndex is updated after every
+	// successful replication loop, so the next query acts as a blocking query
+	// and only returns upon a change in the authoritative region.
+	req := structs.ACLAuthMethodListRequest{
+		QueryOptions: structs.QueryOptions{
+			AllowStale: true,
+			Region:     s.config.AuthoritativeRegion,
+		},
+	}
+
+	// Create our replication rate limiter for ACL auth-methods and log a
+	// lovely message to indicate the process is starting.
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting ACL Auth-Methods replication from authoritative region",
+		"authoritative_region", req.Region)
+
+	// Enter the main ACL auth-methods replication loop that will only exit
+	// when the stopCh is closed.
+	//
+	// Any error encountered will use the replicationBackoffContinue function
+	// which handles replication backoff and shutdown coordination in the event
+	// of an error inside the loop.
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+
+			// Rate limit how often we attempt replication. It is OK to ignore
+			// the error as the context will never be cancelled and the limit
+			// parameters are controlled internally.
+			_ = limiter.Wait(context.Background())
+
+			// Set the replication token on each replication iteration so that
+			// it is always current and can handle agent SIGHUP reloads.
+			req.AuthToken = s.ReplicationToken()
+
+			var resp structs.ACLAuthMethodListResponse
+
+			// Make the list RPC request to the authoritative region, so we
+			// capture the latest ACL auth-method listing.
+			err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLListAuthMethodsRPCMethod, &req, &resp)
+			if err != nil {
+				s.logger.Error("failed to fetch ACL auth-methods from authoritative region", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
+			// Perform a two-way diff on the ACL auth-methods.
+			toDelete, toUpdate := diffACLAuthMethods(s.State(), req.MinQueryIndex, resp.AuthMethods)
+
+			// A significant amount of time could pass between the last check
+			// on whether we should stop the replication process. Therefore, do
+			// a check here, before calling Raft.
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			// If we have ACL auth-methods to delete, make this call directly
+			// to Raft.
+			if len(toDelete) > 0 {
+				args := structs.ACLAuthMethodDeleteRequest{Names: toDelete}
+				_, _, err := s.raftApply(structs.ACLAuthMethodsDeleteRequestType, &args)
+
+				// If the error was because we lost leadership while calling
+				// Raft, avoid logging as this can be confusing to operators.
+				if err != nil {
+					if err != raft.ErrLeadershipLost {
+						s.logger.Error("failed to delete ACL auth-methods", "error", err)
+					}
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Fetch any outdated auth-methods.
+			var fetched []*structs.ACLAuthMethod
+			if len(toUpdate) > 0 {
+				req := structs.ACLAuthMethodsGetRequest{
+					Names: toUpdate,
+					QueryOptions: structs.QueryOptions{
+						Region:        s.config.AuthoritativeRegion,
+						AuthToken:     s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
+					},
+				}
+				var reply structs.ACLAuthMethodsGetResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLGetAuthMethodsRPCMethod, &req, &reply); err != nil {
+					s.logger.Error("failed to fetch ACL auth-methods from authoritative region", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+				for _, aclAuthMethod := range reply.AuthMethods {
+					fetched = append(fetched, aclAuthMethod)
+				}
+			}
+
+			// Update local auth-methods.
+			if len(fetched) > 0 {
+				args := structs.ACLAuthMethodUpsertRequest{
+					AuthMethods: fetched,
+				}
+
+				// Perform the upsert directly via Raft.
+				_, _, err := s.raftApply(structs.ACLAuthMethodsUpsertRequestType, &args)
+				if err != nil {
+					s.logger.Error("failed to update ACL auth-methods", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Update the minimum query index, blocks until there is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+}
+
+// diffACLAuthMethods is used to perform a two-way diff between the local ACL
+// auth-methods and the remote auth-methods to determine which ones need to be
+// deleted or updated. The returned array's contain ACL auth-method names.
+func diffACLAuthMethods(
+	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLAuthMethodStub) (
+	delete []string, update []string) {
+
+	// The local ACL auth-method tracking is keyed by the name and the value is
+	// the hash of the auth-method.
+	local := make(map[string][]byte)
+
+	// The remote ACL auth-method tracking is keyed by the name; the value is
+	// an empty struct as we already have the full object.
+	remote := make(map[string]struct{})
+
+	// Read all the ACL auth-methods currently held within our local state.
+	// This panic will only happen as a developer making a mistake with naming
+	// the index to use.
+	iter, err := store.GetACLAuthMethods(nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to iterate local ACL roles: %v", err))
+	}
+
+	// Iterate the local ACL auth-methods and add them to our tracking of
+	// local auth-methods
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclAuthMethod := raw.(*structs.ACLAuthMethod)
+		local[aclAuthMethod.Name] = aclAuthMethod.Hash
+	}
+
+	// Iterate over the remote ACL auth-methods.
+	for _, remoteACLAuthMethod := range remoteList {
+		remote[remoteACLAuthMethod.Name] = struct{}{}
+
+		// Identify whether the ACL auth-method is within the local state. If
+		// it is not, add this to our update list.
+		if localHash, ok := local[remoteACLAuthMethod.Name]; !ok {
+			update = append(update, remoteACLAuthMethod.Name)
+
+			// Check if ACL auth-method is newer remotely and there is a hash
+			// mismatch.
+		} else if remoteACLAuthMethod.ModifyIndex > minIndex && !bytes.Equal(localHash, remoteACLAuthMethod.Hash) {
+			update = append(update, remoteACLAuthMethod.Name)
+		}
+	}
+
+	// If we have ACL auth-methods within state which are no longer present in
+	// the authoritative region we should delete them.
+	for localACLAuthMethod := range local {
+		if _, ok := remote[localACLAuthMethod]; !ok {
+			delete = append(delete, localACLAuthMethod)
+		}
+	}
+	return
+}
+
+// replicationBackoffContinue should be used when a replication loop encounters
+// an error and wants to wait until either the backoff time has been met, or
+// the stopCh has been closed. The boolean indicates whether the replication
+// process should continue.
+//
+// Typical use:
+//
+//	  if s.replicationBackoffContinue(stopCh) {
+//		   continue
+//		 } else {
+//	    return
+//	  }
+func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
+
+	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
+	defer timerStopFn()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-stopCh:
+		return false
+	}
 }
 
 // getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
