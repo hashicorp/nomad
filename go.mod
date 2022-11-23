@@ -81,7 +81,7 @@ require (
 	github.com/hashicorp/raft-boltdb v0.0.0-20210409134258-03c10cc3d4ea
 	github.com/hashicorp/serf v0.10.0
 	github.com/hashicorp/vault/api v1.8.1
-	github.com/hashicorp/vault/sdk v0.6.0
+	github.com/hashicorp/vault/sdk v0.6.1
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 	github.com/kr/pretty v0.3.0
@@ -197,6 +197,8 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.7 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-secure-stdlib/mlock v0.1.2 // indirect
+	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.6 // indirect
 	github.com/hashicorp/mdns v1.0.4 // indirect
 	github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
@@ -269,8 +271,6 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/containerd/cgroups v1.0.1 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.2+incompatible // indirect
-	github.com/hashicorp/go-secure-stdlib/mlock v0.1.1 // indirect
-	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.6 // indirect
 	github.com/moby/sys/mount v0.3.3 // indirect
 	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd // indirect
 	go.uber.org/atomic v1.9.0 // indirect
