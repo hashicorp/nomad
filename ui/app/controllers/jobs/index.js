@@ -198,7 +198,7 @@ export default class IndexController extends Controller.extend(
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('currentCount', 'model.jobs.@each.parent')
+  @computed('currentCount', 'model.jobs.@each.parent', 'qpNamespace')
   get visibleJobs() {
     let jobs = null;
     if (this.currentCount) {
@@ -207,9 +207,13 @@ export default class IndexController extends Controller.extend(
       jobs = this.model.jobs;
     }
 
-    if ((!this.model || !this.model.jobs) && jobs) return [];
+    if (!jobs) return [];
     return jobs
       .compact()
+      .filter((job) => {
+        if (this.qpNamespace === '*') return true;
+        return job.get('namespace.id') === this.qpNamespace;
+      })
       .filter((job) => !job.isNew)
       .filter((job) => !job.get('parent.content'));
   }
