@@ -48,8 +48,8 @@ Status Options:
   -monitor
     Enter monitor mode to poll for updates to the deployment status.
 
--wait
-    How long to wait before polling an update, used in conjunction with monitor 
+  -wait
+    How long to wait before polling an update, used in conjunction with monitor
     mode. Defaults to 2s.
 
   -t
@@ -100,7 +100,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.DurationVar(&waitTime, "wait-time", 2*time.Second, "")
+	flags.DurationVar(&waitTime, "wait", 2*time.Second, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
