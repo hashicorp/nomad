@@ -215,12 +215,14 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 		method  string
 		body    []byte
 		headers map[string][]string
+		host    string
 	)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		body, _ = io.ReadAll(r.Body)
 		headers = maps.Clone(r.Header)
+		host = r.Host
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -244,7 +246,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 		name    string
 		method  string
 		body    string
-		headers map[string][]string
+		headers http.Header
 	}{
 		{
 			name:    "method GET",
@@ -268,6 +270,25 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 				[2]string{"X-My-Header", "hello"},
 				[2]string{"Authorization", "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
 			),
+		},
+		{
+			name:   "host header",
+			method: "GET",
+			headers: makeHeaders(encoding, agent,
+				[2]string{"Host", "hello"},
+				[2]string{"Test-Abc", "hello"},
+			),
+		},
+		{
+			name:   "host header without normalization",
+			method: "GET",
+			body:   "",
+			// This is needed to prevent header normalization by http.Header.Set
+			headers: func() map[string][]string {
+				h := makeHeaders(encoding, agent, [2]string{"Test-Abc", "hello"})
+				h["hoST"] = []string{"heLLO"}
+				return h
+			}(),
 		},
 		{
 			name:    "with body",
@@ -312,9 +333,25 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			must.Eq(t, http.StatusOK, result.StatusCode,
 				must.Sprintf("test.URL: %s", ts.URL),
 				must.Sprintf("headers: %v", tc.headers),
+				must.Sprintf("received headers: %v", tc.headers),
 			)
 			must.Eq(t, tc.method, method)
 			must.Eq(t, tc.body, string(body))
+
+			hostSent := false
+
+			for key, values := range tc.headers {
+				if strings.EqualFold(key, "Host") && len(values) > 0 {
+					must.Eq(t, values[0], host)
+					hostSent = true
+					delete(tc.headers, key)
+
+				}
+			}
+			if !hostSent {
+				must.Eq(t, nil, tc.headers["Host"])
+			}
+
 			must.Eq(t, tc.headers, headers)
 		})
 	}
