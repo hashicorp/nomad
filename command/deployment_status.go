@@ -48,8 +48,9 @@ Status Options:
   -monitor
     Enter monitor mode to poll for updates to the deployment status.
 
-  -wait-time
-    How long to wait before polling an update, used in conjunction with monitor mode. Defaults to 2s.
+-wait
+    How long to wait before polling an update, used in conjunction with monitor 
+    mode. Defaults to 2s.
 
   -t
     Format and display deployment using a Go template.
