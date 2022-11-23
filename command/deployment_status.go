@@ -91,7 +91,7 @@ func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
 	var json, verbose, monitor bool
-	var waitTime time.Duration
+	var wait time.Duration
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -100,7 +100,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.DurationVar(&waitTime, "wait", 2*time.Second, "")
+	flags.DurationVar(&wait, "wait", 2*time.Second, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -178,7 +178,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 		c.Ui.Output(fmt.Sprintf("%s: Monitoring deployment %q",
 			formatTime(time.Now()), limit(deploy.ID, length)))
-		c.monitor(client, deploy.ID, meta.LastIndex, waitTime, verbose)
+		c.monitor(client, deploy.ID, meta.LastIndex, wait, verbose)
 
 		return 0
 	}
