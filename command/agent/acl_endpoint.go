@@ -466,7 +466,6 @@ func (s *HTTPServer) aclRoleDeleteRequest(
 	}
 	setIndex(resp, reply.Index)
 	return nil, nil
-
 }
 
 // aclRoleUpsertRequest handles upserting an ACL to the Nomad servers. It can
@@ -502,7 +501,6 @@ func (s *HTTPServer) aclRoleUpsertRequest(
 		return out.ACLRoles[0], nil
 	}
 	return nil, nil
-
 }
 
 func (s *HTTPServer) aclRoleGetByNameRequest(
@@ -525,4 +523,152 @@ func (s *HTTPServer) aclRoleGetByNameRequest(
 		return nil, CodedError(http.StatusNotFound, "ACL role not found")
 	}
 	return reply.ACLRole, nil
+}
+
+// ACLAuthMethodListRequest performs a listing of ACL auth-methods and is
+// callable via the /v1/acl/auth-methods HTTP API.
+func (s *HTTPServer) ACLAuthMethodListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.ACLAuthMethodListRequest{}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.ACLAuthMethodListResponse
+	if err := s.agent.RPC(structs.ACLListAuthMethodsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.AuthMethods == nil {
+		reply.AuthMethods = make([]*structs.ACLAuthMethodStub, 0)
+	}
+	return reply.AuthMethods, nil
+}
+
+// ACLAuthMethodRequest creates a new ACL auth-method and is callable via the
+// /v1/acl/auth-method HTTP API.
+func (s *HTTPServer) ACLAuthMethodRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// // The endpoint only supports PUT or POST requests.
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Use the generic upsert function without setting an ID as this will be
+	// handled by the Nomad leader.
+	return s.aclAuthMethodUpsertRequest(resp, req, "")
+}
+
+// ACLAuthMethodSpecificRequest is callable via the /v1/acl/auth-method/ HTTP
+// API and handles reads, updates, and deletions of named methods.
+func (s *HTTPServer) ACLAuthMethodSpecificRequest(
+	resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// Grab the suffix of the request, so we can further understand it.
+	methodName := strings.TrimPrefix(req.URL.Path, "/v1/acl/auth-method/")
+
+	// Ensure the auth-method name is not an empty string which is possible if
+	// the caller requested "/v1/acl/role/auth-method/".
+	if methodName == "" {
+		return nil, CodedError(http.StatusBadRequest, "missing ACL auth-method name")
+	}
+
+	// Identify the method which indicates which downstream function should be
+	// called.
+	switch req.Method {
+	case http.MethodGet:
+		return s.aclAuthMethodGetRequest(resp, req, methodName)
+	case http.MethodDelete:
+		return s.aclAuthMethodDeleteRequest(resp, req, methodName)
+	case http.MethodPost, http.MethodPut:
+		return s.aclAuthMethodUpsertRequest(resp, req, methodName)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+// aclAuthMethodGetRequest is callable via the /v1/acl/auth-method/ HTTP API
+// and is used for reading the named auth-method from state.
+func (s *HTTPServer) aclAuthMethodGetRequest(
+	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+
+	args := structs.ACLAuthMethodGetRequest{
+		MethodName: methodName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var reply structs.ACLAuthMethodGetResponse
+	if err := s.agent.RPC(structs.ACLGetAuthMethodRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.AuthMethod == nil {
+		return nil, CodedError(http.StatusNotFound, "ACL auth-method not found")
+	}
+	return reply.AuthMethod, nil
+}
+
+// aclAuthMethodDeleteRequest is callable via the /v1/acl/auth-method/ HTTP API
+// and is responsible for deleting the named auth-method from state.
+func (s *HTTPServer) aclAuthMethodDeleteRequest(
+	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+
+	args := structs.ACLAuthMethodDeleteRequest{
+		Names: []string{methodName},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var reply structs.ACLAuthMethodDeleteResponse
+	if err := s.agent.RPC(structs.ACLDeleteAuthMethodsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setIndex(resp, reply.Index)
+	return nil, nil
+}
+
+// aclAuthMethodUpsertRequest handles upserting an ACL auth-method to the Nomad
+// servers. It can handle both new creations, and updates to existing
+// auth-methods.
+func (s *HTTPServer) aclAuthMethodUpsertRequest(
+	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+
+	// Decode the ACL auth-method.
+	var aclAuthMethod structs.ACLAuthMethod
+	if err := decodeBody(req, &aclAuthMethod); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	// Ensure the request path name matches the ACL auth-method name that was
+	// decoded. Only perform this check on updates as a generic error on
+	// creation might be confusing to operators as there is no specific
+	// auth-method request path.
+	if methodName != "" && methodName != aclAuthMethod.Name {
+		return nil, CodedError(http.StatusBadRequest, "ACL auth-method name does not match request path")
+	}
+
+	args := structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{&aclAuthMethod},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.ACLAuthMethodUpsertResponse
+	if err := s.agent.RPC(structs.ACLUpsertAuthMethodsRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return nil, nil
 }
