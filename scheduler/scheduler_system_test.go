@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2985,4 +2986,91 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			h.AssertEvalStatus(t, structs.EvalStatusComplete)
 		})
 	}
+}
+
+func TestSystemSched_CSITopology(t *testing.T) {
+	ci.Parallel(t)
+	h := NewHarness(t)
+
+	zones := []string{"zone-0", "zone-1", "zone-2", "zone-3"}
+
+	// Create some nodes, each running a CSI plugin with topology for
+	// a different "zone"
+	for i := 0; i < 12; i++ {
+		node := mock.Node()
+		node.Datacenter = zones[i%4]
+		node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"test-plugin-" + zones[i%4]: {
+				PluginID: "test-plugin-" + zones[i%4],
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{
+					MaxVolumes: 3,
+					AccessibleTopology: &structs.CSITopology{
+						Segments: map[string]string{"zone": zones[i%4]}},
+				},
+			},
+		}
+		must.NoError(t, h.State.UpsertNode(
+			structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// create a non-default namespace for the job and volume
+	ns := "non-default-namespace"
+	must.NoError(t, h.State.UpsertNamespaces(h.NextIndex(),
+		[]*structs.Namespace{{Name: ns}}))
+
+	// create a volume that lives in one zone
+	vol0 := structs.NewCSIVolume("myvolume", 0)
+	vol0.PluginID = "test-plugin-zone-0"
+	vol0.Namespace = ns
+	vol0.AccessMode = structs.CSIVolumeAccessModeMultiNodeMultiWriter
+	vol0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	vol0.RequestedTopologies = &structs.CSITopologyRequest{
+		Required: []*structs.CSITopology{{
+			Segments: map[string]string{"zone": "zone-0"},
+		}},
+	}
+
+	must.NoError(t, h.State.UpsertCSIVolume(
+		h.NextIndex(), []*structs.CSIVolume{vol0}))
+
+	// Create a job that uses that volumes
+	job := mock.SystemJob()
+	job.Datacenters = zones
+	job.Namespace = ns
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"myvolume": {
+			Type:   "csi",
+			Name:   "unique",
+			Source: "myvolume",
+		},
+	}
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   ns,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and expect a single plan without annotations
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+
+	must.Len(t, 1, h.Plans, must.Sprint("expected one plan"))
+	must.Nil(t, h.Plans[0].Annotations, must.Sprint("expected no annotations"))
+
+	// Expect the eval has not spawned a blocked eval
+	must.Eq(t, len(h.CreateEvals), 0)
+	must.Eq(t, "", h.Evals[0].BlockedEval, must.Sprint("did not expect a blocked eval"))
+	must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
+
 }

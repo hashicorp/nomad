@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where volumes in non-default namespaces could not be scheduled for system or sysbatch jobs
+```
