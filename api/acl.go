@@ -319,6 +319,9 @@ func (a *ACLAuthMethods) List(q *QueryOptions) ([]*ACLAuthMethodListStub, *Query
 
 // Create is used to create an ACL auth-method.
 func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*WriteMeta, error) {
+	if authMethod.Name == "" {
+		return nil, errMissingACLAuthMethodName
+	}
 	wm, err := a.client.write("/v1/acl/auth-method", authMethod, nil, w)
 	if err != nil {
 		return nil, err
