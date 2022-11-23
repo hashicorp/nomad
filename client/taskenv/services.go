@@ -1,8 +1,6 @@
 package taskenv
 
 import (
-	"net/http"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -52,17 +50,14 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 	return interpolated
 }
 
-func interpolateMapStringSliceString(taskEnv *TaskEnv, orig map[string][]string) http.Header {
+func interpolateMapStringSliceString(taskEnv *TaskEnv, orig map[string][]string) map[string][]string {
 	if len(orig) == 0 {
 		return nil
 	}
 
-	m := http.Header{}
+	m := make(map[string][]string, len(orig))
 	for k, vs := range orig {
-		for _, v := range taskEnv.ParseAndReplace(vs) {
-			m.Add(taskEnv.ReplaceEnv(k), v)
-		}
-
+		m[taskEnv.ReplaceEnv(k)] = taskEnv.ParseAndReplace(vs)
 	}
 	return m
 }
