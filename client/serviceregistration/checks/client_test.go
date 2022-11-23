@@ -280,7 +280,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			),
 		},
 		{
-			name:   "host header",
+			name:   "host header without normalization",
 			method: "GET",
 			body:   "",
 			// This is needed to prevent header normalization by http.Header.Set
