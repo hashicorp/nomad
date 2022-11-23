@@ -608,7 +608,7 @@ func TestACLAuthMethods(t *testing.T) {
 		MaxTokenTTL:   15 * time.Minute,
 		Default:       true,
 	}
-	writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
+	_, writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, writeMeta)
 
@@ -631,7 +631,7 @@ func TestACLAuthMethods(t *testing.T) {
 
 	// Update the auth-method token locality.
 	authMethod.TokenLocality = ACLAuthMethodTokenLocalityGlobal
-	writeMeta, err = testClient.ACLAuthMethods().Update(&authMethod, nil)
+	_, writeMeta, err = testClient.ACLAuthMethods().Update(&authMethod, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, writeMeta)
 
