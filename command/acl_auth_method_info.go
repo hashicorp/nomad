@@ -17,6 +17,7 @@ type ACLAuthMethodInfoCommand struct {
 	Meta
 
 	json bool
+	tmpl string
 }
 
 // Help satisfies the cli.Command Help function.
@@ -35,6 +36,9 @@ ACL Info Options:
 
   -json
     Output the ACL role in a JSON format.
+
+  -t
+    Format and display the ACL role using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -44,6 +48,7 @@ func (a *ACLAuthMethodInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
 		})
 }
 
@@ -65,6 +70,7 @@ func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
 	flags := a.Meta.FlagSet(a.Name(), FlagSetClient)
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
 	flags.BoolVar(&a.json, "json", false, "")
+	flags.StringVar(&a.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -85,13 +91,13 @@ func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
 	}
 
 	var (
-		aclRole *api.ACLAuthMethod
-		apiErr  error
+		method *api.ACLAuthMethod
+		apiErr error
 	)
 
 	methodName := flags.Args()[0]
 
-	method, _, apiErr = client.ACLAuthMethods().GetByName(methodName, nil)
+	method, _, apiErr = client.ACLAuthMethods().Get(methodName, nil)
 
 	// Handle any error from the API.
 	if apiErr != nil {
