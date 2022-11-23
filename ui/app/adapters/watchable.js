@@ -128,8 +128,15 @@ export default class Watchable extends ApplicationAdapter {
         // deletes have occurred, the store won't have stale records.
         const matchingRecords = store.peekAll(type.modelName).filter((record) =>
           queryParamsToAttrs.some((mapping) => {
-            if (mapping.queryParam === 'namespace' && query.namespace === '*')
-              return true;
+            if (mapping.queryParam === 'namespace') {
+              if (query.namespace === '*') {
+                return true;
+              } else if (mapping.attr === 'namespace') {
+                return (
+                  get(record, 'namespace.name') === query[mapping.queryParam]
+                );
+              }
+            }
             return get(record, mapping.attr) === query[mapping.queryParam];
           })
         );
