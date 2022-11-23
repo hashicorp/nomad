@@ -1,8 +1,10 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -54,3 +56,40 @@ func (a *ACLAuthMethodCommand) Name() string { return "acl auth-method" }
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLAuthMethodCommand) Run(_ []string) int { return cli.RunResultHelp }
+
+// formatAuthMethod formats and converts the ACL auth method API object into a
+// string KV representation suitable for console output.
+func formatAuthMethod(authMethod *api.ACLAuthMethod) string {
+	return formatKV([]string{
+		fmt.Sprintf("Name|%s", authMethod.Name),
+		fmt.Sprintf("Type|%s", authMethod.Type),
+		fmt.Sprintf("Locality|%s", authMethod.TokenLocality),
+		fmt.Sprintf("MaxTokenTTL|%s", authMethod.MaxTokenTTL.String()),
+		fmt.Sprintf("Default|%t", authMethod.Default),
+		fmt.Sprintf("Config|%s", formatAuthMethodConfig(authMethod.Config)),
+		fmt.Sprintf("Create Index|%d", authMethod.CreateIndex),
+		fmt.Sprintf("Modify Index|%d", authMethod.ModifyIndex),
+	})
+}
+
+func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
+	return formatKV([]string{
+		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
+		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
+		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
+		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
+		fmt.Sprintf("Allowed redirects URIs|%s", strings.Join(config.AllowedRedirectURIs, ",")),
+		fmt.Sprintf("Discovery CA pem|%s", strings.Join(config.DiscoveryCaPem, ",")),
+		fmt.Sprintf("Signing algorithms|%s", strings.Join(config.SigningAlgs, ",")),
+		fmt.Sprintf("Claim mappings|%s", formatMap(config.ClaimMappings)),
+		fmt.Sprintf("List claim mappings|%s", formatMap(config.ListClaimMappings)),
+	})
+}
+
+func formatMap(m map[string]string) string {
+	out := []string{}
+	for k, v := range m {
+		out = append(out, fmt.Sprintf("%s/%s", k, v))
+	}
+	return formatKV(out)
+}
