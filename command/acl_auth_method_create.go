@@ -97,6 +97,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	flags.StringVar(&a.methodType, "type", "", "")
 	flags.StringVar(&a.tokenLocality, "token-locality", "local", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
+	flags.BoolVar(&a.isDefault, "default", true, "")
 	flags.StringVar(&a.config, "config", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
