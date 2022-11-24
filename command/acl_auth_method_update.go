@@ -1,6 +1,7 @@
 package command
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -91,10 +92,7 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 	flags.StringVar(&a.tokenLocality, "token-locality", "local", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
 	flags.StringVar(&a.config, "config", "", "")
-	if err := flags.Parse(args); err != nil {
-		return 1
-	}
-
+	flags.BoolVar(&a.isDefault, "default", false, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -108,13 +106,56 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 
 	originalMethodName := flags.Args()[0]
 
-	if a.tokenLocality != "" && !slices.Contains([]string{"global", "local"}, a.tokenLocality) {
-		a.Ui.Error("Token locality must be set to either 'local' or 'global'")
+	// Get the HTTP client.
+	client, err := a.Meta.Client()
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
-	if a.methodType != "" && strings.ToLower(a.methodType) != "oidc" {
-		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
+
+	// Check if the method we want to update exists
+	originalMethod, _, err := client.ACLAuthMethods().Get(originalMethodName, nil)
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Error when retrieving ACL auth method: %v", err))
 		return 1
+	}
+
+	// Check if any command-specific flags were set
+	setFlags := []string{}
+	for _, f := range []string{"type", "token-locality", "max-token-ttl", "config", "default"} {
+		if flagPassed(flags, f) {
+			setFlags = append(setFlags, f)
+		}
+	}
+	if len(setFlags) == 0 {
+		a.Ui.Error("Please provide at least one flag to update the ACL auth method")
+		return 1
+	}
+
+	updatedMethod := *originalMethod
+
+	if slices.Contains(setFlags, "token-locality") {
+		if !slices.Contains([]string{"global", "local"}, a.tokenLocality) {
+			a.Ui.Error("Token locality must be set to either 'local' or 'global'")
+			return 1
+		}
+		updatedMethod.TokenLocality = a.tokenLocality
+	}
+
+	if slices.Contains(setFlags, "type") {
+		if strings.ToLower(a.methodType) != "oidc" {
+			a.Ui.Error("ACL auth method type must be set to 'OIDC'")
+			return 1
+		}
+		updatedMethod.Type = a.methodType
+	}
+
+	if slices.Contains(setFlags, "max-token-ttl") {
+		updatedMethod.MaxTokenTTL = a.maxTokenTTL
+	}
+
+	if slices.Contains(setFlags, "default") {
+		updatedMethod.Default = a.isDefault
 	}
 
 	var configJSON *api.ACLAuthMethodConfig
@@ -125,27 +166,11 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 			a.Ui.Error(fmt.Sprintf("Unable to parse JSON config: %v", err))
 			return 1
 		}
-	}
-
-	// Set up the auth method with the passed parameters.
-	authMethod := api.ACLAuthMethod{
-		Name:          originalMethodName,
-		Type:          a.methodType,
-		TokenLocality: a.tokenLocality,
-		MaxTokenTTL:   a.maxTokenTTL,
-		Default:       a.isDefault,
-		Config:        configJSON,
-	}
-
-	// Get the HTTP client.
-	client, err := a.Meta.Client()
-	if err != nil {
-		a.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
+		updatedMethod.Config = configJSON
 	}
 
 	// Update the auth method via the API.
-	_, err = client.ACLAuthMethods().Update(&authMethod, nil)
+	_, err = client.ACLAuthMethods().Update(&updatedMethod, nil)
 	if err != nil {
 		a.Ui.Error(fmt.Sprintf("Error updating ACL auth method: %v", err))
 		return 1
@@ -153,4 +178,14 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 
 	a.Ui.Output(fmt.Sprintf("Updated ACL auth method %s", originalMethodName))
 	return 0
+}
+
+func flagPassed(flags *flag.FlagSet, name string) bool {
+	found := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
