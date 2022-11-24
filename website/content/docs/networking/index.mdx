@@ -25,12 +25,10 @@ and how Nomad differs from other tools in this aspect.
 ## Allocation networking
 
 The base unit of scheduling in Nomad is an [allocation], which means that all
-tasks run in the same client and share common resources, such as disk and
-networking.
-
-Allocations can request access to network resources, such as ports, using the
-[`network`][jobspec_network] block. At its simplest configuration, a `network`
-block defines something like this:
+tasks in the same allocation run in the same client and share common resources,
+such as disk and networking. Allocations can request access to network
+resources, such as ports, using the [`network`][jobspec_network] block. At its
+simplest configuration, a `network` block can be defined as:
 
 ```hcl
 job "..." {
@@ -45,12 +43,16 @@ job "..." {
 ```
 
 Nomad reserves a random port from the client between [`min_dynamic_port`] and
-[`max_dynamic_port`] that is not being used and assigns it to the allocation.
+[`max_dynamic_port`] that is not currently allocated and creates a port mapping
+from the host network interface to the allocation.
+
+[![Nomad Port Mapping](/img/networking/port_mapping.png)](/img/networking/port_mapping.png)
+
 The selected port number can be accessed by tasks using the
 [`NOMAD_PORT_<label>`][runtime_environment] environment variable to bind and
 expose the workload at the client's IP address and the given port.
 
-The specific configuration process depends on what is being executed, but it is
+The specific configuration process depends on what you are running, but it is
 usually done using a configuration file rendered from a [`template`] or passed
 directly via command line arguments:
 
@@ -77,33 +79,41 @@ job "..." {
 It is also possible to request a specific port number, instead of a random one,
 by setting a [`static`] value for the `port`. **This should only be used by
 specialized workloads**, such as load balancers and system jobs, since it can
-be hard to manage them to avoid scheduling collisions at scale.
+be hard to manage them manually to avoid scheduling collisions.
 
 With the task listening at one of the client's ports, other processes can
 access it directly using the client's IP and port, but first they need to find
-out what these values are. This process is called [service discovery].
+these values. This process is called [service discovery].
 
-## Bridge network mode
+When using IP and port to connect allocations it is important to make sure your
+network topology and routing configuration allow the Nomad clients to
+communicate with each other.
+
+## Bridge networking
 
 Linux clients support a network [`mode`][network_mode] called [`bridge`]. A
-bridge network acts like a virtual network switch allowing allocations
-connected to the bridge to reach each other while isolating them from processes
-not connected to the bridge.
+bridge network acts like a virtual network switch allowing processes connected
+to the bridge to reach each other while isolating them from others.
 
 When a Nomad agent starts in a Linux system it creates a bridge network called
 `nomad` (or the value set in [`bridge_network_name`]) using the [`bridge` CNI
 plugin][cni_bridge]. Allocations that use the `bridge` network mode run in an
 isolated network namespace and are connected to this bridge.
 
-This allows Nomad to map random host ports to specific port numbers that are
-expected by the task. For example, an HTTP server that listens on port `3000`
-by default can be configured with the following `network` block:
+[![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
+
+This allows Nomad to map random ports from the host to specific port numbers
+inside the allocation network namespace that are expected by the task. For
+example, an HTTP server that listens on port `3000` by default can be
+configured with the following `network` block:
 
 ```hcl
 job "..." {
   # ...
   group "..." {
     network {
+      mode = "bridge"
+
       port "http" {
         to = 3000
       }
@@ -113,25 +123,49 @@ job "..." {
 }
 ```
 
-Nomad still reserves a random port from the client, but this port is mapped to
-the value expected by the application, and so no extra configuration is
-required.
+To allow communication between allocations in different clients, Nomad creates
+an `iptables` rule to forward requests from the host network interface to the
+bridge. This results in three different network access scopes:
 
-## Networking with Docker
+- tasks that bind to the loopback interface (`localhost` or `127.0.0.1`) are
+  accessible only from within the allocation.
+
+- tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
+  without `port` forwarding are only accessible from the same client.
+
+- tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
+  with `port` forwarding are accessible from external sources.
+
+~> **Note:** To prevent any type of external access when using `bridge` network
+   mode make sure to bind your workloads to the loopback interface only.
+
+Bridge networking is at the core of [service mesh] and a requirement when using
+[Consul Service Mesh][consul_service_mesh].
+
+### Bridge networking with Docker
 
 The Docker daemon manages its own network configuration and creates its own
 [bridge network][docker_bridge], network namespaces, and [`iptable`
 rules][docker_iptables].
 
-Tasks using the `docker` task driver will connect to the Docker bridge and be
-placed in the network namespace managed by Docker
+Tasks using the `docker` task driver connect to the Docker bridge instead of
+using the one create by Nomad and, by default, each container runs in its own
+network namespace that is also managed by Docker.
 
+When using `bridge` network mode, Nomad starts a placeholder container to
+initialize a Docker network namespace that is shared by all tasks in the
+allocation.
+
+Refer to the [Networking][docker_networking] section of the Docker task driver
+documentation for more information.
+
+~> **Note:** Docker Desktop in non-Linux environments runs a local virtual
+   machine, adding an extra layer of indirection. Refer to our
+   [FAQ][faq_docker] for more details.
 
 ## Comparing with other tools
 
-### Docker and Docker Compose
-
-### Docker Swarm
+### Docker Compose and Docker Swarm
 
 ### Kubernetes
 
@@ -143,9 +177,13 @@ placed in the network namespace managed by Docker
 [`template`]: /docs/job-specification/template#template-examples
 [allocation]: /docs/concepts/architecture#allocation
 [cni_bridge]: https://www.cni.dev/plugins/current/main/bridge/
+[consul_service_mesh]: /docs/integrations/consul-connect
 [docker_bridge]: https://docs.docker.com/network/bridge/
 [docker_iptables]: https://docs.docker.com/network/iptables/
+[docker_networking]: /docs/drivers/docker#networking
+[faq_docker]: /docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
 [jobspec_network]: /docs/job-specification/network
 [network_mode]: /docs/job-specification/network#mode
 [runtime_environment]: /docs/runtime/environment
 [service discovery]: /docs/networking/service-discovery
+[service mesh]: /docs/networking/service-mesh
