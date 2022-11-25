@@ -80,26 +80,6 @@ func TestParameters_deadline(t *testing.T) {
 	})
 }
 
-func TestParameters_executes(t *testing.T) {
-	cases := []struct {
-		name   string
-		source string
-		exp    bool
-	}{
-		{name: "git", exp: true, source: "git::https://github.com/hashicorp/nomad"},
-		{name: "hg", exp: true, source: "hg::https://example.com/nomad"},
-		{name: "http", exp: false, source: "https://github.com/hashicorp/nomad"},
-		{name: "s3", exp: false, source: "s3::https://s3.amazon.com/hashicorp/nomad"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			p := &parameters{Source: tc.source}
-			result := p.executes()
-			must.Eq(t, tc.exp, result)
-		})
-	}
-}
-
 func TestParameters_client(t *testing.T) {
 	ctx := context.Background()
 	c := paramsAsStruct.client(ctx)

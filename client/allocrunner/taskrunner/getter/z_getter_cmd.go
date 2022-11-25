@@ -29,11 +29,9 @@ func init() {
 		// force quit after maximum timeout exceeded
 		subproc.SetExpiration(ctx)
 
+		// sandbox the host filesystem for this process
 		dir := env.TaskDir
-		executes := env.executes()
-
-		// sandbox the filesystem for this process
-		if err := lockdown(dir, executes); err != nil {
+		if err := lockdown(dir); err != nil {
 			subproc.Print("failed to sandbox getter process: %v", err)
 			return subproc.ExitFailure
 		}

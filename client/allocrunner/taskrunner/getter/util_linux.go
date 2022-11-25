@@ -70,20 +70,13 @@ func minimalVars(taskDir string) []string {
 // lockdown isolates this process to only be able to write and
 // create files in the task's task directory.
 // dir - the task directory
-// executes - indicates use of git or hg
 //
-// Only applies to Linux, when useable.
-func lockdown(dir string, executes bool) error {
+// Only applies to Linux, when available.
+func lockdown(dir string) error {
 	// landlock not present in the kernel, do not sandbox
 	if !landlock.Available() {
 		return nil
 	}
-
-	// can only landlock git with version 2+, otherwise skip
-	if executes && version < 2 {
-		return nil
-	}
-
 	paths := []*landlock.Path{
 		landlock.DNS(),
 		landlock.Certs(),

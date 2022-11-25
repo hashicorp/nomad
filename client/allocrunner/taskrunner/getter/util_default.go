@@ -38,6 +38,6 @@ func minimalVars(taskDir string) []string {
 }
 
 // lockdown applies only to Linux
-func lockdown(string, bool) error {
+func lockdown(string) error {
 	return nil
 }

@@ -64,18 +64,6 @@ func (p *parameters) deadline() time.Duration {
 	return max
 }
 
-// executes returns true if go-getter will be used in a mode that
-// requires the use of exec.
-func (p *parameters) executes() bool {
-	if strings.HasPrefix(p.Source, "git::") {
-		return true
-	}
-	if strings.HasPrefix(p.Source, "hg::") {
-		return true
-	}
-	return false
-}
-
 // Equal returns whether p and o are the same.
 func (p *parameters) Equal(o *parameters) bool {
 	if p == nil || o == nil {
