@@ -5169,3 +5169,119 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 		},
 	})
 }
+
+// Tests the reconciler properly handles the logic for computeDeploymentPaused
+// for various job types.
+func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
+	ci.Parallel(t)
+
+	type testCase struct {
+		name            string
+		jobType         string
+		isMultiregion   bool
+		isPeriodic      bool
+		isParameterized bool
+		expected        bool
+	}
+
+	multiregionCfg := mock.MultiregionJob().Multiregion
+	periodicCfg := mock.PeriodicJob().Periodic
+	parameterizedCfg := &structs.ParameterizedJobConfig{
+		Payload: structs.DispatchPayloadRequired,
+	}
+
+	testCases := []testCase{
+		{
+			name:            "single region service is not paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion service is paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        true,
+		},
+		{
+			name:            "single region batch job is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion batch job is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion parameterized batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: true,
+			expected:        false,
+		},
+		{
+			name:            "multiregion periodic batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      true,
+			isParameterized: false,
+			expected:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var job *structs.Job
+
+			if tc.jobType == structs.JobTypeService {
+				job = mock.Job()
+			} else if tc.jobType == structs.JobTypeBatch {
+				job = mock.BatchJob()
+			}
+
+			require.NotNil(t, job, "invalid job type", tc.jobType)
+
+			var deployment *structs.Deployment
+			if tc.isMultiregion {
+				job.Multiregion = multiregionCfg
+
+				// This deployment is created by the Job.Register RPC and
+				// fetched by the scheduler before handing it to the
+				// reconciler.
+				if job.Type == structs.JobTypeService {
+					deployment = structs.NewDeployment(job, 100)
+					deployment.Status = structs.DeploymentStatusInitializing
+					deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+				}
+			}
+
+			if tc.isPeriodic {
+				job.Periodic = periodicCfg
+			}
+
+			if tc.isParameterized {
+				job.ParameterizedJob = parameterizedCfg
+			}
+
+			reconciler := NewAllocReconciler(
+				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, deployment,
+				nil, nil, "", job.Priority)
+
+			_ = reconciler.Compute()
+
+			require.Equal(t, tc.expected, reconciler.deploymentPaused)
+		})
+	}
+}

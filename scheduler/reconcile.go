@@ -203,16 +203,9 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Detect if the deployment is paused
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
-			a.deployment.Status == structs.DeploymentStatusPending
+			a.deployment.Status == structs.DeploymentStatusPending ||
+			a.deployment.Status == structs.DeploymentStatusInitializing
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
-	}
-	if a.deployment == nil {
-		// When we create the deployment later, it will be in a pending
-		// state. But we also need to tell Compute we're paused, otherwise we
-		// make placements on the paused deployment.
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() || a.job.IsParameterized()) {
-			a.deploymentPaused = true
-		}
 	}
 
 	// Reconcile each group
@@ -222,24 +215,35 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		complete = complete && groupComplete
 	}
 
-	// Mark the deployment as complete if possible
-	if a.deployment != nil && complete {
-		if a.job.IsMultiregion() {
-			// the unblocking/successful states come after blocked, so we
-			// need to make sure we don't revert those states
-			if a.deployment.Status != structs.DeploymentStatusUnblocking &&
-				a.deployment.Status != structs.DeploymentStatusSuccessful {
+	if a.deployment != nil {
+		// Mark the deployment as complete if possible
+		if complete {
+			if a.job.IsMultiregion() {
+				// the unblocking/successful states come after blocked, so we
+				// need to make sure we don't revert those states
+				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
+					a.deployment.Status != structs.DeploymentStatusSuccessful {
+					a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      a.deployment.ID,
+						Status:            structs.DeploymentStatusBlocked,
+						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					})
+				}
+			} else {
 				a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 					DeploymentID:      a.deployment.ID,
-					Status:            structs.DeploymentStatusBlocked,
-					StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					Status:            structs.DeploymentStatusSuccessful,
+					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 				})
 			}
-		} else {
+		}
+
+		// Mark the deployment as pending since its state is now computed.
+		if a.deployment.Status == structs.DeploymentStatusInitializing {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
-				Status:            structs.DeploymentStatusSuccessful,
-				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+				Status:            structs.DeploymentStatusPending,
+				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
 			})
 		}
 	}
@@ -571,6 +575,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 		// Attach the groups deployment state to the deployment
 		a.deployment.TaskGroups[group] = dstate
+	}
+
+	// Deployments that are still initializing need to be sent in full in the
+	// plan so its internal state can be persisted by the plan applier.
+	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusInitializing {
+		a.result.deployment = a.deployment
 	}
 
 	// deploymentComplete is whether the deployment is complete which largely
