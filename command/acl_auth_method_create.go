@@ -3,6 +3,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ type ACLAuthMethodCreateCommand struct {
 	maxTokenTTL   time.Duration
 	isDefault     bool
 	config        string
+
+	testStdin io.Reader
 }
 
 // Help satisfies the cli.Command Help function.
@@ -61,7 +64,9 @@ ACL Auth Method Create Options:
     case no auth method is explicitly specified for a login command.
 
   -config
-    Auth method configuration in JSON format.
+	Auth method configuration in JSON format. May be prefixed with '@' to
+	indicate that the value is a file path to load the config from. '-' may
+	also be given to indicate that the config is available on stdin.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -133,9 +138,16 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	configJSON, err := configStringToAuthConfig(a.config)
+	config, err := loadDataSource(a.config, a.testStdin)
 	if err != nil {
-		a.Ui.Error(fmt.Sprintf("Unable to parse JSON config: %v", err))
+		a.Ui.Error(fmt.Sprintf("Error loading configuration: %v", err))
+		return 1
+	}
+
+	configJSON := api.ACLAuthMethodConfig{}
+	err = json.Unmarshal([]byte(config), &configJSON)
+	if err != nil {
+		a.Ui.Error(fmt.Sprintf("Unable to parse config: %v", err))
 		return 1
 	}
 
@@ -146,7 +158,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		TokenLocality: a.tokenLocality,
 		MaxTokenTTL:   a.maxTokenTTL,
 		Default:       a.isDefault,
-		Config:        configJSON,
+		Config:        &configJSON,
 	}
 
 	// Get the HTTP client.
@@ -165,15 +177,4 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 
 	a.Ui.Output(fmt.Sprintf("Created ACL auth method %s", a.name))
 	return 0
-}
-
-func configStringToAuthConfig(conf string) (*api.ACLAuthMethodConfig, error) {
-	configJSON := api.ACLAuthMethodConfig{}
-	err := json.Unmarshal([]byte(conf), &configJSON)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &configJSON, nil
 }

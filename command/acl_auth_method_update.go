@@ -1,8 +1,10 @@
 package command
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -24,6 +26,8 @@ type ACLAuthMethodUpdateCommand struct {
 	maxTokenTTL   time.Duration
 	isDefault     bool
 	config        string
+
+	testStdin io.Reader
 }
 
 // Help satisfies the cli.Command Help function.
@@ -56,7 +60,9 @@ ACL Auth Method Update Options:
     case no auth method is explicitly specified for a login command.
 
   -config
-    Updates auth method configuration (in JSON format).
+	Updates auth method configuration (in JSON format). May be prefixed with
+	'@' to indicate that the value is a file path to load the config from. '-'
+	may also be given to indicate that the config is available on stdin.
 `
 
 	return strings.TrimSpace(helpText)
@@ -162,15 +168,20 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 		updatedMethod.Default = a.isDefault
 	}
 
-	var configJSON *api.ACLAuthMethodConfig
 	if len(a.config) != 0 {
-		var err error
-		configJSON, err = configStringToAuthConfig(a.config)
+		config, err := loadDataSource(a.config, a.testStdin)
 		if err != nil {
-			a.Ui.Error(fmt.Sprintf("Unable to parse JSON config: %v", err))
+			a.Ui.Error(fmt.Sprintf("Error loading configuration: %v", err))
 			return 1
 		}
-		updatedMethod.Config = configJSON
+
+		configJSON := api.ACLAuthMethodConfig{}
+		err = json.Unmarshal([]byte(config), &configJSON)
+		if err != nil {
+			a.Ui.Error(fmt.Sprintf("Unable to parse config: %v", err))
+			return 1
+		}
+		updatedMethod.Config = &configJSON
 	}
 
 	// Update the auth method via the API.

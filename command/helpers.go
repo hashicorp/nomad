@@ -600,3 +600,43 @@ func (w *uiErrorWriter) Close() error {
 	}
 	return nil
 }
+
+func loadDataSource(data string, testStdin io.Reader) (string, error) {
+	// Handle empty quoted shell parameters
+	if len(data) == 0 {
+		return "", nil
+	}
+
+	switch data[0] {
+	case '@':
+		return loadFromFile(data[1:])
+	case '-':
+		if len(data) > 1 {
+			return data, nil
+		}
+		return loadFromStdin(testStdin)
+	default:
+		return data, nil
+	}
+}
+
+func loadFromFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read file: %v", err)
+	}
+	return string(data), nil
+}
+
+func loadFromStdin(testStdin io.Reader) (string, error) {
+	var stdin io.Reader = os.Stdin
+	if testStdin != nil {
+		stdin = testStdin
+	}
+
+	var b bytes.Buffer
+	if _, err := io.Copy(&b, stdin); err != nil {
+		return "", fmt.Errorf("Failed to read stdin: %v", err)
+	}
+	return b.String(), nil
+}
