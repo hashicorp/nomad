@@ -128,7 +128,6 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("Max token TTL must be set to a value between min and max TTL configured for the server.")
 		return 1
 	}
-
 	if strings.ToUpper(a.methodType) != "OIDC" {
 		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
 		return 1

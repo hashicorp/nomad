@@ -1,6 +1,9 @@
 package command
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -65,6 +68,30 @@ func TestACLAuthMethodCreateCommand_Run(t *testing.T) {
 	}
 	must.Eq(t, 0, cmd.Run(args))
 	s := ui.OutputWriter.String()
+	must.StrContains(t, s, "acl-auth-method-cli-test")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Create an auth method with a config from file
+	configFile, err := os.CreateTemp("", "config.json")
+	defer os.Remove(configFile.Name())
+	must.Nil(t, err)
+
+	conf := map[string]interface{}{"OIDCDiscoveryURL": "http://example.com"}
+	jsonData, err := json.Marshal(conf)
+	must.Nil(t, err)
+
+	_, err = configFile.Write(jsonData)
+	must.Nil(t, err)
+
+	args = []string{
+		"-address=" + url, "-token=" + rootACLToken.SecretID, "-name=acl-auth-method-cli-test",
+		"-type=OIDC", "-token-locality=global", "-default=true", "-max-token-ttl=3600s",
+		fmt.Sprintf("-config=@%s", configFile.Name()),
+	}
+	must.Eq(t, 0, cmd.Run(args))
+	s = ui.OutputWriter.String()
 	must.StrContains(t, s, "acl-auth-method-cli-test")
 
 	ui.OutputWriter.Reset()

@@ -1,6 +1,9 @@
 package command
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -76,6 +79,31 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-token-locality=global", method.Name})
 	must.Zero(t, code)
 	s := ui.OutputWriter.String()
+	must.StrContains(t, s, method.Name)
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Update an auth method with a config from file
+	configFile, err := os.CreateTemp("", "config.json")
+	defer os.Remove(configFile.Name())
+	must.Nil(t, err)
+
+	conf := map[string]interface{}{"OIDCDiscoveryURL": "http://example.com"}
+	jsonData, err := json.Marshal(conf)
+	must.Nil(t, err)
+
+	_, err = configFile.Write(jsonData)
+	must.Nil(t, err)
+
+	code = cmd.Run([]string{
+		"-address=" + url,
+		"-token=" + rootACLToken.SecretID,
+		fmt.Sprintf("-config=@%s", configFile.Name()),
+		method.Name,
+	})
+	must.Zero(t, code)
+	s = ui.OutputWriter.String()
 	must.StrContains(t, s, method.Name)
 
 	ui.OutputWriter.Reset()
