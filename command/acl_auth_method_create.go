@@ -97,7 +97,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	flags.StringVar(&a.methodType, "type", "", "")
 	flags.StringVar(&a.tokenLocality, "token-locality", "local", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
-	flags.BoolVar(&a.isDefault, "default", true, "")
+	flags.BoolVar(&a.isDefault, "default", false, "")
 	flags.StringVar(&a.config, "config", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -119,6 +119,11 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("Token locality must be set to either 'local' or 'global'")
 		return 1
 	}
+	if a.maxTokenTTL < 1 {
+		a.Ui.Error("Max token TTL must be set to a value between min and max TTL configured for the server.")
+		return 1
+	}
+
 	if strings.ToUpper(a.methodType) != "OIDC" {
 		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
 		return 1

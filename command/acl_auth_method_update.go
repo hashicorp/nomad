@@ -151,6 +151,10 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 	}
 
 	if slices.Contains(setFlags, "max-token-ttl") {
+		if a.maxTokenTTL < 1 {
+			a.Ui.Error("Max token TTL must be set to a value between min and max TTL configured for the server.")
+			return 1
+		}
 		updatedMethod.MaxTokenTTL = a.maxTokenTTL
 	}
 
