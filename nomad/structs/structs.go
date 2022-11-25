@@ -612,6 +612,10 @@ type JobRegisterRequest struct {
 	// Eval is the evaluation that is associated with the job registration
 	Eval *Evaluation
 
+	// Deployment is the deployment to be create when the job is registered. If
+	// there is an active deployment for the job it will be canceled.
+	Deployment *Deployment
+
 	WriteRequest
 }
 
@@ -9219,14 +9223,15 @@ func (v *Vault) Validate() error {
 
 const (
 	// DeploymentStatuses are the various states a deployment can be be in
-	DeploymentStatusRunning    = "running"
-	DeploymentStatusPaused     = "paused"
-	DeploymentStatusFailed     = "failed"
-	DeploymentStatusSuccessful = "successful"
-	DeploymentStatusCancelled  = "cancelled"
-	DeploymentStatusPending    = "pending"
-	DeploymentStatusBlocked    = "blocked"
-	DeploymentStatusUnblocking = "unblocking"
+	DeploymentStatusRunning      = "running"
+	DeploymentStatusPaused       = "paused"
+	DeploymentStatusFailed       = "failed"
+	DeploymentStatusSuccessful   = "successful"
+	DeploymentStatusCancelled    = "cancelled"
+	DeploymentStatusInitializing = "initializing"
+	DeploymentStatusPending      = "pending"
+	DeploymentStatusBlocked      = "blocked"
+	DeploymentStatusUnblocking   = "unblocking"
 
 	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
 
@@ -9360,7 +9365,8 @@ func (d *Deployment) Copy() *Deployment {
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking, DeploymentStatusPending:
+	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked,
+		DeploymentStatusUnblocking, DeploymentStatusInitializing, DeploymentStatusPending:
 		return true
 	default:
 		return false

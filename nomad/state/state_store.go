@@ -536,8 +536,7 @@ func (s *StateStore) DeleteJobSummary(index uint64, namespace, id string) error 
 	return txn.Commit()
 }
 
-// UpsertDeployment is used to insert a new deployment. If cancelPrior is set to
-// true, all prior deployments for the same job will be cancelled.
+// UpsertDeployment is used to insert or update a new deployment.
 func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
