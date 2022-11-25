@@ -45,13 +45,13 @@ func TestACLAuthMethodCreateCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-name=foobar"}))
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-name=foobar", "-token-locality=global", "-max-token-ttl=3600s"}))
 	must.StrContains(t, ui.ErrorWriter.String(), "ACL auth method type must be set to 'OIDC'")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-name=foobar", "-type=OIDC", "-token-locality=global"}))
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-name=foobar", "-type=OIDC", "-token-locality=global", "-max-token-ttl=3600s"}))
 	must.StrContains(t, ui.ErrorWriter.String(), "Must provide ACL auth method config in JSON format")
 
 	ui.OutputWriter.Reset()

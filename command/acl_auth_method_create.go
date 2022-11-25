@@ -54,7 +54,7 @@ ACL Auth Method Create Options:
 
   -token-locality
     Defines the kind of token that this auth method should produce. This can be
-    either 'local' or 'global'. If empty the value of 'local' is assumed.
+    either 'local' or 'global'.
 
   -default
     Specifies whether this auth method should be treated as a default one in
@@ -95,7 +95,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
 	flags.StringVar(&a.name, "name", "", "")
 	flags.StringVar(&a.methodType, "type", "", "")
-	flags.StringVar(&a.tokenLocality, "token-locality", "local", "")
+	flags.StringVar(&a.tokenLocality, "token-locality", "", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
 	flags.BoolVar(&a.isDefault, "default", false, "")
 	flags.StringVar(&a.config, "config", "", "")
