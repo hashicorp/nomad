@@ -21,11 +21,11 @@ func (a *ACLAuthMethodCommand) Help() string {
 	helpText := `
 Usage: nomad acl auth-method <subcommand> [options] [args]
 
-  This command groups subcommands for interacting with ACL auth methods. 
+  This command groups subcommands for interacting with ACL auth methods.
 
   Create an ACL auth method:
 
-      $ nomad acl auth-method create -name="name" -policy-name="policy-name"
+      $ nomad acl auth-method create -name="name" -type="OIDC" -max-token-ttl="3600s"
 
   List all ACL auth methods:
 
@@ -37,7 +37,7 @@ Usage: nomad acl auth-method <subcommand> [options] [args]
 
   Update an ACL auth method:
 
-      $ nomad acl auth-method update -name="updated-name" <acl_auth_method_name>
+      $ nomad acl auth-method update -type="updated-type" <acl_auth_method_name>
 
   Delete an ACL auth method:
 

@@ -15,7 +15,7 @@ import (
 // Ensure ACLAuthMethodUpdateCommand satisfies the cli.Command interface.
 var _ cli.Command = &ACLAuthMethodUpdateCommand{}
 
-// ACLRoleUpdateCommand implements cli.Command.
+// ACLAuthMethodUpdateCommand implements cli.Command.
 type ACLAuthMethodUpdateCommand struct {
 	Meta
 
@@ -65,10 +65,10 @@ ACL Auth Method Update Options:
 func (a *ACLAuthMethodUpdateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":           complete.PredictAnything,
+			"-type":           complete.PredictSet("OIDC"),
 			"-max-token-ttl":  complete.PredictAnything,
-			"-token-locality": complete.PredictAnything,
-			"-default":        complete.PredictAnything,
+			"-token-locality": complete.PredictSet("local", "global"),
+			"-default":        complete.PredictSet("true", "false"),
 			"-config":         complete.PredictNothing,
 		})
 }

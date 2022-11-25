@@ -70,10 +70,10 @@ func (a *ACLAuthMethodCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-name":           complete.PredictAnything,
-			"-type":           complete.PredictAnything,
+			"-type":           complete.PredictSet("OIDC"),
 			"-max-token-ttl":  complete.PredictAnything,
-			"-token-locality": complete.PredictAnything,
-			"-default":        complete.PredictAnything,
+			"-token-locality": complete.PredictSet("local", "global"),
+			"-default":        complete.PredictSet("true", "false"),
 			"-config":         complete.PredictNothing,
 		})
 }
@@ -119,7 +119,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("Token locality must be set to either 'local' or 'global'")
 		return 1
 	}
-	if strings.ToLower(a.methodType) != "oidc" {
+	if strings.ToUpper(a.methodType) != "OIDC" {
 		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
 		return 1
 	}
@@ -137,7 +137,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	// Set up the auth method with the passed parameters.
 	authMethod := api.ACLAuthMethod{
 		Name:          a.name,
-		Type:          a.methodType,
+		Type:          strings.ToUpper(a.methodType),
 		TokenLocality: a.tokenLocality,
 		MaxTokenTTL:   a.maxTokenTTL,
 		Default:       a.isDefault,

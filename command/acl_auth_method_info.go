@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -92,14 +91,9 @@ func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	var (
-		method *api.ACLAuthMethod
-		apiErr error
-	)
-
 	methodName := flags.Args()[0]
 
-	method, _, apiErr = client.ACLAuthMethods().Get(methodName, nil)
+	method, _, apiErr := client.ACLAuthMethods().Get(methodName, nil)
 
 	// Handle any error from the API.
 	if apiErr != nil {
