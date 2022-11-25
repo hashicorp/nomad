@@ -235,13 +235,22 @@ The table below shows this endpoint's support for
 - `Canonicalize` `(bool: false)` - Flag to enable setting any unset fields to
   their default values.
 
+- `HCLv1` `(bool: false)` - Use the legacy v1 HCL parser.
+
 ## Sample Payload
 
 ```json
 {
-  "JobHCL": "job \"example\" { type = \"service\" group \"cache\" {} }",
+  "JobHCL": "job \"example\" {\n  type = \"service\"\n  group \"cache\" {}\n}",
   "Canonicalize": true
 }
+```
+
+You can use a tool such as [`jq`](https://stedolan.github.io/jq/) to generate
+the payload from a local HCL file:
+
+```shell-session
+$ jq -Rsc '{ JobHCL: ., Canonicalize: true }' example.nomad > payload.json
 ```
 
 ### Sample Request
