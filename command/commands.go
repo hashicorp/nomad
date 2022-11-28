@@ -77,6 +77,36 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl auth-method": func() (cli.Command, error) {
+			return &ACLAuthMethodCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method create": func() (cli.Command, error) {
+			return &ACLAuthMethodCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method delete": func() (cli.Command, error) {
+			return &ACLAuthMethodDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method info": func() (cli.Command, error) {
+			return &ACLAuthMethodInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method list": func() (cli.Command, error) {
+			return &ACLAuthMethodListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method update": func() (cli.Command, error) {
+			return &ACLAuthMethodUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl bootstrap": func() (cli.Command, error) {
 			return &ACLBootstrapCommand{
 				Meta: meta,
