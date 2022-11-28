@@ -13,7 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// Ensure ACLRoleCreateCommand satisfies the cli.Command interface.
+// Ensure ACLAuthMethodCreateCommand satisfies the cli.Command interface.
 var _ cli.Command = &ACLAuthMethodCreateCommand{}
 
 // ACLAuthMethodCreateCommand implements cli.Command.
