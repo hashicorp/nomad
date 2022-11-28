@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -598,12 +599,52 @@ type ACLAuthMethodConfig struct {
 	ListClaimMappings   map[string]string
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be marshaled correctly.
+func (m *ACLAuthMethod) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethod
+	exported := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		MaxTokenTTL: m.MaxTokenTTL.String(),
+		Alias:       (*Alias)(m),
+	}
+	if m.MaxTokenTTL == 0 {
+		exported.MaxTokenTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be unmarshalled correctly.
+func (m *ACLAuthMethod) UnmarshalJSON(data []byte) error {
+	type Alias ACLAuthMethod
+	aux := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		Alias: (*Alias)(m),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	var err error
+	if aux.MaxTokenTTL != "" {
+		if m.MaxTokenTTL, err = time.ParseDuration(aux.MaxTokenTTL); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ACLAuthMethodListStub is the stub object returned when performing a listing
 // of ACL auth-methods. It is intentionally minimal due to the unauthenticated
 // nature of the list endpoint.
 type ACLAuthMethodListStub struct {
 	Name    string
 	Default bool
+	Hash    []byte
 
 	CreateIndex uint64
 	ModifyIndex uint64

@@ -2,6 +2,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -625,10 +626,56 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	return hashVal
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be marshaled correctly.
+func (a *ACLAuthMethod) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethod
+	exported := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		MaxTokenTTL: a.MaxTokenTTL.String(),
+		Alias:       (*Alias)(a),
+	}
+	if a.MaxTokenTTL == 0 {
+		exported.MaxTokenTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be unmarshalled correctly.
+func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLAuthMethod
+	aux := &struct {
+		MaxTokenTTL interface{}
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.MaxTokenTTL != nil {
+		switch v := aux.MaxTokenTTL.(type) {
+		case string:
+			if a.MaxTokenTTL, err = time.ParseDuration(v); err != nil {
+				return err
+			}
+		case float64:
+			a.MaxTokenTTL = time.Duration(v)
+		}
+	}
+	return nil
+}
+
 func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
 	return &ACLAuthMethodStub{
-		Name:    a.Name,
-		Default: a.Default,
+		Name:        a.Name,
+		Default:     a.Default,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
 	}
 }
 
@@ -724,6 +771,14 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 type ACLAuthMethodStub struct {
 	Name    string
 	Default bool
+
+	// Hash is the hashed value of the auth-method and is generated using all
+	// fields from the full object except the create and modify times and
+	// indexes.
+	Hash []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // ACLAuthMethodListRequest is used to list auth methods

@@ -618,6 +618,7 @@ func TestACLAuthMethods(t *testing.T) {
 	must.Len(t, 1, aclAuthMethodsListResp)
 	must.Eq(t, authMethod.Name, aclAuthMethodsListResp[0].Name)
 	must.True(t, aclAuthMethodsListResp[0].Default)
+	must.SliceNotEmpty(t, aclAuthMethodsListResp[0].Hash)
 	assertQueryMeta(t, queryMeta)
 
 	// Read the auth-method.
