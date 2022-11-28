@@ -1735,7 +1735,9 @@ func (a *ACL) UpsertAuthMethods(
 		if err != nil {
 			return structs.NewErrRPCCodedf(400, "ACL auth method lookup failed: %v", err)
 		}
-		reply.AuthMethods = append(reply.AuthMethods, lookupAuthMethod)
+		if lookupAuthMethod != nil {
+			reply.AuthMethods = append(reply.AuthMethods, lookupAuthMethod)
+		}
 	}
 
 	// Update the index
