@@ -825,6 +825,7 @@ type ACLAuthMethodUpsertRequest struct {
 // ACLAuthMethodUpsertResponse is a response of the upsert ACL auth methods
 // operation
 type ACLAuthMethodUpsertResponse struct {
+	AuthMethods []*ACLAuthMethod
 	WriteMeta
 }
 
