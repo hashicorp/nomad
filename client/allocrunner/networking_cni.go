@@ -12,12 +12,14 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	cni "github.com/containerd/go-cni"
 	cnilibrary "github.com/containernetworking/cni/libcni"
+	"github.com/coreos/go-iptables/iptables"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -226,7 +228,101 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP)))
+	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
+		// create a real handle to iptables
+		ipt, iptErr := iptables.New()
+		if iptErr != nil {
+			return fmt.Errorf("failed to detect iptables: %w", iptErr)
+		}
+		// most likely the pause container was removed from underneath nomad
+		return c.forceCleanup(ipt, alloc.ID)
+	}
+
+	return nil
+}
+
+// IPTables is a subset of iptables.IPTables
+type IPTables interface {
+	List(table, chain string) ([]string, error)
+	Delete(table, chain string, rule ...string) error
+	ClearAndDeleteChain(table, chain string) error
+}
+
+var (
+	// ipRuleRe is used to parse a postrouting iptables rule created by nomad, e.g.
+	//   -A POSTROUTING -s 172.26.64.191/32 -m comment --comment "name: \"nomad\" id: \"6b235529-8111-4bbe-520b-d639b1d2a94e\"" -j CNI-50e58ea77dc52e0c731e3799
+	ipRuleRe = regexp.MustCompile(`-A POSTROUTING -s (\S+) -m comment --comment "name: \\"nomad\\" id: \\"([[:xdigit:]-]+)\\"" -j (CNI-[[:xdigit:]]+)`)
+)
+
+// forceCleanup is the backup plan for removing the iptables rule and chain associated with
+// an allocation that was using bridge networking. The cni library refuses to handle a
+// dirty state - e.g. the pause container is removed out of band, and so we must cleanup
+// iptables ourselves to avoid leaking rules.
+func (c *cniNetworkConfigurator) forceCleanup(ipt IPTables, allocID string) error {
+	const (
+		natTable         = "nat"
+		postRoutingChain = "POSTROUTING"
+		commentFmt       = `--comment "name: \"nomad\" id: \"%s\""`
+	)
+
+	// list the rules on the POSTROUTING chain of the nat table
+	rules, err := ipt.List(natTable, postRoutingChain)
+	if err != nil {
+		return fmt.Errorf("failed to list iptables rules: %w", err)
+	}
+
+	// find the POSTROUTING rule associated with our allocation
+	matcher := fmt.Sprintf(commentFmt, allocID)
+	var ruleToPurge string
+	for _, rule := range rules {
+		if strings.Contains(rule, matcher) {
+			ruleToPurge = rule
+			break
+		}
+	}
+
+	// no rule found for our allocation, just give up
+	if ruleToPurge == "" {
+		return fmt.Errorf("failed to find postrouting rule for alloc %s", allocID)
+	}
+
+	// re-create the rule we need to delete, as tokens
+	subs := ipRuleRe.FindStringSubmatch(ruleToPurge)
+	if len(subs) != 4 {
+		return fmt.Errorf("failed to parse postrouting rule for alloc %s", allocID)
+	}
+	cidr := subs[1]
+	id := subs[2]
+	chainID := subs[3]
+	toDel := []string{
+		`-s`,
+		cidr,
+		`-m`,
+		`comment`,
+		`--comment`,
+		`name: "nomad" id: "` + id + `"`,
+		`-j`,
+		chainID,
+	}
+
+	// remove the jump rule
+	ok := true
+	if err = ipt.Delete(natTable, postRoutingChain, toDel...); err != nil {
+		c.logger.Warn("failed to remove iptables nat.POSTROUTING rule", "alloc_id", allocID, "chain", chainID, "error", err)
+		ok = false
+	}
+
+	// remote the associated chain
+	if err = ipt.ClearAndDeleteChain(natTable, chainID); err != nil {
+		c.logger.Warn("failed to remove iptables nat chain", "chain", chainID, "error", err)
+		ok = false
+	}
+
+	if !ok {
+		return fmt.Errorf("failed to cleanup iptables rules for alloc %s", allocID)
+	}
+
+	return nil
 }
 
 func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
@@ -240,7 +336,7 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 // getPortMapping builds a list of portMapping structs that are used as the
 // portmapping capability arguments for the portmap CNI plugin
 func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) []cni.PortMapping {
-	ports := []cni.PortMapping{}
+	var ports []cni.PortMapping
 
 	if len(alloc.AllocatedResources.Shared.Ports) == 0 && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		for _, network := range alloc.AllocatedResources.Shared.Networks {
