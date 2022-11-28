@@ -1,10 +1,5 @@
-<form class="edit-policy" autocomplete="off">
+<form class="edit-policy" autocomplete="off" {{on "submit" this.save}}>
 	{{#if @policy.isNew }}
-    <div class="related-entities related-entities-hint">
-      <p>Prefix your policy name with <code>nomad/</code> to automatically make your policy apply to a specified namespace, job, task group, or task.<br />
-      Format: <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;</code>, <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/&lt;namespace&gt;/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-    </div>
-
 		<label>
 			<span>
 				Policy Name
@@ -14,6 +9,7 @@
 				@type="text"
 				@value={{@policy.name}}
 				class="input"
+        {{autofocus}}
 			/>
 		</label>
 	{{/if}}
@@ -32,7 +28,7 @@
 					mode="terraform"
 					content=@policy.rules
 					onUpdate=(action (mut @policy.rules))
-					extraKeys=(hash Cmd-Enter=(action "onSave"))
+          autofocus=(not @policy.isNew)
 				}}>
 			</div>
 		</div>
@@ -51,23 +47,11 @@
 		</label>
 	</div>
 
-	{{#if this.shouldShowLinkedEntities}}
-    <PolicyRelatedEntities
-      @new={{@policy.isNew}}
-      @job={{@policy.nameLinkedEntities.job}}
-      @group={{@policy.nameLinkedEntities.group}}
-      @task={{@policy.nameLinkedEntities.task}}
-      @namespace={{@policy.nameLinkedEntities.namespace}}
-    />
-  {{/if}}
-
 	<footer>
 		{{#if (can "update policy")}}
 			<button
-				{{on "click" (fn @onSave this.policyString)}}
-				disabled={{this.shouldDisableSave}}
 				class="button is-primary"
-				type="button"
+				type="submit"
 			>
 				Save Policy
 			</button>

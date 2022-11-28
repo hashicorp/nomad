@@ -1,14 +1,16 @@
 table.policies {
-  td {
-    padding: 0;
+  tr {
+    cursor: pointer;
+
+    &:hover td {
+      background-color: #f5f5f5;
+    }
     a {
-      padding: 1.25em 1.5em;
-      display: block;
       color: black;
       text-decoration: none;
-      &:hover {
-        background-color: #f5f5f5;
-      }
+    }
+    .number-expired {
+      color: $red;
     }
   }
 }

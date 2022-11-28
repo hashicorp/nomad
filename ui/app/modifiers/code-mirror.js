@@ -10,6 +10,15 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/mode/javascript/javascript';
 
 export default class CodeMirrorModifier extends Modifier {
+
+  get autofocus() {
+    if (Object.hasOwn({...this.args.named}, 'autofocus')) { // spread (...) because proxy, and because Ember over-eagerly prevents named prop lookups for modifier args.
+      return this.args.named.autofocus;
+    } else {
+      return true;
+    }
+  }
+
   didInstall() {
     this._setup();
   }
@@ -49,7 +58,9 @@ export default class CodeMirrorModifier extends Modifier {
         screenReaderLabel: this.args.named.screenReaderLabel || '',
       });
 
-      editor.focus();
+      if (this.autofocus) {
+        editor.focus();
+      }
 
       editor.on('change', bind(this, this._onChange));
 

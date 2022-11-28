@@ -9,6 +9,7 @@ export default class PoliciesRoute extends Route.extend(
 ) {
   @service can;
   @service store;
+  @service router;
 
   beforeModel() {
     if (this.can.cannot('list policies')) {
@@ -18,6 +19,7 @@ export default class PoliciesRoute extends Route.extend(
 
   async model(params, b, c) {
     const policies = await this.store.query('policy', { reload: true });
-    return policies;
+    const tokens = await this.store.query('token', { reload: true });
+    return {policies, tokens};
   }
 }

@@ -106,9 +106,6 @@ Router.map(function () {
       'policy',
       {
         path: '/policy/:name',
-      },
-      function () {
-        this.route('edit');
       }
     );
   });

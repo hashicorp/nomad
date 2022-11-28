@@ -1,8 +1,7 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
-const INITIAL_POLICY_RULES = `
-# See https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies for ACL Policy details
+const INITIAL_POLICY_RULES = `# See https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies for ACL Policy details
 
 # Example policy structure:
 
@@ -77,6 +76,7 @@ export default class PoliciesNewRoute extends Route {
 
   model() {
     return this.store.createRecord('policy', {
+      name: "",
       rules: INITIAL_POLICY_RULES,
     });
   }

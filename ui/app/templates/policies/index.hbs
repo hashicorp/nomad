@@ -32,11 +32,20 @@
       @class="policies" as |t|>
       <t.head>
         <th>Policy Name</th>
+        <th>Tokens</th>
       </t.head>
       <t.body as |row|>
-        <tr data-test-policy>
+        <tr data-test-policy {{on "click" (action "openPolicy" row.model)}}>
           <td data-test-policy-name>
 						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+					</td>
+          <td data-test-policy-token-count>
+						<span>
+              {{row.model.tokens.length}}
+              {{#if (filter-by "isExpired" row.model.tokens)}}
+                <span class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+              {{/if}}
+            </span>
 					</td>
         </tr>
       </t.body>

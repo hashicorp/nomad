@@ -10,27 +10,27 @@ export default class PoliciesPolicyController extends Controller {
   @service flashMessages;
   @service router;
 
-  @action async savePolicy() {
-    try {
-      await this.model.save();
+  // @action async savePolicy() {
+  //   try {
+  //     await this.model.save();
 
-      this.flashMessages.add({
-        title: 'Policy Updated!',
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
-      });
-      this.router.transitionTo('policies');
-    } catch (error) {
-      this.flashMessages.add({
-        title: `Error saving Policy ${this.model.name}`,
-        message: error,
-        type: 'error',
-        destroyOnClick: false,
-        sticky: true,
-      });
-    }
-  }
+  //     this.flashMessages.add({
+  //       title: 'Policy Updated!',
+  //       type: 'success',
+  //       destroyOnClick: false,
+  //       timeout: 5000,
+  //     });
+  //     this.router.transitionTo('policies');
+  //   } catch (error) {
+  //     this.flashMessages.add({
+  //       title: `Error saving Policy ${this.model.name}`,
+  //       message: error,
+  //       type: 'error',
+  //       destroyOnClick: false,
+  //       sticky: true,
+  //     });
+  //   }
+  // }
 
   @tracked
   error = null;

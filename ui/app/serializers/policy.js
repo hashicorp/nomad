@@ -9,4 +9,11 @@ export default class PolicySerializer extends ApplicationSerializer {
     hash.ID = hash.Name;
     return super.normalize(typeHash, hash);
   }
+
+  serialize(snapshot, options) {
+    const hash = super.serialize(snapshot, options);
+    hash.ID = hash.Name;
+    return hash;
+  }
+
 }
