@@ -176,6 +176,11 @@ function smallCluster(server) {
     volume.readAllocs.add(alloc);
     volume.save();
   });
+
+  server.create('auth-method', {name: 'vault'});
+  server.create('auth-method', {name: 'auth0'});
+  server.create('auth-method', {name: 'cognito'});
+
 }
 
 function mediumCluster(server) {
@@ -472,6 +477,10 @@ function createTokens(server) {
   server.create('token', {
     name: "Safe O'Constants",
     id: 'f3w3r-53cur3-v4r14bl35',
+  });
+  server.create('token', {
+    name: 'Lazarus MacMarbh',
+    id: '3XP1R35-1N-3L3V3N-M1NU735',
   });
   logTokens(server);
 }

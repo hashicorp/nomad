@@ -8,12 +8,20 @@
 <section class="notifications">
   {{#each this.flashMessages.queue as |flash|}}
   <FlashMessage @flash={{flash}} as |component flash close|>
-    <span class="close-button" role="button" {{on "click" (action close)}}>&times;</span>
+    <span class="close-button" role="button" {{on "click"
+      (queue
+        (action close)
+        (action (optional flash.customCloseAction))
+      )
+    }}>&times;</span>
     {{#if flash.title}}
     <h3>{{flash.title}}</h3>
     {{/if}}
     {{#if flash.message}}
       <p>{{flash.message}}</p>
+    {{/if}}
+    {{#if flash.customAction}}
+      <button type="button" class="button custom-action-button" {{on "click" (action flash.customAction.action)}}>{{flash.customAction.label}}</button>
     {{/if}}
     {{#if component.showProgressBar}}
       <div class="alert-progress">

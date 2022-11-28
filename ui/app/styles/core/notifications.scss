@@ -1,3 +1,5 @@
+$bonusRightPadding: 20px;
+
 section.notifications {
   position: fixed;
   bottom: 10px;
@@ -11,7 +13,7 @@ section.notifications {
     box-shadow: 1px 1px 4px 0px rgb(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
-    padding-right: 20px;
+    padding-right: $bonusRightPadding;
 
     &.alert-success {
       background-color: lighten($nomad-green, 50%);
@@ -53,6 +55,11 @@ section.notifications {
           width: 100%;
         }
       }
+    }
+
+    .custom-action-button {
+      width: calc(100% + $bonusRightPadding - 1rem);
+      margin: 1.5rem 0 0;
     }
   }
 }
