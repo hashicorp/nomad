@@ -185,13 +185,13 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 	}
 
 	// Update the auth method via the API.
-	_, err = client.ACLAuthMethods().Update(&updatedMethod, nil)
+	method, _, err := client.ACLAuthMethods().Update(&updatedMethod, nil)
 	if err != nil {
 		a.Ui.Error(fmt.Sprintf("Error updating ACL auth method: %v", err))
 		return 1
 	}
 
-	a.Ui.Output(fmt.Sprintf("Updated ACL auth method %s", originalMethodName))
+	a.Ui.Output(fmt.Sprintf("Updated ACL auth method:\n%s", formatAuthMethod(method)))
 	return 0
 }
 

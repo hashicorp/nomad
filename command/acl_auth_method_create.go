@@ -168,12 +168,12 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	}
 
 	// Create the auth method via the API.
-	_, err = client.ACLAuthMethods().Create(&authMethod, nil)
+	method, _, err := client.ACLAuthMethods().Create(&authMethod, nil)
 	if err != nil {
 		a.Ui.Error(fmt.Sprintf("Error creating ACL auth method: %v", err))
 		return 1
 	}
 
-	a.Ui.Output(fmt.Sprintf("Created ACL auth method %s", a.name))
+	a.Ui.Output(fmt.Sprintf("Created ACL auth method:\n%s", formatAuthMethod(method)))
 	return 0
 }

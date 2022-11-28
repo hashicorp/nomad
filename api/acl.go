@@ -319,27 +319,29 @@ func (a *ACLAuthMethods) List(q *QueryOptions) ([]*ACLAuthMethodListStub, *Query
 }
 
 // Create is used to create an ACL auth-method.
-func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*WriteMeta, error) {
+func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*ACLAuthMethod, *WriteMeta, error) {
 	if authMethod.Name == "" {
-		return nil, errMissingACLAuthMethodName
+		return nil, nil, errMissingACLAuthMethodName
 	}
-	wm, err := a.client.write("/v1/acl/auth-method", authMethod, nil, w)
+	var resp ACLAuthMethod
+	wm, err := a.client.write("/v1/acl/auth-method", authMethod, &resp, w)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return wm, nil
+	return &resp, wm, nil
 }
 
 // Update is used to update an existing ACL auth-method.
-func (a *ACLAuthMethods) Update(authMethod *ACLAuthMethod, w *WriteOptions) (*WriteMeta, error) {
+func (a *ACLAuthMethods) Update(authMethod *ACLAuthMethod, w *WriteOptions) (*ACLAuthMethod, *WriteMeta, error) {
 	if authMethod.Name == "" {
-		return nil, errMissingACLAuthMethodName
+		return nil, nil, errMissingACLAuthMethodName
 	}
-	wm, err := a.client.write("/v1/acl/auth-method/"+authMethod.Name, authMethod, nil, w)
+	var resp ACLAuthMethod
+	wm, err := a.client.write("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return wm, nil
+	return &resp, wm, nil
 }
 
 // Delete is used to delete an ACL auth-method.
