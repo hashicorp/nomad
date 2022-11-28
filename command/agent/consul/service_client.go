@@ -225,6 +225,12 @@ func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *a
 		if _, exists := wanted.TaggedAddresses["wan_ipv4"]; !exists {
 			delete(existing.TaggedAddresses, "wan_ipv4")
 		}
+		if _, exists := wanted.TaggedAddresses["lan_ipv6"]; !exists {
+			delete(existing.TaggedAddresses, "lan_ipv6")
+		}
+		if _, exists := wanted.TaggedAddresses["wan_ipv6"]; !exists {
+			delete(existing.TaggedAddresses, "wan_ipv6")
+		}
 	}
 }
 
