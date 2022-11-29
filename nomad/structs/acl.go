@@ -843,3 +843,8 @@ type ACLAuthMethodDeleteRequest struct {
 type ACLAuthMethodDeleteResponse struct {
 	WriteMeta
 }
+
+type ACLWhoAmIResponse struct {
+	Identity *AuthenticatedIdentity
+	QueryMeta
+}

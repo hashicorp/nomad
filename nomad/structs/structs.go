@@ -293,6 +293,8 @@ type QueryOptions struct {
 	// Reverse is used to reverse the default order of list results.
 	Reverse bool
 
+	identity *AuthenticatedIdentity
+
 	InternalRpcInfo
 }
 
@@ -337,6 +339,14 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+func (q *QueryOptions) SetIdentity(identity *AuthenticatedIdentity) {
+	q.identity = identity
+}
+
+func (q QueryOptions) GetIdentity() *AuthenticatedIdentity {
+	return q.identity
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -399,6 +409,8 @@ type WriteRequest struct {
 	// IdempotencyToken can be used to ensure the write is idempotent.
 	IdempotencyToken string
 
+	identity *AuthenticatedIdentity
+
 	InternalRpcInfo
 }
 
@@ -433,6 +445,14 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+func (w *WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
+	w.identity = identity
+}
+
+func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
+	return w.identity
 }
 
 type AuthenticatedIdentity struct {
