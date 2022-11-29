@@ -10,6 +10,10 @@ export default class PolicyEditorComponent extends Component {
 
   @alias('args.policy') policy;
 
+  @action updatePolicyRules(value) {
+    this.policy.set('rules', value);
+  }
+
   @action async save(e) {
     e.preventDefault();
     try {

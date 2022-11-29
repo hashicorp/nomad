@@ -22,15 +22,15 @@
 
 			<div
 				class="policy-editor"
-				data-test-json-editor
+				data-test-policy-editor
 				{{code-mirror
-					theme="hashi"
-					mode="terraform"
-					content=@policy.rules
-					onUpdate=(action (mut @policy.rules))
+          screenReaderLabel="Policy definition"
+          theme="hashi"
+          mode="terraform"
+          content=@policy.rules
+          onUpdate=this.updatePolicyRules
           autofocus=(not @policy.isNew)
-				}}>
-			</div>
+				}} />
 		</div>
 	</div>
 
@@ -39,7 +39,7 @@
 			<span>
 				Description (optional)
 			</span>
-			<Textarea
+			<Input
 				data-test-policy-description
 				@value={{@policy.description}}
 				class="input"

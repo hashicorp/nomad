@@ -1,0 +1,51 @@
+import { module, test } from 'qunit';
+import { visit, currentURL, click } from '@ember/test-helpers';
+import { setupApplicationTest } from 'ember-qunit';
+import { allScenarios } from '../../mirage/scenarios/default';
+import { setupMirage } from 'ember-cli-mirage/test-support';
+import percySnapshot from '@percy/ember';
+
+module('Acceptance | policies', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  test('Policies index route looks good', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+    assert.dom('[data-test-gutter-link="policies"]').exists();
+    assert.equal(currentURL(), '/policies');
+    assert.dom('[data-test-policy-row]').exists({ count: server.db.policies.length });
+    await percySnapshot(assert);
+  });
+
+  test('Prevents policies access if you lack a management token', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[1].secretId;
+    await visit('/policies');
+    assert.equal(currentURL(), '/jobs');
+    assert.dom('[data-test-gutter-link="policies"]').doesNotExist();
+  });
+
+  test('Modifying an existing policy', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+    await click('[data-test-policy-row]:first-child');
+    assert.equal(currentURL(), `/policies/policy/${server.db.policies[0].name}`);
+    assert.dom('[data-test-policy-editor]').exists();
+    assert.dom('[data-test-title]').includesText(server.db.policies[0].name);
+    await click('button[type="submit"]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert.equal(currentURL(), '/policies');
+  });
+
+  test('Doesnt let you save a bad name', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+    await click('[data-test-create-policy]');
+    assert.equal(currentURL(), '/policies/new');
+    // TODO: finish test
+  });
+});

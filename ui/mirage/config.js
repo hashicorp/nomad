@@ -526,6 +526,28 @@ export default function () {
     return new Response(403, {}, null);
   });
 
+  this.get('/acl/policies', function ({ policies }, req) {
+    return this.serialize(policies.all());
+  });
+
+  this.delete('/acl/policy/:id', function (schema, request) {
+    const { id } = request.params;
+    server.db.policies.remove(id);
+    return '';
+  });
+
+  this.put('/acl/policy/:id', function (schema, request) {
+    const { Path, Namespace, Items } = JSON.parse(request.requestBody);
+    // TODO: handle variable editing here. Conditional for if exists or not.
+    // return server.create('variable', {
+    //   path: Path,
+    //   namespace: Namespace,
+    //   items: Items,
+    //   id: Path,
+    // });
+    return true;
+  });
+
   this.get('/regions', function ({ regions }) {
     return this.serialize(regions.all());
   });

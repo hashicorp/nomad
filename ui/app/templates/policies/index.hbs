@@ -7,7 +7,7 @@
         <LinkTo
           @route="policies.new"
           class="button is-primary"
-          data-test-create-var
+          data-test-create-policy
         >
           Create Policy
         </LinkTo>
@@ -35,7 +35,7 @@
         <th>Tokens</th>
       </t.head>
       <t.body as |row|>
-        <tr data-test-policy {{on "click" (action "openPolicy" row.model)}}>
+        <tr data-test-policy-row {{on "click" (action "openPolicy" row.model)}}>
           <td data-test-policy-name>
 						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
 					</td>

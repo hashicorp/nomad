@@ -8,22 +8,28 @@ module('Integration | Component | policy-editor', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders', async function (assert) {
-    assert.expect(2);
-    // Set any properties with this.set('myProperty', 'value');
-    // Handle any actions with this.set('myAction', function(val) { ... });
-
+    assert.expect(1);
     await render(hbs`<PolicyEditor />`);
-
-    assert.dom(this.element).hasText('');
-
-    // Template block usage:
-    await render(hbs`
-      <PolicyEditor>
-        template block text
-      </PolicyEditor>
-    `);
-
-    assert.dom(this.element).hasText('template block text');
     await componentA11yAudit(this.element, assert);
+  });
+
+  test('Only has editable name if new', async function (assert) {
+    const newMockPolicy = {
+      isNew: true,
+      name: 'New Policy',
+    };
+
+    const oldMockPolicy = {
+      isNew: false,
+      name: 'Old Policy',
+    };
+
+    this.set('newMockPolicy', newMockPolicy);
+    this.set('oldMockPolicy', oldMockPolicy);
+
+    await render(hbs`<PolicyEditor @policy={{this.newMockPolicy}} />`);
+    assert.dom('[data-test-policy-name]').exists();
+    await render(hbs`<PolicyEditor @policy={{this.oldMockPolicy}} />`);
+    assert.dom('[data-test-policy-name]').doesNotExist();
   });
 });
