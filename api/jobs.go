@@ -60,10 +60,15 @@ type Jobs struct {
 	client *Client
 }
 
+// type HclVariable struct {
+// }
+
 // JobsParseRequest is used for arguments of the /v1/jobs/parse endpoint
 type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
+
+	// HclVariables []HclVariable
 
 	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
 	HCLv1 bool `json:"hclv1,omitempty"`

@@ -380,6 +380,7 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	return job, nil
 }
 
+// TODO: Somewhere in here add parse-then-update functioanlity
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	var args api.JobRegisterRequest
@@ -393,6 +394,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if args.Job.ID == nil {
 		return nil, CodedError(400, "Job ID hasn't been provided")
 	}
+
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
@@ -716,6 +718,7 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
+// TODO: Here is the parse endpoint
 // JobsParseRequest parses a hcl jobspec and returns a api.Job
 func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
