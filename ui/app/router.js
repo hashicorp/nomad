@@ -102,12 +102,9 @@ Router.map(function () {
   this.route('policies', function () {
     this.route('new');
 
-    this.route(
-      'policy',
-      {
-        path: '/policy/:name',
-      }
-    );
+    this.route('policy', {
+      path: '/policy/:name',
+    });
   });
   // Mirage-only route for testing OIDC flow
   if (config['ember-cli-mirage']) {

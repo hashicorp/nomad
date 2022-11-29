@@ -5,11 +5,11 @@ import classic from 'ember-classic-decorator';
 export default class PolicyAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 
-  urlForCreateRecord(modelName, model) {
+  urlForCreateRecord(_modelName, model) {
     return this.urlForUpdateRecord(model.attr('name'), 'policy');
   }
 
-  urlForDeleteRecord(id, modelName, snapshot) {
+  urlForDeleteRecord(id) {
     return this.urlForUpdateRecord(id, 'policy');
   }
 }

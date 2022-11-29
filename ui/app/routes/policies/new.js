@@ -76,7 +76,7 @@ export default class PoliciesNewRoute extends Route {
 
   model() {
     return this.store.createRecord('policy', {
-      name: "",
+      name: '',
       rules: INITIAL_POLICY_RULES,
     });
   }

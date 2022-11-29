@@ -13,13 +13,20 @@ export default class PolicyEditorComponent extends Component {
   @action async save(e) {
     e.preventDefault();
     try {
-      const nameRegex = "^[a-zA-Z0-9-]{1,128}$";
+      const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.policy.name?.match(nameRegex)) {
-        throw new Error('Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.');
+        throw new Error(
+          'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.'
+        );
       }
 
-      if (this.policy.isNew && this.store.peekRecord('policy', this.policy.name)) {
-        throw new Error(`A policy with name ${this.policy.name} already exists.`);
+      if (
+        this.policy.isNew &&
+        this.store.peekRecord('policy', this.policy.name)
+      ) {
+        throw new Error(
+          `A policy with name ${this.policy.name} already exists.`
+        );
       }
 
       this.policy.id = this.policy.name;

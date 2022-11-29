@@ -15,5 +15,4 @@ export default class PolicySerializer extends ApplicationSerializer {
     hash.ID = hash.Name;
     return hash;
   }
-
 }
