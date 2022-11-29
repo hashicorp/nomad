@@ -464,6 +464,13 @@ type AuthenticatedIdentity struct {
 	RemoteIP net.IP
 }
 
+func (ai *AuthenticatedIdentity) GetACLToken() *ACLToken {
+	if ai == nil {
+		return nil
+	}
+	return ai.ACLToken
+}
+
 // QueryMeta allows a query response to include potentially
 // useful metadata about a query
 type QueryMeta struct {

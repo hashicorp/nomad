@@ -102,6 +102,17 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 	return identity, nil
 }
 
+func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
+	if !s.config.ACLEnabled {
+		return nil, nil
+	}
+	snap, err := s.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	return resolveACLFromToken(snap, s.aclCache, aclToken)
+}
+
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
 func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
@@ -197,6 +208,12 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 		}
 	}
 
+	return resolveACLFromToken(snap, cache, token)
+
+}
+
+func resolveACLFromToken(snap *state.StateSnapshot, cache *lru.TwoQueueCache, token *structs.ACLToken) (*acl.ACL, error) {
+
 	// Check if this is a management token
 	if token.Type == structs.ACLManagementToken {
 		return acl.ManagementACL, nil
@@ -276,27 +293,28 @@ func (s *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveSecretToken"}, time.Now())
 
+	if secretID == "" {
+		return structs.AnonymousACLToken, nil
+	}
+	if !helper.IsUUID(secretID) {
+		return nil, structs.ErrTokenInvalid
+	}
+
 	snap, err := s.fsm.State().Snapshot()
 	if err != nil {
 		return nil, err
 	}
 
 	// Lookup the ACL Token
-	var token *structs.ACLToken
-	// Handle anonymous requests
-	if secretID == "" {
-		token = structs.AnonymousACLToken
-	} else {
-		token, err = snap.ACLTokenBySecretID(nil, secretID)
-		if err != nil {
-			return nil, err
-		}
-		if token == nil {
-			return nil, structs.ErrTokenNotFound
-		}
-		if token.IsExpired(time.Now().UTC()) {
-			return nil, structs.ErrTokenExpired
-		}
+	token, err := snap.ACLTokenBySecretID(nil, secretID)
+	if err != nil {
+		return nil, err
+	}
+	if token == nil {
+		return nil, structs.ErrTokenNotFound
+	}
+	if token.IsExpired(time.Now().UTC()) {
+		return nil, structs.ErrTokenExpired
 	}
 
 	return token, nil
