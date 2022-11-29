@@ -2,14 +2,105 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// Authenticate extracts an AuthenticatedIdentity from the request context or
+// provided token. The caller can extract an acl.ACL, WorkloadIdentity, or other
+// identifying token to use for authorization.
+func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.AuthenticatedIdentity, error) {
+	// get the user ACLToken or anonymous token
+	aclToken, err := s.ResolveSecretToken(secretID)
+	identity := &structs.AuthenticatedIdentity{ACLToken: aclToken}
+
+	switch err {
+	case nil:
+		// missing or anonymous ACL will fall-through for further annotation
+		// based on the RPC context
+		if aclToken == nil || aclToken != structs.AnonymousACLToken {
+			return identity, nil
+		}
+
+	case structs.ErrTokenExpired:
+		return nil, err
+
+	case structs.ErrTokenInvalid:
+		// if it's not a UUID it might be an identity claim
+		claims, err := s.VerifyClaim(secretID)
+		if err != nil {
+			return nil, err
+		}
+		// unlike the state queries, errors here are invalid tokens
+		identity.Claims = claims
+		return identity, nil
+
+	case structs.ErrTokenNotFound:
+		// Check if the secret ID is the leader's secret ID, in which case treat
+		// it as a management token and record the server's node ID
+		leaderAcl := s.getLeaderAcl()
+		if leaderAcl != "" && secretID == leaderAcl {
+			identity.ACLToken = structs.LeaderACLToken
+		}
+
+		// See if the secret ID belongs to a node
+		node, err := s.State().NodeBySecretID(nil, secretID)
+		if err != nil {
+			// this is a go-memdb error; shouldn't happen
+			return nil, fmt.Errorf("could not resolve node secret: %v", err)
+		}
+		if node != nil {
+			identity.ClientID = node.ID
+			return identity, nil
+		}
+
+	default: // any other error
+		return nil, fmt.Errorf("could not resolve user: %v", err)
+
+	}
+
+	// At this point we either have an anonymous token or an invalid one; fall
+	// back to the connection NodeID or finding the server ID by raft peer or
+	// serf address
+	if ctx == nil {
+		return identity, nil
+	}
+
+	// Previously-connected clients will have a NodeID set and will be a large
+	// number of the RPCs sent, so we can fast path this case
+	if ctx.NodeID != "" {
+		identity.ClientID = ctx.NodeID
+		return identity, nil
+	}
+
+	// Unlike clients that provide their Node ID on first connection, server
+	// RPCs don't include an ID for the server so we identify servers by cert
+	// and IP address.
+
+	if ctx.TLS {
+		identity.TLSName = ctx.Certificate().Subject.CommonName
+	}
+
+	var remoteAddr *net.TCPAddr
+	if ctx.Session != nil {
+		remoteAddr = ctx.Session.RemoteAddr().(*net.TCPAddr)
+	}
+	if remoteAddr == nil && ctx.Conn != nil {
+		remoteAddr = ctx.Conn.RemoteAddr().(*net.TCPAddr)
+	}
+	if remoteAddr != nil {
+		identity.RemoteIP = remoteAddr.IP
+	}
+
+	return identity, nil
+}
 
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.

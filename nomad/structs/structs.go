@@ -435,6 +435,15 @@ func (w WriteRequest) AllowStaleRead() bool {
 	return false
 }
 
+type AuthenticatedIdentity struct {
+	ACLToken *ACLToken
+	Claims   *IdentityClaims
+	ClientID string
+	ServerID string
+	TLSName  string
+	RemoteIP net.IP
+}
+
 // QueryMeta allows a query response to include potentially
 // useful metadata about a query
 type QueryMeta struct {
@@ -12085,6 +12094,14 @@ var (
 		Type:       ACLClientToken,
 		Policies:   []string{"anonymous"},
 		Global:     false,
+	}
+
+	// LeaderACLToken is used to represent a leader's own token; this object
+	// never gets used except on the leader
+	LeaderACLToken = &ACLToken{
+		AccessorID: "leader",
+		Name:       "Leader Token",
+		Type:       ACLManagementToken,
 	}
 )
 
