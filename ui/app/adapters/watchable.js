@@ -133,7 +133,8 @@ export default class Watchable extends ApplicationAdapter {
                 return true;
               } else if (mapping.attr === 'namespace') {
                 return (
-                  get(record, 'namespace.name') === query[mapping.queryParam]
+                  record.belongsTo('namespace').id() ===
+                  query[mapping.queryParam]
                 );
               }
             }
