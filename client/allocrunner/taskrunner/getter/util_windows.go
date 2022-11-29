@@ -4,6 +4,7 @@ package getter
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"syscall"
 )
@@ -26,6 +27,9 @@ func lockdown(string) error {
 func minimalVars(taskDir string) []string {
 	tmpDir := filepath.Join(taskDir, "tmp")
 	return []string{
+		fmt.Sprintf("HOMEPATH=%s", os.Getenv("HOMEPATH")),
+		fmt.Sprintf("HOMEDRIVE=%s", os.Getenv("HOMEDRIVE")),
+		fmt.Sprintf("USERPROFILE=%s", os.Getenv("USERPROFILE")),
 		fmt.Sprintf(`PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;`),
 		fmt.Sprintf("TMP=%s", tmpDir),
 		fmt.Sprintf("TEMP=%s", tmpDir),
