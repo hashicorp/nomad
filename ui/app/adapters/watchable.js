@@ -143,7 +143,12 @@ export default class Watchable extends ApplicationAdapter {
         );
 
         matchingRecords.forEach((record) => {
-          removeRecord(store, record);
+          const IDValue = record.get('plainId') || record.get('id');
+          const storedRecordNotFoundInPayload =
+            IDValue && !payload.find((r) => r.ID === IDValue);
+          if (storedRecordNotFoundInPayload) {
+            removeRecord(store, record);
+          }
         });
 
         return payload;
