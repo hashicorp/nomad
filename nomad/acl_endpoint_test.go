@@ -3041,4 +3041,5 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	out, err := s1.fsm.State().GetACLAuthMethodByName(nil, am1.Name)
 	must.Nil(t, err)
 	must.NotNil(t, out)
+	must.True(t, am1.Equal(resp.AuthMethods[0]))
 }

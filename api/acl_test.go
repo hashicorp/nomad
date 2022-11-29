@@ -209,7 +209,7 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 	out2.Roles = []*ACLTokenRoleLink{{Name: aclRoleCreateResp.Name}}
 	out2.ExpirationTTL = 0
 
-	out3, writeMeta, err = at.Update(out2, nil)
+	out3, _, err = at.Update(out2, nil)
 	require.NoError(t, err)
 	require.NotNil(t, out3)
 	require.Len(t, out3.Policies, 1)
@@ -608,7 +608,7 @@ func TestACLAuthMethods(t *testing.T) {
 		MaxTokenTTL:   15 * time.Minute,
 		Default:       true,
 	}
-	writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
+	_, writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, writeMeta)
 
@@ -632,7 +632,7 @@ func TestACLAuthMethods(t *testing.T) {
 
 	// Update the auth-method token locality.
 	authMethod.TokenLocality = ACLAuthMethodTokenLocalityGlobal
-	writeMeta, err = testClient.ACLAuthMethods().Update(&authMethod, nil)
+	_, writeMeta, err = testClient.ACLAuthMethods().Update(&authMethod, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, writeMeta)
 

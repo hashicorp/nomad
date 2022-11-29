@@ -670,5 +670,9 @@ func (s *HTTPServer) aclAuthMethodUpsertRequest(
 		return nil, err
 	}
 	setIndex(resp, out.Index)
+
+	if len(out.AuthMethods) > 0 {
+		return out.AuthMethods[0], nil
+	}
 	return nil, nil
 }

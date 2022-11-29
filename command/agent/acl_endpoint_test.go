@@ -1104,14 +1104,14 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLRole))
-				require.NoError(t, err)
+				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
-				require.Error(t, err)
-				require.ErrorContains(t, err, "Permission denied")
-				require.Nil(t, obj)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Permission denied")
+				must.Nil(t, obj)
 			},
 		},
 		{
@@ -1120,7 +1120,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/auth-method", nil)
-				require.NoError(t, err)
+				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Ensure we have a token set.
@@ -1128,9 +1128,9 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
-				require.Error(t, err)
-				require.ErrorContains(t, err, "Invalid method")
-				require.Nil(t, obj)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
 			},
 		},
 		{
@@ -1142,7 +1142,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLAuthMethod))
-				require.NoError(t, err)
+				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Ensure we have a token set.
@@ -1150,8 +1150,10 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 
 				// Send the HTTP request.
 				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
-				require.NoError(t, err)
-				require.Nil(t, obj)
+				must.NoError(t, err)
+
+				result := obj.(*structs.ACLAuthMethod)
+				must.Eq(t, result, mockACLAuthMethod)
 			},
 		},
 	}

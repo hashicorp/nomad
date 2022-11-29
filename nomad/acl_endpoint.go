@@ -1724,6 +1724,22 @@ func (a *ACL) UpsertAuthMethods(
 		return err
 	}
 
+	// Populate the response. We do a lookup against the state to pick up the
+	// proper create / modify times.
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, method := range args.AuthMethods {
+		lookupAuthMethod, err := stateSnapshot.GetACLAuthMethodByName(nil, method.Name)
+		if err != nil {
+			return structs.NewErrRPCCodedf(400, "ACL auth method lookup failed: %v", err)
+		}
+		if lookupAuthMethod != nil {
+			reply.AuthMethods = append(reply.AuthMethods, lookupAuthMethod)
+		}
+	}
+
 	// Update the index
 	reply.Index = index
 	return nil
