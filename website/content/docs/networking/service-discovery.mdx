@@ -7,3 +7,76 @@ description: |-
 ---
 
 # Service discovery
+
+Service discovery is the process of retrieving the low-level information
+necessary to access a service, such as its IP and port, via a high-level
+identifier, such as the service name. The service information is stored in a
+service catalog which provide interfaces that can be used to query data.
+
+In Nomad there are two service catalogs:
+
+- the **native service discovery** catalog is embedded in Nomad and requires no
+  additional infrastructure.
+- the **[Consul service discovery catalog][consul_sd]** requires access to a
+  Consul cluster, but it can provide additional features, including a DNS
+  interface and [service mesh] capabilities.
+
+Services are registered using the [`service`] block, with the [`provider`]
+parameter defining which catalog to use. Nomad stores the IP and port of all
+allocations associated with the service and keeps these entries updated as you
+schedule new work or deploy new versions of your applications.
+
+```hcl
+job "..." {
+  # ...
+  group "..." {
+    service {
+      name     = "database"
+      port     = "db"
+      provider = "nomad"
+      # ...
+    }
+    # ...
+  }
+}
+```
+
+To access this service, other allocations can query the catalog using
+[`template`] blocks with the [`service`][ct_service_fn] function for querying
+the Consul catalog and the [`nomadService`][ct_nomad_service_fn] function when
+using Nomad native service discovery. The `template` can then be used as a
+configuration file or loaded as environment variables.
+
+```hcl
+
+job "..." {
+  # ...
+  group "..." {
+    task "..." {
+      template {
+        data = <<EOF
+{{ range nomadService "database" }}
+DB_CONNECTION="host={{ .Address }} port={{ .Port }} user=user password=password dbname=db_name"
+{{ end }}
+EOF
+        destination = "local/env.txt"
+        env         = true
+      }
+    }
+    # ...
+  }
+}
+```
+
+## Health checks
+
+
+## Canary deployments
+
+[`provider`]: /docs/job-specification/service#provider
+[`service`]: /docs/job-specification/service
+[`template`]: /docs/job-specification/template#template-examples
+[ct_service_fn]: https://github.com/hashicorp/consul-template/blob/main/docs/templating-language.md#service
+[ct_nomad_service_fn]: https://github.com/hashicorp/consul-template/blob/main/docs/templating-language.md#nomadservice
+[consul_sd]: https://developer.hashicorp.com/consul/docs/concepts/service-discovery
+[service mesh]: /docs/networking/service-mesh
