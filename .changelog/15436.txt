@@ -1,0 +1,3 @@
+```release-note:bug
+client: stop background operations when non-sidecar prestart and poststart tasks exit.
+```
