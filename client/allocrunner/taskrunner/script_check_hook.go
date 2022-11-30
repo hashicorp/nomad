@@ -151,6 +151,22 @@ func (h *scriptCheckHook) upsertChecks() error {
 	return nil
 }
 
+// Exited runs when the task exits, but it may run again on restart.
+// Stop any running scripts but don't shutdown the script check since we may
+// still need it.
+func (h *scriptCheckHook) Exited(_ context.Context, _ *interfaces.TaskExitedRequest, _ *interfaces.TaskStopResponse) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Cancel all running scripts, but don't close the shutdownCh since the
+	// task may still be restarted.
+	for _, script := range h.runningScripts {
+		script.cancel()
+	}
+
+	return nil
+}
+
 // Stop implements interfaces.TaskStopHook and blocks waiting for running
 // scripts to finish (or for the shutdownWait timeout to expire).
 func (h *scriptCheckHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
