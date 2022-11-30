@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -16,38 +17,45 @@ import (
 // Authenticate extracts an AuthenticatedIdentity from the request context or
 // provided token. The caller can extract an acl.ACL, WorkloadIdentity, or other
 // identifying token to use for authorization.
+//
+// Note: when called on the follower we'll be making stale queries, so it's
+// possible if the follower is behind that the leader will get a different value
+// if an ACL token or allocation's WI has just been created.
 func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.AuthenticatedIdentity, error) {
 	// get the user ACLToken or anonymous token
 	aclToken, err := s.ResolveSecretToken(secretID)
 	identity := &structs.AuthenticatedIdentity{ACLToken: aclToken}
 
-	switch err {
-	case nil:
-		// missing or anonymous ACL will fall-through for further annotation
-		// based on the RPC context
+	switch {
+	case err == nil:
+		// If ACLs are disabled or we have a non-anonymous token, return that.
 		if aclToken == nil || aclToken != structs.AnonymousACLToken {
 			return identity, nil
 		}
 
-	case structs.ErrTokenExpired:
+	case errors.Is(err, structs.ErrTokenExpired):
 		return nil, err
 
-	case structs.ErrTokenInvalid:
+	case errors.Is(err, structs.ErrTokenInvalid):
 		// if it's not a UUID it might be an identity claim
 		claims, err := s.VerifyClaim(secretID)
 		if err != nil {
+			// we already know the token wasn't valid for an ACL in the state
+			// store, so if we get an error at this point we have an invalid
+			// token and there are no other options but to bail out
 			return nil, err
 		}
-		// unlike the state queries, errors here are invalid tokens
+
 		identity.Claims = claims
 		return identity, nil
 
-	case structs.ErrTokenNotFound:
+	case errors.Is(err, structs.ErrTokenNotFound):
 		// Check if the secret ID is the leader's secret ID, in which case treat
 		// it as a management token and record the server's node ID
 		leaderAcl := s.getLeaderAcl()
 		if leaderAcl != "" && secretID == leaderAcl {
 			identity.ACLToken = structs.LeaderACLToken
+			break
 		}
 
 		// See if the secret ID belongs to a node
@@ -97,9 +105,11 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 	}
 	if remoteAddr != nil {
 		identity.RemoteIP = remoteAddr.IP
+		return identity, nil
 	}
 
-	return identity, nil
+	s.logger.Error("could not authenticate RPC request or determine remote address")
+	return nil, structs.ErrPermissionDenied
 }
 
 func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
