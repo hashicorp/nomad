@@ -8,9 +8,11 @@ export default class PoliciesPolicyRoute extends Route.extend(
   WithModelErrorHandling
 ) {
   @service store;
-  model(params) {
-    return this.store.findRecord('policy', decodeURIComponent(params.name), {
+  async model(params) {
+    const policy = await this.store.findRecord('policy', decodeURIComponent(params.name), {
       reload: true,
     });
+    const tokens = this.store.peekAll('token').filter(token => token.policyNames?.includes(policy.name));
+    return { policy, tokens };
   }
 }
