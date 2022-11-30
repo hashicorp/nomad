@@ -110,16 +110,6 @@
           />
         </label>
         <VariableForm::InputGroup @entry={{entry}} />
-        {{#if (eq entry this.keyValues.lastObject)}}
-          <button
-            class="add-more button is-info is-inverted"
-            type="button"
-            disabled={{not (and entry.key entry.value)}}
-            {{on "click" this.appendRow}}
-          >
-            Add More
-          </button>
-        {{else}}
           <button
             class="delete-row button is-danger is-inverted"
             type="button"
@@ -127,7 +117,6 @@
           >
             Delete
           </button>
-        {{/if}}
         {{#each-in entry.warnings as |k v|}}
           <span class="key-value-error help is-danger">
             {{v}}
@@ -148,6 +137,13 @@
   {{/if}}
 
   <footer>
+              <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
     <button
       disabled={{this.shouldDisableSave}}
       class="button is-primary"
