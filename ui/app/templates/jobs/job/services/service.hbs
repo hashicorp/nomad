@@ -27,9 +27,9 @@
             >{{allocation.shortId}}</LinkTo>
           </td>
         {{/let}}
-        {{#let (format-id row.model "node") as |node|}}
+		{{#let (async-escape-hatch row.model "node") as |node|}}
           <td>
-            <Tooltip @text={{row.model.node.name}}>
+            <Tooltip @text={{node.name}}>
               <LinkTo
                 @route="clients.client"
                 @model={{node.id}}
