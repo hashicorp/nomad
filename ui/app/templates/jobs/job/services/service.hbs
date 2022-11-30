@@ -21,19 +21,23 @@
 		</t.head>
 		<t.body as |row|>
 			<tr data-test-service-row>
+				{{#let (format-id row.model "allocation") as |allocation|}}
 				<td
 					{{keyboard-shortcut 
 						enumerated=true
 						action=(action "gotoAllocation" row.model.allocation)
 					}}
 				>
-					<LinkTo @route="allocations.allocation" @model={{row.model.allocation}}>{{row.model.allocation.shortId}}</LinkTo>
+					<LinkTo @route="allocations.allocation" @model={{allocation.id}}>{{allocation.shortId}}</LinkTo>
 				</td>
+		{{/let}}
+		{{#let (format-id row.model "node") as |node|}}
         <td>
           <Tooltip @text={{row.model.node.name}}>
-            <LinkTo @route="clients.client" @model={{row.model.node.id}}>{{row.model.node.shortId}}</LinkTo>
+            <LinkTo @route="clients.client" @model={{node.id}}>{{node.shortId}}</LinkTo>
           </Tooltip>
         </td>
+		{{/let}}
 				<td>
 					{{row.model.address}}:{{row.model.port}}
 				</td>
