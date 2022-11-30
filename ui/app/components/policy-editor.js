@@ -15,7 +15,9 @@ export default class PolicyEditorComponent extends Component {
   }
 
   @action async save(e) {
-    e.preventDefault();
+    if (e instanceof Event) {
+      e.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
+    }
     try {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.policy.name?.match(nameRegex)) {
@@ -38,7 +40,7 @@ export default class PolicyEditorComponent extends Component {
       await this.policy.save();
 
       this.flashMessages.add({
-        title: 'Policy Created!',
+        title: 'Policy Saved',
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
@@ -53,7 +55,6 @@ export default class PolicyEditorComponent extends Component {
         destroyOnClick: false,
         sticky: true,
       });
-      throw error;
     }
   }
 }

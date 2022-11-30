@@ -103,7 +103,7 @@ Router.map(function () {
     this.route('new');
 
     this.route('policy', {
-      path: '/policy/:name',
+      path: '/:name',
     });
   });
   // Mirage-only route for testing OIDC flow

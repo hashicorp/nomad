@@ -30,6 +30,7 @@
           content=@policy.rules
           onUpdate=this.updatePolicyRules
           autofocus=(not @policy.isNew)
+					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
 	</div>

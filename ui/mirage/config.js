@@ -499,7 +499,7 @@ export default function () {
   );
 
   this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
-    const policy = policies.find(req.params.id);
+    const policy = policies.findBy({ name: req.params.id });
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
@@ -537,15 +537,17 @@ export default function () {
   });
 
   this.put('/acl/policy/:id', function (schema, request) {
-    const { Path, Namespace, Items } = JSON.parse(request.requestBody);
-    // TODO: handle variable editing here. Conditional for if exists or not.
-    // return server.create('variable', {
-    //   path: Path,
-    //   namespace: Namespace,
-    //   items: Items,
-    //   id: Path,
-    // });
-    return true;
+    return new Response(200, {}, {});
+  });
+
+  this.post('/acl/policy/:id', function (schema, request) {
+    const { Name, Description, Rules } = JSON.parse(request.requestBody);
+    return server.create('policy', {
+      name: Name,
+      description: Description,
+      rules: Rules,
+    });
+
   });
 
   this.get('/regions', function ({ regions }) {
