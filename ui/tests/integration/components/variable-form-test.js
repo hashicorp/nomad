@@ -37,7 +37,7 @@ module('Integration | Component | variable-form', function (hooks) {
         keyValues: [{ key: '', value: '' }],
       })
     );
-    assert.expect(7);
+    assert.expect(5);
 
     await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
     assert.equal(
@@ -46,29 +46,17 @@ module('Integration | Component | variable-form', function (hooks) {
       'A single KV row exists by default'
     );
 
-    assert
-      .dom('.key-value button.add-more')
-      .isDisabled(
-        'The "Add More" button is disabled until key and value are filled'
-      );
-
     await typeIn('.key-value label:nth-child(1) input', 'foo');
-
-    assert
-      .dom('.key-value button.add-more')
-      .isDisabled(
-        'The "Add More" button is still disabled with only key filled'
-      );
 
     await typeIn('.key-value label:nth-child(2) input', 'bar');
 
     assert
-      .dom('.key-value button.add-more')
+      .dom('button.add-more')
       .isNotDisabled(
         'The "Add More" button is no longer disabled after key and value are filled'
       );
 
-    await click('.key-value button.add-more');
+    await click('button.add-more');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -79,7 +67,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value:last-of-type label:nth-child(1) input', 'foo');
     await typeIn('.key-value:last-of-type label:nth-child(2) input', 'bar');
 
-    await click('.key-value button.add-more');
+    await click('button.add-more');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -109,7 +97,7 @@ module('Integration | Component | variable-form', function (hooks) {
       assert.expect(6);
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-      await click('.key-value button.add-more'); // add a second variable
+      await click('button.add-more'); // add a second variable
 
       findAll('input.value-input').forEach((input, iter) => {
         assert.equal(
@@ -149,7 +137,7 @@ module('Integration | Component | variable-form', function (hooks) {
   });
 
   test('Existing variable shows properties by default', async function (assert) {
-    assert.expect(13);
+    assert.expect(12);
     const keyValues = [
       { key: 'my-completely-normal-key', value: 'never' },
       { key: 'another key, but with spaces', value: 'gonna' },
@@ -173,13 +161,8 @@ module('Integration | Component | variable-form', function (hooks) {
     );
     assert.equal(
       findAll('button.delete-row').length,
-      4,
-      'Shows "delete" for the first four rows'
-    );
-    assert.equal(
-      findAll('button.add-more').length,
-      1,
-      'Shows "add more" only on the last row'
+      5,
+      'Shows "delete" for the first five rows'
     );
 
     findAll('div.key-value').forEach((row, idx) => {
@@ -301,7 +284,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
 
-      await click('.key-value button.add-more');
+      await click('button.add-more');
 
       const secondKey = document.querySelectorAll('[data-test-var-key]')[1];
       await typeIn(secondKey, 'myWonderfulKey');
@@ -380,7 +363,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set('view', 'table');
 
-      await click('.key-value button.add-more');
+      await click('button.add-more');
 
       await typeIn('.key-value:last-of-type label:nth-child(1) input', 'howdy');
       await typeIn(
