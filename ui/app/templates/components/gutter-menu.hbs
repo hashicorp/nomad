@@ -127,7 +127,13 @@
           </LinkTo>
         </li>
         {{#if (can "list policies")}}
-          <li>
+          <li
+            {{keyboard-shortcut
+              menuLevel=true
+              pattern=(array "g" "l")
+              action=(action this.transitionTo 'policies')
+            }}
+          >
             <LinkTo
               @route="policies"
               @activeClass="is-active"

@@ -35,7 +35,11 @@
         <th>Tokens</th>
       </t.head>
       <t.body as |row|>
-        <tr data-test-policy-row {{on "click" (action "openPolicy" row.model)}}>
+        <tr data-test-policy-row {{on "click" (action "openPolicy" row.model)}}
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(action "openPolicy" row.model)
+        }}>
           <td data-test-policy-name>
 						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
 					</td>

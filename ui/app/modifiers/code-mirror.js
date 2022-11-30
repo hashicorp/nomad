@@ -15,7 +15,7 @@ export default class CodeMirrorModifier extends Modifier {
       // spread (...) because proxy, and because Ember over-eagerly prevents named prop lookups for modifier args.
       return this.args.named.autofocus;
     } else {
-      return true;
+      return !this.args.named.readOnly;
     }
   }
 
