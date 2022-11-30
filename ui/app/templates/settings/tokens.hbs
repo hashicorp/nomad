@@ -118,7 +118,7 @@
                 <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
                 <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
                 {{#if this.tokenRecord.expirationTime}}
-                  <div data-test-token-expiry>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</div>
+                  <div data-test-token-expiry>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} <span data-test-expiration-timestamp>({{this.tokenRecord.expirationTime}})</span></div>
                 {{/if}}
               </div>
               <div class="column is-minimum">

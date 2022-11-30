@@ -316,7 +316,10 @@ module('Acceptance | tokens', function (hooks) {
         .doesNotExist('No notification yet for a token with 10m5s left');
       notificationNotRendered();
       setTimeout(async () => {
-        await percySnapshot(assert);
+        await percySnapshot(assert, {
+          percyCSS: '[data-test-expiration-timestamp] { display: none; }',
+        });
+
         assert
           .dom('.flash-message.alert-error')
           .exists('Notification is rendered at the 10m mark');
