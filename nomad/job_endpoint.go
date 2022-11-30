@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -50,6 +51,7 @@ var (
 // Job endpoint is used for job interactions
 type Job struct {
 	srv    *Server
+	ctx    *RPCContext
 	logger hclog.Logger
 
 	// builtin admission controllers
@@ -58,9 +60,10 @@ type Job struct {
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
-func NewJobEndpoints(s *Server) *Job {
+func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 	return &Job{
 		srv:    s,
+		ctx:    ctx,
 		logger: s.logger.Named("job"),
 		mutators: []jobMutator{
 			jobCanonicalizer{},

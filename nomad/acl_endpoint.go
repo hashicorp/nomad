@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set"
+
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -35,7 +36,12 @@ const (
 // ACL endpoint is used for manipulating ACL tokens and policies
 type ACL struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
+	return &ACL{srv: srv, ctx: ctx, logger: srv.logger.Named("acl")}
 }
 
 // UpsertPolicies is used to create or update a set of policies

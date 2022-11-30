@@ -26,6 +26,10 @@ type Agent struct {
 	srv *Server
 }
 
+func NewAgentEndpoint(srv *Server) *Agent {
+	return &Agent{srv: srv}
+}
+
 func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
 }

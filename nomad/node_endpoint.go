@@ -14,14 +14,15 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	vapi "github.com/hashicorp/vault/api"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	vapi "github.com/hashicorp/vault/api"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -75,6 +76,16 @@ type Node struct {
 	// updatesLock synchronizes access to the updates list,
 	// the future and the timer.
 	updatesLock sync.Mutex
+}
+
+func NewNodeEndpoint(srv *Server, ctx *RPCContext) *Node {
+	return &Node{
+		srv:     srv,
+		ctx:     ctx,
+		logger:  srv.logger.Named("client"),
+		updates: []*structs.Allocation{},
+		evals:   []*structs.Evaluation{},
+	}
 }
 
 // Register is used to upsert a client that is available for scheduling

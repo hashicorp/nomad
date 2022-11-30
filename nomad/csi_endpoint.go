@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -20,7 +21,12 @@ import (
 // CSIVolume wraps the structs.CSIVolume with request data and server context
 type CSIVolume struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewCSIVolumeEndpoint(srv *Server, ctx *RPCContext) *CSIVolume {
+	return &CSIVolume{srv: srv, ctx: ctx, logger: srv.logger.Named("csi_volume")}
 }
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
@@ -1428,7 +1434,12 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
 type CSIPlugin struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewCSIPluginEndpoint(srv *Server, ctx *RPCContext) *CSIPlugin {
+	return &CSIPlugin{srv: srv, ctx: ctx, logger: srv.logger.Named("csi_plugin")}
 }
 
 // List replies with CSIPlugins, filtered by ACL access

@@ -1200,92 +1200,90 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 // setupRpcServer is used to populate an RPC server with endpoints
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 
-	// Add the static endpoints to the RPC server.
+	// Add the static endpoints to the RPC server. These are the RPC handlers
+	// that get used when component on the server is making an internal RPC
+	// call, so we only need them to be initialized once and they have no RPC
+	// context.
 	if s.staticEndpoints.Status == nil {
-		// Initialize the list just once
-		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
-		s.staticEndpoints.Job = NewJobEndpoints(s)
-		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
-		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
-		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
-		s.staticEndpoints.Operator.register()
+		// note: Alloc, Plan have only dynamic endpoints
+		s.staticEndpoints.ACL = NewACLEndpoint(s, nil)
+		s.staticEndpoints.CSIVolume = NewCSIVolumeEndpoint(s, nil)
+		s.staticEndpoints.CSIPlugin = NewCSIPluginEndpoint(s, nil)
+		s.staticEndpoints.Deployment = NewDeploymentEndpoint(s, nil)
+		s.staticEndpoints.Job = NewJobEndpoints(s, nil)
+		s.staticEndpoints.Keyring = NewKeyringEndpoint(s, nil, s.encrypter)
+		s.staticEndpoints.Namespace = NewNamespaceEndpoint(s, nil)
+		s.staticEndpoints.Node = NewNodeEndpoint(s, nil)
+		s.staticEndpoints.Operator = NewOperatorEndpoint(s, nil)
+		s.staticEndpoints.Operator.register() // register the streaming RPCs
+		s.staticEndpoints.Periodic = NewPeriodicEndpoint(s, nil)
+		s.staticEndpoints.Region = NewRegionEndpoint(s, nil)
+		s.staticEndpoints.Scaling = NewScalingEndpoint(s, nil)
+		s.staticEndpoints.Search = NewSearchEndpoint(s, nil)
+		s.staticEndpoints.ServiceRegistration = NewServiceRegistrationEndpoint(s, nil)
+		s.staticEndpoints.Status = NewStatusEndpoint(s, nil)
+		s.staticEndpoints.System = NewSystemEndpoint(s, nil)
+		s.staticEndpoints.Variables = NewVariablesEndpoint(s, nil, s.encrypter)
 
-		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
-		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
-		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
-		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
-		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
-		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
-		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.Variables = &Variables{srv: s, logger: s.logger.Named("variables"), encrypter: s.encrypter}
-		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s, nil)
 
-		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
-
-		// These endpoints are dynamic because they need access to the
-		// RPCContext, but they also need to be called directly in some cases,
-		// so store them into staticEndpoints for later access, but don't
-		// register them as static.
-		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
-		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
-		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
+		// These endpoints don't have a dynamic counterpart, so they'll need to
+		// be re-registered per connection as well (see below)
 
 		// Client endpoints
-		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
-		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
-		s.staticEndpoints.ClientAllocations.register()
-		s.staticEndpoints.ClientCSI = &ClientCSI{srv: s, logger: s.logger.Named("client_csi")}
+		s.staticEndpoints.ClientStats = NewClientStatsEndpoint(s)
+		s.staticEndpoints.ClientAllocations = NewClientAllocationsEndpoint(s)
+		s.staticEndpoints.ClientAllocations.register() // register the streaming RPCs
+		s.staticEndpoints.ClientCSI = NewClientCSIEndpoint(s)
 
 		// Streaming endpoints
-		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
+		s.staticEndpoints.FileSystem = NewFileSystemEndpoint(s)
 		s.staticEndpoints.FileSystem.register()
 
-		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent = NewAgentEndpoint(s)
 		s.staticEndpoints.Agent.register()
 
-		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event = NewEventEndpoint(s)
 		s.staticEndpoints.Event.register()
-
 	}
 
-	// Register the static handlers
-	server.Register(s.staticEndpoints.ACL)
-	server.Register(s.staticEndpoints.Job)
-	server.Register(s.staticEndpoints.CSIVolume)
-	server.Register(s.staticEndpoints.CSIPlugin)
-	server.Register(s.staticEndpoints.Operator)
-	server.Register(s.staticEndpoints.Periodic)
-	server.Register(s.staticEndpoints.Region)
-	server.Register(s.staticEndpoints.Scaling)
-	server.Register(s.staticEndpoints.Status)
-	server.Register(s.staticEndpoints.System)
-	server.Register(s.staticEndpoints.Search)
-	s.staticEndpoints.Enterprise.Register(server)
+	// If an endpoint has any non-streaming RPCs doesn't have an RPC context,
+	// we'll register the static handler here instead of creating a new dynamic
+	// endpoint on each connection.
+
 	server.Register(s.staticEndpoints.ClientStats)
 	server.Register(s.staticEndpoints.ClientAllocations)
 	server.Register(s.staticEndpoints.ClientCSI)
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
-	server.Register(s.staticEndpoints.Namespace)
-	server.Register(s.staticEndpoints.Variables)
 
-	// Create new dynamic endpoints and add them to the RPC server.
-	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
-	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
-	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
-	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
-	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
-	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
-	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+	// Dynamic endpoints are endpoints that include the connection context and
+	// are created on each connection. Register all the dynamic endpoints with
+	// the RPC server.
 
-	// Register the dynamic endpoints
-	server.Register(alloc)
-	server.Register(deployment)
-	server.Register(eval)
-	server.Register(node)
-	server.Register(plan)
-	_ = server.Register(serviceReg)
-	_ = server.Register(keyringReg)
+	_ = server.Register(NewACLEndpoint(s, ctx))
+	_ = server.Register(NewAllocEndpoint(s, ctx))
+	_ = server.Register(NewCSIVolumeEndpoint(s, ctx))
+	_ = server.Register(NewCSIPluginEndpoint(s, ctx))
+	_ = server.Register(NewDeploymentEndpoint(s, ctx))
+	_ = server.Register(NewEvalEndpoint(s, ctx))
+	_ = server.Register(NewJobEndpoints(s, ctx))
+	_ = server.Register(NewKeyringEndpoint(s, ctx, s.encrypter))
+	_ = server.Register(NewNamespaceEndpoint(s, ctx))
+	_ = server.Register(NewNodeEndpoint(s, ctx))
+	_ = server.Register(NewOperatorEndpoint(s, ctx))
+	_ = server.Register(NewPeriodicEndpoint(s, ctx))
+	_ = server.Register(NewPlanEndpoint(s, ctx))
+	_ = server.Register(NewRegionEndpoint(s, ctx))
+	_ = server.Register(NewScalingEndpoint(s, ctx))
+	_ = server.Register(NewSearchEndpoint(s, ctx))
+	_ = server.Register(NewServiceRegistrationEndpoint(s, ctx))
+	_ = server.Register(NewStatusEndpoint(s, ctx))
+	_ = server.Register(NewSystemEndpoint(s, ctx))
+	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
+
+	_ = server.Register(NewEnterpriseEndpoints(s, ctx))
+
 	return nil
 }
 

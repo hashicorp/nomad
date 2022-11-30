@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -17,7 +17,12 @@ import (
 // Scaling endpoint is used for listing and retrieving scaling policies
 type Scaling struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewScalingEndpoint(srv *Server, ctx *RPCContext) *Scaling {
+	return &Scaling{srv: srv, ctx: ctx, logger: srv.logger.Named("scaling")}
 }
 
 // ListPolicies is used to list the policies

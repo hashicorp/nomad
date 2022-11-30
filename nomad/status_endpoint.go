@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -13,7 +13,12 @@ import (
 // Status endpoint is used to check on server status
 type Status struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewStatusEndpoint(srv *Server, ctx *RPCContext) *Status {
+	return &Status{srv: srv, ctx: ctx, logger: srv.logger.Named("status")}
 }
 
 // Ping is used to just check for connectivity

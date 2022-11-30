@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +15,10 @@ import (
 
 type Event struct {
 	srv *Server
+}
+
+func NewEventEndpoint(srv *Server) *Event {
+	return &Event{srv: srv}
 }
 
 func (e *Event) register() {

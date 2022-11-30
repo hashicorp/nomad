@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -22,9 +22,15 @@ import (
 // callable via the Variables RPCs and externally via the "/v1/var{s}"
 // HTTP API.
 type Variables struct {
-	srv       *Server
-	logger    hclog.Logger
+	srv    *Server
+	ctx    *RPCContext
+	logger hclog.Logger
+
 	encrypter *Encrypter
+}
+
+func NewVariablesEndpoint(srv *Server, ctx *RPCContext, enc *Encrypter) *Variables {
+	return &Variables{srv: srv, ctx: ctx, logger: srv.logger.Named("variables"), encrypter: enc}
 }
 
 // Apply is used to apply a SV update request to the data store.

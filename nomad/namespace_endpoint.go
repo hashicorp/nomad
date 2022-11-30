@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -14,6 +15,11 @@ import (
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
 	srv *Server
+	ctx *RPCContext
+}
+
+func NewNamespaceEndpoint(srv *Server, ctx *RPCContext) *Namespace {
+	return &Namespace{srv: srv, ctx: ctx}
 }
 
 // UpsertNamespaces is used to upsert a set of namespaces

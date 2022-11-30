@@ -43,7 +43,12 @@ var (
 // Search endpoint is used to look up matches for a given prefix and context
 type Search struct {
 	srv    *Server
+	ctx    *RPCContext
 	logger hclog.Logger
+}
+
+func NewSearchEndpoint(srv *Server, ctx *RPCContext) *Search {
+	return &Search{srv: srv, ctx: ctx, logger: srv.logger.Named("search")}
 }
 
 // getPrefixMatches extracts matches for an iterator, and returns a list of ids for
