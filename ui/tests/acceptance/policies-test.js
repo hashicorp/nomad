@@ -71,4 +71,22 @@ module('Acceptance | policies', function (hooks) {
     assert.equal(currentURL(), '/policies/My-Fun-Policy');
     await percySnapshot(assert);
   });
+
+  test('Deleting a policy', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+    const firstPolicyName = server.db.policies[0].name;
+    const firstPolicyRow = [...findAll('[data-test-policy-name]')].filter(
+      (row) => row.textContent.includes(firstPolicyName)
+    )[0];
+    await click(firstPolicyRow);
+    assert.equal(currentURL(), `/policies/${firstPolicyName}`);
+    await click('[data-test-delete-button] button');
+    assert.dom('[data-test-confirm-button]').exists();
+    await click('[data-test-confirm-button]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert.equal(currentURL(), '/policies');
+    assert.dom(`[data-test-policy-name="${firstPolicyName}"]`).doesNotExist();
+  });
 });

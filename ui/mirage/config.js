@@ -443,8 +443,7 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
-  // Note: Mirage-only route, for UI testing and not part of the Nomad API
-  this.get('/acl/tokens', function ({ tokens }, req) {
+  this.get('/acl/tokens', function ({tokens}, req) {
     return this.serialize(tokens.all());
   });
 
@@ -532,6 +531,9 @@ export default function () {
 
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
+    schema.tokens.all().models.filter(token => token.policyIds.includes(id)).forEach(token => {
+      token.update({ policyIds: token.policyIds.filter(pid => pid !== id) });
+    });
     server.db.policies.remove(id);
     return '';
   });
