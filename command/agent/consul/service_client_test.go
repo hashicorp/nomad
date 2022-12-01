@@ -13,7 +13,114 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
+
+func TestSyncLogic_maybeTweakTaggedAddresses(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		wanted   map[string]api.ServiceAddress
+		existing map[string]api.ServiceAddress
+		id       string
+		exp      []string
+	}{
+		{
+			name:   "not managed by nomad",
+			id:     "_nomad-other-hello",
+			wanted: map[string]api.ServiceAddress{
+				// empty
+			},
+			existing: map[string]api.ServiceAddress{
+				"lan_ipv4": {},
+				"wan_ipv4": {},
+				"custom":   {},
+			},
+			exp: []string{"lan_ipv4", "wan_ipv4", "custom"},
+		},
+		{
+			name: "remove defaults",
+			id:   "_nomad-task-hello",
+			wanted: map[string]api.ServiceAddress{
+				"lan_custom": {},
+				"wan_custom": {},
+			},
+			existing: map[string]api.ServiceAddress{
+				"lan_ipv4":   {},
+				"wan_ipv4":   {},
+				"lan_ipv6":   {},
+				"wan_ipv6":   {},
+				"lan_custom": {},
+				"wan_custom": {},
+			},
+			exp: []string{"lan_custom", "wan_custom"},
+		},
+		{
+			name: "overridden defaults",
+			id:   "_nomad-task-hello",
+			wanted: map[string]api.ServiceAddress{
+				"lan_ipv4": {},
+				"wan_ipv4": {},
+				"lan_ipv6": {},
+				"wan_ipv6": {},
+				"custom":   {},
+			},
+			existing: map[string]api.ServiceAddress{
+				"lan_ipv4": {},
+				"wan_ipv4": {},
+				"lan_ipv6": {},
+				"wan_ipv6": {},
+				"custom":   {},
+			},
+			exp: []string{"lan_ipv4", "wan_ipv4", "lan_ipv6", "wan_ipv6", "custom"},
+		},
+		{
+			name: "applies to nomad client",
+			id:   "_nomad-client-12345",
+			wanted: map[string]api.ServiceAddress{
+				"custom": {},
+			},
+			existing: map[string]api.ServiceAddress{
+				"lan_ipv4": {},
+				"wan_ipv4": {},
+				"lan_ipv6": {},
+				"wan_ipv6": {},
+				"custom":   {},
+			},
+			exp: []string{"custom"},
+		},
+		{
+			name: "applies to nomad server",
+			id:   "_nomad-server-12345",
+			wanted: map[string]api.ServiceAddress{
+				"custom": {},
+			},
+			existing: map[string]api.ServiceAddress{
+				"lan_ipv4": {},
+				"wan_ipv4": {},
+				"lan_ipv6": {},
+				"wan_ipv6": {},
+				"custom":   {},
+			},
+			exp: []string{"custom"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			asr := &api.AgentServiceRegistration{
+				ID:              tc.id,
+				TaggedAddresses: maps.Clone(tc.wanted),
+			}
+			as := &api.AgentService{
+				TaggedAddresses: maps.Clone(tc.existing),
+			}
+			maybeTweakTaggedAddresses(asr, as)
+			must.MapContainsKeys(t, as.TaggedAddresses, tc.exp)
+		})
+	}
+}
 
 func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	ci.Parallel(t)
