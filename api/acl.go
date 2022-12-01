@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -367,6 +368,107 @@ func (a *ACLAuthMethods) Get(authMethodName string, q *QueryOptions) (*ACLAuthMe
 		return nil, nil, err
 	}
 	return &resp, qm, nil
+}
+
+// ACLOIDC is used to query the ACL auth-methods endpoints.
+type ACLOIDC struct {
+	client *Client
+}
+
+// ACLOIDC returns a new handle on the ACL auth-methods API client.
+func (c *Client) ACLOIDC() *ACLOIDC {
+	return &ACLOIDC{client: c}
+}
+
+// GetAuthUrl
+func (a *ACLOIDC) GetAuthUrl(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLOIDCAuthURLResponse, *WriteMeta, error) {
+
+	// Validate the request object.
+	if req.AuthMethodName == "" {
+		return nil, nil, fmt.Errorf("missing method name")
+	}
+	if req.RedirectURI == "" {
+		return nil, nil, fmt.Errorf("missing redirect uri")
+	}
+	if req.ClientNonce == "" {
+		return nil, nil, fmt.Errorf("missing nonce")
+	}
+
+	var resp ACLOIDCAuthURLResponse
+	wm, err := a.client.write("/v1/acl/oidc/auth-url", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// CompleteAuth
+func (a *ACLOIDC) CompleteAuth(req *ACLOIDCCompleteAuthRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if req == nil || req.AuthMethodName == "" {
+		return nil, nil, fmt.Errorf("missing method name")
+	}
+
+	if req == nil || req.RedirectURI == "" {
+		return nil, nil, fmt.Errorf("missing redirect uri")
+	}
+
+	if req == nil || req.ClientNonce == "" {
+		return nil, nil, fmt.Errorf("missing nonce")
+	}
+
+	var resp ACLToken
+	wm, err := a.client.write("/v1/acl/oidc/complete-auth", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// ACLOIDCAuthURLRequest is the request to make when starting the OIDC
+// authentication login flow.
+type ACLOIDCAuthURLRequest struct {
+
+	// AuthMethodName is the OIDC auth-method to use. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	// ClientNonce is a randomly generated string to prevent replay attacks. It
+	// is up to the client to generate this and Go integrations should use the
+	// oidc.NewID function within the hashicorp/cap library.
+	ClientNonce string
+}
+
+// ACLOIDCAuthURLResponse is the response when starting the OIDC authentication
+// login flow.
+type ACLOIDCAuthURLResponse struct {
+
+	// AuthURL is URL to begin authorization and is where the user logging in
+	// should go.
+	AuthURL string
+}
+
+// ACLOIDCCompleteAuthRequest is the request object to begin completing the
+// OIDC auth cycle after receiving the callback from the OIDC provider.
+type ACLOIDCCompleteAuthRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login via
+	// OIDC. This will match AuthUrlArgs.AuthMethodName. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// ClientNonce, State, and Code are provided from the parameters given to
+	// the redirect URL. These are all required parameters.
+	ClientNonce string
+	State       string
+	Code        string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
 }
 
 // ACLPolicyListStub is used to for listing ACL policies

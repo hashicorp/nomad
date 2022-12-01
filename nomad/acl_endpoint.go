@@ -1,6 +1,9 @@
 package nomad
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,12 +13,14 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	capOIDC "github.com/hashicorp/cap/oidc"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set"
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,12 +35,28 @@ const (
 	// aclBootstrapReset is the file name to create in the data dir. It's only contents
 	// should be the reset index
 	aclBootstrapReset = "acl-bootstrap-reset"
+
+	// aclOIDCAuthURLRequestExpiryTime is the deadline used when generating an
+	// OIDC provider authentication URL. This is used for HTTP requests to
+	// external APIs.
+	aclOIDCAuthURLRequestExpiryTime = 60 * time.Second
+
+	// aclOIDCCallbackRequestExpiryTime is the deadline used when obtaining an
+	// OIDC provider token. This is used for HTTP requests to external APIs.
+	aclOIDCCallbackRequestExpiryTime = 60 * time.Second
 )
 
-// ACL endpoint is used for manipulating ACL tokens and policies
+// ACL endpoint is used for manipulating ACL Tokens, Policies, Roles, and
+// AuthMethods. It is also used for gain an ACL Token via SSO methods such as
+// OIDC.
 type ACL struct {
 	srv    *Server
 	logger log.Logger
+
+	// oidcProviderCache is a cache of OIDC providers as defined by the
+	// hashicorp/cap library. When performing an OIDC login flow, this cache
+	// should be used to obtain a provider from an auth-method.
+	oidcProviderCache *oidc.ProviderCache
 }
 
 // UpsertPolicies is used to create or update a set of policies
@@ -1957,4 +1978,245 @@ func (a *ACL) GetAuthMethods(
 			)
 		}},
 	)
+}
+
+// OIDCAuthURL starts the OIDC login workflow. The response URL should be used
+// by the caller to authenticate the user. Once this has been completed,
+// OIDCCompleteAuth can be used for the remainder of the workflow.
+func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.ACLOIDCAuthURLResponse) error {
+
+	// The OIDC flow can only be used when the Nomad cluster has ACL enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// Perform the initial forwarding within the region. This ensures we
+	// respect stale queries.
+	if done, err := a.srv.forward(structs.ACLOIDCAuthURLRPCMethod, args, args, reply); done {
+		return err
+	}
+
+	// There is not a perfect place to run this defer since we potentially
+	// forward twice. It is likely there will be two distinct patterns to this
+	// timing in clusters that utilise a mixture of local and global with
+	// methods.
+	defer metrics.MeasureSince([]string{"nomad", "acl", "oidc_auth_url"}, time.Now())
+
+	// Validate the request arguments to ensure it contains all the data it
+	// needs. Whether the data provided is correct will be handled by the OIDC
+	// provider.
+	if err := args.Validate(); err != nil {
+		return structs.NewErrRPCCodedf(http.StatusBadRequest, "invalid OIDC auth-url request: %v", err)
+	}
+
+	// Grab a snapshot of the state, so we can query it safely.
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Lookup the auth method from state, so we have the entire object
+	// available to us. It's important to check for nil on the auth method
+	// object, as it is possible the request was made with an incorrectly named
+	// auth method.
+	authMethod, err := stateSnapshot.GetACLAuthMethodByName(nil, args.AuthMethodName)
+	if err != nil {
+		return err
+	}
+	if authMethod == nil {
+		return structs.NewErrRPCCodedf(http.StatusNotFound, "auth-method %q not found", args.AuthMethodName)
+	}
+
+	// If the authentication method generates global ACL tokens, we need to
+	// forward the request onto the authoritative regional leader.
+	if authMethod.TokenLocalityIsGlobal() {
+		args.Region = a.srv.config.AuthoritativeRegion
+
+		if done, err := a.srv.forward(structs.ACLOIDCAuthURLRPCMethod, args, args, reply); done {
+			return err
+		}
+	}
+
+	// Generate our OIDC request.
+	oidcReq, err := capOIDC.NewRequest(
+		aclOIDCAuthURLRequestExpiryTime,
+		args.RedirectURI,
+		[]capOIDC.Option{capOIDC.WithNonce(args.ClientNonce)}...,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	}
+
+	// Use the cache to provide us with an OIDC provider for the auth method
+	// that was resolved from state.
+	oidcProvider, err := a.oidcProviderCache.Get(authMethod)
+	if err != nil {
+		return fmt.Errorf("failed to generate OIDC provider: %v", err)
+	}
+
+	// Generate a context. This argument is required by the OIDC provider lib,
+	// but is not used in any way. This therefore acts for future proofing, if
+	// the provider lib uses the context.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(aclOIDCAuthURLRequestExpiryTime))
+	defer cancel()
+
+	// Generate the URL, handling any error along with the URL.
+	authURL, err := oidcProvider.AuthURL(ctx, oidcReq)
+	if err != nil {
+		return fmt.Errorf("failed to generate auth URL: %v", err)
+	}
+
+	reply.AuthURL = authURL
+	return nil
+}
+
+// OIDCCompleteAuth complete the OIDC login workflow. It will exchange the OIDC
+// provider token for a Nomad ACL token, using the configured ACL role and
+// policy claims to provide authorization.
+func (a *ACL) OIDCCompleteAuth(
+	args *structs.ACLOIDCCompleteAuthRequest, reply *structs.ACLOIDCCompleteAuthResponse) error {
+
+	// The OIDC flow can only be used when the Nomad cluster has ACL enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// Perform the initial forwarding within the region. This ensures we
+	// respect stale queries.
+	if done, err := a.srv.forward(structs.ACLOIDCCompleteAuthRPCMethod, args, args, reply); done {
+		return err
+	}
+
+	// There is not a perfect place to run this defer since we potentially
+	// forward twice. It is likely there will be two distinct patterns to this
+	// timing in clusters that utilise a mixture of local and global with
+	// methods.
+	defer metrics.MeasureSince([]string{"nomad", "acl", "oidc_complete_auth"}, time.Now())
+
+	// Validate the request arguments to ensure it contains all the data it
+	// needs. Whether the data provided is correct will be handled by the OIDC
+	// provider.
+	if err := args.Validate(); err != nil {
+		return structs.NewErrRPCCodedf(http.StatusBadRequest, "invalid OIDC complete-auth request: %v", err)
+	}
+
+	// Grab a snapshot of the state, so we can query it safely.
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Lookup the auth method from state, so we have the entire object
+	// available to us. It's important to check for nil on the auth method
+	// object, as it is possible the request was made with an incorrectly named
+	// auth method.
+	authMethod, err := stateSnapshot.GetACLAuthMethodByName(nil, args.AuthMethodName)
+	if err != nil {
+		return err
+	}
+	if authMethod == nil {
+		return structs.NewErrRPCCodedf(http.StatusNotFound, "auth-method %q not found", args.AuthMethodName)
+	}
+
+	// If the authentication method generates global ACL tokens, we need to
+	// forward the request onto the authoritative regional leader.
+	if authMethod.TokenLocalityIsGlobal() {
+		args.Region = a.srv.config.AuthoritativeRegion
+
+		if done, err := a.srv.forward(structs.ACLOIDCCompleteAuthRPCMethod, args, args, reply); done {
+			return err
+		}
+	}
+
+	// Use the cache to provide us with an OIDC provider for the auth method
+	// that was resolved from state.
+	oidcProvider, err := a.oidcProviderCache.Get(authMethod)
+	if err != nil {
+		return fmt.Errorf("failed to generate OIDC provider: %v", err)
+	}
+
+	// Build our OIDC request options and request object.
+	oidcReqOpts := []capOIDC.Option{
+		capOIDC.WithNonce(args.ClientNonce),
+		capOIDC.WithState(args.State),
+	}
+
+	if len(authMethod.Config.BoundAudiences) > 0 {
+		oidcReqOpts = append(oidcReqOpts, capOIDC.WithAudiences(authMethod.Config.BoundAudiences...))
+	}
+
+	oidcReq, err := capOIDC.NewRequest(aclOIDCCallbackRequestExpiryTime, args.RedirectURI, oidcReqOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	}
+
+	// Generate a context with a deadline. This is passed to the OIDC provider
+	// and used when making remote HTTP requests.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(aclOIDCCallbackRequestExpiryTime))
+	defer cancel()
+
+	// Exchange the state and code for an OIDC provider token.
+	oidcToken, err := oidcProvider.Exchange(ctx, oidcReq, args.State, args.Code)
+	if err != nil {
+		return fmt.Errorf("failed to exchange token with provider: %v", err)
+	}
+	if !oidcToken.Valid() {
+		return errors.New("exchanged token is not valid; potentially expired or empty")
+	}
+
+	// Extract the ID token claims into our internal definition. This will only
+	// decode the information we require .
+	var providerClaims structs.ACLOIDCProviderIDClaims
+	if err := oidcToken.IDToken().Claims(&providerClaims); err != nil {
+		return fmt.Errorf("failed to retrievs the IDToken claims: %v", err)
+	}
+
+	// Valid OIDC providers should never behave this way.
+	if providerClaims.Iss == "" || providerClaims.Sub == "" {
+		return structs.NewErrRPCCoded(http.StatusInternalServerError,
+			"OIDC provider returned empty issuer or subscriber ID")
+	}
+
+	// Pull the user info if we have a user account, and merge those claims into
+	// provided token claims. Any user claims override all the claims in the ID
+	// token.
+	var userClaims json.RawMessage
+	if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
+		if err := oidcProvider.UserInfo(ctx, userTokenSource, providerClaims.Sub, &userClaims); err != nil {
+			return err
+		}
+	}
+
+	// Build our token RPC request. The RPC handler includes a lot of specific
+	// logic, so we do not want to call Raft directly or copy that here. In the
+	// future we should try and extract out the logic into an interface, or at
+	// least a separate function.
+	tokenUpsertRequest := structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{
+			{
+				Name:          providerClaims.ACLTokenName(authMethod.Name),
+				Type:          structs.ACLClientToken,
+				Policies:      providerClaims.ACLTokenPolicies(),
+				Roles:         providerClaims.ACLTokenRoleLinks(),
+				Global:        authMethod.TokenLocalityIsGlobal(),
+				ExpirationTTL: authMethod.MaxTokenTTL,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    a.srv.Region(),
+			AuthToken: a.srv.getLeaderAcl(),
+		},
+	}
+
+	var tokenUpsertReply structs.ACLTokenUpsertResponse
+
+	if err := a.srv.RPC(structs.ACLUpsertTokensRPCMethod, &tokenUpsertRequest, &tokenUpsertReply); err != nil {
+		return err
+	}
+
+	// The way the UpsertTokens RPC currently works, if we get no error, then
+	// we will have exactly the same number of tokens returned as we sent. It
+	// is therefore safe to assume we have 1 token.
+	reply.ACLToken = tokenUpsertReply.Tokens[0]
+	return nil
 }

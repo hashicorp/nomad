@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	googleUUID "github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -114,6 +115,22 @@ const (
 	// Args: ACLAuthMethodsGetRequest
 	// Reply: ACLAuthMethodsGetResponse
 	ACLGetAuthMethodsRPCMethod = "ACL.GetAuthMethods"
+
+	// ACLOIDCAuthURLRPCMethod is the RPC method for starting the OIDC login
+	// workflow. It generates the OIDC provider URL which will be used for user
+	// authentication.
+	//
+	// Args: ACLOIDCAuthURLRequest
+	// Reply: ACLOIDCAuthURLResponse
+	ACLOIDCAuthURLRPCMethod = "ACL.OIDCAuthURL"
+
+	// ACLOIDCCompleteAuthRPCMethod is the RPC method for completing the OIDC
+	// login workflow. It exchanges the OIDC provider token for a Nomad ACL
+	// token with roles as defined within the remote provider.
+	//
+	// Args: ACLOIDCCompleteAuthRequest
+	// Reply: ACLOIDCCompleteAuthResponse
+	ACLOIDCCompleteAuthRPCMethod = "ACL.OIDCCompleteAuth"
 )
 
 const (
@@ -151,6 +168,8 @@ type ACLTokenRoleLink struct {
 	// operators can change the name of an ACL role.
 	Name string
 }
+
+func (a *ACLTokenRoleLink) Hash() string { return a.ID + ":" + a.Name }
 
 // Canonicalize performs basic canonicalization on the ACL token object. It is
 // important for callers to understand certain fields such as AccessorID are
@@ -738,6 +757,10 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	return mErr.ErrorOrNil()
 }
 
+// TokenLocalityIsGlobal returns whether the auth method creates global ACL
+// tokens or not.
+func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality == "global" }
+
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
 	OIDCDiscoveryURL    string
@@ -840,4 +863,199 @@ type ACLAuthMethodDeleteRequest struct {
 // operation
 type ACLAuthMethodDeleteResponse struct {
 	WriteMeta
+}
+
+// ACLOIDCAuthURLRequest is the request to make when starting the OIDC
+// authentication login flow.
+type ACLOIDCAuthURLRequest struct {
+
+	// AuthMethodName is the OIDC auth-method to use. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	// ClientNonce is a randomly generated string to prevent replay attacks. It
+	// is up to the client to generate this and Go integrations should use the
+	// oidc.NewID function within the hashicorp/cap library. This must then be
+	// passed back to ACLOIDCCompleteAuthRequest. This is a required parameter.
+	ClientNonce string
+
+	// WriteRequest is used due to the requirement by the RPC forwarding
+	// mechanism. This request doesn't write anything to Nomad's internal
+	// state.
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to start the OIDC authentication flow.
+func (a *ACLOIDCAuthURLRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCAuthURLResponse is the response when starting the OIDC authentication
+// login flow.
+type ACLOIDCAuthURLResponse struct {
+
+	// AuthURL is URL to begin authorization and is where the user logging in
+	// should go.
+	AuthURL string
+}
+
+// ACLOIDCCompleteAuthRequest is the request object to begin completing the
+// OIDC auth cycle after receiving the callback from the OIDC provider.
+type ACLOIDCCompleteAuthRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login via
+	// OIDC. This will match ACLOIDCAuthURLRequest.AuthMethodName. This is a
+	// required parameter.
+	AuthMethodName string
+
+	// ClientNonce, State, and Code are provided from the parameters given to
+	// the redirect URL. These are all required parameters.
+	ClientNonce string
+	State       string
+	Code        string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to complete the OIDC authentication flow.
+func (a *ACLOIDCCompleteAuthRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.State == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing state"))
+	}
+	if a.Code == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing code"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCCompleteAuthResponse is the response when the OIDC auth flow has been
+// completed successfully.
+type ACLOIDCCompleteAuthResponse struct {
+	ACLToken *ACLToken
+	WriteMeta
+}
+
+// ACLOIDCProviderIDClaims represents the information we decode from the OIDC
+// token exchange. It contains all the required information used to generate a
+// Nomad ACL token.
+type ACLOIDCProviderIDClaims struct {
+
+	// Iss represents the issuer URL where you can find the OIDC provider
+	// configuration document. This should be available in the
+	// "/.well-known/openid-configuration" endpoint.
+	Iss string `json:"iss"`
+
+	// Sub is the OIDC provider subscriber identifier for the user that has
+	// logged in.
+	Sub string `json:"sub"`
+
+	// FirstName is internal metadata OIDC administrators can set for Nomad
+	// OIDC. It is optional but provides better naming when generating ACL
+	// tokens from OIDC logins.
+	FirstName string `json:"http://nomad.internal/first_name"`
+
+	// LastName is internal metadata OIDC administrators can set for Nomad
+	// OIDC. It is optional but provides better naming when generating ACL
+	// tokens from OIDC logins.
+	LastName string `json:"http://nomad.internal/last_name"`
+
+	// Policies specifies the ACL policies that should be assigned to the
+	// generated ACL token. This is only expected to be the name of the policy.
+	Policies []string `json:"http://nomad.internal/policies"`
+
+	// Roles specifies the ACL roles that should be assigned to the generated
+	// ACL token. The roles can be identified by either the ID or the Name and
+	// the array can contain a mix of either.
+	Roles []string `json:"http://nomad.internal/roles"`
+}
+
+// ACLTokenName generates a name that should be used for the generated ACL
+// token when exchanging an OIDC provider token for a Nomad one.
+func (a *ACLOIDCProviderIDClaims) ACLTokenName(authMethod string) string {
+
+	// The token name will always include the provider type and the name of the
+	// auth method used.
+	tokenName := "oidc-" + authMethod
+
+	// If the OIDC administrator setup the additional metadata, use this to add
+	// more information about who the token belongs to.
+	if a.FirstName != "" {
+		tokenName += "-" + a.FirstName
+	}
+	if a.LastName != "" {
+		tokenName += "-" + a.LastName
+	}
+
+	return tokenName
+}
+
+// ACLTokenRoleLinks generates an array of ACLTokenRoleLink from the OIDC
+// claims that can be used when generating an ACL token.
+func (a *ACLOIDCProviderIDClaims) ACLTokenRoleLinks() []*ACLTokenRoleLink {
+
+	// Use a set so any duplicates are removed. Avoid this here will ensure
+	// the work performed when resolving ACL tokens is kept to a minimum.
+	roleLinkSet := set.NewHashSet[*ACLTokenRoleLink, string](0)
+
+	// Iterate the roles and do our best effort to identify whether the OIDC
+	// administrator is using UUIDs or Names when referring to ACL roles. We
+	// support both, as roles can be used in either way with a preference on
+	// the ID.
+	for _, role := range a.Roles {
+		if _, err := googleUUID.Parse(role); err == nil {
+			roleLinkSet.Insert(&ACLTokenRoleLink{ID: role})
+		} else {
+			roleLinkSet.Insert(&ACLTokenRoleLink{Name: role})
+		}
+	}
+	return roleLinkSet.List()
+}
+
+// ACLTokenPolicies generates an array of policy names from the OIDC claims
+// that can be used when generating an ACL token.
+func (a *ACLOIDCProviderIDClaims) ACLTokenPolicies() []string {
+
+	// Use a set so any duplicates are removed. Avoid this here will ensure
+	// the work performed when resolving ACL tokens is kept to a minimum.
+	policyNameSet := set.New[string](0)
+
+	for _, policyName := range a.Policies {
+		policyNameSet.Insert(policyName)
+	}
+
+	return policyNameSet.List()
 }

@@ -1038,6 +1038,16 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 	}
 }
 
+func TestACLAuthMethod_TokenLocalityIsGlobal(t *testing.T) {
+	ci.Parallel(t)
+
+	globalAuthMethod := &ACLAuthMethod{TokenLocality: "global"}
+	must.True(t, globalAuthMethod.TokenLocalityIsGlobal())
+
+	localAuthMethod := &ACLAuthMethod{TokenLocality: "local"}
+	must.False(t, localAuthMethod.TokenLocalityIsGlobal())
+}
+
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1059,4 +1069,121 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	amc3 := amc1.Copy()
 	amc3.AllowedRedirectURIs = []string{"new", "urls"}
 	must.NotEq(t, amc1, amc3)
+}
+
+func TestACLOIDCAuthURLRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &ACLOIDCAuthURLRequest{}
+	must.False(t, req.IsRead())
+}
+
+func TestACLOIDCAuthURLRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testRequest := &ACLOIDCAuthURLRequest{}
+	err := testRequest.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "missing auth method name")
+	must.StrContains(t, err.Error(), "missing client nonce")
+	must.StrContains(t, err.Error(), "missing redirect URI")
+}
+
+func TestACLOIDCCompleteAuthRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &ACLOIDCCompleteAuthRequest{}
+	must.False(t, req.IsRead())
+}
+
+func TestACLOIDCCompleteAuthRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testRequest := &ACLOIDCCompleteAuthRequest{}
+	err := testRequest.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "missing auth method name")
+	must.StrContains(t, err.Error(), "missing client nonce")
+	must.StrContains(t, err.Error(), "missing state")
+	must.StrContains(t, err.Error(), "missing code")
+	must.StrContains(t, err.Error(), "missing redirect URI")
+}
+
+func TestACLOIDCProviderIDClaims_ACLTokenName(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                         string
+		inputAuthMethodName          string
+		inputACLOIDCProviderIDClaims *ACLOIDCProviderIDClaims
+		expectedOutput               string
+	}{
+		{
+			name:                "all metadata provided",
+			inputAuthMethodName: "auth0",
+			inputACLOIDCProviderIDClaims: &ACLOIDCProviderIDClaims{
+				FirstName: "Ada",
+				LastName:  "Lovelace",
+			},
+			expectedOutput: "oidc-auth0-Ada-Lovelace",
+		},
+		{
+			name:                "partial metadata provided",
+			inputAuthMethodName: "auth0",
+			inputACLOIDCProviderIDClaims: &ACLOIDCProviderIDClaims{
+				LastName: "Lovelace",
+			},
+			expectedOutput: "oidc-auth0-Lovelace",
+		},
+		{
+			name:                         "no metadata provided",
+			inputAuthMethodName:          "auth0",
+			inputACLOIDCProviderIDClaims: &ACLOIDCProviderIDClaims{},
+			expectedOutput:               "oidc-auth0",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputACLOIDCProviderIDClaims.ACLTokenName(tc.inputAuthMethodName)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestACLOIDCProviderIDClaims_ACLTokenRoleLinks(t *testing.T) {
+	ci.Parallel(t)
+
+	// Generate a test object which has roles specified by name, uuid, and
+	// duplicates within both.
+	inputClaims := ACLOIDCProviderIDClaims{
+		Roles: []string{"test-claim-name", "bc7654c8-d393-49ba-a621-71cfe53a7b85",
+			"duplicate-test-claim-name", "68ad926f-7674-4edb-a81f-63cbf0bf4b34",
+			"another-test-claim-name", "duplicate-test-claim-name", "b1dda174-a772-4287-87c1-7fb2ed956775",
+			"bc7654c8-d393-49ba-a621-71cfe53a7b85"},
+	}
+
+	actualOutput := inputClaims.ACLTokenRoleLinks()
+	expectedOutputClaims := []*ACLTokenRoleLink{
+		{ID: "bc7654c8-d393-49ba-a621-71cfe53a7b85"},
+		{Name: "duplicate-test-claim-name"},
+		{ID: "68ad926f-7674-4edb-a81f-63cbf0bf4b34"},
+		{Name: "another-test-claim-name"},
+		{ID: "b1dda174-a772-4287-87c1-7fb2ed956775"},
+		{Name: "test-claim-name"},
+	}
+	must.Eq(t, actualOutput, expectedOutputClaims)
+}
+
+func TestACLOIDCProviderIDClaims_ACLTokenPolicies(t *testing.T) {
+	ci.Parallel(t)
+
+	inputClaims := ACLOIDCProviderIDClaims{
+		Policies: []string{"test-claim-name", "duplicate-test-claim-name",
+			"another-test-claim-name", "duplicate-test-claim-name"},
+	}
+
+	actualOutput := inputClaims.ACLTokenPolicies()
+	expectedOutputClaims := []string{"test-claim-name", "duplicate-test-claim-name", "another-test-claim-name"}
+	must.Eq(t, actualOutput, expectedOutputClaims)
 }
