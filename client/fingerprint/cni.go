@@ -6,16 +6,18 @@ import (
 	"strings"
 
 	"github.com/containernetworking/cni/libcni"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// CNIFingerprint creates a fingerprint of the CNI configuration(s) on the
+// Nomad client.
 type CNIFingerprint struct {
 	StaticFingerprinter
-	logger log.Logger
+	logger hclog.Logger
 }
 
-func NewCNIFingerprint(logger log.Logger) Fingerprint {
+func NewCNIFingerprint(logger hclog.Logger) Fingerprint {
 	return &CNIFingerprint{logger: logger}
 }
 
