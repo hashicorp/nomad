@@ -66,10 +66,12 @@ Nodes Healthy        = 1
 Nodes Expected       = 1
 ```
 
-Full status information of a plugin:
+Full status information of a plugin with `-verbose` flag. Note that this example
+shows a plugin that has all supported capabilities. Most plugins will support a
+subset of these capabilities. Topology fields are also controlled by the plugin.
 
 ```shell-session
-$ nomad plugin [-type csi] status ebs-prod
+$ nomad plugin [-type csi] -verbose status ebs-prod
 ID                   = ebs-prod
 Provider             = aws.ebs
 Version              = 1.0.1
@@ -77,6 +79,32 @@ Controllers Healthy  = 1
 Controllers Expected = 1
 Nodes Healthy        = 1
 Nodes Expected       = 1
+
+Controller Capabilities
+  ATTACH_READONLY
+  CLONE_VOLUME
+  CONTROLLER_ATTACH_DETACH
+  CREATE_DELETE_SNAPSHOT
+  CREATE_DELETE_VOLUME
+  EXPAND_VOLUME
+  GET_CAPACITY
+  GET_VOLUME
+  LIST_SNAPSHOTS
+  LIST_VOLUMES
+  LIST_VOLUMES_PUBLISHED_NODES
+  VOLUME_CONDITION
+
+Node Capabilities
+  EXPAND_VOLUME
+  GET_VOLUME_STATS
+  STAGE_UNSTAGE_VOLUME
+  VOLUME_ACCESSIBILITY_CONSTRAINTS
+  VOLUME_CONDITION
+
+Accessible Topologies
+Node ID   Accessible Topology
+95303afc  topology.ebs.csi.aws.com/zone=us-east-1a
+8bf94335  topology.ebs.csi.aws.com/zone=us-east-1b
 
 Allocations
 ID        Node ID   Task Group  Version  Desired  Status    Created    Modified
