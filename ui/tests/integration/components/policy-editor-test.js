@@ -28,8 +28,8 @@ module('Integration | Component | policy-editor', function (hooks) {
     this.set('oldMockPolicy', oldMockPolicy);
 
     await render(hbs`<PolicyEditor @policy={{this.newMockPolicy}} />`);
-    assert.dom('[data-test-policy-name]').exists();
+    assert.dom('[data-test-policy-name-input]').exists();
     await render(hbs`<PolicyEditor @policy={{this.oldMockPolicy}} />`);
-    assert.dom('[data-test-policy-name]').doesNotExist();
+    assert.dom('[data-test-policy-name-input]').doesNotExist();
   });
 });
