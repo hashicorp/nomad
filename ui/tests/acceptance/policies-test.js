@@ -11,7 +11,7 @@ module('Acceptance | policies', function (hooks) {
   setupMirage(hooks);
 
   test('Policies index route looks good', async function (assert) {
-    assert.expect(3);
+    assert.expect(4);
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/policies');
