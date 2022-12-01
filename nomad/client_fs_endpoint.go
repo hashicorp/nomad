@@ -25,6 +25,10 @@ type FileSystem struct {
 	logger log.Logger
 }
 
+func NewFileSystemEndpoint(srv *Server) *FileSystem {
+	return &FileSystem{srv: srv, logger: srv.logger.Named("client_fs")}
+}
+
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)

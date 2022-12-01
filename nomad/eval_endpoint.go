@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-bexpr"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -30,10 +30,12 @@ var minVersionEvalDeleteByFilter = version.Must(version.NewVersion("1.4.3"))
 // Eval endpoint is used for eval interactions
 type Eval struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func NewEvalEndpoint(srv *Server, ctx *RPCContext) *Eval {
+	return &Eval{srv: srv, ctx: ctx, logger: srv.logger.Named("eval")}
 }
 
 // GetEval is used to request information about a specific evaluation

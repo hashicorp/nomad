@@ -7,9 +7,10 @@ import (
 	"net"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -20,7 +21,11 @@ import (
 // Allocation endpoint.
 type ClientAllocations struct {
 	srv    *Server
-	logger log.Logger
+	logger hclog.Logger
+}
+
+func NewClientAllocationsEndpoint(srv *Server) *ClientAllocations {
+	return &ClientAllocations{srv: srv, logger: srv.logger.Named("client_allocs")}
 }
 
 func (a *ClientAllocations) register() {

@@ -18,6 +18,10 @@ type ClientStats struct {
 	logger log.Logger
 }
 
+func NewClientStatsEndpoint(srv *Server) *ClientStats {
+	return &ClientStats{srv: srv, logger: srv.logger.Named("client_stats")}
+}
+
 func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope

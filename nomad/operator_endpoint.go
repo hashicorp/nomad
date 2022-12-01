@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -20,7 +20,12 @@ import (
 // Operator endpoint is used to perform low-level operator tasks for Nomad.
 type Operator struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewOperatorEndpoint(srv *Server, ctx *RPCContext) *Operator {
+	return &Operator{srv: srv, ctx: ctx, logger: srv.logger.Named("operator")}
 }
 
 func (op *Operator) register() {

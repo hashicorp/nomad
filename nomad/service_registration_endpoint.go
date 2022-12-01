@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -24,10 +25,11 @@ import (
 // "/v1/service{s}" HTTP API.
 type ServiceRegistration struct {
 	srv *Server
-
-	// ctx provides context regarding the underlying connection, so we can
-	// perform TLS certificate validation on internal only endpoints.
 	ctx *RPCContext
+}
+
+func NewServiceRegistrationEndpoint(srv *Server, ctx *RPCContext) *ServiceRegistration {
+	return &ServiceRegistration{srv: srv, ctx: ctx}
 }
 
 // Upsert creates or updates service registrations held within Nomad. This RPC

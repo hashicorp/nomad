@@ -1,7 +1,7 @@
 package nomad
 
 import (
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -9,7 +9,12 @@ import (
 // Region is used to query and list the known regions
 type Region struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewRegionEndpoint(srv *Server, ctx *RPCContext) *Region {
+	return &Region{srv: srv, ctx: ctx, logger: srv.logger.Named("region")}
 }
 
 // List is used to list all of the known regions. No leader forwarding is

@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -17,10 +18,12 @@ import (
 // Deployment endpoint is used for manipulating deployments
 type Deployment struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func NewDeploymentEndpoint(srv *Server, ctx *RPCContext) *Deployment {
+	return &Deployment{srv: srv, ctx: ctx, logger: srv.logger.Named("deployment")}
 }
 
 // GetDeployment is used to request information about a specific deployment

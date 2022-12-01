@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,7 +15,12 @@ import (
 // Periodic endpoint is used for periodic job interactions
 type Periodic struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewPeriodicEndpoint(srv *Server, ctx *RPCContext) *Periodic {
+	return &Periodic{srv: srv, ctx: ctx, logger: srv.logger.Named("periodic")}
 }
 
 // Force is used to force a new instance of a periodic job
