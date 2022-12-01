@@ -1282,7 +1282,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	_ = server.Register(NewSystemEndpoint(s, ctx))
 	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
 
-	_ = server.Register(NewEnterpriseEndpoints(s, ctx))
+	ent := NewEnterpriseEndpoints(s, ctx)
+	ent.Register(server)
 
 	return nil
 }
