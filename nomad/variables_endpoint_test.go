@@ -106,8 +106,10 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	err = store.UpsertACLTokens(structs.MsgTypeTestSetup, 1150, []*structs.ACLToken{aclToken})
 	must.NoError(t, err)
 
+	variablesRPC := NewVariablesEndpoint(srv, nil, srv.encrypter)
+
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+		_, _, err := variablesRPC.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -119,7 +121,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+		_, _, err := variablesRPC.handleMixedAuthEndpoint(
 			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
@@ -349,7 +351,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			_, _, err := variablesRPC.handleMixedAuthEndpoint(
 				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
