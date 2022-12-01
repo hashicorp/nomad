@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { visit, currentURL, click, typeIn } from '@ember/test-helpers';
+import { visit, currentURL, click, typeIn, findAll } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -45,20 +45,30 @@ module('Acceptance | policies', function (hooks) {
     assert.equal(currentURL(), '/policies');
   });
 
-  test('Doesnt let you save a bad name', async function (assert) {
+  test('Creating a new policy', async function (assert) {
+    assert.expect(7);
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/policies');
     await click('[data-test-create-policy]');
     assert.equal(currentURL(), '/policies/new');
-    await typeIn('[data-test-policy-name]', 'My Fun Policy');
+    await typeIn('[data-test-policy-name-input]', 'My Fun Policy');
     await click('button[type="submit"]');
-    assert.dom('.flash-message.alert-error').exists();
+    assert
+      .dom('.flash-message.alert-error')
+      .exists('Doesnt let you save a bad name');
     assert.equal(currentURL(), '/policies/new');
-    document.querySelector('[data-test-policy-name]').value = ''; // clear
-    await typeIn('[data-test-policy-name]', 'My-Fun-Policy');
+    document.querySelector('[data-test-policy-name-input]').value = ''; // clear
+    await typeIn('[data-test-policy-name-input]', 'My-Fun-Policy');
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/policies');
+    const newPolicy = [...findAll('[data-test-policy-name]')].filter((a) =>
+      a.textContent.includes('My-Fun-Policy')
+    )[0];
+    assert.ok(newPolicy, 'Policy is in the list');
+    await click(newPolicy);
+    assert.equal(currentURL(), '/policies/My-Fun-Policy');
+    await percySnapshot(assert);
   });
 });
