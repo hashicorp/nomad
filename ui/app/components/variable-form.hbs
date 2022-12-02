@@ -137,13 +137,16 @@
   {{/if}}
 
   <footer>
-              <button
-            class="add-more button is-info is-inverted"
-            type="button"
-            {{on "click" this.appendRow}}
-          >
-            Add More
-          </button>
+    {{#if (eq this.view "table")}}
+    <button
+      class="add-more button is-info is-inverted"
+      type="button"
+      disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}}
+      {{on "click" this.appendRow}}
+    >
+      Add More
+    </button>
+    {{/if}}
     <button
       disabled={{this.shouldDisableSave}}
       class="button is-primary save"
