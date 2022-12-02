@@ -75,10 +75,6 @@
       border-color: $grey-blue;
     }
 
-    button.add-more[disabled] {
-      border-color: #dbdbdb;
-    }
-
     .key-value-error {
       grid-column: -1 / 1;
       position: relative;
@@ -188,5 +184,10 @@ table.variable-items {
 footer {
   .button.is-primary.save {
     margin-left: 8px;
+  }
+
+  .button.is-info.is-inverted.add-more[disabled] {
+    border-color: #dbdbdb;
+    box-shadow: 0 2px 0 0 rgb(122 122 122 / 20%);
   }
 }
