@@ -1950,7 +1950,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.NoError(t, err)
 
 	// has controller
-	c := srv.staticEndpoints.CSIVolume
+	c := NewCSIVolumeEndpoint(srv, nil)
 	plugin, vol, err := c.volAndPluginLookup(structs.DefaultNamespace, id0)
 	require.NotNil(t, plugin)
 	require.NotNil(t, vol)

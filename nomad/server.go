@@ -153,10 +153,6 @@ type Server struct {
 	rpcTLS    *tls.Config
 	rpcCancel context.CancelFunc
 
-	// staticEndpoints is the set of static endpoints that can be reused across
-	// all RPC connections
-	staticEndpoints endpoints
-
 	// streamingRpcs is the registry holding our streaming RPC handlers.
 	streamingRpcs *structs.StreamingRpcRegistry
 
@@ -1082,8 +1078,8 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger,
 		raftShim,
-		s.staticEndpoints.Deployment,
-		s.staticEndpoints.Job,
+		NewDeploymentEndpoint(s, nil),
+		NewJobEndpoints(s, nil),
 		s.config.DeploymentQueryRateLimit,
 		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
 	)
@@ -1094,7 +1090,7 @@ func (s *Server) setupDeploymentWatcher() error {
 // setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
+		s.logger, NewCSIVolumeEndpoint(s, nil), s.getLeaderAcl())
 
 	return nil
 }
@@ -1197,69 +1193,44 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	return nil
 }
 
-// setupRpcServer is used to populate an RPC server with endpoints
+// setupRpcServer is used to populate an RPC server with endpoints. This gets
+// called at startup but also once for every new RPC connection so that RPC
+// handlers can have per-connection context.
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 
-	// Add the static endpoints to the RPC server. These are the RPC handlers
-	// that get used when component on the server is making an internal RPC
-	// call, so we only need them to be initialized once and they have no RPC
-	// context.
-	if s.staticEndpoints.Status == nil {
-		// note: Alloc, Plan have only dynamic endpoints
-		s.staticEndpoints.ACL = NewACLEndpoint(s, nil)
-		s.staticEndpoints.CSIVolume = NewCSIVolumeEndpoint(s, nil)
-		s.staticEndpoints.CSIPlugin = NewCSIPluginEndpoint(s, nil)
-		s.staticEndpoints.Deployment = NewDeploymentEndpoint(s, nil)
-		s.staticEndpoints.Job = NewJobEndpoints(s, nil)
-		s.staticEndpoints.Keyring = NewKeyringEndpoint(s, nil, s.encrypter)
-		s.staticEndpoints.Namespace = NewNamespaceEndpoint(s, nil)
-		s.staticEndpoints.Node = NewNodeEndpoint(s, nil)
-		s.staticEndpoints.Operator = NewOperatorEndpoint(s, nil)
-		s.staticEndpoints.Operator.register() // register the streaming RPCs
-		s.staticEndpoints.Periodic = NewPeriodicEndpoint(s, nil)
-		s.staticEndpoints.Region = NewRegionEndpoint(s, nil)
-		s.staticEndpoints.Scaling = NewScalingEndpoint(s, nil)
-		s.staticEndpoints.Search = NewSearchEndpoint(s, nil)
-		s.staticEndpoints.ServiceRegistration = NewServiceRegistrationEndpoint(s, nil)
-		s.staticEndpoints.Status = NewStatusEndpoint(s, nil)
-		s.staticEndpoints.System = NewSystemEndpoint(s, nil)
-		s.staticEndpoints.Variables = NewVariablesEndpoint(s, nil, s.encrypter)
+	// The endpoints are client RPCs and don't include a connection
+	// context. They also need to be registered as streaming endpoints in their
+	// register() methods.
 
-		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s, nil)
+	clientAllocs := NewClientAllocationsEndpoint(s)
+	clientAllocs.register()
+	_ = server.Register(clientAllocs)
 
-		// These endpoints don't have a dynamic counterpart, so they'll need to
-		// be re-registered per connection as well (see below)
+	fsEndpoint := NewFileSystemEndpoint(s)
+	fsEndpoint.register()
+	_ = server.Register(fsEndpoint)
 
-		// Client endpoints
-		s.staticEndpoints.ClientStats = NewClientStatsEndpoint(s)
-		s.staticEndpoints.ClientAllocations = NewClientAllocationsEndpoint(s)
-		s.staticEndpoints.ClientAllocations.register() // register the streaming RPCs
-		s.staticEndpoints.ClientCSI = NewClientCSIEndpoint(s)
+	agentEndpoint := NewAgentEndpoint(s)
+	agentEndpoint.register()
+	_ = server.Register(agentEndpoint)
 
-		// Streaming endpoints
-		s.staticEndpoints.FileSystem = NewFileSystemEndpoint(s)
-		s.staticEndpoints.FileSystem.register()
+	// Event is a streaming-only endpoint so we don't want to register it as a
+	// normal RPC
+	eventEndpoint := NewEventEndpoint(s)
+	eventEndpoint.register()
 
-		s.staticEndpoints.Agent = NewAgentEndpoint(s)
-		s.staticEndpoints.Agent.register()
+	// Operator takes a RPC context but also has a streaming RPC that needs to
+	// be registered
+	operatorEndpoint := NewOperatorEndpoint(s, ctx)
+	operatorEndpoint.register()
+	_ = server.Register(NewOperatorEndpoint(s, ctx))
 
-		s.staticEndpoints.Event = NewEventEndpoint(s)
-		s.staticEndpoints.Event.register()
-	}
+	// These endpoints are client RPCs and don't include a connection context
+	_ = server.Register(NewClientCSIEndpoint(s))
+	_ = server.Register(NewClientStatsEndpoint(s))
 
-	// If an endpoint has any non-streaming RPCs doesn't have an RPC context,
-	// we'll register the static handler here instead of creating a new dynamic
-	// endpoint on each connection.
-
-	server.Register(s.staticEndpoints.ClientStats)
-	server.Register(s.staticEndpoints.ClientAllocations)
-	server.Register(s.staticEndpoints.ClientCSI)
-	server.Register(s.staticEndpoints.FileSystem)
-	server.Register(s.staticEndpoints.Agent)
-
-	// Dynamic endpoints are endpoints that include the connection context and
-	// are created on each connection. Register all the dynamic endpoints with
-	// the RPC server.
+	// All other endpoints include the connection context and don't need to be
+	// registered as streaming endpoints
 
 	_ = server.Register(NewACLEndpoint(s, ctx))
 	_ = server.Register(NewAllocEndpoint(s, ctx))
@@ -1271,7 +1242,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	_ = server.Register(NewKeyringEndpoint(s, ctx, s.encrypter))
 	_ = server.Register(NewNamespaceEndpoint(s, ctx))
 	_ = server.Register(NewNodeEndpoint(s, ctx))
-	_ = server.Register(NewOperatorEndpoint(s, ctx))
 	_ = server.Register(NewPeriodicEndpoint(s, ctx))
 	_ = server.Register(NewPlanEndpoint(s, ctx))
 	_ = server.Register(NewRegionEndpoint(s, ctx))

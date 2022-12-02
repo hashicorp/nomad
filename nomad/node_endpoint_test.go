@@ -911,7 +911,9 @@ func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
 	}
 
 	var reply structs.NodeUpdateResponse
-	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
+
+	nodeEndpoint := NewNodeEndpoint(testServer, nil)
+	require.NoError(t, nodeEndpoint.UpdateStatus(&args, &reply))
 
 	// Query our state, to ensure the node service registrations have been
 	// removed.
@@ -2643,7 +2645,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 
 	// Call to do the batch update
 	bf := structs.NewBatchFuture()
-	endpoint := s1.staticEndpoints.Node
+	endpoint := NewNodeEndpoint(s1, nil)
 	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -2780,7 +2782,8 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	idx++
 
 	// Create some evaluations
-	ids, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	ids, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2877,7 +2880,8 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 	idx++
 
 	// Create some evaluations
-	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 2)
@@ -2937,7 +2941,8 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	idx++
 
 	// Create evaluations
-	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 1)
