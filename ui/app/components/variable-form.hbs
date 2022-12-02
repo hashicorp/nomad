@@ -4,53 +4,28 @@
 
   {{#if @model.isNew}}
     <div class="related-entities related-entities-hint">
-      <p>Prefix your path with
-        <code>nomad/jobs/</code>
-        to automatically make your variable accessible to a specified job, task
-        group, or task.<br />
-        Format:
-        <code>nomad/jobs/&lt;jobname&gt;</code>,
-        <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>,
-        <code
-        >nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
     </div>
   {{/if}}
 
   {{#if this.hasConflict}}
     <div class="notification conflict is-danger">
       <h3 class="title is-4">Heads up! Your variable has a conflict.</h3>
-      <p>This might be because someone else tried saving in the time since
-        you've had it open.</p>
+      <p>This might be because someone else tried saving in the time since you've had it open.</p>
       {{#if this.conflictingVariable.modifyTime}}
-        <span
-          class="tooltip"
-          aria-label="{{format-ts this.conflictingVariable.modifyTime}}"
-        >
+        <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
           {{moment-from-now this.conflictingVariable.modifyTime}}
         </span>
       {{/if}}
       {{#if this.conflictingVariable.items}}
-        <pre><code>{{stringify-object
-              this.conflictingVariable.items
-              whitespace=2
-            }}</code></pre>
+        <pre><code>{{stringify-object this.conflictingVariable.items whitespace=2}}</code></pre>
       {{else}}
-        <p>Your ACL token limits your ability to see further details about the
-          conflicting variable.</p>
+        <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
       {{/if}}
       <div class="options">
-        <button
-          data-test-refresh-button
-          type="button"
-          class="button"
-          {{on "click" this.refresh}}
-        >Refresh your browser</button>
-        <button
-          data-test-overwrite-button
-          type="button"
-          class="button is-danger"
-          {{on "click" this.saveWithOverwrite}}
-        >Overwrite anyway</button>
+        <button data-test-refresh-button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
+        <button data-test-overwrite-button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
       </div>
     </div>
   {{/if}}
@@ -64,7 +39,7 @@
         @type="text"
         @value={{this.path}}
         placeholder="nomad/jobs/my-job/my-group/my-task"
-        class="input path-input {{if this.duplicatePathWarning 'error'}}"
+        class="input path-input {{if this.duplicatePathWarning "error"}}"
         {{on "input" this.setModelPath}}
         disabled={{not @model.isNew}}
         {{autofocus}}
@@ -87,8 +62,8 @@
         </p>
       {{/if}}
     </label>
-    <VariableForm::NamespaceFilter
-      @data={{hash
+    <VariableForm::NamespaceFilter 
+      @data={{hash 
         disabled=(not @model.isNew)
         selection=this.variableNamespace
         namespaceOptions=this.namespaceOptions
@@ -135,13 +110,13 @@
           />
         </label>
         <VariableForm::InputGroup @entry={{entry}} />
-        <button
-          class="delete-row button is-danger is-inverted"
-          type="button"
-          {{on "click" (action this.deleteRow entry)}}
-        >
-          Delete
-        </button>
+          <button
+            class="delete-row button is-danger is-inverted"
+            type="button"
+            {{on "click" (action this.deleteRow entry)}}
+          >
+            Delete
+          </button>
         {{#each-in entry.warnings as |k v|}}
           <span class="key-value-error help is-danger">
             {{v}}
@@ -162,13 +137,13 @@
   {{/if}}
 
   <footer>
-    <button
-      class="add-more button is-info is-inverted"
-      type="button"
-      {{on "click" this.appendRow}}
-    >
-      Add More
-    </button>
+              <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
     <button
       disabled={{this.shouldDisableSave}}
       class="button is-primary"
