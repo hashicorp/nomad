@@ -16,6 +16,7 @@ export default class Service extends Model {
   @attr('number') port;
   @attr('string') serviceName;
   @attr() tags;
+  @attr() canary_tags;
 
   @alias('serviceName') name;
 
