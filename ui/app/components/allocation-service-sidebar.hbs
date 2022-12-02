@@ -94,6 +94,9 @@
               {{#each @service.tags as |tag|}}
                 <span class="tag">{{tag}}</span>
               {{/each}}
+							{{#each @service.canary_tags as |tag|}}
+								<span class="tag canary is-service">{{tag}}</span>
+							{{/each}}
 						</span>
 					{{/if}}
 				</div>
