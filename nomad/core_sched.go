@@ -137,7 +137,7 @@ OUTER:
 		allEvalsGC := true
 		var jobAlloc, jobEval []string
 		for _, eval := range evals {
-			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
+			gc, allocs, err := c.gcEval(eval, oldThreshold, oldThreshold, true)
 			if err != nil {
 				continue OUTER
 			} else if gc {
@@ -238,6 +238,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 	oldThreshold := c.getThreshold(eval, "eval",
 		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
+	batchOldThreshold := c.getThreshold(eval, "eval",
+		"batch_eval_gc_threshold", c.srv.config.BatchEvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
@@ -246,7 +248,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 		// The Evaluation GC should not handle batch jobs since those need to be
 		// garbage collected in one shot
-		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
+		gc, allocs, err := c.gcEval(eval, oldThreshold, batchOldThreshold, false)
 		if err != nil {
 			return err
 		}
@@ -272,7 +274,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 // allocs are not older than the threshold. If the eval should be garbage
 // collected, the associated alloc ids that should also be removed are also
 // returned
-func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, allowBatch bool) (
+func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, batchThresholdIndex uint64, allowBatch bool) (
 	bool, []string, error) {
 	// Ignore non-terminal and new evaluations
 	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
@@ -299,7 +301,9 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its most current allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the allocations. However,
-	// we do want to GC old Evals and Allocs if there are newer ones due to an update.
+	// we do want to GC old Evals and Allocs if there are newer ones due to update. The age
+	// of the evaluation must also reach the threshold configured to be GCed so that one may
+	// debug old evaluations and referenced allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
 
@@ -321,7 +325,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		}
 
 		if !collect {
-			oldAllocs, gcEval := olderVersionTerminalAllocs(allocs, job, thresholdIndex)
+			oldAllocs, gcEval := olderVersionTerminalAllocs(allocs, job, batchThresholdIndex)
 			return gcEval, oldAllocs, nil
 		}
 	}

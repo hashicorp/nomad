@@ -342,7 +342,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -503,7 +503,6 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 			}
 		}
 	}
-
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	if err != nil {
@@ -511,7 +510,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 	}
 	core := NewCoreScheduler(s1, snap)
 
-	// Attempt the GC without moving the time significantly.
+	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx)
 	err = core.Process(gc)
 	if err != nil {
@@ -526,9 +525,10 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 		[]*structs.Allocation{},
 	)
 
-	// Attempt the GC while moving the time forward significantly.
+	// Attempt the GC while moving the time forward significantly so that our threshold is
+	// breached.
 	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
 
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
@@ -639,7 +639,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersionReapsEval(t *testing.T) {
 
 	// Attempt the GC while moving the time forward significantly.
 	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
 
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
