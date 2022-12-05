@@ -3006,6 +3006,13 @@ func (ns Networks) NetIndex(n *NetworkResource) int {
 	return -1
 }
 
+// Modes returns the set of network modes used by our NetworkResource blocks.
+func (ns Networks) Modes() *set.Set[string] {
+	return set.FromFunc(ns, func(nr *NetworkResource) string {
+		return nr.Mode
+	})
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
