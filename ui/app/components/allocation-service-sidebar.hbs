@@ -1,156 +1,159 @@
 <div
-	class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
-	{{on-click-outside
-		@fns.closeSidebar
-		capture=true
-	}}
+  class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
+  {{on-click-outside
+    @fns.closeSidebar
+    capture=true
+  }}
 >
-	{{#if @service}}
-		{{keyboard-commands this.keyCommands}}
-		<header class="detail-header">
-			<h1 class="title">
-				{{@service.name}}
-				{{#if (not-eq @service.provider "consul")}}
-					<span class="aggregate-status">
-						{{#if (eq this.aggregateStatus 'Unhealthy')}}
-							<FlightIcon @name="x-square-fill" @color="#c84034" />
-							Unhealthy
-						{{else}}
-							<FlightIcon @name="check-square-fill" @color="#25ba81" />
-							Healthy
-						{{/if}}
-					</span>
-				{{/if}}
-			</h1>
-			<button
-				data-test-close-service-sidebar
-				class="button is-borderless"
-				type="button"
-				{{on "click" @fns.closeSidebar}}
-			>
-				{{x-icon "cancel"}}
-			</button>
-		</header>
+  {{#if @service}}
+    {{keyboard-commands this.keyCommands}}
+    <header class="detail-header">
+      <h1 class="title">
+        {{@service.name}}
+        {{#if (not-eq @service.provider "consul")}}
+          <span class="aggregate-status">
+            {{#if (eq this.aggregateStatus 'Unhealthy')}}
+              <FlightIcon @name="x-square-fill" @color="#c84034" />
+              Unhealthy
+            {{else}}
+              <FlightIcon @name="check-square-fill" @color="#25ba81" />
+              Healthy
+            {{/if}}
+          </span>
+        {{/if}}
+      </h1>
+      <button
+        data-test-close-service-sidebar
+        class="button is-borderless"
+        type="button"
+        {{on "click" @fns.closeSidebar}}
+      >
+        {{x-icon "cancel"}}
+      </button>
+    </header>
 
-		<div class="boxed-section is-small">
-			<div
-				class="boxed-section-body inline-definitions"
-			>
-				<span class="label">
-					Service Details
-				</span>
+    <div class="boxed-section is-small">
+      <div
+        class="boxed-section-body inline-definitions"
+      >
+        <span class="label">
+          Service Details
+        </span>
 
-				<div>
-					{{#if @service.connect}}
-						<span class="pair">
-							<span class="term">
-								Connect
-							</span>
+        <div>
+          {{#if @service.connect}}
+            <span class="pair">
+              <span class="term">
+                Connect
+              </span>
               <span>True</span>
-						</span>
-					{{/if}}
-					<span class="pair">
-						<span class="term">
-							Allocation
-						</span>
-						<LinkTo
-							@route="allocations.allocation"
-							@model={{@allocation}}
-							@query={{hash service=""}}
-						>
-							{{@allocation.shortId}}
-						</LinkTo>
-					</span>
-					<span class="pair">
-						<span class="term">
-							IP Address &amp; Port
-						</span>
-						<a
-							href="http://{{this.address}}"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							{{this.address}}
-						</a>
-					</span>
-					<span class="pair">
-						<span class="term">
-							Client
-						</span>
-						<Tooltip @text={{@allocation.node.name}}>
-							<LinkTo
-								@route="clients.client"
-								@model={{@allocation.node}}
-							>
-								{{@allocation.node.shortId}}
-							</LinkTo>
-						</Tooltip>
-					</span>
-					{{#if @service.tags.length}}
-						<span class="pair is-wrappable">
-							<span class="term">
-								Tags
-							</span>
+            </span>
+          {{/if}}
+          <span class="pair">
+            <span class="term">
+              Allocation
+            </span>
+            <LinkTo
+              @route="allocations.allocation"
+              @model={{@allocation}}
+              @query={{hash service=""}}
+            >
+              {{@allocation.shortId}}
+            </LinkTo>
+          </span>
+          <span class="pair">
+            <span class="term">
+              IP Address &amp; Port
+            </span>
+            <a
+              href="http://{{this.address}}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{this.address}}
+            </a>
+          </span>
+          <span class="pair">
+            <span class="term">
+              Client
+            </span>
+            <Tooltip @text={{@allocation.node.name}}>
+              <LinkTo
+                @route="clients.client"
+                @model={{@allocation.node}}
+              >
+                {{@allocation.node.shortId}}
+              </LinkTo>
+            </Tooltip>
+          </span>
+          {{#if @service.tags.length}}
+            <span class="pair is-wrappable">
+              <span class="term">
+                Tags
+              </span>
               {{#each @service.tags as |tag|}}
                 <span class="tag is-service">{{tag}}</span>
               {{/each}}
-						</span>
-					{{/if}}
-				</div>
-			</div>
-		</div>
-		{{#if this.checks.length}}
-			<ListTable class="health-checks" @source={{this.checks}} as |t|>
-				<t.head>
-					<th class="name">
-						Check Name
-					</th>
-					<th class="status">
-						Status
-					</th>
-					<td class="output">
-						Output
-					</td>
-				</t.head>
-				<t.body as |row|>
-					<tr data-service-health={{row.model.Status}}>
-						<td class="name">
-							<span title={{row.model.Check}}>{{row.model.Check}}</span>
-						</td>
-						<td class="status">
-							<span>
-								{{#if (eq row.model.Status "success")}}
-									<FlightIcon @name="check-square-fill" @color="#25ba81" />
-									Healthy
-								{{else if (eq row.model.Status "failure")}}
-									<FlightIcon @name="x-square-fill" @color="#c84034" />
-									Unhealthy
-								{{else if (eq row.model.Status "pending")}}
-									Pending
-								{{/if}}
-							</span>
-						</td>
-						<td class="service-output">
-							<code>
-								{{row.model.Output}}
-							</code>
-						</td>
-					</tr>
-					<tr class="service-status-indicators">
-						<td colspan="3">
-							<div>
-								{{#each (dedupe-by-property (filter-by "Check" row.model.Check @service.healthChecks) prop="Timestamp") as |check|}}
-									<ServiceStatusIndicator @check={{check}} />
-								{{/each}}
-							</div>
-						</td>
-					</tr>
-				</t.body>
-			</ListTable>
-		{{/if}}
-		{{#if (eq @service.provider "consul")}}
-		<table class="table is-fixed connect-info">
-			<tbody>
+              {{#each @service.canary_tags as |tag|}}
+                <span class="tag canary is-service">{{tag}}</span>
+              {{/each}}
+            </span>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+    {{#if this.checks.length}}
+      <ListTable class="health-checks" @source={{this.checks}} as |t|>
+        <t.head>
+          <th class="name">
+            Check Name
+          </th>
+          <th class="status">
+            Status
+          </th>
+          <td class="output">
+            Output
+          </td>
+        </t.head>
+        <t.body as |row|>
+          <tr data-service-health={{row.model.Status}}>
+            <td class="name">
+              <span title={{row.model.Check}}>{{row.model.Check}}</span>
+            </td>
+            <td class="status">
+              <span>
+                {{#if (eq row.model.Status "success")}}
+                  <FlightIcon @name="check-square-fill" @color="#25ba81" />
+                  Healthy
+                {{else if (eq row.model.Status "failure")}}
+                  <FlightIcon @name="x-square-fill" @color="#c84034" />
+                  Unhealthy
+                {{else if (eq row.model.Status "pending")}}
+                  Pending
+                {{/if}}
+              </span>
+            </td>
+            <td class="service-output">
+              <code>
+                {{row.model.Output}}
+              </code>
+            </td>
+          </tr>
+          <tr class="service-status-indicators">
+            <td colspan="3">
+              <div>
+                {{#each (dedupe-by-property (filter-by "Check" row.model.Check @service.healthChecks) prop="Timestamp") as |check|}}
+                  <ServiceStatusIndicator @check={{check}} />
+                {{/each}}
+              </div>
+            </td>
+          </tr>
+        </t.body>
+      </ListTable>
+    {{/if}}
+    {{#if (eq @service.provider "consul")}}
+    <table class="table is-fixed connect-info">
+      <tbody>
         {{#if @service.onUpdate}}
           <tr>
             <td><strong>On Update</strong></td>
@@ -169,15 +172,15 @@
             </td>
           </tr>
         {{/if}}
-			</tbody>
-		</table>
-		{{/if}}
-		{{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
-		<div data-test-consul-link-notice class="notification is-info">
-			<p>
-				Nomad cannot read health check information from Consul services, but you can <a href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">view this information in your Consul UI</a>.
-			</p>
-		</div>
-		{{/if}}
-	{{/if}}
+      </tbody>
+    </table>
+    {{/if}}
+    {{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
+    <div data-test-consul-link-notice class="notification is-info">
+      <p>
+        Nomad cannot read health check information from Consul services, but you can <a href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">view this information in your Consul UI</a>.
+      </p>
+    </div>
+    {{/if}}
+  {{/if}}
 </div>

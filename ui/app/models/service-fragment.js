@@ -9,6 +9,7 @@ export default class Service extends Fragment {
   @attr('string') name;
   @attr('string') portLabel;
   @attr() tags;
+  @attr() canary_tags;
   @attr('string') onUpdate;
   @attr('string') provider;
   @fragment('consul-connect') connect;
