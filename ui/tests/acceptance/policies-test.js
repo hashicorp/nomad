@@ -22,6 +22,8 @@ module('Acceptance | policies', function (hooks) {
       .exists({ count: server.db.policies.length });
     await a11yAudit(assert);
     await percySnapshot(assert);
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Prevents policies access if you lack a management token', async function (assert) {
@@ -30,6 +32,8 @@ module('Acceptance | policies', function (hooks) {
     await visit('/policies');
     assert.equal(currentURL(), '/jobs');
     assert.dom('[data-test-gutter-link="policies"]').doesNotExist();
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Modifying an existing policy', async function (assert) {
@@ -43,6 +47,8 @@ module('Acceptance | policies', function (hooks) {
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/policies');
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Creating a new policy', async function (assert) {
@@ -70,6 +76,8 @@ module('Acceptance | policies', function (hooks) {
     await click(newPolicy);
     assert.equal(currentURL(), '/policies/My-Fun-Policy');
     await percySnapshot(assert);
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Deleting a policy', async function (assert) {
@@ -88,5 +96,7 @@ module('Acceptance | policies', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/policies');
     assert.dom(`[data-test-policy-name="${firstPolicyName}"]`).doesNotExist();
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
   });
 });
