@@ -2,6 +2,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class PolicyEditorComponent extends Component {
   @service flashMessages;
@@ -48,9 +49,10 @@ export default class PolicyEditorComponent extends Component {
 
       this.router.transitionTo('policies');
     } catch (error) {
+      console.log('error and its', error);
       this.flashMessages.add({
         title: `Error creating Policy ${this.policy.name}`,
-        message: error,
+        message: messageForError(error),
         type: 'error',
         destroyOnClick: false,
         sticky: true,
