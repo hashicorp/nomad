@@ -1,48 +1,51 @@
 <tr
-	data-test-service-row
-	data-test-service-name={{@service.name}}
-	data-test-num-allocs={{@service.instances.length}}
-	data-test-service-provider={{@service.provider}}
-	data-test-service-level={{@service.level}}
-	{{on "click" (fn this.gotoService @service)}}
-	class={{if (eq @service.provider "nomad") "is-interactive"}}
+  data-test-service-row
+  data-test-service-name={{@service.name}}
+  data-test-num-allocs={{@service.instances.length}}
+  data-test-service-provider={{@service.provider}}
+  data-test-service-level={{@service.level}}
+  {{on "click" (fn this.gotoService @service)}}
+  class={{if (eq @service.provider "nomad") "is-interactive"}}
 >
   <td
-	  {{keyboard-shortcut 
-			enumerated=true
-			action=(action "gotoService" @service)
-		}}
-	>
-		{{#if (eq @service.provider "nomad")}}
-			<FlightIcon @name="nomad-color" />
-			<LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
-		{{else}}
-			<FlightIcon @name="consul-color" />
-			{{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
-				<a class="is-primary" href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">
-					{{@service.name}}
-				</a>
-			{{else}}
-				{{@service.name}}
-			{{/if}}
+    {{keyboard-shortcut 
+      enumerated=true
+      action=(action "gotoService" @service)
+    }}
+  >
+    {{#if (eq @service.provider "nomad")}}
+      <FlightIcon @name="nomad-color" />
+      <LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
+    {{else}}
+      <FlightIcon @name="consul-color" />
+      {{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
+        <a class="is-primary" href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">
+          {{@service.name}}
+        </a>
+      {{else}}
+        {{@service.name}}
+      {{/if}}
       {{#if @service.connect}}
         <FlightIcon @name="mesh" @color="#444444" />
       {{/if}}
-		{{/if}}
+    {{/if}}
   </td>
-	<td>
-		{{@service.level}}
-	</td>
+  <td>
+    {{@service.level}}
+  </td>
   <td>
     {{#each @service.tags as |tag|}}
-			<span class="tag">{{tag}}</span>
+      <span class="tag is-service">{{tag}}</span>
+    {{/each}}
+    {{#each @service.canary_tags as |tag|}}
+      <span class="tag canary is-service">{{tag}}</span>
     {{/each}}
   </td>
-	<td>
-		{{#if (eq @service.provider "nomad")}}
-			{{@service.instances.length}} {{pluralize "allocation" @service.instances.length}}
-		{{else}}
-			--
-		{{/if}}
-	</td>
+  <td>
+    {{#if (eq @service.provider "nomad")}}
+      {{@service.instances.length}} {{pluralize "allocation" @service.instances.length}}
+    {{else}}
+      --
+    {{/if}}
+  </td>
 </tr>
