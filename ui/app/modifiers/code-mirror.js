@@ -8,6 +8,7 @@ import 'codemirror/addon/selection/active-line';
 import 'codemirror/addon/lint/lint.js';
 import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/mode/javascript/javascript';
+import 'codemirror/mode/ruby/ruby';
 
 export default class CodeMirrorModifier extends Modifier {
   get autofocus() {

@@ -13,6 +13,15 @@ namespace "default" {
 namespace "example-ns" {
   policy = "deny"
   capabilities = ["list-jobs", "read-job"]
+  variables {
+    # list access to variables in all paths, full access in nested/variables/*
+    path "*" {
+      capabilities = ["list"]
+    }
+    path "nested/variables/*" {
+      capabilities = ["write", "read", "destroy", "list"]
+    }
+  }
 }
 
 host_volume "example-volume" {
@@ -57,6 +66,12 @@ operator {
 #  * read-scaling-policy
 #  * read-job-scaling
 #  * scale-job
+
+# Possible Variables capabilities
+#  * write
+#  * read
+#  * destroy
+#  * list
 
 # Possible Policies for "agent", "node", "quota", "operator", and "host_volume":
 #  * deny
