@@ -19,6 +19,7 @@ export const allScenarios = {
   emptyCluster,
   variableTestCluster,
   servicesTestCluster,
+  policiesTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -258,6 +259,13 @@ function variableTestCluster(server) {
     namespace: 'default',
   });
 }
+
+function policiesTestCluster(server) {
+  faker.seed(1);
+  createTokens(server);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+}
+
 
 function servicesTestCluster(server) {
   faker.seed(1);

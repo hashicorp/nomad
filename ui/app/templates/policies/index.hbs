@@ -1,0 +1,67 @@
+{{page-title "Policies"}}
+<section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+      {{#if (can "write policy")}}
+        <LinkTo
+          @route="policies.new"
+          class="button is-primary"
+          data-test-create-policy
+        >
+          Create Policy
+        </LinkTo>
+      {{else}}
+        <button
+          class="button is-primary is-disabled tooltip is-right-aligned"
+          aria-label="You don’t have sufficient permissions"
+          disabled
+          type="button"
+          data-test-disabled-create-policy
+        >
+          Create Policy
+        </button>
+      {{/if}}
+
+      </div>
+    </div>
+  </div>
+  {{#if this.policies.length}}
+    <ListTable
+      @source={{this.policies}}
+      @class="policies no-mobile-condense" as |t|>
+      <t.head>
+        <th>Policy Name</th>
+        <th>Tokens</th>
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-policy-row {{on "click" (action "openPolicy" row.model)}}
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(action "openPolicy" row.model)
+        }}>
+          <td data-test-policy-name>
+						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+					</td>
+          <td data-test-policy-token-count>
+						<span>
+              {{row.model.tokens.length}}
+              {{#if (filter-by "isExpired" row.model.tokens)}}
+                <span class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+              {{/if}}
+            </span>
+					</td>
+        </tr>
+      </t.body>
+    </ListTable>
+  {{else}}
+    <div class="empty-message">
+      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="policies.new">creating a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
+</section>

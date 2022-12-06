@@ -1,0 +1,29 @@
+<Breadcrumb @crumb={{hash label=this.model.name args=(array "policies.policy" this.model.name)}} />
+
+{{page-title "Policy"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			{{this.model.name}}
+		</div>
+		{{#if (can "destroy policy")}}
+			<div>
+				<TwoStepButton
+					data-test-delete-button
+					@idleText="Delete"
+					@cancelText="Cancel"
+					@confirmText="Yes, delete"
+					@confirmationMessage="Are you sure?"
+					@awaitingConfirmation={{this.deletePolicy.isRunning}}
+					@onConfirm={{perform this.deletePolicy}}
+					@onPrompt={{this.onDeletePrompt}}
+					@onCancel={{this.onDeleteCancel}}
+				/>
+			</div>
+		{{/if}}
+	</h1>
+	<PolicyEditor
+		@policy={{this.model}}
+	/>
+</section>
+{{outlet}}

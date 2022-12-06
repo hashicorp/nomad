@@ -443,8 +443,7 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
-  // Note: Mirage-only route, for UI testing and not part of the Nomad API
-  this.get('/acl/tokens', function ({ tokens }, req) {
+  this.get('/acl/tokens', function ({tokens}, req) {
     return this.serialize(tokens.all());
   });
 
@@ -499,7 +498,7 @@ export default function () {
   );
 
   this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
-    const policy = policies.find(req.params.id);
+    const policy = policies.findBy({ name: req.params.id });
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
@@ -524,6 +523,33 @@ export default function () {
 
     // Return not authorized otherwise
     return new Response(403, {}, null);
+  });
+
+  this.get('/acl/policies', function ({ policies }, req) {
+    return this.serialize(policies.all());
+  });
+
+  this.delete('/acl/policy/:id', function (schema, request) {
+    const { id } = request.params;
+    schema.tokens.all().models.filter(token => token.policyIds.includes(id)).forEach(token => {
+      token.update({ policyIds: token.policyIds.filter(pid => pid !== id) });
+    });
+    server.db.policies.remove(id);
+    return '';
+  });
+
+  this.put('/acl/policy/:id', function (schema, request) {
+    return new Response(200, {}, {});
+  });
+
+  this.post('/acl/policy/:id', function (schema, request) {
+    const { Name, Description, Rules } = JSON.parse(request.requestBody);
+    return server.create('policy', {
+      name: Name,
+      description: Description,
+      rules: Rules,
+    });
+
   });
 
   this.get('/regions', function ({ regions }) {

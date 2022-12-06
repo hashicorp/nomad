@@ -17,7 +17,7 @@ module.exports = function (defaults) {
       },
     },
     codemirror: {
-      modes: ['javascript'],
+      modes: ['javascript', 'ruby'],
     },
     babel: {
       include: ['proposal-optional-chaining'],

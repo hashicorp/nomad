@@ -1,0 +1,27 @@
+table.policies {
+  tr {
+    cursor: pointer;
+
+    &:hover td {
+      background-color: #f5f5f5;
+    }
+    a {
+      color: black;
+      text-decoration: none;
+    }
+    .number-expired {
+      color: $red;
+    }
+  }
+}
+
+.edit-policy {
+  .policy-editor {
+    max-height: 600px;
+    overflow: auto;
+  }
+
+  .input {
+    margin-bottom: 1rem;
+  }
+}
