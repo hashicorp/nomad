@@ -138,8 +138,9 @@ bridge. This results in three different network access scopes:
 - tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
   with `port` forwarding are accessible from external sources.
 
-~> **Note:** To prevent any type of external access when using `bridge` network
-   mode make sure to bind your workloads to the loopback interface only.
+~> **Warning:** To prevent any type of external access when using `bridge`
+   network mode make sure to bind your workloads to the loopback interface
+   only.
 
 Bridge networking is at the core of [service mesh] and a requirement when using
 [Consul Service Mesh][consul_service_mesh].
@@ -160,7 +161,7 @@ defaults to `bridge` (`nat` on Windows).
 Refer to the [`network_mode`][docker_network_mode] documentation and the
 [Networking][docker_networking] section for more information.
 
-~> **Note:** Docker Desktop in non-Linux environments runs a local virtual
+-> **Note:** Docker Desktop in non-Linux environments runs a local virtual
    machine, adding an extra layer of indirection. Refer to the
    [FAQ][faq_docker] for more details.
 
