@@ -455,6 +455,10 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 	return w.identity
 }
 
+// AuthenticatedIdentity is returned by the Authenticate method on server to
+// return a wrapper around the various elements that can be resolved as an
+// identity. RPC handlers will use the relevant fields for performing
+// authorization.
 type AuthenticatedIdentity struct {
 	ACLToken *ACLToken
 	Claims   *IdentityClaims
@@ -469,6 +473,13 @@ func (ai *AuthenticatedIdentity) GetACLToken() *ACLToken {
 		return nil
 	}
 	return ai.ACLToken
+}
+
+func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
+	if ai == nil {
+		return nil
+	}
+	return ai.Claims
 }
 
 // QueryMeta allows a query response to include potentially

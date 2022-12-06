@@ -219,7 +219,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:      "from failed workload", // ex. Variables.List
 			tlsCfg:    clientTLSCfg,
 			testToken: claims1Token,
-			expectErr: "allocation is terminal",
+			expectErr: "rpc error: allocation is terminal",
 		},
 		{
 			name:          "from running workload", // ex. Variables.List
@@ -237,7 +237,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:      "expired user token",
 			tlsCfg:    clientTLSCfg,
 			testToken: token2.SecretID,
-			expectErr: "ACL token expired",
+			expectErr: "rpc error: ACL token expired",
 		},
 	}
 
@@ -255,7 +255,8 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			var err error
 
 			if tc.sendFromPeer != nil {
-				err = tc.sendFromPeer.staticEndpoints.ACL.WhoAmI(req, &resp)
+				aclEndpoint := NewACLEndpoint(tc.sendFromPeer, nil)
+				err = aclEndpoint.WhoAmI(req, &resp)
 			} else {
 				err = msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", req, &resp)
 			}
@@ -270,7 +271,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			must.NotNil(t, resp.Identity)
 
 			if tc.expectAccessor != "" {
-				must.NotNil(t, resp.Identity.ACLToken, must.Sprint("expected no ACL token"))
+				must.NotNil(t, resp.Identity.ACLToken, must.Sprint("expected ACL token"))
 				test.Eq(t, tc.expectAccessor, resp.Identity.ACLToken.AccessorID,
 					must.Sprint("expected ACL token accessor ID"))
 			}
@@ -279,7 +280,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 				must.Sprint("expected client ID"))
 
 			if tc.expectAllocID != "" {
-				must.NotNil(t, resp.Identity.Claims, must.Sprint("expected no claims"))
+				must.NotNil(t, resp.Identity.Claims, must.Sprint("expected claims"))
 				test.Eq(t, tc.expectAllocID, resp.Identity.Claims.AllocationID,
 					must.Sprint("expected workload identity"))
 			}

@@ -1965,6 +1965,11 @@ func (a *ACL) GetAuthMethods(
 	)
 }
 
+// WhoAmI is a RPC for debugging authentication. This endpoint returns the same
+// AuthenticatedIdentity that will be used by RPC handlers.
+//
+// TODO: At some point we might want to give this an equivalent HTTP endpoint
+// once other Workload Identity work is solidified
 func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIResponse) error {
 
 	identity, err := a.srv.Authenticate(a.ctx, args.AuthToken)
