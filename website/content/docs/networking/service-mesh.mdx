@@ -2,8 +2,46 @@
 layout: docs
 page_title: Service Mesh
 description: |-
-  Learn about Nomad's runtime environment variables, interpolation, caveats,
-  and more.
+  Learn about how service mesh works in Nomad to securely connect and isolate
+  your workloads.
 ---
 
 # Service mesh
+
+Service mesh is a networking pattern that deploys and configures
+infrastructure to directly connect workloads. One of the most common pieces of
+infrastructure deployed are sidecar proxies. These proxies usually run
+alongside the main workload in an isolated network namespace such that all
+network traffic flows through the proxy.
+
+The proxies are often referred to as the **data plane** since they are
+responsible for _moving data_ while the components that configure them are part
+of the **control plane** because they are responsible for controlling the _flow
+of data_.
+
+By funneling traffic through a common layer of infrastructure the control plane
+is able to centralize and automatically apply configuration to all proxies and
+enable features such as automated traffic encryption, fine-grained routing, and
+access control permissions throughout the entire mesh.
+
+## Consul service mesh
+
+Nomad has native integration with Consul to provide service mesh capabilities.
+The [`connect`] block is the entrypoint for exposing and connecting to other
+serivces through the mesh. Allocations that have a [`sidecar_service`] and
+[`proxy`] blocks automatically have a sidecar proxy task deployed alongside the
+other tasks.
+
+The allocation `network_mode` must be set to `bridge` for network isolation and
+all external traffic is provided by the sidecar.
+
+~> **Warning:** To fully isolate your workload make sure to bind it only to the
+   `loopback` interface.
+
+### Envoy proxy
+
+### Gateways
+
+[`connect`]: /docs/job-specification/connect
+[`sidecar_service`]: /docs/job-specification/sidecar_service
+[`proxy`]: /docs/job-specification/proxy
