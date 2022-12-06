@@ -102,7 +102,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s1.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
+		err := s1.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -115,7 +115,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s2.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
+		err := s2.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -178,12 +178,12 @@ func TestRPC_forwardRegion(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
-	err := s1.forwardRegion("global", "Status.Ping", struct{}{}, &out)
+	err := s1.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = s2.forwardRegion("global", "Status.Ping", struct{}{}, &out)
+	err = s2.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

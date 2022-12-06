@@ -435,7 +435,7 @@ func resolveServer(s string) (net.Addr, error) {
 // a potential error.
 func (c *Client) Ping(srv net.Addr) error {
 	var reply struct{}
-	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", struct{}{}, &reply)
+	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", &structs.GenericRequest{}, &reply)
 	return err
 }
 
