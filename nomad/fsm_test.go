@@ -13,7 +13,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
-  "github.com/shoenig/test/must"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -2680,6 +2680,33 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 		restoredACLRoles = append(restoredACLRoles, raw.(*structs.ACLRole))
 	}
 	require.ElementsMatch(t, restoredACLRoles, aclRoles)
+}
+
+func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Generate and upsert some ACL auth methods.
+	authMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	must.NoError(t, testState.UpsertACLAuthMethods(10, authMethods))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	// List the ACL auth methods from restored state and ensure everything is as
+	// expected.
+	iter, err := restoredState.GetACLAuthMethods(memdb.NewWatchSet())
+	must.NoError(t, err)
+
+	var restoredACLAuthMethods []*structs.ACLAuthMethod
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		restoredACLAuthMethods = append(restoredACLAuthMethods, raw.(*structs.ACLAuthMethod))
+	}
+	must.SliceContainsAll(t, restoredACLAuthMethods, authMethods)
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
