@@ -672,6 +672,7 @@ func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
 func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
 	return &ACLAuthMethodStub{
 		Name:        a.Name,
+		Type:        a.Type,
 		Default:     a.Default,
 		Hash:        a.Hash,
 		CreateIndex: a.CreateIndex,
