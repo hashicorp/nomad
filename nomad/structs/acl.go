@@ -770,6 +770,7 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 // ACLAuthMethodStub is used for listing ACL auth methods
 type ACLAuthMethodStub struct {
 	Name    string
+	Type    string
 	Default bool
 
 	// Hash is the hashed value of the auth-method and is generated using all
