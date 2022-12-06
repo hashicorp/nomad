@@ -26,9 +26,19 @@ table.policies {
   }
 }
 
-.create-test-token {
-  pre {
-    background-color: black;
-    color: white;
+.token-operations {
+  margin-bottom: 3rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(100px, auto);
+  gap: 1rem;
+
+  .notification {
+    padding: 1rem;
+    margin: 0;
+
+    button, pre {
+      margin-top: 1rem;
+    }
   }
 }

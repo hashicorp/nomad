@@ -22,9 +22,13 @@ export default class PolicyEditorComponent extends Component {
     try {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.policy.name?.match(nameRegex)) {
-        throw new Error(
-          'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.'
-        );
+        throw {
+          errors: [
+            {
+              detail: 'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.'
+            }
+          ]
+        };
       }
 
       if (
@@ -49,7 +53,6 @@ export default class PolicyEditorComponent extends Component {
 
       this.router.transitionTo('policies');
     } catch (error) {
-      console.log('error and its', error);
       this.flashMessages.add({
         title: `Error creating Policy ${this.policy.name}`,
         message: messageForError(error),

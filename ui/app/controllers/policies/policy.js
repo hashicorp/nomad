@@ -10,6 +10,9 @@ export default class PoliciesPolicyController extends Controller {
   @service flashMessages;
   @service router;
 
+  @alias ('model.policy') policy;
+  @alias ('model.tokens') tokens;
+
   @tracked
   error = null;
 
@@ -27,8 +30,8 @@ export default class PoliciesPolicyController extends Controller {
 
   @task(function* () {
     try {
-      yield this.model.deleteRecord();
-      yield this.model.save();
+      yield this.policy.deleteRecord();
+      yield this.policy.save();
       this.flashMessages.add({
         title: 'Policy Deleted',
         type: 'success',
@@ -38,7 +41,7 @@ export default class PoliciesPolicyController extends Controller {
       this.router.transitionTo('policies');
     } catch (err) {
       this.flashMessages.add({
-        title: `Error deleting Policy ${this.model.name}`,
+        title: `Error deleting Policy ${this.policy.name}`,
         message: err,
         type: 'error',
         destroyOnClick: false,
