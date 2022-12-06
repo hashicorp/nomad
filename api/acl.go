@@ -645,6 +645,7 @@ func (m *ACLAuthMethod) UnmarshalJSON(data []byte) error {
 // nature of the list endpoint.
 type ACLAuthMethodListStub struct {
 	Name    string
+	Type    string
 	Default bool
 	Hash    []byte
 

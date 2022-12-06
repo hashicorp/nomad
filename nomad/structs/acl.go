@@ -672,6 +672,7 @@ func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
 func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
 	return &ACLAuthMethodStub{
 		Name:        a.Name,
+		Type:        a.Type,
 		Default:     a.Default,
 		Hash:        a.Hash,
 		CreateIndex: a.CreateIndex,
@@ -770,6 +771,7 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 // ACLAuthMethodStub is used for listing ACL auth methods
 type ACLAuthMethodStub struct {
 	Name    string
+	Type    string
 	Default bool
 
 	// Hash is the hashed value of the auth-method and is generated using all

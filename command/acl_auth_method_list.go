@@ -113,11 +113,11 @@ func formatAuthMethods(methods []*api.ACLAuthMethodListStub) string {
 	}
 
 	output := make([]string, 0, len(methods)+1)
-	output = append(output, "Name|Default")
+	output = append(output, "Name|Type|Default")
 	for _, method := range methods {
 		output = append(output, fmt.Sprintf(
-			"%s|%v",
-			method.Name, method.Default))
+			"%s|%s|%v",
+			method.Name, method.Type, method.Default))
 	}
 
 	return formatList(output)
