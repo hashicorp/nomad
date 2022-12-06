@@ -1201,28 +1201,52 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	// The endpoints are client RPCs and don't include a connection
 	// context. They also need to be registered as streaming endpoints in their
 	// register() methods.
+	//
+	// Streaming RPCs should only be registered once, so before we register
+	// them, we make a check if they haven't been already registered.
 
 	clientAllocs := NewClientAllocationsEndpoint(s)
-	clientAllocs.register()
-	_ = server.Register(clientAllocs)
-
 	fsEndpoint := NewFileSystemEndpoint(s)
-	fsEndpoint.register()
-	_ = server.Register(fsEndpoint)
-
 	agentEndpoint := NewAgentEndpoint(s)
-	agentEndpoint.register()
-	_ = server.Register(agentEndpoint)
 
 	// Event is a streaming-only endpoint so we don't want to register it as a
 	// normal RPC
 	eventEndpoint := NewEventEndpoint(s)
-	eventEndpoint.register()
 
 	// Operator takes a RPC context but also has a streaming RPC that needs to
 	// be registered
 	operatorEndpoint := NewOperatorEndpoint(s, ctx)
-	operatorEndpoint.register()
+
+	// streamingEndpoint is a helper interface to make working with endpoint
+	// structs easier
+	type streamingEndpoint interface {
+		register()
+	}
+
+	streaming_endpoints := map[string]streamingEndpoint{
+		"Allocations.Exec": clientAllocs,
+		"Agent.Monitor":    agentEndpoint,
+		// fsEndpoint registers "FileSystem.Logs" and "FileSystem.Stream", but
+		// if at least one of them is registered we know the method's been
+		// called
+		"FileSystem.Logs": fsEndpoint,
+		"Event.Stream":    eventEndpoint,
+		// operatorEndpoint registers "Operator.SnapshotSave" and
+		// "Operator.SnapshotRestore"
+		"Operator.SnapshotSave": operatorEndpoint,
+	}
+
+	// If we haven't registered the streaming endpoints before, register them
+	// now.
+	for method, endpoint := range streaming_endpoints {
+		if _, err := s.streamingRpcs.GetHandler(method); err != nil {
+			endpoint.register()
+		}
+	}
+
+	_ = server.Register(clientAllocs)
+	_ = server.Register(fsEndpoint)
+	_ = server.Register(agentEndpoint)
 	_ = server.Register(NewOperatorEndpoint(s, ctx))
 
 	// These endpoints are client RPCs and don't include a connection context
