@@ -39,7 +39,7 @@ jobs:
         # version, because "goenv" can react to it automatically.
         run: |
           echo "Building with Go $(cat .go-version)"
-          echo "::set-output name=go-version::$(cat .go-version)"
+          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
   get-product-version:
     runs-on:
       - custom
@@ -54,7 +54,7 @@ jobs:
         id: get-product-version
         run: |
           make version
-          echo "::set-output name=product-version::$(make version)"
+          echo "product-version=$(make version)" >> $GITHUB_OUTPUT
   generate-metadata-file:
     needs: get-product-version
     runs-on:
