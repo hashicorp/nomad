@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - custom-runners
   workflow_dispatch:
     inputs:
       build-ref:
@@ -23,7 +24,9 @@ env:
 
 jobs:
   get-go-version:
-    runs-on: ubuntu-20.04
+    runs-on: 
+      - custom
+      - linux
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
@@ -38,7 +41,9 @@ jobs:
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
-    runs-on: ubuntu-20.04
+    runs-on:
+      - custom
+      - linux
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
@@ -52,7 +57,9 @@ jobs:
           echo "::set-output name=product-version::$(make version)"
   generate-metadata-file:
     needs: get-product-version
-    runs-on: ubuntu-20.04
+    runs-on:
+      - custom
+      - linux
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
@@ -75,7 +82,9 @@ jobs:
 
   build-other:
     needs: [get-go-version, get-product-version]
-    runs-on: ubuntu-20.04
+    runs-on:
+      - custom
+      - linux
     strategy:
       matrix:
         goos: [windows]
@@ -126,7 +135,9 @@ jobs:
 
   build-linux:
     needs: [get-go-version, get-product-version]
-    runs-on: ubuntu-20.04
+    runs-on:
+      - custom
+      - linux
     strategy:
       matrix:
         goos: [linux]
