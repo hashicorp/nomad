@@ -13,6 +13,50 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.5.0
+
+#### Artifact Download Sandboxing
+
+Nomad 1.5.0 changes the way [artifacts] are downloaded when specifying an `artifact`
+in a task configuration. Previously the Nomad Client would download artifacts
+in-process. External commands used to facilitate the download (e.g. `git`, `hg`)
+would be run as `root`, and the resulting payload would be owned as `root` in the
+allocation's task directory.
+
+In an effort to improve the resilience and security model of the Nomad Client,
+in 1.5.0 artifact downloads occur in a sub-process. Where possible, that
+sub-process is run as the `nobody` user, and on modern Linux systems will
+be isolated from the filesystem via the kernel's [landlock] capabilitiy.
+
+Operators are encouraged to ensure jobs making use of artifacts continue to work
+as expected. In particular, git-ssh users will need to make sure the system-wide
+`/etc/ssh/ssh_known_hosts` file is populated with any necessary remote hosts.
+Previously, Nomad's documentation suggested configuring
+`/root/.ssh/known_hosts` which would apply only to the `root` user.
+
+The artifact downloader no longer inherits all environment variables available
+to the Nomad Client. The downloader sub-process environment is set as follows on
+Linux / macOS:
+
+```
+PATH=/usr/local/bin:/usr/bin:/bin
+TMPDIR=<path to task dir>/tmp
+```
+
+and as follows on Windows:
+
+```
+TMP=<path to task dir>\tmp
+TEMP=<path to task dir>\tmp
+PATH=<inherit $PATH>
+HOMEPATH=<inherit $HOMEPATH>
+HOMEDRIVE=<inherit $HOMEDRIVE>
+USERPROFILE=<inherit $USERPROFILE>
+```
+
+Configuration of the artifact downloader should happen through the [`options`][artifact_params]
+and [`headers`][artifact_params] fields of the `artifact` block.
+
 ## Nomad 1.4.0
 
 #### Possible Panic During Upgrades
@@ -1466,6 +1510,8 @@ state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
 [api_jobs_parse]: /api-docs/jobs#parse-job
+[artifacts]: /docs/job-specification/artifact
+[artifact_params]: /docs/job-specification/artifact#artifact-parameters
 [cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 [cgroup_parent]: /docs/configuration/client#cgroup_parent
 [client_artifact]: /docs/configuration/client#artifact-parameters
@@ -1530,3 +1576,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
 [gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
 [upgrade process]: /docs/upgrade#upgrade-process
+[landlock]: https://docs.kernel.org/userspace-api/landlock.html
+

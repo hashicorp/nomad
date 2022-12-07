@@ -33,3 +33,9 @@ func TestLookup(t *testing.T) {
 		})
 	}
 }
+
+func TestLookup_NobodyIDs(t *testing.T) {
+	uid, gid := NobodyIDs()
+	must.Eq(t, 65534, uid) // ubuntu
+	must.Eq(t, 65534, gid) // ubuntu
+}

@@ -34,6 +34,7 @@ var (
 		"cni":         NewCNIFingerprint, // networks
 		"cpu":         NewCPUFingerprint,
 		"host":        NewHostFingerprint,
+		"landlock":    NewLandlockFingerprint,
 		"memory":      NewMemoryFingerprint,
 		"network":     NewNetworkFingerprint,
 		"nomad":       NewNomadFingerprint,
