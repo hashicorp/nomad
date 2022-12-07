@@ -1234,7 +1234,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewClientAllocationsEndpoint(s))
 	_ = server.Register(NewFileSystemEndpoint(s))
 	_ = server.Register(NewAgentEndpoint(s))
-	_ = server.Register(NewOperatorEndpoint(s, nil))
+	_ = server.Register(NewOperatorEndpoint(s, ctx))
 
 	// All other endpoints include the connection context and don't need to be
 	// registered as streaming endpoints
