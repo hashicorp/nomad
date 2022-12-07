@@ -54,6 +54,11 @@ configure the appropriate iptables rules.
 Network modes are only supported in allocations running on Linux clients.
 All other operating systems use the `host` networking mode.
 
+~> **Warning:** To prevent any type of external access when using `bridge`
+   network mode make sure to bind your workloads to the loopback interface
+   only. Refer to the [Bridge networking][docs_networking_bridge] documentation
+   for more information.
+
 ## `network` Parameters
 
 - `mbits` <code>([_deprecated_](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
@@ -320,6 +325,7 @@ network {
 - Only the `NOMAD_PORT_<label>` and `NOMAD_HOST_PORT_<label>` environment
   variables are set for group network ports.
 
+[docs_networking_bridge]: /docs/networking#bridge-networking
 [docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
 [qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
