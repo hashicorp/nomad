@@ -9,6 +9,7 @@ import { task } from 'ember-concurrency';
 export default class PoliciesPolicyController extends Controller {
   @service flashMessages;
   @service router;
+  @service store;
 
   @alias('model.policy') policy;
   @alias('model.tokens') tokens;
@@ -19,7 +20,7 @@ export default class PoliciesPolicyController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
-    return `nomad acl token create -name="<TOKEN_NAME>" -policy=${this.policy.name} -type=client -ttl=<8h>`
+    return `nomad acl token create -name="<TOKEN_NAME>" -policy=${this.policy.name} -type=client -ttl=<8h>`;
   }
 
   @action
@@ -55,6 +56,14 @@ export default class PoliciesPolicyController extends Controller {
   })
   deletePolicy;
 
+  async refreshTokens() {
+    this.tokens = this.store
+      .peekAll('token')
+      .filter((token) =>
+        token.policyNames?.includes(decodeURIComponent(this.policy.name))
+      );
+  }
+
   @task(function* () {
     try {
       const newToken = this.store.createRecord('token', {
@@ -65,8 +74,7 @@ export default class PoliciesPolicyController extends Controller {
         type: 'client',
       });
       yield newToken.save();
-      console.table(newToken.toJSON());
-      console.log('Accessor:', newToken.accessor);
+      this.refreshTokens();
       this.flashMessages.add({
         title: 'Example Token Created',
         message: `${newToken.accessor}`,

@@ -32,6 +32,8 @@ export default class PolicyEditorComponent extends Component {
         };
       }
 
+      const shouldRedirectAfterSave = this.policy.isNew;
+
       if (
         this.policy.isNew &&
         this.store.peekRecord('policy', this.policy.name)
@@ -52,7 +54,9 @@ export default class PolicyEditorComponent extends Component {
         timeout: 5000,
       });
 
-      this.router.transitionTo('policies');
+      if (shouldRedirectAfterSave) {
+        this.router.transitionTo('policies.policy', this.policy.id);
+      }
     } catch (error) {
       this.flashMessages.add({
         title: `Error creating Policy ${this.policy.name}`,
