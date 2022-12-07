@@ -2,7 +2,7 @@ package getter
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +48,7 @@ var paramsAsStruct = &parameters{
 func TestParameters_reader(t *testing.T) {
 	p := paramsAsStruct
 	reader := p.reader()
-	b, err := ioutil.ReadAll(reader)
+	b, err := io.ReadAll(reader)
 	must.NoError(t, err)
 	must.EqJSON(t, paramsAsJSON, string(b))
 }
@@ -64,7 +64,7 @@ func TestParameters_read(t *testing.T) {
 func TestParameters_deadline(t *testing.T) {
 	t.Run("typical", func(t *testing.T) {
 		dur := paramsAsStruct.deadline()
-		must.Eq(t, 1*time.Hour, dur)
+		must.Eq(t, 31*time.Minute, dur)
 	})
 
 	t.Run("long", func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestParameters_deadline(t *testing.T) {
 			S3Timeout:       5 * time.Hour,
 		}
 		dur := params.deadline()
-		must.Eq(t, 5*time.Hour, dur)
+		must.Eq(t, 5*time.Hour+1*time.Minute, dur)
 	})
 }
 
