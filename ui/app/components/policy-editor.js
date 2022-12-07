@@ -25,9 +25,10 @@ export default class PolicyEditorComponent extends Component {
         throw {
           errors: [
             {
-              detail: 'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.'
-            }
-          ]
+              detail:
+                'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.',
+            },
+          ],
         };
       }
 

@@ -10,7 +10,7 @@
 			<div>
 				<TwoStepButton
 					data-test-delete-button
-					@idleText="Delete this policy"
+					@idleText="Delete policy"
 					@cancelText="Cancel"
 					@confirmText="Yes, delete"
 					@confirmationMessage="Are you sure?"
@@ -29,8 +29,47 @@
 	<hr />
 
 	<h2 class="title">
-		Tokens for {{this.policy.name}}
+		Tokens
 	</h2>
+
+
+	<div class="token-operations">
+		<div class="boxed-section">
+      <div class="boxed-section-head">
+        <h3>Create a Test Token</h3>
+      </div>
+      <div class="boxed-section-body">
+        <p class="is-info">Create a test token that expires in 10 minutes for testing purposes.</p>
+        <label>
+          <button
+            type="button"
+            class="button is-info is-outlined create-test-token"
+            data-test-create-test-token
+            {{on "click" (perform this.createTestToken)}}
+            >Create Test Token</button>
+        </label>
+      </div>
+		</div>
+		<div class="boxed-section">
+      <div class="boxed-section-head">
+        <h3>Create Tokens from the Nomad CLI</h3>
+      </div>
+      <div class="boxed-section-body">
+        <p>When you're ready to create more tokens, you can do so in your terminal with
+          <pre>
+            <code>nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;</code>
+            <CopyButton
+              data-test-copy-button
+              @clipboardText='nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;'
+              @compact={{true}}
+            >
+            </CopyButton>
+          </pre>
+        </p>
+      </div>
+		</div>
+	</div>
+
   {{#if this.tokens.length}}
     <ListTable
       @source={{this.tokens}}
@@ -88,46 +127,6 @@
 			</p>
 		</div>
 	{{/if}}
-
-	<hr />
-	<div class="token-operations">
-		<div class="notification">
-      <h3 class="title is-4">Create a Test Token</h3>
-      <p class="is-info">Create a test token that expires in 10 minutes for testing purposes.</p>
-			<label>
-				<button
-					type="button"
-					class="button is-primary"
-					data-test-create-test-token
-					{{on "click" (perform this.createTestToken)}}
-					>Create Test Token</button>
-			</label>
-		</div>
-		<div class="notification">
-      <h3 class="title is-4">Create Tokens from the Nomad CLI</h3>
-      <p>When you're ready to create more tokens, you can do so in your terminal with
-        <pre><code>nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;</code></pre>
-      </p>
-		</div>
-	</div>
-
-	{{!-- <section class="create-test-token">
-		<h2 class="title with-flex">
-			<div>Tokens for {{this.policy.name}}</div>
-			<label>
-				<button
-					type="button"
-					class="button is-primary"
-					data-test-create-test-token
-					{{on "click" (perform this.createTestToken)}}
-					>Create Test Token</button>
-			</label>
-		</h2>
-		<p>When you're ready to create more tokens, you can do so in your terminal with
-			<pre><code>nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;</code></pre>
-		</p>
-	</section> --}}
-
 
 </section>
 

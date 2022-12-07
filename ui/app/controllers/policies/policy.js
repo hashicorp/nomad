@@ -10,8 +10,8 @@ export default class PoliciesPolicyController extends Controller {
   @service flashMessages;
   @service router;
 
-  @alias ('model.policy') policy;
-  @alias ('model.tokens') tokens;
+  @alias('model.policy') policy;
+  @alias('model.tokens') tokens;
 
   @tracked
   error = null;
@@ -53,17 +53,16 @@ export default class PoliciesPolicyController extends Controller {
 
   @task(function* () {
     try {
-
       const newToken = this.store.createRecord('token', {
         name: `Example Token for ${this.policy.name}`,
         policies: [this.policy],
         // New date 10 minutes into the future
         expirationTime: new Date(Date.now() + 10 * 60 * 1000),
-        type: "client"
+        type: 'client',
       });
       yield newToken.save();
-      console.table(newToken.toJSON())
-      console.log('Accessor:', newToken.accessor)
+      console.table(newToken.toJSON());
+      console.log('Accessor:', newToken.accessor);
       this.flashMessages.add({
         title: 'Example Token Created',
         message: `${newToken.accessor}`,
@@ -79,8 +78,6 @@ export default class PoliciesPolicyController extends Controller {
 
       throw err;
     }
-  }) createTestToken;
-
-
+  })
+  createTestToken;
 }
-

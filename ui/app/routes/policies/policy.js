@@ -14,7 +14,11 @@ export default class PoliciesPolicyRoute extends Route.extend(
       policy: this.store.findRecord('policy', decodeURIComponent(params.name), {
         reload: true,
       }),
-      tokens: this.store.peekAll('token').filter(token => token.policyNames?.includes(decodeURIComponent(params.name))),
+      tokens: this.store
+        .peekAll('token')
+        .filter((token) =>
+          token.policyNames?.includes(decodeURIComponent(params.name))
+        ),
     });
   }
 }

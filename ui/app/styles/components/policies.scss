@@ -29,16 +29,31 @@ table.policies {
 .token-operations {
   margin-bottom: 3rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, 50%);
   grid-auto-rows: minmax(100px, auto);
   gap: 1rem;
 
-  .notification {
-    padding: 1rem;
+  .boxed-section {
+    padding: 0;
     margin: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
 
-    button, pre {
+    button.create-test-token, pre {
       margin-top: 1rem;
     }
+
+    pre {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-content: flex-start;
+      white-space: normal;
+      overflow: visible;
+    }
   }
+}
+
+table.tokens {
+  margin-bottom: 3rem;
 }

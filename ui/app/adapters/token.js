@@ -2,7 +2,6 @@ import { inject as service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
-import { singularize } from 'ember-inflector';
 
 @classic
 export default class TokenAdapter extends ApplicationAdapter {
