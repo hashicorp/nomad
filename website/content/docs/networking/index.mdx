@@ -45,6 +45,7 @@ Nomad reserves a random port in the client between [`min_dynamic_port`] and
 [`max_dynamic_port`] that has not been allocated yet and creates a port mapping
 from the host network interface to the allocation.
 
+{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
 [![Nomad Port Mapping](/img/networking/port_mapping.png)](/img/networking/port_mapping.png)
 
 The selected port number can be accessed by tasks using the
@@ -99,6 +100,7 @@ When a Nomad agent starts in a Linux system it creates a bridge network called
 plugin][cni_bridge]. Before using this mode you must first [install the CNI
 plugins][cni_install] into your clients.
 
+{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
 [![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
 
 Allocations that use the `bridge` network mode run in an isolated network
@@ -189,7 +191,7 @@ group "..." {
 The diagram below illustrates what happens when a Docker task is configured
 incorrectly.
 
-
+{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
 [![Nomad Bridge](/img/networking/docker_bridge.png)](/img/networking/docker_bridge.png)
 
 The tasks in the rightmost allocation are not able to communicate with each
