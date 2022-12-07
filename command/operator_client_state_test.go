@@ -1,7 +1,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -27,9 +26,4 @@ func TestOperatorClientStateCommand(t *testing.T) {
 
 	require.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "{}")
-
-	err := os.RemoveAll(dir)
-	if err != nil {
-		t.Fatalf("error removing boltdb dir: %v", err)
-	}
 }

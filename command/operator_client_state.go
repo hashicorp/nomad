@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -103,13 +102,13 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 }
 
 type clientStateAlloc struct {
-	Alloc        *structs.Allocation
-	DeployStatus *structs.AllocDeploymentStatus
+	Alloc        any
+	DeployStatus any
 	Tasks        map[string]*taskState
 }
 
 type taskState struct {
 	LocalState  *trstate.LocalState
-	RemoteState *structs.TaskState
+	RemoteState any
 	DriverState interface{}
 }
