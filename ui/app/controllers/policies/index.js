@@ -6,7 +6,7 @@ export default class PoliciesIndexController extends Controller {
   @service router;
   get policies() {
     return this.model.policies.map((policy) => {
-      policy.tokens = this.model.tokens.filter((token) => {
+      policy.tokens = (this.model.tokens || []).filter((token) => {
         return token.policies.includes(policy);
       });
       return policy;
