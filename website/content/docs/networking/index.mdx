@@ -196,11 +196,9 @@ The tasks in the rightmost allocation are not able to communicate with each
 other using their loopback interface because they were placed in different
 network namespaces.
 
-Since the group `network.mode` is `bridge`, Nomad created the pause cointainer
+Since the group `network.mode` is `bridge`, Nomad creates the pause cointainer
 to establish a shared network namespace for all tasks, but setting the
-task-level `network_mode` to `bridge` creates a different namespace for the
-other task.
-
+task-level `network_mode` to `bridge` places the task in a different namespace.
 This prevents, for example, a task from communicating with its sidecar proxy in
 a [service mesh] deployment.
 
@@ -283,6 +281,12 @@ In Nomad, allocations use the IP address of the client they are running and are
 assigned random port numbers and so Nomad service discovery with DNS uses
 [`SRV` records][dns_srv] instead of `A` or `AAA` records.
 
+## Next topics
+
+- [Service Discovery][service discovery]
+- [Service Mesh][service mesh]
+- [Container Network Interface][cni]
+
 ## Additional resources
 
 - [Understanding Networking in Nomad - Karan Sharma](https://mrkaran.dev/posts/nomad-networking-explained/)
@@ -296,6 +300,7 @@ assigned random port numbers and so Nomad service discovery with DNS uses
 [`static`]: /docs/job-specification/network#static
 [`template`]: /docs/job-specification/template#template-examples
 [allocation]: /docs/concepts/architecture#allocation
+[cni]: /docs/networking/cni
 [cni_bridge]: https://www.cni.dev/plugins/current/main/bridge/
 [cni_install]: /docs/integrations/consul-connect#cni-plugins
 [consul_dns]: https://developer.hashicorp.com/consul/docs/discovery/dns
