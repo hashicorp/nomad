@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
+import { singularize } from 'ember-inflector';
 
 @classic
 export default class TokenAdapter extends ApplicationAdapter {
@@ -11,9 +12,13 @@ export default class TokenAdapter extends ApplicationAdapter {
 
   createRecord(_store, type, snapshot) {
     let data = this.serialize(snapshot);
-    console.log('DATA GOING OUT', data);
-    data.Policies = data.PolicyIDs; // TODO: temp hack
+    data.Policies = data.PolicyIDs;
     return this.ajax(`${this.buildURL()}/token`, 'POST', { data });
+  }
+
+  // Delete at /token instead of /tokens
+  urlForDeleteRecord(identifier, modelName) {
+    return `${this.buildURL()}/${singularize(modelName)}/${identifier}`;
   }
 
   findSelf() {

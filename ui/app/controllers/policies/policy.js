@@ -92,4 +92,26 @@ export default class PoliciesPolicyController extends Controller {
     }
   })
   createTestToken;
+
+  @task(function* (token) {
+    try {
+      yield token.deleteRecord();
+      yield token.save();
+      this.refreshTokens();
+      this.flashMessages.add({
+        title: 'Token successfully deleted',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 60000,
+      });
+    } catch (err) {
+      this.error = {
+        title: 'Error deleting token',
+        description: err,
+      };
+
+      throw err;
+    }
+  })
+  deleteToken;
 }
