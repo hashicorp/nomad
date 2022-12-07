@@ -16,9 +16,9 @@ import (
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process
-// so it can know what to do. We use standard IO instead of parameters variables
-// because the job-submitter has control over the parameters and that is scary,
-// see https://www.opencve.io/cve/CVE-2022-41716.
+// so it can know what to do. We use standard IO to pass configuration to achieve
+// better control over input sanitization risks.
+// e.g. https://www.opencve.io/cve/CVE-2022-41716
 type parameters struct {
 	// Config
 	HTTPReadTimeout time.Duration `json:"http_read_timeout"`
@@ -51,17 +51,19 @@ func (p *parameters) read(r io.Reader) error {
 }
 
 // deadline returns an absolute deadline before the artifact download
-// sub-process forcefully terminates. The default is 1 hour, unless
-// one or more getter configurations is set higher.
+// sub-process forcefully terminates. The default is 1/2 hour, unless one or
+// more getter configurations is set higher. A 1 minute grace period is added
+// so that an internal timeout has a moment to complete before the process is
+// terminated via signal.
 func (p *parameters) deadline() time.Duration {
-	const minimum = 1 * time.Hour
+	const minimum = 30 * time.Minute
 	max := minimum
 	max = helper.Max(max, p.HTTPReadTimeout)
 	max = helper.Max(max, p.GCSTimeout)
 	max = helper.Max(max, p.GitTimeout)
 	max = helper.Max(max, p.HgTimeout)
 	max = helper.Max(max, p.S3Timeout)
-	return max
+	return max + 1*time.Minute
 }
 
 // Equal returns whether p and o are the same.
@@ -91,15 +93,11 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.TaskDir != o.TaskDir:
 		return false
-	case !maps.EqualFunc(p.Headers, o.Headers, eq):
+	case !maps.EqualFunc(p.Headers, o.Headers, slices.Equal[string]):
 		return false
 	}
 
 	return true
-}
-
-func eq(a, b []string) bool {
-	return slices.Equal(a, b)
 }
 
 const (

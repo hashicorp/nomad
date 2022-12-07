@@ -138,10 +138,10 @@ artifact {
   source      = "git::git@bitbucket.org:example/nomad-examples"
   destination = "local/repo"
   options {
-    # Make sure that the Nomad user's known hosts file is populated:
-    # ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts
+    # Make sure that the system known hosts file is populated:
+    # ssh-keyscan github.com | sudo tee -a /etc/ssh/ssh_known_hosts
     # https://github.com/hashicorp/go-getter/issues/55
-    sshkey = "${base64encode(file(pathexpand("~/.ssh/id_rsa")))}"
+    sshkey = "${base64encode(file("/etc/ssh/ssh_known_hosts"))}"
   }
 }
 ```

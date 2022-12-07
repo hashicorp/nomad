@@ -7,27 +7,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Sandbox is used for launching "getter" sub-process helpers for downloading
-// artifacts. A Nomad client creates one of these and the task runner will call
-// Get per artifact. Think "one process per browser tab" security model.
-type Sandbox interface {
-	Get(interfaces.EnvReplacer, *structs.TaskArtifact) error
-}
-
 // New creates a Sandbox with the given ArtifactConfig.
-func New(ac *config.ArtifactConfig, logger hclog.Logger) Sandbox {
-	return &sandbox{
+func New(ac *config.ArtifactConfig, logger hclog.Logger) *Sandbox {
+	return &Sandbox{
 		logger: logger.Named("artifact"),
 		ac:     ac,
 	}
 }
 
-type sandbox struct {
+// A Sandbox is used to download artifacts.
+type Sandbox struct {
 	logger hclog.Logger
 	ac     *config.ArtifactConfig
 }
 
-func (s *sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
+func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
 	s.logger.Debug("get", "source", artifact.GetterSource, "destination", artifact.RelativeDest)
 
 	source, err := getURL(env, artifact)

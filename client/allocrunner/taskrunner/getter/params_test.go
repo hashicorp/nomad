@@ -94,3 +94,26 @@ func TestParameters_client(t *testing.T) {
 	must.Eq(t, "https://example.com/file.txt", c.Src)
 	must.Eq(t, "local/out.txt", c.Dst)
 }
+
+func TestParameters_Equal_headers(t *testing.T) {
+	p1 := &parameters{
+		Headers: map[string][]string{
+			"East": []string{"New York", "Florida"},
+			"West": []string{"California"},
+		},
+	}
+
+	p2 := &parameters{
+		Headers: map[string][]string{
+			"East": []string{"New York", "Florida"},
+			"West": []string{"California"},
+		},
+	}
+
+	// equal
+	must.Equal(t, p1, p2)
+
+	// not equal
+	p2.Headers["East"] = []string{"New York"}
+	must.NotEqual(t, p1, p2)
+}

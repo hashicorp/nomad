@@ -1,6 +1,7 @@
 package getter
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -103,15 +104,17 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 	ctx, cancel := subproc.Context(env.deadline())
 	defer cancel()
 
-	// start the subprocess, passing in parameters via standard in
+	// start the subprocess, passing in parameters via stdin
+	output := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, bin, SubCommand)
 	cmd.Env = minimalVars(env.TaskDir)
 	cmd.Stdin = env.reader()
+	cmd.Stdout = output
+	cmd.Stderr = output
 	cmd.SysProcAttr = attributes()
 
-	// wait for the subprocess to terminate
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	// start & wait for the subprocess to terminate
+	if err := cmd.Run(); err != nil {
 		subproc.Log(output, logger.Error)
 		return &Error{
 			URL:         env.Source,

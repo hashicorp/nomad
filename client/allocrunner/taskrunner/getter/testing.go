@@ -12,8 +12,8 @@ import (
 )
 
 // TestSandbox creates a real artifact downloader configured via the default
-// artifact config.
-func TestSandbox(t *testing.T) Sandbox {
+// artifact config. It is good enough for tests so no mock implementation exists.
+func TestSandbox(t *testing.T) *Sandbox {
 	ac, err := cconfig.ArtifactConfigFromAgent(sconfig.DefaultArtifactConfig())
 	must.NoError(t, err)
 	return New(ac, testlog.HCLogger(t))

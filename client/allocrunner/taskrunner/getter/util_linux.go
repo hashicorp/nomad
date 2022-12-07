@@ -12,9 +12,6 @@ import (
 )
 
 var (
-	// version of landlock available, 0 otherwise
-	version int
-
 	// userUID is the current user's uid
 	userUID uint32
 
@@ -23,11 +20,6 @@ var (
 )
 
 func init() {
-	v, err := landlock.Detect()
-	if err == nil {
-		version = v
-	}
-
 	userUID = uint32(syscall.Getuid())
 	userGID = uint32(syscall.Getgid())
 }

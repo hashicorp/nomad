@@ -2,9 +2,9 @@ package subproc
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 )
@@ -25,8 +25,8 @@ const (
 // The return value is a process exit code.
 type MainFunc func() int
 
-// Do f if nomad was launched as, "nomad [name]". The sub-process will exit
-// without running any other part of Nomad.
+// Do f if nomad was launched as, "nomad [name]". This process will exit without
+// running any other part of Nomad.
 func Do(name string, f MainFunc) {
 	if len(os.Args) > 1 && os.Args[1] == name {
 		os.Exit(f())
@@ -39,12 +39,14 @@ func Print(format string, args ...any) {
 }
 
 // Log the given output to the logger.
-func Log(output []byte, f func(msg string, args ...any)) {
-	reader := bytes.NewReader(output)
-	scanner := bufio.NewScanner(reader)
+//
+// r should be a buffer containing output (typically combined stdin + stdout)
+// f should be an HCLogger Print method (e.g. log.Debug)
+func Log(r io.Reader, f func(msg string, args ...any)) {
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		f("getter", "output", line)
+		f("sub-process", "OUTPUT", line)
 	}
 }
 
