@@ -153,10 +153,56 @@ rules][docker_iptables]. Tasks using the `docker` task driver connect to the
 Docker bridge instead of using the one create by Nomad and, by default, each
 container runs in its own Docker managed network namespace.
 
-When using `bridge` network mode, Nomad starts a placeholder container to
-initialize a Docker network namespace that is shared by all tasks in the
-allocation. The Docker task driver has its own network mode configuration that
-defaults to `bridge` (`nat` on Windows).
+When using `bridge` network mode, Nomad creates a placeholder container using
+the image defined in [`infra_image`] to initialize a Docker network namespace
+that is shared by all tasks in the allocation to allow them to communicate with
+each other.
+
+The Docker task driver has its own task-level
+[`network_mode`][docker_network_mode] configuration. Its default value depends
+on the group-level [`network.mode`][network_mode] configuration.
+
+~> **Warning:** The task-level `network_mode` may conflict with the group-level
+   `network.mode` configuration and generate unexpected results. If you set the
+   group `network.mode = "bridge"` you should not set the Docker config
+   `network_mode`.
+
+```hcl
+group "..." {
+  network {
+    mode = "bridge"
+  }
+
+  task "..." {
+    driver = "docker"
+
+    config {
+      # This conclicts with the group-level network.mode configuration and
+      # should not be used.
+      network_mode = "bridge"
+      # ...
+    }
+  }
+}
+```
+
+The diagram below illustrates what happens when a Docker task is configured
+incorrectly.
+
+
+[![Nomad Bridge](/img/networking/docker_bridge.png)](/img/networking/docker_bridge.png)
+
+The tasks in the rightmost allocation are not able to communicate with each
+other using their loopback interface because they were placed in different
+network namespaces.
+
+Since the group `network.mode` is `bridge`, Nomad created the pause cointainer
+to establish a shared network namespace for all tasks, but setting the
+task-level `network_mode` to `bridge` creates a different namespace for the
+other task.
+
+This prevents, for example, a task from communicating with its sidecar proxy in
+a [service mesh] deployment.
 
 Refer to the [`network_mode`][docker_network_mode] documentation and the
 [Networking][docker_networking] section for more information.
@@ -244,6 +290,7 @@ assigned random port numbers and so Nomad service discovery with DNS uses
 
 [`bridge_network_name`]: /docs/configuration/client#bridge_network_name
 [`bridge`]: /docs/job-specification/network#bridge
+[`infra_image`]: /docs/drivers/docker#infra_image
 [`max_dynamic_port`]: /docs/configuration/client#max_dynamic_port
 [`min_dynamic_port`]: /docs/configuration/client#min_dynamic_port
 [`static`]: /docs/job-specification/network#static
