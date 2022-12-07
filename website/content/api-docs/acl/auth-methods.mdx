@@ -39,7 +39,7 @@ The table below shows this endpoint's support for
   set to either "local" or "global"
 
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
-  by this method. When set it will initialize the `ExpirationTime` field on all
+  by this method. When set, it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
   not persisted beyond its initial use. Can be specified in the form of `"60s"` or
   `"5m"` (i.e., 60 seconds or 5 minutes, respectively). 
@@ -107,7 +107,7 @@ The table below shows this endpoint's support for
       "http://example.com/last_name": "last_name"
     },
     "ListClaimMappings": {
-      "http://consul.com/groups": "groups"
+      "http://nomad.com/groups": "groups"
     }
   }
 }
@@ -149,7 +149,7 @@ $ curl \
             "http://example.com/last_name": "last_name"
         },
         "ListClaimMappings": {
-            "http://consul.com/groups": "groups"
+            "http://nomad.com/groups": "groups"
         }
     },
     "CreateTime": "0001-01-01T00:00:00Z",
