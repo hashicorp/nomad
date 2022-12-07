@@ -27,9 +27,10 @@ level, the configuration will apply to all groups within the job. If the
 reschedule stanza is present on both the job and the group, they are merged with
 the group stanza taking the highest precedence and then the job.
 
-Nomad will attempt to schedule the task on another node if any of its allocation
-statuses become "failed". It prefers to create a replacement allocation on a node
-that hasn't previously been used.
+Nomad will attempt to schedule the allocation on another node if any of its
+task statuses become `failed`. The scheduler prefers to create a replacement
+allocation on a node that was not used by a previous allocation.
+
 
 ```hcl
 job "docs" {
