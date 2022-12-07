@@ -55,12 +55,12 @@
         <h3>Create Tokens from the Nomad CLI</h3>
       </div>
       <div class="boxed-section-body">
-        <p>When you're ready to create more tokens, you can do so in your terminal with
+        <p>When you're ready to create more tokens, you can do so via the <a class="external-link" href="https://developer.hashicorp.com/nomad/docs/commands" target="_blank" rel="noopener noreferrer">Nomad CLI <FlightIcon @name="external-link" /></a> with the following:
           <pre>
-            <code>nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;</code>
+            <code>{{this.newTokenString}}</code>
             <CopyButton
               data-test-copy-button
-              @clipboardText='nomad acl token create -name="&lt;TOKEN_NAME&gt;" -policy={{this.policy.name}} -type=client -ttl=&lt;8h&gt;'
+              @clipboardText={{this.newTokenString}}
               @compact={{true}}
             >
             </CopyButton>
@@ -73,7 +73,7 @@
   {{#if this.tokens.length}}
     <ListTable
       @source={{this.tokens}}
-      @class="tokens" as |t|>
+      @class="tokens no-mobile-condense" as |t|>
       <t.head>
         <th>Name</th>
         <th>Created</th>

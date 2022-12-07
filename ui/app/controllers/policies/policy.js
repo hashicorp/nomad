@@ -18,6 +18,10 @@ export default class PoliciesPolicyController extends Controller {
 
   @tracked isDeleting = false;
 
+  get newTokenString() {
+    return `nomad acl token create -name="<TOKEN_NAME>" -policy=${this.policy.name} -type=client -ttl=<8h>`
+  }
+
   @action
   onDeletePrompt() {
     this.isDeleting = true;

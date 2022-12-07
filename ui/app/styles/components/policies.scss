@@ -40,6 +40,11 @@ table.policies {
     display: grid;
     grid-template-rows: auto 1fr;
 
+    .external-link svg {
+      position: relative;
+      top: 3px;  
+    }
+
     button.create-test-token, pre {
       margin-top: 1rem;
     }
@@ -53,6 +58,14 @@ table.policies {
     }
   }
 }
+
+@media #{$mq-hidden-gutter} {
+  .token-operations {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
+}
+
 
 table.tokens {
   margin-bottom: 3rem;
