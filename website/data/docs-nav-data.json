@@ -1790,10 +1790,6 @@
         "path": "networking/service-mesh"
       },
       {
-        "title": "Host network",
-        "path": "networking/host-network"
-      },
-      {
         "title": "CNI",
         "path": "networking/cni"
       }
