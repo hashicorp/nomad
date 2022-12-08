@@ -34,7 +34,7 @@ Nomad environment. You should verify plugin compatibility with Nomad before
 deploying in production.
 
 CNI plugins are installed and configured on a per-client basis. Nomad consults
-the path given in the client's [`cni_path`] to find CNI plugin executables.
+the path given in the client's [`cni_path`][] to find CNI plugin executables.
 
 ## CNI configuration files
 
@@ -43,7 +43,7 @@ directives for both the orchestrator and the plugins to consume.
 At plugin execution time, this configuration format is interpreted by the
 runtime and transformed in to a form to be passed to the plugins.
 
-Nomad reads all files with a `.conflist` extension in the [`cni_config_dir`]—
+Nomad reads all files with a `.conflist` extension in the [`cni_config_dir`][]—
 `/opt/cni/config` by default.
 
 ## Further reading

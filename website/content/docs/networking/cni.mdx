@@ -34,7 +34,7 @@ Nomad environment. You should verify plugin compatibility with Nomad before
 deploying in production.
 
 CNI plugins are installed and configured on a per-client basis. Nomad consults
-the path given in the client's [`cni_path`] to find CNI plugin executables.
+the path given in the client's [`cni_path`][] to find CNI plugin executables.
 
 ## CNI configuration files
 
@@ -111,7 +111,7 @@ a convenient jumping off point to discuss a worked example.
 }
 ```
 
-{/* Source: https://www.figma.com/file/Ne2qaPUlBTmTYer9biCfK9/Networking?node-id=0%3A1&t=BepgOoQ0kb76GwIr-1 */}
+<!-- Source: https://www.figma.com/file/Ne2qaPUlBTmTYer9biCfK9/Networking?node-id=0%3A1&t=BepgOoQ0kb76GwIr-1 -->
 [![Visual example of Nomad bridge network](/img/nomad-bridge-network.png)](/img/nomad-bridge-network.png)
 
 For a more thorough understanding of this configuration, consider each CNI
@@ -119,7 +119,7 @@ plugin's configuration in turn.
 
 ### loopback
 
-The `loopback` plugin sets the default local interface, lo0, created inside
+The `loopback` plugin sets the default local interface, `lo0`, created inside
 the bridge network's network namespace to **UP**. This allows workload running
 inside the namespace to bind to a namespace-specific loopback interface.
 
