@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2-beta
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: '14'
       - uses: backspace/ember-asset-size-action@edit-comment

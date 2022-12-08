@@ -14,36 +14,36 @@ jobs:
   time-base:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.pull_request.base.sha }}
-      - uses: nanasess/setup-chromedriver@master
+      - uses: nanasess/setup-chromedriver@7cbd35794f8ab317f778c3172fb86c1e9b2853f7
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../base-audit.json
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: base-audit
           path: base-audit.json
   time-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: nanasess/setup-chromedriver@master
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: nanasess/setup-chromedriver@7cbd35794f8ab317f778c3172fb86c1e9b2853f7
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../pr-audit.json
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: pr-audit
           path: pr-audit.json
@@ -51,10 +51,10 @@ jobs:
     needs: [time-base, time-pr]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
         with:
           name: base-audit
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
         with:
           name: pr-audit
       - uses: backspace/ember-test-audit-comparison-action@v2

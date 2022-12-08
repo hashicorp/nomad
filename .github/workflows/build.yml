@@ -27,7 +27,7 @@ jobs:
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Determine Go version
@@ -42,7 +42,7 @@ jobs:
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: get product version
@@ -57,7 +57,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: "Checkout directory"
-        uses: actions/checkout@v2
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Generate metadata file
@@ -68,7 +68,7 @@ jobs:
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
           sha: ${{ github.event.inputs.build-ref }}
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
@@ -85,11 +85,11 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -97,7 +97,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
@@ -119,7 +119,7 @@ jobs:
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -136,11 +136,11 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -148,7 +148,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
@@ -195,7 +195,7 @@ jobs:
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -223,12 +223,12 @@ jobs:
           echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
           echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: ${{ env.RPM_PACKAGE }}
           path: out/${{ env.RPM_PACKAGE }}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: ${{ env.DEB_PACKAGE }}
           path: out/${{ env.DEB_PACKAGE }}
@@ -245,12 +245,12 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           ref: ${{ github.event.inputs.build-ref }}
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -258,7 +258,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
@@ -280,7 +280,7 @@ jobs:
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -302,7 +302,7 @@ jobs:
   #     version: ${{needs.get-product-version.outputs.product-version}}
 
   #   steps:
-  #     - uses: actions/checkout@v2
+  #     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
   #     - name: Docker Build (Action)
   #       uses: hashicorp/actions-docker-build@v1
   #       with:
