@@ -243,5 +243,6 @@ func ACLAuthMethod() *structs.ACLAuthMethod {
 		ModifyIndex: 10,
 	}
 	method.SetHash()
+	method.Canonicalize()
 	return &method
 }
