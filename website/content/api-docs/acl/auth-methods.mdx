@@ -32,7 +32,7 @@ The table below shows this endpoint's support for
   This name must be unique and must not exceed 128 characters.
 
 - `Type` `(string: <required>)` - ACL Auth Role SSO identifier. Currently, the
-  only supported Type is "OIDC." 
+  only supported Type is "OIDC."
 
 - `TokenLocality` `(string: <required>)` - Defines whether the ACL Auth Method
   creates a local or global token when performing SSO login. This field must be
@@ -42,17 +42,18 @@ The table below shows this endpoint's support for
   by this method. When set, it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
   not persisted beyond its initial use. Can be specified in the form of `"60s"` or
-  `"5m"` (i.e., 60 seconds or 5 minutes, respectively). 
+  `"5m"` (i.e., 60 seconds or 5 minutes, respectively).
 
 - `Default` `(bool: false)` - Defines whether this ACL Auth Method is to be
-  set as default when running `nomad login` command. 
+  set as default when running `nomad login` command.
 
 - `Config` `(ACLAuthMethodConfig: <required>)` - The raw configuration to use for
-  the auth method.
+  the auth method. This parameter is part of the auth method configuration, not
+  specific to Nomad.
 
   - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC Discovery URL, without
     any .well-known component (base path).
-  
+
   - `OIDCClientID` `(string: <required>)` - The OAuth Client ID configured with
     your OIDC provider.
 
@@ -64,7 +65,7 @@ The table below shows this endpoint's support for
 
   - `AllowedRedirectURIs` `(array<string>)` - A list of allowed values for
     redirect_uri. Must be non-empty.
-  
+
   - `DiscoveryCaPem` `(array<string>)` - PEM encoded CA certs for use by the TLS
     client used to talk with the OIDC Discovery URL. If not set, system
     certificates are used.
@@ -182,7 +183,7 @@ queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls).
   This name must be unique and must not exceed 128 characters.
 
 - `Type` `(string: <required>)` - ACL Auth Role SSO identifier. Currently, the
-  only supported Type is "OIDC." 
+  only supported Type is "OIDC."
 
 - `TokenLocality` `(string: "")` - Defines whether the ACL Auth Method
   creates a local or global token when performing SSO login. This field must be
@@ -192,17 +193,17 @@ queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls).
   by this method. When set it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
   not persisted beyond its initial use. Can be specified in the form of `"60s"` or
-  `"5m"` (i.e., 60 seconds or 5 minutes, respectively). 
+  `"5m"` (i.e., 60 seconds or 5 minutes, respectively).
 
 - `Default` `(bool: false)` - Defines whether this ACL Auth Method is to be
-  set as default when running `nomad login` command. 
+  set as default when running `nomad login` command.
 
 - `Config` `(ACLAuthMethodConfig: nil)` - The raw configuration to use for
   the auth method.
 
   - `OIDCDiscoveryURL` `(string: "")` - The OIDC Discovery URL, without
     any .well-known component (base path).
-  
+
   - `OIDCClientID` `(string: "")` - The OAuth Client ID configured with
     your OIDC provider.
 
@@ -214,7 +215,7 @@ queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls).
 
   - `AllowedRedirectURIs` `(array<string>)` - A list of allowed values for
     redirect_uri. Must be non-empty.
-  
+
   - `DiscoveryCaPem` `(array<string>)` - PEM encoded CA certs for use by the TLS
     client used to talk with the OIDC Discovery URL. If not set, system
     certificates are used.
