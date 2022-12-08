@@ -4,10 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 )
 
 func Test_Of(t *testing.T) {
+	ci.Parallel(t)
+
 	s := "hello"
 	sPtr := Of(s)
 
@@ -19,6 +22,8 @@ func Test_Of(t *testing.T) {
 }
 
 func Test_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	orig := Of(1)
 	dup := Copy(orig)
 	orig = Of(7)
@@ -27,6 +32,8 @@ func Test_Copy(t *testing.T) {
 }
 
 func Test_Compare(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("int", func(t *testing.T) {
 		a := 1
 		b := 2
@@ -63,5 +70,25 @@ func Test_Compare(t *testing.T) {
 		must.False(t, Eq(nil, &a))
 		must.False(t, Eq(n, &a))
 		must.True(t, Eq(n, nil))
+	})
+}
+
+func Test_Merge(t *testing.T) {
+	ci.Parallel(t)
+	
+	a := 1
+	b := 2
+
+	ptrA := &a
+	ptrB := &b
+
+	t.Run("exists", func(t *testing.T) {
+		result := Merge(ptrA, ptrB)
+		must.Eq(t, 2, *result)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		result := Merge(ptrA, nil)
+		must.Eq(t, 1, *result)
 	})
 }
