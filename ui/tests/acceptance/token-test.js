@@ -501,6 +501,7 @@ module('Acceptance | tokens', function (hooks) {
     await click(doomedTokenRow.querySelector('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
     assert.dom('[data-test-policy-token-row]').exists({ count: 2 }, 'One fewer token after deletion');
+    await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });
 
@@ -519,7 +520,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert.dom('[data-test-policy-token-row]').exists({ count: 3 }, 'One more token after test token creation');
     assert.dom('[data-test-policy-token-row]:last-child [data-test-token-name]').hasText(`Example Token for ${server.db.policies[0].name}`);
-
+    await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });
 
