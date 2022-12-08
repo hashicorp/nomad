@@ -1061,3 +1061,38 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	amc3.AllowedRedirectURIs = []string{"new", "urls"}
 	must.NotEq(t, amc1, amc3)
 }
+
+func TestACLAuthMethod_Canonicalize(t *testing.T) {
+	now := time.Now().UTC()
+	tests := []struct {
+		name        string
+		inputMethod *ACLAuthMethod
+	}{
+		{
+			"no create time or modify time set",
+			&ACLAuthMethod{},
+		},
+		{
+			"create time set to now, modify time not set",
+			&ACLAuthMethod{CreateTime: now},
+		},
+		{
+			"both create time and modify time set",
+			&ACLAuthMethod{CreateTime: now, ModifyTime: now.Add(time.Hour)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			existing := tt.inputMethod.Copy()
+			tt.inputMethod.Canonicalize()
+			if existing.CreateTime.IsZero() {
+				must.NotEq(t, time.Time{}, tt.inputMethod.CreateTime)
+			} else {
+				must.Eq(t, existing.CreateTime, tt.inputMethod.CreateTime)
+			}
+			if existing.ModifyTime.IsZero() {
+				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
+			}
+		})
+	}
+}

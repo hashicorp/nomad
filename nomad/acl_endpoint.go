@@ -1709,13 +1709,14 @@ func (a *ACL) UpsertAuthMethods(
 		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
 	}
 
-	// Validate each auth method, compute hash
+	// Validate each auth method, canonicalize, and compute hash
 	for idx, authMethod := range args.AuthMethods {
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,
 			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth method %d invalid: %v", idx, err)
 		}
+		authMethod.Canonicalize()
 		authMethod.SetHash()
 	}
 

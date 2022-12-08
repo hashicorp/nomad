@@ -710,6 +710,16 @@ func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
 	return c
 }
 
+// Canonicalize performs basic canonicalization on the ACL auth method object.
+func (a *ACLAuthMethod) Canonicalize() {
+	t := time.Now().UTC()
+
+	if a.CreateTime.IsZero() {
+		a.CreateTime = t
+	}
+	a.ModifyTime = t
+}
+
 // Validate returns an error is the ACLAuthMethod is invalid.
 //
 // TODO revisit possible other validity conditions in the future

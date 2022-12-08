@@ -87,6 +87,7 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 		}
 
 		method.CreateIndex = existing.CreateIndex
+		method.CreateTime = existing.CreateTime
 		method.ModifyIndex = index
 	} else {
 		method.CreateIndex = index
