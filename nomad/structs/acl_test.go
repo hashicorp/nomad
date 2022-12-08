@@ -1089,7 +1089,9 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 				must.NotEq(t, time.Time{}, tt.inputMethod.CreateTime)
 			} else {
 				must.Eq(t, existing.CreateTime, tt.inputMethod.CreateTime)
-				must.Eq(t, existing.ModifyTime, tt.inputMethod.ModifyTime)
+			}
+			if existing.ModifyTime.IsZero() {
+				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
 			}
 		})
 	}

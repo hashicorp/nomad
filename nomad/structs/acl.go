@@ -716,8 +716,8 @@ func (a *ACLAuthMethod) Canonicalize() {
 
 	if a.CreateTime.IsZero() {
 		a.CreateTime = t
-		a.ModifyTime = t
 	}
+	a.ModifyTime = t
 }
 
 // Validate returns an error is the ACLAuthMethod is invalid.
