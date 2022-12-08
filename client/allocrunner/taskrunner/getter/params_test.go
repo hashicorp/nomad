@@ -19,6 +19,7 @@ const paramsAsJSON = `
   "git_timeout": 3000000000,
   "hg_timeout": 4000000000,
   "s3_timeout": 5000000000,
+  "disable_filesystem_isolation": true,
   "artifact_mode": 2,
   "artifact_source": "https://example.com/file.txt",
   "artifact_destination": "local/out.txt",
@@ -29,12 +30,13 @@ const paramsAsJSON = `
 }`
 
 var paramsAsStruct = &parameters{
-	HTTPReadTimeout: 1 * time.Second,
-	HTTPMaxBytes:    2000,
-	GCSTimeout:      2 * time.Second,
-	GitTimeout:      3 * time.Second,
-	HgTimeout:       4 * time.Second,
-	S3Timeout:       5 * time.Second,
+	HTTPReadTimeout:            1 * time.Second,
+	HTTPMaxBytes:               2000,
+	GCSTimeout:                 2 * time.Second,
+	GitTimeout:                 3 * time.Second,
+	HgTimeout:                  4 * time.Second,
+	S3Timeout:                  5 * time.Second,
+	DisableFilesystemIsolation: true,
 
 	Mode:        getter.ClientModeFile,
 	Source:      "https://example.com/file.txt",

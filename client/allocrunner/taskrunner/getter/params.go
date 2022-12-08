@@ -21,12 +21,13 @@ import (
 // e.g. https://www.opencve.io/cve/CVE-2022-41716
 type parameters struct {
 	// Config
-	HTTPReadTimeout time.Duration `json:"http_read_timeout"`
-	HTTPMaxBytes    int64         `json:"http_max_bytes"`
-	GCSTimeout      time.Duration `json:"gcs_timeout"`
-	GitTimeout      time.Duration `json:"git_timeout"`
-	HgTimeout       time.Duration `json:"hg_timeout"`
-	S3Timeout       time.Duration `json:"s3_timeout"`
+	HTTPReadTimeout            time.Duration `json:"http_read_timeout"`
+	HTTPMaxBytes               int64         `json:"http_max_bytes"`
+	GCSTimeout                 time.Duration `json:"gcs_timeout"`
+	GitTimeout                 time.Duration `json:"git_timeout"`
+	HgTimeout                  time.Duration `json:"hg_timeout"`
+	S3Timeout                  time.Duration `json:"s3_timeout"`
+	DisableFilesystemIsolation bool          `json:"disable_filesystem_isolation"`
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
@@ -84,6 +85,8 @@ func (p *parameters) Equal(o *parameters) bool {
 	case p.HgTimeout != o.HgTimeout:
 		return false
 	case p.S3Timeout != o.S3Timeout:
+		return false
+	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
 		return false
 	case p.Mode != o.Mode:
 		return false

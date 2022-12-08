@@ -39,20 +39,26 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 	dir := getTaskDir(env)
 
 	params := &parameters{
-		HTTPReadTimeout: s.ac.HTTPReadTimeout,
-		HTTPMaxBytes:    s.ac.HTTPMaxBytes,
-		GCSTimeout:      s.ac.GCSTimeout,
-		GitTimeout:      s.ac.GitTimeout,
-		HgTimeout:       s.ac.HgTimeout,
-		S3Timeout:       s.ac.S3Timeout,
-		Mode:            mode,
-		Source:          source,
-		Destination:     destination,
-		Headers:         headers,
-		TaskDir:         dir,
+		// downloader configuration
+		HTTPReadTimeout:            s.ac.HTTPReadTimeout,
+		HTTPMaxBytes:               s.ac.HTTPMaxBytes,
+		GCSTimeout:                 s.ac.GCSTimeout,
+		GitTimeout:                 s.ac.GitTimeout,
+		HgTimeout:                  s.ac.HgTimeout,
+		S3Timeout:                  s.ac.S3Timeout,
+		DisableFilesystemIsolation: s.ac.DisableFilesystemIsolation,
+
+		// artifact configuration
+		Mode:        mode,
+		Source:      source,
+		Destination: destination,
+		Headers:     headers,
+
+		// task environment
+		TaskDir: dir,
 	}
 
-	if err = runCmd(params, s.logger); err != nil {
+	if err = s.runCmd(params); err != nil {
 		return err
 	}
 	return nil

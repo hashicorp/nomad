@@ -378,6 +378,10 @@ see the [drivers documentation](/docs/drivers).
   S3 operation must complete before it is canceled. Set to `0` to not enforce a
   limit.
 
+- `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
+  isolation should be disabled for artifact downloads. Applies only to systems
+  where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
+
 ### `template` Parameters
 
 - `function_denylist` `([]string: ["plugin", "writeToFile"])` - Specifies a
@@ -632,3 +636,4 @@ client {
 [metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
 [task working directory]: /docs/runtime/environment#task-directories 'Task directories'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[landlock]: https://docs.kernel.org/userspace-api/landlock.html
