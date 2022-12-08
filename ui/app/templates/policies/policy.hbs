@@ -80,8 +80,8 @@
           <th>Delete</th>
         </t.head>
         <t.body as |row|>
-          <tr>
-            <td>
+          <tr data-test-policy-token-row>
+            <td data-test-token-name>
               <Tooltip @text={{row.model.id}}>
                 {{row.model.name}}
               </Tooltip>
@@ -92,7 +92,7 @@
             <td>
               {{#if row.model.expirationTime}}
                 <Tooltip @text={{row.model.expirationTime}}>
-                  <span class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
+                  <span data-test-token-expiration-time class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
                 </Tooltip>
               {{else}}
                 <span class="has-text-grey">Never</span>
@@ -100,6 +100,7 @@
             </td>
             <td class="is-200px">
               <TwoStepButton
+                data-test-delete-token-button
                 @idleText="Delete"
                 @cancelText="Cancel"
                 @confirmText="Yes, delete"
