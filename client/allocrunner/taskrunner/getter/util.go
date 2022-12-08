@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-getter"
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/helper/subproc"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -96,7 +95,7 @@ func getTaskDir(env interfaces.EnvReplacer) string {
 	return filepath.Dir(p)
 }
 
-func runCmd(env *parameters, logger hclog.Logger) error {
+func (s *Sandbox) runCmd(env *parameters) error {
 	// find the nomad process
 	bin := subproc.Self()
 
@@ -115,13 +114,13 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 
 	// start & wait for the subprocess to terminate
 	if err := cmd.Run(); err != nil {
-		subproc.Log(output, logger.Error)
+		subproc.Log(output, s.logger.Error)
 		return &Error{
 			URL:         env.Source,
 			Err:         fmt.Errorf("getter subprocess failed: %v", err),
 			Recoverable: true,
 		}
 	}
-	subproc.Log(output, logger.Debug)
+	subproc.Log(output, s.logger.Debug)
 	return nil
 }

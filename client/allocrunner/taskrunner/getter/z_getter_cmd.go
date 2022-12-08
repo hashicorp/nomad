@@ -30,10 +30,11 @@ func init() {
 		subproc.SetExpiration(ctx)
 
 		// sandbox the host filesystem for this process
-		dir := env.TaskDir
-		if err := lockdown(dir); err != nil {
-			subproc.Print("failed to sandbox getter process: %v", err)
-			return subproc.ExitFailure
+		if !env.DisableFilesystemIsolation {
+			if err := lockdown(env.TaskDir); err != nil {
+				subproc.Print("failed to sandbox %s process: %v", SubCommand, err)
+				return subproc.ExitFailure
+			}
 		}
 
 		// create the go-getter client

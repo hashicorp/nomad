@@ -34,65 +34,68 @@ type ArtifactConfig struct {
 	// S3Timeout is the duration in which an S3 operation must complete or
 	// it will be canceled. Defaults to 30m.
 	S3Timeout *string `hcl:"s3_timeout"`
+
+	// DisableFilesystemIsolation will turn off the security feature where the
+	// artifact downloader can write only to the task sandbox directory, and can
+	// read only from specific locations on the host filesystem.
+	DisableFilesystemIsolation *bool `hcl:"disable_filesystem_isolation"`
 }
 
 func (a *ArtifactConfig) Copy() *ArtifactConfig {
 	if a == nil {
 		return nil
 	}
-
-	newCopy := &ArtifactConfig{}
-	if a.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = pointer.Of(*a.HTTPReadTimeout)
+	return &ArtifactConfig{
+		HTTPReadTimeout:            pointer.Copy(a.HTTPReadTimeout),
+		HTTPMaxSize:                pointer.Copy(a.HTTPMaxSize),
+		GCSTimeout:                 pointer.Copy(a.GCSTimeout),
+		GitTimeout:                 pointer.Copy(a.GitTimeout),
+		HgTimeout:                  pointer.Copy(a.HgTimeout),
+		S3Timeout:                  pointer.Copy(a.S3Timeout),
+		DisableFilesystemIsolation: pointer.Copy(a.DisableFilesystemIsolation),
 	}
-	if a.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = pointer.Of(*a.HTTPMaxSize)
-	}
-	if a.GCSTimeout != nil {
-		newCopy.GCSTimeout = pointer.Of(*a.GCSTimeout)
-	}
-	if a.GitTimeout != nil {
-		newCopy.GitTimeout = pointer.Of(*a.GitTimeout)
-	}
-	if a.HgTimeout != nil {
-		newCopy.HgTimeout = pointer.Of(*a.HgTimeout)
-	}
-	if a.S3Timeout != nil {
-		newCopy.S3Timeout = pointer.Of(*a.S3Timeout)
-	}
-
-	return newCopy
 }
 
 func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
-	if a == nil {
+	switch {
+	case a == nil:
 		return o.Copy()
-	}
-	if o == nil {
+	case o == nil:
 		return a.Copy()
+	default:
+		return &ArtifactConfig{
+			HTTPReadTimeout:            pointer.Merge(a.HTTPReadTimeout, o.HTTPReadTimeout),
+			HTTPMaxSize:                pointer.Merge(a.HTTPMaxSize, o.HTTPMaxSize),
+			GCSTimeout:                 pointer.Merge(a.GCSTimeout, o.GCSTimeout),
+			GitTimeout:                 pointer.Merge(a.GitTimeout, o.GitTimeout),
+			HgTimeout:                  pointer.Merge(a.HgTimeout, o.HgTimeout),
+			S3Timeout:                  pointer.Merge(a.S3Timeout, o.S3Timeout),
+			DisableFilesystemIsolation: pointer.Merge(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation),
+		}
 	}
+}
 
-	newCopy := a.Copy()
-	if o.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = pointer.Of(*o.HTTPReadTimeout)
+func (a *ArtifactConfig) Equal(o *ArtifactConfig) bool {
+	if a == nil || o == nil {
+		return a == o
 	}
-	if o.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = pointer.Of(*o.HTTPMaxSize)
+	switch {
+	case !pointer.Eq(a.HTTPReadTimeout, o.HTTPReadTimeout):
+		return false
+	case !pointer.Eq(a.HTTPMaxSize, o.HTTPMaxSize):
+		return false
+	case !pointer.Eq(a.GCSTimeout, o.GCSTimeout):
+		return false
+	case !pointer.Eq(a.GitTimeout, o.GitTimeout):
+		return false
+	case !pointer.Eq(a.HgTimeout, o.HgTimeout):
+		return false
+	case !pointer.Eq(a.S3Timeout, o.S3Timeout):
+		return false
+	case !pointer.Eq(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation):
+		return false
 	}
-	if o.GCSTimeout != nil {
-		newCopy.GCSTimeout = pointer.Of(*o.GCSTimeout)
-	}
-	if o.GitTimeout != nil {
-		newCopy.GitTimeout = pointer.Of(*o.GitTimeout)
-	}
-	if o.HgTimeout != nil {
-		newCopy.HgTimeout = pointer.Of(*o.HgTimeout)
-	}
-	if o.S3Timeout != nil {
-		newCopy.S3Timeout = pointer.Of(*o.S3Timeout)
-	}
-
-	return newCopy
+	return true
 }
 
 func (a *ArtifactConfig) Validate() error {
@@ -154,6 +157,10 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("s3_timeout must be > 0")
 	}
 
+	if a.DisableFilesystemIsolation == nil {
+		return fmt.Errorf("disable_filesystem_isolation must be set")
+	}
+
 	return nil
 }
 
@@ -182,5 +189,8 @@ func DefaultArtifactConfig() *ArtifactConfig {
 		// Timeout for S3 operations. Must be long enough to
 		// accommodate large/slow downloads.
 		S3Timeout: pointer.Of("30m"),
+
+		// Toggle for disabling filesystem isolation, where available.
+		DisableFilesystemIsolation: pointer.Of(false),
 	}
 }
