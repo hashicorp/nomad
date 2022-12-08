@@ -14,13 +14,14 @@ identifier, such as a human-friendly service name.
 The service information is stored in a service catalog which provide interfaces
 that can be used to query data. In Nomad there are two service catalogs:
 
-- the **native service discovery** catalog is embedded in Nomad and requires no
+- The **native service discovery** catalog is embedded in Nomad and requires no
   additional infrastructure.
-- the **[Consul service discovery catalog][consul_sd]** requires access to a
-  Consul cluster, but it provides additional features, including a [DNS
-  interface][consul_dns] and [service mesh] capabilities.
 
-Services are registered using the [`service`] block, with the [`provider`]
+- The **[Consul service discovery catalog][consul_sd]** requires access to a
+  Consul cluster, but it provides additional features, including a [DNS
+  interface][consul_dns][] and [service mesh][] capabilities.
+
+Services are registered using the [`service`][] block, with the [`provider`][]
 parameter defining which catalog to use. Nomad stores the IP and port of all
 allocations associated with the service in the catalog and keeps these entries
 updated as you schedule new workloads or deploy new versions of your
@@ -41,15 +42,14 @@ job "..." {
 }
 ```
 
-To access services, other allocations can query the catalog using [`template`]
-blocks with the [`service`][ct_service_fn] function to query the Consul catalog
-or the [`nomadService`][ct_nomad_service_fn] function when using Nomad native
-service discovery. The `template` can then be used as a configuration file or
-have its content loaded as environment variables to configure connection
-information in applications.
+To access services, other allocations can query the catalog using
+[`template`][] blocks with the [`service`][ct_service_fn] function to query the
+Consul catalog or the [`nomadService`][ct_nomad_service_fn] function when using
+Nomad native service discovery. The `template` can then be used as a
+configuration file or have its content loaded as environment variables to
+configure connection information in applications.
 
 ```hcl
-
 job "..." {
   # ...
   group "..." {
@@ -73,13 +73,13 @@ EOF
 
 Both Nomad and Consul services can define health checks to make sure that only
 healthy instances are returned by the service catalog. Health checks are
-specified using the [`check`] block.
+specified using the [`check`][] block.
 
 ## Service tags
 
 `service` blocks may be specified multiple times with the same name but for
 different ports. All instances are returned when the service name is queried.
-To restrict results you can assign [`tags`] to services to group them. When
+To restrict results you can assign [`tags`][] to services to group them. When
 querying the service you can provide tag values as part of the service name.
 
 The example below exposes an application on two ports for different protocols.
@@ -117,7 +117,8 @@ the `http.my-app` and `grpc.my-app` service queries.
 
 When using [canary][jobspec_update_canary] or
 [blue/green][jobspec_update_blue_green] upgrades you can specify a different
-set of tags for the canary allocations using the [`canary_tags`] configuration.
+set of tags for the canary allocations using the [`canary_tags`][]
+configuration.
 
 During a deployment, the new allocations are registered with the tags set in
 `canary_tags` while non-canaries have the values in `tags`. Having different

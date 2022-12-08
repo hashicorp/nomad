@@ -23,7 +23,7 @@ and use, and how Nomad differs from other tools in this aspect.
 
 ## Allocation networking
 
-The base unit of scheduling in Nomad is an [allocation], which means that all
+The base unit of scheduling in Nomad is an [allocation][], which means that all
 tasks in the same allocation run in the same client and share common resources,
 such as disk and networking. Allocations can request access to network
 resources, such as ports, using the [`network`][jobspec_network] block. At its
@@ -41,11 +41,11 @@ job "..." {
 }
 ```
 
-Nomad reserves a random port in the client between [`min_dynamic_port`] and
-[`max_dynamic_port`] that has not been allocated yet and creates a port mapping
-from the host network interface to the allocation.
+Nomad reserves a random port in the client between [`min_dynamic_port`][] and
+[`max_dynamic_port`][] that has not been allocated yet and creates a port
+mapping from the host network interface to the allocation.
 
-{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
+<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
 [![Nomad Port Mapping](/img/networking/port_mapping.png)](/img/networking/port_mapping.png)
 
 The selected port number can be accessed by tasks using the
@@ -53,8 +53,8 @@ The selected port number can be accessed by tasks using the
 expose the workload at the client's IP address and the given port.
 
 The specific configuration process depends on what you are running, but it is
-usually done using a configuration file rendered from a [`template`] or passed
-directly via command line arguments:
+usually done using a configuration file rendered from a [`template`][] or
+passed directly via command line arguments:
 
 ```hcl
 job "..." {
@@ -77,13 +77,13 @@ job "..." {
 ```
 
 It is also possible to request a specific port number, instead of a random one,
-by setting a [`static`] value for the `port`. **This should only be used by
+by setting a [`static`][] value for the `port`. **This should only be used by
 specialized workloads**, such as load balancers and system jobs, since it can
 be hard to manage them manually to avoid scheduling collisions.
 
 With the task listening at one of the client's ports, other processes can
 access it directly using the client's IP and port, but first they need to find
-these values. This process is called [service discovery].
+these values. This process is called [service discovery][].
 
 When using IP and port to connect allocations it is important to make sure your
 network topology and routing configuration allow the Nomad clients to
@@ -91,16 +91,16 @@ communicate with each other.
 
 ## Bridge networking
 
-Linux clients support a network [`mode`][network_mode] called [`bridge`]. A
+Linux clients support a network [`mode`][network_mode] called [`bridge`][]. A
 bridge network acts like a virtual network switch allowing processes connected
 to the bridge to reach each other while isolating them from others.
 
 When a Nomad agent starts in a Linux system it creates a bridge network called
-`nomad` (or the value set in [`bridge_network_name`]) using the [`bridge` CNI
+`nomad` (or the value set in [`bridge_network_name`][]) using the [`bridge` CNI
 plugin][cni_bridge]. Before using this mode you must first [install the CNI
 plugins][cni_install] into your clients.
 
-{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
+<!-- ource: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
 [![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
 
 Allocations that use the `bridge` network mode run in an isolated network
@@ -131,21 +131,21 @@ To allow communication between allocations in different clients, Nomad creates
 an `iptables` rule to forward requests from the host network interface to the
 bridge. This results in three different network access scopes:
 
-- tasks that bind to the loopback interface (`localhost` or `127.0.0.1`) are
+- Tasks that bind to the loopback interface (`localhost` or `127.0.0.1`) are
   accessible only from within the allocation.
 
-- tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
+- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
   without `port` forwarding are only accessible from within the same client.
 
-- tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
+- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
   with `port` forwarding are accessible from external sources.
 
 ~> **Warning:** To prevent any type of external access when using `bridge`
    network mode make sure to bind your workloads to the loopback interface
    only.
 
-Bridge networking is at the core of [service mesh] and a requirement when using
-[Consul Service Mesh][consul_service_mesh].
+Bridge networking is at the core of [service mesh][] and a requirement when
+using [Consul Service Mesh][consul_service_mesh].
 
 ### Bridge networking with Docker
 
@@ -156,7 +156,7 @@ Docker bridge instead of using the one create by Nomad and, by default, each
 container runs in its own Docker managed network namespace.
 
 When using `bridge` network mode, Nomad creates a placeholder container using
-the image defined in [`infra_image`] to initialize a Docker network namespace
+the image defined in [`infra_image`][] to initialize a Docker network namespace
 that is shared by all tasks in the allocation to allow them to communicate with
 each other.
 
@@ -179,7 +179,7 @@ group "..." {
     driver = "docker"
 
     config {
-      # This conclicts with the group-level network.mode configuration and
+      # This conflicts with the group-level network.mode configuration and
       # should not be used.
       network_mode = "bridge"
       # ...
@@ -191,7 +191,7 @@ group "..." {
 The diagram below illustrates what happens when a Docker task is configured
 incorrectly.
 
-{/* Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link */}
+<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
 [![Nomad Bridge](/img/networking/docker_bridge.png)](/img/networking/docker_bridge.png)
 
 The tasks in the rightmost allocation are not able to communicate with each
@@ -202,7 +202,7 @@ Since the group `network.mode` is `bridge`, Nomad creates the pause cointainer
 to establish a shared network namespace for all tasks, but setting the
 task-level `network_mode` to `bridge` places the task in a different namespace.
 This prevents, for example, a task from communicating with its sidecar proxy in
-a [service mesh] deployment.
+a [service mesh][] deployment.
 
 Refer to the [`network_mode`][docker_network_mode] documentation and the
 [Networking][docker_networking] section for more information.
