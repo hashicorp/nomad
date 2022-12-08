@@ -14,6 +14,7 @@ export default Factory.extend({
   oneTimeSecret: () => faker.random.uuid(),
 
   afterCreate(token, server) {
+    if (token.policyIds && token.policyIds.length) return;
     const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
       .fill(0)
       .map(() => faker.hacker.verb())

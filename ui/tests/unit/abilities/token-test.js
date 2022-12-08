@@ -1,4 +1,4 @@
-// @ts-check
+/* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
@@ -36,7 +36,7 @@ module('Unit | Ability | token', function (hooks) {
 
   test('A non-ACL agent (bypassAuthorization) does not allow anything', function (assert) {
     const mockToken = Service.extend({
-      aclEnabled: false
+      aclEnabled: false,
     });
     this.owner.register('service:token', mockToken);
     assert.notOk(this.ability.canRead);
@@ -45,6 +45,4 @@ module('Unit | Ability | token', function (hooks) {
     assert.notOk(this.ability.canUpdate);
     assert.notOk(this.ability.canDestroy);
   });
-
-
 });

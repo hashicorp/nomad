@@ -447,6 +447,23 @@ export default function () {
     return this.serialize(tokens.all());
   });
 
+  this.delete('/acl/token/:id', function (schema, request) {
+    const { id } = request.params;
+    server.db.tokens.remove(id);
+    return '';
+  });
+
+  this.post('/acl/token', function (schema, request) {
+    const { Name, Policies, Type } = JSON.parse(request.requestBody);
+    return server.create('token', {
+      name: Name,
+      policyIds: Policies,
+      type: Type,
+      id: faker.random.uuid(),
+      createTime: new Date().toISOString(),
+    });
+  });
+
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
