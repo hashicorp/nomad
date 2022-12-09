@@ -20,7 +20,7 @@ export default class PoliciesPolicyController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
-    return `nomad acl token create -name="<TOKEN_NAME>" -policy=${this.policy.name} -type=client -ttl=<8h>`;
+    return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=<8h>`;
   }
 
   @action
@@ -80,7 +80,13 @@ export default class PoliciesPolicyController extends Controller {
         message: `${newToken.accessor}`,
         type: 'success',
         destroyOnClick: false,
-        timeout: 60000,
+        timeout: 30000,
+        customAction: {
+          label: 'Copy to Clipboard',
+          action: () => {
+            navigator.clipboard.writeText(newToken.accessor);
+          },
+        },
       });
     } catch (err) {
       this.error = {
@@ -102,7 +108,7 @@ export default class PoliciesPolicyController extends Controller {
         title: 'Token successfully deleted',
         type: 'success',
         destroyOnClick: false,
-        timeout: 60000,
+        timeout: 5000,
       });
     } catch (err) {
       this.error = {
