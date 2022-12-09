@@ -61,9 +61,18 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 
 	// This validation also happens within the RPC handler, but Raft latency
 	// could mean that by the time the state call is invoked, another Raft
-	// update has already written a method with the same name. We therefore
-	// need to check we are not trying to create a method with an existing
-	// name.
+	// update has already written a method with the same name or default
+	// setting. We therefore need to check we are not trying to create a method
+	// with an existing name or a duplicate default for the same type.
+	if method.Default {
+		existingMethodsDefaultmethod, _ := s.GetDefaultACLAuthMethodByType(nil, method.Type)
+		if existingMethodsDefaultmethod != nil {
+			return false, fmt.Errorf(
+				"default ACL auth method for type %s already exists: %v",
+				method.Type, existingMethodsDefaultmethod.Name,
+			)
+		}
+	}
 	existingRaw, err := txn.First(TableACLAuthMethods, indexID, method.Name)
 	if err != nil {
 		return false, fmt.Errorf("ACL auth method lookup failed: %v", err)
