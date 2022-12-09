@@ -25,6 +25,10 @@
         "path": "acl"
       },
       {
+        "title": "Auth Methods",
+        "path": "acl/auth-methods"
+      },
+      {
         "title": "Policies",
         "path": "acl/policies"
       },
