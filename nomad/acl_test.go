@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"path"
 	"testing"
 	"time"
@@ -161,6 +162,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		expectTLSName  string
 		expectIP       string
 		expectErr      string
+		expectIDKey    string
 		sendFromPeer   *Server
 	}{
 		{
@@ -168,6 +170,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			tlsCfg:         clientTLSCfg, // TODO: this is a mixed use cert
 			testToken:      rootToken,
 			expectAccessor: rootAccessor,
+			expectIDKey:    fmt.Sprintf("token:%s", rootAccessor),
 		},
 		{
 			name:           "from peer to leader without token", // ex. Eval.Dequeue
@@ -176,6 +179,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			expectAccessor: "anonymous",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 			sendFromPeer:   follower,
+			expectIDKey:    "token:anonymous",
 		},
 		{
 			// note: this test is somewhat bogus because under test all the
@@ -185,6 +189,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			expectAccessor: "anonymous",
 			expectTLSName:  "regionFoo.nomad",
 			expectIP:       "127.0.0.1",
+			expectIDKey:    "token:anonymous",
 		},
 		{
 			name:          "invalid token",
@@ -192,13 +197,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			testToken:     uuid.Generate(),
 			expectTLSName: "regionFoo.nomad",
 			expectIP:      follower.GetConfig().RPCAddr.IP.String(),
-		},
-		{
-			name:          "expired token",
-			tlsCfg:        clientTLSCfg,
-			testToken:     uuid.Generate(),
-			expectTLSName: "regionFoo.nomad",
-			expectIP:      follower.GetConfig().RPCAddr.IP.String(),
+			expectIDKey:   "regionFoo.nomad:127.0.0.1",
 		},
 		{
 			name:           "from peer to leader with leader ACL", // ex. core job GC
@@ -208,12 +207,14 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			expectAccessor: "leader",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 			sendFromPeer:   follower,
+			expectIDKey:    "token:leader",
 		},
 		{
 			name:           "from client", // ex. Node.GetAllocs
 			tlsCfg:         clientTLSCfg,
 			testToken:      node.SecretID,
 			expectClientID: node.ID,
+			expectIDKey:    fmt.Sprintf("client:%s", node.ID),
 		},
 		{
 			name:      "from failed workload", // ex. Variables.List
@@ -226,12 +227,14 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			tlsCfg:        clientTLSCfg,
 			testToken:     claims2Token,
 			expectAllocID: alloc2.ID,
+			expectIDKey:   fmt.Sprintf("alloc:%s", alloc2.ID),
 		},
 		{
 			name:           "valid user token",
 			tlsCfg:         clientTLSCfg,
 			testToken:      token1.SecretID,
 			expectAccessor: token1.AccessorID,
+			expectIDKey:    fmt.Sprintf("token:%s", token1.AccessorID),
 		},
 		{
 			name:      "expired user token",
@@ -269,6 +272,11 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			must.NoError(t, err)
 			must.NotNil(t, resp)
 			must.NotNil(t, resp.Identity)
+
+			if tc.expectIDKey != "" {
+				must.Eq(t, tc.expectIDKey, resp.Identity.String(),
+					must.Sprintf("expected identity key for metrics to match"))
+			}
 
 			if tc.expectAccessor != "" {
 				must.NotNil(t, resp.Identity.ACLToken, must.Sprint("expected ACL token"))
