@@ -2,15 +2,18 @@ package getter
 
 import (
 	"errors"
-	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
 func TestUtil_getURL(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		artifact *structs.TaskArtifact
@@ -61,6 +64,8 @@ func TestUtil_getURL(t *testing.T) {
 }
 
 func TestUtil_getDestination(t *testing.T) {
+	ci.Parallel(t)
+
 	env := noopTaskEnv("/path/to/task")
 	t.Run("ok", func(t *testing.T) {
 		result, err := getDestination(env, &structs.TaskArtifact{
@@ -80,6 +85,8 @@ func TestUtil_getDestination(t *testing.T) {
 }
 
 func TestUtil_getMode(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		mode string
 		exp  getter.ClientMode
@@ -99,6 +106,8 @@ func TestUtil_getMode(t *testing.T) {
 }
 
 func TestUtil_getHeaders(t *testing.T) {
+	ci.Parallel(t)
+
 	env := upTaskEnv("/path/to/task")
 
 	t.Run("empty", func(t *testing.T) {
@@ -123,26 +132,53 @@ func TestUtil_getHeaders(t *testing.T) {
 }
 
 func TestUtil_getTaskDir(t *testing.T) {
+	ci.Parallel(t)
+
 	env := noopTaskEnv("/path/to/task")
 	result := getTaskDir(env)
 	must.Eq(t, "/path/to/task", result)
 }
 
-func TestUtil_minimalVars(t *testing.T) {
-	var exp []string
-	switch runtime.GOOS {
-	case "windows":
-		exp = []string{
-			`PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;`,
-			`TMP=C:\path\to\task\tmp`,
-			`TEMP=C:\path\to\task\tmp`,
-		}
-	default:
-		exp = []string{
+func TestUtil_environment(t *testing.T) {
+	// not parallel
+	testutil.RequireLinux(t)
+
+	t.Run("default", func(t *testing.T) {
+		result := environment("/a/b/c", "")
+		must.Eq(t, []string{
 			"PATH=/usr/local/bin:/usr/bin:/bin",
-			"TMPDIR=/path/to/task/tmp",
-		}
-	}
-	result := minimalVars("/path/to/task")
-	must.Eq(t, exp, result)
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
+
+	t.Run("append", func(t *testing.T) {
+		t.Setenv("ONE", "1")
+		t.Setenv("TWO", "2")
+		result := environment("/a/b/c", "ONE,TWO")
+		must.Eq(t, []string{
+			"ONE=1",
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+			"TWO=2",
+		}, result)
+	})
+
+	t.Run("override", func(t *testing.T) {
+		t.Setenv("PATH", "/opt/bin")
+		t.Setenv("TMPDIR", "/scratch")
+		result := environment("/a/b/c", "PATH,TMPDIR")
+		must.Eq(t, []string{
+			"PATH=/opt/bin",
+			"TMPDIR=/scratch",
+		}, result)
+	})
+
+	t.Run("missing", func(t *testing.T) {
+		result := environment("/a/b/c", "DOES_NOT_EXIST")
+		must.Eq(t, []string{
+			"DOES_NOT_EXIST=",
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
 }

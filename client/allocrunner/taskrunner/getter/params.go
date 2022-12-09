@@ -28,6 +28,7 @@ type parameters struct {
 	HgTimeout                  time.Duration `json:"hg_timeout"`
 	S3Timeout                  time.Duration `json:"s3_timeout"`
 	DisableFilesystemIsolation bool          `json:"disable_filesystem_isolation"`
+	SetEnvironmentVariables    string        `json:"set_environment_variables"`
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
@@ -87,6 +88,8 @@ func (p *parameters) Equal(o *parameters) bool {
 	case p.S3Timeout != o.S3Timeout:
 		return false
 	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
+		return false
+	case p.SetEnvironmentVariables != o.SetEnvironmentVariables:
 		return false
 	case p.Mode != o.Mode:
 		return false

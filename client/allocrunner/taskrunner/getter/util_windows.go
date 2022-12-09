@@ -3,7 +3,6 @@
 package getter
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -24,14 +23,15 @@ func lockdown(string) error {
 	return nil
 }
 
-func minimalVars(taskDir string) []string {
+// defaultEnvironment is the default minimal environment variables for Windows.
+func defaultEnvironment(taskDir string) map[string]string {
 	tmpDir := filepath.Join(taskDir, "tmp")
-	return []string{
-		fmt.Sprintf("HOMEPATH=%s", os.Getenv("HOMEPATH")),
-		fmt.Sprintf("HOMEDRIVE=%s", os.Getenv("HOMEDRIVE")),
-		fmt.Sprintf("USERPROFILE=%s", os.Getenv("USERPROFILE")),
-		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-		fmt.Sprintf("TMP=%s", tmpDir),
-		fmt.Sprintf("TEMP=%s", tmpDir),
+	return map[string]string{
+		"HOMEPATH":    os.Getenv("HOMEPATH"),
+		"HOMEDRIVE":   os.Getenv("HOMEDRIVE"),
+		"USERPROFILE": os.Getenv("USERPROFILE"),
+		"PATH":        os.Getenv("PATH"),
+		"TMP":         tmpDir,
+		"TEMP":        tmpDir,
 	}
 }

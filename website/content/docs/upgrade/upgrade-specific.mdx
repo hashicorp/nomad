@@ -55,10 +55,12 @@ USERPROFILE=<inherit $USERPROFILE>
 ```
 
 Configuration of the artifact downloader should happen through the [`options`][artifact_params]
-and [`headers`][artifact_params] fields of the `artifact` block.
+and [`headers`][artifact_params] fields of the `artifact` block. For backwards
+compatibility, the sandbox can be configured to inherit specified environment variables
+from the Nomad client by setting [`set_environment_variables`][artifact_env].
 
 The use of filesystem isolation can be disabled in Client configuration by
-setting [`disable_filesystem_isolation`][fs_isolation].
+setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 
 ## Nomad 1.4.0
 
@@ -1580,4 +1582,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
 [upgrade process]: /docs/upgrade#upgrade-process
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
-[fs_isolation]: /docs/configuration/client#disable_filesystem_isolation
+[artifact_fs_isolation]: /docs/configuration/client#disable_filesystem_isolation
+[artifact_env]: /docs/configuration/client#set_environment_variables

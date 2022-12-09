@@ -20,6 +20,7 @@ const paramsAsJSON = `
   "hg_timeout": 4000000000,
   "s3_timeout": 5000000000,
   "disable_filesystem_isolation": true,
+  "set_environment_variables": "",
   "artifact_mode": 2,
   "artifact_source": "https://example.com/file.txt",
   "artifact_destination": "local/out.txt",

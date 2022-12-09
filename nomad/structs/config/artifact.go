@@ -39,6 +39,11 @@ type ArtifactConfig struct {
 	// artifact downloader can write only to the task sandbox directory, and can
 	// read only from specific locations on the host filesystem.
 	DisableFilesystemIsolation *bool `hcl:"disable_filesystem_isolation"`
+
+	// SetEnvironmentVariables is a comma-separated list of environment
+	// variable names to inherit from the Nomad Client and set in the artifact
+	// download sandbox process.
+	SetEnvironmentVariables *string `hcl:"set_environment_variables"`
 }
 
 func (a *ArtifactConfig) Copy() *ArtifactConfig {
@@ -53,6 +58,7 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 		HgTimeout:                  pointer.Copy(a.HgTimeout),
 		S3Timeout:                  pointer.Copy(a.S3Timeout),
 		DisableFilesystemIsolation: pointer.Copy(a.DisableFilesystemIsolation),
+		SetEnvironmentVariables:    pointer.Copy(a.SetEnvironmentVariables),
 	}
 }
 
@@ -71,6 +77,7 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 			HgTimeout:                  pointer.Merge(a.HgTimeout, o.HgTimeout),
 			S3Timeout:                  pointer.Merge(a.S3Timeout, o.S3Timeout),
 			DisableFilesystemIsolation: pointer.Merge(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation),
+			SetEnvironmentVariables:    pointer.Merge(a.SetEnvironmentVariables, o.SetEnvironmentVariables),
 		}
 	}
 }
@@ -93,6 +100,8 @@ func (a *ArtifactConfig) Equal(o *ArtifactConfig) bool {
 	case !pointer.Eq(a.S3Timeout, o.S3Timeout):
 		return false
 	case !pointer.Eq(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation):
+		return false
+	case !pointer.Eq(a.SetEnvironmentVariables, o.SetEnvironmentVariables):
 		return false
 	}
 	return true
@@ -161,6 +170,10 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("disable_filesystem_isolation must be set")
 	}
 
+	if a.SetEnvironmentVariables == nil {
+		return fmt.Errorf("set_environment_variables must be set")
+	}
+
 	return nil
 }
 
@@ -192,5 +205,8 @@ func DefaultArtifactConfig() *ArtifactConfig {
 
 		// Toggle for disabling filesystem isolation, where available.
 		DisableFilesystemIsolation: pointer.Of(false),
+
+		// No environment variables are inherited from Client by default.
+		SetEnvironmentVariables: pointer.Of(""),
 	}
 }
