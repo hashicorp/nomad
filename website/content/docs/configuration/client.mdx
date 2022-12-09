@@ -382,6 +382,11 @@ see the [drivers documentation](/docs/drivers).
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
 
+- `set_environment_variables` `(string:"")` - Specifies a comma separated list
+  of environment variables that should be inherited by the artifact sandbox from
+  the Nomad client's environment. By default a minimal environment is set including
+  a `PATH` appropriate for the operating system.
+
 ### `template` Parameters
 
 - `function_denylist` `([]string: ["plugin", "writeToFile"])` - Specifies a

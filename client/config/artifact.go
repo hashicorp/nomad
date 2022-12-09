@@ -20,6 +20,7 @@ type ArtifactConfig struct {
 	S3Timeout  time.Duration
 
 	DisableFilesystemIsolation bool
+	SetEnvironmentVariables    string
 }
 
 // ArtifactConfigFromAgent creates a new internal readonly copy of the client
@@ -63,6 +64,7 @@ func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) 
 		HgTimeout:                  hgTimeout,
 		S3Timeout:                  s3Timeout,
 		DisableFilesystemIsolation: *c.DisableFilesystemIsolation,
+		SetEnvironmentVariables:    *c.SetEnvironmentVariables,
 	}, nil
 }
 

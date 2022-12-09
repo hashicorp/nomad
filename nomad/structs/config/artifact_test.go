@@ -42,6 +42,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("30m"),
 				S3Timeout:                  pointer.Of("30m"),
 				DisableFilesystemIsolation: pointer.Of(false),
+				SetEnvironmentVariables:    pointer.Of(""),
 			},
 			other: &ArtifactConfig{
 				HTTPReadTimeout:            pointer.Of("5m"),
@@ -51,6 +52,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("3m"),
 				S3Timeout:                  pointer.Of("4m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
 				HTTPReadTimeout:            pointer.Of("5m"),
@@ -60,6 +62,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("3m"),
 				S3Timeout:                  pointer.Of("4m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 		},
 		{
@@ -73,6 +76,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("3m"),
 				S3Timeout:                  pointer.Of("4m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
 				HTTPReadTimeout:            pointer.Of("5m"),
@@ -82,6 +86,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("3m"),
 				S3Timeout:                  pointer.Of("4m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 		},
 		{
@@ -94,6 +99,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("30m"),
 				S3Timeout:                  pointer.Of("30m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 			other: nil,
 			expected: &ArtifactConfig{
@@ -104,6 +110,7 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				HgTimeout:                  pointer.Of("30m"),
 				S3Timeout:                  pointer.Of("30m"),
 				DisableFilesystemIsolation: pointer.Of(true),
+				SetEnvironmentVariables:    pointer.Of("FOO,BAR"),
 			},
 		},
 	}
@@ -338,6 +345,20 @@ func TestArtifactConfig_Validate(t *testing.T) {
 				a.S3Timeout = pointer.Of("-l0m")
 			},
 			expErr: "s3_timeout not a valid duration",
+		},
+		{
+			name: "fs isolation not set",
+			config: func(a *ArtifactConfig) {
+				a.DisableFilesystemIsolation = nil
+			},
+			expErr: "disable_filesystem_isolation must be set",
+		},
+		{
+			name: "env not set",
+			config: func(a *ArtifactConfig) {
+				a.SetEnvironmentVariables = nil
+			},
+			expErr: "set_environment_variables must be set",
 		},
 	}
 

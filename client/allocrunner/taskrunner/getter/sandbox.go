@@ -47,6 +47,7 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		HgTimeout:                  s.ac.HgTimeout,
 		S3Timeout:                  s.ac.S3Timeout,
 		DisableFilesystemIsolation: s.ac.DisableFilesystemIsolation,
+		SetEnvironmentVariables:    s.ac.SetEnvironmentVariables,
 
 		// artifact configuration
 		Mode:        mode,
