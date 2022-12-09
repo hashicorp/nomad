@@ -65,21 +65,6 @@ func JavaCompatible(t *testing.T) {
 	}
 }
 
-// QemuCompatible skips tests unless:
-// - "qemu-system-x86_64" executable is detected on $PATH (!windows)
-// - "qemu-img" executable is detected on on $PATH (windows)
-func QemuCompatible(t *testing.T) {
-	// Check if qemu exists
-	bin := "qemu-system-x86_64"
-	if runtime.GOOS == "windows" {
-		bin = "qemu-img"
-	}
-	_, err := exec.Command(bin, "--version").CombinedOutput()
-	if err != nil {
-		t.Skipf("Test requires QEMU (%s)", bin)
-	}
-}
-
 // MountCompatible skips tests unless:
 // - not running as windows
 // - running as root

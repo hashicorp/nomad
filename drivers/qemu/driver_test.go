@@ -2,14 +2,16 @@ package qemu
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -20,13 +22,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO(preetha) - tests remaining
-// using monitor socket for graceful shutdown
+// QemuCompatible skips tests unless:
+// - "qemu-system-ARCH" executable is detected on $PATH (!windows)
+// - "qemu-img" executable is detected on on $PATH (windows)
+func QemuCompatible(t *testing.T) {
+	// Check if qemu exists
+	bin, err := resolveBinPath(defaultBinPath)
+	if err != nil {
+		t.Skipf("Test requires QEMU")
+	}
+
+	if runtime.GOOS == "windows" {
+		bin = "qemu-img"
+	}
+
+	_, err = exec.Command(bin, "--version").CombinedOutput()
+	if err != nil {
+		t.Skipf("Test requires QEMU (%s)", bin)
+	}
+}
+
+// TestQemuDriver_BinPath asserts that an invalid binary_path causes an error,
+// but that a valid binary_path gets resolved to an absolute path.
+func TestQemuDriver_BinPath(t *testing.T) {
+	ci.Parallel(t)
+	QemuCompatible(t)
+
+	rawPath := "/this/should/never/be/a/valid/ARCH-path"
+	_, err := resolveBinPath(rawPath)
+	require.Error(t, err)
+
+	// Error should contain original path and resolved one
+	require.Contains(t, err.Error(), rawPath)
+	require.Contains(t, err.Error(), fmt.Sprintf("/this/should/never/be/a/valid/%s-path", arch()))
+
+	bin, err := resolveBinPath(defaultBinPath)
+	require.NoError(t, err)
+
+	abs, err := filepath.Abs(bin)
+	require.NoError(t, err)
+	require.Equal(t, bin, abs, "expected resolveBinPath to already return an absolute path")
+	require.NotEqual(t, bin, defaultBinPath, "test expected defaultBinPath to *not* be absolute, update test or fix defaultBinPath")
+}
 
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	QemuCompatible(t)
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -113,7 +155,7 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	QemuCompatible(t)
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -172,7 +214,7 @@ func TestQemuDriver_User(t *testing.T) {
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	QemuCompatible(t)
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -251,7 +293,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	ctestutil.QemuCompatible(t)
+	QemuCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

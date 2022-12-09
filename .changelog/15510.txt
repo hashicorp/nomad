@@ -1,0 +1,3 @@
+```release-note:improvement
+driver/qemu: add binary_path plugin config parameter
+```

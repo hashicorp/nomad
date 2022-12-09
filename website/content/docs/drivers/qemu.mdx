@@ -15,10 +15,12 @@ host machine to the guest virtual machine, and provides configuration for
 resource allocation.
 
 The `qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
-`iso`), and is currently invoked with `qemu-system-x86_64`.
+`iso`), and is currently invoked with `qemu-system-ARCH`. A custom binary path
+can be configured with [`binary_path`](#binary_path).
 
 The driver requires the image to be accessible from the Nomad client via the
-[`artifact` downloader](/docs/job-specification/artifact).
+[`artifact` downloader](/docs/job-specification/artifact) or the configured
+[`image_paths`](#image_paths).
 
 ## Task Configuration
 
@@ -27,6 +29,8 @@ task "webservice" {
   driver = "qemu"
 
   config {
+    # ARCH in the binary_path will be replaced with the host system's arch
+    binary_path       = "/path/to/qemu-system-ARCH"
     image_path        = "/path/to/my/linux.img"
     accelerator       = "kvm"
     graceful_shutdown = true
@@ -36,6 +40,12 @@ task "webservice" {
 ```
 
 The `qemu` driver supports the following configuration in the job spec:
+
+- `binary_path` - The path to the QEMU binary to be used. If `binary_path` does
+  not contain a slash, the value will be treated as the binary's name and
+  looked up on Nomad's `$PATH`. The QEMU architecture name of the host (e.g.
+  `x86_64`, `arm`) can be automatically interpolated with `ARCH`. Defaults
+  to `qemu-system-ARCH`.
 
 - `image_path` - The path to the downloaded image. In most cases this will just
   be the name of the image. However, if the supplied artifact is an archive that
