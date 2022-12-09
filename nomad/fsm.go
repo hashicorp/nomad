@@ -59,6 +59,7 @@ const (
 	VariablesQuotaSnapshot               SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
 	ACLRoleSnapshot                      SnapshotType = 25
+	ACLAuthMethodSnapshot                SnapshotType = 26
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -328,6 +329,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLRolesDeleteByIDRequestType:
 		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
+	case structs.ACLAuthMethodsUpsertRequestType:
+		return n.applyACLAuthMethodsUpsert(buf[1:], log.Index)
+	case structs.ACLAuthMethodsDeleteRequestType:
+		return n.applyACLAuthMethodsDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -608,10 +613,41 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
+	if req.Deployment != nil {
+		// Cancel any preivous deployment.
+		lastDeployment, err := n.state.LatestDeploymentByJobID(ws, req.Job.Namespace, req.Job.ID)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve latest deployment: %v", err)
+		}
+		if lastDeployment != nil && lastDeployment.Active() {
+			activeDeployment := lastDeployment.Copy()
+			activeDeployment.Status = structs.DeploymentStatusCancelled
+			activeDeployment.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
+			if err := n.state.UpsertDeployment(index, activeDeployment); err != nil {
+				return err
+			}
+		}
+
+		// Update the deployment with the latest job indexes.
+		req.Deployment.JobCreateIndex = req.Job.CreateIndex
+		req.Deployment.JobModifyIndex = req.Job.ModifyIndex
+		req.Deployment.JobSpecModifyIndex = req.Job.JobModifyIndex
+		req.Deployment.JobVersion = req.Job.Version
+
+		if err := n.state.UpsertDeployment(index, req.Deployment); err != nil {
+			return err
+		}
+	}
+
 	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
 	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
+
+		if req.Deployment != nil {
+			req.Eval.DeploymentID = req.Deployment.ID
+		}
+
 		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
@@ -803,6 +839,14 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	if req.Filter != "" {
+		if err := n.state.DeleteEvalsByFilter(index, req.Filter, req.NextToken, req.PerPage); err != nil {
+			n.logger.Error("DeleteEvalsByFilter failed", "error", err)
+			return err
+		}
+		return nil
+	}
+
 	if err := n.state.DeleteEval(index, req.Evals, req.Allocs, req.UserInitiated); err != nil {
 		n.logger.Error("DeleteEval failed", "error", err)
 		return err
@@ -810,41 +854,10 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
-	var req structs.AllocUpdateRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	// Attach the job to all the allocations. It is pulled out in the
-	// payload to avoid the redundancy of encoding, but should be denormalized
-	// prior to being inserted into MemDB.
-	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
-
-	for _, alloc := range req.Alloc {
-		// COMPAT(0.11): Remove in 0.11
-		// Calculate the total resources of allocations. It is pulled out in the
-		// payload to avoid encoding something that can be computed, but should be
-		// denormalized prior to being inserted into MemDB.
-		if alloc.Resources == nil {
-			alloc.Resources = new(structs.Resources)
-			for _, task := range alloc.TaskResources {
-				alloc.Resources.Add(task)
-			}
-
-			// Add the shared resources
-			alloc.Resources.Add(alloc.SharedResources)
-		}
-
-		// Handle upgrade path
-		alloc.Canonicalize()
-	}
-
-	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
-		n.logger.Error("UpsertAllocs failed", "error", err)
-		return err
-	}
+// DEPRECATED: AllocUpdateRequestType was removed in Nomad 0.6.0 when we built
+// Deployments. This handler remains so that older raft logs can be read without
+// panicking.
+func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) interface{} {
 	return nil
 }
 
@@ -1767,6 +1780,17 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := restore.ACLRoleRestore(aclRole); err != nil {
 				return err
 			}
+		case ACLAuthMethodSnapshot:
+			authMethod := new(structs.ACLAuthMethod)
+
+			if err := dec.Decode(authMethod); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ACLAuthMethodRestore(authMethod); err != nil {
+				return err
+			}
 
 		default:
 			// Check if this is an enterprise only object being restored
@@ -2057,6 +2081,36 @@ func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []by
 	return nil
 }
 
+func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_upsert"}, time.Now())
+	var req structs.ACLAuthMethodUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertACLAuthMethods(index, req.AuthMethods); err != nil {
+		n.logger.Error("UpsertACLAuthMethods failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
+	var req structs.ACLAuthMethodDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteACLAuthMethods(index, req.Names); err != nil {
+		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 type FSMFilter struct {
 	evaluator *bexpr.Evaluator
 }
@@ -2259,6 +2313,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLRoles(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistACLAuthMethods(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2899,21 +2957,41 @@ func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item.
-		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+	// Get the next item.
+	for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
 
-			// Prepare the request struct.
-			role := raw.(*structs.ACLRole)
+		// Prepare the request struct.
+		role := raw.(*structs.ACLRole)
 
-			// Write out an ACL role snapshot.
-			sink.Write([]byte{byte(ACLRoleSnapshot)})
-			if err := encoder.Encode(role); err != nil {
-				return err
-			}
+		// Write out an ACL role snapshot.
+		sink.Write([]byte{byte(ACLRoleSnapshot)})
+		if err := encoder.Encode(role); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the ACL Auth methods.
+	ws := memdb.NewWatchSet()
+	aclAuthMethodsIter, err := s.snap.GetACLAuthMethods(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
+		method := raw.(*structs.ACLAuthMethod)
+
+		// write the snapshot
+		sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
+		if err := encoder.Encode(method); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer

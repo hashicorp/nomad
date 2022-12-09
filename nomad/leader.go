@@ -49,6 +49,24 @@ var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
 
 var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.0"))
 
+// minACLRoleVersion is the Nomad version at which the ACL role table was
+// introduced. It forms the minimum version all federated servers must meet
+// before the feature can be used.
+var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
+
+// minACLAuthMethodVersion is the Nomad version at which the ACL auth methods
+// table was introduced. It forms the minimum version all federated servers must
+// meet before the feature can be used.
+//
+// TODO: version constraint will be updated for every beta or rc until we reach
+// 1.5, otherwise it's hard to test the functionality
+var minACLAuthMethodVersion = version.Must(version.NewVersion("1.4.3-dev"))
+
+// minNomadServiceRegistrationVersion is the Nomad version at which the service
+// registrations table was introduced. It forms the minimum version all local
+// servers must meet before the feature can be used.
+var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -293,12 +311,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
-	// Create the first root key if it doesn't already exist
-	err := s.initializeKeyring()
-	if err != nil {
-		return err
-	}
-
 	// Initialize the ClusterID
 	_, _ = s.ClusterID()
 	// todo: use cluster ID for stuff, later!
@@ -343,6 +355,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Further clean ups and follow up that don't block RPC consistency
 
+	// Create the first root key if it doesn't already exist
+	go s.initializeKeyring(stopCh)
+
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
 		return err
@@ -357,6 +372,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Reap any duplicate blocked evaluations
 	go s.reapDupBlockedEvaluations(stopCh)
+
+	// Reap any cancelable evaluations
+	s.reapCancelableEvalsCh = s.reapCancelableEvaluations(stopCh)
 
 	// Periodically unblock failed allocations
 	go s.periodicUnblockFailedEvals(stopCh)
@@ -396,6 +414,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			go s.replicateACLPolicies(stopCh)
 			go s.replicateACLTokens(stopCh)
 			go s.replicateACLRoles(stopCh)
+			go s.replicateACLAuthMethods(stopCh)
 			go s.replicateNamespaces(stopCh)
 		}
 	}
@@ -817,7 +836,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
 		case <-oneTimeTokenGC.C:
-			if !ServersMeetMinimumVersion(s.Members(), minOneTimeAuthenticationTokenVersion, false) {
+			if !ServersMeetMinimumVersion(s.Members(), s.Region(), minOneTimeAuthenticationTokenVersion, false) {
 				continue
 			}
 
@@ -983,6 +1002,66 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 			}
 		}
 	}
+}
+
+// reapCancelableEvaluations is used to reap evaluations that were marked
+// cancelable by the eval broker and should be canceled. These get swept up
+// whenever an eval Acks, but this ensures that we don't have a straggling batch
+// when the cluster doesn't have any more work to do. Returns a wake-up channel
+// that can be used to trigger a new reap without waiting for the timer
+func (s *Server) reapCancelableEvaluations(stopCh chan struct{}) chan struct{} {
+
+	wakeCh := make(chan struct{}, 1)
+	go func() {
+
+		timer, cancel := helper.NewSafeTimer(s.config.EvalReapCancelableInterval)
+		defer cancel()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-wakeCh:
+				cancelCancelableEvals(s)
+			case <-timer.C:
+				cancelCancelableEvals(s)
+				timer.Reset(s.config.EvalReapCancelableInterval)
+			}
+		}
+	}()
+
+	return wakeCh
+}
+
+// cancelCancelableEvals pulls a batch of cancelable evaluations from the eval
+// broker and updates their status to canceled.
+func cancelCancelableEvals(srv *Server) error {
+
+	const cancelDesc = "canceled after more recent eval was processed"
+
+	// We *can* send larger raft logs but rough benchmarks show that a smaller
+	// page size strikes a balance between throughput and time we block the FSM
+	// apply for other operations
+	cancelable := srv.evalBroker.Cancelable(structs.MaxUUIDsPerWriteRequest / 10)
+	if len(cancelable) > 0 {
+		for i, eval := range cancelable {
+			eval = eval.Copy()
+			eval.Status = structs.EvalStatusCancelled
+			eval.StatusDescription = cancelDesc
+			eval.UpdateModifyTime()
+			cancelable[i] = eval
+		}
+
+		update := &structs.EvalUpdateRequest{
+			Evals:        cancelable,
+			WriteRequest: structs.WriteRequest{Region: srv.Region()},
+		}
+		_, _, err := srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			srv.logger.Warn("eval cancel failed", "error", err, "method", "ack")
+			return err
+		}
+	}
+	return nil
 }
 
 // periodicUnblockFailedEvals periodically unblocks failed, blocked evaluations.
@@ -1833,31 +1912,6 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 	}
 }
 
-// replicationBackoffContinue should be used when a replication loop encounters
-// an error and wants to wait until either the backoff time has been met, or
-// the stopCh has been closed. The boolean indicates whether the replication
-// process should continue.
-//
-// Typical use:
-//
-//	  if s.replicationBackoffContinue(stopCh) {
-//		   continue
-//		 } else {
-//	    return
-//	  }
-func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
-
-	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
-	defer timerStopFn()
-
-	select {
-	case <-timer.C:
-		return true
-	case <-stopCh:
-		return false
-	}
-}
-
 // diffACLRoles is used to perform a two-way diff between the local ACL Roles
 // and the remote Roles to determine which tokens need to be deleted or
 // updated. The returned array's contain ACL Role IDs.
@@ -1913,6 +1967,226 @@ func diffACLRoles(
 	return
 }
 
+// replicateACLAuthMethods is used to replicate ACL Authentication Methods from
+// the authoritative region to this region. The loop should only be run on the
+// leader within the federated region.
+func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
+
+	// Generate our request object. We only need to do this once and reuse it
+	// for every RPC request. The MinQueryIndex is updated after every
+	// successful replication loop, so the next query acts as a blocking query
+	// and only returns upon a change in the authoritative region.
+	req := structs.ACLAuthMethodListRequest{
+		QueryOptions: structs.QueryOptions{
+			AllowStale: true,
+			Region:     s.config.AuthoritativeRegion,
+		},
+	}
+
+	// Create our replication rate limiter for ACL auth-methods and log a
+	// lovely message to indicate the process is starting.
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting ACL Auth-Methods replication from authoritative region",
+		"authoritative_region", req.Region)
+
+	// Enter the main ACL auth-methods replication loop that will only exit
+	// when the stopCh is closed.
+	//
+	// Any error encountered will use the replicationBackoffContinue function
+	// which handles replication backoff and shutdown coordination in the event
+	// of an error inside the loop.
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+
+			// Rate limit how often we attempt replication. It is OK to ignore
+			// the error as the context will never be cancelled and the limit
+			// parameters are controlled internally.
+			_ = limiter.Wait(context.Background())
+
+			// Set the replication token on each replication iteration so that
+			// it is always current and can handle agent SIGHUP reloads.
+			req.AuthToken = s.ReplicationToken()
+
+			var resp structs.ACLAuthMethodListResponse
+
+			// Make the list RPC request to the authoritative region, so we
+			// capture the latest ACL auth-method listing.
+			err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLListAuthMethodsRPCMethod, &req, &resp)
+			if err != nil {
+				s.logger.Error("failed to fetch ACL auth-methods from authoritative region", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
+			// Perform a two-way diff on the ACL auth-methods.
+			toDelete, toUpdate := diffACLAuthMethods(s.State(), req.MinQueryIndex, resp.AuthMethods)
+
+			// A significant amount of time could pass between the last check
+			// on whether we should stop the replication process. Therefore, do
+			// a check here, before calling Raft.
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			// If we have ACL auth-methods to delete, make this call directly
+			// to Raft.
+			if len(toDelete) > 0 {
+				args := structs.ACLAuthMethodDeleteRequest{Names: toDelete}
+				_, _, err := s.raftApply(structs.ACLAuthMethodsDeleteRequestType, &args)
+
+				// If the error was because we lost leadership while calling
+				// Raft, avoid logging as this can be confusing to operators.
+				if err != nil {
+					if err != raft.ErrLeadershipLost {
+						s.logger.Error("failed to delete ACL auth-methods", "error", err)
+					}
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Fetch any outdated auth-methods.
+			var fetched []*structs.ACLAuthMethod
+			if len(toUpdate) > 0 {
+				req := structs.ACLAuthMethodsGetRequest{
+					Names: toUpdate,
+					QueryOptions: structs.QueryOptions{
+						Region:        s.config.AuthoritativeRegion,
+						AuthToken:     s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
+					},
+				}
+				var reply structs.ACLAuthMethodsGetResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLGetAuthMethodsRPCMethod, &req, &reply); err != nil {
+					s.logger.Error("failed to fetch ACL auth-methods from authoritative region", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+				for _, aclAuthMethod := range reply.AuthMethods {
+					fetched = append(fetched, aclAuthMethod)
+				}
+			}
+
+			// Update local auth-methods.
+			if len(fetched) > 0 {
+				args := structs.ACLAuthMethodUpsertRequest{
+					AuthMethods: fetched,
+				}
+
+				// Perform the upsert directly via Raft.
+				_, _, err := s.raftApply(structs.ACLAuthMethodsUpsertRequestType, &args)
+				if err != nil {
+					s.logger.Error("failed to update ACL auth-methods", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Update the minimum query index, blocks until there is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+}
+
+// diffACLAuthMethods is used to perform a two-way diff between the local ACL
+// auth-methods and the remote auth-methods to determine which ones need to be
+// deleted or updated. The returned array's contain ACL auth-method names.
+func diffACLAuthMethods(
+	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLAuthMethodStub) (
+	delete []string, update []string) {
+
+	// The local ACL auth-method tracking is keyed by the name and the value is
+	// the hash of the auth-method.
+	local := make(map[string][]byte)
+
+	// The remote ACL auth-method tracking is keyed by the name; the value is
+	// an empty struct as we already have the full object.
+	remote := make(map[string]struct{})
+
+	// Read all the ACL auth-methods currently held within our local state.
+	// This panic will only happen as a developer making a mistake with naming
+	// the index to use.
+	iter, err := store.GetACLAuthMethods(nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to iterate local ACL roles: %v", err))
+	}
+
+	// Iterate the local ACL auth-methods and add them to our tracking of
+	// local auth-methods
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclAuthMethod := raw.(*structs.ACLAuthMethod)
+		local[aclAuthMethod.Name] = aclAuthMethod.Hash
+	}
+
+	// Iterate over the remote ACL auth-methods.
+	for _, remoteACLAuthMethod := range remoteList {
+		remote[remoteACLAuthMethod.Name] = struct{}{}
+
+		// Identify whether the ACL auth-method is within the local state. If
+		// it is not, add this to our update list.
+		if localHash, ok := local[remoteACLAuthMethod.Name]; !ok {
+			update = append(update, remoteACLAuthMethod.Name)
+
+			// Check if ACL auth-method is newer remotely and there is a hash
+			// mismatch.
+		} else if remoteACLAuthMethod.ModifyIndex > minIndex && !bytes.Equal(localHash, remoteACLAuthMethod.Hash) {
+			update = append(update, remoteACLAuthMethod.Name)
+		}
+	}
+
+	// If we have ACL auth-methods within state which are no longer present in
+	// the authoritative region we should delete them.
+	for localACLAuthMethod := range local {
+		if _, ok := remote[localACLAuthMethod]; !ok {
+			delete = append(delete, localACLAuthMethod)
+		}
+	}
+	return
+}
+
+// replicationBackoffContinue should be used when a replication loop encounters
+// an error and wants to wait until either the backoff time has been met, or
+// the stopCh has been closed. The boolean indicates whether the replication
+// process should continue.
+//
+// Typical use:
+//
+//	  if s.replicationBackoffContinue(stopCh) {
+//		   continue
+//		 } else {
+//	    return
+//	  }
+func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
+
+	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
+	defer timerStopFn()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-stopCh:
+		return false
+	}
+}
+
 // getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
 func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	state := s.fsm.State()
@@ -1925,7 +2199,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 		return config
 	}
 
-	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minAutopilotVersion, false) {
 		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
@@ -1952,7 +2226,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	if config != nil {
 		return config
 	}
-	if !ServersMeetMinimumVersion(s.Members(), minSchedulerConfigVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), s.Region(), minSchedulerConfigVersion, false) {
 		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
 		return nil
 	}
@@ -1966,47 +2240,71 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	return config
 }
 
+var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
+
 // initializeKeyring creates the first root key if the leader doesn't
 // already have one. The metadata will be replicated via raft and then
 // the followers will get the key material from their own key
 // replication.
-func (s *Server) initializeKeyring() error {
+func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
+
+	logger := s.logger.Named("keyring")
 
 	store := s.fsm.State()
 	keyMeta, err := store.GetActiveRootKeyMeta(nil)
 	if err != nil {
-		return err
+		logger.Error("failed to get active key: %v", err)
+		return
 	}
 	if keyMeta != nil {
-		return nil
+		return
 	}
 
-	s.logger.Named("core").Trace("initializing keyring")
+	logger.Trace("verifying cluster is ready to initialize keyring")
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		if ServersMeetMinimumVersion(s.serf.Members(), s.Region(), minVersionKeyring, true) {
+			break
+		}
+	}
+	// we might have lost leadership during the version check
+	if !s.IsLeader() {
+		return
+	}
+
+	logger.Trace("initializing keyring")
 
 	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey.Meta.SetActive()
 	if err != nil {
-		return fmt.Errorf("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring: %v", err)
+		return
 	}
 
 	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
-		return fmt.Errorf("could not add initial key to keyring: %v", err)
+		logger.Error("could not add initial key to keyring: %v", err)
+		return
 	}
 
 	if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
 		structs.KeyringUpdateRootKeyMetaRequest{
 			RootKeyMeta: rootKey.Meta,
 		}); err != nil {
-		return fmt.Errorf("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring: %v", err)
+		return
 	}
 
-	s.logger.Named("core").Info("initialized keyring", "id", rootKey.Meta.KeyID)
-	return nil
+	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)
 }
 
 func (s *Server) generateClusterID() (string, error) {
-	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
+	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
 		return "", fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}

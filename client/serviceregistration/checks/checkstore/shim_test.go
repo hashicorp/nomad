@@ -204,7 +204,7 @@ func TestShim_Difference(t *testing.T) {
 
 		ids := []structs.CheckID{"id1", "id2", "id3"}
 		unwanted := s.Difference("alloc1", ids)
-		must.Empty(t, unwanted)
+		must.SliceEmpty(t, unwanted)
 	})
 
 	t.Run("empty unwanted", func(t *testing.T) {

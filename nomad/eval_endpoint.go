@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-bexpr"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -23,13 +25,17 @@ const (
 	DefaultDequeueTimeout = time.Second
 )
 
+var minVersionEvalDeleteByFilter = version.Must(version.NewVersion("1.4.3"))
+
 // Eval endpoint is used for eval interactions
 type Eval struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func NewEvalEndpoint(srv *Server, ctx *RPCContext) *Eval {
+	return &Eval{srv: srv, ctx: ctx, logger: srv.logger.Named("eval")}
 }
 
 // GetEval is used to request information about a specific evaluation
@@ -228,6 +234,14 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	// Ack the EvalID
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
 		return err
+	}
+
+	// Wake up the eval cancelation reaper. This never blocks; if the buffer is
+	// full we know it's going to get picked up by the reaper so we don't need
+	// another send on that channel.
+	select {
+	case e.srv.reapCancelableEvalsCh <- struct{}{}:
+	default:
 	}
 	return nil
 }
@@ -437,10 +451,35 @@ func (e *Eval) Delete(
 		return structs.ErrPermissionDenied
 	}
 
+	if args.Filter != "" && !ServersMeetMinimumVersion(
+		e.srv.Members(), e.srv.Region(), minVersionEvalDeleteByFilter, true) {
+		return fmt.Errorf(
+			"all servers must be running version %v or later to delete evals by filter",
+			minVersionEvalDeleteByFilter)
+	}
+	if args.Filter != "" && len(args.EvalIDs) > 0 {
+		return fmt.Errorf("evals cannot be deleted by both ID and filter")
+	}
+	if args.Filter == "" && len(args.EvalIDs) == 0 {
+		return fmt.Errorf("evals must be deleted by either ID or filter")
+	}
+
 	// The eval broker must be disabled otherwise Nomad's state will likely get
 	// wild in a very un-fun way.
 	if e.srv.evalBroker.Enabled() {
 		return errors.New("eval broker is enabled; eval broker must be paused to delete evals")
+	}
+
+	if args.Filter != "" {
+		count, index, err := e.deleteEvalsByFilter(args)
+		if err != nil {
+			return err
+		}
+
+		// Update the index and return.
+		reply.Index = index
+		reply.Count = count
+		return nil
 	}
 
 	// Grab the state snapshot, so we can look up relevant eval information.
@@ -449,6 +488,8 @@ func (e *Eval) Delete(
 		return fmt.Errorf("failed to lookup state snapshot: %v", err)
 	}
 	ws := memdb.NewWatchSet()
+
+	count := 0
 
 	// Iterate the evaluations and ensure they are safe to delete. It is
 	// possible passed evals are not safe to delete and would make Nomads state
@@ -463,20 +504,14 @@ func (e *Eval) Delete(
 		if evalInfo == nil {
 			return errors.New("eval not found")
 		}
-
-		jobInfo, err := serverStateSnapshot.JobByID(ws, evalInfo.Namespace, evalInfo.JobID)
+		ok, err := serverStateSnapshot.EvalIsUserDeleteSafe(ws, evalInfo)
 		if err != nil {
-			return fmt.Errorf("failed to lookup eval job: %v", err)
+			return err
 		}
-
-		allocs, err := serverStateSnapshot.AllocsByEval(ws, evalInfo.ID)
-		if err != nil {
-			return fmt.Errorf("failed to lookup eval allocs: %v", err)
+		if !ok {
+			return fmt.Errorf("eval %s is not safe to delete", evalInfo.ID)
 		}
-
-		if !evalDeleteSafe(allocs, jobInfo) {
-			return fmt.Errorf("eval %s is not safe to delete", evalID)
-		}
+		count++
 	}
 
 	// Generate the Raft request object using the reap request object. This
@@ -496,69 +531,95 @@ func (e *Eval) Delete(
 
 	// Update the index and return.
 	reply.Index = index
+	reply.Count = count
 	return nil
 }
 
-// evalDeleteSafe ensures an evaluation is safe to delete based on its related
-// allocation and job information. This follows similar, but different rules to
-// the eval reap checking, to ensure evaluations for running allocs or allocs
-// which need the evaluation detail are not deleted.
-func evalDeleteSafe(allocs []*structs.Allocation, job *structs.Job) bool {
+// deleteEvalsByFilter deletes evaluations in batches based on the filter. It
+// returns a count, the index, and any error
+func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64, error) {
+	count := 0
+	index := uint64(0)
 
-	// If the job is deleted, stopped, or dead, all allocs are terminal and
-	// the eval can be deleted.
-	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
-		return true
+	filter, err := bexpr.CreateEvaluator(args.Filter)
+	if err != nil {
+		return count, index, err
 	}
 
-	// Iterate the allocations associated to the eval, if any, and check
-	// whether we can delete the eval.
-	for _, alloc := range allocs {
+	// Note that deleting evals by filter is imprecise: For sets of evals larger
+	// than a single batch eval inserts may occur behind the cursor and therefore
+	// be missed. This imprecision is not considered to hurt this endpoint's
+	// purpose of reducing pressure on servers during periods of heavy scheduling
+	// activity.
+	snap, err := e.srv.State().Snapshot()
+	if err != nil {
+		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
+	}
 
-		// If the allocation is still classed as running on the client, or
-		// might be, we can't delete.
-		switch alloc.ClientStatus {
-		case structs.AllocClientStatusRunning, structs.AllocClientStatusUnknown:
-			return false
+	iter, err := snap.Evals(nil, state.SortDefault)
+	if err != nil {
+		return count, index, err
+	}
+
+	// We *can* send larger raft logs but rough benchmarks for deleting 1M evals
+	// show that a smaller page size strikes a balance between throughput and
+	// time we block the FSM apply for other operations
+	perPage := structs.MaxUUIDsPerWriteRequest / 10
+
+	raftReq := structs.EvalReapRequest{
+		Filter:        args.Filter,
+		PerPage:       int32(perPage),
+		UserInitiated: true,
+		WriteRequest:  args.WriteRequest,
+	}
+
+	// Note: Paginator is designed around fetching a single page for a single
+	// RPC call and finalizes its state after that page. So we're doing our own
+	// pagination here.
+	pageCount := 0
+	lastToken := ""
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
 		}
-
-		// If the alloc hasn't failed then we don't need to consider it for
-		// rescheduling. Rescheduling needs to copy over information from the
-		// previous alloc so that it can enforce the reschedule policy.
-		if alloc.ClientStatus != structs.AllocClientStatusFailed {
+		eval := raw.(*structs.Evaluation)
+		deleteOk, err := snap.EvalIsUserDeleteSafe(nil, eval)
+		if !deleteOk || err != nil {
 			continue
 		}
-
-		var reschedulePolicy *structs.ReschedulePolicy
-		tg := job.LookupTaskGroup(alloc.TaskGroup)
-
-		if tg != nil {
-			reschedulePolicy = tg.ReschedulePolicy
-		}
-
-		// No reschedule policy or rescheduling is disabled
-		if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+		match, err := filter.Evaluate(eval)
+		if !match || err != nil {
 			continue
 		}
+		pageCount++
+		lastToken = eval.ID
 
-		// The restart tracking information has not been carried forward.
-		if alloc.NextAllocation == "" {
-			return false
-		}
+		if pageCount >= perPage {
+			raftReq.PerPage = int32(pageCount)
+			_, index, err = e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+			if err != nil {
+				return count, index, err
+			}
+			count += pageCount
 
-		// This task has unlimited rescheduling and the alloc has not been
-		// replaced, so we can't delete the eval yet.
-		if reschedulePolicy.Unlimited {
-			return false
-		}
-
-		// No restarts have been attempted yet.
-		if alloc.RescheduleTracker == nil || len(alloc.RescheduleTracker.Events) == 0 {
-			return false
+			pageCount = 0
+			raftReq.NextToken = lastToken
 		}
 	}
 
-	return true
+	// send last batch if it's partial
+	if pageCount > 0 {
+		raftReq.PerPage = int32(pageCount)
+		_, index, err = e.srv.raftApply(structs.EvalDeleteRequestType, &raftReq)
+		if err != nil {
+			return count, index, err
+		}
+		count += pageCount
+	}
+
+	return count, index, nil
 }
 
 // List is used to get a list of the evaluations in the system
@@ -677,6 +738,104 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			e.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
+	return e.srv.blockingRPC(&opts)
+}
+
+// Count is used to get a list of the evaluations in the system
+func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountResponse) error {
+	if done, err := e.srv.forward("Eval.Count", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "eval", "count"}, time.Now())
+	namespace := args.RequestNamespace()
+
+	// Check for read-job permissions
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
+
+	var filter *bexpr.Evaluator
+	if args.Filter != "" {
+		filter, err = bexpr.CreateEvaluator(args.Filter)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup the blocking query. This is only superficially like Eval.List,
+	// because we don't any concerns about pagination, sorting, and legacy
+	// filter fields.
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			// Scan all the evaluations
+			var err error
+			var iter memdb.ResultIterator
+
+			// Get the namespaces the user is allowed to access.
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err != nil {
+				return err
+			}
+
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.EvalsByNamespace(ws, namespace)
+			} else {
+				iter, err = store.Evals(ws, state.SortDefault)
+			}
+			if err != nil {
+				return err
+			}
+
+			count := 0
+
+			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				if raw == nil {
+					return true
+				}
+				eval := raw.(*structs.Evaluation)
+				if allowableNamespaces != nil && !allowableNamespaces[eval.Namespace] {
+					return true
+				}
+				if filter != nil {
+					ok, err := filter.Evaluate(eval)
+					if err != nil {
+						return true
+					}
+					return !ok
+				}
+				return false
+			})
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				count++
+			}
+
+			// Use the last index that affected the jobs table
+			index, err := store.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+			reply.Count = count
+
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+
 	return e.srv.blockingRPC(&opts)
 }
 

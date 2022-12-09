@@ -77,6 +77,36 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl auth-method": func() (cli.Command, error) {
+			return &ACLAuthMethodCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method create": func() (cli.Command, error) {
+			return &ACLAuthMethodCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method delete": func() (cli.Command, error) {
+			return &ACLAuthMethodDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method info": func() (cli.Command, error) {
+			return &ACLAuthMethodInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method list": func() (cli.Command, error) {
+			return &ACLAuthMethodListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl auth-method update": func() (cli.Command, error) {
+			return &ACLAuthMethodUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl bootstrap": func() (cli.Command, error) {
 			return &ACLBootstrapCommand{
 				Meta: meta,
@@ -322,6 +352,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"exec": func() (cli.Command, error) {
 			return &AllocExecCommand{
+				Meta: meta,
+			}, nil
+		},
+		"fmt": func() (cli.Command, error) {
+			return &FormatCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -918,6 +953,41 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"system reconcile summaries": func() (cli.Command, error) {
 			return &SystemReconcileSummariesCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls": func() (cli.Command, error) {
+			return &TLSCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca": func() (cli.Command, error) {
+			return &TLSCACommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca create": func() (cli.Command, error) {
+			return &TLSCACreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls ca info": func() (cli.Command, error) {
+			return &TLSCAInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert": func() (cli.Command, error) {
+			return &TLSCertCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert create": func() (cli.Command, error) {
+			return &TLSCertCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"tls cert info": func() (cli.Command, error) {
+			return &TLSCertInfoCommand{
 				Meta: meta,
 			}, nil
 		},

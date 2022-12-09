@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -49,6 +51,7 @@ var (
 // Job endpoint is used for job interactions
 type Job struct {
 	srv    *Server
+	ctx    *RPCContext
 	logger hclog.Logger
 
 	// builtin admission controllers
@@ -57,9 +60,10 @@ type Job struct {
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
-func NewJobEndpoints(s *Server) *Job {
+func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 	return &Job{
 		srv:    s,
+		ctx:    ctx,
 		logger: s.logger.Named("job"),
 		mutators: []jobMutator{
 			jobCanonicalizer{},
@@ -358,10 +362,13 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
 		// 0.12.1 introduced atomic eval job registration
-		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
 			args.Eval = eval
 			submittedEval = true
 		}
+
+		// Pre-register a deployment if necessary.
+		args.Deployment = j.multiregionCreateDeployment(job, eval)
 
 		// Commit this update via Raft
 		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -847,7 +854,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 
 	// COMPAT(1.1.0): remove conditional and always set args.Eval
-	if ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+	if ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
 		args.Eval = eval
 	}
 
@@ -1376,7 +1383,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 						if err != nil || summary == nil {
 							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						}
-						jobs = append(jobs, job.Stub(summary))
+						jobs = append(jobs, job.Stub(summary, args.Fields))
 						return nil
 					})
 				if err != nil {
@@ -1904,7 +1911,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Derive the child job and commit it via Raft - with initial status
 	dispatchJob := parameterizedJob.Copy()
-	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
+	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, args.IdPrefixTemplate, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()
@@ -2006,14 +2013,14 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		keys[k] = struct{}{}
 	}
 
-	required := helper.SliceStringToSet(job.ParameterizedJob.MetaRequired)
-	optional := helper.SliceStringToSet(job.ParameterizedJob.MetaOptional)
+	required := set.From(job.ParameterizedJob.MetaRequired)
+	optional := set.From(job.ParameterizedJob.MetaOptional)
 
 	// Check the metadata key constraints are met
 	unpermitted := make(map[string]struct{})
 	for k := range req.Meta {
-		_, req := required[k]
-		_, opt := optional[k]
+		req := required.Contains(k)
+		opt := optional.Contains(k)
 		if !req && !opt {
 			unpermitted[k] = struct{}{}
 		}

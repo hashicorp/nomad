@@ -128,6 +128,10 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
+	// Revision is a string that carries the version.GitCommit of Nomad that
+	// was compiled.
+	Revision string
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -247,6 +251,12 @@ type Config struct {
 	// EvalFailedFollowupBaselineDelay is the minimum time waited before
 	// retrying a failed evaluation.
 	EvalFailedFollowupBaselineDelay time.Duration
+
+	// EvalReapCancelableInterval is the interval for the periodic reaping of
+	// cancelable evaluations. Cancelable evaluations are canceled whenever any
+	// eval is ack'd but this sweeps up on quiescent clusters. This config value
+	// exists only for testing.
+	EvalReapCancelableInterval time.Duration
 
 	// EvalFailedFollowupDelayRange defines the range of additional time from
 	// the baseline in which to wait before retrying a failed evaluation. The
@@ -467,6 +477,7 @@ func DefaultConfig() *Config {
 		EvalNackSubsequentReenqueueDelay: 20 * time.Second,
 		EvalFailedFollowupBaselineDelay:  1 * time.Minute,
 		EvalFailedFollowupDelayRange:     5 * time.Minute,
+		EvalReapCancelableInterval:       5 * time.Second,
 		MinHeartbeatTTL:                  10 * time.Second,
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,

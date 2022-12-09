@@ -5272,9 +5272,49 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 	})
 }
 
+func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create 2 allocs and simulate one have being previously disconnected and
+	// then reconnected.
+	job, allocs := buildResumableAllocations(2, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+	allocs[0].AllocStates = []*structs.AllocState{
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusUnknown,
+			Time:  time.Now().Add(-5 * time.Minute),
+		},
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusRunning,
+			Time:  time.Now(),
+		},
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
+		nil, allocs, nil, "", 50, true)
+	results := reconciler.Compute()
+
+	// Assert both allocations will be updated.
+	assertResults(t, results, &resultExpectation{
+		inplace: 2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate: 2,
+			},
+		},
+	})
+}
+
 // Tests that when a node disconnects/reconnects allocations for that node are
 // reconciled according to the business rules.
 func TestReconciler_Disconnected_Client(t *testing.T) {
+	disconnectAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  time.Now(),
+	}}
+
 	type testCase struct {
 		name                         string
 		allocCount                   int
@@ -5282,6 +5322,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		jobVersionIncrement          uint64
 		nodeScoreIncrement           float64
 		disconnectedAllocStatus      string
+		disconnectedAllocStates      []*structs.AllocState
 		serverDesiredStatus          string
 		isBatch                      bool
 		nodeStatusDisconnected       bool
@@ -5299,6 +5340,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      false,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5316,6 +5358,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       1,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5335,6 +5378,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       1,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeScoreIncrement:           1,
@@ -5354,6 +5398,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5372,6 +5417,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      false,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5392,6 +5438,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                 false,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusComplete,
+			disconnectedAllocStates: disconnectAllocState,
 			serverDesiredStatus:     structs.AllocDesiredStatusRun,
 			isBatch:                 true,
 			expected: &resultExpectation{
@@ -5408,6 +5455,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
@@ -5427,6 +5475,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
@@ -5446,6 +5495,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			failReplacement:              true,
 			shouldStopOnDisconnectedNode: true,
@@ -5466,6 +5516,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       1,
 			disconnectedAllocStatus:      structs.AllocClientStatusPending,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
@@ -5485,6 +5536,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
+			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
@@ -5505,6 +5557,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                 false,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{},
 			serverDesiredStatus:     structs.AllocDesiredStatusRun,
 			nodeStatusDisconnected:  true,
 			expected: &resultExpectation{
@@ -5547,24 +5600,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 				if disconnectedAllocCount > 0 {
 					alloc.ClientStatus = tc.disconnectedAllocStatus
+					alloc.AllocStates = tc.disconnectedAllocStates
 					// Set the node id on all the disconnected allocs to the node under test.
 					alloc.NodeID = testNode.ID
 					alloc.NodeName = "disconnected"
 
-					alloc.AllocStates = []*structs.AllocState{{
-						Field: structs.AllocStateFieldClientStatus,
-						Value: structs.AllocClientStatusUnknown,
-						Time:  time.Now(),
-					}}
-
-					event := structs.NewTaskEvent(structs.TaskClientReconnected)
-					event.Time = time.Now().UnixNano()
-
-					alloc.TaskStates = map[string]*structs.TaskState{
-						alloc.Job.TaskGroups[0].Tasks[0].Name: {
-							Events: []*structs.TaskEvent{event},
-						},
-					}
 					disconnectedAllocCount--
 				}
 			}
@@ -5992,6 +6032,122 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 			for _, stopResult := range result.stop {
 				require.Equal(t, pending, stopResult.alloc.ClientStatus)
 			}
+		})
+	}
+}
+
+// Tests the reconciler properly handles the logic for computeDeploymentPaused
+// for various job types.
+func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
+	ci.Parallel(t)
+
+	type testCase struct {
+		name            string
+		jobType         string
+		isMultiregion   bool
+		isPeriodic      bool
+		isParameterized bool
+		expected        bool
+	}
+
+	multiregionCfg := mock.MultiregionJob().Multiregion
+	periodicCfg := mock.PeriodicJob().Periodic
+	parameterizedCfg := &structs.ParameterizedJobConfig{
+		Payload: structs.DispatchPayloadRequired,
+	}
+
+	testCases := []testCase{
+		{
+			name:            "single region service is not paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion service is paused",
+			jobType:         structs.JobTypeService,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        true,
+		},
+		{
+			name:            "single region batch job is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion batch job is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   false,
+			isPeriodic:      false,
+			isParameterized: false,
+			expected:        false,
+		},
+		{
+			name:            "multiregion parameterized batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      false,
+			isParameterized: true,
+			expected:        false,
+		},
+		{
+			name:            "multiregion periodic batch is not paused",
+			jobType:         structs.JobTypeBatch,
+			isMultiregion:   true,
+			isPeriodic:      true,
+			isParameterized: false,
+			expected:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var job *structs.Job
+
+			if tc.jobType == structs.JobTypeService {
+				job = mock.Job()
+			} else if tc.jobType == structs.JobTypeBatch {
+				job = mock.BatchJob()
+			}
+
+			require.NotNil(t, job, "invalid job type", tc.jobType)
+
+			var deployment *structs.Deployment
+			if tc.isMultiregion {
+				job.Multiregion = multiregionCfg
+
+				// This deployment is created by the Job.Register RPC and
+				// fetched by the scheduler before handing it to the
+				// reconciler.
+				if job.UsesDeployments() {
+					deployment = structs.NewDeployment(job, 100)
+					deployment.Status = structs.DeploymentStatusInitializing
+					deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+				}
+			}
+
+			if tc.isPeriodic {
+				job.Periodic = periodicCfg
+			}
+
+			if tc.isParameterized {
+				job.ParameterizedJob = parameterizedCfg
+			}
+
+			reconciler := NewAllocReconciler(
+				testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, deployment,
+				nil, nil, "", job.Priority, true)
+
+			_ = reconciler.Compute()
+
+			require.Equal(t, tc.expected, reconciler.deploymentPaused)
 		})
 	}
 }

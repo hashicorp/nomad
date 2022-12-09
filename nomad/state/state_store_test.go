@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -4496,6 +4497,244 @@ func TestStateStore_DeleteEval_UserInitiated(t *testing.T) {
 	mockEval2Lookup, err := testState.EvalByID(ws, mockEval1.ID)
 	require.NoError(t, err)
 	require.Nil(t, mockEval2Lookup)
+}
+
+// TestStateStore_DeleteEvalsByFilter_Pagination tests the pagination logic for
+// deleting evals by filter; the business logic is tested more fully in the eval
+// endpoint tests.
+func TestStateStore_DeleteEvalsByFilter_Pagination(t *testing.T) {
+
+	evalCount := 100
+	index := uint64(100)
+
+	store := testStateStore(t)
+
+	// Create a set of pending evaluations
+
+	schedulerConfig := &structs.SchedulerConfiguration{
+		PauseEvalBroker: true,
+		CreateIndex:     index,
+		ModifyIndex:     index,
+	}
+	must.NoError(t, store.SchedulerSetConfig(index, schedulerConfig))
+
+	evals := []*structs.Evaluation{}
+	for i := 0; i < evalCount; i++ {
+		mockEval := mock.Eval()
+		evals = append(evals, mockEval)
+	}
+	index++
+	must.NoError(t, store.UpsertEvals(
+		structs.MsgTypeTestSetup, index, evals))
+
+	// Delete one page
+	index++
+	must.NoError(t, store.DeleteEvalsByFilter(index, "JobID != \"\"", "", 10))
+
+	countRemaining := func() (string, int) {
+		lastSeen := ""
+		remaining := 0
+
+		iter, err := store.Evals(nil, SortDefault)
+		must.NoError(t, err)
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			eval := raw.(*structs.Evaluation)
+			lastSeen = eval.ID
+			remaining++
+		}
+		return lastSeen, remaining
+	}
+
+	lastSeen, remaining := countRemaining()
+	must.Eq(t, 90, remaining)
+
+	// Delete starting from lastSeen, which should only delete 1
+	index++
+	must.NoError(t, store.DeleteEvalsByFilter(index, "JobID != \"\"", lastSeen, 10))
+
+	_, remaining = countRemaining()
+	must.Eq(t, 89, remaining)
+}
+
+func TestStateStore_EvalIsUserDeleteSafe(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputAllocs    []*structs.Allocation
+		inputJob       *structs.Job
+		expectedResult bool
+		name           string
+	}{
+		{
+			inputAllocs:    nil,
+			inputJob:       nil,
+			expectedResult: true,
+			name:           "job not in state",
+		},
+		{
+			inputAllocs:    nil,
+			inputJob:       &structs.Job{Status: structs.JobStatusDead},
+			expectedResult: true,
+			name:           "job stopped",
+		},
+		{
+			inputAllocs:    nil,
+			inputJob:       &structs.Job{Stop: true},
+			expectedResult: true,
+			name:           "job dead",
+		},
+		{
+			inputAllocs:    []*structs.Allocation{},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: true,
+			name:           "no allocs for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusRunning},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: false,
+			name:           "running alloc for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusUnknown},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: false,
+			name:           "unknown alloc for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusLost},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: true,
+			name:           "complete and lost allocs for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name:             "test",
+						ReschedulePolicy: nil,
+					},
+				},
+			},
+			expectedResult: true,
+			name:           "failed alloc job without reschedule",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  0,
+						},
+					},
+				},
+			},
+			expectedResult: true,
+			name:           "failed alloc job reschedule disabled",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  3,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc next alloc not set",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus:   structs.AllocClientStatusFailed,
+					TaskGroup:      "test",
+					NextAllocation: "4aa4930a-8749-c95b-9c67-5ef29b0fc653",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  3,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc next alloc set",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: true,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc job reschedule unlimited",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualResult := isEvalDeleteSafe(tc.inputAllocs, tc.inputJob)
+			require.Equal(t, tc.expectedResult, actualResult)
+		})
+	}
 }
 
 func TestStateStore_EvalsByJob(t *testing.T) {

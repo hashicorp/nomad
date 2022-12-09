@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -13,10 +13,12 @@ import (
 // Plan endpoint is used for plan interactions
 type Plan struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
 
-	// ctx provides context regarding the underlying connection
-	ctx *RPCContext
+func NewPlanEndpoint(srv *Server, ctx *RPCContext) *Plan {
+	return &Plan{srv: srv, ctx: ctx, logger: srv.logger.Named("plan")}
 }
 
 // Submit is used to submit a plan to the leader

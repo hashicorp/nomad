@@ -71,6 +71,12 @@
         </span>
         {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}
       </span>
+      <span class="pair">
+        <span class="term">
+          Namespace
+        </span>
+        {{this.model.job.namespace.name}}
+      </span>
       {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min>
           <span class="term">
@@ -149,9 +155,8 @@
           @class="is-padded"
           @inputClass="is-compact"
         />
-        <span class="is-padded">
+        <span class="is-padded is-one-line">
           <Toggle
-            class="button is-borderless is-inline"
             @isActive={{this.showSubTasks}}
             @onToggle={{this.toggleShowSubTasks}}
             title="Show tasks of allocations"
@@ -218,7 +223,7 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} />
+                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} />
                 {{/each}}
               {{/if}}
             </t.body>

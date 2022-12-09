@@ -29,17 +29,19 @@ var (
 	// hostFingerprinters contains the host fingerprints which are available for a
 	// given platform.
 	hostFingerprinters = map[string]Factory{
-		"arch":    NewArchFingerprint,
-		"consul":  NewConsulFingerprint,
-		"cni":     NewCNIFingerprint,
-		"cpu":     NewCPUFingerprint,
-		"host":    NewHostFingerprint,
-		"memory":  NewMemoryFingerprint,
-		"network": NewNetworkFingerprint,
-		"nomad":   NewNomadFingerprint,
-		"signal":  NewSignalFingerprint,
-		"storage": NewStorageFingerprint,
-		"vault":   NewVaultFingerprint,
+		"arch":        NewArchFingerprint,
+		"consul":      NewConsulFingerprint,
+		"cni":         NewCNIFingerprint, // networks
+		"cpu":         NewCPUFingerprint,
+		"host":        NewHostFingerprint,
+		"landlock":    NewLandlockFingerprint,
+		"memory":      NewMemoryFingerprint,
+		"network":     NewNetworkFingerprint,
+		"nomad":       NewNomadFingerprint,
+		"plugins_cni": NewPluginsCNIFingerprint,
+		"signal":      NewSignalFingerprint,
+		"storage":     NewStorageFingerprint,
+		"vault":       NewVaultFingerprint,
 	}
 
 	// envFingerprinters contains the fingerprints that are environment specific.

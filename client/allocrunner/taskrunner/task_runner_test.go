@@ -146,7 +146,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
-		Getter:                getter.TestDefaultGetter(t),
+		Getter:                getter.TestSandbox(t),
 	}
 
 	// Set the cgroup path getter if we are in v2 mode
@@ -696,106 +696,6 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 	require.NotNil(driverCfg)
 	require.NotNil(mockCfg)
 	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
-}
-
-// TestTaskRunner_TaskEnv_Chroot asserts chroot drivers use chroot paths and
-// not host paths.
-func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	ci.Parallel(t)
-
-	alloc := mock.BatchAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "exec"
-	task.Config = map[string]interface{}{
-		"command": "bash",
-		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
-			"echo $NOMAD_TASK_DIR; " +
-			"echo $NOMAD_SECRETS_DIR; " +
-			"echo $PATH; ",
-		},
-	}
-
-	// Expect chroot paths and host $PATH
-	exp := fmt.Sprintf(`/alloc
-/local
-/secrets
-%s
-`, os.Getenv("PATH"))
-
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-
-	// Wait for task to exit and kill the task runner to run the stop hooks.
-	testWaitForTaskToDie(t, tr)
-	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
-	timeout := 15 * time.Second
-	if testutil.IsCI() {
-		timeout = 120 * time.Second
-	}
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(timeout):
-		require.Fail(t, "timeout waiting for task to exit")
-	}
-
-	// Read stdout
-	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
-	stdout, err := ioutil.ReadFile(p)
-	require.NoError(t, err)
-	require.Equalf(t, exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
-}
-
-// TestTaskRunner_TaskEnv_Image asserts image drivers use chroot paths and
-// not host paths. Host env vars should also be excluded.
-func TestTaskRunner_TaskEnv_Image(t *testing.T) {
-	ctestutil.DockerCompatible(t)
-	ci.Parallel(t)
-	require := require.New(t)
-
-	alloc := mock.BatchAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "docker"
-	task.Config = map[string]interface{}{
-		"image":        "redis:7-alpine",
-		"network_mode": "none",
-		"command":      "sh",
-		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
-			"echo $NOMAD_TASK_DIR; " +
-			"echo $NOMAD_SECRETS_DIR; " +
-			"echo $PATH",
-		},
-	}
-
-	// Expect chroot paths and image specific PATH
-	exp := `/alloc
-/local
-/secrets
-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-`
-
-	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
-	defer cleanup()
-
-	// Wait for task to exit and kill task runner to run the stop hooks.
-	testWaitForTaskToDie(t, tr)
-	tr.Kill(context.Background(), structs.NewTaskEvent("kill"))
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second):
-		require.Fail("timeout waiting for task to exit")
-	}
-
-	// Read stdout
-	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
-	stdout, err := ioutil.ReadFile(p)
-	require.NoError(err)
-	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
 }
 
 // TestTaskRunner_TaskEnv_None asserts raw_exec uses host paths and env vars.
@@ -1816,45 +1716,7 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	require.True(t, state.Events[2].FailsTask)
 }
 
-// TestTaskRunner_Download_ChrootExec asserts that downloaded artifacts may be
-// executed in a chroot.
-func TestTaskRunner_Download_ChrootExec(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
-
-	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
-	defer ts.Close()
-
-	// Create a task that downloads a script and executes it.
-	alloc := mock.BatchAlloc()
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.RestartPolicy = &structs.RestartPolicy{}
-	task.Driver = "exec"
-	task.Config = map[string]interface{}{
-		"command": "noop.sh",
-	}
-
-	task.Artifacts = []*structs.TaskArtifact{
-		{
-			GetterSource: fmt.Sprintf("%s/testdata/noop.sh", ts.URL),
-			GetterMode:   "file",
-			RelativeDest: "noop.sh",
-		},
-	}
-
-	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
-	defer cleanup()
-
-	// Wait for task to run and exit
-	testWaitForTaskToDie(t, tr)
-
-	state := tr.TaskState()
-	require.Equal(t, structs.TaskStateDead, state.State)
-	require.False(t, state.Failed)
-}
-
-// TestTaskRunner_Download_Exec asserts that downloaded artifacts may be
+// TestTaskRunner_Download_RawExec asserts that downloaded artifacts may be
 // executed in a driver without filesystem isolation.
 func TestTaskRunner_Download_RawExec(t *testing.T) {
 	ci.Parallel(t)
@@ -1865,6 +1727,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	// Create a task that downloads a script and executes it.
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
+
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "raw_exec"

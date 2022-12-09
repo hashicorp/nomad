@@ -116,11 +116,18 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 }
 
 func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
+	h.managerLock.Lock()
+	defer h.managerLock.Unlock()
+
+	if h.templateManager == nil {
+		return nil
+	}
+
 	if req.DriverExec != nil {
 		h.templateManager.SetDriverHandle(req.DriverExec)
 	} else {
-		for _, template := range h.config.templates {
-			if template.ChangeMode == structs.TemplateChangeModeScript {
+		for _, tmpl := range h.config.templates {
+			if tmpl.ChangeMode == structs.TemplateChangeModeScript {
 				return fmt.Errorf("template has change mode set to 'script' but the driver it uses does not provide exec capability")
 			}
 		}
@@ -166,17 +173,17 @@ func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest
 	return nil
 }
 
-// Handle new Vault token
+// Update is used to handle updates to vault and/or nomad tokens.
 func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
-	// Nothing to do
+	// no template manager to manage
 	if h.templateManager == nil {
 		return nil
 	}
 
-	// Check if either the Nomad or Vault tokens have changed
+	// neither vault or nomad token has been updated, nothing to do
 	if req.VaultToken == h.vaultToken && req.NomadToken == h.nomadToken {
 		return nil
 	} else {
@@ -184,15 +191,15 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 		h.nomadToken = req.NomadToken
 	}
 
-	// Shutdown the old template
+	// shutdown the old template
 	h.templateManager.Stop()
 	h.templateManager = nil
 
-	// Create the new template
+	// create the new template
 	if _, err := h.newManager(); err != nil {
-		err := fmt.Errorf("failed to build template manager: %v", err)
+		err = fmt.Errorf("failed to build template manager: %v", err)
 		h.logger.Error("failed to build template manager", "error", err)
-		h.config.lifecycle.Kill(context.Background(),
+		_ = h.config.lifecycle.Kill(context.Background(),
 			structs.NewTaskEvent(structs.TaskKilling).
 				SetFailsTask().
 				SetDisplayMessage(fmt.Sprintf("Template update %v", err)))

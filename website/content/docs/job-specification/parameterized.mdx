@@ -53,6 +53,9 @@ job "docs" {
 }
 ```
 
+See the [multiregion] documentation for additional considerations when
+dispatching parameterized jobs.
+
 ## `parameterized` Requirements
 
 - The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
@@ -154,3 +157,4 @@ job "email-blast" {
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [dispatch_payload]: /docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
+[multiregion]: /docs/job-specification/multiregion#parameterized-dispatch

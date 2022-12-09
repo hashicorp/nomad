@@ -430,6 +430,10 @@
         ]
       },
       {
+        "title": "fmt",
+        "path": "commands/fmt"
+      },
+      {
         "title": "job",
         "routes": [
           {
@@ -897,6 +901,31 @@
           {
             "title": "reconcile summaries",
             "path": "commands/system/reconcile-summaries"
+          }
+        ]
+      },
+      {
+        "title": "tls",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/tls"
+          },
+          {
+            "title": "ca create",
+            "path": "commands/tls/ca-create"
+          },
+          {
+            "title": "ca info",
+            "path": "commands/tls/ca-info"
+          },
+          {
+            "title": "cert create",
+            "path": "commands/tls/cert-create"
+          },
+          {
+            "title": "cert info",
+            "path": "commands/tls/cert-info"
           }
         ]
       },

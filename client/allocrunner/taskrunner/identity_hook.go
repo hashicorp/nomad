@@ -36,7 +36,9 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	defer h.lock.Unlock()
 
 	token := h.tr.alloc.SignedIdentities[h.taskName]
-	h.tr.setNomadToken(token)
+	if token != "" {
+		h.tr.setNomadToken(token)
+	}
 	return nil
 }
 
@@ -45,6 +47,8 @@ func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateReque
 	defer h.lock.Unlock()
 
 	token := h.tr.alloc.SignedIdentities[h.taskName]
-	h.tr.setNomadToken(token)
+	if token != "" {
+		h.tr.setNomadToken(token)
+	}
 	return nil
 }

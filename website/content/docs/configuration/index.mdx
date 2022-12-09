@@ -146,8 +146,7 @@ testing.
 - `consul` `(`[`Consul`]`: nil)` - Specifies configuration for
   connecting to Consul.
 
-- `datacenter` `(string: "dc1")` - Specifies the data center of the local agent.
-  All members of a datacenter should share a local LAN connection.
+- `datacenter` `(string: "dc1")` - Specifies the data center of the local agent. A datacenter is an abstract grouping of clients within a region. Clients are not required to be in the same datacenter as the servers they are joined with, but do need to be in the same region.
 
 - `data_dir` `(string: required)` - Specifies a local directory used to store
   agent state. Client nodes use this directory by default to store temporary

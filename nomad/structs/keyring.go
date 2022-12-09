@@ -51,10 +51,14 @@ type RootKeyMeta struct {
 type RootKeyState string
 
 const (
-	RootKeyStateInactive   RootKeyState = "inactive"
-	RootKeyStateActive                  = "active"
-	RootKeyStateRekeying                = "rekeying"
-	RootKeyStateDeprecated              = "deprecated"
+	RootKeyStateInactive RootKeyState = "inactive"
+	RootKeyStateActive                = "active"
+	RootKeyStateRekeying              = "rekeying"
+
+	// RootKeyStateDeprecated is, itself, deprecated and is no longer in
+	// use. For backwards compatibility, any existing keys with this state will
+	// be treated as RootKeyStateInactive
+	RootKeyStateDeprecated = "deprecated"
 )
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values
@@ -103,14 +107,10 @@ func (rkm *RootKeyMeta) SetInactive() {
 	rkm.State = RootKeyStateInactive
 }
 
-// Deprecated indicates that variables encrypted with this key
-// have been rekeyed
-func (rkm *RootKeyMeta) Deprecated() bool {
-	return rkm.State == RootKeyStateDeprecated
-}
-
-func (rkm *RootKeyMeta) SetDeprecated() {
-	rkm.State = RootKeyStateDeprecated
+// Inactive indicates that this key is no longer being used to encrypt new
+// variables or workload identities.
+func (rkm *RootKeyMeta) Inactive() bool {
+	return rkm.State == RootKeyStateInactive || rkm.State == RootKeyStateDeprecated
 }
 
 func (rkm *RootKeyMeta) Stub() *RootKeyMetaStub {

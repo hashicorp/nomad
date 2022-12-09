@@ -60,9 +60,9 @@
     >
       Documentation
     </a>
-    <LinkTo @route="settings.tokens" class="navbar-item"  {{keyboard-shortcut menuLevel=true pattern=(array "g" "a") }}>
-      ACL Tokens
-    </LinkTo>
+    {{#if this.shouldShowProfileNav}}
+      <ProfileNavbarItem />
+    {{/if}}
   </div>
 </nav>
 <div class="navbar is-secondary">

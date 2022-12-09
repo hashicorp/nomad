@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -991,6 +993,307 @@ func TestHTTPServer_ACLRoleSpecificRequest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLAuthMethodListRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-methods", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodListRequest(respW, req)
+				must.NoError(t, err)
+				must.Len(t, 0, obj.([]*structs.ACLAuthMethodStub))
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/auth-methods", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodListRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "no auth-methods in state",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-methods", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodListRequest(respW, req)
+				must.NoError(t, err)
+				must.Len(t, 0, obj.([]*structs.ACLAuthMethodStub))
+			},
+		},
+		{
+			name: "auth-methods in state",
+			testFn: func(srv *TestAgent) {
+
+				// Upsert two auth-methods into state.
+				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}))
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-methods", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodListRequest(respW, req)
+				must.NoError(t, err)
+				must.Len(t, 2, obj.([]*structs.ACLAuthMethodStub))
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock role to use in the request body.
+				mockACLRole := mock.ACLRole()
+				mockACLRole.ID = ""
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLRole))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Permission denied")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/auth-method", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "successful upsert",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock auth-method to use in the request body.
+				mockACLAuthMethod := mock.ACLAuthMethod()
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLAuthMethod))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodRequest(respW, req)
+				must.NoError(t, err)
+
+				result := obj.(*structs.ACLAuthMethod)
+				must.Eq(t, result, mockACLAuthMethod)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "missing auth-method name",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-method/", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "missing ACL auth-method name")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "incorrect method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/auth-method/foobar", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "get auth-method",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock auth-method and put directly into state.
+				mockACLAuthMethod := mock.ACLAuthMethod()
+				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
+					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
+
+				url := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.NoError(t, err)
+				must.Eq(t, obj.(*structs.ACLAuthMethod).Hash, mockACLAuthMethod.Hash)
+			},
+		},
+		{
+			name: "get, update, and delete auth-method",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock auth-method and put directly into state.
+				mockACLAuthMethod := mock.ACLAuthMethod()
+				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
+					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
+
+				url := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
+
+				// Build the HTTP request to read the auth-method.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.NoError(t, err)
+				must.Eq(t, obj.(*structs.ACLAuthMethod).Hash, mockACLAuthMethod.Hash)
+
+				// Update the auth-method and make the request via the HTTP
+				// API.
+				mockACLAuthMethod.MaxTokenTTL = 3600 * time.Hour
+				mockACLAuthMethod.SetHash()
+
+				req, err = http.NewRequest(http.MethodPost, url, encodeReq(mockACLAuthMethod))
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				_, err = srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.NoError(t, err)
+
+				// Delete the ACL auth-method.
+				req, err = http.NewRequest(http.MethodDelete, url, nil)
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err = srv.Server.ACLAuthMethodSpecificRequest(respW, req)
+				must.NoError(t, err)
+				must.Nil(t, obj)
+
+				// Ensure the ACL auth-method is no longer stored within state.
+				aclAuthMethod, err := srv.server.State().GetACLAuthMethodByName(nil, mockACLAuthMethod.Name)
+				must.NoError(t, err)
+				must.Nil(t, aclAuthMethod)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cb := func(c *Config) { c.NomadConfig.ACLTokenMaxExpirationTTL = 3600 * time.Hour }
+			httpACLTest(t, cb, tc.testFn)
 		})
 	}
 }

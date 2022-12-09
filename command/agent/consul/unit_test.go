@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,8 +29,10 @@ const (
 
 func testWorkload() *serviceregistration.WorkloadServices {
 	return &serviceregistration.WorkloadServices{
-		AllocID:   uuid.Generate(),
-		Task:      "taskname",
+		AllocInfo: structs.AllocInfo{
+			AllocID: uuid.Generate(),
+			Task:    "taskname",
+		},
 		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{
@@ -131,7 +134,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1, "Unexpected nil alloc registration")
 	r.Equal(1, reg1.NumServices())
@@ -171,7 +174,7 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services))
 
 	// Validate the alloc registration
-	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocID)
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Workload.AllocInfo.AllocID)
 	r.NoError(err)
 	r.NotNil(reg1)
 	r.Equal(1, reg1.NumServices())
@@ -209,7 +212,6 @@ func TestConsul_ChangePorts(t *testing.T) {
 	ci.Parallel(t)
 
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
 		{
@@ -236,17 +238,17 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(xPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, xPort, v.Port)
 	}
 
-	require.Len(ctx.FakeConsul.checks["default"], 3)
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"], must.Sprintf("checks %#v", ctx.FakeConsul.checks))
 
 	origTCPKey := ""
 	origScriptKey := ""
@@ -255,20 +257,20 @@ func TestConsul_ChangePorts(t *testing.T) {
 		switch v.Name {
 		case "c1":
 			origTCPKey = k
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			origScriptKey = k
 		case "c3":
 			origHTTPKey = k
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
 			t.Fatalf("unexpected check: %q", v.Name)
 		}
 	}
 
-	require.NotEmpty(origTCPKey)
-	require.NotEmpty(origScriptKey)
-	require.NotEmpty(origHTTPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origTCPKey)
+	must.StrHasPrefix(t, "_nomad-check-", origScriptKey)
+	must.StrHasPrefix(t, "_nomad-check-", origHTTPKey)
 
 	// Now update the PortLabel on the Service and Check c3
 	origWorkload := ctx.Workload.Copy()
@@ -298,32 +300,31 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
-	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
+	must.NoError(t, ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 1, ctx.FakeConsul.services["default"])
 
 	for _, v := range ctx.FakeConsul.services["default"] {
-		require.Equal(ctx.Workload.Services[0].Name, v.Name)
-		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
-		require.Equal(yPort, v.Port)
+		must.Eq(t, ctx.Workload.Services[0].Name, v.Name)
+		must.Eq(t, ctx.Workload.Services[0].Tags, v.Tags)
+		must.Eq(t, yPort, v.Port)
 	}
-
-	require.Equal(3, len(ctx.FakeConsul.checks["default"]))
+	must.MapLen(t, 3, ctx.FakeConsul.checks["default"])
 
 	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			// C1 is changed because the service was re-registered
-			require.NotEqual(origTCPKey, k)
-			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
+			must.NotEq(t, origTCPKey, k)
+			must.Eq(t, fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			// C2 is changed because the service was re-registered
-			require.NotEqual(origScriptKey, k)
+			must.NotEq(t, origScriptKey, k)
 		case "c3":
-			require.NotEqual(origHTTPKey, k)
-			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
+			must.NotEq(t, origHTTPKey, k)
+			must.Eq(t, fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
-			t.Errorf("Unknown check: %q", k)
+			must.Unreachable(t, must.Sprintf("unknown check: %q", k))
 		}
 	}
 }
@@ -979,7 +980,7 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	expected := &api.AgentCheckRegistration{
 		Namespace: "",
 		ID:        checkID,
-		Name:      "name",
+		Name:      check.Name,
 		ServiceID: serviceID,
 		AgentServiceCheck: api.AgentServiceCheck{
 			Timeout:       "1s",
@@ -991,23 +992,19 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	}
 
 	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080, "default")
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
+	must.NoError(t, err)
+	must.Eq(t, expected, actual)
 }
 
 func TestConsul_ServiceName_Duplicates(t *testing.T) {
 	ci.Parallel(t)
-
 	ctx := setupFake(t)
-	require := require.New(t)
 
 	ctx.Workload.Services = []*structs.Service{
 		{
 			Name:      "best-service",
 			PortLabel: "x",
-			Tags: []string{
-				"foo",
-			},
+			Tags:      []string{"foo"},
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "check-a",
@@ -1020,12 +1017,10 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		{
 			Name:      "best-service",
 			PortLabel: "y",
-			Tags: []string{
-				"bar",
-			},
+			Tags:      []string{"bar"},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:     "checky-mccheckface",
+					Name:     "check-b",
 					Type:     "tcp",
 					Interval: time.Second,
 					Timeout:  time.Second,
@@ -1038,21 +1033,20 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 		},
 	}
 
-	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 3, ctx.FakeConsul.services["default"])
 
-	require.NoError(ctx.syncOnce(syncNewOps))
-
-	require.Len(ctx.FakeConsul.services["default"], 3)
-
-	for _, v := range ctx.FakeConsul.services["default"] {
-		if v.Name == ctx.Workload.Services[0].Name && v.Port == xPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[0].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[1].Name && v.Port == yPort {
-			require.ElementsMatch(v.Tags, ctx.Workload.Services[1].Tags)
-			require.Len(v.Checks, 1)
-		} else if v.Name == ctx.Workload.Services[2].Name {
-			require.Len(v.Checks, 0)
+	for _, s := range ctx.FakeConsul.services["default"] {
+		switch {
+		case s.Name == "best-service" && s.Port == xPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[0].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "best-service" && s.Port == yPort:
+			must.SliceContainsAll(t, s.Tags, ctx.Workload.Services[1].Tags)
+			must.SliceLen(t, 1, s.Checks)
+		case s.Name == "worst-service":
+			must.SliceEmpty(t, s.Checks)
 		}
 	}
 }
@@ -1082,7 +1076,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1105,7 +1099,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1130,7 +1124,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
@@ -1192,7 +1186,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocInfo.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1215,7 +1209,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocInfo.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1240,7 +1234,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocInfo.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))

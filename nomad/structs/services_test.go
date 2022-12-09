@@ -499,7 +499,7 @@ func TestConsulConnect_Validate(t *testing.T) {
 	require.NoError(t, c.Validate())
 }
 
-func TestConsulConnect_CopyEquals(t *testing.T) {
+func TestConsulConnect_CopyEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	c := &ConsulConnect{
@@ -532,13 +532,13 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 
 	// Copies should be equivalent
 	o := c.Copy()
-	require.True(t, c.Equals(o))
+	require.True(t, c.Equal(o))
 
 	o.SidecarService.Proxy.Upstreams = nil
-	require.False(t, c.Equals(o))
+	require.False(t, c.Equal(o))
 }
 
-func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
+func TestConsulConnect_GatewayProxy_CopyEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	c := &ConsulGatewayProxy{
@@ -552,7 +552,7 @@ func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
 	// Copies should be equivalent
 	o := c.Copy()
 	require.Equal(t, c, o)
-	require.True(t, c.Equals(o))
+	require.True(t, c.Equal(o))
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
@@ -611,7 +611,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	require.Exactly(t, expected, task)
 }
 
-func TestSidecarTask_Equals(t *testing.T) {
+func TestSidecarTask_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	original := &SidecarTask{
@@ -633,7 +633,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 
 	t.Run("unmodified", func(t *testing.T) {
 		duplicate := original.Copy()
-		require.True(t, duplicate.Equals(original))
+		require.True(t, duplicate.Equal(original))
 	})
 
 	type st = SidecarTask
@@ -690,7 +690,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 	})
 }
 
-func TestConsulUpstream_upstreamEquals(t *testing.T) {
+func TestConsulUpstream_upstreamEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	up := func(name string, port int) ConsulUpstream {
@@ -793,15 +793,15 @@ func TestConsulExposeConfig_Copy(t *testing.T) {
 	}).Copy())
 }
 
-func TestConsulExposeConfig_Equals(t *testing.T) {
+func TestConsulExposeConfig_Equal(t *testing.T) {
 	ci.Parallel(t)
 
-	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
+	require.True(t, (*ConsulExposeConfig)(nil).Equal(nil))
 	require.True(t, (&ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
 			Path: "/health",
 		}},
-	}).Equals(&ConsulExposeConfig{
+	}).Equal(&ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
 			Path: "/health",
 		}},
@@ -930,50 +930,50 @@ func TestConsulGateway_Copy(t *testing.T) {
 	t.Run("as ingress", func(t *testing.T) {
 		result := consulIngressGateway1.Copy()
 		require.Equal(t, consulIngressGateway1, result)
-		require.True(t, result.Equals(consulIngressGateway1))
-		require.True(t, consulIngressGateway1.Equals(result))
+		require.True(t, result.Equal(consulIngressGateway1))
+		require.True(t, consulIngressGateway1.Equal(result))
 	})
 
 	t.Run("as terminating", func(t *testing.T) {
 		result := consulTerminatingGateway1.Copy()
 		require.Equal(t, consulTerminatingGateway1, result)
-		require.True(t, result.Equals(consulTerminatingGateway1))
-		require.True(t, consulTerminatingGateway1.Equals(result))
+		require.True(t, result.Equal(consulTerminatingGateway1))
+		require.True(t, consulTerminatingGateway1.Equal(result))
 	})
 
 	t.Run("as mesh", func(t *testing.T) {
 		result := consulMeshGateway1.Copy()
 		require.Equal(t, consulMeshGateway1, result)
-		require.True(t, result.Equals(consulMeshGateway1))
-		require.True(t, consulMeshGateway1.Equals(result))
+		require.True(t, result.Equal(consulMeshGateway1))
+		require.True(t, consulMeshGateway1.Equal(result))
 	})
 }
 
-func TestConsulGateway_Equals_mesh(t *testing.T) {
+func TestConsulGateway_Equal_mesh(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
 		b := (*ConsulGateway)(nil)
-		require.True(t, a.Equals(b))
-		require.False(t, a.Equals(consulMeshGateway1))
-		require.False(t, consulMeshGateway1.Equals(a))
+		require.True(t, a.Equal(b))
+		require.False(t, a.Equal(consulMeshGateway1))
+		require.False(t, consulMeshGateway1.Equal(a))
 	})
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, consulMeshGateway1.Equals(consulMeshGateway1))
+		require.True(t, consulMeshGateway1.Equal(consulMeshGateway1))
 	})
 }
 
-func TestConsulGateway_Equals_ingress(t *testing.T) {
+func TestConsulGateway_Equal_ingress(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
 		b := (*ConsulGateway)(nil)
-		require.True(t, a.Equals(b))
-		require.False(t, a.Equals(consulIngressGateway1))
-		require.False(t, consulIngressGateway1.Equals(a))
+		require.True(t, a.Equal(b))
+		require.False(t, a.Equal(consulIngressGateway1))
+		require.False(t, consulIngressGateway1.Equal(a))
 	})
 
 	original := consulIngressGateway1.Copy()
@@ -982,15 +982,15 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 	type tweaker = func(g *cg)
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, original.Equals(original))
+		require.True(t, original.Equal(original))
 	})
 
 	try := func(t *testing.T, tweak tweaker) {
 		modifiable := original.Copy()
 		tweak(modifiable)
-		require.False(t, original.Equals(modifiable))
-		require.False(t, modifiable.Equals(original))
-		require.True(t, modifiable.Equals(modifiable))
+		require.False(t, original.Equal(modifiable))
+		require.False(t, modifiable.Equal(original))
+		require.True(t, modifiable.Equal(modifiable))
 	}
 
 	// proxy stanza equality checks
@@ -1059,7 +1059,7 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 	})
 }
 
-func TestConsulGateway_Equals_terminating(t *testing.T) {
+func TestConsulGateway_Equal_terminating(t *testing.T) {
 	ci.Parallel(t)
 
 	original := consulTerminatingGateway1.Copy()
@@ -1068,15 +1068,15 @@ func TestConsulGateway_Equals_terminating(t *testing.T) {
 	type tweaker = func(c *cg)
 
 	t.Run("reflexive", func(t *testing.T) {
-		require.True(t, original.Equals(original))
+		require.True(t, original.Equal(original))
 	})
 
 	try := func(t *testing.T, tweak tweaker) {
 		modifiable := original.Copy()
 		tweak(modifiable)
-		require.False(t, original.Equals(modifiable))
-		require.False(t, modifiable.Equals(original))
-		require.True(t, modifiable.Equals(modifiable))
+		require.False(t, original.Equal(modifiable))
+		require.False(t, modifiable.Equal(original))
+		require.True(t, modifiable.Equal(modifiable))
 	}
 
 	// proxy stanza equality checks
@@ -1645,15 +1645,15 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 	})
 }
 
-func TestConsulMeshGateway_Equals(t *testing.T) {
+func TestConsulMeshGateway_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	c := ConsulMeshGateway{Mode: "local"}
-	require.False(t, c.Equals(ConsulMeshGateway{}))
-	require.True(t, c.Equals(c))
+	require.False(t, c.Equal(ConsulMeshGateway{}))
+	require.True(t, c.Equal(c))
 
 	o := ConsulMeshGateway{Mode: "remote"}
-	require.False(t, c.Equals(o))
+	require.False(t, c.Equal(o))
 }
 
 func TestConsulMeshGateway_Validate(t *testing.T) {
@@ -1828,7 +1828,7 @@ func TestService_Validate_Address(t *testing.T) {
 	try("driver", "example.com", errors.New(`Service address_mode must be "auto" if address is set`))
 }
 
-func TestService_Equals(t *testing.T) {
+func TestService_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	s := Service{
@@ -1841,13 +1841,13 @@ func TestService_Equals(t *testing.T) {
 	o := s.Copy()
 
 	// Base service should be equal to copy of itself
-	require.True(t, s.Equals(o))
+	require.True(t, s.Equal(o))
 
 	// create a helper to assert a diff and reset the struct
 	assertDiff := func() {
-		require.False(t, s.Equals(o))
+		require.False(t, s.Equal(o))
 		o = s.Copy()
-		require.True(t, s.Equals(o), "bug in copy")
+		require.True(t, s.Equal(o), "bug in copy")
 	}
 
 	// Changing any field should cause inequality

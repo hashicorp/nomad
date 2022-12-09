@@ -11,6 +11,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/raft"
+	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -20,10 +26,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockSink struct {
@@ -1182,256 +1184,6 @@ func TestFSM_DeleteEval(t *testing.T) {
 	if eval != nil {
 		t.Fatalf("eval found!")
 	}
-}
-
-func TestFSM_UpsertAllocs(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
-	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	req := structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{alloc},
-	}
-	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	alloc.CreateIndex = out.CreateIndex
-	alloc.ModifyIndex = out.ModifyIndex
-	alloc.AllocModifyIndex = out.AllocModifyIndex
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
-
-	evictAlloc := new(structs.Allocation)
-	*evictAlloc = *alloc
-	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
-	req2 := structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{evictAlloc},
-	}
-	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are evicted
-	out, err = fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("alloc found!")
-	}
-}
-
-func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
-	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	job := alloc.Job
-	alloc.Job = nil
-	req := structs.AllocUpdateRequest{
-		Job:   job,
-		Alloc: []*structs.Allocation{alloc},
-	}
-	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	alloc.CreateIndex = out.CreateIndex
-	alloc.ModifyIndex = out.ModifyIndex
-	alloc.AllocModifyIndex = out.AllocModifyIndex
-
-	// Job should be re-attached
-	alloc.Job = job
-	require.Equal(t, alloc, out)
-
-	// Ensure that the original job is used
-	evictAlloc := new(structs.Allocation)
-	*evictAlloc = *alloc
-	job = mock.Job()
-	job.Priority = 123
-
-	evictAlloc.Job = nil
-	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
-	req2 := structs.AllocUpdateRequest{
-		Job:   job,
-		Alloc: []*structs.Allocation{evictAlloc},
-	}
-	buf, err = structs.Encode(structs.AllocUpdateRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are evicted
-	out, err = fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("alloc found!")
-	}
-	if out.Job == nil || out.Job.Priority == 123 {
-		t.Fatalf("bad job")
-	}
-}
-
-// COMPAT(0.11): Remove in 0.11
-func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{
-		CPU:      500,
-		MemoryMB: 256,
-		DiskMB:   150,
-		Networks: []*structs.NetworkResource{
-			{
-				Device:        "eth0",
-				IP:            "192.168.0.100",
-				ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-				MBits:         50,
-				DynamicPorts:  []structs.Port{{Label: "http"}},
-			},
-		},
-	}
-	alloc.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      500,
-			MemoryMB: 256,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-				},
-			},
-		},
-	}
-	alloc.SharedResources = &structs.Resources{
-		DiskMB: 150,
-	}
-
-	// Need to remove mock dynamic port from alloc as it won't be computed
-	// in this test
-	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 0
-
-	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	job := alloc.Job
-	origResources := alloc.Resources
-	alloc.Resources = nil
-	req := structs.AllocUpdateRequest{
-		Job:   job,
-		Alloc: []*structs.Allocation{alloc},
-	}
-	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	alloc.CreateIndex = out.CreateIndex
-	alloc.ModifyIndex = out.ModifyIndex
-	alloc.AllocModifyIndex = out.AllocModifyIndex
-
-	// Resources should be recomputed
-	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
-	origResources.MemoryMaxMB = origResources.MemoryMB
-	alloc.Resources = origResources
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
-	}
-}
-
-// TestFSM_UpsertAllocs_Canonicalize asserts that allocations are Canonicalized
-// to handle logs emited by servers running old versions
-func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
-	alloc.AllocatedResources = nil
-
-	// pre-assert that our mock populates old field
-	require.NotEmpty(t, alloc.TaskResources)
-
-	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	req := structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{alloc},
-	}
-	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
-	require.NoError(t, err)
-
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(t, resp)
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	require.NoError(t, err)
-
-	require.NotNil(t, out.AllocatedResources)
-	require.Contains(t, out.AllocatedResources.Tasks, "web")
-
-	expected := alloc.Copy()
-	expected.Canonicalize()
-	expected.CreateIndex = out.CreateIndex
-	expected.ModifyIndex = out.ModifyIndex
-	expected.AllocModifyIndex = out.AllocModifyIndex
-	require.Equal(t, expected, out)
 }
 
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
@@ -2930,6 +2682,33 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 	require.ElementsMatch(t, restoredACLRoles, aclRoles)
 }
 
+func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Generate and upsert some ACL auth methods.
+	authMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	must.NoError(t, testState.UpsertACLAuthMethods(10, authMethods))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	// List the ACL auth methods from restored state and ensure everything is as
+	// expected.
+	iter, err := restoredState.GetACLAuthMethods(memdb.NewWatchSet())
+	must.NoError(t, err)
+
+	var restoredACLAuthMethods []*structs.ACLAuthMethod
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		restoredACLAuthMethods = append(restoredACLAuthMethods, raw.(*structs.ACLAuthMethod))
+	}
+	must.SliceContainsAll(t, restoredACLAuthMethods, authMethods)
+}
+
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
@@ -3725,4 +3504,54 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 
 	require.Len(t, events, 1)
 	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
+}
+
+func TestFSM_UpsertACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+	req := structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{am1, am2},
+	}
+	buf, err := structs.Encode(structs.ACLAuthMethodsUpsertRequestType, req)
+	must.Nil(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+
+	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLAuthMethods(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	am1 := mock.ACLAuthMethod()
+	am2 := mock.ACLAuthMethod()
+	must.Nil(t, fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
+
+	req := structs.ACLAuthMethodDeleteRequest{
+		Names: []string{am1.Name, am2.Name},
+	}
+	buf, err := structs.Encode(structs.ACLAuthMethodsDeleteRequestType, req)
+	must.Nil(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
+	must.Nil(t, err)
+	must.Nil(t, out)
+
+	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
+	must.Nil(t, err)
+	must.Nil(t, out)
 }

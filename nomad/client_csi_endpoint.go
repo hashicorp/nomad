@@ -19,6 +19,10 @@ type ClientCSI struct {
 	logger log.Logger
 }
 
+func NewClientCSIEndpoint(srv *Server) *ClientCSI {
+	return &ClientCSI{srv: srv, logger: srv.logger.Named("client_csi")}
+}
+
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
 

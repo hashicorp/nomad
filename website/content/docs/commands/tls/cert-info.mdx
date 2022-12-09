@@ -1,0 +1,32 @@
+---
+layout: docs
+page_title: 'Commands: TLS Cert Info'
+description: |
+  This command displays relevant information that is contained within a
+  certificate.
+---
+
+# Command: nomad tls cert info
+
+Info is used to display relevant information that is contained within a provided
+certificate file.
+
+## Usage
+
+```plaintext
+nomad tls cert info <certificate file>
+```
+
+## Examples
+
+Display default certificate info:
+
+```shell-session
+$ nomad tls cert info global-cli-nomad.pem
+Serial Number  307777061759235334129808343588809897525
+Issuer CN      Nomad Agent CA 314623649437549144006237783956683542664
+Common Name    CN=cli.global.nomad
+Expiry Date    2023-11-14 21:40:45 +0000 UTC
+DNS Names      [cli.global.nomad localhost]
+IP Addresses   []
+```

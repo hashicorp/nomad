@@ -21,7 +21,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS := osusergo $(GO_TAGS)
+GO_TAGS := $(GO_TAGS)
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -32,24 +32,12 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-ifeq ($(CIRCLECI),true)
-GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
-else
-GO_TEST_CMD = go test
-endif
-
-ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
-GOTEST_PKGS ?= "./..."
-else
-GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
-endif
-
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.3.5
+LAST_RELEASE ?= v1.4.3
 
 default: help
 
@@ -73,6 +61,11 @@ endif
 
 ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS = freebsd_amd64
+endif
+
+# Allow overriding ALL_TARGETS via $TARGETS
+ifdef TARGETS
+ALL_TARGETS = $(TARGETS)
 endif
 
 SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
@@ -130,20 +123,20 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.7.0
+	go install gotest.tools/gotestsum@v1.8.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
-	go install gophers.dev/cmds/hc-install/cmd/hc-install@v1.0.2
+	go install github.com/hashicorp/hc-install/cmd/hc-install@4487b02cbcbb92204e3416cef9852b6ad44487b2
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.5
 
@@ -243,6 +236,7 @@ hclfmt: ## Format HCL files with hclfmt
 	        -o -name '.next' -prune \
 	        -o -path './ui/dist' -prune \
 	        -o -path './website/out' -prune \
+	        -o -path './command/testdata' -prune \
 	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
 	      -print0 | xargs -0 hclfmt -w
 
@@ -282,23 +276,12 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
-.PHONY: test
-test: ## Run the Nomad test suite and/or the Nomad UI test suite
-	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make test-nomad; \
-		fi
-	@if [ $(RUN_UI_TESTS) ]; then \
-		make test-ui; \
-		fi
-	@if [ $(RUN_E2E_TESTS) ]; then \
-		make e2e-test; \
-		fi
-
 .PHONY: test-nomad
-test-nomad: dev ## Run Nomad test suites
-	@echo "==> Running Nomad test suites:"
-	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad: GOTEST_PKGS=$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(GOTEST_GROUP))
+test-nomad: # dev ## Run Nomad unit tests
+	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
+	@echo "==> with packages $(GOTEST_PKGS)"
+	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
@@ -306,10 +289,9 @@ test-nomad: dev ## Run Nomad test suites
 		$(GOTEST_PKGS)
 
 .PHONY: test-nomad-module
-test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
-	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad-module: dev ## Run Nomad unit tests on sub-module
+	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
+	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
@@ -421,9 +403,14 @@ endif
 .PHONY: missing
 missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
-	@go run -modfile tools/go.mod tools/missing/main.go .github/workflows/test-core.yaml
+	@go run -modfile tools/go.mod tools/missing/main.go ci/test-core.json
 
 .PHONY: ec2info
 ec2info: ## Generate AWS EC2 CPU specification table
 	@echo "==> Generating AWS EC2 specifications ..."
 	@go run -modfile tools/go.mod tools/ec2info/main.go
+
+.PHONY: cl
+cl: ## Create a new Changelog entry
+	@go run -modfile tools/go.mod tools/cl-entry/main.go
+

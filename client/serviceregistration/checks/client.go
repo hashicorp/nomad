@@ -163,7 +163,14 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
-	request.Header = q.Headers
+	for header, values := range q.Headers {
+		for _, value := range values {
+			request.Header.Add(header, value)
+		}
+	}
+
+	request.Host = request.Header.Get("Host")
+
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
 
@@ -173,6 +180,9 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
+	defer func() {
+		_ = result.Body.Close()
+	}()
 
 	// match the result status code to the http status code
 	qr.StatusCode = result.StatusCode

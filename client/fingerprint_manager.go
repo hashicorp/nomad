@@ -142,9 +142,9 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 			appliedFingerprints = append(appliedFingerprints, name)
 		}
 
-		p, period := f.Periodic()
+		p, _ := f.Periodic()
 		if p {
-			go fm.runFingerprint(f, period, name)
+			go fm.runFingerprint(f, name)
 		}
 
 		if rfp, ok := f.(fingerprint.ReloadableFingerprint); ok {
@@ -157,8 +157,9 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 }
 
 // runFingerprint runs each fingerprinter individually on an ongoing basis
-func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period time.Duration, name string) {
-	fm.logger.Debug("fingerprinting periodically", "fingerprinter", name, "period", period)
+func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name string) {
+	_, period := f.Periodic()
+	fm.logger.Debug("fingerprinting periodically", "fingerprinter", name, "initial_period", period)
 
 	timer := time.NewTimer(period)
 	defer timer.Stop()
@@ -166,14 +167,14 @@ func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period t
 	for {
 		select {
 		case <-timer.C:
-			timer.Reset(period)
-
 			_, err := fm.fingerprint(name, f)
 			if err != nil {
 				fm.logger.Debug("error periodic fingerprinting", "error", err, "fingerprinter", name)
 				continue
 			}
 
+			_, period = f.Periodic()
+			timer.Reset(period)
 		case <-fm.shutdownCh:
 			return
 		}

@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set"
+
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -35,7 +36,12 @@ const (
 // ACL endpoint is used for manipulating ACL tokens and policies
 type ACL struct {
 	srv    *Server
-	logger log.Logger
+	ctx    *RPCContext
+	logger hclog.Logger
+}
+
+func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
+	return &ACL{srv: srv, ctx: ctx, logger: srv.logger.Named("acl")}
 }
 
 // UpsertPolicies is used to create or update a set of policies
@@ -139,7 +145,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 
 	// If it is not a management token determine the policies that may be listed
 	mgt := acl.IsManagement()
-	var policies map[string]struct{}
+	tokenPolicyNames := set.New[string](0)
 	if !mgt {
 		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
@@ -149,10 +155,15 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 			return structs.ErrTokenNotFound
 		}
 
-		policies = make(map[string]struct{}, len(token.Policies))
-		for _, p := range token.Policies {
-			policies[p] = struct{}{}
+		// Generate a set of policy names. This is initially generated from the
+		// ACL role links.
+		tokenPolicyNames, err = a.policyNamesFromRoleLinks(token.Roles)
+		if err != nil {
+			return err
 		}
+
+		// Add the token policies which are directly referenced into the set.
+		tokenPolicyNames.InsertAll(token.Policies)
 	}
 
 	// Setup the blocking query
@@ -179,9 +190,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 				if raw == nil {
 					break
 				}
-				policy := raw.(*structs.ACLPolicy)
-				if _, ok := policies[policy.Name]; ok || mgt {
-					reply.Policies = append(reply.Policies, policy.Stub())
+				realPolicy := raw.(*structs.ACLPolicy)
+				if mgt || tokenPolicyNames.Contains(realPolicy.Name) {
+					reply.Policies = append(reply.Policies, realPolicy.Stub())
 				}
 			}
 
@@ -233,15 +244,17 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 			return structs.ErrTokenNotFound
 		}
 
-		found := false
-		for _, p := range token.Policies {
-			if p == args.Name {
-				found = true
-				break
-			}
+		// Generate a set of policy names. This is initially generated from the
+		// ACL role links.
+		tokenPolicyNames, err := a.policyNamesFromRoleLinks(token.Roles)
+		if err != nil {
+			return err
 		}
 
-		if !found {
+		// Add the token policies which are directly referenced into the set.
+		tokenPolicyNames.InsertAll(token.Policies)
+
+		if !tokenPolicyNames.Contains(args.Name) {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -310,11 +323,22 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	if err != nil {
 		return err
 	}
-
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}
-	if token.Type != structs.ACLManagementToken && !token.PolicySubset(args.Names) {
+
+	// Generate a set of policy names. This is initially generated from the
+	// ACL role links.
+	tokenPolicyNames, err := a.policyNamesFromRoleLinks(token.Roles)
+	if err != nil {
+		return err
+	}
+
+	// Add the token policies which are directly referenced into the set.
+	tokenPolicyNames.InsertAll(token.Policies)
+
+	// Ensure the token has enough permissions to query the named policies.
+	if token.Type != structs.ACLManagementToken && !tokenPolicyNames.ContainsAll(args.Names) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -944,8 +968,8 @@ func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply 
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "upsert_one_time_token"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
 	}
 
 	// Snapshot the state
@@ -996,8 +1020,8 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "exchange_one_time_token"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
 	}
 
 	// Snapshot the state
@@ -1053,8 +1077,8 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "expire_one_time_tokens"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
 	}
 
 	// Check management level permissions
@@ -1096,6 +1120,13 @@ func (a *ACL) UpsertRoles(
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_roles"}, time.Now())
+
+	// ACL roles can only be used once all servers, in all federated regions
+	// have been upgraded to 1.4.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
+			minACLRoleVersion)
+	}
 
 	// Only tokens with management level permissions can create ACL roles.
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1233,6 +1264,13 @@ func (a *ACL) DeleteRolesByID(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_roles"}, time.Now())
 
+	// ACL roles can only be used once all servers, in all federated regions
+	// have been upgraded to 1.4.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
+			minACLRoleVersion)
+	}
+
 	// Only tokens with management level permissions can create ACL roles.
 	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -1352,8 +1390,8 @@ func (a *ACL) ListRoles(
 }
 
 // GetRolesByID is used to get a set of ACL Roles as defined by their ID. This
-// endpoint is used by the replication process and uses a specific response in
-// order to make that process easier.
+// endpoint is used by the replication process and Nomad agent client token
+// resolution.
 func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACLRolesByIDResponse) error {
 
 	// This endpoint is only used by the replication process which is only
@@ -1368,11 +1406,17 @@ func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACL
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_roles_id"}, time.Now())
 
-	// Check that the caller has a management token and that ACLs are enabled
-	// properly.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// For client typed tokens, allow them to query any roles associated with
+	// that token. This is used by Nomad agents in client mode which are
+	// resolving the roles to enforce.
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken && !token.HasRoles(args.ACLRoleIDs) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1572,4 +1616,392 @@ func (a *ACL) GetRoleByName(
 			return nil
 		},
 	})
+}
+
+// policyNamesFromRoleLinks resolves the policy names which are linked via the
+// passed role links. This is useful when you need to understand what polices
+// an ACL token has access to and need to include role links. The function will
+// not return a nil set object, so callers can use this without having to check
+// this.
+func (a *ACL) policyNamesFromRoleLinks(roleLinks []*structs.ACLTokenRoleLink) (*set.Set[string], error) {
+
+	numRoles := len(roleLinks)
+	policyNameSet := set.New[string](numRoles)
+
+	if numRoles < 1 {
+		return policyNameSet, nil
+	}
+
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return policyNameSet, err
+	}
+
+	// Iterate all the token role links, so we can unpack these and identify
+	// the ACL policies.
+	for _, roleLink := range roleLinks {
+
+		// Any error reading the role means we cannot move forward. We just
+		// ignore any roles that have been detailed but are not within our
+		// state.
+		role, err := stateSnapshot.GetACLRoleByID(nil, roleLink.ID)
+		if err != nil {
+			return policyNameSet, err
+		}
+		if role == nil {
+			continue
+		}
+
+		// Unpack the policies held within the ACL role to form a single list
+		// of ACL policies that this token has available.
+		for _, policyLink := range role.Policies {
+			policyByName, err := stateSnapshot.ACLPolicyByName(nil, policyLink.Name)
+			if err != nil {
+				return policyNameSet, err
+			}
+
+			// Ignore policies that don't exist, since they don't grant any
+			// more privilege.
+			if policyByName == nil {
+				continue
+			}
+
+			// Add the policy to the tracking array.
+			policyNameSet.Insert(policyByName.Name)
+		}
+	}
+
+	return policyNameSet, nil
+}
+
+// UpsertAuthMethods is used to create or update a set of auth methods
+func (a *ACL) UpsertAuthMethods(
+	args *structs.ACLAuthMethodUpsertRequest,
+	reply *structs.ACLAuthMethodUpsertResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLUpsertAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_auth_methods"}, time.Now())
+
+	// ACL auth methods can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLAuthMethodVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
+			minACLAuthMethodVersion)
+	}
+
+	// Check management level permissions
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of auth methods
+	if len(args.AuthMethods) == 0 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
+	}
+
+	// Snapshot the state so we can make lookups to verify default method
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate each auth method, canonicalize, and compute hash
+	for idx, authMethod := range args.AuthMethods {
+		if err := authMethod.Validate(
+			a.srv.config.ACLTokenMinExpirationTTL,
+			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth method %d invalid: %v", idx, err)
+		}
+
+		// Are we trying to upsert a default auth method? Check if there isn't
+		// a default one for that very type already.
+		if authMethod.Default {
+			existingMethodsDefaultmethod, _ := stateSnapshot.GetDefaultACLAuthMethodByType(nil, authMethod.Type)
+			if existingMethodsDefaultmethod != nil && existingMethodsDefaultmethod.Name != authMethod.Name {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest,
+					"default method for type %s already exists: %v", authMethod.Type, existingMethodsDefaultmethod.Name,
+				)
+			}
+		}
+		authMethod.Canonicalize()
+		authMethod.SetHash()
+	}
+
+	// Update via Raft
+	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Populate the response. We do a lookup against the state to pick up the
+	// proper create / modify times.
+	stateSnapshot, err = a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, method := range args.AuthMethods {
+		lookupAuthMethod, err := stateSnapshot.GetACLAuthMethodByName(nil, method.Name)
+		if err != nil {
+			return structs.NewErrRPCCodedf(400, "ACL auth method lookup failed: %v", err)
+		}
+		if lookupAuthMethod != nil {
+			reply.AuthMethods = append(reply.AuthMethods, lookupAuthMethod)
+		}
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
+// DeleteAuthMethods is used to delete auth methods
+func (a *ACL) DeleteAuthMethods(
+	args *structs.ACLAuthMethodDeleteRequest,
+	reply *structs.ACLAuthMethodDeleteResponse) error {
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(
+		structs.ACLDeleteAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
+
+	// ACL auth methods can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
+			minACLAuthMethodVersion)
+	}
+
+	// Check management level permissions
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of auth methods
+	if len(args.Names) == 0 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
+	}
+
+	// Update via Raft
+	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
+// ListAuthMethods returns a list of ACL auth methods
+func (a *ACL) ListAuthMethods(
+	args *structs.ACLAuthMethodListRequest,
+	reply *structs.ACLAuthMethodListResponse) error {
+	// Only allow operators to list auth methods when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(
+		structs.ACLListAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "list_auth_methods"}, time.Now())
+
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if acl == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// The iteration below appends directly to the reply object, so in
+			// order for blocking queries to work properly we must ensure the
+			// auth methods are reset. This allows the blocking query run
+			// function to work as expected.
+			reply.AuthMethods = nil
+
+			iter, err := stateStore.GetACLAuthMethods(ws)
+			if err != nil {
+				return err
+			}
+
+			// Iterate all the results and add these to our reply object.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				method := raw.(*structs.ACLAuthMethod)
+				reply.AuthMethods = append(reply.AuthMethods, method.Stub())
+			}
+
+			// Use the index table to populate the query meta
+			return a.srv.setReplyQueryMeta(
+				stateStore, state.TableACLAuthMethods, &reply.QueryMeta,
+			)
+		},
+	})
+}
+
+func (a *ACL) GetAuthMethod(
+	args *structs.ACLAuthMethodGetRequest,
+	reply *structs.ACLAuthMethodGetResponse) error {
+
+	// Only allow operators to read an auth method when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(
+		structs.ACLGetAuthMethodRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
+
+	// Resolve the token and ensure it has some form of permissions.
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Perform a lookup
+			out, err := stateStore.GetACLAuthMethodByName(ws, args.MethodName)
+			if err != nil {
+				return err
+			}
+
+			// Set the index correctly depending on whether the auth method was
+			// found.
+			switch out {
+			case nil:
+				index, err := stateStore.Index(state.TableACLAuthMethods)
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			default:
+				reply.Index = out.ModifyIndex
+			}
+
+			// We didn't encounter an error looking up the index; set the auth
+			// method on the reply and exit successfully.
+			reply.AuthMethod = out
+			return nil
+		},
+	})
+}
+
+// GetAuthMethods is used to get a set of auth methods
+func (a *ACL) GetAuthMethods(
+	args *structs.ACLAuthMethodsGetRequest,
+	reply *structs.ACLAuthMethodsGetResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	if done, err := a.srv.forward(
+		structs.ACLGetAuthMethodsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_methods"}, time.Now())
+
+	// allow only management token holders to query this endpoint
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if token == nil {
+		return structs.ErrTokenNotFound
+	}
+	if token.Type != structs.ACLManagementToken {
+		return structs.ErrPermissionDenied
+	}
+
+	// Setup the blocking query
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, statestore *state.StateStore) error {
+			// Setup the output
+			reply.AuthMethods = make(map[string]*structs.ACLAuthMethod, len(args.Names))
+
+			// Look for the auth method
+			for _, methodName := range args.Names {
+				out, err := statestore.GetACLAuthMethodByName(ws, methodName)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.AuthMethods[methodName] = out
+				}
+			}
+
+			// Use the index table to populate the query meta
+			return a.srv.setReplyQueryMeta(
+				statestore, state.TableACLAuthMethods, &reply.QueryMeta,
+			)
+		}},
+	)
+}
+
+// WhoAmI is a RPC for debugging authentication. This endpoint returns the same
+// AuthenticatedIdentity that will be used by RPC handlers.
+//
+// TODO: At some point we might want to give this an equivalent HTTP endpoint
+// once other Workload Identity work is solidified
+func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIResponse) error {
+
+	identity, err := a.srv.Authenticate(a.ctx, args.AuthToken)
+	if err != nil {
+		return err
+	}
+	args.SetIdentity(identity)
+
+	if done, err := a.srv.forward("ACL.WhoAmI", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "whoami"}, time.Now())
+
+	reply.Identity = args.GetIdentity()
+	return nil
 }

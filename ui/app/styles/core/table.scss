@@ -7,6 +7,13 @@
   border-collapse: separate;
   width: 100%;
 
+  &:not(.no-mobile-condense) {
+    @media #{$mq-table-overflow} {
+      display: block;
+      overflow-x: auto;
+    }
+  }
+
   &.is-fixed {
     table-layout: fixed;
 
@@ -132,7 +139,6 @@
 
       &.is-primary {
         color: $text;
-        text-decoration: none;
         font-weight: $weight-semibold;
       }
     }

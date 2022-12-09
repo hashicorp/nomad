@@ -40,7 +40,7 @@ job "docs" {
     }
 
     task "server" {
-      # Prefer nodes where "my_custom_value" is greater than 5
+      # Prefer nodes where "my_custom_value" is greater than 3
       affinity {
         attribute = "${meta.my_custom_value}"
         operator  = ">"

@@ -45,6 +45,15 @@ rules:
           ...
           ... := $T.handleMixedAuthEndpoint(...)
           ...
+      # Pattern used by endpoints that support both normal ACLs and
+      # workload identity but break authentication and authorization up
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := $T.authorize(...)
+          ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
           if done, err := $A.$B.forward($METHOD, ...); done {
@@ -52,6 +61,12 @@ rules:
           }
           ...
           return $A.deregister(...)
+          ...
+      # Pattern used by Authenticate method.
+      # TODO: add authorization steps as well.
+      - pattern-not-inside: |
+          ...
+          ... := $A.$B.Authenticate($A.ctx, args.AuthToken)
           ...
       - metavariable-pattern:
           metavariable: $METHOD

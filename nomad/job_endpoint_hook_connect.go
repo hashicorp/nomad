@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -583,7 +583,7 @@ func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 	}
 
 	modes := []string{"bridge", "host"}
-	if !helper.SliceStringContains(modes, g.Networks[0].Mode) {
+	if !slices.Contains(modes, g.Networks[0].Mode) {
 		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
 	}
 

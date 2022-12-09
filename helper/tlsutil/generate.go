@@ -105,7 +105,7 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 	}
 	name := opts.Name
 	if name == "" {
-		name = fmt.Sprintf("Consul Agent CA %d", sn)
+		name = fmt.Sprintf("Nomad Agent CA %d", sn)
 	}
 
 	days := opts.Days
@@ -227,6 +227,21 @@ func keyID(raw interface{}) ([]byte, error) {
 	// String formatted
 	kID := sha256.Sum256(bs)
 	return kID[:], nil
+}
+
+// ParseCert parses the x509 certificate from a PEM-encoded value.
+func ParseCert(pemValue string) (*x509.Certificate, error) {
+	// The _ result below is not an error but the remaining PEM bytes.
+	block, _ := pem.Decode([]byte(pemValue))
+	if block == nil {
+		return nil, fmt.Errorf("no PEM-encoded data found")
+	}
+
+	if block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("first PEM-block should be CERTIFICATE type")
+	}
+
+	return x509.ParseCertificate(block.Bytes)
 }
 
 func parseCert(pemValue string) (*x509.Certificate, error) {

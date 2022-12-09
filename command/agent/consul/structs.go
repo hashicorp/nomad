@@ -17,8 +17,10 @@ func BuildAllocServices(
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	ws := &serviceregistration.WorkloadServices{
-		AllocID:  alloc.ID,
-		Group:    alloc.TaskGroup,
+		AllocInfo: structs.AllocInfo{
+			AllocID: alloc.ID,
+			Group:   alloc.TaskGroup,
+		},
 		Services: taskenv.InterpolateServices(taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(), tg.Services),
 		Networks: alloc.AllocatedResources.Shared.Networks,
 

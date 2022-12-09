@@ -18,6 +18,8 @@ const (
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
+	TableACLAuthMethods       = "acl_auth_methods"
+	TableAllocs               = "allocs"
 )
 
 const (
@@ -31,6 +33,7 @@ const (
 	indexKeyID         = "key_id"
 	indexPath          = "path"
 	indexName          = "name"
+	indexSigningKey    = "signing_key"
 )
 
 var (
@@ -83,6 +86,7 @@ func init() {
 		variablesQuotasTableSchema,
 		variablesRootKeyMetaSchema,
 		aclRolesTableSchema,
+		aclAuthMethodsTableSchema,
 	}...)
 }
 
@@ -684,6 +688,35 @@ func allocTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "DeploymentID",
+				},
+			},
+
+			// signing_key index is used to lookup live allocations by signing
+			// key ID
+			indexSigningKey: {
+				Name:         indexSigningKey,
+				AllowMissing: true, // terminal allocations won't be indexed
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "SigningKeyID",
+						},
+						&memdb.ConditionalIndex{
+							Conditional: func(obj interface{}) (bool, error) {
+								alloc, ok := obj.(*structs.Allocation)
+								if !ok {
+									return false, fmt.Errorf(
+										"wrong type, got %t should be Allocation", obj)
+								}
+								// note: this isn't alloc.TerminalStatus(),
+								// because we only want to consider the key
+								// unused if the allocation is terminal on both
+								// server and client
+								return !(alloc.ClientTerminalStatus() && alloc.ServerTerminalStatus()), nil
+							},
+						},
+					},
 				},
 			},
 		},
@@ -1476,6 +1509,22 @@ func aclRolesTableSchema() *memdb.TableSchema {
 			},
 			indexName: {
 				Name:         indexName,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+		},
+	}
+}
+
+func aclAuthMethodsTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLAuthMethods,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{

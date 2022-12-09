@@ -1052,3 +1052,19 @@ func TestWaitConfig(t *testing.T) {
 	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
 }
+
+func TestErrMissingKey(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/template-err-missing-key.hcl")
+	require.NoError(t, err)
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/template-err-missing-key.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	require.NoError(t, err)
+	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
+	require.NotNil(t, tmpl)
+	require.NotNil(t, tmpl.ErrMissingKey)
+	require.True(t, *tmpl.ErrMissingKey)
+}

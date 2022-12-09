@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler (Enterprise): Fixed bug where the scheduler would treat multiregion jobs as paused for job types that don't use deployments
+```

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -51,7 +52,7 @@ func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 	// Connect to vault and parse its information
 	status, err := f.client.Sys().SealStatus()
 	if err != nil {
-		f.clearVaultAttributes(resp)
+
 		// Print a message indicating that Vault is not available anymore
 		if f.lastState == vaultAvailable {
 			f.logger.Info("Vault is unavailable")
@@ -78,12 +79,11 @@ func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 }
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
+	if f.lastState == vaultAvailable {
+		// Fingerprint infrequently once Vault is initially discovered with wide
+		// jitter to avoid thundering herds of fingerprints against central Vault
+		// servers.
+		return true, (30 * time.Second) + helper.RandomStagger(90*time.Second)
+	}
 	return true, 15 * time.Second
-}
-
-func (f *VaultFingerprint) clearVaultAttributes(r *FingerprintResponse) {
-	r.RemoveAttribute("vault.accessible")
-	r.RemoveAttribute("vault.version")
-	r.RemoveAttribute("vault.cluster_id")
-	r.RemoveAttribute("vault.cluster_name")
 }

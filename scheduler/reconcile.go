@@ -231,24 +231,35 @@ func (a *allocReconciler) computeDeploymentComplete(m allocMatrix) bool {
 }
 
 func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
-	// Mark the deployment as complete if possible
-	if a.deployment != nil && deploymentComplete {
-		if a.job.IsMultiregion() {
-			// the unblocking/successful states come after blocked, so we
-			// need to make sure we don't revert those states
-			if a.deployment.Status != structs.DeploymentStatusUnblocking &&
-				a.deployment.Status != structs.DeploymentStatusSuccessful {
+	if a.deployment != nil {
+		// Mark the deployment as complete if possible
+		if deploymentComplete {
+			if a.job.IsMultiregion() {
+				// the unblocking/successful states come after blocked, so we
+				// need to make sure we don't revert those states
+				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
+					a.deployment.Status != structs.DeploymentStatusSuccessful {
+					a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      a.deployment.ID,
+						Status:            structs.DeploymentStatusBlocked,
+						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					})
+				}
+			} else {
 				a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 					DeploymentID:      a.deployment.ID,
-					Status:            structs.DeploymentStatusBlocked,
-					StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					Status:            structs.DeploymentStatusSuccessful,
+					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 				})
 			}
-		} else {
+		}
+
+		// Mark the deployment as pending since its state is now computed.
+		if a.deployment.Status == structs.DeploymentStatusInitializing {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
-				Status:            structs.DeploymentStatusSuccessful,
-				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+				Status:            structs.DeploymentStatusPending,
+				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
 			})
 		}
 	}
@@ -265,19 +276,21 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	}
 }
 
+// computeDeploymentPaused is responsible for setting flags on the
+// allocReconciler that indicate the state of the deployment if one
+// is required. The flags that are managed are:
+//  1. deploymentFailed: Did the current deployment fail just as named.
+//  2. deploymentPaused: Set to true when the current deployment is paused,
+//     which is usually a manual user operation, or if the deployment is
+//     pending or initializing, which are the initial states for multi-region
+//     job deployments. This flag tells Compute that we should not make
+//     placements on the deployment.
 func (a *allocReconciler) computeDeploymentPaused() {
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
-			a.deployment.Status == structs.DeploymentStatusPending
+			a.deployment.Status == structs.DeploymentStatusPending ||
+			a.deployment.Status == structs.DeploymentStatusInitializing
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
-	}
-	if a.deployment == nil {
-		// When we create the deployment later, it will be in a pending
-		// state. But we also need to tell Compute we're paused, otherwise we
-		// make placements on the paused deployment.
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() || a.job.IsParameterized()) {
-			a.deploymentPaused = true
-		}
 	}
 }
 
@@ -501,6 +514,12 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
 	a.createDeployment(tg.Name, tg.Update, existingDeployment, dstate, all, destructive)
+
+	// Deployments that are still initializing need to be sent in full in the
+	// plan so its internal state can be persisted by the plan applier.
+	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusInitializing {
+		a.result.deployment = a.deployment
+	}
 
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
 		migrate, rescheduleNow, place, rescheduleLater, requiresCanaries)
@@ -879,11 +898,6 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 	// A previous group may have made the deployment already. If not create one.
 	if a.deployment == nil {
 		a.deployment = structs.NewDeployment(a.job, a.evalPriority)
-		// in multiregion jobs, most deployments start in a pending state
-		if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
-			a.deployment.Status = structs.DeploymentStatusPending
-			a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
-		}
 		a.result.deployment = a.deployment
 	}
 
@@ -1191,7 +1205,12 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 			continue
 		}
 
-		a.result.reconnectUpdates[alloc.ID] = alloc
+		// Record the new ClientStatus to indicate to future evals that the
+		// alloc has already reconnected.
+		// Use a copy to prevent mutating the object from statestore.
+		reconnectedAlloc := alloc.Copy()
+		reconnectedAlloc.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
+		a.result.reconnectUpdates[reconnectedAlloc.ID] = reconnectedAlloc
 	}
 }
 

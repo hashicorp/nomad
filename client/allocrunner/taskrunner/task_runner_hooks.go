@@ -123,7 +123,7 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 		alloc:             tr.Alloc(),
 		task:              tr.Task(),
-		namespace:         serviceProviderNamespace,
+		providerNamespace: serviceProviderNamespace,
 		serviceRegWrapper: tr.serviceRegWrapper,
 		restarter:         tr,
 		logger:            hookLogger,

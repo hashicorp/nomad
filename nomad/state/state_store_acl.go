@@ -139,7 +139,7 @@ func (s *StateStore) upsertACLRoleTxn(
 		// If the role already exists, check whether the update contains any
 		// difference. If it doesn't, we can avoid a state update as wel as
 		// updates to any blocking queries.
-		if existing.Equals(role) {
+		if existing.Equal(role) {
 			return false, nil
 		}
 
@@ -183,18 +183,8 @@ func (s *StateStore) DeleteACLRolesByID(
 	defer txn.Abort()
 
 	for _, roleID := range roleIDs {
-
-		existing, err := txn.First(TableACLRoles, indexID, roleID)
-		if err != nil {
-			return fmt.Errorf("ACL role lookup failed: %v", err)
-		}
-		if existing == nil {
-			return errors.New("ACL role not found")
-		}
-
-		// Delete the existing entry from the table.
-		if err := txn.Delete(TableACLRoles, existing); err != nil {
-			return fmt.Errorf("ACL role deletion failed: %v", err)
+		if err := s.deleteACLRoleByIDTxn(txn, roleID); err != nil {
+			return err
 		}
 	}
 
@@ -204,6 +194,26 @@ func (s *StateStore) DeleteACLRolesByID(
 	}
 
 	return txn.Commit()
+}
+
+// deleteACLRoleByIDTxn deletes a single ACL role from the state store using the
+// provided write transaction. It is the responsibility of the caller to update
+// the index table.
+func (s *StateStore) deleteACLRoleByIDTxn(txn *txn, roleID string) error {
+
+	existing, err := txn.First(TableACLRoles, indexID, roleID)
+	if err != nil {
+		return fmt.Errorf("ACL role lookup failed: %v", err)
+	}
+	if existing == nil {
+		return errors.New("ACL role not found")
+	}
+
+	// Delete the existing entry from the table.
+	if err := txn.Delete(TableACLRoles, existing); err != nil {
+		return fmt.Errorf("ACL role deletion failed: %v", err)
+	}
+	return nil
 }
 
 // GetACLRoles returns an iterator that contains all ACL roles stored within

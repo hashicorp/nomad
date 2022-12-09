@@ -171,6 +171,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.EnableDebug = agentConfig.EnableDebug
 
 	conf.Build = agentConfig.Version.VersionNumber()
+	conf.Revision = agentConfig.Version.Revision
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}
@@ -390,6 +391,27 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.ACLTokenExpirationGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.RootKeyGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyGCThreshold = dur
+	}
+	if gcInterval := agentConfig.Server.RootKeyGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyGCInterval = dur
+	}
+	if rotationThreshold := agentConfig.Server.RootKeyRotationThreshold; rotationThreshold != "" {
+		dur, err := time.ParseDuration(rotationThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.RootKeyRotationThreshold = dur
+	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {
 		conf.HeartbeatGrace = heartbeatGrace
@@ -534,7 +556,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// Setup the logging
 	c.Logger = a.logger
-	c.LogOutput = a.logOutput
 
 	// If we are running a server, append both its bind and advertise address so
 	// we are able to at least talk to the local server even if that isn't
@@ -590,7 +611,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.Servers = agentConfig.Client.Servers
-	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
 
@@ -720,6 +740,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
+	conf.ACLRoleTTL = agentConfig.ACL.RoleTTL
 
 	// Setup networking configuration
 	conf.CNIPath = agentConfig.Client.CNIPath

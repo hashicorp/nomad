@@ -12,7 +12,6 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.EvalUpdateRequestType:                        structs.TypeEvalUpdated,
 	structs.AllocClientUpdateRequestType:                 structs.TypeAllocationUpdated,
 	structs.JobRegisterRequestType:                       structs.TypeJobRegistered,
-	structs.AllocUpdateRequestType:                       structs.TypeAllocationUpdated,
 	structs.NodeUpdateStatusRequestType:                  structs.TypeNodeEvent,
 	structs.JobDeregisterRequestType:                     structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:                structs.TypeJobBatchDeregistered,
@@ -28,6 +27,10 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ACLTokenUpsertRequestType:                    structs.TypeACLTokenUpserted,
 	structs.ACLPolicyDeleteRequestType:                   structs.TypeACLPolicyDeleted,
 	structs.ACLPolicyUpsertRequestType:                   structs.TypeACLPolicyUpserted,
+	structs.ACLRolesDeleteByIDRequestType:                structs.TypeACLRoleDeleted,
+	structs.ACLRolesUpsertRequestType:                    structs.TypeACLRoleUpserted,
+	structs.ACLAuthMethodsUpsertRequestType:              structs.TypeACLAuthMethodUpserted,
+	structs.ACLAuthMethodsDeleteRequestType:              structs.TypeACLAuthMethodDeleted,
 	structs.ServiceRegistrationUpsertRequestType:         structs.TypeServiceRegistration,
 	structs.ServiceRegistrationDeleteByIDRequestType:     structs.TypeServiceDeregistration,
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
@@ -75,6 +78,31 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:   before.Name,
 				Payload: &structs.ACLPolicyEvent{
 					ACLPolicy: before,
+				},
+			}, true
+		case TableACLRoles:
+			before, ok := change.Before.(*structs.ACLRole)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic:      structs.TopicACLRole,
+				Key:        before.ID,
+				FilterKeys: []string{before.Name},
+				Payload: &structs.ACLRoleStreamEvent{
+					ACLRole: before,
+				},
+			}, true
+		case TableACLAuthMethods:
+			before, ok := change.Before.(*structs.ACLAuthMethod)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicACLAuthMethod,
+				Key:   before.Name,
+				Payload: &structs.ACLAuthMethodEvent{
+					AuthMethod: before,
 				},
 			}, true
 		case "nodes":
@@ -134,6 +162,31 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:   after.Name,
 			Payload: &structs.ACLPolicyEvent{
 				ACLPolicy: after,
+			},
+		}, true
+	case TableACLRoles:
+		after, ok := change.After.(*structs.ACLRole)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic:      structs.TopicACLRole,
+			Key:        after.ID,
+			FilterKeys: []string{after.Name},
+			Payload: &structs.ACLRoleStreamEvent{
+				ACLRole: after,
+			},
+		}, true
+	case TableACLAuthMethods:
+		after, ok := change.After.(*structs.ACLAuthMethod)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicACLAuthMethod,
+			Key:   after.Name,
+			Payload: &structs.ACLAuthMethodEvent{
+				AuthMethod: after,
 			},
 		}, true
 	case "evals":

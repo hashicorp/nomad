@@ -71,4 +71,22 @@ export default class TaskSubRowComponent extends Component {
     } while (this.enablePolling);
   }).drop())
   fetchStats;
+
+  //#region Logs Sidebar
+
+  @alias('args.active') shouldShowLogs;
+
+  @action handleTaskLogsClick(task) {
+    if (this.args.onSetActiveTask) {
+      this.args.onSetActiveTask(task);
+    }
+  }
+
+  @action closeSidebar() {
+    if (this.args.onSetActiveTask) {
+      this.args.onSetActiveTask(null);
+    }
+  }
+
+  //#endregion Logs Sidebar
 }

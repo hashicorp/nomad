@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -206,6 +207,10 @@ var (
 	// errMissingACLRoleID is the generic errors to use when a call is missing
 	// the required ACL Role ID parameter.
 	errMissingACLRoleID = errors.New("missing ACL role ID")
+
+	// errMissingACLAuthMethodName is the generic error to use when a call is
+	// missing the required ACL auth-method name parameter.
+	errMissingACLAuthMethodName = errors.New("missing ACL auth-method name")
 )
 
 // ACLRoles is used to query the ACL Role endpoints.
@@ -286,6 +291,78 @@ func (a *ACLRoles) GetByName(roleName string, q *QueryOptions) (*ACLRole, *Query
 	}
 	var resp ACLRole
 	qm, err := a.client.query("/v1/acl/role/name/"+roleName, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// ACLAuthMethods is used to query the ACL auth-methods endpoints.
+type ACLAuthMethods struct {
+	client *Client
+}
+
+// ACLAuthMethods returns a new handle on the ACL auth-methods API client.
+func (c *Client) ACLAuthMethods() *ACLAuthMethods {
+	return &ACLAuthMethods{client: c}
+}
+
+// List is used to detail all the ACL auth-methods currently stored within
+// state.
+func (a *ACLAuthMethods) List(q *QueryOptions) ([]*ACLAuthMethodListStub, *QueryMeta, error) {
+	var resp []*ACLAuthMethodListStub
+	qm, err := a.client.query("/v1/acl/auth-methods", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Create is used to create an ACL auth-method.
+func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*ACLAuthMethod, *WriteMeta, error) {
+	if authMethod.Name == "" {
+		return nil, nil, errMissingACLAuthMethodName
+	}
+	var resp ACLAuthMethod
+	wm, err := a.client.write("/v1/acl/auth-method", authMethod, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Update is used to update an existing ACL auth-method.
+func (a *ACLAuthMethods) Update(authMethod *ACLAuthMethod, w *WriteOptions) (*ACLAuthMethod, *WriteMeta, error) {
+	if authMethod.Name == "" {
+		return nil, nil, errMissingACLAuthMethodName
+	}
+	var resp ACLAuthMethod
+	wm, err := a.client.write("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Delete is used to delete an ACL auth-method.
+func (a *ACLAuthMethods) Delete(authMethodName string, w *WriteOptions) (*WriteMeta, error) {
+	if authMethodName == "" {
+		return nil, errMissingACLAuthMethodName
+	}
+	wm, err := a.client.delete("/v1/acl/auth-method/"+authMethodName, nil, nil, w)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// Get is used to look up an ACL auth-method.
+func (a *ACLAuthMethods) Get(authMethodName string, q *QueryOptions) (*ACLAuthMethod, *QueryMeta, error) {
+	if authMethodName == "" {
+		return nil, nil, errMissingACLAuthMethodName
+	}
+	var resp ACLAuthMethod
+	qm, err := a.client.query("/v1/acl/auth-method/"+authMethodName, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -475,3 +552,118 @@ type ACLRoleListStub struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 }
+
+// ACLAuthMethod is used to capture the properties of an authentication method
+// used for single sing-on.
+type ACLAuthMethod struct {
+
+	// Name is the identifier for this auth-method and is a required parameter.
+	Name string
+
+	// Type is the SSO identifier this auth-method is. Nomad currently only
+	// supports "oidc" and the API contains ACLAuthMethodTypeOIDC for
+	// convenience.
+	Type string
+
+	// Defines whether the auth-method creates a local or global token when
+	// performing SSO login. This should be set to either "local" or "global"
+	// and the API contains ACLAuthMethodTokenLocalityLocal and
+	// ACLAuthMethodTokenLocalityGlobal for convenience.
+	TokenLocality string
+
+	// MaxTokenTTL is the maximum life of a token created by this method.
+	MaxTokenTTL time.Duration
+
+	// Default identifies whether this is the default auth-method to use when
+	// attempting to login without specifying an auth-method name to use.
+	Default bool
+
+	// Config contains the detailed configuration which is specific to the
+	// auth-method.
+	Config *ACLAuthMethodConfig
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLAuthMethodConfig is used to store configuration of an auth method.
+type ACLAuthMethodConfig struct {
+	OIDCDiscoveryURL    string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	BoundAudiences      []string
+	AllowedRedirectURIs []string
+	DiscoveryCaPem      []string
+	SigningAlgs         []string
+	ClaimMappings       map[string]string
+	ListClaimMappings   map[string]string
+}
+
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be marshaled correctly.
+func (m *ACLAuthMethod) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethod
+	exported := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		MaxTokenTTL: m.MaxTokenTTL.String(),
+		Alias:       (*Alias)(m),
+	}
+	if m.MaxTokenTTL == 0 {
+		exported.MaxTokenTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be unmarshalled correctly.
+func (m *ACLAuthMethod) UnmarshalJSON(data []byte) error {
+	type Alias ACLAuthMethod
+	aux := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		Alias: (*Alias)(m),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	var err error
+	if aux.MaxTokenTTL != "" {
+		if m.MaxTokenTTL, err = time.ParseDuration(aux.MaxTokenTTL); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ACLAuthMethodListStub is the stub object returned when performing a listing
+// of ACL auth-methods. It is intentionally minimal due to the unauthenticated
+// nature of the list endpoint.
+type ACLAuthMethodListStub struct {
+	Name    string
+	Type    string
+	Default bool
+	Hash    []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+const (
+	// ACLAuthMethodTokenLocalityLocal is the ACLAuthMethod.TokenLocality that
+	// will generate ACL tokens which can only be used on the local cluster the
+	// request was made.
+	ACLAuthMethodTokenLocalityLocal = "local"
+
+	// ACLAuthMethodTokenLocalityGlobal is the ACLAuthMethod.TokenLocality that
+	// will generate ACL tokens which can be used on all federated clusters.
+	ACLAuthMethodTokenLocalityGlobal = "global"
+
+	// ACLAuthMethodTypeOIDC the ACLAuthMethod.Type and represents an
+	// auth-method which uses the OIDC protocol.
+	ACLAuthMethodTypeOIDC = "OIDC"
+)

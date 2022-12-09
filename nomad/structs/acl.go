@@ -2,12 +2,15 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"golang.org/x/crypto/blake2b"
@@ -77,6 +80,40 @@ const (
 	// Args: ACLRoleByNameRequest
 	// Reply: ACLRoleByNameResponse
 	ACLGetRoleByNameRPCMethod = "ACL.GetRoleByName"
+
+	// ACLUpsertAuthMethodsRPCMethod is the RPC method for batch creating or
+	// modifying auth methods.
+	//
+	// Args: ACLAuthMethodsUpsertRequest
+	// Reply: ACLAuthMethodUpsertResponse
+	ACLUpsertAuthMethodsRPCMethod = "ACL.UpsertAuthMethods"
+
+	// ACLDeleteAuthMethodsRPCMethod is the RPC method for batch deleting auth
+	// methods.
+	//
+	// Args: ACLAuthMethodDeleteRequest
+	// Reply: ACLAuthMethodDeleteResponse
+	ACLDeleteAuthMethodsRPCMethod = "ACL.DeleteAuthMethods"
+
+	// ACLListAuthMethodsRPCMethod is the RPC method for listing auth methods.
+	//
+	// Args: ACLAuthMethodListRequest
+	// Reply: ACLAuthMethodListResponse
+	ACLListAuthMethodsRPCMethod = "ACL.ListAuthMethods"
+
+	// ACLGetAuthMethodRPCMethod is the RPC method for detailing an individual
+	// auth method using its name.
+	//
+	// Args: ACLAuthMethodGetRequest
+	// Reply: ACLAuthMethodGetResponse
+	ACLGetAuthMethodRPCMethod = "ACL.GetAuthMethod"
+
+	// ACLGetAuthMethodsRPCMethod is the RPC method for getting multiple auth
+	// methods using their names.
+	//
+	// Args: ACLAuthMethodsGetRequest
+	// Reply: ACLAuthMethodsGetResponse
+	ACLGetAuthMethodsRPCMethod = "ACL.GetAuthMethods"
 )
 
 const (
@@ -94,6 +131,9 @@ const (
 var (
 	// validACLRoleName is used to validate an ACL role name.
 	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// validACLAuthMethodName is used to validate an ACL auth method name.
+	validACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
@@ -232,6 +272,24 @@ func (a *ACLToken) IsExpired(t time.Time) bool {
 	return a.ExpirationTime.Before(t) || t.IsZero()
 }
 
+// HasRoles checks if a given set of role IDs are assigned to the ACL token. It
+// does not account for management tokens, therefore it is the responsibility
+// of the caller to perform this check, if required.
+func (a *ACLToken) HasRoles(roleIDs []string) bool {
+
+	// Generate a set of role IDs that the token is assigned.
+	roleSet := set.FromFunc(a.Roles, func(roleLink *ACLTokenRoleLink) string { return roleLink.ID })
+
+	// Iterate the role IDs within the request and check whether these are
+	// present within the token assignment.
+	for _, roleID := range roleIDs {
+		if !roleSet.Contains(roleID) {
+			return false
+		}
+	}
+	return true
+}
+
 // ACLRole is an abstraction for the ACL system which allows the grouping of
 // ACL policies into a single object. ACL tokens can be created and linked to
 // a role; the token then inherits all the permissions granted by the policies.
@@ -333,9 +391,9 @@ func (a *ACLRole) Canonicalize() {
 	}
 }
 
-// Equals performs an equality check on the two service registrations. It
+// Equal performs an equality check on the two service registrations. It
 // handles nil objects.
-func (a *ACLRole) Equals(o *ACLRole) bool {
+func (a *ACLRole) Equal(o *ACLRole) bool {
 	if a == nil || o == nil {
 		return a == o
 	}
@@ -496,5 +554,307 @@ type ACLRoleByNameRequest struct {
 // ACL role matching a specific name.
 type ACLRoleByNameResponse struct {
 	ACLRole *ACLRole
+	QueryMeta
+}
+
+// ACLAuthMethod is used to capture the properties of an authentication method
+// used for single sing-on
+type ACLAuthMethod struct {
+	Name          string
+	Type          string
+	TokenLocality string // is the token valid locally or globally?
+	MaxTokenTTL   time.Duration
+	Default       bool
+	Config        *ACLAuthMethodConfig
+
+	Hash []byte
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL auth method. This
+// should be called every and each time a user specified field on the method is
+// changed before updating the Nomad state store.
+func (a *ACLAuthMethod) SetHash() []byte {
+
+	// Initialize a 256bit Blake2 hash (32 bytes).
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Type))
+	_, _ = hash.Write([]byte(a.TokenLocality))
+	_, _ = hash.Write([]byte(a.MaxTokenTTL.String()))
+	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
+
+	if a.Config != nil {
+		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
+		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
+		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		for _, ba := range a.Config.BoundAudiences {
+			_, _ = hash.Write([]byte(ba))
+		}
+		for _, uri := range a.Config.AllowedRedirectURIs {
+			_, _ = hash.Write([]byte(uri))
+		}
+		for _, pem := range a.Config.DiscoveryCaPem {
+			_, _ = hash.Write([]byte(pem))
+		}
+		for _, sa := range a.Config.SigningAlgs {
+			_, _ = hash.Write([]byte(sa))
+		}
+		for k, v := range a.Config.ClaimMappings {
+			_, _ = hash.Write([]byte(k))
+			_, _ = hash.Write([]byte(v))
+		}
+		for k, v := range a.Config.ListClaimMappings {
+			_, _ = hash.Write([]byte(k))
+			_, _ = hash.Write([]byte(v))
+		}
+	}
+
+	// Finalize the hash.
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash.
+	a.Hash = hashVal
+	return hashVal
+}
+
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be marshaled correctly.
+func (a *ACLAuthMethod) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethod
+	exported := &struct {
+		MaxTokenTTL string
+		*Alias
+	}{
+		MaxTokenTTL: a.MaxTokenTTL.String(),
+		Alias:       (*Alias)(a),
+	}
+	if a.MaxTokenTTL == 0 {
+		exported.MaxTokenTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLAuthMethod.MaxTokenTTL to be unmarshalled correctly.
+func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLAuthMethod
+	aux := &struct {
+		MaxTokenTTL interface{}
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.MaxTokenTTL != nil {
+		switch v := aux.MaxTokenTTL.(type) {
+		case string:
+			if a.MaxTokenTTL, err = time.ParseDuration(v); err != nil {
+				return err
+			}
+		case float64:
+			a.MaxTokenTTL = time.Duration(v)
+		}
+	}
+	return nil
+}
+
+func (a *ACLAuthMethod) Stub() *ACLAuthMethodStub {
+	return &ACLAuthMethodStub{
+		Name:        a.Name,
+		Type:        a.Type,
+		Default:     a.Default,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+func (a *ACLAuthMethod) Equal(other *ACLAuthMethod) bool {
+	if a == nil || other == nil {
+		return a == other
+	}
+	if len(a.Hash) == 0 {
+		a.SetHash()
+	}
+	if len(other.Hash) == 0 {
+		other.SetHash()
+	}
+	return bytes.Equal(a.Hash, other.Hash)
+
+}
+
+// Copy creates a deep copy of the ACL auth method. This copy can then be safely
+// modified. It handles nil objects.
+func (a *ACLAuthMethod) Copy() *ACLAuthMethod {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLAuthMethod)
+	*c = *a
+
+	c.Hash = slices.Clone(a.Hash)
+	c.Config = a.Config.Copy()
+
+	return c
+}
+
+// Canonicalize performs basic canonicalization on the ACL auth method object.
+func (a *ACLAuthMethod) Canonicalize() {
+	t := time.Now().UTC()
+
+	if a.CreateTime.IsZero() {
+		a.CreateTime = t
+	}
+	a.ModifyTime = t
+}
+
+// Validate returns an error is the ACLAuthMethod is invalid.
+//
+// TODO revisit possible other validity conditions in the future
+func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
+	var mErr multierror.Error
+
+	if !validACLAuthMethod.MatchString(a.Name) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
+	}
+
+	if !slices.Contains([]string{"local", "global"}, a.TokenLocality) {
+		mErr.Errors = append(
+			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
+	}
+
+	if a.Type != "OIDC" {
+		mErr.Errors = append(
+			mErr.Errors, fmt.Errorf("invalid token type '%s'", a.Type))
+	}
+
+	if minTTL > a.MaxTokenTTL || a.MaxTokenTTL > maxTTL {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf(
+			"invalid MaxTokenTTL value '%s' (should be between %s and %s)",
+			a.MaxTokenTTL.String(), minTTL.String(), maxTTL.String()))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// ACLAuthMethodConfig is used to store configuration of an auth method
+type ACLAuthMethodConfig struct {
+	OIDCDiscoveryURL    string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	BoundAudiences      []string
+	AllowedRedirectURIs []string
+	DiscoveryCaPem      []string
+	SigningAlgs         []string
+	ClaimMappings       map[string]string
+	ListClaimMappings   map[string]string
+}
+
+func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLAuthMethodConfig)
+	*c = *a
+
+	c.BoundAudiences = slices.Clone(a.BoundAudiences)
+	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
+	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
+	c.SigningAlgs = slices.Clone(a.SigningAlgs)
+
+	return c
+}
+
+// ACLAuthMethodStub is used for listing ACL auth methods
+type ACLAuthMethodStub struct {
+	Name    string
+	Type    string
+	Default bool
+
+	// Hash is the hashed value of the auth-method and is generated using all
+	// fields from the full object except the create and modify times and
+	// indexes.
+	Hash []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLAuthMethodListRequest is used to list auth methods
+type ACLAuthMethodListRequest struct {
+	QueryOptions
+}
+
+// ACLAuthMethodListResponse is used to list auth methods
+type ACLAuthMethodListResponse struct {
+	AuthMethods []*ACLAuthMethodStub
+	QueryMeta
+}
+
+// ACLAuthMethodGetRequest is used to query a specific auth method
+type ACLAuthMethodGetRequest struct {
+	MethodName string
+	QueryOptions
+}
+
+// ACLAuthMethodGetResponse is used to return a single auth method
+type ACLAuthMethodGetResponse struct {
+	AuthMethod *ACLAuthMethod
+	QueryMeta
+}
+
+// ACLAuthMethodsGetRequest is used to query a set of auth methods
+type ACLAuthMethodsGetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// ACLAuthMethodsGetResponse is used to return a set of auth methods
+type ACLAuthMethodsGetResponse struct {
+	AuthMethods map[string]*ACLAuthMethod
+	QueryMeta
+}
+
+// ACLAuthMethodUpsertRequest is used to upsert a set of auth methods
+type ACLAuthMethodUpsertRequest struct {
+	AuthMethods []*ACLAuthMethod
+	WriteRequest
+}
+
+// ACLAuthMethodUpsertResponse is a response of the upsert ACL auth methods
+// operation
+type ACLAuthMethodUpsertResponse struct {
+	AuthMethods []*ACLAuthMethod
+	WriteMeta
+}
+
+// ACLAuthMethodDeleteRequest is used to delete a set of auth methods by their
+// name
+type ACLAuthMethodDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLAuthMethodDeleteResponse is a response of the delete ACL auth methods
+// operation
+type ACLAuthMethodDeleteResponse struct {
+	WriteMeta
+}
+
+type ACLWhoAmIResponse struct {
+	Identity *AuthenticatedIdentity
 	QueryMeta
 }

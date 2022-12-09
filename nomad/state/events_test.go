@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -639,10 +640,6 @@ func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestEventsFromChanges_AllocUpdateRequestType(t *testing.T) {
-	t.SkipNow()
-}
-
 func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
 	t.SkipNow()
 }
@@ -1000,6 +997,111 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 
 	eventPayload = receivedChange.Events[0].Payload.(*structs.ServiceRegistrationStreamEvent)
 	require.Equal(t, service, eventPayload.Service)
+}
+
+func Test_eventsFromChanges_ACLRole(t *testing.T) {
+	ci.Parallel(t)
+	testState := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer testState.StopEventBroker()
+
+	// Generate a test ACL role.
+	aclRole := mock.ACLRole()
+
+	// Upsert the role into state, skipping the checks perform to ensure the
+	// linked policies exist.
+	writeTxn := testState.db.WriteTxn(10)
+	updated, err := testState.upsertACLRoleTxn(10, writeTxn, aclRole, true)
+	require.True(t, updated)
+	require.NoError(t, err)
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLRolesUpsertRequestType}
+	receivedChange := eventsFromChanges(writeTxn, upsertChange)
+
+	// Check the event, and it's payload are what we are expecting.
+	require.Len(t, receivedChange.Events, 1)
+	require.Equal(t, structs.TopicACLRole, receivedChange.Events[0].Topic)
+	require.Equal(t, aclRole.ID, receivedChange.Events[0].Key)
+	require.Equal(t, aclRole.Name, receivedChange.Events[0].FilterKeys[0])
+	require.Equal(t, structs.TypeACLRoleUpserted, receivedChange.Events[0].Type)
+	require.Equal(t, uint64(10), receivedChange.Events[0].Index)
+
+	eventPayload := receivedChange.Events[0].Payload.(*structs.ACLRoleStreamEvent)
+	require.Equal(t, aclRole, eventPayload.ACLRole)
+
+	// Delete the previously upserted ACL role.
+	deleteTxn := testState.db.WriteTxn(20)
+	require.NoError(t, testState.deleteACLRoleByIDTxn(deleteTxn, aclRole.ID))
+	require.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLRoles, 20}))
+	deleteTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLRolesDeleteByIDRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
+
+	// Check the event, and it's payload are what we are expecting.
+	require.Len(t, receivedDeleteChange.Events, 1)
+	require.Equal(t, structs.TopicACLRole, receivedDeleteChange.Events[0].Topic)
+	require.Equal(t, aclRole.ID, receivedDeleteChange.Events[0].Key)
+	require.Equal(t, aclRole.Name, receivedDeleteChange.Events[0].FilterKeys[0])
+	require.Equal(t, structs.TypeACLRoleDeleted, receivedDeleteChange.Events[0].Type)
+	require.Equal(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	eventPayload = receivedChange.Events[0].Payload.(*structs.ACLRoleStreamEvent)
+	require.Equal(t, aclRole, eventPayload.ACLRole)
+}
+
+func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
+	ci.Parallel(t)
+	testState := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer testState.StopEventBroker()
+
+	// Generate a test ACL auth method
+	authMethod := mock.ACLAuthMethod()
+
+	// Upsert the auth method straight into state
+	writeTxn := testState.db.WriteTxn(10)
+	updated, err := testState.upsertACLAuthMethodTxn(10, writeTxn, authMethod)
+	must.True(t, updated)
+	must.NoError(t, err)
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLAuthMethodsUpsertRequestType}
+	receivedChange := eventsFromChanges(writeTxn, upsertChange)
+	must.NotNil(t, receivedChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicACLAuthMethod, receivedChange.Events[0].Topic)
+	must.Eq(t, authMethod.Name, receivedChange.Events[0].Key)
+	must.Eq(t, structs.TypeACLAuthMethodUpserted, receivedChange.Events[0].Type)
+	must.Eq(t, uint64(10), receivedChange.Events[0].Index)
+
+	eventPayload := receivedChange.Events[0].Payload.(*structs.ACLAuthMethodEvent)
+	must.Eq(t, authMethod, eventPayload.AuthMethod)
+
+	// Delete the previously upserted auth method
+	deleteTxn := testState.db.WriteTxn(20)
+	must.NoError(t, testState.deleteACLAuthMethodTxn(deleteTxn, authMethod.Name))
+	must.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLAuthMethods, 20}))
+	deleteTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLAuthMethodsDeleteRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
+	must.NotNil(t, receivedDeleteChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicACLAuthMethod, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, authMethod.Name, receivedDeleteChange.Events[0].Key)
+	must.Eq(t, structs.TypeACLAuthMethodDeleted, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	eventPayload = receivedChange.Events[0].Payload.(*structs.ACLAuthMethodEvent)
+	must.Eq(t, authMethod, eventPayload.AuthMethod)
 }
 
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {

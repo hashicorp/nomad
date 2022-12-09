@@ -181,6 +181,16 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 	var stopResp structs.JobDeregisterResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", stopReq, &stopResp))
 
+	// Wait until the Stop is complete
+	testutil.Wait(t, func() (bool, error) {
+		eval, err := state.EvalByID(nil, stopResp.EvalID)
+		must.NoError(t, err)
+		if eval == nil {
+			return false, fmt.Errorf("eval not applied: %s", resp.EvalID)
+		}
+		return eval.Status == structs.EvalStatusComplete, fmt.Errorf("expected eval to be complete but found: %s", eval.Status)
+	})
+
 	// Assert new register blocked
 	req.Job = job.Copy()
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
@@ -1670,7 +1680,7 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Assert constraint was not overridden by the server
 	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
 	require.Len(t, outConstraints, 1)
-	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equals(outConstraints[0]))
+	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
@@ -5103,6 +5113,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	require.Len(t, resp2.Jobs, 1)
 	require.Equal(t, job.ID, resp2.Jobs[0].ID)
 	require.Equal(t, job.Namespace, resp2.Jobs[0].Namespace)
+	require.Nil(t, resp2.Jobs[0].Meta)
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
@@ -5119,6 +5130,22 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	require.Len(t, resp3.Jobs, 1)
 	require.Equal(t, job.ID, resp3.Jobs[0].ID)
 	require.Equal(t, job.Namespace, resp3.Jobs[0].Namespace)
+
+	// Lookup jobs with a meta parameter
+	get = &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    resp2.Jobs[0].ID[:4],
+		},
+		Fields: &structs.JobStubFields{
+			Meta: true,
+		},
+	}
+	var resp4 structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp4)
+	require.NoError(t, err)
+	require.Equal(t, job.Meta["owner"], resp4.Jobs[0].Meta["owner"])
 }
 
 // TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server

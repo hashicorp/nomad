@@ -7,6 +7,10 @@ rules:
       - pattern-not-inside: |
           defer metrics.MeasureSince(...)
 
+      # Metric state is local to the server and therefore must use time.
+      - pattern-not-inside: |
+          defer metrics.MeasureSinceWithLabels(...)
+
       # The timetable's whole point is to roughly track timestamps for Raft log
       # indexes, so it must use time.
       - pattern-not-inside: |

@@ -49,7 +49,6 @@ export default class JobEditor extends Component {
   planOutput = null;
 
   @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
-  @localStorageProperty('nomadMessageJobEditor', true) showEditorMessage;
 
   @computed('planOutput')
   get stage() {
@@ -116,5 +115,15 @@ export default class JobEditor extends Component {
     if (!this.get('config.isTest')) {
       window.scrollTo(0, 0);
     }
+  }
+
+  @action uploadJobSpec(event) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.updateCode(reader.result);
+    };
+
+    const [file] = event.target.files;
+    reader.readAsText(file);
   }
 }

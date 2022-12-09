@@ -212,7 +212,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 			return false, err
 		}
 		for _, s := range consulServices {
-			if helper.CompareSliceSetString([]string{"canary", "foo"}, s.ServiceTags) {
+			if helper.SliceSetEq([]string{"canary", "foo"}, s.ServiceTags) {
 				return true, nil
 			}
 		}
@@ -247,7 +247,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 			return false, err
 		}
 		for _, s := range consulServices {
-			if !helper.CompareSliceSetString(expected, s.ServiceTags) {
+			if !helper.SliceSetEq(expected, s.ServiceTags) {
 				return false, fmt.Errorf("expected %#v Consul tags but found %#v",
 					expected, s.ServiceTags)
 			}

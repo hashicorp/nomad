@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: add trace logging around service registrations
+```

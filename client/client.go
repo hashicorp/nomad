@@ -58,6 +58,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -297,6 +298,9 @@ type Client struct {
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
 
+	// fingerprintManager is the FingerprintManager registered by the client
+	fingerprintManager *FingerprintManager
+
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
@@ -395,7 +399,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
-		getter:               getter.NewGetter(cfg.Artifact),
+		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -440,14 +444,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	fingerprintManager := NewFingerprintManager(
+	c.fingerprintManager = NewFingerprintManager(
 		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
 
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if err := fingerprintManager.Run(); err != nil {
+	if err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
@@ -741,6 +745,8 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	if shouldReloadTLS {
 		return c.reloadTLSConnections(newConfig.TLSConfig)
 	}
+
+	c.fingerprintManager.Reload()
 
 	return nil
 }
@@ -1565,7 +1571,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.Resources.Networks = updateNetworks(
 			response.Resources.Networks,
 			newConfig)
-		if !newConfig.Node.Resources.Equals(response.Resources) {
+		if !newConfig.Node.Resources.Equal(response.Resources) {
 			newConfig.Node.Resources.Merge(response.Resources)
 			nodeHasChanged = true
 		}
@@ -1577,7 +1583,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.NodeResources.Networks = updateNetworks(
 			response.NodeResources.Networks,
 			newConfig)
-		if !newConfig.Node.NodeResources.Equals(response.NodeResources) {
+		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
@@ -2473,8 +2479,11 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
-	// Reconnect unknown allocations
-	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+	// Reconnect unknown allocations if they were updated and are not terminal.
+	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
+		update.AllocModifyIndex > ar.Alloc().AllocModifyIndex &&
+		!update.ServerTerminalStatus()
+	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
 			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "error", err)
@@ -2740,7 +2749,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
-	m := helper.CopyMapStringString(resp.Tokens)
+	m := maps.Clone(resp.Tokens)
 	return m, nil
 }
 

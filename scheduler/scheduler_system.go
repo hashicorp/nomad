@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -76,7 +77,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+			s.logger.Error("processing eval panicked scheduler - please report this as a bug!", "eval_id", eval.ID, "error", r, "stack_trace", string(debug.Stack()))
+			err = fmt.Errorf("failed to process eval: %v", r)
 		}
 	}()
 
@@ -231,11 +233,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
-
-	s.logger.Debug("reconciled current state with desired state",
-		"place", len(diff.place), "update", len(diff.update),
-		"migrate", len(diff.migrate), "stop", len(diff.stop),
-		"ignore", len(diff.ignore), "lost", len(diff.lost))
+	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", diff))
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
@@ -257,8 +255,13 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.plan.AppendUnknownAlloc(e.Alloc)
 	}
 
-	// Attempt to do the upgrades in place
-	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
+	// Attempt to do the upgrades in place.
+	// Reconnecting allocations need to be updated to persists alloc state
+	// changes.
+	updates := make([]allocTuple, 0, len(diff.update)+len(diff.reconnecting))
+	updates = append(updates, diff.update...)
+	updates = append(updates, diff.reconnecting...)
+	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates)
 	diff.update = destructiveUpdates
 
 	if s.eval.AnnotatePlan {

@@ -372,14 +372,17 @@ func TestParse(t *testing.T) {
 								},
 								Templates: []*api.Template{
 									{
-										SourcePath:   stringToPtr("foo"),
-										DestPath:     stringToPtr("foo"),
-										ChangeMode:   stringToPtr("foo"),
-										ChangeSignal: stringToPtr("foo"),
-										Splay:        timeToPtr(10 * time.Second),
-										Perms:        stringToPtr("0644"),
-										Envvars:      boolToPtr(true),
-										VaultGrace:   timeToPtr(33 * time.Second),
+										SourcePath:    stringToPtr("foo"),
+										DestPath:      stringToPtr("foo"),
+										ChangeMode:    stringToPtr("foo"),
+										ChangeSignal:  stringToPtr("foo"),
+										Splay:         timeToPtr(10 * time.Second),
+										Perms:         stringToPtr("0644"),
+										Envvars:       boolToPtr(true),
+										Uid:           intToPtr(-1),
+										Gid:           intToPtr(-1),
+										VaultGrace:    timeToPtr(33 * time.Second),
+										ErrMissingKey: boolToPtr(true),
 									},
 									{
 										SourcePath: stringToPtr("bar"),
@@ -391,12 +394,13 @@ func TestParse(t *testing.T) {
 											Timeout:     timeToPtr(5 * time.Second),
 											FailOnError: boolToPtr(false),
 										},
-										Splay:      timeToPtr(5 * time.Second),
-										Perms:      stringToPtr("777"),
-										Uid:        intToPtr(1001),
-										Gid:        intToPtr(20),
-										LeftDelim:  stringToPtr("--"),
-										RightDelim: stringToPtr("__"),
+										Splay:         timeToPtr(5 * time.Second),
+										Perms:         stringToPtr("777"),
+										Uid:           intToPtr(1001),
+										Gid:           intToPtr(20),
+										LeftDelim:     stringToPtr("--"),
+										RightDelim:    stringToPtr("__"),
+										ErrMissingKey: boolToPtr(false),
 									},
 								},
 								Leader:     true,
@@ -627,6 +631,13 @@ func TestParse(t *testing.T) {
 										GetterSource:  stringToPtr("http://foo.com/bam"),
 										GetterOptions: nil,
 										RelativeDest:  stringToPtr("var/foo"),
+									},
+									{
+										GetterSource: stringToPtr("https://example.com/file.txt"),
+										GetterHeaders: map[string]string{
+											"User-Agent":    "nomad",
+											"X-Nomad-Alloc": "alloc",
+										},
 									},
 								},
 							},
@@ -1912,4 +1923,29 @@ func TestIncorrectKey(t *testing.T) {
 	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service (0): 'foo', check -> invalid key: nterval") {
 		t.Fatalf("Expected key error; got %v", err)
 	}
+}
+
+// TestPortParsing validates that the removal of the mapstructure tags on the
+// Port struct don't cause issues with HCL 1 parsing.
+//
+// TODO: in the future, see if we need `mapstructure` tags on any of the API
+func TestPortParsing(t *testing.T) {
+	ci.Parallel(t)
+
+	var err error
+	var path string
+	var job *api.Job
+
+	path, err = filepath.Abs(filepath.Join("./test-fixtures", "parse-ports.hcl"))
+	require.NoError(t, err, "Can't get absolute path for file: parse-ports.hcl")
+
+	job, err = ParseFile(path)
+	require.NoError(t, err, "cannot parse job")
+	require.NotNil(t, job)
+	require.Len(t, job.TaskGroups, 1)
+	require.Len(t, job.TaskGroups[0].Networks, 1)
+	require.Len(t, job.TaskGroups[0].Networks[0].ReservedPorts, 1)
+	require.Len(t, job.TaskGroups[0].Networks[0].DynamicPorts, 1)
+	require.Equal(t, 9000, job.TaskGroups[0].Networks[0].ReservedPorts[0].Value)
+	require.Equal(t, 0, job.TaskGroups[0].Networks[0].DynamicPorts[0].Value)
 }

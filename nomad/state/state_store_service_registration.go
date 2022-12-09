@@ -60,7 +60,7 @@ func (s *StateStore) upsertServiceRegistrationTxn(
 	// Set up the indexes correctly to ensure existing indexes are maintained.
 	if existing != nil {
 		exist := existing.(*structs.ServiceRegistration)
-		if exist.Equals(service) {
+		if exist.Equal(service) {
 			return false, nil
 		}
 		service.CreateIndex = exist.CreateIndex

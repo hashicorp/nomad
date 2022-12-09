@@ -23,7 +23,7 @@ env:
 
 jobs:
   prepare-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
     steps:

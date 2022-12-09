@@ -7,7 +7,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // MockNamespaces is a mock implementation of NamespaceAPI.
@@ -20,8 +21,8 @@ var _ NamespaceAPI = (*MockNamespaces)(nil)
 // NewMockNamespaces creates a MockNamespaces with the given namespaces, and
 // will automatically add the "default" namespace if not included.
 func NewMockNamespaces(namespaces []string) *MockNamespaces {
-	list := helper.CopySliceString(namespaces)
-	if !helper.SliceStringContains(list, "default") {
+	list := slices.Clone(namespaces)
+	if !slices.Contains(list, "default") {
 		list = append(list, "default")
 	}
 	sort.Strings(list)
@@ -213,7 +214,7 @@ func (c *MockAgent) ServicesWithFilterOpts(_ string, q *api.QueryOptions) (map[s
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
-			Meta:              helper.CopyMapStringString(v.Meta),
+			Meta:              maps.Clone(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,
@@ -264,6 +265,11 @@ func (c *MockAgent) CheckRegs() []*api.AgentCheckRegistration {
 func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.checkRegister(check)
+}
+
+// checkRegister registers a check; c.mu must be held.
+func (c *MockAgent) checkRegister(check *api.AgentCheckRegistration) error {
 	c.hits++
 
 	// Consul will set empty Namespace to default, do the same here
@@ -274,14 +280,29 @@ func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {
 	if c.checks[check.Namespace] == nil {
 		c.checks[check.Namespace] = make(map[string]*api.AgentCheckRegistration)
 	}
+
 	c.checks[check.Namespace][check.ID] = check
 
 	// Be nice and make checks reachable-by-service
 	serviceCheck := check.AgentServiceCheck
+
 	if c.services[check.Namespace] == nil {
 		c.services[check.Namespace] = make(map[string]*api.AgentServiceRegistration)
 	}
-	c.services[check.Namespace][check.ServiceID].Checks = append(c.services[check.Namespace][check.ServiceID].Checks, &serviceCheck)
+
+	// replace existing check if one with same id already exists
+	replace := false
+	for i := 0; i < len(c.services[check.Namespace][check.ServiceID].Checks); i++ {
+		if c.services[check.Namespace][check.ServiceID].Checks[i].CheckID == check.CheckID {
+			c.services[check.Namespace][check.ServiceID].Checks[i] = &check.AgentServiceCheck
+			replace = true
+			break
+		}
+	}
+
+	if !replace {
+		c.services[check.Namespace][check.ServiceID].Checks = append(c.services[check.Namespace][check.ServiceID].Checks, &serviceCheck)
+	}
 	return nil
 }
 
@@ -314,6 +335,20 @@ func (c *MockAgent) ServiceRegister(service *api.AgentServiceRegistration) error
 		c.services[service.Namespace] = make(map[string]*api.AgentServiceRegistration)
 	}
 	c.services[service.Namespace][service.ID] = service
+
+	// as of Nomad v1.4.x registering service now also registers its checks
+	for _, check := range service.Checks {
+		if err := c.checkRegister(&api.AgentCheckRegistration{
+			ID:                check.CheckID,
+			Name:              check.Name,
+			ServiceID:         service.ID,
+			AgentServiceCheck: *check,
+			Namespace:         service.Namespace,
+		}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -3,8 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -13,11 +11,11 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -48,7 +46,7 @@ var (
 		"java",
 	}, ",")
 
-	// A mapping of directories on the host OS to attempt to embed inside each
+	// DefaultChrootEnv is a mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	DefaultChrootEnv = map[string]string{
 		"/bin":            "/bin",
@@ -93,9 +91,6 @@ type Config struct {
 
 	// AllocDir is where we store data for allocations
 	AllocDir string
-
-	// LogOutput is the destination for logs
-	LogOutput io.Writer
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
@@ -201,9 +196,6 @@ type Config struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int
 
-	// LogLevel is the level of the logs to putout
-	LogLevel string
-
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
@@ -216,6 +208,10 @@ type Config struct {
 
 	// ACLPolicyTTL is how long we cache policy values for
 	ACLPolicyTTL time.Duration
+
+	// ACLRoleTTL is how long we cache ACL role value for within each Nomad
+	// client.
+	ACLRoleTTL time.Duration
 
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
@@ -379,7 +375,7 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	*nc = *c
 
 	if len(c.FunctionDenylist) > 0 {
-		nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+		nc.FunctionDenylist = slices.Clone(nc.FunctionDenylist)
 	} else if c.FunctionDenylist != nil {
 		// Explicitly no functions denied (which is different than nil)
 		nc.FunctionDenylist = []string{}
@@ -461,8 +457,8 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return wc
 }
 
-// Equals returns the result of reflect.DeepEqual
-func (wc *WaitConfig) Equals(other *WaitConfig) bool {
+// Equal returns the result of reflect.DeepEqual
+func (wc *WaitConfig) Equal(other *WaitConfig) bool {
 	return reflect.DeepEqual(wc, other)
 }
 
@@ -471,7 +467,7 @@ func (wc *WaitConfig) IsEmpty() bool {
 	if wc == nil {
 		return true
 	}
-	return wc.Equals(&WaitConfig{})
+	return wc.Equal(&WaitConfig{})
 }
 
 // Validate returns an error  if the receiver is nil or empty or if Min is greater
@@ -596,8 +592,8 @@ func (rc *RetryConfig) Copy() *RetryConfig {
 	return nrc
 }
 
-// Equals returns the result of reflect.DeepEqual
-func (rc *RetryConfig) Equals(other *RetryConfig) bool {
+// Equal returns the result of reflect.DeepEqual
+func (rc *RetryConfig) Equal(other *RetryConfig) bool {
 	return reflect.DeepEqual(rc, other)
 }
 
@@ -607,7 +603,7 @@ func (rc *RetryConfig) IsEmpty() bool {
 		return true
 	}
 
-	return rc.Equals(&RetryConfig{})
+	return rc.Equal(&RetryConfig{})
 }
 
 // Validate returns an error if the receiver is nil or empty, or if Backoff
@@ -705,8 +701,8 @@ func (c *Config) Copy() *Config {
 
 	nc := *c
 	nc.Node = nc.Node.Copy()
-	nc.Servers = helper.CopySliceString(nc.Servers)
-	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.Servers = slices.Clone(nc.Servers)
+	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
@@ -722,11 +718,9 @@ func DefaultConfig() *Config {
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
-		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
-		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,

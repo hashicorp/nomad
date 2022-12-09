@@ -19,12 +19,12 @@ telemetry {
 }
 ```
 
-### `telemetry` Parameters
+## `telemetry` Parameters
 
 Due to the number of provider-specific parameters to the `telemetry` block, parameters
 in this section are grouped by the telemetry provider.
 
-### Common
+### Common Parameters
 
 The following options are available on all telemetry configurations.
 
@@ -37,7 +37,7 @@ The following options are available on all telemetry configurations.
 - `collection_interval` `(duration: "1s")` - Specifies the time interval at which
   the Nomad agent collects telemetry data.
 
-### `statsite`
+### `statsite` Parameters
 
 These `telemetry` parameters apply to [Statsite][statsite].
 
@@ -50,7 +50,7 @@ telemetry {
 }
 ```
 
-### `statsd`
+### `statsd` Parameters
 
 These `telemetry` parameters apply to [StatsD][statsd].
 
@@ -63,7 +63,7 @@ telemetry {
 }
 ```
 
-### `datadog`
+### `datadog` Parameters
 
 These `telemetry` parameters apply to [DataDog statsd][datadog_statsd].
 
@@ -81,7 +81,7 @@ telemetry {
 }
 ```
 
-### `prometheus`
+### `prometheus` Parameters
 
 These `telemetry` parameters apply to [Prometheus][prometheus].
 
@@ -91,7 +91,7 @@ These `telemetry` parameters apply to [Prometheus][prometheus].
 - `prometheus_retention_time` `(string: "24h")` - Specifies the amount of time that Prometheus
   metrics are retained in memory.
 
-### `circonus`
+### `circonus` Parameters
 
 These `telemetry` parameters apply to [Circonus][circonus].
 

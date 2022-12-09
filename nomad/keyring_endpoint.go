@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -15,10 +15,15 @@ import (
 
 // Keyring endpoint serves RPCs for root key management
 type Keyring struct {
-	srv       *Server
-	logger    hclog.Logger
+	srv    *Server
+	ctx    *RPCContext
+	logger hclog.Logger
+
 	encrypter *Encrypter
-	ctx       *RPCContext // context for connection, to check TLS role
+}
+
+func NewKeyringEndpoint(srv *Server, ctx *RPCContext, enc *Encrypter) *Keyring {
+	return &Keyring{srv: srv, ctx: ctx, logger: srv.logger.Named("keyring"), encrypter: enc}
 }
 
 func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *structs.KeyringRotateRootKeyResponse) error {
@@ -264,7 +269,20 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 				Key:  key,
 			}
 			reply.Key = rootKey
-			reply.Index = keyMeta.ModifyIndex
+
+			// Use the last index that affected the policy table
+			index, err := s.Index(state.TableRootKeyMeta)
+			if err != nil {
+				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query
+			// cannot be used.  We floor the index at one, since realistically
+			// the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
+			reply.Index = index
 			return nil
 		},
 	}

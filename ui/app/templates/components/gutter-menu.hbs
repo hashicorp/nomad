@@ -114,7 +114,7 @@
         </li>
       </ul>
       <p class="menu-label">
-        Debugging
+        Operations
       </p>
       <ul class="menu-list">
         <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "e") }}>
@@ -126,6 +126,23 @@
             Evaluations
           </LinkTo>
         </li>
+        {{#if (can "list policies")}}
+          <li
+            {{keyboard-shortcut
+              menuLevel=true
+              pattern=(array "g" "l")
+              action=(action this.transitionTo 'policies')
+            }}
+          >
+            <LinkTo
+              @route="policies"
+              @activeClass="is-active"
+              data-test-gutter-link="policies"
+            >
+              Policies
+            </LinkTo>
+          </li>
+        {{/if}}
       </ul>
     </aside>
     {{#if this.system.agent.version}}

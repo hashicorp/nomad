@@ -155,6 +155,8 @@ var basicConfig = &Config{
 		TokenTTLHCL:              "60s",
 		PolicyTTL:                60 * time.Second,
 		PolicyTTLHCL:             "60s",
+		RoleTTLHCL:               "60s",
+		RoleTTL:                  60 * time.Second,
 		TokenMinExpirationTTLHCL: "1h",
 		TokenMinExpirationTTL:    1 * time.Hour,
 		TokenMaxExpirationTTLHCL: "100h",

@@ -509,17 +509,17 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 		sresp, err = kmgr.ListKeys()
 	case "install":
 		if err := decodeBody(req, &args); err != nil {
-			return nil, CodedError(500, err.Error())
+			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
 		sresp, err = kmgr.InstallKey(args.Key)
 	case "use":
 		if err := decodeBody(req, &args); err != nil {
-			return nil, CodedError(500, err.Error())
+			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
 		sresp, err = kmgr.UseKey(args.Key)
 	case "remove":
 		if err := decodeBody(req, &args); err != nil {
-			return nil, CodedError(500, err.Error())
+			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
 		sresp, err = kmgr.RemoveKey(args.Key)
 	default:

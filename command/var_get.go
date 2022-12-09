@@ -30,7 +30,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Read Options:
+Get Options:
 
   -item <item key>
      Print only the value of the given item. Specifying this option will
@@ -67,7 +67,7 @@ func (c *VarGetCommand) Synopsis() string {
 	return "Read a variable"
 }
 
-func (c *VarGetCommand) Name() string { return "var read" }
+func (c *VarGetCommand) Name() string { return "var get" }
 
 func (c *VarGetCommand) Run(args []string) int {
 	var out, item string

@@ -108,30 +108,90 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 ```
 
-## User Permissions
+## Hardening Nomad
+
+As noted in the [Security Model][] guide, Nomad is not **secure-by-default**.
+
+### User Permissions
 
 Nomad servers and Nomad clients have different requirements for permissions.
 
 Nomad servers should be run with the lowest possible permissions. They need
 access to their own data directory and the ability to bind to their ports. You
-should create a `nomad` user with the minimal set of required privileges.
+should create a `nomad` user with the minimal set of required privileges. If you
+are installing Nomad from the official Linux packages, the systemd unit file
+runs Nomad as `root`. For your server nodes you should change this to a
+minimally privileged `nomad` user. See the [production deployment guide][] for
+details.
 
 Nomad clients must be run as `root` due to the OS isolation mechanisms that
-require root privileges (see also [Linux Capabilities] below). The Nomad
+require root privileges (see also [Linux Capabilities][] below). The Nomad
 client's data directory should be owned by `root` with filesystem permissions
 set to `0700`.
 
-## Linux Capabilities
+### Linux Capabilities
 
 On Linux, Nomad clients require privileged capabilities for isolating
 tasks. Nomad clients require `CAP_SYS_ADMIN` for creating the tmpfs used for
-secrets, bind-mounting task directories, mounting volumes, and running some
-task driver engines. Nomad clients require `CAP_NET_ADMIN` for a variety of
-tasks to set up networking. You should run Nomad as `root`, but running as
-`root` does not grant these required capabilities if Nomad is running in a
-user namespace. Running Nomad clients inside a user namespace is
-unsupported. See the [`capabilities(7)`] man page for details on Linux
-capabilities.
+secrets, bind-mounting task directories, mounting volumes, and running some task
+driver plugins. Nomad clients require `CAP_NET_ADMIN` for a variety of tasks to
+set up networking. You should run Nomad clients as `root`, but running as `root`
+does not grant these required capabilities if Nomad is running in a user
+namespace. Running Nomad clients inside a user namespace is unsupported. See the
+[`capabilities(7)`][] man page for details on Linux capabilities.
 
+In order to run a task, Nomad clients perform privileged operations normally
+reserved to the `root` user:
+
+* Mounting tmpfs file systems for the task `/secrets` directory.
+* Creating the network bridge for `bridge` networking.
+* Allowing inbound and outbound network traffic to the workload (typically via
+  `iptables`).
+* Starting tasks as a specific `user`.
+* Setting the owner of `template` outputs.
+
+On Linux this set of requirements expands to:
+
+* Configuring resource isolation via cgroups.
+* Configuring namespace isolation: `mount`, `user`, `pid`, `ipc`, and `network`
+  namespaces.
+
+Nomad task drivers that support bind-mounting volumes also need to run as `root`
+to do so. This includes the built-in `exec` and `java` task drivers. The
+built-in task drivers run in the same process as the Nomad client, so this
+requires that the Nomad client agent is also running as `root`.
+
+### Rootless Nomad Clients
+
+Although it's possible to run a Nomad client agent as a non-root user or as
+`root` in a user namespace, to perform the privileged operations described above
+you also need to grant the client agent `CAP_SYS_ADMIN` and `CAP_NET_ADMIN`
+capabilities. Note that these capabilities are nearly functionally equivalent to
+running as `root` and that a process running with `CAP_SYS_ADMIN` can almost
+always escalate itself to "true" (unnamespaced) `root`.
+
+Some task drivers delegate many of their privileged operations to an external
+process such as `dockerd` or `podman`. If you don't need `bridge` networking and
+are using these task drivers or custom task drivers, you may be able to run
+Nomad client agents as a non-root user with the following additional
+configuration:
+
+* Delegated cgroups: to safely set cgroups as an unprivileged user requires
+  cgroups v2.
+* User namespaces: on some distros this may require setting sysctls like
+  `kernel.unprivileged_userns_clone=1`
+* The task driver engine (ex. `dockerd`, `podman`, `containerd`, etc) must be
+  configured for rootless operation. This requires cgroups v2, user namespaces,
+  and typically either a patched kernel or kernel module (ex. `overlay.ko`)
+  allowing unprivileged [overlay filesystem][] or a FUSE overlay filesystem.
+
+This is not a supported or well-tested configuration. See [GH-13669][] for a
+further discussion and to provide feedback on your experiences trying to run
+rootless Nomad clients.
+
+[Security Model]: /docs/concepts/security
+[production deployment guide]: https://developer.hashicorp.com/nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul#configure-systemd
 [linux capabilities]: #linux-capabilities
 [`capabilities(7)`]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+[overlay filesystem]: https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
+[GH-13669]: https://github.com/hashicorp/nomad/issues/13669

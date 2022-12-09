@@ -16,8 +16,8 @@ These builds are run as-needed to update the AMIs used by the end-to-end test in
 $ packer --version
 1.6.4
 
-# build Ubuntu Bionic AMI
-$ ./build ubuntu-bionic-amd64
+# build Ubuntu Jammy AMI
+$ ./build ubuntu-jammy-amd64
 
 # build Windows AMI
 $ ./build windows-2016-amd64

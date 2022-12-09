@@ -1,16 +1,42 @@
+$taskSubRowBackground: #f9f9f9;
+
 table tbody .task-sub-row {
   td {
-    border-top: 2px solid white;
-  }
-  td:nth-child(1) {
-    padding-left: 4rem;
-    a {
-      margin-right: 1rem;
-    }
+    border-top: 2px solid $taskSubRowBackground;
+    background-color: $taskSubRowBackground;
+    padding: 0.75em 1.5em;
+    .name-grid {
+      display: inline-grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
 
-    svg.flight-icon {
-      position: relative;
-      top: 3px;
+      .task-name {
+        display: block;
+        width: 150px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        &:before {
+          color: black;
+          content: '/';
+          display: inline-block;
+          margin-right: 0.5rem;
+          text-decoration: none;
+        }
+      }
+
+      .logs-sidebar-trigger {
+        color: $blue;
+        text-decoration: underline;
+        font-weight: normal;
+        background-color: transparent;
+        svg {
+          color: black;
+          margin-right: 5px;
+          position: relative;
+          top: 3px;
+        }
+      }
     }
   }
 }

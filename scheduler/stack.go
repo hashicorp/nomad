@@ -300,6 +300,8 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
+	s.taskGroupCSIVolumes.SetNamespace(job.Namespace)
+	s.taskGroupCSIVolumes.SetJobID(job.ID)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)

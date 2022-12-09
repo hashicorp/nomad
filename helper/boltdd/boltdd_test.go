@@ -202,7 +202,7 @@ func TestBucket_DedupeWrites(t *testing.T) {
 
 	// Assert there was at least 1 write
 	origWrites := db.BoltDB().Stats().TxStats.Write
-	must.Greater(t, origWrites, 0)
+	must.Positive(t, origWrites)
 
 	// Write the same values again and expect no new writes
 	must.NoError(t, db.Update(func(tx *Tx) error {

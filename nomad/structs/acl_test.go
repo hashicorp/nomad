@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -292,6 +293,75 @@ func TestACLToken_IsExpired(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputACLToken.IsExpired(tc.inputTime)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestACLToken_HasRoles(t *testing.T) {
+	testCases := []struct {
+		name           string
+		inputToken     *ACLToken
+		inputRoleIDs   []string
+		expectedOutput bool
+	}{
+		{
+			name: "client token request all subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"foo", "bar", "baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request partial subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"foo", "baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request one subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"baz"},
+			expectedOutput: true,
+		},
+		{
+			name: "client token request no subset",
+			inputToken: &ACLToken{
+				Type: ACLClientToken,
+				Roles: []*ACLTokenRoleLink{
+					{ID: "foo"},
+					{ID: "bar"},
+					{ID: "baz"},
+				},
+			},
+			inputRoleIDs:   []string{"new"},
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputToken.HasRoles(tc.inputRoleIDs)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -625,7 +695,7 @@ func TestACLRole_Equals(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.composedACLRole.Equals(tc.inputACLRole)
+			actualOutput := tc.composedACLRole.Equal(tc.inputACLRole)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -761,4 +831,268 @@ func Test_ACLRoleByIDRequest(t *testing.T) {
 func Test_ACLRoleByNameRequest(t *testing.T) {
 	req := ACLRoleByNameRequest{}
 	require.True(t, req.IsRead())
+}
+
+func Test_ACLAuthMethodListRequest(t *testing.T) {
+	req := ACLAuthMethodListRequest{}
+	must.True(t, req.IsRead())
+}
+
+func Test_ACLAuthMethodGetRequest(t *testing.T) {
+	req := ACLAuthMethodGetRequest{}
+	must.True(t, req.IsRead())
+}
+
+func TestACLAuthMethodSetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	am := &ACLAuthMethod{
+		Name: "foo",
+		Type: "bad type",
+	}
+	out1 := am.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, am.Hash)
+	must.Eq(t, out1, am.Hash)
+
+	am.Type = "good type"
+	out2 := am.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, am.Hash)
+	must.Eq(t, out2, am.Hash)
+	must.NotEq(t, out1, out2)
+}
+
+func TestACLAuthMethod_Stub(t *testing.T) {
+	ci.Parallel(t)
+
+	maxTokenTTL, _ := time.ParseDuration("3600s")
+	am := ACLAuthMethod{
+		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
+		Type:          "acl-auth-mock-type",
+		TokenLocality: "locality",
+		MaxTokenTTL:   maxTokenTTL,
+		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			BoundAudiences:      []string{"audience1", "audience2"},
+			AllowedRedirectURIs: []string{"foo", "bar"},
+			DiscoveryCaPem:      []string{"foo"},
+			SigningAlgs:         []string{"bar"},
+			ClaimMappings:       map[string]string{"foo": "bar"},
+			ListClaimMappings:   map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	am.SetHash()
+
+	must.Eq(t, am.Stub(), &ACLAuthMethodStub{
+		Name:        am.Name,
+		Type:        am.Type,
+		Default:     am.Default,
+		Hash:        am.Hash,
+		CreateIndex: am.CreateIndex,
+		ModifyIndex: am.ModifyIndex,
+	})
+
+	nilAuthMethod := &ACLAuthMethod{}
+	must.Eq(t, nilAuthMethod.Stub(), &ACLAuthMethodStub{})
+}
+
+func TestACLAuthMethod_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	maxTokenTTL, _ := time.ParseDuration("3600s")
+	am1 := &ACLAuthMethod{
+		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
+		Type:          "acl-auth-mock-type",
+		TokenLocality: "locality",
+		MaxTokenTTL:   maxTokenTTL,
+		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			BoundAudiences:      []string{"audience1", "audience2"},
+			AllowedRedirectURIs: []string{"foo", "bar"},
+			DiscoveryCaPem:      []string{"foo"},
+			SigningAlgs:         []string{"bar"},
+			ClaimMappings:       map[string]string{"foo": "bar"},
+			ListClaimMappings:   map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	am1.SetHash()
+
+	// am2 differs from am1 by 1 nested conf field
+	am2 := am1.Copy()
+	am2.Config.OIDCClientID = "mock2"
+	am2.SetHash()
+
+	tests := []struct {
+		name    string
+		method1 *ACLAuthMethod
+		method2 *ACLAuthMethod
+		want    bool
+	}{
+		{"one nil", am1, &ACLAuthMethod{}, false},
+		{"both nil", &ACLAuthMethod{}, &ACLAuthMethod{}, true},
+		{"one is different than the other", am1, am2, false},
+		{"equal", am1, am1.Copy(), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.method1.Equal(tt.method2)
+			must.Eq(t, got, tt.want, must.Sprintf(
+				"ACLAuthMethod.Equal() got %v, want %v, test case: %s", got, tt.want, tt.name))
+		})
+	}
+}
+
+func TestACLAuthMethod_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	maxTokenTTL, _ := time.ParseDuration("3600s")
+	am1 := &ACLAuthMethod{
+		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
+		Type:          "acl-auth-mock-type",
+		TokenLocality: "locality",
+		MaxTokenTTL:   maxTokenTTL,
+		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			BoundAudiences:      []string{"audience1", "audience2"},
+			AllowedRedirectURIs: []string{"foo", "bar"},
+			DiscoveryCaPem:      []string{"foo"},
+			SigningAlgs:         []string{"bar"},
+			ClaimMappings:       map[string]string{"foo": "bar"},
+			ListClaimMappings:   map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	am1.SetHash()
+
+	am2 := am1.Copy()
+	am2.SetHash()
+	must.Eq(t, am1, am2)
+
+	am3 := am1.Copy()
+	am3.Config.AllowedRedirectURIs = []string{"new", "urls"}
+	am3.SetHash()
+	must.NotEq(t, am1, am3)
+}
+
+func TestACLAuthMethod_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	goodTTL, _ := time.ParseDuration("3600s")
+	badTTL, _ := time.ParseDuration("3600h")
+
+	tests := []struct {
+		name        string
+		method      *ACLAuthMethod
+		wantErr     bool
+		errContains string
+	}{
+		{
+			"valid method",
+			&ACLAuthMethod{
+				Name:          "mock-auth-method",
+				Type:          "OIDC",
+				TokenLocality: "local",
+				MaxTokenTTL:   goodTTL,
+			},
+			false,
+			"",
+		},
+		{"invalid name", &ACLAuthMethod{Name: "is this name invalid?"}, true, "invalid name"},
+		{"invalid token locality", &ACLAuthMethod{TokenLocality: "regional"}, true, "invalid token locality"},
+		{"invalid type", &ACLAuthMethod{Type: "groovy"}, true, "invalid token type"},
+		{"invalid max ttl", &ACLAuthMethod{MaxTokenTTL: badTTL}, true, "invalid token type"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			minTTL, _ := time.ParseDuration("10s")
+			maxTTL, _ := time.ParseDuration("10h")
+			got := tt.method.Validate(minTTL, maxTTL)
+			if tt.wantErr {
+				must.Error(t, got, must.Sprintf(
+					"ACLAuthMethod.Validate() got error, didn't expect it; test case: %s", tt.name))
+				must.StrContains(t, got.Error(), tt.errContains, must.Sprintf(
+					"ACLAuthMethod.Validate() got %v error message, expected %v; test case: %s",
+					got, tt.errContains, tt.name))
+			} else {
+				must.NoError(t, got, must.Sprintf(
+					"ACLAuthMethod.Validate() expected an error but didn't get one; test case: %s", tt.name))
+			}
+		})
+	}
+}
+
+func TestACLAuthMethodConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	amc1 := &ACLAuthMethodConfig{
+		OIDCDiscoveryURL:    "http://example.com",
+		OIDCClientID:        "mock",
+		OIDCClientSecret:    "very secret secret",
+		BoundAudiences:      []string{"audience1", "audience2"},
+		AllowedRedirectURIs: []string{"foo", "bar"},
+		DiscoveryCaPem:      []string{"foo"},
+		SigningAlgs:         []string{"bar"},
+		ClaimMappings:       map[string]string{"foo": "bar"},
+		ListClaimMappings:   map[string]string{"foo": "bar"},
+	}
+
+	amc2 := amc1.Copy()
+	must.Eq(t, amc1, amc2)
+
+	amc3 := amc1.Copy()
+	amc3.AllowedRedirectURIs = []string{"new", "urls"}
+	must.NotEq(t, amc1, amc3)
+}
+
+func TestACLAuthMethod_Canonicalize(t *testing.T) {
+	now := time.Now().UTC()
+	tests := []struct {
+		name        string
+		inputMethod *ACLAuthMethod
+	}{
+		{
+			"no create time or modify time set",
+			&ACLAuthMethod{},
+		},
+		{
+			"create time set to now, modify time not set",
+			&ACLAuthMethod{CreateTime: now},
+		},
+		{
+			"both create time and modify time set",
+			&ACLAuthMethod{CreateTime: now, ModifyTime: now.Add(time.Hour)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			existing := tt.inputMethod.Copy()
+			tt.inputMethod.Canonicalize()
+			if existing.CreateTime.IsZero() {
+				must.NotEq(t, time.Time{}, tt.inputMethod.CreateTime)
+			} else {
+				must.Eq(t, existing.CreateTime, tt.inputMethod.CreateTime)
+			}
+			if existing.ModifyTime.IsZero() {
+				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
+			}
+		})
+	}
 }

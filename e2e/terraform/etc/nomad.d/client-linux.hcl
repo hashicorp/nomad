@@ -2,6 +2,9 @@ plugin_dir = "/opt/nomad/plugins"
 
 client {
   enabled = true
+  options = {
+    "user.denylist" = "www-data"
+  }
 }
 
 plugin "nomad-driver-podman" {

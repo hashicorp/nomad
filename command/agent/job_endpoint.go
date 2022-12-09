@@ -9,10 +9,11 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string
@@ -34,6 +35,16 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 	args := structs.JobListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
+	}
+
+	args.Fields = &structs.JobStubFields{}
+	// Parse meta query param
+	jobMeta, err := parseBool(req, "meta")
+	if err != nil {
+		return nil, err
+	}
+	if jobMeta != nil {
+		args.Fields.Meta = *jobMeta
 	}
 
 	var out structs.JobListResponse
@@ -1188,8 +1199,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
 					GetterSource:  *ta.GetterSource,
-					GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-					GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+					GetterOptions: maps.Clone(ta.GetterOptions),
+					GetterHeaders: maps.Clone(ta.GetterHeaders),
 					GetterMode:    *ta.GetterMode,
 					RelativeDest:  *ta.RelativeDest,
 				})
@@ -1211,21 +1222,22 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for _, template := range apiTask.Templates {
 			structsTask.Templates = append(structsTask.Templates,
 				&structs.Template{
-					SourcePath:   *template.SourcePath,
-					DestPath:     *template.DestPath,
-					EmbeddedTmpl: *template.EmbeddedTmpl,
-					ChangeMode:   *template.ChangeMode,
-					ChangeSignal: *template.ChangeSignal,
-					ChangeScript: apiChangeScriptToStructsChangeScript(template.ChangeScript),
-					Splay:        *template.Splay,
-					Perms:        *template.Perms,
-					Uid:          template.Uid,
-					Gid:          template.Gid,
-					LeftDelim:    *template.LeftDelim,
-					RightDelim:   *template.RightDelim,
-					Envvars:      *template.Envvars,
-					VaultGrace:   *template.VaultGrace,
-					Wait:         apiWaitConfigToStructsWaitConfig(template.Wait),
+					SourcePath:    *template.SourcePath,
+					DestPath:      *template.DestPath,
+					EmbeddedTmpl:  *template.EmbeddedTmpl,
+					ChangeMode:    *template.ChangeMode,
+					ChangeSignal:  *template.ChangeSignal,
+					ChangeScript:  apiChangeScriptToStructsChangeScript(template.ChangeScript),
+					Splay:         *template.Splay,
+					Perms:         *template.Perms,
+					Uid:           template.Uid,
+					Gid:           template.Gid,
+					LeftDelim:     *template.LeftDelim,
+					RightDelim:    *template.RightDelim,
+					Envvars:       *template.Envvars,
+					VaultGrace:    *template.VaultGrace,
+					Wait:          apiWaitConfigToStructsWaitConfig(template.Wait),
+					ErrMissingKey: *template.ErrMissingKey,
 				})
 		}
 	}
@@ -1392,9 +1404,9 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
 			Address:           s.Address,
-			Meta:              helper.CopyMapStringString(s.Meta),
-			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
-			TaggedAddresses:   helper.CopyMapStringString(s.TaggedAddresses),
+			Meta:              maps.Clone(s.Meta),
+			CanaryMeta:        maps.Clone(s.CanaryMeta),
+			TaggedAddresses:   maps.Clone(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
 		}
@@ -1500,7 +1512,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
 		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
-		Config:                          helper.CopyMapStringInterface(in.Config),
+		Config:                          maps.Clone(in.Config),
 	}
 }
 
@@ -1524,7 +1536,7 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		Enabled:       in.Enabled,
 		TLSMinVersion: in.TLSMinVersion,
 		TLSMaxVersion: in.TLSMaxVersion,
-		CipherSuites:  helper.CopySliceString(in.CipherSuites),
+		CipherSuites:  slices.Clone(in.CipherSuites),
 	}
 }
 
@@ -1571,7 +1583,7 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 
 	return &structs.ConsulIngressService{
 		Name:  in.Name,
-		Hosts: helper.CopySliceString(in.Hosts),
+		Hosts: slices.Clone(in.Hosts),
 	}
 }
 
@@ -1624,7 +1636,7 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 	}
 	return &structs.ConsulSidecarService{
 		Port:                   in.Port,
-		Tags:                   helper.CopySliceString(in.Tags),
+		Tags:                   slices.Clone(in.Tags),
 		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
 		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
 	}
@@ -1639,7 +1651,7 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
 		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
-		Config:              helper.CopyMapStringInterface(in.Config),
+		Config:              maps.Clone(in.Config),
 	}
 }
 

@@ -142,8 +142,8 @@ func (c CPUSet) ContainsAny(other CPUSet) bool {
 	return false
 }
 
-// Equals tests the equality of the elements in the CPUSet
-func (c CPUSet) Equals(other CPUSet) bool {
+// Equal tests the equality of the elements in the CPUSet
+func (c CPUSet) Equal(other CPUSet) bool {
 	return reflect.DeepEqual(c.cpus, other.cpus)
 }
 

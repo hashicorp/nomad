@@ -254,7 +254,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 
-	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
@@ -415,11 +415,12 @@ func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.A
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 		for _, task := range tg.Tasks {
 			claims := alloc.ToTaskIdentityClaims(job, task.Name)
-			token, err := encrypter.SignClaims(claims)
+			token, keyID, err := encrypter.SignClaims(claims)
 			if err != nil {
 				return err
 			}
 			alloc.SignedIdentities[task.Name] = token
+			alloc.SigningKeyID = keyID
 		}
 	}
 	return nil

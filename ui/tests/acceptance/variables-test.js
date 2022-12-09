@@ -145,7 +145,7 @@ module('Acceptance | variables', function (hooks) {
   });
 
   test('variables prefixed with nomad/jobs/ correctly link to entities', async function (assert) {
-    assert.expect(23);
+    assert.expect(29);
     allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
 
@@ -313,6 +313,45 @@ module('Acceptance | variables', function (hooks) {
     assert
       .dom('[data-test-task-stat="variables"]')
       .doesNotExist('Link from Variable-less Job to Variable does not exist');
+
+    // Related Entities during the Variable creation process
+    await Variables.visitNew();
+    assert
+      .dom('.related-entities.notification')
+      .doesNotExist('Related Entities notification is not present by default');
+    await typeIn('[data-test-path-input]', 'foo/bar');
+    assert
+      .dom('.related-entities.notification')
+      .doesNotExist(
+        'Related Entities notification is not present when path is generic'
+      );
+    document.querySelector('[data-test-path-input]').value = ''; // clear path input
+    await typeIn('[data-test-path-input]', 'nomad/jobs/abc');
+    assert
+      .dom('.related-entities.notification')
+      .exists(
+        'Related Entities notification is present when path is job-oriented'
+      );
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by job',
+        'Related Entities notification is job-oriented'
+      );
+    await typeIn('[data-test-path-input]', '/def');
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by group',
+        'Related Entities notification is group-oriented'
+      );
+    await typeIn('[data-test-path-input]', '/ghi');
+    assert
+      .dom('.related-entities.notification')
+      .containsText(
+        'This variable will be accessible by task',
+        'Related Entities notification is task-oriented'
+      );
   });
 
   test('it does not allow you to save if you lack Items', async function (assert) {
@@ -589,6 +628,73 @@ module('Acceptance | variables', function (hooks) {
 
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('warns you if you try to leave with an unsaved form', async function (assert) {
+      // Arrange Test Set-up
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+      const originalWindowConfirm = window.confirm;
+      let confirmFired = false;
+      let leave = true;
+      window.confirm = function () {
+        confirmFired = true;
+        return leave;
+      };
+      // End Test Set-up
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-gutter-link="jobs"]');
+      assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
+      assert.equal(
+        currentURL(),
+        '/jobs?namespace=*',
+        'Opted to leave, ended up on desired page'
+      );
+
+      // Reset checks
+      confirmFired = false;
+      leave = false;
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-gutter-link="jobs"]');
+      assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting%20Variable@default/edit',
+        'Opted to stay, did not leave page'
+      );
+
+      // Reset checks
+      confirmFired = false;
+
+      await Variables.visitConflicting();
+      document.querySelector('[data-test-var-key]').value = ''; // clear current input
+      await typeIn('[data-test-var-key]', 'buddy');
+      await typeIn('[data-test-var-value]', 'pal');
+      await click('[data-test-json-toggle]');
+      assert.notOk(
+        confirmFired,
+        'Confirm did not fire when only transitioning queryParams'
+      );
+      assert.equal(
+        currentURL(),
+        '/variables/var/Auto-conflicting%20Variable@default/edit?view=json',
+        'Stayed on page, queryParams changed'
+      );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+      // Restore the original window.confirm implementation
+      window.confirm = originalWindowConfirm;
     });
   });
 

@@ -155,10 +155,31 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 	return &resp, wm, nil
 }
 
+type JobListFields struct {
+	Meta bool
+}
+type JobListOptions struct {
+	Fields *JobListFields
+}
+
 // List is used to list all of the existing jobs.
 func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
+	return j.ListOptions(nil, q)
+}
+
+// List is used to list all of the existing jobs.
+func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
-	qm, err := j.client.query("/v1/jobs", &resp, q)
+
+	destinationURL := "/v1/jobs"
+
+	if opts != nil && opts.Fields != nil {
+		qp := url.Values{}
+		qp.Add("meta", fmt.Sprint(opts.Fields.Meta))
+		destinationURL = destinationURL + "?" + qp.Encode()
+	}
+
+	qm, err := j.client.query(destinationURL, &resp, q)
 	if err != nil {
 		return nil, qm, err
 	}
@@ -431,12 +452,13 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 }
 
 func (j *Jobs) Dispatch(jobID string, meta map[string]string,
-	payload []byte, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	payload []byte, idPrefixTemplate string, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
 	var resp JobDispatchResponse
 	req := &JobDispatchRequest{
-		JobID:   jobID,
-		Meta:    meta,
-		Payload: payload,
+		JobID:            jobID,
+		Meta:             meta,
+		Payload:          payload,
+		IdPrefixTemplate: idPrefixTemplate,
 	}
 	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
 	if err != nil {
@@ -1062,6 +1084,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
+	Meta              map[string]string `json:",omitempty"`
 }
 
 // JobIDSort is used to sort jobs by their job ID's.
@@ -1342,9 +1365,10 @@ type DesiredUpdates struct {
 }
 
 type JobDispatchRequest struct {
-	JobID   string
-	Payload []byte
-	Meta    map[string]string
+	JobID            string
+	Payload          []byte
+	Meta             map[string]string
+	IdPrefixTemplate string
 }
 
 type JobDispatchResponse struct {

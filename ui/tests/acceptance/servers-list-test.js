@@ -11,6 +11,7 @@ import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const minimumSetup = () => {
+  faker.seed(1);
   server.createList('node', 1);
   server.createList('agent', 1);
 };

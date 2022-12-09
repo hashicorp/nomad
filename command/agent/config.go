@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -23,10 +22,12 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -341,9 +342,9 @@ func (c *ClientConfig) Copy() *ClientConfig {
 
 	nc := *c
 	nc.Servers = slices.Clone(c.Servers)
-	nc.Options = helper.CopyMap(c.Options)
-	nc.Meta = helper.CopyMap(c.Meta)
-	nc.ChrootEnv = helper.CopyMap(c.ChrootEnv)
+	nc.Options = maps.Clone(c.Options)
+	nc.Meta = maps.Clone(c.Meta)
+	nc.ChrootEnv = maps.Clone(c.ChrootEnv)
 	nc.Reserved = c.Reserved.Copy()
 	nc.NoHostUUID = pointer.Copy(c.NoHostUUID)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
@@ -374,6 +375,12 @@ type ACLConfig struct {
 	// frequent resolution.
 	PolicyTTL    time.Duration
 	PolicyTTLHCL string `hcl:"policy_ttl" json:"-"`
+
+	// RoleTTL controls how long we cache ACL roles. This controls how stale
+	// they can be when we are enforcing policies. Defaults to "30s".
+	// Reducing this impacts performance by forcing more frequent resolution.
+	RoleTTL    time.Duration
+	RoleTTLHCL string `hcl:"role_ttl" json:"-"`
 
 	// ReplicationToken is used by servers to replicate tokens and policies
 	// from the authoritative region. This must be a valid management token
@@ -1081,7 +1088,7 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 			// come up and fail unexpectedly to run jobs
 			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
 		}
-		u, err := user.Current()
+		u, err := users.Current()
 		if err != nil {
 			return nil, fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root: %v", err)
@@ -1249,6 +1256,7 @@ func DefaultConfig() *Config {
 			Enabled:   false,
 			TokenTTL:  30 * time.Second,
 			PolicyTTL: 30 * time.Second,
+			RoleTTL:   30 * time.Second,
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
@@ -1513,7 +1521,7 @@ func (c *Config) Copy() *Config {
 	nc.Version = c.Version.Copy()
 	nc.Files = slices.Clone(c.Files)
 	nc.TLSConfig = c.TLSConfig.Copy()
-	nc.HTTPAPIResponseHeaders = helper.CopyMap(c.HTTPAPIResponseHeaders)
+	nc.HTTPAPIResponseHeaders = maps.Clone(c.HTTPAPIResponseHeaders)
 	nc.Sentinel = c.Sentinel.Copy()
 	nc.Autopilot = c.Autopilot.Copy()
 	nc.Plugins = helper.CopySlice(c.Plugins)
@@ -1753,6 +1761,12 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	}
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
+	}
+	if b.RoleTTL != 0 {
+		result.RoleTTL = b.RoleTTL
+	}
+	if b.RoleTTLHCL != "" {
+		result.RoleTTLHCL = b.RoleTTLHCL
 	}
 	if b.TokenMinExpirationTTL != 0 {
 		result.TokenMinExpirationTTL = b.TokenMinExpirationTTL

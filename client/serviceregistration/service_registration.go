@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 // Handler is the interface the Nomad Client uses to register, update and
@@ -131,7 +131,7 @@ type ServiceRegistration struct {
 	// services/checks registered in Consul. It is used to materialize the other
 	// fields when queried.
 	ServiceID string
-	CheckIDs  map[string]struct{}
+	CheckIDs  map[string]struct{} // todo: use a Set?
 
 	// CheckOnUpdate is a map of checkIDs and the associated OnUpdate value
 	// from the ServiceCheck It is used to determine how a reported checks
@@ -152,7 +152,7 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 	// external fields.
 	return &ServiceRegistration{
 		ServiceID:     s.ServiceID,
-		CheckIDs:      helper.CopyMapStringStruct(s.CheckIDs),
-		CheckOnUpdate: helper.CopyMapStringString(s.CheckOnUpdate),
+		CheckIDs:      maps.Clone(s.CheckIDs),
+		CheckOnUpdate: maps.Clone(s.CheckOnUpdate),
 	}
 }

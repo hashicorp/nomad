@@ -46,8 +46,7 @@ func testSpreadEven(t *testing.T) {
 	for _, allocStub := range allocs {
 		alloc, _, err := nomadClient.Allocations().Info(allocStub.ID, nil)
 		must.NoError(t, err)
-		must.Greater(t, len(alloc.Metrics.ScoreMetaData), 0)
-
+		must.Greater(t, 0, len(alloc.Metrics.ScoreMetaData))
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
 		must.NoError(t, err)
 		dcToAllocs[node.Datacenter]++
@@ -76,7 +75,7 @@ func testSpreadMultiple(t *testing.T) {
 	for _, allocStub := range allocs {
 		alloc, _, err := nomadClient.Allocations().Info(allocStub.ID, nil)
 		must.NoError(t, err)
-		must.Greater(t, len(alloc.Metrics.ScoreMetaData), 0)
+		must.Greater(t, 0, len(alloc.Metrics.ScoreMetaData))
 		allocMetrics[allocStub.ID] = alloc.Metrics
 
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)

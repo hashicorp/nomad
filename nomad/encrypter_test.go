@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -70,8 +72,11 @@ func TestEncrypter_Restore(t *testing.T) {
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
-	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.Len(t, listResp.Keys, 1)
+
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 1
+	}, time.Second*5, time.Second, "expected keyring to be initialized")
 
 	// Send a few key rotations to add keys
 
@@ -102,9 +107,10 @@ func TestEncrypter_Restore(t *testing.T) {
 
 	// Verify we've restored all the keys from the old keystore
 
-	err := msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.NoError(t, err)
-	require.Len(t, listResp.Keys, 5) // 4 new + the bootstrap key
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 5 // 4 new + the bootstrap key
+	}, time.Second*5, time.Second, "expected keyring to be restored")
 
 	for _, keyMeta := range listResp.Keys {
 
@@ -115,7 +121,7 @@ func TestEncrypter_Restore(t *testing.T) {
 			},
 		}
 		var getResp structs.KeyringGetRootKeyResponse
-		err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
+		err := msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
 		require.NoError(t, err)
 
 		gotKey := getResp.Key
@@ -123,8 +129,8 @@ func TestEncrypter_Restore(t *testing.T) {
 	}
 }
 
-// TestKeyringReplicator exercises key replication between servers
-func TestKeyringReplicator(t *testing.T) {
+// TestEncrypter_KeyringReplication exercises key replication between servers
+func TestEncrypter_KeyringReplication(t *testing.T) {
 
 	ci.Parallel(t)
 
@@ -174,8 +180,12 @@ func TestKeyringReplicator(t *testing.T) {
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
-	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.Len(t, listResp.Keys, 1)
+
+	require.Eventually(t, func() bool {
+		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+		return len(listResp.Keys) == 1
+	}, time.Second*5, time.Second, "expected keyring to be initialized")
+
 	keyID1 := listResp.Keys[0].KeyID
 
 	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
@@ -267,6 +277,57 @@ func TestKeyringReplicator(t *testing.T) {
 	require.Eventually(t, checkReplicationFn(keyID3),
 		time.Second*5, time.Second,
 		"expected keys to be replicated to followers after election")
+
+	// Scenario: new members join the cluster
+
+	srv4, cleanupSRV4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV4()
+	srv5, cleanupSRV5 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV5()
+
+	TestJoin(t, srv4, srv5)
+	TestJoin(t, srv5, srv1)
+	servers = []*Server{srv1, srv2, srv3, srv4, srv5}
+
+	testutil.WaitForLeader(t, srv4.RPC)
+	testutil.WaitForLeader(t, srv5.RPC)
+
+	require.Eventually(t, checkReplicationFn(keyID3),
+		time.Second*5, time.Second,
+		"expected new servers to get replicated keys")
+
+	// Scenario: reload a snapshot
+
+	t.Logf("taking snapshot of node5")
+
+	snapshot, err := srv5.fsm.Snapshot()
+	must.NoError(t, err)
+
+	defer snapshot.Release()
+
+	// Persist so we can read it back
+	buf := bytes.NewBuffer(nil)
+	sink := &MockSink{buf, false}
+	must.NoError(t, snapshot.Persist(sink))
+
+	must.NoError(t, srv5.fsm.Restore(sink))
+
+	// rotate the key
+
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	require.NoError(t, err)
+	keyID4 := rotateResp.Key.KeyID
+
+	require.Eventually(t, checkReplicationFn(keyID4),
+		time.Second*5, time.Second,
+		"expected new servers to get replicated keys after snapshot restore")
+
 }
 
 func TestEncrypter_EncryptDecrypt(t *testing.T) {
@@ -301,7 +362,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
-	out, err := e.SignClaims(claim)
+	out, _, err := e.SignClaims(claim)
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)

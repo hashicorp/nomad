@@ -911,7 +911,9 @@ func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
 	}
 
 	var reply structs.NodeUpdateResponse
-	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
+
+	nodeEndpoint := NewNodeEndpoint(testServer, nil)
+	require.NoError(t, nodeEndpoint.UpdateStatus(&args, &reply))
 
 	// Query our state, to ensure the node service registrations have been
 	// removed.
@@ -2528,6 +2530,83 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 
 }
 
+func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register node.
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp)
+	require.NoError(t, err)
+
+	// Inject mock job and allocation.
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+	require.NoError(t, err)
+
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	err = state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	require.NoError(t, err)
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+
+	// Mark node as down.
+	err = state.UpdateNodeStatus(structs.MsgTypeTestSetup, 101, node.ID, structs.NodeStatusDown, time.Now().UnixNano(), nil)
+	require.NoError(t, err)
+
+	// Try to update alloc.
+	updatedAlloc := new(structs.Allocation)
+	*updatedAlloc = *alloc
+	updatedAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	allocUpdateReq := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{updatedAlloc},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var allocUpdateResp structs.NodeAllocsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
+	require.ErrorContains(t, err, "not ready")
+
+	// Send request without an explicit node ID.
+	updatedAlloc.NodeID = ""
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
+	require.ErrorContains(t, err, "missing node ID")
+
+	// Send request with invalid node ID.
+	updatedAlloc.NodeID = "not-valid"
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
+	require.ErrorContains(t, err, "node lookup failed")
+
+	// Send request with non-existing node ID.
+	updatedAlloc.NodeID = uuid.Generate()
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
+	require.ErrorContains(t, err, "not found")
+
+	// Mark node as ready and try again.
+	err = state.UpdateNodeStatus(structs.MsgTypeTestSetup, 102, node.ID, structs.NodeStatusReady, time.Now().UnixNano(), nil)
+	require.NoError(t, err)
+
+	updatedAlloc.NodeID = node.ID
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
+	require.NoError(t, err)
+}
+
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2566,7 +2645,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 
 	// Call to do the batch update
 	bf := structs.NewBatchFuture()
-	endpoint := s1.staticEndpoints.Node
+	endpoint := NewNodeEndpoint(s1, nil)
 	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -2703,7 +2782,8 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	idx++
 
 	// Create some evaluations
-	ids, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	ids, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2800,7 +2880,8 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 	idx++
 
 	// Create some evaluations
-	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 2)
@@ -2860,7 +2941,8 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	idx++
 
 	// Create evaluations
-	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
+	nodeEndpoint := NewNodeEndpoint(s1, nil)
+	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 1)

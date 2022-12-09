@@ -97,6 +97,14 @@
           {{this.model.task.lifecycleName}}
         </span>
       </span>
+      <span class="pair">
+        <span class="term">
+          Namespace
+        </span>
+        <span>
+          {{this.model.allocation.job.namespace.name}}
+        </span>
+      </span>
 
       {{#if (and (can "list variables") this.model.task.pathLinkedVariable)}}
         <span class="pair" data-test-task-stat="variables">

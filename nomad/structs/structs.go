@@ -45,6 +45,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -116,6 +117,8 @@ const (
 	RootKeyMetaDeleteRequestType                 MessageType = 52
 	ACLRolesUpsertRequestType                    MessageType = 53
 	ACLRolesDeleteByIDRequestType                MessageType = 54
+	ACLAuthMethodsUpsertRequestType              MessageType = 55
+	ACLAuthMethodsDeleteRequestType              MessageType = 56
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -290,6 +293,8 @@ type QueryOptions struct {
 	// Reverse is used to reverse the default order of list results.
 	Reverse bool
 
+	identity *AuthenticatedIdentity
+
 	InternalRpcInfo
 }
 
@@ -334,6 +339,14 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+func (q *QueryOptions) SetIdentity(identity *AuthenticatedIdentity) {
+	q.identity = identity
+}
+
+func (q QueryOptions) GetIdentity() *AuthenticatedIdentity {
+	return q.identity
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -396,6 +409,8 @@ type WriteRequest struct {
 	// IdempotencyToken can be used to ensure the write is idempotent.
 	IdempotencyToken string
 
+	identity *AuthenticatedIdentity
+
 	InternalRpcInfo
 }
 
@@ -430,6 +445,41 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+func (w *WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
+	w.identity = identity
+}
+
+func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
+	return w.identity
+}
+
+// AuthenticatedIdentity is returned by the Authenticate method on server to
+// return a wrapper around the various elements that can be resolved as an
+// identity. RPC handlers will use the relevant fields for performing
+// authorization.
+type AuthenticatedIdentity struct {
+	ACLToken *ACLToken
+	Claims   *IdentityClaims
+	ClientID string
+	ServerID string
+	TLSName  string
+	RemoteIP net.IP
+}
+
+func (ai *AuthenticatedIdentity) GetACLToken() *ACLToken {
+	if ai == nil {
+		return nil
+	}
+	return ai.ACLToken
+}
+
+func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
+	if ai == nil {
+		return nil
+	}
+	return ai.Claims
 }
 
 // QueryMeta allows a query response to include potentially
@@ -611,6 +661,10 @@ type JobRegisterRequest struct {
 	// Eval is the evaluation that is associated with the job registration
 	Eval *Evaluation
 
+	// Deployment is the deployment to be create when the job is registered. If
+	// there is an active deployment for the job it will be canceled.
+	Deployment *Deployment
+
 	WriteRequest
 }
 
@@ -688,6 +742,12 @@ type JobSpecificRequest struct {
 // JobListRequest is used to parameterize a list request
 type JobListRequest struct {
 	QueryOptions
+	Fields *JobStubFields
+}
+
+// Stub returns a summarized version of the job
+type JobStubFields struct {
+	Meta bool
 }
 
 // JobPlanRequest is used for the Job.Plan endpoint to trigger a dry-run
@@ -768,6 +828,7 @@ type JobDispatchRequest struct {
 	Payload []byte
 	Meta    map[string]string
 	WriteRequest
+	IdPrefixTemplate string
 }
 
 // JobValidateRequest is used to validate a job
@@ -839,8 +900,14 @@ type EvalUpdateRequest struct {
 // Eval.Delete use the same Raft message when performing deletes so we do not
 // need more Raft message types.
 type EvalReapRequest struct {
-	Evals  []string
-	Allocs []string
+	Evals  []string // slice of Evaluation IDs
+	Allocs []string // slice of Allocation IDs
+
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter    string
+	PerPage   int32
+	NextToken string
 
 	// UserInitiated tracks whether this reap request is the result of an
 	// operator request. If this is true, the FSM needs to ensure the eval
@@ -889,6 +956,11 @@ func (req *EvalListRequest) ShouldBeFiltered(e *Evaluation) bool {
 		return true
 	}
 	return false
+}
+
+// EvalCountRequest is used to count evaluations
+type EvalCountRequest struct {
+	QueryOptions
 }
 
 // PlanRequest is used to submit an allocation plan to the leader
@@ -1591,6 +1663,12 @@ type EvalListResponse struct {
 	QueryMeta
 }
 
+// EvalCountResponse is used for a count request
+type EvalCountResponse struct {
+	Count int
+	QueryMeta
+}
+
 // EvalAllocationsResponse is used to return the allocations for an evaluation
 type EvalAllocationsResponse struct {
 	Allocations []*AllocListStub
@@ -1691,7 +1769,7 @@ func (ne *NodeEvent) String() string {
 func (ne *NodeEvent) Copy() *NodeEvent {
 	c := new(NodeEvent)
 	*c = *ne
-	c.Details = helper.CopyMapStringString(ne.Details)
+	c.Details = maps.Clone(ne.Details)
 	return c
 }
 
@@ -1878,7 +1956,7 @@ func (m *DrainMetadata) Copy() *DrainMetadata {
 	}
 	c := new(DrainMetadata)
 	*c = *m
-	c.Meta = helper.CopyMapStringString(m.Meta)
+	c.Meta = maps.Clone(m.Meta)
 	return c
 }
 
@@ -2068,13 +2146,13 @@ func (n *Node) Copy() *Node {
 		return nil
 	}
 	nn := *n
-	nn.Attributes = helper.CopyMap(nn.Attributes)
+	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
-	nn.Links = helper.CopyMapStringString(nn.Links)
-	nn.Meta = helper.CopyMapStringString(nn.Meta)
+	nn.Links = maps.Clone(nn.Links)
+	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Events = helper.CopySlice(n.Events)
 	nn.Drivers = helper.DeepCopyMap(n.Drivers)
@@ -2328,10 +2406,10 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
-// Equals Resources.
+// Equal Resources.
 //
 // COMPAT(0.10): Remove in 0.10
-func (r *Resources) Equals(o *Resources) bool {
+func (r *Resources) Equal(o *Resources) bool {
 	if r == o {
 		return true
 	}
@@ -2344,8 +2422,8 @@ func (r *Resources) Equals(o *Resources) bool {
 		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
-		r.Networks.Equals(&o.Networks) &&
-		r.Devices.Equals(&o.Devices)
+		r.Networks.Equal(&o.Networks) &&
+		r.Devices.Equal(&o.Devices)
 }
 
 // ResourceDevices are part of Resources.
@@ -2353,10 +2431,10 @@ func (r *Resources) Equals(o *Resources) bool {
 // COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
-// Equals ResourceDevices as set keyed by Name.
+// Equal ResourceDevices as set keyed by Name.
 //
 // COMPAT(0.10): Remove in 0.10
-func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
+func (d *ResourceDevices) Equal(o *ResourceDevices) bool {
 	if d == o {
 		return true
 	}
@@ -2372,7 +2450,7 @@ func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	}
 	for _, oe := range *o {
 		de, ok := m[oe.Name]
-		if !ok || !de.Equals(oe) {
+		if !ok || !de.Equal(oe) {
 			return false
 		}
 	}
@@ -2489,7 +2567,7 @@ type NodeNetworkResource struct {
 	Addresses []NodeNetworkAddress // not valid for cni, for bridge there will only be 1 ip
 }
 
-func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
+func (n *NodeNetworkResource) Equal(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
@@ -2620,7 +2698,7 @@ func (n *NetworkResource) Hash() uint32 {
 	return crc32.ChecksumIEEE(data)
 }
 
-func (n *NetworkResource) Equals(other *NetworkResource) bool {
+func (n *NetworkResource) Equal(other *NetworkResource) bool {
 	return n.Hash() == other.Hash()
 }
 
@@ -2768,7 +2846,7 @@ type RequestedDevice struct {
 	Affinities Affinities
 }
 
-func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
+func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
 	if r == o {
 		return true
 	}
@@ -2777,8 +2855,8 @@ func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
 	}
 	return r.Name == o.Name &&
 		r.Count == o.Count &&
-		r.Constraints.Equals(&o.Constraints) &&
-		r.Affinities.Equals(&o.Affinities)
+		r.Constraints.Equal(&o.Constraints) &&
+		r.Affinities.Equal(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -2965,7 +3043,7 @@ func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *Node
 	return 0, nil
 }
 
-func (n *NodeResources) Equals(o *NodeResources) bool {
+func (n *NodeResources) Equal(o *NodeResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -2974,16 +3052,16 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 		return false
 	}
 
-	if !n.Cpu.Equals(&o.Cpu) {
+	if !n.Cpu.Equal(&o.Cpu) {
 		return false
 	}
-	if !n.Memory.Equals(&o.Memory) {
+	if !n.Memory.Equal(&o.Memory) {
 		return false
 	}
-	if !n.Disk.Equals(&o.Disk) {
+	if !n.Disk.Equal(&o.Disk) {
 		return false
 	}
-	if !n.Networks.Equals(&o.Networks) {
+	if !n.Networks.Equal(&o.Networks) {
 		return false
 	}
 
@@ -2999,8 +3077,8 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
-// Equals equates Networks as a set
-func (ns *Networks) Equals(o *Networks) bool {
+// Equal equates Networks as a set
+func (ns *Networks) Equal(o *Networks) bool {
 	if ns == o {
 		return true
 	}
@@ -3013,7 +3091,7 @@ func (ns *Networks) Equals(o *Networks) bool {
 SETEQUALS:
 	for _, ne := range *ns {
 		for _, oe := range *o {
-			if ne.Equals(oe) {
+			if ne.Equal(oe) {
 				continue SETEQUALS
 			}
 		}
@@ -3032,7 +3110,7 @@ func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 		idMap[*d.ID()] = d
 	}
 	for _, otherD := range d2 {
-		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
+		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equal(otherD) {
 			return false
 		}
 	}
@@ -3050,7 +3128,7 @@ func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
 		netMap[n.Device] = n
 	}
 	for _, otherN := range n2 {
-		if n, ok := netMap[otherN.Device]; !ok || !n.Equals(otherN) {
+		if n, ok := netMap[otherN.Device]; !ok || !n.Equal(otherN) {
 			return false
 		}
 	}
@@ -3103,7 +3181,7 @@ func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 	}
 }
 
-func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
+func (n *NodeCpuResources) Equal(o *NodeCpuResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3151,7 +3229,7 @@ func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
 	}
 }
 
-func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
+func (n *NodeMemoryResources) Equal(o *NodeMemoryResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3182,7 +3260,7 @@ func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
 	}
 }
 
-func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
+func (n *NodeDiskResources) Equal(o *NodeDiskResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3234,8 +3312,8 @@ func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	return true
 }
 
-// Equals returns if this Device ID is the same as the passed ID.
-func (id *DeviceIdTuple) Equals(o *DeviceIdTuple) bool {
+// Equal returns if this Device ID is the same as the passed ID.
+func (id *DeviceIdTuple) Equal(o *DeviceIdTuple) bool {
 	if id == nil && o == nil {
 		return true
 	} else if id == nil || o == nil {
@@ -3289,7 +3367,7 @@ func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
 	return &nn
 }
 
-func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
+func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3325,7 +3403,7 @@ func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
 		idMap[d.ID] = d
 	}
 	for _, otherD := range o.Instances {
-		if d, ok := idMap[otherD.ID]; !ok || !d.Equals(otherD) {
+		if d, ok := idMap[otherD.ID]; !ok || !d.Equal(otherD) {
 			return false
 		}
 	}
@@ -3350,7 +3428,7 @@ type NodeDevice struct {
 	Locality *NodeDeviceLocality
 }
 
-func (n *NodeDevice) Equals(o *NodeDevice) bool {
+func (n *NodeDevice) Equal(o *NodeDevice) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3365,7 +3443,7 @@ func (n *NodeDevice) Equals(o *NodeDevice) bool {
 		return false
 	} else if n.HealthDescription != o.HealthDescription {
 		return false
-	} else if !n.Locality.Equals(o.Locality) {
+	} else if !n.Locality.Equal(o.Locality) {
 		return false
 	}
 
@@ -3393,7 +3471,7 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
-func (n *NodeDeviceLocality) Equals(o *NodeDeviceLocality) bool {
+func (n *NodeDeviceLocality) Equal(o *NodeDeviceLocality) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3883,7 +3961,7 @@ func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
 	}
 
 	for i, o := range a {
-		if o.ID().Equals(d.ID()) {
+		if o.ID().Equal(d.ID()) {
 			return i
 		}
 	}
@@ -4252,7 +4330,7 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
+	nj.Datacenters = slices.Clone(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
 	nj.Multiregion = nj.Multiregion.Copy()
@@ -4266,7 +4344,7 @@ func (j *Job) Copy() *Job {
 	}
 
 	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = helper.CopyMapStringString(nj.Meta)
+	nj.Meta = maps.Clone(nj.Meta)
 	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
 	return nj
 }
@@ -4474,7 +4552,7 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 
 	task := group.LookupTask(taskName)
 	if task != nil {
-		meta = helper.CopyMapStringString(task.Meta)
+		meta = maps.Clone(task.Meta)
 	}
 
 	if meta == nil {
@@ -4515,8 +4593,8 @@ func (j *Job) HasUpdateStrategy() bool {
 }
 
 // Stub is used to return a summary of the job
-func (j *Job) Stub(summary *JobSummary) *JobListStub {
-	return &JobListStub{
+func (j *Job) Stub(summary *JobSummary, fields *JobStubFields) *JobListStub {
+	jobStub := &JobListStub{
 		ID:                j.ID,
 		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
@@ -4536,6 +4614,14 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		SubmitTime:        j.SubmitTime,
 		JobSummary:        summary,
 	}
+
+	if fields != nil {
+		if fields.Meta {
+			jobStub.Meta = j.Meta
+		}
+	}
+
+	return jobStub
 }
 
 // IsPeriodic returns whether a job is periodic.
@@ -4719,6 +4805,7 @@ type JobListStub struct {
 	ModifyIndex       uint64
 	JobModifyIndex    uint64
 	SubmitTime        int64
+	Meta              map[string]string `json:",omitempty"`
 }
 
 // JobSummary summarizes the state of the allocations of a job
@@ -5080,8 +5167,8 @@ func (n *Namespace) Copy() *Namespace {
 	if n.Capabilities != nil {
 		c := new(NamespaceCapabilities)
 		*c = *n.Capabilities
-		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
-		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
+		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
 	}
 	if n.Meta != nil {
@@ -5339,7 +5426,7 @@ func (d *ParameterizedJobConfig) Validate() error {
 	}
 
 	// Check that the meta configurations are disjoint sets
-	disjoint, offending := helper.SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
+	disjoint, offending := helper.IsDisjoint(d.MetaRequired, d.MetaOptional)
 	if !disjoint {
 		_ = multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
 	}
@@ -5359,15 +5446,20 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 	}
 	nd := new(ParameterizedJobConfig)
 	*nd = *d
-	nd.MetaOptional = helper.CopySliceString(nd.MetaOptional)
-	nd.MetaRequired = helper.CopySliceString(nd.MetaRequired)
+	nd.MetaOptional = slices.Clone(nd.MetaOptional)
+	nd.MetaRequired = slices.Clone(nd.MetaRequired)
 	return nd
 }
 
 // DispatchedID returns an ID appropriate for a job dispatched against a
 // particular parameterized job
-func DispatchedID(templateID string, t time.Time) string {
+func DispatchedID(templateID, idPrefixTemplate string, t time.Time) string {
 	u := uuid.Generate()[:8]
+
+	if idPrefixTemplate != "" {
+		return fmt.Sprintf("%s%s%s-%d-%s", templateID, DispatchLaunchSuffix, idPrefixTemplate, t.Unix(), u)
+	}
+
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
@@ -5744,6 +5836,17 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 	ret = append(ret, j.GetEntScalingPolicies()...)
 
 	return ret
+}
+
+// UsesDeployments returns a boolean indicating whether the job configuration
+// results in a deployment during scheduling.
+func (j *Job) UsesDeployments() bool {
+	switch j.Type {
+	case JobTypeService:
+		return true
+	default:
+		return false
+	}
 }
 
 // ScalingPolicyListStub is used to return a subset of scaling policy information
@@ -6195,7 +6298,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.Tasks = tasks
 	}
 
-	ntg.Meta = helper.CopyMapStringString(ntg.Meta)
+	ntg.Meta = maps.Clone(ntg.Meta)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -6663,10 +6766,6 @@ func (tg *TaskGroup) validateServices() error {
 
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
-				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
-					mErr.Errors = append(mErr.Errors,
-						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
-				}
 				if check.AddressMode == AddressModeDriver {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %q invalid: cannot use address_mode=\"driver\", only checks defined in a \"task\" service block can use this mode", service.Name))
 				}
@@ -6851,7 +6950,7 @@ func (c *CheckRestart) Copy() *CheckRestart {
 	return nc
 }
 
-func (c *CheckRestart) Equals(o *CheckRestart) bool {
+func (c *CheckRestart) Equal(o *CheckRestart) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -6900,7 +6999,7 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
-func (l *LogConfig) Equals(o *LogConfig) bool {
+func (l *LogConfig) Equal(o *LogConfig) bool {
 	if l == nil || o == nil {
 		return l == o
 	}
@@ -7073,7 +7172,7 @@ func (t *Task) Copy() *Task {
 	}
 	nt := new(Task)
 	*nt = *t
-	nt.Env = helper.CopyMapStringString(nt.Env)
+	nt.Env = maps.Clone(nt.Env)
 
 	if t.Services != nil {
 		services := make([]*Service, len(nt.Services))
@@ -7091,7 +7190,7 @@ func (t *Task) Copy() *Task {
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
-	nt.Meta = helper.CopyMapStringString(nt.Meta)
+	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 
@@ -7710,6 +7809,10 @@ type Template struct {
 
 	// WaitConfig is used to override the global WaitConfig on a per-template basis
 	Wait *WaitConfig
+
+	// ErrMissingKey is used to control how the template behaves when attempting
+	// to index a struct or map key that does not exist.
+	ErrMissingKey bool
 }
 
 // DefaultTemplate returns a default template.
@@ -7886,7 +7989,7 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return nwc
 }
 
-func (wc *WaitConfig) Equals(o *WaitConfig) bool {
+func (wc *WaitConfig) Equal(o *WaitConfig) bool {
 	if wc.Min == nil && o.Min != nil {
 		return false
 	}
@@ -8141,6 +8244,10 @@ const (
 
 	// TaskClientReconnected indicates that the client running the task disconnected.
 	TaskClientReconnected = "Reconnected"
+
+	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
+	// shutdown delay before being TaskKilled
+	TaskWaitingShuttingDownDelay = "Waiting for shutdown delay"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8567,8 +8674,8 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	}
 	return &TaskArtifact{
 		GetterSource:  ta.GetterSource,
-		GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+		GetterOptions: maps.Clone(ta.GetterOptions),
+		GetterHeaders: maps.Clone(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
 	}
@@ -8717,17 +8824,12 @@ type Constraint struct {
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
 }
 
-// Equals checks if two constraints are equal.
-func (c *Constraint) Equals(o *Constraint) bool {
+// Equal checks if two constraints are equal.
+func (c *Constraint) Equal(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
 			c.RTarget == o.RTarget &&
 			c.Operand == o.Operand
-}
-
-// Equal is like Equals but with one less s.
-func (c *Constraint) Equal(o *Constraint) bool {
-	return c.Equals(o)
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -8807,8 +8909,8 @@ func (c *Constraint) Validate() error {
 
 type Constraints []*Constraint
 
-// Equals compares Constraints as a set
-func (xs *Constraints) Equals(ys *Constraints) bool {
+// Equal compares Constraints as a set
+func (xs *Constraints) Equal(ys *Constraints) bool {
 	if xs == ys {
 		return true
 	}
@@ -8821,7 +8923,7 @@ func (xs *Constraints) Equals(ys *Constraints) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equals(y) {
+			if x.Equal(y) {
 				continue SETEQUALS
 			}
 		}
@@ -8838,17 +8940,13 @@ type Affinity struct {
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
 }
 
-// Equals checks if two affinities are equal.
-func (a *Affinity) Equals(o *Affinity) bool {
+// Equal checks if two affinities are equal.
+func (a *Affinity) Equal(o *Affinity) bool {
 	return a == o ||
 		a.LTarget == o.LTarget &&
 			a.RTarget == o.RTarget &&
 			a.Operand == o.Operand &&
 			a.Weight == o.Weight
-}
-
-func (a *Affinity) Equal(o *Affinity) bool {
-	return a.Equals(o)
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -8934,8 +9032,8 @@ type Spread struct {
 
 type Affinities []*Affinity
 
-// Equals compares Affinities as a set
-func (xs *Affinities) Equals(ys *Affinities) bool {
+// Equal compares Affinities as a set
+func (xs *Affinities) Equal(ys *Affinities) bool {
 	if xs == ys {
 		return true
 	}
@@ -8948,7 +9046,7 @@ func (xs *Affinities) Equals(ys *Affinities) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equals(y) {
+			if x.Equal(y) {
 				continue SETEQUALS
 			}
 		}
@@ -9169,14 +9267,15 @@ func (v *Vault) Validate() error {
 
 const (
 	// DeploymentStatuses are the various states a deployment can be be in
-	DeploymentStatusRunning    = "running"
-	DeploymentStatusPaused     = "paused"
-	DeploymentStatusFailed     = "failed"
-	DeploymentStatusSuccessful = "successful"
-	DeploymentStatusCancelled  = "cancelled"
-	DeploymentStatusPending    = "pending"
-	DeploymentStatusBlocked    = "blocked"
-	DeploymentStatusUnblocking = "unblocking"
+	DeploymentStatusRunning      = "running"
+	DeploymentStatusPaused       = "paused"
+	DeploymentStatusFailed       = "failed"
+	DeploymentStatusSuccessful   = "successful"
+	DeploymentStatusCancelled    = "cancelled"
+	DeploymentStatusInitializing = "initializing"
+	DeploymentStatusPending      = "pending"
+	DeploymentStatusBlocked      = "blocked"
+	DeploymentStatusUnblocking   = "unblocking"
 
 	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
 
@@ -9310,7 +9409,8 @@ func (d *Deployment) Copy() *Deployment {
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking, DeploymentStatusPending:
+	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked,
+		DeploymentStatusUnblocking, DeploymentStatusInitializing, DeploymentStatusPending:
 		return true
 	default:
 		return false
@@ -9441,7 +9541,7 @@ func (d *DeploymentState) GoString() string {
 func (d *DeploymentState) Copy() *DeploymentState {
 	c := &DeploymentState{}
 	*c = *d
-	c.PlacedCanaries = helper.CopySliceString(d.PlacedCanaries)
+	c.PlacedCanaries = slices.Clone(d.PlacedCanaries)
 	return c
 }
 
@@ -9708,10 +9808,13 @@ type Allocation struct {
 	// to stop running because it got preempted
 	PreemptedByAllocation string
 
-	// SignedIdentities is a map of task names to signed
-	// identity/capability claim tokens for those tasks. If needed, it
-	// is populated in the plan applier
+	// SignedIdentities is a map of task names to signed identity/capability
+	// claim tokens for those tasks. If needed, it is populated in the plan
+	// applier.
 	SignedIdentities map[string]string `json:"-"`
+
+	// SigningKeyID is the key used to sign the SignedIdentities field.
+	SigningKeyID string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -9855,7 +9958,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
-	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
+	na.PreemptedAllocations = slices.Clone(a.PreemptedAllocations)
 	return na
 }
 
@@ -10384,27 +10487,24 @@ func (a *Allocation) LastUnknown() time.Time {
 	return lastUnknown.UTC()
 }
 
-// Reconnected determines whether a reconnect event has occurred for any task
-// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
-func (a *Allocation) Reconnected() (bool, bool) {
-	var lastReconnect time.Time
-	for _, taskState := range a.TaskStates {
-		for _, taskEvent := range taskState.Events {
-			if taskEvent.Type != TaskClientReconnected {
-				continue
-			}
-			eventTime := time.Unix(0, taskEvent.Time).UTC()
-			if lastReconnect.IsZero() || lastReconnect.Before(eventTime) {
-				lastReconnect = eventTime
-			}
+// NeedsToReconnect returns true if the last known ClientStatus value is
+// "unknown" and so the allocation did not reconnect yet.
+func (a *Allocation) NeedsToReconnect() bool {
+	disconnected := false
+
+	// AllocStates are appended to the list and we only need the latest
+	// ClientStatus transition, so traverse from the end until we find one.
+	for i := len(a.AllocStates) - 1; i >= 0; i-- {
+		s := a.AllocStates[i]
+		if s.Field != AllocStateFieldClientStatus {
+			continue
 		}
+
+		disconnected = s.Value == AllocClientStatusUnknown
+		break
 	}
 
-	if lastReconnect.IsZero() {
-		return false, false
-	}
-
-	return true, a.Expired(lastReconnect)
+	return disconnected
 }
 
 func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
@@ -10584,13 +10684,13 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 	na := new(AllocMetric)
 	*na = *a
-	na.NodesAvailable = helper.CopyMapStringInt(na.NodesAvailable)
-	na.ClassFiltered = helper.CopyMapStringInt(na.ClassFiltered)
-	na.ConstraintFiltered = helper.CopyMapStringInt(na.ConstraintFiltered)
-	na.ClassExhausted = helper.CopyMapStringInt(na.ClassExhausted)
-	na.DimensionExhausted = helper.CopyMapStringInt(na.DimensionExhausted)
-	na.QuotaExhausted = helper.CopySliceString(na.QuotaExhausted)
-	na.Scores = helper.CopyMapStringFloat64(na.Scores)
+	na.NodesAvailable = maps.Clone(na.NodesAvailable)
+	na.ClassFiltered = maps.Clone(na.ClassFiltered)
+	na.ConstraintFiltered = maps.Clone(na.ConstraintFiltered)
+	na.ClassExhausted = maps.Clone(na.ClassExhausted)
+	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
+	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
+	na.Scores = maps.Clone(na.Scores)
 	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
 	return na
 }
@@ -12033,6 +12133,14 @@ var (
 		Policies:   []string{"anonymous"},
 		Global:     false,
 	}
+
+	// LeaderACLToken is used to represent a leader's own token; this object
+	// never gets used except on the leader
+	LeaderACLToken = &ACLToken{
+		AccessorID: "leader",
+		Name:       "Leader Token",
+		Type:       ACLManagementToken,
+	}
 )
 
 type ACLTokenListStub struct {
@@ -12100,24 +12208,6 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 		CreateIndex:    a.CreateIndex,
 		ModifyIndex:    a.ModifyIndex,
 	}
-}
-
-// PolicySubset checks if a given set of policies is a subset of the token
-func (a *ACLToken) PolicySubset(policies []string) bool {
-	// Hot-path the management tokens, superset of all policies.
-	if a.Type == ACLManagementToken {
-		return true
-	}
-	associatedPolicies := make(map[string]struct{}, len(a.Policies))
-	for _, policy := range a.Policies {
-		associatedPolicies[policy] = struct{}{}
-	}
-	for _, policy := range policies {
-		if _, ok := associatedPolicies[policy]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 // ACLTokenListRequest is used to request a list of tokens

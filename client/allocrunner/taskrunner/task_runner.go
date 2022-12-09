@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -423,6 +424,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		return nil, err
 	}
 
+	// Use the client secret only as the initial value; the identity hook will
+	// update this with a workload identity if one is available
+	tr.setNomadToken(config.ClientConfig.Node.SecretID)
+
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities
 	tr.initHooks()
@@ -558,7 +563,8 @@ func (tr *TaskRunner) Run() {
 	// Set the initial task state.
 	tr.stateUpdater.TaskStateUpdated()
 
-	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
+	// start with a stopped timer; actual restart delay computed later
+	timer, stop := helper.NewStoppedTimer()
 	defer stop()
 
 MAIN:
@@ -980,6 +986,10 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 	// before waiting to kill task
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+
+		ev := structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
+			SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+		tr.UpdateState(structs.TaskStatePending, ev)
 
 		select {
 		case result := <-resultCh:
@@ -1473,7 +1483,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	ms := ru.ResourceUsage.MemoryStats
 
 	publishMetric := func(v uint64, reported, measured string) {
-		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+		if v != 0 || slices.Contains(ms.Measured, measured) {
 			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
 				float32(v), tr.baseLabels)
 		}

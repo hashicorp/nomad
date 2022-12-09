@@ -22,7 +22,7 @@ export default class ServiceStatusBar extends DistributionBar {
     const failing = this.status.failure || 0;
     const success = this.status.success || 0;
 
-    const [grey, red, green] = ['queued', 'failed', 'complete'];
+    const [grey, red, green] = ['queued', 'failed', 'running'];
 
     return [
       {

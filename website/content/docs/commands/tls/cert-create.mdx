@@ -1,0 +1,86 @@
+---
+layout: docs
+page_title: 'Commands: TLS Cert Create'
+description: |
+  This command creates a Certificate that can be used for Nomad TLS setup.
+---
+
+# Command: nomad tls cert create
+
+The `tls cert create` command is used to create certificates to be used for
+[TLS encryption][] for your Nomad cluster. You can then copy these to your
+servers and clients. This command will not automatically update the
+configuration of the agents.
+
+## Usage
+
+Usage: `nomad tls cert create [options]`
+
+#### Command Options
+
+- `-additional-dnsname=<string>`: Provide an additional dnsname for Subject
+  Alternative Names. `localhost` is always included. This flag may be provided
+  multiple times.
+
+- `-additional-ipaddress=<string>`: Provide an additional ipaddress for Subject
+  Alternative Names. `127.0.0.1` is always included. This flag may be provided
+  multiple times.
+
+- `-ca=<string>`: Provide path to the ca. Defaults to `#DOMAIN#-agent-ca.pem`.
+
+- `-cli`: Generate cli certificate.
+
+- `-client`: Generate client certificate.
+
+- `-days=<int>`: Provide number of days the certificate is valid for from now
+  on. Defaults to 1 year.
+
+- `-dc=<string>`: Provide the datacenter. Matters only for `-server`
+  certificates. Defaults to `dc1`.
+
+- `-domain=<string>`: Provide the domain. Matters only for `-server`
+  certificates.
+
+- `-key=<string>`: Provide path to the key. Defaults to
+  `#DOMAIN#-agent-ca-key.pem`.
+
+- `-node=<string>`: When generating a server cert and this server is set an
+  additional DNS name is included of the form
+  `<node>.server.<datacenter>.<domain>`.
+
+- `-server`: Generate server certificate.
+
+## Examples
+
+Create a certificate for servers:
+
+```shell-session
+$ nomad tls cert create -server
+==> WARNING: Server Certificates grants authority to become a
+    server and access all state in the cluster including root keys
+    and all ACL tokens. Do not distribute them to production hosts
+    that are not server nodes. Store them as securely as CA keys.
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Server Certificate saved to global-server-nomad.pem
+==> Server Certificate key saved to global-server-nomad-key.pem
+```
+
+Create a certificate for clients:
+
+```shell-session
+$ nomad tls cert create -client
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Client Certificate saved to global-client-nomad.pem
+==> Client Certificate key saved to global-client-nomad-key.pem
+```
+
+Create a certificate for the CLI:
+
+```shell-session
+$ nomad tls cert create -cli
+==> Using CA file nomad-agent-ca.pem and CA key nomad-agent-ca-key.pem
+==> Cli Certificate saved to global-cli-nomad.pem
+==> Cli Certificate key saved to global-cli-nomad-key.pem
+```
+
+[TLS encryption]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls?in=nomad/transport-security

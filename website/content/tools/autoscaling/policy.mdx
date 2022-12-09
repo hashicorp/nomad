@@ -67,6 +67,10 @@ horizontal application scaling or horizontal cluster scaling.
 - `query_window` - Defines how far back to query the APM for metrics. It should
   be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
 
+- `group` - Specifies which checks should treated as correlated when the policy
+  is evaluated. Refer to [Check Grouping][concepts_grouping] for more
+  information.
+
 - `on_error` - Defines how to handle errors during the `check` evaluation.
   Possible values are `"fail"` or `"ignore"`. If set to `"fail"` the policy
   evaluation will stop in case an error occurs and not scaling action will take
@@ -236,6 +240,7 @@ scaling "mem" {
 }
 ```
 
+[concepts_grouping]: /tools/autoscaling/concepts/policy-eval/checks#check-grouping
 [das]: /tools/autoscaling#dynamic-application-sizing
 [policy_default_cooldown_agent]: /tools/autoscaling/agent#default_cooldown
 [eval_interval_agent]: /tools/autoscaling/agent#default_evaluation_interval

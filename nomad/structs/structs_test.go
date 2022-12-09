@@ -863,12 +863,12 @@ func TestJob_PartEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	ns := &Networks{}
-	require.True(t, ns.Equals(&Networks{}))
+	require.True(t, ns.Equal(&Networks{}))
 
 	ns = &Networks{
 		&NetworkResource{Device: "eth0"},
 	}
-	require.True(t, ns.Equals(&Networks{
+	require.True(t, ns.Equal(&Networks{
 		&NetworkResource{Device: "eth0"},
 	}))
 
@@ -877,7 +877,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&NetworkResource{Device: "eth1"},
 		&NetworkResource{Device: "eth2"},
 	}
-	require.True(t, ns.Equals(&Networks{
+	require.True(t, ns.Equal(&Networks{
 		&NetworkResource{Device: "eth2"},
 		&NetworkResource{Device: "eth0"},
 		&NetworkResource{Device: "eth1"},
@@ -888,7 +888,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Constraint{"left1", "right1", "="},
 		&Constraint{"left2", "right2", "="},
 	}
-	require.True(t, cs.Equals(&Constraints{
+	require.True(t, cs.Equal(&Constraints{
 		&Constraint{"left0", "right0", "="},
 		&Constraint{"left2", "right2", "="},
 		&Constraint{"left1", "right1", "="},
@@ -899,7 +899,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left1", "right1", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 	}
-	require.True(t, as.Equals(&Affinities{
+	require.True(t, as.Equal(&Affinities{
 		&Affinity{"left0", "right0", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 		&Affinity{"left1", "right1", "=", 0},
@@ -1276,9 +1276,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	err = tg.Validate(&Job{})
 	expected = `Check check-a invalid: refers to non-existent task task-b`
-	require.Contains(t, err.Error(), expected)
-
-	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
 	tg = &TaskGroup{
@@ -2487,31 +2484,31 @@ func TestLogConfig_Equals(t *testing.T) {
 	t.Run("both nil", func(t *testing.T) {
 		a := (*LogConfig)(nil)
 		b := (*LogConfig)(nil)
-		require.True(t, a.Equals(b))
+		require.True(t, a.Equal(b))
 	})
 
 	t.Run("one nil", func(t *testing.T) {
 		a := new(LogConfig)
 		b := (*LogConfig)(nil)
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("max files", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("max file size", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.False(t, a.Equals(b))
+		require.False(t, a.Equal(b))
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.True(t, a.Equals(b))
+		require.True(t, a.Equal(b))
 	})
 }
 
@@ -2889,7 +2886,7 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.True(t, tc.config.Equals(tc.expected))
+			require.True(t, tc.config.Equal(tc.expected))
 		})
 	}
 }
@@ -5518,146 +5515,106 @@ func TestAllocation_Expired(t *testing.T) {
 	}
 }
 
-func TestAllocation_Reconnected(t *testing.T) {
-	type testCase struct {
-		name             string
-		maxDisconnect    string
-		elapsed          int
-		reconnected      bool
-		expired          bool
-		nilJob           bool
-		badTaskGroup     bool
-		mixedTZ          bool
-		noReconnectEvent bool
-		status           string
+func TestAllocation_NeedsToReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		states   []*AllocState
+		expected bool
+	}{
+		{
+			name:     "no state",
+			expected: false,
+		},
+		{
+			name:     "never disconnected",
+			states:   []*AllocState{},
+			expected: false,
+		},
+		{
+			name: "disconnected once",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "disconnect reconnect disconnect",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "disconnect multiple times before reconnect",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now(),
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "disconnect after multiple updates",
+			states: []*AllocState{
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusPending,
+					Time:  time.Now().Add(-2 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusRunning,
+					Time:  time.Now().Add(-1 * time.Minute),
+				},
+				{
+					Field: AllocStateFieldClientStatus,
+					Value: AllocClientStatusUnknown,
+					Time:  time.Now(),
+				},
+			},
+			expected: true,
+		},
 	}
 
-	testCases := []testCase{
-		{
-			name:          "has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
-		},
-		{
-			name:          "has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
-		},
-		{
-			name:          "are-equal",
-			maxDisconnect: "5s",
-			elapsed:       5,
-			reconnected:   true,
-			expired:       true,
-		},
-		{
-			name:          "nil-job",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			nilJob:        true,
-		},
-		{
-			name:          "bad-task-group",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-			badTaskGroup:  true,
-		},
-		{
-			name:          "no-max-disconnect",
-			maxDisconnect: "",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       false,
-		},
-		{
-			name:          "mixed-utc-has-expired",
-			maxDisconnect: "5s",
-			elapsed:       10,
-			reconnected:   true,
-			expired:       true,
-			mixedTZ:       true,
-		},
-		{
-			name:          "mixed-utc-has-not-expired",
-			maxDisconnect: "5s",
-			elapsed:       3,
-			reconnected:   true,
-			expired:       false,
-			mixedTZ:       true,
-		},
-		{
-			name:             "no-reconnect-event",
-			maxDisconnect:    "5s",
-			elapsed:          2,
-			reconnected:      false,
-			expired:          false,
-			noReconnectEvent: true,
-		},
-	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc := MockAlloc()
-			var err error
-			var maxDisconnect time.Duration
+			alloc.AllocStates = tc.states
 
-			if tc.maxDisconnect != "" {
-				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
-				require.NoError(t, err)
-				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
-			}
-
-			if tc.nilJob {
-				alloc.Job = nil
-			}
-
-			if tc.badTaskGroup {
-				alloc.TaskGroup = "bad"
-			}
-
-			alloc.ClientStatus = AllocClientStatusUnknown
-			if tc.status != "" {
-				alloc.ClientStatus = tc.status
-			}
-
-			alloc.AllocStates = []*AllocState{{
-				Field: AllocStateFieldClientStatus,
-				Value: AllocClientStatusUnknown,
-				Time:  time.Now().UTC(),
-			}}
-
-			now := time.Now().UTC()
-			if tc.mixedTZ {
-				var loc *time.Location
-				loc, err = time.LoadLocation("America/New_York")
-				require.NoError(t, err)
-				now = time.Now().In(loc)
-			}
-
-			ellapsedDuration := time.Duration(tc.elapsed) * time.Second
-			now = now.Add(ellapsedDuration)
-
-			if !tc.noReconnectEvent {
-				event := NewTaskEvent(TaskClientReconnected)
-				event.Time = now.UnixNano()
-
-				alloc.TaskStates = map[string]*TaskState{
-					"web": {
-						Events: []*TaskEvent{event},
-					},
-				}
-			}
-
-			reconnected, expired := alloc.Reconnected()
-			require.Equal(t, tc.reconnected, reconnected)
-			require.Equal(t, tc.expired, expired)
+			got := alloc.NeedsToReconnect()
+			require.Equal(t, tc.expected, got)
 		})
 	}
 }
@@ -6117,33 +6074,6 @@ func TestIsRecoverable(t *testing.T) {
 	}
 }
 
-func TestACLTokenPolicySubset(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{
-		Type:     ACLClientToken,
-		Policies: []string{"foo", "bar", "baz"},
-	}
-
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{}))
-	assert.Equal(t, false, tk.PolicySubset([]string{"foo", "bar", "new"}))
-	assert.Equal(t, false, tk.PolicySubset([]string{"new"}))
-
-	tk = &ACLToken{
-		Type: ACLManagementToken,
-	}
-
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
-	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
-}
-
 func TestACLTokenSetHash(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6400,7 +6330,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 	for _, testCase := range networkResourcesTest {
 		first := testCase.input[0]
 		second := testCase.input[1]
-		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
+		require.Equal(testCase.expected, first.Equal(second), testCase.errorMsg)
 	}
 }
 

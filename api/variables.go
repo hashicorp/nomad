@@ -175,8 +175,9 @@ func (sv *Variables) GetItems(path string, qo *QueryOptions) (*VariableItems, *Q
 }
 
 // readInternal exists because the API's higher-level read method requires
-// the status code to be 200 (OK). For Peek(), we do not consider 404
-// (Not Found) an error.
+// the status code to be 200 (OK). For Peek(), we do not consider 403 (Permission
+// Denied or 404 (Not Found) an error, this function just returns a nil in those
+// cases.
 func (sv *Variables) readInternal(endpoint string, out **Variable, q *QueryOptions) (*QueryMeta, error) {
 
 	r, err := sv.client.newRequest("GET", endpoint)
@@ -185,7 +186,7 @@ func (sv *Variables) readInternal(endpoint string, out **Variable, q *QueryOptio
 	}
 	r.setQueryOptions(q)
 
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound)
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound, http.StatusForbidden)
 	rtt, resp, err := checkFn(sv.client.doRequest(r))
 	if err != nil {
 		return nil, err
@@ -201,6 +202,19 @@ func (sv *Variables) readInternal(endpoint string, out **Variable, q *QueryOptio
 		return qm, nil
 	}
 
+	if resp.StatusCode == http.StatusForbidden {
+		*out = nil
+		resp.Body.Close()
+		// On a 403, there is no QueryMeta to parse, but consul-template--the
+		// main consumer of the Peek() func that calls this method needs the
+		// value to be non-zero; so set them to a reasonable but artificial
+		// value. Index 1 doesn't say anything about the cluster, and there
+		// has to be a KnownLeader to get a 403.
+		qm.LastIndex = 1
+		qm.KnownLeader = true
+		return qm, nil
+	}
+
 	defer resp.Body.Close()
 	if err := decodeBody(resp, out); err != nil {
 		return nil, err
@@ -209,7 +223,7 @@ func (sv *Variables) readInternal(endpoint string, out **Variable, q *QueryOptio
 	return qm, nil
 }
 
-// readInternal exists because the API's higher-level delete method requires
+// deleteInternal exists because the API's higher-level delete method requires
 // the status code to be 200 (OK). The SV HTTP API returns a 204 (No Content)
 // on success.
 func (sv *Variables) deleteInternal(path string, q *WriteOptions) (*WriteMeta, error) {

@@ -51,10 +51,28 @@ const mockTask = {
 module('Integration | Component | task-sub-row', function (hooks) {
   setupRenderingTest(hooks);
   test('it renders', async function (assert) {
-    assert.expect(2);
+    assert.expect(6);
     this.set('task', mockTask);
     await render(hbs`<TaskSubRow @taskState={{this.task}} />`);
-    assert.dom(this.element).hasText(`/ ${mockTask.name}`);
+    assert.ok(
+      this.element.textContent.includes(`${mockTask.name}`),
+      'Task name is rendered'
+    );
+    assert.dom('.task-sub-row').doesNotHaveClass('is-active');
+
+    await render(hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} />`);
+    assert.dom('.task-sub-row').hasClass('is-active');
+
+    await render(
+      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{5}} />`
+    );
+    assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '5');
+
+    await render(
+      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />`
+    );
+    assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '9');
+
     await componentA11yAudit(this.element, assert);
   });
 });

@@ -347,7 +347,7 @@ func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
 }
 
 // registerHandlers is used to attach our handlers to the mux
-func (s HTTPServer) registerHandlers(enableDebug bool) {
+func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
@@ -359,6 +359,7 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
 
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
+	s.mux.HandleFunc("/v1/evaluations/count", s.wrap(s.EvalsCountRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
 
 	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
@@ -385,6 +386,11 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/roles", s.wrap(s.ACLRoleListRequest))
 	s.mux.HandleFunc("/v1/acl/role", s.wrap(s.ACLRoleRequest))
 	s.mux.HandleFunc("/v1/acl/role/", s.wrap(s.ACLRoleSpecificRequest))
+
+	// Register our ACL auth-method handlers.
+	s.mux.HandleFunc("/v1/acl/auth-methods", s.wrap(s.ACLAuthMethodListRequest))
+	s.mux.HandleFunc("/v1/acl/auth-method", s.wrap(s.ACLAuthMethodRequest))
+	s.mux.HandleFunc("/v1/acl/auth-method/", s.wrap(s.ACLAuthMethodSpecificRequest))
 
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))

@@ -188,9 +188,9 @@ func (c *VaultConfig) Copy() *VaultConfig {
 	return nc
 }
 
-// Equals compares two Vault configurations and returns a boolean indicating
+// Equal compares two Vault configurations and returns a boolean indicating
 // if they are equal.
-func (c *VaultConfig) Equals(b *VaultConfig) bool {
+func (c *VaultConfig) Equal(b *VaultConfig) bool {
 	if c == nil && b != nil {
 		return false
 	}

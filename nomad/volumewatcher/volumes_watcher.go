@@ -188,6 +188,14 @@ func (w *Watcher) addLocked(v *structs.CSIVolume) (*volumeWatcher, error) {
 
 	watcher := newVolumeWatcher(w, v)
 	w.watchers[v.ID+v.Namespace] = watcher
+
+	// Sending the first volume update here before we return ensures we've hit
+	// the run loop in the goroutine before freeing the lock. This prevents a
+	// race between shutting down the watcher and the blocking query.
+	//
+	// It also ensures that we don't drop events that happened during leadership
+	// transitions and didn't get completed by the prior leader
+	watcher.updateCh <- v
 	return watcher, nil
 }
 
