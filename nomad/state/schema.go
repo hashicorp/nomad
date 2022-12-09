@@ -19,6 +19,7 @@ const (
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
 	TableACLAuthMethods       = "acl_auth_methods"
+	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
 )
 
@@ -34,6 +35,7 @@ const (
 	indexPath          = "path"
 	indexName          = "name"
 	indexSigningKey    = "signing_key"
+	indexAuthMethod    = "auth_method"
 )
 
 var (
@@ -87,6 +89,7 @@ func init() {
 		variablesRootKeyMetaSchema,
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
+		bindingRulesTableSchema,
 	}...)
 }
 
@@ -1529,6 +1532,30 @@ func aclAuthMethodsTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Name",
+				},
+			},
+		},
+	}
+}
+
+func bindingRulesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableACLBindingRules,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexAuthMethod: {
+				Name:         indexAuthMethod,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AuthMethod",
 				},
 			},
 		},
