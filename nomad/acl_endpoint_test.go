@@ -3023,6 +3023,7 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	// Create the register request
 	am1 := mock.ACLAuthMethod()
 	am1.Default = true // make sure it's going to be a default method
+	am1.SetHash()
 
 	// Lookup the authMethods
 	req := &structs.ACLAuthMethodUpsertRequest{

@@ -87,7 +87,7 @@ func TestACLAuthMethodCreateCommand_Run(t *testing.T) {
 
 	args = []string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-name=acl-auth-method-cli-test",
-		"-type=OIDC", "-token-locality=global", "-default=true", "-max-token-ttl=3600s",
+		"-type=OIDC", "-token-locality=global", "-default=false", "-max-token-ttl=3600s",
 		fmt.Sprintf("-config=@%s", configFile.Name()),
 	}
 	must.Eq(t, 0, cmd.Run(args))
