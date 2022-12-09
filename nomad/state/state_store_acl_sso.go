@@ -176,3 +176,34 @@ func (s *StateStore) GetACLAuthMethodByName(ws memdb.WatchSet, authMethod string
 	}
 	return nil, nil
 }
+
+// GetDefaultACLAuthMethodByType returns a default ACL Auth Methods for a given
+// auth type. Since we only want 1 default auth method per type, this function
+// is used during upserts to facilitate that check.
+func (s *StateStore) GetDefaultACLAuthMethodByType(ws memdb.WatchSet, methodType string) (*structs.ACLAuthMethod, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table to get all ACL auth methods.
+	iter, err := txn.Get(TableACLAuthMethods, indexID)
+	if err != nil {
+		return nil, fmt.Errorf("ACL auth method lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	// Filter out non-default methods
+	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+		method, ok := raw.(*structs.ACLAuthMethod)
+		if !ok {
+			return true
+		}
+		// any non-default method or method of different type than desired gets filtered-out
+		return !method.Default || method.Type != methodType
+	})
+
+	for raw := filter.Next(); raw != nil; raw = filter.Next() {
+		method := raw.(*structs.ACLAuthMethod)
+		return method, nil
+	}
+
+	return nil, nil
+}
