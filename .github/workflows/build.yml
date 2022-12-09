@@ -2,10 +2,9 @@ name: build
 
 on:
   push:
-    branches-ignore:
-      - docs/**
-      - backport/docs/**
-      - e2e-*
+    branches:
+      - main
+      - release/**
   workflow_dispatch:
     inputs:
       build-ref:
