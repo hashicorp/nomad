@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Added raft snapshot arguments to server config
+```
