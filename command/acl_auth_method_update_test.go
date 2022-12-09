@@ -108,4 +108,14 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
+
+	// Update a default auth method
+	code = cmd.Run([]string{
+		"-address=" + url, "-token=" + rootACLToken.SecretID, "-default=true", method.Name})
+	must.Zero(t, code)
+	s = ui.OutputWriter.String()
+	must.StrContains(t, s, method.Name)
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 }
