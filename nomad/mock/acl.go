@@ -226,7 +226,7 @@ func ACLAuthMethod() *structs.ACLAuthMethod {
 		Type:          "OIDC",
 		TokenLocality: "local",
 		MaxTokenTTL:   maxTokenTTL,
-		Default:       true,
+		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
