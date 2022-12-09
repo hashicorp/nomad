@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "main"
-      - custom-runners
   workflow_dispatch:
     inputs:
       build-ref:
