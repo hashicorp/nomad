@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -414,8 +415,26 @@ func (w *Worker) run() {
 		w.setWorkloadStatus(WorkloadWaitingForRaft)
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
-			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
-			w.sendNack(eval, token)
+			var timeoutErr ErrMinIndexDeadlineExceeded
+			if errors.As(err, &timeoutErr) {
+				w.logger.Warn("timeout waiting for Raft index required by eval", "index", waitIndex, "timeout", raftSyncLimit)
+				w.sendNack(eval, token)
+
+				// Timing out here means this server is woefully behind the leader's
+				// index. This can happen when a new server is added to a cluster and
+				// must initially sync the cluster state.
+				// Backoff dequeuing another eval until there's some indication this
+				// server would be up to date enough to process it.
+				const slowServerSyncLimit = 10 * raftSyncLimit
+				if _, err := w.snapshotMinIndex(waitIndex, slowServerSyncLimit); err != nil {
+					w.logger.Warn("server is unable to catch up to last eval's index", "error", err)
+				}
+
+			} else {
+				w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
+				w.sendNack(eval, token)
+			}
+
 			continue
 		}
 
@@ -533,20 +552,38 @@ func (w *Worker) sendAck(eval *structs.Evaluation, token string) {
 	w.sendAcknowledgement(eval, token, true)
 }
 
+type ErrMinIndexDeadlineExceeded struct {
+	waitIndex uint64
+	timeout   time.Duration
+}
+
+// Unwrapping an ErrMinIndexDeadlineExceeded always return
+// context.DeadlineExceeded
+func (ErrMinIndexDeadlineExceeded) Unwrap() error {
+	return context.DeadlineExceeded
+}
+
+func (e ErrMinIndexDeadlineExceeded) Error() string {
+	return fmt.Sprintf("timed out after %s waiting for index=%d", e.timeout, e.waitIndex)
+}
+
 // snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.
 func (w *Worker) snapshotMinIndex(waitIndex uint64, timeout time.Duration) (*state.StateSnapshot, error) {
-	start := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, time.Now())
+
 	ctx, cancel := context.WithTimeout(w.ctx, timeout)
 	snap, err := w.srv.fsm.State().SnapshotMinIndex(ctx, waitIndex)
 	cancel()
-	metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
 
-	// Wrap error to ensure callers don't disregard timeouts.
-	if err == context.DeadlineExceeded {
-		err = fmt.Errorf("timed out after %s waiting for index=%d", timeout, waitIndex)
+	// Wrap error to ensure callers can detect timeouts.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return nil, ErrMinIndexDeadlineExceeded{
+			waitIndex: waitIndex,
+			timeout:   timeout,
+		}
 	}
 
-	return snap, err
+	return snap, nil
 }
 
 // invokeScheduler is used to invoke the business logic of the scheduler

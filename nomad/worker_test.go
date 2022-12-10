@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -376,6 +377,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 	require.Nil(t, snap)
 	require.EqualError(t, err,
 		fmt.Sprintf("timed out after %s waiting for index=%d", timeout, waitIndex))
+	require.True(t, errors.Is(err, context.DeadlineExceeded), "expect error to wrap DeadlineExceeded")
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
