@@ -277,7 +277,12 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, batchThresholdIndex uint64, allowBatch bool) (
 	bool, []string, error) {
 	// Ignore non-terminal and new evaluations
-	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
+	if !eval.TerminalStatus() {
+		return false, nil, nil
+	}
+
+	if (eval.Type == structs.JobTypeBatch && eval.ModifyIndex > batchThresholdIndex) ||
+		(eval.Type != structs.JobTypeBatch && eval.ModifyIndex > thresholdIndex) {
 		return false, nil, nil
 	}
 
@@ -301,9 +306,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its most current allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the allocations. However,
-	// we do want to GC old Evals and Allocs if there are newer ones due to update. The age
-	// of the evaluation must also reach the threshold configured to be GCed so that one may
-	// debug old evaluations and referenced allocations.
+	// we do want to GC old Evals and Allocs if there are newer ones due to update.
+	//
+	// The age of the evaluation must also reach the threshold configured to be GCed so that
+	// one may debug old evaluations and referenced allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
 
@@ -325,7 +331,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		}
 
 		if !collect {
-			oldAllocs, gcEval := olderVersionTerminalAllocs(allocs, job, batchThresholdIndex)
+			oldAllocs := olderVersionTerminalAllocs(allocs, job, batchThresholdIndex)
+			gcEval := (len(oldAllocs) == len(allocs))
 			return gcEval, oldAllocs, nil
 		}
 	}
@@ -347,20 +354,16 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	return gcEval, gcAllocIDs, nil
 }
 
-// olderVersionTerminalAllocs returns a tuplie ([]string, bool). The first element is the list of
-// terminal allocations which may be garbage collected for batch jobs. The second element indicates
-// whether or not the allocation itself may be garbage collected.
-func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, thresholdIndex uint64) ([]string, bool) {
+// olderVersionTerminalAllocs returns a list of terminal allocations that belong to the evaluation and may be
+// GCed.
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, thresholdIndex uint64) []string {
 	var ret []string
-	var mayGCEval = true
 	for _, alloc := range allocs {
 		if alloc.CreateIndex < job.JobModifyIndex && alloc.ModifyIndex < thresholdIndex && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
-		} else {
-			mayGCEval = false
 		}
 	}
-	return ret, mayGCEval
+	return ret
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and

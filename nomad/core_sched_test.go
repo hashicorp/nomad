@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -298,493 +299,249 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
-	// Insert a "dead" job
-	store := s1.fsm.State()
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Status = structs.JobStatusDead
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert "complete" eval
-	eval := mock.Eval()
-	eval.Status = structs.EvalStatusComplete
-	eval.Type = structs.JobTypeBatch
-	eval.JobID = job.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert "failed" alloc
-	alloc := mock.Alloc()
-	alloc.Job = job
-	alloc.JobID = job.ID
-	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-
-	// Insert "lost" alloc
-	alloc2 := mock.Alloc()
-	alloc2.Job = job
-	alloc2.JobID = job.ID
-	alloc2.EvalID = eval.ID
-	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc2.ClientStatus = structs.AllocClientStatusLost
-
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
-
-	// Create a core scheduler
-	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	core := NewCoreScheduler(s1, snap)
-
-	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Nothing should be gone
-	ws := memdb.NewWatchSet()
-	out, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("bad: %v", out)
-	}
-
-	outA, err := store.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA == nil {
-		t.Fatalf("bad: %v", outA)
-	}
-
-	outA2, err := store.AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA2 == nil {
-		t.Fatalf("bad: %v", outA2)
-	}
-
-	outB, err := store.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outB == nil {
-		t.Fatalf("bad: %v", outB)
-	}
-}
-
-// An EvalGC should reap allocations from jobs with a newer modify index
-func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
 
 	var jobModifyIdx uint64 = 1000
 
-	// Insert a "dead" job
+	// A "stopped" job containing one "complete" eval with one terminal allocation.
 	store := s1.fsm.State()
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Status = structs.JobStatusDead
-	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	stoppedJob := mock.Job()
+	stoppedJob.Type = structs.JobTypeBatch
+	stoppedJob.Status = structs.JobStatusDead
+	stoppedJob.Stop = true
+	stoppedJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 0,
+		Interval: 0 * time.Second,
 	}
+	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, stoppedJob)
+	must.NoError(t, err)
 
-	// Insert "complete" eval
-	eval := mock.Eval()
-	eval.Status = structs.EvalStatusComplete
-	eval.Type = structs.JobTypeBatch
-	eval.JobID = job.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{eval})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	stoppedJobEval := mock.Eval()
+	stoppedJobEval.Status = structs.EvalStatusComplete
+	stoppedJobEval.Type = structs.JobTypeBatch
+	stoppedJobEval.JobID = stoppedJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Evaluation{stoppedJobEval})
+	must.NoError(t, err)
 
-	// Insert "failed" alloc
-	alloc := mock.Alloc()
-	alloc.Job = job
-	alloc.JobID = job.ID
-	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	stoppedJobStoppedAlloc := mock.Alloc()
+	stoppedJobStoppedAlloc.Job = stoppedJob
+	stoppedJobStoppedAlloc.JobID = stoppedJob.ID
+	stoppedJobStoppedAlloc.EvalID = stoppedJobEval.ID
+	stoppedJobStoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	stoppedJobStoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
 
-	// Insert "lost" alloc
-	alloc2 := mock.Alloc()
-	alloc2.Job = job
-	alloc2.JobID = job.ID
-	alloc2.EvalID = eval.ID
-	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc2.ClientStatus = structs.AllocClientStatusLost
+	stoppedJobLostAlloc := mock.Alloc()
+	stoppedJobLostAlloc.Job = stoppedJob
+	stoppedJobLostAlloc.JobID = stoppedJob.ID
+	stoppedJobLostAlloc.EvalID = stoppedJobEval.ID
+	stoppedJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	stoppedJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Allocation{alloc, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+3, []*structs.Allocation{stoppedJobStoppedAlloc, stoppedJobLostAlloc})
+	must.NoError(t, err)
 
-	// Insert allocs with indexes older than job.ModifyIndex. Two cases:
-	//  1. Terminal state
-	//  2. Non-terminal state
-	alloc3 := mock.Alloc()
-	alloc3.Job = job
-	alloc3.JobID = job.ID
-	alloc3.EvalID = eval.ID
-	alloc3.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc3.ClientStatus = structs.AllocClientStatusLost
+	// A "dead" job containing one "complete" eval with:
+	//	1. A "stopped" alloc
+	//  2. A "lost" alloc
+	// Both allocs upserted at 1002.
+	deadJob := mock.Job()
+	deadJob.Type = structs.JobTypeBatch
+	deadJob.Status = structs.JobStatusDead
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, deadJob)
+	must.NoError(t, err)
 
-	alloc4 := mock.Alloc()
-	alloc4.Job = job
-	alloc4.JobID = job.ID
-	alloc4.EvalID = eval.ID
-	alloc4.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc4.ClientStatus = structs.AllocClientStatusRunning
+	deadJobEval := mock.Eval()
+	deadJobEval.Status = structs.EvalStatusComplete
+	deadJobEval.Type = structs.JobTypeBatch
+	deadJobEval.JobID = deadJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{deadJobEval})
+	must.NoError(t, err)
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{alloc3, alloc4})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	stoppedAlloc := mock.Alloc()
+	stoppedAlloc.Job = deadJob
+	stoppedAlloc.JobID = deadJob.ID
+	stoppedAlloc.EvalID = deadJobEval.ID
+	stoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	stoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	lostAlloc := mock.Alloc()
+	lostAlloc.Job = deadJob
+	lostAlloc.JobID = deadJob.ID
+	lostAlloc.EvalID = deadJobEval.ID
+	lostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	lostAlloc.ClientStatus = structs.AllocClientStatusLost
+
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Allocation{stoppedAlloc, lostAlloc})
+	must.NoError(t, err)
+
+	// An "alive" job #2 containing two complete evals. The first with:
+	// 	1. A "lost" alloc
+	//  2. A "running" alloc
+	// Both allocs upserted at 999
+	//
+	// The second with just terminal allocs:
+	//  1. A "completed" alloc
+	// All allocs upserted at 999. The eval upserted at 999 as well.
+	activeJob := mock.Job()
+	activeJob.Type = structs.JobTypeBatch
+	activeJob.Status = structs.JobStatusDead
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, activeJob)
+	must.NoError(t, err)
+
+	activeJobEval := mock.Eval()
+	activeJobEval.Status = structs.EvalStatusComplete
+	activeJobEval.Type = structs.JobTypeBatch
+	activeJobEval.JobID = activeJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{activeJobEval})
+	must.NoError(t, err)
+
+	activeJobRunningAlloc := mock.Alloc()
+	activeJobRunningAlloc.Job = activeJob
+	activeJobRunningAlloc.JobID = activeJob.ID
+	activeJobRunningAlloc.EvalID = activeJobEval.ID
+	activeJobRunningAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	activeJobRunningAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+	activeJobLostAlloc := mock.Alloc()
+	activeJobLostAlloc.Job = activeJob
+	activeJobLostAlloc.JobID = activeJob.ID
+	activeJobLostAlloc.EvalID = activeJobEval.ID
+	activeJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	activeJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
+
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobRunningAlloc, activeJobLostAlloc})
+	must.NoError(t, err)
+
+	activeJobCompleteEval := mock.Eval()
+	activeJobCompleteEval.Status = structs.EvalStatusComplete
+	activeJobCompleteEval.Type = structs.JobTypeBatch
+	activeJobCompleteEval.JobID = activeJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{activeJobCompleteEval})
+	must.NoError(t, err)
+
+	activeJobCompletedEvalCompletedAlloc := mock.Alloc()
+	activeJobCompletedEvalCompletedAlloc.Job = activeJob
+	activeJobCompletedEvalCompletedAlloc.JobID = activeJob.ID
+	activeJobCompletedEvalCompletedAlloc.EvalID = activeJobCompleteEval.ID
+	activeJobCompletedEvalCompletedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	activeJobCompletedEvalCompletedAlloc.ClientStatus = structs.AllocClientStatusComplete
+
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobCompletedEvalCompletedAlloc})
+	must.NoError(t, err)
 
 	// A little helper for assertions
-	assertCorrectEvalAlloc := func(
+	assertCorrectJobEvalAlloc := func(
 		ws memdb.WatchSet,
-		eval *structs.Evaluation,
+		jobsShouldExist []*structs.Job,
+		jobsShouldNotExist []*structs.Job,
+		evalsShouldExist []*structs.Evaluation,
+		evalsShouldNotExist []*structs.Evaluation,
 		allocsShouldExist []*structs.Allocation,
 		allocsShouldNotExist []*structs.Allocation,
 	) {
-		out, err := store.EvalByID(ws, eval.ID)
-		if err != nil {
-			t.Fatalf("err: %v", err)
+		t.Helper()
+		for _, job := range jobsShouldExist {
+			out, err := store.JobByID(ws, job.Namespace, job.ID)
+			must.NoError(t, err)
+			must.NotNil(t, out)
 		}
-		if out == nil {
-			t.Fatalf("bad: %v", out)
+
+		for _, job := range jobsShouldNotExist {
+			out, err := store.JobByID(ws, job.Namespace, job.ID)
+			must.NoError(t, err)
+			must.Nil(t, out)
+		}
+
+		for _, eval := range evalsShouldExist {
+			out, err := store.EvalByID(ws, eval.ID)
+			must.NoError(t, err)
+			must.NotNil(t, out)
+		}
+
+		for _, eval := range evalsShouldNotExist {
+			out, err := store.EvalByID(ws, eval.ID)
+			must.NoError(t, err)
+			must.Nil(t, out)
 		}
 
 		for _, alloc := range allocsShouldExist {
 			outA, err := store.AllocByID(ws, alloc.ID)
-			if err != nil {
-				t.Fatalf("err: %v", err)
-			}
-			if outA == nil {
-				t.Fatalf("bad: %v", outA)
-			}
+			must.NoError(t, err)
+			must.NotNil(t, outA)
 		}
 
 		for _, alloc := range allocsShouldNotExist {
 			outA, err := store.AllocByID(ws, alloc.ID)
-			if err != nil {
-				t.Fatalf("err: %v", err)
-			}
-			if outA != nil {
-				t.Fatalf("expected alloc to be nil:%v", outA)
-			}
+			must.NoError(t, err)
+			must.Nil(t, outA)
 		}
 	}
+
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
-	// Attempt the GC
+	// Attempt the GC without moving the time at all
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx)
 	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	// All allocations should remain in place.
-	assertCorrectEvalAlloc(
+	// Nothing is gone
+	assertCorrectJobEvalAlloc(
 		memdb.NewWatchSet(),
-		eval,
-		[]*structs.Allocation{alloc, alloc2, alloc3, alloc4},
+		[]*structs.Job{deadJob, activeJob, stoppedJob},
+		[]*structs.Job{},
+		[]*structs.Evaluation{deadJobEval, activeJobEval, activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Evaluation{},
+		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobStoppedAlloc, stoppedJobLostAlloc},
 		[]*structs.Allocation{},
 	)
 
-	// Attempt the GC while moving the time forward significantly so that our threshold is
-	// breached.
+	// Update the time tables by `EvalGCThreshold` which is still must too small to make anything become GCed.
 	tt := s1.fsm.TimeTable()
+	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add((-1)*s1.config.EvalGCThreshold))
+
+	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
+	err = core.Process(gc)
+	must.NoError(t, err)
+
+	// Nothing is gone.
+	assertCorrectJobEvalAlloc(
+		memdb.NewWatchSet(),
+		[]*structs.Job{deadJob, activeJob, stoppedJob},
+		[]*structs.Job{},
+		[]*structs.Evaluation{deadJobEval, activeJobEval, activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Evaluation{},
+		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobStoppedAlloc, stoppedJobLostAlloc},
+		[]*structs.Allocation{},
+	)
+
+	// Update the time tables so that `BatchEvalGCThreshold` has elapsed.
+	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
+	tt = s1.fsm.TimeTable()
 	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
 
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	// The only remaining allocations are those which are "current", or such that
-	// the batch job is still using them. To spell it out:
+	// We expect the following:
 	//
-	// Alloc1 and Alloc 2 should remain due to the update threshold.
-	// Alloc 3 should be GCed due to age
-	// Alloc 4 should remain due to non-terminal state
-	assertCorrectEvalAlloc(
+	//  1. The stopped jbo remains, but its evaluation and allocations are both removed.
+	//	2. The dead job remains with its evaluation and allocations intact. This is because
+	//    for them the BatchEvalGCThreshold has not yet elapsed (their modification idx are larger
+	//    than that of the job).
+	//	3. The active job remains since it is active, even though the allocations are otherwise
+	//      eligible for GC. However, the inactive allocation is GCed for it.
+	assertCorrectJobEvalAlloc(
 		memdb.NewWatchSet(),
-		eval,
-		[]*structs.Allocation{alloc, alloc2, alloc4},
-		[]*structs.Allocation{alloc3},
-	)
-
-	// The job should still exist.
-	ws := memdb.NewWatchSet()
-	outB, err := store.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outB == nil {
-		t.Fatalf("bad: %v", outB)
-	}
-}
-
-// An EvalGC should reap allocations from jobs with a newer modify index and reap the eval itself
-// if all allocs are reaped.
-func TestCoreScheduler_EvalGC_Batch_OldVersionReapsEval(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
-	var jobModifyIdx uint64 = 1000
-
-	// Insert a "dead" job
-	store := s1.fsm.State()
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Status = structs.JobStatusDead
-	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert "complete" eval
-	eval := mock.Eval()
-	eval.Status = structs.EvalStatusComplete
-	eval.Type = structs.JobTypeBatch
-	eval.JobID = job.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{eval})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert an alloc with index older than job.ModifyIndex.
-	alloc := mock.Alloc()
-	alloc.Job = job
-	alloc.JobID = job.ID
-	alloc.EvalID = eval.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc.ClientStatus = structs.AllocClientStatusLost
-
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert a new eval
-	eval2 := mock.Eval()
-	eval2.Status = structs.EvalStatusComplete
-	eval2.Type = structs.JobTypeBatch
-	eval2.JobID = job.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{eval2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Insert a running alloc belonging to the above eval
-	alloc2 := mock.Alloc()
-	alloc2.Job = job
-	alloc2.JobID = job.ID
-	alloc2.EvalID = eval2.ID
-	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc2.ClientStatus = structs.AllocClientStatusLost
-
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Allocation{alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a core scheduler
-	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	core := NewCoreScheduler(s1, snap)
-
-	// Attempt the GC while moving the time forward significantly.
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
-
-	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// The old alloc and the old eval are gone. The new eval and the new alloc are not.
-	ws := memdb.NewWatchSet()
-	out, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("bad: %v", out)
-	}
-
-	out, err = store.EvalByID(ws, eval2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("bad: %v", out)
-	}
-
-	outA, err := store.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA != nil {
-		t.Fatalf("bad: %v", outA)
-	}
-
-	outA, err = store.AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA == nil {
-		t.Fatalf("bad: %v", outA)
-	}
-
-	outB, err := store.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outB == nil {
-		t.Fatalf("bad: %v", outB)
-	}
-}
-
-// An EvalGC should  reap a batch job that has been stopped
-func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
-	// Create a "dead" job
-	store := s1.fsm.State()
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
-	job.Status = structs.JobStatusDead
-	job.Stop = true
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: 0,
-		Interval: 0 * time.Second,
-	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(t, err)
-
-	// Insert "complete" eval
-	eval := mock.Eval()
-	eval.Status = structs.EvalStatusComplete
-	eval.Type = structs.JobTypeBatch
-	eval.JobID = job.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval})
-	require.Nil(t, err)
-
-	// Insert "failed" alloc
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.EvalID = eval.ID
-	alloc.TaskGroup = job.TaskGroups[0].Name
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-
-	// Insert "lost" alloc
-	alloc2 := mock.Alloc()
-	alloc2.JobID = job.ID
-	alloc2.EvalID = eval.ID
-	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
-	alloc2.ClientStatus = structs.AllocClientStatusLost
-	alloc2.TaskGroup = job.TaskGroups[0].Name
-
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
-
-	// Create a core scheduler
-	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	core := NewCoreScheduler(s1, snap)
-
-	// Attempt the GC
-	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Everything should be gone
-	ws := memdb.NewWatchSet()
-	out, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("bad: %v", out)
-	}
-
-	outA, err := store.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA != nil {
-		t.Fatalf("bad: %v", outA)
-	}
-
-	outA2, err := store.AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA2 != nil {
-		t.Fatalf("bad: %v", outA2)
-	}
+		[]*structs.Job{deadJob, activeJob, stoppedJob},
+		[]*structs.Job{},
+		[]*structs.Evaluation{deadJobEval, activeJobEval},
+		[]*structs.Evaluation{activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc},
+		[]*structs.Allocation{activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobLostAlloc, stoppedJobLostAlloc})
 }
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
