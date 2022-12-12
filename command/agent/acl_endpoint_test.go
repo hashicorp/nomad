@@ -1297,3 +1297,328 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTPServer_ACLBindingRuleListRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/binding-rules", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleListRequest(respW, req)
+				must.EqError(t, err, "Permission denied")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/binding-rules", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleListRequest(respW, req)
+				must.EqError(t, err, "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "no binding rules in state",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/binding-rules", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleListRequest(respW, req)
+				must.NoError(t, err)
+				must.Len(t, 0, obj.([]*structs.ACLBindingRuleListStub))
+			},
+		},
+		{
+			name: "binding rules in state",
+			testFn: func(srv *TestAgent) {
+
+				// Upsert two binding rules into state.
+				must.NoError(t, srv.server.State().UpsertACLBindingRules(
+					10, []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}, true))
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/binding-rules", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleListRequest(respW, req)
+				must.NoError(t, err)
+				must.Len(t, 2, obj.([]*structs.ACLBindingRuleListStub))
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLBindingRuleRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "no auth token set",
+			testFn: func(srv *TestAgent) {
+
+				// Create a mock binding rule to use in the request body.
+				mockACLBindingRule := mock.ACLBindingRule()
+				mockACLBindingRule.ID = ""
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/binding-rule", encodeReq(mockACLBindingRule))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Permission denied")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "invalid method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/binding-rule", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "successful upsert",
+			testFn: func(srv *TestAgent) {
+
+				// Upsert the auth method that the binding rule will associate
+				// with.
+				mockACLAuthMethod := mock.ACLAuthMethod()
+				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
+
+				// Create a mock binding rule to use in the request body.
+				mockACLBindingRule := mock.ACLBindingRule()
+				mockACLBindingRule.AuthMethod = mockACLAuthMethod.Name
+				mockACLBindingRule.ID = ""
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPut, "/v1/acl/binding-rule", encodeReq(mockACLBindingRule))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleRequest(respW, req)
+				must.NoError(t, err)
+
+				result := obj.(*structs.ACLBindingRule)
+				must.Eq(t, mockACLBindingRule.Selector, result.Selector)
+				must.Eq(t, mockACLBindingRule.AuthMethod, result.AuthMethod)
+				must.Eq(t, mockACLBindingRule.Description, result.Description)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLBindingRuleSpecificRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "missing binding rule ID",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/acl/binding-rule/", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.EqError(t, err, "missing ACL binding rule ID")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "incorrect method",
+			testFn: func(srv *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/binding-rule/foobar", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.EqError(t, err, "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "get binding rule",
+			testFn: func(srv *TestAgent) {
+
+				// Upsert a binding rule into state.
+				aclBindingRules := []*structs.ACLBindingRule{mock.ACLBindingRule()}
+				must.NoError(t, srv.server.State().UpsertACLBindingRules(10, aclBindingRules, true))
+
+				url := "/v1/acl/binding-rule/" + aclBindingRules[0].ID
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.NoError(t, err)
+
+				result := obj.(*structs.ACLBindingRule)
+				must.Eq(t, aclBindingRules[0].ID, result.ID)
+				must.Eq(t, aclBindingRules[0].Selector, result.Selector)
+				must.Eq(t, aclBindingRules[0].AuthMethod, result.AuthMethod)
+				must.Eq(t, aclBindingRules[0].Description, result.Description)
+			},
+		},
+		{
+			name: "get, update, and delete binding rule",
+			testFn: func(srv *TestAgent) {
+
+				// Upsert the auth method that the binding rule will associate
+				// with.
+				mockACLAuthMethod := mock.ACLAuthMethod()
+				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
+
+				// Upsert a binding rule into state.
+				mockedAclBindingRule := mock.ACLBindingRule()
+				mockedAclBindingRule.AuthMethod = mockACLAuthMethod.Name
+
+				must.NoError(t, srv.server.State().UpsertACLBindingRules(
+					10, []*structs.ACLBindingRule{mockedAclBindingRule}, true))
+
+				url := "/v1/acl/binding-rule/" + mockedAclBindingRule.ID
+
+				// Build the HTTP request to read the binding rule.
+				req, err := http.NewRequest(http.MethodGet, url, nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err := srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.NoError(t, err)
+
+				result := obj.(*structs.ACLBindingRule)
+				must.Eq(t, mockedAclBindingRule.ID, result.ID)
+				must.Eq(t, mockedAclBindingRule.Selector, result.Selector)
+				must.Eq(t, mockedAclBindingRule.AuthMethod, result.AuthMethod)
+				must.Eq(t, mockedAclBindingRule.Description, result.Description)
+
+				// Update the binding rule and make the request via the HTTP
+				// API.
+				result.Description = "new description"
+
+				req, err = http.NewRequest(http.MethodPost, url, encodeReq(result))
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				_, err = srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.NoError(t, err)
+
+				// Delete the ACL binding rule.
+				req, err = http.NewRequest(http.MethodDelete, url, nil)
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Ensure we have a token set.
+				setToken(req, srv.RootToken)
+
+				// Send the HTTP request.
+				obj, err = srv.Server.ACLBindingRuleSpecificRequest(respW, req)
+				must.NoError(t, err)
+				must.Nil(t, obj)
+
+				// Ensure the ACL binding rule is no longer stored within
+				// state.
+				aclBindingRule, err := srv.server.State().GetACLBindingRule(nil, mockedAclBindingRule.ID)
+				must.NoError(t, err)
+				must.Nil(t, aclBindingRule)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cb := func(c *Config) { c.NomadConfig.ACLTokenMaxExpirationTTL = 3600 * time.Hour }
+			httpACLTest(t, cb, tc.testFn)
+		})
+	}
+}
