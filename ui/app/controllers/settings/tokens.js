@@ -136,12 +136,8 @@ export default class Tokens extends Controller {
 
     if (res.ok) {
       const data = await res.json();
-      console.log('data back', data);
       this.clearTokenProperties();
       this.token.set('secret', data.SecretID);
-      this.set('secret', null);
-      // this.verifyToken();
-      // TODO: replace verifyToken with one that takes the data from the data
       this.state = null;
       this.code = null;
 
@@ -152,23 +148,6 @@ export default class Tokens extends Controller {
 
       this.signInStatus = 'success';
       this.token.set('tokenNotFound', false);
-
-      // TokenAdapter.findSelf().then(
-      //   () => {
-      //     // Clear out all data to ensure only data the new token is privileged to see is shown
-      //     this.resetStore();
-
-      //     // Refetch the token and associated policies
-      //     this.get('token.fetchSelfTokenAndPolicies').perform().catch();
-
-      //     this.signInStatus = 'success';
-      //     this.token.set('tokenNotFound', false);
-      //   },
-      //   () => {
-      //     this.set('token.secret', undefined);
-      //     this.signInStatus = 'failure';
-      //   }
-      // );
     } else {
       this.state = 'failure';
       this.code = null;
