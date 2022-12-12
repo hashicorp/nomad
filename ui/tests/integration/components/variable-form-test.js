@@ -47,7 +47,7 @@ module('Integration | Component | variable-form', function (hooks) {
     );
 
     assert
-      .dom('.key-value button.add-more')
+      .dom('[data-test-add-kv]')
       .isDisabled(
         'The "Add More" button is disabled until key and value are filled'
       );
@@ -55,7 +55,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value label:nth-child(1) input', 'foo');
 
     assert
-      .dom('.key-value button.add-more')
+      .dom('[data-test-add-kv]')
       .isDisabled(
         'The "Add More" button is still disabled with only key filled'
       );
@@ -63,12 +63,12 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value label:nth-child(2) input', 'bar');
 
     assert
-      .dom('.key-value button.add-more')
+      .dom('[data-test-add-kv]')
       .isNotDisabled(
         'The "Add More" button is no longer disabled after key and value are filled'
       );
 
-    await click('.key-value button.add-more');
+    await click('[data-test-add-kv]');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -79,7 +79,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value:last-of-type label:nth-child(1) input', 'foo');
     await typeIn('.key-value:last-of-type label:nth-child(2) input', 'bar');
 
-    await click('.key-value button.add-more');
+    await click('[data-test-add-kv]');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -109,7 +109,7 @@ module('Integration | Component | variable-form', function (hooks) {
       assert.expect(6);
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-      await click('.key-value button.add-more'); // add a second variable
+      await click('[data-test-add-kv]'); // add a second variable
 
       findAll('input.value-input').forEach((input, iter) => {
         assert.equal(
@@ -173,11 +173,11 @@ module('Integration | Component | variable-form', function (hooks) {
     );
     assert.equal(
       findAll('button.delete-row').length,
-      4,
-      'Shows "delete" for the first four rows'
+      5,
+      'Shows "delete" for all five rows'
     );
     assert.equal(
-      findAll('button.add-more').length,
+      findAll('[data-test-add-kv]').length,
       1,
       'Shows "add more" only on the last row'
     );
@@ -301,7 +301,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
 
-      await click('.key-value button.add-more');
+      await click('[data-test-add-kv]');
 
       const secondKey = document.querySelectorAll('[data-test-var-key]')[1];
       await typeIn(secondKey, 'myWonderfulKey');
@@ -380,7 +380,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set('view', 'table');
 
-      await click('.key-value button.add-more');
+      await click('[data-test-add-kv]');
 
       await typeIn('.key-value:last-of-type label:nth-child(1) input', 'howdy');
       await typeIn(
