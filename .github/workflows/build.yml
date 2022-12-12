@@ -106,24 +106,31 @@ jobs:
         run: |
           npm install -g yarn
 
+      - uses: hashicorp/actions-go-build@v0.1.7
+        with:
+          os: ${{ matrix.goos }}
+          arch: ${{ matrix.goarch }}
+
       - name: Build prerelease
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Build
+      - name: Build Old
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: ${{ env.GO_TAGS }}
           CGO_ENABLED: 1
+          ZIP_NAME: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_NAME }}
   build-linux:
     needs: [get-go-version, get-product-version]
     runs-on: ubuntu-20.04

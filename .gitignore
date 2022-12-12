@@ -133,3 +133,6 @@ e2e/remotetasks/input/ecs.vars
 
 # Tools files
 tools/missing/missing
+
+dist/
+out/
