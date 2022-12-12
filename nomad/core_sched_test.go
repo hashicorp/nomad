@@ -342,7 +342,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// A "dead" job containing one "complete" eval with:
 	//	1. A "stopped" alloc
-	//  2. A "lost" alloc
+	//	2. A "lost" alloc
 	// Both allocs upserted at 1002.
 	deadJob := mock.Job()
 	deadJob.Type = structs.JobTypeBatch
@@ -375,12 +375,12 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	must.NoError(t, err)
 
 	// An "alive" job #2 containing two complete evals. The first with:
-	// 	1. A "lost" alloc
-	//  2. A "running" alloc
+	//	1. A "lost" alloc
+	//	2. A "running" alloc
 	// Both allocs upserted at 999
 	//
 	// The second with just terminal allocs:
-	//  1. A "completed" alloc
+	//	1. A "completed" alloc
 	// All allocs upserted at 999. The eval upserted at 999 as well.
 	activeJob := mock.Job()
 	activeJob.Type = structs.JobTypeBatch
@@ -528,7 +528,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// We expect the following:
 	//
-	//  1. The stopped jbo remains, but its evaluation and allocations are both removed.
+	//	1. The stopped jbo remains, but its evaluation and allocations are both removed.
 	//	2. The dead job remains with its evaluation and allocations intact. This is because
 	//    for them the BatchEvalGCThreshold has not yet elapsed (their modification idx are larger
 	//    than that of the job).
