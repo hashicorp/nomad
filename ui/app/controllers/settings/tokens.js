@@ -92,7 +92,7 @@ export default class Tokens extends Controller {
 
     method
       .getAuthURL({
-        AuthMethod: provider,
+        AuthMethodName: provider,
         ClientNonce: nonce,
         RedirectUri: Ember.testing
           ? this.router.currentURL
@@ -111,7 +111,7 @@ export default class Tokens extends Controller {
   @tracked state = null;
 
   get isValidatingToken() {
-    if (this.code && this.state === 'success') {
+    if (this.code && this.state) {
       this.validateSSO();
       return true;
     } else {
@@ -125,20 +125,50 @@ export default class Tokens extends Controller {
       {
         method: 'POST',
         body: JSON.stringify({
-          AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+          AuthMethodName: window.localStorage.getItem('nomadOIDCAuthMethod'),
           ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
           Code: this.code,
           State: this.state,
+          RedirectURI: 'https://localhost:4200/ui/settings/tokens',
         }),
       }
     );
 
     if (res.ok) {
       const data = await res.json();
-      this.token.set('secret', data.ACLToken);
-      this.verifyToken();
+      console.log('data back', data);
+      this.clearTokenProperties();
+      this.token.set('secret', data.SecretID);
+      this.set('secret', null);
+      // this.verifyToken();
+      // TODO: replace verifyToken with one that takes the data from the data
       this.state = null;
       this.code = null;
+
+      this.resetStore();
+
+      // Refetch the token and associated policies
+      this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+      this.signInStatus = 'success';
+      this.token.set('tokenNotFound', false);
+
+      // TokenAdapter.findSelf().then(
+      //   () => {
+      //     // Clear out all data to ensure only data the new token is privileged to see is shown
+      //     this.resetStore();
+
+      //     // Refetch the token and associated policies
+      //     this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+      //     this.signInStatus = 'success';
+      //     this.token.set('tokenNotFound', false);
+      //   },
+      //   () => {
+      //     this.set('token.secret', undefined);
+      //     this.signInStatus = 'failure';
+      //   }
+      // );
     } else {
       this.state = 'failure';
       this.code = null;
