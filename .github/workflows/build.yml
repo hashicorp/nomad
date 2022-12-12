@@ -73,7 +73,7 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
-  build-other:
+  build-windows:
     needs: [get-go-version, get-product-version]
     runs-on: ubuntu-20.04
     strategy:
@@ -115,30 +115,17 @@ jobs:
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Build Old
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GO_TAGS: ${{ env.GO_TAGS }}
-          CGO_ENABLED: 1
-          ZIP_NAME: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-
-
-        run: |
-          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.ZIP_NAME }}
-          path: ${{ env.ZIP_NAME }}
   build-linux:
     needs: [get-go-version, get-product-version]
     runs-on: ubuntu-20.04
     strategy:
-      matrix:
-        goos: [linux]
-        goarch: ["arm", "arm64", "386", "amd64"]
       fail-fast: true
+      matrix:
+        include:
+          - { goos: linux, goarch: arm,   CC: arm-linux-gnueabihf-gcc }
+          - { goos: linux, goarch: arm64, CC: aarch64-linux-gnu-gcc }
+          - { goos: linux, goarch: 386 }
+          - { goos: linux, goarch: amd64 }
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
@@ -185,28 +172,28 @@ jobs:
             gcc-arm-linux-gnueabihf \
             gcc-multilib-arm-linux-gnueabihf
 
-      - name: Set gcc
-        run: |
-          if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          fi
-
-      - name: Build
+      - uses: hashicorp/actions-go-build@v0.1.7
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GO_TAGS: ${{ env.GO_TAGS }}
-          CGO_ENABLED: 1
-        run: |
-          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-      - uses: actions/upload-artifact@v2
+          CC: ${{ matrix.CC }}
         with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          os: ${{ matrix.goos }}
+          arch: ${{ matrix.goarch }}
+          reproducible: nope
 
+#      - name: Build
+#        env:
+#          GOOS: ${{ matrix.goos }}
+#          GOARCH: ${{ matrix.goarch }}
+#          GO_TAGS: ${{ env.GO_TAGS }}
+#          CGO_ENABLED: 1
+#        run: |
+#          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+#          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+#          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+#
       - name: Package
         uses: hashicorp/actions-packaging-linux@v1
         with:
