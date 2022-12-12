@@ -182,9 +182,10 @@ table.variable-items {
 }
 
 footer {
-  .button.is-primary.save {
-    margin-left: 8px;
-  }
+  display: grid;
+  grid-auto-columns: max-content;
+  grid-auto-flow: column;
+  gap: 1rem;
 
   .button.is-info.is-inverted.add-more[disabled] {
     border-color: #dbdbdb;
