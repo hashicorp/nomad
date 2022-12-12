@@ -26,6 +26,8 @@ type ACLAuthMethodCreateCommand struct {
 	maxTokenTTL   time.Duration
 	isDefault     bool
 	config        string
+	json          bool
+	tmpl          string
 
 	testStdin io.Reader
 }
@@ -67,6 +69,12 @@ ACL Auth Method Create Options:
     Auth method configuration in JSON format. May be prefixed with '@' to
     indicate that the value is a file path to load the config from. '-' may also
     be given to indicate that the config is available on stdin.
+
+  -json
+    Output the ACL auth-method in a JSON format.
+
+  -t
+    Format and display the ACL auth-method using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -80,6 +88,8 @@ func (a *ACLAuthMethodCreateCommand) AutocompleteFlags() complete.Flags {
 			"-token-locality": complete.PredictSet("local", "global"),
 			"-default":        complete.PredictSet("true", "false"),
 			"-config":         complete.PredictNothing,
+			"-json":           complete.PredictNothing,
+			"-t":              complete.PredictAnything,
 		})
 }
 
@@ -104,6 +114,8 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
 	flags.BoolVar(&a.isDefault, "default", false, "")
 	flags.StringVar(&a.config, "config", "", "")
+	flags.BoolVar(&a.json, "json", false, "")
+	flags.StringVar(&a.tmpl, "t", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -172,6 +184,17 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	if err != nil {
 		a.Ui.Error(fmt.Sprintf("Error creating ACL auth method: %v", err))
 		return 1
+	}
+
+	if a.json || len(a.tmpl) > 0 {
+		out, err := Format(a.json, a.tmpl, method)
+		if err != nil {
+			a.Ui.Error(err.Error())
+			return 1
+		}
+
+		a.Ui.Output(out)
+		return 0
 	}
 
 	a.Ui.Output(fmt.Sprintf("Created ACL auth method:\n%s", formatAuthMethod(method)))
