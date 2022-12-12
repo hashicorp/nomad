@@ -137,7 +137,7 @@
   {{/if}}
 
   <footer>
-    {{#unless (eq this.view "json")}}
+    {{#unless this.isJSONView}}
     <button
       class="add-more button is-info is-inverted"
       type="button"

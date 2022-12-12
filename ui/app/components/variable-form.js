@@ -240,6 +240,11 @@ export default class VariableFormComponent extends Component {
   //#region JSON Editing
 
   view = this.args.view;
+
+  get isJSONView() {
+    return this.args.view === 'json';
+  }
+
   // Prevent duplicate onUpdate events when @view is set to its already-existing value,
   // which happens because parent's queryParams and toggle button both resolve independently.
   @action onViewChange([view]) {
