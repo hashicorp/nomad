@@ -269,12 +269,14 @@ func (d *dynamicRegistry) DeregisterPlugin(ptype, name, allocID string) error {
 		}
 	}
 
-	broadcaster := d.broadcasterForPluginType(ptype)
-	event := &PluginUpdateEvent{
-		EventType: EventTypeDeregistered,
-		Info:      info,
+	if info != nil {
+		broadcaster := d.broadcasterForPluginType(ptype)
+		event := &PluginUpdateEvent{
+			EventType: EventTypeDeregistered,
+			Info:      info,
+		}
+		broadcaster.broadcast(event)
 	}
-	broadcaster.broadcast(event)
 
 	return d.sync()
 }
