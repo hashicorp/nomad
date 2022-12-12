@@ -3,7 +3,8 @@ name: build
 on:
   push:
     branches:
-      - "release/1.3.x"
+      - main
+      - release/**
   workflow_dispatch:
     inputs:
       build-ref:
