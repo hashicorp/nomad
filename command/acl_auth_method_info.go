@@ -34,10 +34,10 @@ General Options:
 ACL Info Options:
 
   -json
-    Output the ACL role in a JSON format.
+    Output the ACL auth method in a JSON format.
 
   -t
-    Format and display the ACL role using a Go template.
+    Format and display the ACL auth method using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
