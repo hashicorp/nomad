@@ -2136,7 +2136,7 @@ func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) interfac
 	}
 
 	if err := n.state.UpsertACLBindingRules(index, req.ACLBindingRules, false); err != nil {
-		n.logger.Error("UpsertACLAuthMethods failed", "error", err)
+		n.logger.Error("UpsertACLBindingRules failed", "error", err)
 		return err
 	}
 
@@ -2151,7 +2151,7 @@ func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) interfac
 	}
 
 	if err := n.state.DeleteACLBindingRules(index, req.ACLBindingRuleIDs); err != nil {
-		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
+		n.logger.Error("DeleteACLBindingRules failed", "error", err)
 		return err
 	}
 
@@ -3055,11 +3055,11 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 	}
 
 	for raw := aclBindingRulesIter.Next(); raw != nil; raw = aclBindingRulesIter.Next() {
-		method := raw.(*structs.ACLBindingRule)
+		bindingRule := raw.(*structs.ACLBindingRule)
 
 		// write the snapshot
 		sink.Write([]byte{byte(ACLBindingRuleSnapshot)})
-		if err := encoder.Encode(method); err != nil {
+		if err := encoder.Encode(bindingRule); err != nil {
 			return err
 		}
 	}
