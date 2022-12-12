@@ -60,9 +60,9 @@ ACL Auth Method Update Options:
     case no auth method is explicitly specified for a login command.
 
   -config
-	Updates auth method configuration (in JSON format). May be prefixed with
-	'@' to indicate that the value is a file path to load the config from. '-'
-	may also be given to indicate that the config is available on stdin.
+    Updates auth method configuration (in JSON format). May be prefixed with
+    '@' to indicate that the value is a file path to load the config from. '-'
+    may also be given to indicate that the config is available on stdin.
 `
 
 	return strings.TrimSpace(helpText)
