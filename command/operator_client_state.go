@@ -76,6 +76,9 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 			}
 
 			var ds interface{}
+			if ls.TaskHandle == nil {
+				continue
+			}
 			err = ls.TaskHandle.GetDriverState(&ds)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("failed to parse driver state %s: %v", allocID, err))
