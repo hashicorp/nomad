@@ -294,6 +294,7 @@ test-nomad-module: dev ## Run Nomad unit tests on sub-module
 		-cover \
 		-timeout=20m \
 		-count=1 \
+		-race \
 		-tags "$(GO_TAGS)" \
 		./...
 
