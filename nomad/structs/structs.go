@@ -648,6 +648,7 @@ type DrainUpdate struct {
 type NodeUpdateEligibilityRequest struct {
 	NodeID      string
 	Eligibility string
+	Description string
 
 	// NodeEvent is the event added to the node
 	NodeEvent *NodeEvent
@@ -2079,6 +2080,9 @@ type Node struct {
 	// placements.
 	SchedulingEligibility string
 
+	// Eligibility Description
+	Description string
+
 	// Status of this node
 	Status string
 
@@ -2308,6 +2312,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		Version:               n.Attributes["nomad.version"],
 		Drain:                 n.DrainStrategy != nil,
 		SchedulingEligibility: n.SchedulingEligibility,
+		Description:           n.Description,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
@@ -2346,6 +2351,7 @@ type NodeListStub struct {
 	Version               string
 	Drain                 bool
 	SchedulingEligibility string
+	Description           string
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
