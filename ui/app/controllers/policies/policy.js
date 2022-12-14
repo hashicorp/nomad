@@ -77,14 +77,14 @@ export default class PoliciesPolicyController extends Controller {
       this.refreshTokens();
       this.flashMessages.add({
         title: 'Example Token Created',
-        message: `${newToken.accessor}`,
+        message: `${newToken.secret}`,
         type: 'success',
         destroyOnClick: false,
         timeout: 30000,
         customAction: {
           label: 'Copy to Clipboard',
           action: () => {
-            navigator.clipboard.writeText(newToken.accessor);
+            navigator.clipboard.writeText(newToken.secret);
           },
         },
       });
