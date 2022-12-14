@@ -799,6 +799,12 @@ func (s *HTTPServer) aclBindingRuleUpsertRequest(
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
+	// If the request path includes an ID, ensure the payload has an ID if it
+	// has been left empty.
+	if ruleID != "" && aclBindingRule.ID == "" {
+		aclBindingRule.ID = ruleID
+	}
+
 	// Ensure the request path ID matches the ACL binding rule ID that was
 	// decoded. Only perform this check on updates as a generic error on
 	// creation might be confusing to operators as there is no specific binding

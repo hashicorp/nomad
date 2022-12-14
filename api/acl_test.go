@@ -655,7 +655,7 @@ func TestACLAuthMethods(t *testing.T) {
 	assertQueryMeta(t, queryMeta)
 }
 
-func TestACLACLBindingRules(t *testing.T) {
+func TestACLBindingRules(t *testing.T) {
 	testutil.Parallel(t)
 
 	testClient, testServer, _ := makeACLClient(t, nil, nil)

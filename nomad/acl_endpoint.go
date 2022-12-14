@@ -2088,11 +2088,14 @@ func (a *ACL) UpsertBindingRules(
 	for _, bindingRule := range args.ACLBindingRules {
 		lookupBindingRule, err := stateSnapshot.GetACLBindingRule(nil, bindingRule.ID)
 		if err != nil {
-			return structs.NewErrRPCCodedf(400, "ACL binding rule lookup failed: %v", err)
+			return structs.NewErrRPCCodedf(http.StatusInternalServerError,
+				"ACL binding rule lookup failed: %v", err)
 		}
-		if lookupBindingRule != nil {
-			reply.ACLBindingRules = append(reply.ACLBindingRules, lookupBindingRule)
+		if lookupBindingRule == nil {
+			return structs.NewErrRPCCoded(http.StatusInternalServerError,
+				"ACL binding rule lookup failed: no entry found")
 		}
+		reply.ACLBindingRules = append(reply.ACLBindingRules, lookupBindingRule)
 	}
 
 	// Update the index
