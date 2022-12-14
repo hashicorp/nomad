@@ -89,15 +89,15 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) []string {
 		fmt.Sprintf("Allowed redirects URIs|%s", strings.Join(config.AllowedRedirectURIs, ",")),
 		fmt.Sprintf("Discovery CA pem|%s", strings.Join(config.DiscoveryCaPem, ",")),
 		fmt.Sprintf("Signing algorithms|%s", strings.Join(config.SigningAlgs, ",")),
-		fmt.Sprintf("Claim mappings|%s", formatMap(config.ClaimMappings)),
-		fmt.Sprintf("List claim mappings|%s", formatMap(config.ListClaimMappings)),
+		fmt.Sprintf("Claim mappings|%s", strings.Join(formatMap(config.ClaimMappings), "; ")),
+		fmt.Sprintf("List claim mappings|%s", strings.Join(formatMap(config.ListClaimMappings), "; ")),
 	}
 }
 
-func formatMap(m map[string]string) string {
+func formatMap(m map[string]string) []string {
 	out := []string{}
 	for k, v := range m {
-		out = append(out, fmt.Sprintf("%s/%s", k, v))
+		out = append(out, fmt.Sprintf("{%s: %s}", k, v))
 	}
-	return formatKV(out)
+	return out
 }

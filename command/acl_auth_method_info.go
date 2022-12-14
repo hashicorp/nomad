@@ -34,10 +34,10 @@ General Options:
 ACL Info Options:
 
   -json
-    Output the ACL role in a JSON format.
+    Output the ACL auth method in a JSON format.
 
   -t
-    Format and display the ACL role using a Go template.
+    Format and display the ACL auth method using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -65,13 +65,10 @@ func (a *ACLAuthMethodInfoCommand) Name() string { return "acl auth-method info"
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
-	var json bool
-	var tmpl string
-
 	flags := a.Meta.FlagSet(a.Name(), FlagSetClient)
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVar(&a.json, "json", false, "")
+	flags.StringVar(&a.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -101,8 +98,8 @@ func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	if json || len(tmpl) > 0 {
-		out, err := Format(json, tmpl, method)
+	if a.json || len(a.tmpl) > 0 {
+		out, err := Format(a.json, a.tmpl, method)
 		if err != nil {
 			a.Ui.Error(err.Error())
 			return 1

@@ -15,6 +15,9 @@ var _ cli.Command = &ACLAuthMethodListCommand{}
 // ACLAuthMethodListCommand implements cli.Command.
 type ACLAuthMethodListCommand struct {
 	Meta
+
+	json bool
+	tmpl string
 }
 
 // Help satisfies the cli.Command Help function.
@@ -59,13 +62,11 @@ func (a *ACLAuthMethodListCommand) Name() string { return "acl auth-method list"
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLAuthMethodListCommand) Run(args []string) int {
-	var json bool
-	var tmpl string
 
 	flags := a.Meta.FlagSet(a.Name(), FlagSetClient)
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVar(&a.json, "json", false, "")
+	flags.StringVar(&a.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -92,8 +93,8 @@ func (a *ACLAuthMethodListCommand) Run(args []string) int {
 		return 1
 	}
 
-	if json || len(tmpl) > 0 {
-		out, err := Format(json, tmpl, methods)
+	if a.json || len(a.tmpl) > 0 {
+		out, err := Format(a.json, a.tmpl, methods)
 		if err != nil {
 			a.Ui.Error(err.Error())
 			return 1
