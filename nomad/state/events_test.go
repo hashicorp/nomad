@@ -1104,6 +1104,58 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	must.Eq(t, authMethod, eventPayload.AuthMethod)
 }
 
+func Test_eventsFromChanges_ACLBindingRule(t *testing.T) {
+	ci.Parallel(t)
+	testState := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer testState.StopEventBroker()
+
+	// Generate a test ACL binding rule.
+	bindingRule := mock.ACLBindingRule()
+
+	// Upsert the binding rule straight into state.
+	writeTxn := testState.db.WriteTxn(10)
+	updated, err := testState.upsertACLBindingRuleTxn(10, writeTxn, bindingRule, true)
+	must.True(t, updated)
+	must.NoError(t, err)
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLBindingRulesUpsertRequestType}
+	receivedChange := eventsFromChanges(writeTxn, upsertChange)
+	must.NotNil(t, receivedChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicACLBindingRule, receivedChange.Events[0].Topic)
+	must.Eq(t, bindingRule.ID, receivedChange.Events[0].Key)
+	must.SliceContainsAll(t, []string{bindingRule.AuthMethod}, receivedChange.Events[0].FilterKeys)
+	must.Eq(t, structs.TypeACLBindingRuleUpserted, receivedChange.Events[0].Type)
+	must.Eq(t, 10, receivedChange.Events[0].Index)
+
+	must.Eq(t, bindingRule, receivedChange.Events[0].Payload.(*structs.ACLBindingRuleEvent).ACLBindingRule)
+
+	// Delete the previously upserted binding rule.
+	deleteTxn := testState.db.WriteTxn(20)
+	must.NoError(t, testState.deleteACLBindingRuleTxn(deleteTxn, bindingRule.ID))
+	must.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLBindingRules, 20}))
+	deleteTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLBindingRulesDeleteRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
+	must.NotNil(t, receivedDeleteChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicACLBindingRule, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, bindingRule.ID, receivedDeleteChange.Events[0].Key)
+	must.SliceContainsAll(t, []string{bindingRule.AuthMethod}, receivedDeleteChange.Events[0].FilterKeys)
+	must.Eq(t, structs.TypeACLBindingRuleDeleted, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	must.Eq(t, bindingRule, receivedDeleteChange.Events[0].Payload.(*structs.ACLBindingRuleEvent).ACLBindingRule)
+}
+
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 
