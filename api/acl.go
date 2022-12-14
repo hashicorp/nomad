@@ -746,12 +746,12 @@ const (
 // ACL Roles and Policies.
 type ACLBindingRule struct {
 
-	// ID is an internally generated UUID for this role and is controlled by
+	// ID is an internally generated UUID for this rule and is controlled by
 	// Nomad.
 	ID string
 
 	// Description is a human-readable, operator set description that can
-	// provide additional context about the binding role. This is an
+	// provide additional context about the binding rule. This is an
 	// operational field.
 	Description string
 
