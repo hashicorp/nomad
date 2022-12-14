@@ -275,7 +275,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	must.Eq(t, NodeSchedulingEligible, out.SchedulingEligibility)
 
 	// Toggle it off
-	eligOut, err := nodes.ToggleEligibility(nodeID, false, nil)
+	eligOut, err := nodes.ToggleEligibility(nodeID, false, "", nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, &eligOut.WriteMeta)
 
@@ -285,7 +285,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	must.Eq(t, NodeSchedulingIneligible, out.SchedulingEligibility)
 
 	// Toggle on
-	eligOut, err = nodes.ToggleEligibility(nodeID, true, nil)
+	eligOut, err = nodes.ToggleEligibility(nodeID, true, "", nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, &eligOut.WriteMeta)
 
