@@ -237,6 +237,31 @@
             "path": "commands/acl/bootstrap"
           },
           {
+            "title": "auth-method",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/auth-method/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/auth-method/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/auth-method/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/auth-method/list"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/auth-method/update"
+              }
+            ]
+          },
+          {
             "title": "policy",
             "routes": [
               {
