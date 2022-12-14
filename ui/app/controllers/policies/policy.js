@@ -74,7 +74,7 @@ export default class PoliciesPolicyController extends Controller {
         type: 'client',
       });
       yield newToken.save();
-      this.refreshTokens();
+      yield this.refreshTokens();
       this.flashMessages.add({
         title: 'Example Token Created',
         message: `${newToken.secret}`,
@@ -103,7 +103,7 @@ export default class PoliciesPolicyController extends Controller {
     try {
       yield token.deleteRecord();
       yield token.save();
-      this.refreshTokens();
+      yield this.refreshTokens();
       this.flashMessages.add({
         title: 'Token successfully deleted',
         type: 'success',

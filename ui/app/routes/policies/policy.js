@@ -10,7 +10,7 @@ export default class PoliciesPolicyRoute extends Route.extend(
 ) {
   @service store;
   async model(params) {
-    return await hash({
+    return hash({
       policy: this.store.findRecord('policy', decodeURIComponent(params.name), {
         reload: true,
       }),
