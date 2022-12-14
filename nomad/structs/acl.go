@@ -114,6 +114,40 @@ const (
 	// Args: ACLAuthMethodsGetRequest
 	// Reply: ACLAuthMethodsGetResponse
 	ACLGetAuthMethodsRPCMethod = "ACL.GetAuthMethods"
+
+	// ACLUpsertBindingRulesRPCMethod is the RPC method for batch creating or
+	// modifying binding rules.
+	//
+	// Args: ACLBindingRulesUpsertRequest
+	// Reply: ACLBindingRulesUpsertResponse
+	ACLUpsertBindingRulesRPCMethod = "ACL.UpsertBindingRules"
+
+	// ACLDeleteBindingRulesRPCMethod is the RPC method for batch deleting
+	// binding rules.
+	//
+	// Args: ACLBindingRulesDeleteRequest
+	// Reply: ACLBindingRulesDeleteResponse
+	ACLDeleteBindingRulesRPCMethod = "ACL.DeleteBindingRules"
+
+	// ACLListBindingRulesRPCMethod is the RPC method listing binding rules.
+	//
+	// Args: ACLBindingRulesListRequest
+	// Reply: ACLBindingRulesListResponse
+	ACLListBindingRulesRPCMethod = "ACL.ListBindingRules"
+
+	// ACLGetBindingRulesRPCMethod is the RPC method for getting multiple
+	// binding rules using their IDs.
+	//
+	// Args: ACLBindingRulesRequest
+	// Reply: ACLBindingRulesResponse
+	ACLGetBindingRulesRPCMethod = "ACL.GetBindingRules"
+
+	// ACLGetBindingRuleRPCMethod is the RPC method for detailing an individual
+	// binding rule using its ID.
+	//
+	// Args: ACLBindingRuleRequest
+	// Reply: ACLBindingRuleResponse
+	ACLGetBindingRuleRPCMethod = "ACL.GetBindingRule"
 )
 
 const (
@@ -126,6 +160,10 @@ const (
 
 	// maxACLRoleDescriptionLength limits an ACL roles description length.
 	maxACLRoleDescriptionLength = 256
+
+	// maxACLBindingRuleDescriptionLength limits an ACL binding rules
+	// description length and should be used to validate the object.
+	maxACLBindingRuleDescriptionLength = 256
 )
 
 var (
@@ -856,5 +894,277 @@ type ACLAuthMethodDeleteResponse struct {
 
 type ACLWhoAmIResponse struct {
 	Identity *AuthenticatedIdentity
+	QueryMeta
+}
+
+// ACLBindingRule contains a direct relation to an ACLAuthMethod and represents
+// a rule to apply when logging in via the named AuthMethod. This allows the
+// transformation of OIDC provider claims, to Nomad based ACL concepts such as
+// ACL Roles and Policies.
+type ACLBindingRule struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the binding role. This is an
+	// operational field.
+	Description string
+
+	// AuthMethod is the name of the auth method for which this rule applies
+	// to. This is required and the method must exist within state before the
+	// cluster administrator can create the rule.
+	AuthMethod string
+
+	// Selector is an expression that matches against verified identity
+	// attributes returned from the auth method during login. This is optional
+	// and when not set, provides a catch-all rule.
+	Selector string
+
+	// BindType adjusts how this binding rule is applied at login time. The
+	// valid values are ACLBindingRuleBindTypeRole and
+	// ACLBindingRuleBindTypePolicy.
+	BindType string
+
+	// BindName is the target of the binding. Can be lightly templated using
+	// HIL ${foo} syntax from available field names. How it is used depends
+	// upon the BindType.
+	BindName string
+
+	// Hash is the hashed value of the binding rule and is generated using all
+	// fields from the full object except the create and modify times and
+	// indexes.
+	Hash []byte
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+const (
+	// ACLBindingRuleBindTypeRole is the ACL binding rule bind type that only
+	// allows the binding rule to function if a role exists at login-time. The
+	// role will be specified within the ACLBindingRule.BindName parameter, and
+	// will identify whether this is an ID or Name.
+	ACLBindingRuleBindTypeRole = "role"
+
+	// ACLBindingRuleBindTypePolicy is the ACL binding rule bind type that
+	// assigns a policy to the generate ACL token. The role will be specified
+	// within the ACLBindingRule.BindName parameter, and will be the policy
+	// name.
+	ACLBindingRuleBindTypePolicy = "policy"
+)
+
+// Canonicalize performs basic canonicalization on the ACL token object. It is
+// important for callers to understand certain fields such as ID are set if it
+// is empty, so copies should be taken if needed before calling this function.
+func (a *ACLBindingRule) Canonicalize() {
+
+	now := time.Now().UTC()
+
+	// If the ID is empty, it means this is creation of a new binding rule,
+	// therefore we need to generate base information.
+	if a.ID == "" {
+		a.ID = uuid.Generate()
+		a.CreateTime = now
+	}
+
+	// The fact this function is being called indicates we are attempting an
+	// upsert into state. Therefore, update the modify time.
+	a.ModifyTime = now
+}
+
+// Validate ensures the ACL binding rule contains valid information which meets
+// Nomad's internal requirements.
+func (a *ACLBindingRule) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethod == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("auth method is missing"))
+	}
+	if a.BindName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("bind name is missing"))
+	}
+	if len(a.Description) > maxACLBindingRuleDescriptionLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("description longer than %d", maxACLRoleDescriptionLength))
+	}
+
+	// Be specific about the error as returning an error that includes an empty
+	// quote ("") can be a little confusing.
+	if a.BindType == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("bind type is missing"))
+	} else {
+		switch a.BindType {
+		case ACLBindingRuleBindTypeRole, ACLBindingRuleBindTypePolicy: // fall-through.
+		default:
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// SetHash is used to compute and set the hash of the ACL binding rule. This
+// should be called every and each time a user specified field on the method is
+// changed before updating the Nomad state store.
+func (a *ACLBindingRule) SetHash() []byte {
+
+	// Initialize a 256bit Blake2 hash (32 bytes).
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	_, _ = hash.Write([]byte(a.ID))
+	_, _ = hash.Write([]byte(a.Description))
+	_, _ = hash.Write([]byte(a.AuthMethod))
+	_, _ = hash.Write([]byte(a.Selector))
+	_, _ = hash.Write([]byte(a.BindType))
+	_, _ = hash.Write([]byte(a.BindName))
+
+	// Finalize the hash.
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash.
+	a.Hash = hashVal
+	return hashVal
+}
+
+// Equal performs an equality check on the two ACL binding rules. It handles
+// nil objects.
+func (a *ACLBindingRule) Equal(other *ACLBindingRule) bool {
+	if a == nil || other == nil {
+		return a == other
+	}
+	if len(a.Hash) == 0 {
+		a.SetHash()
+	}
+	if len(other.Hash) == 0 {
+		other.SetHash()
+	}
+	return bytes.Equal(a.Hash, other.Hash)
+}
+
+// Copy creates a deep copy of the ACL binding rule. This copy can then be
+// safely modified. It handles nil objects.
+func (a *ACLBindingRule) Copy() *ACLBindingRule {
+	if a == nil {
+		return nil
+	}
+
+	c := new(ACLBindingRule)
+	*c = *a
+	c.Hash = slices.Clone(a.Hash)
+
+	return c
+}
+
+// Stub converts the ACLBindingRule object into a ACLBindingRuleListStub
+// object.
+func (a *ACLBindingRule) Stub() *ACLBindingRuleListStub {
+	return &ACLBindingRuleListStub{
+		ID:          a.ID,
+		Description: a.Description,
+		AuthMethod:  a.AuthMethod,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// ACLBindingRuleListStub is the stub object returned when performing a listing
+// of ACL binding rules.
+type ACLBindingRuleListStub struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the binding role. This is an
+	// operational field.
+	Description string
+
+	// AuthMethod is the name of the auth method for which this rule applies
+	// to. This is required and the method must exist within state before the
+	// cluster administrator can create the rule.
+	AuthMethod string
+
+	// Hash is the hashed value of the binding rule and is generated using all
+	// fields from the full object except the create and modify times and
+	// indexes.
+	Hash []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLBindingRulesUpsertRequest is used to upsert a set of ACL binding rules.
+type ACLBindingRulesUpsertRequest struct {
+	ACLBindingRules []*ACLBindingRule
+	WriteRequest
+}
+
+// ACLBindingRulesUpsertResponse is a response of the upsert ACL binding rules
+// operation.
+type ACLBindingRulesUpsertResponse struct {
+	ACLBindingRules []*ACLBindingRule
+	WriteMeta
+}
+
+// ACLBindingRulesDeleteRequest is used to delete a set of ACL binding rules by
+// their IDs.
+type ACLBindingRulesDeleteRequest struct {
+	ACLBindingRuleIDs []string
+	WriteRequest
+}
+
+// ACLBindingRulesDeleteResponse is a response of the delete ACL binding rules
+// operation.
+type ACLBindingRulesDeleteResponse struct {
+	WriteMeta
+}
+
+// ACLBindingRulesListRequest  is the request object when performing ACL
+// binding rules listings.
+type ACLBindingRulesListRequest struct {
+	QueryOptions
+}
+
+// ACLBindingRulesListResponse is the response object when performing ACL
+// binding rule listings.
+type ACLBindingRulesListResponse struct {
+	ACLBindingRules []*ACLBindingRuleListStub
+	QueryMeta
+}
+
+// ACLBindingRulesRequest is the request object when performing a lookup of
+// multiple binding rules by the ID.
+type ACLBindingRulesRequest struct {
+	ACLBindingRuleIDs []string
+	QueryOptions
+}
+
+// ACLBindingRulesResponse is the response object when performing a lookup of
+// multiple binding rules by their IDs.
+type ACLBindingRulesResponse struct {
+	ACLBindingRules map[string]*ACLBindingRule
+	QueryMeta
+}
+
+// ACLBindingRuleRequest is the request object to perform a lookup of an ACL
+// binding rule using a specific ID.
+type ACLBindingRuleRequest struct {
+	ACLBindingRuleID string
+	QueryOptions
+}
+
+// ACLBindingRuleResponse is the response object when performing a lookup of an
+// ACL binding rule matching a specific ID.
+type ACLBindingRuleResponse struct {
+	ACLBindingRule *ACLBindingRule
 	QueryMeta
 }

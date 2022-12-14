@@ -242,3 +242,12 @@ func (r *StateRestore) ACLAuthMethodRestore(aclAuthMethod *structs.ACLAuthMethod
 	}
 	return nil
 }
+
+// ACLBindingRuleRestore is used to restore a single ACL binding rule into the
+// acl_binding_rules table.
+func (r *StateRestore) ACLBindingRuleRestore(aclBindingRule *structs.ACLBindingRule) error {
+	if err := r.txn.Insert(TableACLBindingRules, aclBindingRule); err != nil {
+		return fmt.Errorf("ACL binding rule insert failed: %v", err)
+	}
+	return nil
+}
