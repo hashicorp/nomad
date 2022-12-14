@@ -31,6 +31,8 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ACLRolesUpsertRequestType:                    structs.TypeACLRoleUpserted,
 	structs.ACLAuthMethodsUpsertRequestType:              structs.TypeACLAuthMethodUpserted,
 	structs.ACLAuthMethodsDeleteRequestType:              structs.TypeACLAuthMethodDeleted,
+	structs.ACLBindingRulesUpsertRequestType:             structs.TypeACLBindingRuleUpserted,
+	structs.ACLBindingRulesDeleteRequestType:             structs.TypeACLBindingRuleDeleted,
 	structs.ServiceRegistrationUpsertRequestType:         structs.TypeServiceRegistration,
 	structs.ServiceRegistrationDeleteByIDRequestType:     structs.TypeServiceDeregistration,
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
@@ -103,6 +105,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:   before.Name,
 				Payload: &structs.ACLAuthMethodEvent{
 					AuthMethod: before,
+				},
+			}, true
+		case TableACLBindingRules:
+			before, ok := change.Before.(*structs.ACLBindingRule)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic:      structs.TopicACLBindingRule,
+				Key:        before.ID,
+				FilterKeys: []string{before.AuthMethod},
+				Payload: &structs.ACLBindingRuleEvent{
+					ACLBindingRule: before,
 				},
 			}, true
 		case "nodes":
@@ -187,6 +202,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:   after.Name,
 			Payload: &structs.ACLAuthMethodEvent{
 				AuthMethod: after,
+			},
+		}, true
+	case TableACLBindingRules:
+		after, ok := change.After.(*structs.ACLBindingRule)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic:      structs.TopicACLBindingRule,
+			Key:        after.ID,
+			FilterKeys: []string{after.AuthMethod},
+			Payload: &structs.ACLBindingRuleEvent{
+				ACLBindingRule: after,
 			},
 		}, true
 	case "evals":
