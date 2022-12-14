@@ -1709,12 +1709,30 @@ func (a *ACL) UpsertAuthMethods(
 		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one auth method")
 	}
 
+	// Snapshot the state so we can make lookups to verify default method
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	// Validate each auth method, canonicalize, and compute hash
 	for idx, authMethod := range args.AuthMethods {
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,
 			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth method %d invalid: %v", idx, err)
+		}
+
+		// Are we trying to upsert a default auth method? Check if there isn't
+		// a default one for that very type already.
+		if authMethod.Default {
+			existingMethodsDefaultmethod, _ := stateSnapshot.GetDefaultACLAuthMethodByType(nil, authMethod.Type)
+			if existingMethodsDefaultmethod != nil && existingMethodsDefaultmethod.Name != authMethod.Name {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest,
+					"default method for type %s already exists: %v", authMethod.Type, existingMethodsDefaultmethod.Name,
+				)
+			}
 		}
 		authMethod.Canonicalize()
 		authMethod.SetHash()
@@ -1733,7 +1751,7 @@ func (a *ACL) UpsertAuthMethods(
 
 	// Populate the response. We do a lookup against the state to pick up the
 	// proper create / modify times.
-	stateSnapshot, err := a.srv.State().Snapshot()
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}

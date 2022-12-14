@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/hashicorp/go-getter"
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/helper/subproc"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -96,7 +98,27 @@ func getTaskDir(env interfaces.EnvReplacer) string {
 	return filepath.Dir(p)
 }
 
-func runCmd(env *parameters, logger hclog.Logger) error {
+// environment merges the default minimal environment per-OS with the set of
+// environment variables configured to be inherited from the Client
+func environment(taskDir string, inherit string) []string {
+	chomp := func(s string) []string {
+		return strings.FieldsFunc(s, func(c rune) bool {
+			return c == ',' || unicode.IsSpace(c)
+		})
+	}
+	env := defaultEnvironment(taskDir)
+	for _, name := range chomp(inherit) {
+		env[name] = os.Getenv(name)
+	}
+	result := make([]string, 0, len(env))
+	for k, v := range env {
+		result = append(result, fmt.Sprintf("%s=%s", k, v))
+	}
+	sort.Strings(result)
+	return result
+}
+
+func (s *Sandbox) runCmd(env *parameters) error {
 	// find the nomad process
 	bin := subproc.Self()
 
@@ -107,7 +129,7 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 	// start the subprocess, passing in parameters via stdin
 	output := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, bin, SubCommand)
-	cmd.Env = minimalVars(env.TaskDir)
+	cmd.Env = environment(env.TaskDir, env.SetEnvironmentVariables)
 	cmd.Stdin = env.reader()
 	cmd.Stdout = output
 	cmd.Stderr = output
@@ -115,13 +137,13 @@ func runCmd(env *parameters, logger hclog.Logger) error {
 
 	// start & wait for the subprocess to terminate
 	if err := cmd.Run(); err != nil {
-		subproc.Log(output, logger.Error)
+		subproc.Log(output, s.logger.Error)
 		return &Error{
 			URL:         env.Source,
 			Err:         fmt.Errorf("getter subprocess failed: %v", err),
 			Recoverable: true,
 		}
 	}
-	subproc.Log(output, logger.Debug)
+	subproc.Log(output, s.logger.Debug)
 	return nil
 }

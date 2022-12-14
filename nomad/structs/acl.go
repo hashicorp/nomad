@@ -118,8 +118,8 @@ const (
 	// ACLUpsertBindingRulesRPCMethod is the RPC method for batch creating or
 	// modifying binding rules.
 	//
-	// Args: ACLAuthMethodsUpsertRequest
-	// Reply: ACLAuthMethodUpsertResponse
+	// Args: ACLBindingRulesUpsertRequest
+	// Reply: ACLBindingRulesUpsertResponse
 	ACLUpsertBindingRulesRPCMethod = "ACL.UpsertBindingRules"
 
 	// ACLDeleteBindingRulesRPCMethod is the RPC method for batch deleting

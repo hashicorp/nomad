@@ -3,7 +3,6 @@
 package getter
 
 import (
-	"fmt"
 	"path/filepath"
 	"syscall"
 
@@ -49,13 +48,12 @@ func credentials() (uint32, uint32) {
 	}
 }
 
-// minimalVars returns the minimal environment set for artifact
-// downloader sandbox
-func minimalVars(taskDir string) []string {
+// defaultEnvironment is the default minimal environment variables for Linux.
+func defaultEnvironment(taskDir string) map[string]string {
 	tmpDir := filepath.Join(taskDir, "tmp")
-	return []string{
-		"PATH=/usr/local/bin:/usr/bin:/bin",
-		fmt.Sprintf("TMPDIR=%s", tmpDir),
+	return map[string]string{
+		"PATH":   "/usr/local/bin:/usr/bin:/bin",
+		"TMPDIR": tmpDir,
 	}
 }
 

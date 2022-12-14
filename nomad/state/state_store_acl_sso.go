@@ -61,9 +61,18 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 
 	// This validation also happens within the RPC handler, but Raft latency
 	// could mean that by the time the state call is invoked, another Raft
-	// update has already written a method with the same name. We therefore
-	// need to check we are not trying to create a method with an existing
-	// name.
+	// update has already written a method with the same name or default
+	// setting. We therefore need to check we are not trying to create a method
+	// with an existing name or a duplicate default for the same type.
+	if method.Default {
+		existingMethodsDefaultmethod, _ := s.GetDefaultACLAuthMethodByType(nil, method.Type)
+		if existingMethodsDefaultmethod != nil && existingMethodsDefaultmethod.Name != method.Name {
+			return false, fmt.Errorf(
+				"default ACL auth method for type %s already exists: %v",
+				method.Type, existingMethodsDefaultmethod.Name,
+			)
+		}
+	}
 	existingRaw, err := txn.First(TableACLAuthMethods, indexID, method.Name)
 	if err != nil {
 		return false, fmt.Errorf("ACL auth method lookup failed: %v", err)
@@ -174,5 +183,36 @@ func (s *StateStore) GetACLAuthMethodByName(ws memdb.WatchSet, authMethod string
 	if existing != nil {
 		return existing.(*structs.ACLAuthMethod), nil
 	}
+	return nil, nil
+}
+
+// GetDefaultACLAuthMethodByType returns a default ACL Auth Methods for a given
+// auth type. Since we only want 1 default auth method per type, this function
+// is used during upserts to facilitate that check.
+func (s *StateStore) GetDefaultACLAuthMethodByType(ws memdb.WatchSet, methodType string) (*structs.ACLAuthMethod, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table to get all ACL auth methods.
+	iter, err := txn.Get(TableACLAuthMethods, indexID)
+	if err != nil {
+		return nil, fmt.Errorf("ACL auth method lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	// Filter out non-default methods
+	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+		method, ok := raw.(*structs.ACLAuthMethod)
+		if !ok {
+			return true
+		}
+		// any non-default method or method of different type than desired gets filtered-out
+		return !method.Default || method.Type != methodType
+	})
+
+	for raw := filter.Next(); raw != nil; raw = filter.Next() {
+		method := raw.(*structs.ACLAuthMethod)
+		return method, nil
+	}
+
 	return nil, nil
 }

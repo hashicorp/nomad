@@ -3022,6 +3022,8 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 
 	// Create the register request
 	am1 := mock.ACLAuthMethod()
+	am1.Default = true // make sure it's going to be a default method
+	am1.SetHash()
 
 	// Lookup the authMethods
 	req := &structs.ACLAuthMethodUpsertRequest{
@@ -3032,16 +3034,28 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 		},
 	}
 	var resp structs.ACLAuthMethodUpsertResponse
-	if err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
 	must.NotEq(t, uint64(0), resp.Index)
 
 	// Check we created the authMethod
 	out, err := s1.fsm.State().GetACLAuthMethodByName(nil, am1.Name)
 	must.Nil(t, err)
 	must.NotNil(t, out)
+	must.NotEq(t, 0, len(resp.AuthMethods))
 	must.True(t, am1.Equal(resp.AuthMethods[0]))
+
+	// Try to insert another default authMethod
+	am2 := mock.ACLAuthMethod()
+	am2.Default = true
+	req = &structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{am2},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	// We expect this to err since there's already a default method of the same type
+	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
 }
 
 func TestACL_UpsertBindingRules(t *testing.T) {
