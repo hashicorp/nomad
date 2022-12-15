@@ -1167,6 +1167,38 @@ func Test_diffACLAuthMethods(t *testing.T) {
 	require.ElementsMatch(t, []string{aclAuthMethod3.Name, aclAuthMethod4.Name}, toUpdate)
 }
 
+func Test_diffACLBindingRules(t *testing.T) {
+	ci.Parallel(t)
+
+	stateStore := state.TestStateStore(t)
+
+	// Build an initial baseline of ACL binding rules.
+	aclBindingRule0 := mock.ACLBindingRule()
+	aclBindingRule1 := mock.ACLBindingRule()
+	aclBindingRule2 := mock.ACLBindingRule()
+	aclBindingRule3 := mock.ACLBindingRule()
+
+	// Upsert these into our local state. Use copies, so we can alter the
+	// binding rules directly and use within the diff func.
+	err := stateStore.UpsertACLBindingRules(50,
+		[]*structs.ACLBindingRule{aclBindingRule0.Copy(), aclBindingRule1.Copy(),
+			aclBindingRule2.Copy(), aclBindingRule3.Copy()}, true)
+	must.NoError(t, err)
+
+	// Modify the ACL auth-methods to create a number of differences. These
+	// methods represent the state of the authoritative region.
+	aclBindingRule2.ModifyIndex = 50
+	aclBindingRule3.ModifyIndex = 200
+	aclBindingRule3.Hash = []byte{0, 1, 2, 3}
+	aclBindingRule4 := mock.ACLBindingRule()
+
+	// Run the diff function and test the output.
+	toDelete, toUpdate := diffACLBindingRules(stateStore, 50, []*structs.ACLBindingRuleListStub{
+		aclBindingRule2.Stub(), aclBindingRule3.Stub(), aclBindingRule4.Stub()})
+	must.SliceContainsAll(t, []string{aclBindingRule0.ID, aclBindingRule1.ID}, toDelete)
+	must.SliceContainsAll(t, []string{aclBindingRule3.ID, aclBindingRule4.ID}, toUpdate)
+}
+
 func TestLeader_Reelection(t *testing.T) {
 	ci.Parallel(t)
 
