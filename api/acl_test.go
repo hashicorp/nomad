@@ -618,7 +618,6 @@ func TestACLAuthMethods(t *testing.T) {
 	must.Len(t, 1, aclAuthMethodsListResp)
 	must.Eq(t, authMethod.Name, aclAuthMethodsListResp[0].Name)
 	must.True(t, aclAuthMethodsListResp[0].Default)
-	must.SliceNotEmpty(t, aclAuthMethodsListResp[0].Hash)
 	assertQueryMeta(t, queryMeta)
 
 	// Read the auth-method.
@@ -653,5 +652,87 @@ func TestACLAuthMethods(t *testing.T) {
 	aclAuthMethodsListResp, queryMeta, err = testClient.ACLAuthMethods().List(nil)
 	must.NoError(t, err)
 	must.Len(t, 0, aclAuthMethodsListResp)
+	assertQueryMeta(t, queryMeta)
+}
+
+func TestACLBindingRules(t *testing.T) {
+	testutil.Parallel(t)
+
+	testClient, testServer, _ := makeACLClient(t, nil, nil)
+	defer testServer.Stop()
+
+	//
+	aclAuthMethod := ACLAuthMethod{
+		Name:          "auth0",
+		Type:          ACLAuthMethodTypeOIDC,
+		TokenLocality: ACLAuthMethodTokenLocalityGlobal,
+		MaxTokenTTL:   10 * time.Hour,
+		Default:       true,
+	}
+	_, _, err := testClient.ACLAuthMethods().Create(&aclAuthMethod, nil)
+	must.NoError(t, err)
+
+	// An initial listing shouldn't return any results.
+	aclBindingRulesListResp, queryMeta, err := testClient.ACLBindingRules().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 0, aclBindingRulesListResp)
+	assertQueryMeta(t, queryMeta)
+
+	// Create an ACL auth-method.
+	bindingRule := ACLBindingRule{
+		Description: "my-binding-rule",
+		AuthMethod:  "auth0",
+		Selector:    "nomad-engineering-team in list.groups",
+		BindType:    "role",
+		BindName:    "cluster-admin",
+	}
+	_, writeMeta, err := testClient.ACLBindingRules().Create(&bindingRule, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Another listing should return one result.
+	aclBindingRulesListResp, queryMeta, err = testClient.ACLBindingRules().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 1, aclBindingRulesListResp)
+	must.NotEq(t, "", aclBindingRulesListResp[0].ID)
+	must.Eq(t, "auth0", aclBindingRulesListResp[0].AuthMethod)
+	assertQueryMeta(t, queryMeta)
+
+	bindingRuleID := aclBindingRulesListResp[0].ID
+
+	// Read the binding rule.
+	aclBindingRuleReadResp, queryMeta, err := testClient.ACLBindingRules().Get(bindingRuleID, nil)
+	must.NoError(t, err)
+	assertQueryMeta(t, queryMeta)
+	must.NotNil(t, aclBindingRuleReadResp)
+	must.Eq(t, bindingRuleID, aclBindingRuleReadResp.ID)
+	must.Eq(t, bindingRule.Description, aclBindingRuleReadResp.Description)
+	must.Eq(t, bindingRule.AuthMethod, aclBindingRuleReadResp.AuthMethod)
+	must.Eq(t, bindingRule.Selector, aclBindingRuleReadResp.Selector)
+	must.Eq(t, bindingRule.BindType, aclBindingRuleReadResp.BindType)
+	must.Eq(t, bindingRule.BindName, aclBindingRuleReadResp.BindName)
+
+	// Update the binding rule description.
+	bindingRule.ID = bindingRuleID
+	bindingRule.Description = "my-binding-rule-updated"
+	aclBindingRuleUpdateResp, writeMeta, err := testClient.ACLBindingRules().Update(&bindingRule, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+	must.Eq(t, bindingRuleID, aclBindingRuleUpdateResp.ID)
+	must.Eq(t, bindingRule.Description, aclBindingRuleUpdateResp.Description)
+	must.Eq(t, bindingRule.AuthMethod, aclBindingRuleUpdateResp.AuthMethod)
+	must.Eq(t, bindingRule.Selector, aclBindingRuleUpdateResp.Selector)
+	must.Eq(t, bindingRule.BindType, aclBindingRuleUpdateResp.BindType)
+	must.Eq(t, bindingRule.BindName, aclBindingRuleUpdateResp.BindName)
+
+	// Delete the role.
+	writeMeta, err = testClient.ACLBindingRules().Delete(bindingRuleID, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, writeMeta)
+
+	// Make sure there are no ACL auth-methods now present.
+	aclBindingRulesListResp, queryMeta, err = testClient.ACLBindingRules().List(nil)
+	must.NoError(t, err)
+	must.Len(t, 0, aclBindingRulesListResp)
 	assertQueryMeta(t, queryMeta)
 }

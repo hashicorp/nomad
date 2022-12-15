@@ -3057,3 +3057,412 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	// We expect this to err since there's already a default method of the same type
 	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
 }
+
+func TestACL_UpsertBindingRules(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a mock ACL binding rule and remove the ID so this looks like a
+	// creation.
+	aclBindingRule1 := mock.ACLBindingRule()
+	aclBindingRule1.ID = ""
+
+	// Attempt to upsert this binding rule without setting an ACL token. This
+	// should fail.
+	aclBindingRuleReq1 := &structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+	var aclBindingRuleResp1 structs.ACLBindingRulesUpsertResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertBindingRulesRPCMethod, aclBindingRuleReq1, &aclBindingRuleResp1)
+	must.EqError(t, err, "Permission denied")
+
+	// Attempt to upsert this binding rule that references a auth method that
+	// does not exist in state.
+	aclBindingRuleReq2 := &structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp2 structs.ACLBindingRulesUpsertResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertBindingRulesRPCMethod, aclBindingRuleReq2, &aclBindingRuleResp2)
+	must.EqError(t, err, "RPC Error:: 400,ACL auth method auth0 not found")
+
+	// Create the policies our ACL roles wants to link to.
+	authMethod := mock.ACLAuthMethod()
+	authMethod.Name = aclBindingRule1.AuthMethod
+
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
+
+	// Try the upsert a third time, which should succeed.
+	aclBindingRuleReq3 := &structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp3 structs.ACLBindingRulesUpsertResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertBindingRulesRPCMethod, aclBindingRuleReq3, &aclBindingRuleResp3)
+	must.NoError(t, err)
+	must.Len(t, 1, aclBindingRuleResp3.ACLBindingRules)
+
+	// Perform an update of the ACL binding rule by updating the description.
+	aclBindingRule1Copy := aclBindingRule1.Copy()
+	aclBindingRule1Copy.Description = "updated-description"
+
+	aclBindingRuleReq4 := &structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp4 structs.ACLBindingRulesUpsertResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertBindingRulesRPCMethod, aclBindingRuleReq4, &aclBindingRuleResp4)
+	must.NoError(t, err)
+	must.Len(t, 1, aclBindingRuleResp4.ACLBindingRules)
+	must.Greater(t, aclBindingRuleResp3.ACLBindingRules[0].ModifyIndex, aclBindingRuleResp4.ACLBindingRules[0].ModifyIndex)
+
+	// Create another ACL binding rule that will fail validation. Attempting to
+	// upsert this ensures the handler is triggering the validation function.
+	aclBindingRule2 := mock.ACLBindingRule()
+	aclBindingRule2.BindType = ""
+
+	aclBindingRuleReq5 := &structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule2},
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp5 structs.ACLBindingRulesUpsertResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLUpsertBindingRulesRPCMethod, aclBindingRuleReq5, &aclBindingRuleResp5)
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "bind type is missing")
+}
+
+func TestACL_DeleteBindingRules(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create two ACL binding rules and put these directly into state.
+	aclBindingRules := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
+	must.NoError(t, testServer.State().UpsertACLBindingRules(10, aclBindingRules, true))
+
+	// Attempt to delete an ACL binding rule without setting an auth token.
+	// This should fail.
+	aclBindingRuleReq1 := &structs.ACLBindingRulesDeleteRequest{
+		ACLBindingRuleIDs: []string{aclBindingRules[0].ID},
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+	var aclBindingRuleResp1 structs.ACLBindingRulesDeleteResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLDeleteBindingRulesRPCMethod, aclBindingRuleReq1, &aclBindingRuleResp1)
+	must.EqError(t, err, "Permission denied")
+
+	// Attempt to delete an ACL binding rule now using a valid management token
+	// which should succeed.
+	aclBindingRuleReq2 := &structs.ACLBindingRulesDeleteRequest{
+		ACLBindingRuleIDs: []string{aclBindingRules[0].ID},
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp2 structs.ACLBindingRulesDeleteResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLDeleteBindingRulesRPCMethod, aclBindingRuleReq2, &aclBindingRuleResp2)
+	must.NoError(t, err)
+
+	// Ensure the deleted binding rule is not found within state and that the
+	// other is.
+	ws := memdb.NewWatchSet()
+	iter, err := testServer.State().GetACLBindingRules(ws)
+	must.NoError(t, err)
+
+	var aclBindingRulesLookup []*structs.ACLBindingRule
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclBindingRulesLookup = append(aclBindingRulesLookup, raw.(*structs.ACLBindingRule))
+	}
+
+	must.Len(t, 1, aclBindingRulesLookup)
+	must.Eq(t, aclBindingRulesLookup[0], aclBindingRules[1])
+
+	// Try to delete the previously deleted ACL binding rule, this should fail.
+	aclBindingRuleReq3 := &structs.ACLBindingRulesDeleteRequest{
+		ACLBindingRuleIDs: []string{aclBindingRules[0].ID},
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp3 structs.ACLBindingRulesDeleteResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLDeleteBindingRulesRPCMethod, aclBindingRuleReq3, &aclBindingRuleResp3)
+	must.EqError(t, err, "ACL binding rule not found")
+}
+
+func TestACL_ListBindingRules(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create two ACL binding rules and put these directly into state.
+	aclBindingRules := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
+	must.NoError(t, testServer.State().UpsertACLBindingRules(10, aclBindingRules, true))
+
+	// Try listing binding rules without a valid ACL token.
+	aclBindingRuleReq1 := &structs.ACLBindingRulesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: DefaultRegion,
+		},
+	}
+	var aclBindingRuleResp1 structs.ACLBindingRulesListResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLListBindingRulesRPCMethod, aclBindingRuleReq1, &aclBindingRuleResp1)
+	must.EqError(t, err, "Permission denied")
+
+	// Try listing roles with a valid ACL token.
+	aclBindingRuleReq2 := &structs.ACLBindingRulesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp2 structs.ACLBindingRulesListResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLListBindingRulesRPCMethod, aclBindingRuleReq2, &aclBindingRuleResp2)
+	must.NoError(t, err)
+	must.Len(t, 2, aclBindingRuleResp2.ACLBindingRules)
+
+	// Now test a blocking query, where we wait for an update to the list which
+	// is triggered by a deletion.
+	type res struct {
+		err   error
+		reply *structs.ACLBindingRulesListResponse
+	}
+	resultCh := make(chan *res)
+
+	go func(resultCh chan *res) {
+		aclBindingRuleReq3 := &structs.ACLBindingRulesListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:        DefaultRegion,
+				AuthToken:     aclRootToken.SecretID,
+				MinQueryIndex: aclBindingRuleResp2.Index,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var aclBindingRuleResp3 structs.ACLBindingRulesListResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLListBindingRulesRPCMethod, aclBindingRuleReq3, &aclBindingRuleResp3)
+		resultCh <- &res{err: err, reply: &aclBindingRuleResp3}
+	}(resultCh)
+
+	// Delete an ACL binding rule from state which should return the blocking
+	// query.
+	must.NoError(t, testServer.fsm.State().DeleteACLBindingRules(
+		aclBindingRuleResp2.Index+10, []string{aclBindingRules[0].ID}))
+
+	// Wait until the test within the routine is complete.
+	result := <-resultCh
+	must.NoError(t, result.err)
+	must.Len(t, 1, result.reply.ACLBindingRules)
+	must.NotEq(t, result.reply.ACLBindingRules[0].ID, aclBindingRules[0].ID)
+	must.Greater(t, aclBindingRuleResp2.Index, result.reply.Index)
+}
+
+func TestACL_GetBindingRules(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Try reading a binding rule without setting a correct auth token.
+	aclBindingRuleReq1 := &structs.ACLBindingRulesRequest{
+		ACLBindingRuleIDs: []string{"nope"},
+		QueryOptions: structs.QueryOptions{
+			Region: DefaultRegion,
+		},
+	}
+	var aclBindingRuleResp1 structs.ACLBindingRulesResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRulesRPCMethod, aclBindingRuleReq1, &aclBindingRuleResp1)
+	must.EqError(t, err, "Permission denied")
+	must.MapEmpty(t, aclBindingRuleResp1.ACLBindingRules)
+
+	// Try reading a binding rule that doesn't exist.
+	aclBindingRuleReq2 := &structs.ACLBindingRulesRequest{
+		ACLBindingRuleIDs: []string{"nope"},
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp2 structs.ACLBindingRulesResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRulesRPCMethod, aclBindingRuleReq2, &aclBindingRuleResp2)
+	must.NoError(t, err)
+	must.MapEmpty(t, aclBindingRuleResp1.ACLBindingRules)
+
+	// Create two ACL binding rules and put these directly into state.
+	aclBindingRules := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
+	must.NoError(t, testServer.State().UpsertACLBindingRules(10, aclBindingRules, true))
+
+	// Try reading both binding rules that are within state.
+	aclBindingRuleReq3 := &structs.ACLBindingRulesRequest{
+		ACLBindingRuleIDs: []string{aclBindingRules[0].ID, aclBindingRules[1].ID},
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp3 structs.ACLBindingRulesResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRulesRPCMethod, aclBindingRuleReq3, &aclBindingRuleResp3)
+	must.NoError(t, err)
+	must.MapLen(t, 2, aclBindingRuleResp3.ACLBindingRules)
+	must.MapContainsKeys(t, aclBindingRuleResp3.ACLBindingRules, []string{aclBindingRules[0].ID, aclBindingRules[1].ID})
+
+	// Now test a blocking query, where we wait for an update to the set which
+	// is triggered by a deletion.
+	type res struct {
+		err   error
+		reply *structs.ACLBindingRulesResponse
+	}
+	resultCh := make(chan *res)
+
+	go func(resultCh chan *res) {
+		aclBindingRuleReq4 := &structs.ACLBindingRulesRequest{
+			ACLBindingRuleIDs: []string{aclBindingRules[0].ID, aclBindingRules[1].ID},
+			QueryOptions: structs.QueryOptions{
+				Region:        DefaultRegion,
+				AuthToken:     aclRootToken.SecretID,
+				MinQueryIndex: aclBindingRuleResp3.Index,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var aclBindingRuleResp4 structs.ACLBindingRulesResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRulesRPCMethod, aclBindingRuleReq4, &aclBindingRuleResp4)
+		resultCh <- &res{err: err, reply: &aclBindingRuleResp4}
+	}(resultCh)
+
+	// Delete an ACL role from state which should return the blocking query.
+	must.NoError(t, testServer.fsm.State().DeleteACLBindingRules(
+		aclBindingRuleResp3.Index+10, []string{aclBindingRules[0].ID}))
+
+	// Wait for the result and then test it.
+	result := <-resultCh
+	must.NoError(t, result.err)
+	must.MapLen(t, 1, result.reply.ACLBindingRules)
+	must.MapContainsKeys(t, result.reply.ACLBindingRules, []string{aclBindingRules[1].ID})
+	must.Greater(t, aclBindingRuleResp3.Index, result.reply.Index)
+}
+
+func TestACL_GetBindingRule(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, aclRootToken, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create two ACL binding rules and put these directly into state.
+	aclBindingRules := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
+	must.NoError(t, testServer.State().UpsertACLBindingRules(10, aclBindingRules, true))
+
+	// Try reading a role without setting a correct auth token.
+	aclBindingRuleReq1 := &structs.ACLBindingRuleRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: DefaultRegion,
+		},
+	}
+	var aclBindingRuleResp1 structs.ACLBindingRuleResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRuleRPCMethod, aclBindingRuleReq1, &aclBindingRuleResp1)
+	must.EqError(t, err, "Permission denied")
+
+	// Try reading a role that doesn't exist.
+	aclBindingRuleReq2 := &structs.ACLBindingRuleRequest{
+		ACLBindingRuleID: "nope",
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp2 structs.ACLBindingRuleResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRuleRPCMethod, aclBindingRuleReq2, &aclBindingRuleResp2)
+	must.NoError(t, err)
+	must.Nil(t, aclBindingRuleResp2.ACLBindingRule)
+
+	// Read both our available ACL roles using a valid auth token.
+	aclBindingRuleReq3 := &structs.ACLBindingRuleRequest{
+		ACLBindingRuleID: aclBindingRules[0].ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp3 structs.ACLBindingRuleResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRuleRPCMethod, aclBindingRuleReq3, &aclBindingRuleResp3)
+	must.NoError(t, err)
+	must.Eq(t, aclBindingRules[0].ID, aclBindingRuleResp3.ACLBindingRule.ID)
+
+	aclBindingRuleReq4 := &structs.ACLBindingRuleRequest{
+		ACLBindingRuleID: aclBindingRules[1].ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: aclRootToken.SecretID,
+		},
+	}
+	var aclBindingRuleResp4 structs.ACLBindingRuleResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRuleRPCMethod, aclBindingRuleReq4, &aclBindingRuleResp4)
+	must.NoError(t, err)
+	must.Eq(t, aclBindingRules[1].ID, aclBindingRuleResp4.ACLBindingRule.ID)
+
+	// Now test a blocking query, where we wait for an update to the set which
+	// is triggered by an upsert.
+	type res struct {
+		err   error
+		reply *structs.ACLBindingRuleResponse
+	}
+	resultCh := make(chan *res)
+
+	go func(resultCh chan *res) {
+		aclBindingRuleReq5 := &structs.ACLBindingRuleRequest{
+			ACLBindingRuleID: aclBindingRules[0].ID,
+			QueryOptions: structs.QueryOptions{
+				Region:        DefaultRegion,
+				AuthToken:     aclRootToken.SecretID,
+				MinQueryIndex: aclBindingRuleResp4.Index,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var aclBindingRuleResp5 structs.ACLBindingRuleResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLGetBindingRuleRPCMethod, aclBindingRuleReq5, &aclBindingRuleResp5)
+		resultCh <- &res{err: err, reply: &aclBindingRuleResp5}
+	}(resultCh)
+
+	// Delete an ACL role from state which should return the blocking query.
+	aclBindingRule1Copy := aclBindingRules[0].Copy()
+	aclBindingRule1Copy.Description = "updated-description"
+	aclBindingRule1Copy.SetHash()
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		aclBindingRuleResp4.Index+10, []*structs.ACLBindingRule{aclBindingRule1Copy}, true))
+
+	// Wait for the result and then test it.
+	result := <-resultCh
+	must.NoError(t, result.err)
+	must.Eq(t, aclBindingRules[0].ID, result.reply.ACLBindingRule.ID)
+	must.Greater(t, aclBindingRuleResp4.Index, result.reply.Index)
+}

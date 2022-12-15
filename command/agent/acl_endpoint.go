@@ -676,3 +676,156 @@ func (s *HTTPServer) aclAuthMethodUpsertRequest(
 	}
 	return nil, nil
 }
+
+// ACLBindingRuleListRequest performs a listing of ACL binding rules and is
+// callable via the /v1/acl/binding-rules HTTP API.
+func (s *HTTPServer) ACLBindingRuleListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.ACLBindingRulesListRequest{}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.ACLBindingRulesListResponse
+	if err := s.agent.RPC(structs.ACLListBindingRulesRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.ACLBindingRules == nil {
+		reply.ACLBindingRules = make([]*structs.ACLBindingRuleListStub, 0)
+	}
+	return reply.ACLBindingRules, nil
+}
+
+// ACLBindingRuleRequest creates a new ACL binding rule and is callable via the
+// /v1/acl/binding-rule HTTP API.
+func (s *HTTPServer) ACLBindingRuleRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// // The endpoint only supports PUT or POST requests.
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Use the generic upsert function without setting an ID as this will be
+	// handled by the Nomad leader.
+	return s.aclBindingRuleUpsertRequest(resp, req, "")
+}
+
+// ACLBindingRuleSpecificRequest is callable via the /v1/acl/binding-rule/ HTTP
+// API and handles read via both the ID, updates, and deletions.
+func (s *HTTPServer) ACLBindingRuleSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// Grab the suffix of the request, so we can further understand it.
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/acl/binding-rule/")
+
+	// Ensure the binding rule ID is not an empty string which is possible if
+	// the caller requested "/v1/acl/role/binding-rule/".
+	if reqSuffix == "" {
+		return nil, CodedError(http.StatusBadRequest, "missing ACL binding rule ID")
+	}
+
+	// Identify the HTTP method which indicates which downstream function
+	// should be called.
+	switch req.Method {
+	case http.MethodGet:
+		return s.aclBindingRuleGetRequest(resp, req, reqSuffix)
+	case http.MethodDelete:
+		return s.aclBindingRuleDeleteRequest(resp, req, reqSuffix)
+	case http.MethodPost, http.MethodPut:
+		return s.aclBindingRuleUpsertRequest(resp, req, reqSuffix)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) aclBindingRuleGetRequest(
+	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+
+	args := structs.ACLBindingRuleRequest{
+		ACLBindingRuleID: ruleID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var reply structs.ACLBindingRuleResponse
+	if err := s.agent.RPC(structs.ACLGetBindingRuleRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.ACLBindingRule == nil {
+		return nil, CodedError(http.StatusNotFound, "ACL binding rule not found")
+	}
+	return reply.ACLBindingRule, nil
+}
+
+func (s *HTTPServer) aclBindingRuleDeleteRequest(
+	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+
+	args := structs.ACLBindingRulesDeleteRequest{
+		ACLBindingRuleIDs: []string{ruleID},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var reply structs.ACLBindingRulesDeleteResponse
+	if err := s.agent.RPC(structs.ACLDeleteBindingRulesRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+	setIndex(resp, reply.Index)
+	return nil, nil
+}
+
+// aclBindingRuleUpsertRequest handles upserting an ACL binding rule to the
+// Nomad servers. It can handle both new creations, and updates to existing
+// rules.
+func (s *HTTPServer) aclBindingRuleUpsertRequest(
+	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+
+	// Decode the ACL binding rule.
+	var aclBindingRule structs.ACLBindingRule
+	if err := decodeBody(req, &aclBindingRule); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	// If the request path includes an ID, ensure the payload has an ID if it
+	// has been left empty.
+	if ruleID != "" && aclBindingRule.ID == "" {
+		aclBindingRule.ID = ruleID
+	}
+
+	// Ensure the request path ID matches the ACL binding rule ID that was
+	// decoded. Only perform this check on updates as a generic error on
+	// creation might be confusing to operators as there is no specific binding
+	// rule request path.
+	if ruleID != "" && ruleID != aclBindingRule.ID {
+		return nil, CodedError(http.StatusBadRequest, "ACL binding rule ID does not match request path")
+	}
+
+	args := structs.ACLBindingRulesUpsertRequest{
+		ACLBindingRules: []*structs.ACLBindingRule{&aclBindingRule},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.ACLBindingRulesUpsertResponse
+	if err := s.agent.RPC(structs.ACLUpsertBindingRulesRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+
+	if len(out.ACLBindingRules) > 0 {
+		return out.ACLBindingRules[0], nil
+	}
+	return nil, nil
+}

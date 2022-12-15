@@ -2005,3 +2005,327 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 	reply.Identity = args.GetIdentity()
 	return nil
 }
+
+// UpsertBindingRules creates or updates ACL binding rules held within Nomad.
+func (a *ACL) UpsertBindingRules(
+	args *structs.ACLBindingRulesUpsertRequest, reply *structs.ACLBindingRulesUpsertResponse) error {
+
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLUpsertBindingRulesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_binding_rules"}, time.Now())
+
+	// ACL binding rules can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLBindingRuleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL binding rules",
+			minACLBindingRuleVersion)
+	}
+
+	// Check management level permissions
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of binding rules. This must be done outside the
+	// validate function as that uses a loop, which will be skipped if the
+	// length is zero.
+	if len(args.ACLBindingRules) == 0 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one binding rule")
+	}
+
+	stateSnapshot, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate each binding rules and compute the hash.
+	for idx, bindingRule := range args.ACLBindingRules {
+
+		if err := bindingRule.Validate(); err != nil {
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "binding rule %d invalid: %v", idx, err)
+		}
+
+		// If the caller has passed a rule ID, this call is considered an
+		// update to an existing rule. We should therefore ensure it is found
+		// within state.
+		if bindingRule.ID != "" {
+			existingBindingRule, err := stateSnapshot.GetACLBindingRule(nil, bindingRule.ID)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusInternalServerError, "binding rule lookup failed: %v", err)
+			}
+			if existingBindingRule == nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "cannot find binding rule %s", bindingRule.ID)
+			}
+		}
+
+		// Ensure the auth method linked to exists within state.
+		method, err := stateSnapshot.GetACLAuthMethodByName(nil, bindingRule.AuthMethod)
+		if err != nil {
+			return err
+		}
+		if method == nil {
+			return structs.NewErrRPCCodedf(
+				http.StatusBadRequest, "ACL auth method %s not found", bindingRule.AuthMethod)
+		}
+
+		// All the validation has passed, we can now canonicalize the object
+		// with the final internal data and set the hash.
+		bindingRule.Canonicalize()
+		bindingRule.SetHash()
+	}
+
+	// Update via Raft.
+	out, index, err := a.srv.raftApply(structs.ACLBindingRulesUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Populate the response. We do a lookup against the state to pick up the
+	// proper create / modify indexes.
+	stateSnapshot, err = a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, bindingRule := range args.ACLBindingRules {
+		lookupBindingRule, err := stateSnapshot.GetACLBindingRule(nil, bindingRule.ID)
+		if err != nil {
+			return structs.NewErrRPCCodedf(http.StatusInternalServerError,
+				"ACL binding rule lookup failed: %v", err)
+		}
+		if lookupBindingRule == nil {
+			return structs.NewErrRPCCoded(http.StatusInternalServerError,
+				"ACL binding rule lookup failed: no entry found")
+		}
+		reply.ACLBindingRules = append(reply.ACLBindingRules, lookupBindingRule)
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
+// DeleteBindingRules batch deletes ACL binding rules from Nomad state.
+func (a *ACL) DeleteBindingRules(
+	args *structs.ACLBindingRulesDeleteRequest, reply *structs.ACLBindingRulesDeleteResponse) error {
+
+	// Ensure ACLs are enabled, and always flow modification requests to the
+	// authoritative region.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	args.Region = a.srv.config.AuthoritativeRegion
+
+	if done, err := a.srv.forward(structs.ACLDeleteBindingRulesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_binding_rules"}, time.Now())
+
+	// ACL binding rules can only be used once all servers in all federated
+	// regions have been upgraded to 1.5.0 or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLBindingRuleVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use ACL binding rules",
+			minACLBindingRuleVersion)
+	}
+
+	// Check management level permissions.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate non-zero set of binding rule IDs.
+	if len(args.ACLBindingRuleIDs) == 0 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one binding rule")
+	}
+
+	// Update via Raft.
+	out, index, err := a.srv.raftApply(structs.ACLBindingRulesDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FSM response, which is an interface, contains an error.
+	if err, ok := out.(error); ok && err != nil {
+		return err
+	}
+
+	// Update the index
+	reply.Index = index
+	return nil
+}
+
+// ListBindingRules returns a stub list of ACL binding rules.
+func (a *ACL) ListBindingRules(
+	args *structs.ACLBindingRulesListRequest, reply *structs.ACLBindingRulesListResponse) error {
+
+	// Only allow operators to list ACL binding rules when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLListBindingRulesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "list_binding_rules"}, time.Now())
+
+	// Check management level permissions.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// The iteration below appends directly to the reply object, so in
+			// order for blocking queries to work properly we must ensure the
+			// ACLBindingRules are reset. This allows the blocking query run
+			// function to work as expected.
+			reply.ACLBindingRules = nil
+
+			iter, err := stateStore.GetACLBindingRules(ws)
+			if err != nil {
+				return err
+			}
+
+			// Iterate all the results and add these to our reply object.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				reply.ACLBindingRules = append(reply.ACLBindingRules, raw.(*structs.ACLBindingRule).Stub())
+			}
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableACLBindingRules, &reply.QueryMeta)
+		},
+	})
+}
+
+// GetBindingRules is used to query for a set of ACL binding rules. This
+// endpoint is used for replication purposes and is not exposed via the HTTP
+// API.
+func (a *ACL) GetBindingRules(
+	args *structs.ACLBindingRulesRequest, reply *structs.ACLBindingRulesResponse) error {
+
+	// This endpoint is only used by the replication process which is only
+	// running on ACL enabled clusters, so this check should never be
+	// triggered.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLGetBindingRulesRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_rules"}, time.Now())
+
+	// Check management level permissions.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Instantiate the output map to the correct maximum length.
+			reply.ACLBindingRules = make(map[string]*structs.ACLBindingRule, len(args.ACLBindingRuleIDs))
+
+			// Look for the ACL role and add this to our mapping if we have
+			// found it.
+			for _, bindingRuleID := range args.ACLBindingRuleIDs {
+				out, err := stateStore.GetACLBindingRule(ws, bindingRuleID)
+				if err != nil {
+					return err
+				}
+				if out != nil {
+					reply.ACLBindingRules[out.ID] = out
+				}
+			}
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableACLBindingRules, &reply.QueryMeta)
+		},
+	})
+}
+
+// GetBindingRule is used to retrieve a single ACL binding rule as defined by
+// its ID.
+func (a *ACL) GetBindingRule(
+	args *structs.ACLBindingRuleRequest, reply *structs.ACLBindingRuleResponse) error {
+
+	// Only allow operators to read an ACL binding rule when ACLs are enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	if done, err := a.srv.forward(structs.ACLGetBindingRuleRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_binding_rule"}, time.Now())
+
+	// Check management level permissions.
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl == nil || !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Set up and return the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Perform a lookup for the ACL role.
+			out, err := stateStore.GetACLBindingRule(ws, args.ACLBindingRuleID)
+			if err != nil {
+				return err
+			}
+
+			// Set the index correctly depending on whether the ACL binding
+			// rule was found.
+			switch out {
+			case nil:
+				index, err := stateStore.Index(state.TableACLBindingRules)
+				if err != nil {
+					return err
+				}
+				reply.Index = index
+			default:
+				reply.Index = out.ModifyIndex
+			}
+
+			// We didn't encounter an error looking up the index; set the ACL
+			// binding rule on the reply and exit successfully.
+			reply.ACLBindingRule = out
+			return nil
+		},
+	})
+}

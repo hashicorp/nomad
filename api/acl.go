@@ -211,6 +211,10 @@ var (
 	// errMissingACLAuthMethodName is the generic error to use when a call is
 	// missing the required ACL auth-method name parameter.
 	errMissingACLAuthMethodName = errors.New("missing ACL auth-method name")
+
+	// errMissingACLBindingRuleID is the generic error to use when a call is
+	// missing the required ACL binding rule ID parameter.
+	errMissingACLBindingRuleID = errors.New("missing ACL binding rule ID")
 )
 
 // ACLRoles is used to query the ACL Role endpoints.
@@ -363,6 +367,75 @@ func (a *ACLAuthMethods) Get(authMethodName string, q *QueryOptions) (*ACLAuthMe
 	}
 	var resp ACLAuthMethod
 	qm, err := a.client.query("/v1/acl/auth-method/"+authMethodName, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// ACLBindingRules is used to query the ACL auth-methods endpoints.
+type ACLBindingRules struct {
+	client *Client
+}
+
+// ACLBindingRules returns a new handle on the ACL auth-methods API client.
+func (c *Client) ACLBindingRules() *ACLBindingRules {
+	return &ACLBindingRules{client: c}
+}
+
+// List is used to detail all the ACL binding rules currently stored within
+// state.
+func (a *ACLBindingRules) List(q *QueryOptions) ([]*ACLBindingRuleListStub, *QueryMeta, error) {
+	var resp []*ACLBindingRuleListStub
+	qm, err := a.client.query("/v1/acl/binding-rules", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
+// Create is used to create an ACL binding rule.
+func (a *ACLBindingRules) Create(bindingRule *ACLBindingRule, w *WriteOptions) (*ACLBindingRule, *WriteMeta, error) {
+	var resp ACLBindingRule
+	wm, err := a.client.write("/v1/acl/binding-rule", bindingRule, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Update is used to update an existing ACL binding rule.
+func (a *ACLBindingRules) Update(bindingRule *ACLBindingRule, w *WriteOptions) (*ACLBindingRule, *WriteMeta, error) {
+	if bindingRule.ID == "" {
+		return nil, nil, errMissingACLBindingRuleID
+	}
+	var resp ACLBindingRule
+	wm, err := a.client.write("/v1/acl/binding-rule/"+bindingRule.ID, bindingRule, &resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Delete is used to delete an ACL binding rule.
+func (a *ACLBindingRules) Delete(bindingRuleID string, w *WriteOptions) (*WriteMeta, error) {
+	if bindingRuleID == "" {
+		return nil, errMissingACLBindingRuleID
+	}
+	wm, err := a.client.delete("/v1/acl/binding-rule/"+bindingRuleID, nil, nil, w)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// Get is used to look up an ACL binding rule.
+func (a *ACLBindingRules) Get(bindingRuleID string, q *QueryOptions) (*ACLBindingRule, *QueryMeta, error) {
+	if bindingRuleID == "" {
+		return nil, nil, errMissingACLBindingRuleID
+	}
+	var resp ACLBindingRule
+	qm, err := a.client.query("/v1/acl/binding-rule/"+bindingRuleID, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -647,7 +720,6 @@ type ACLAuthMethodListStub struct {
 	Name    string
 	Type    string
 	Default bool
-	Hash    []byte
 
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -667,3 +739,80 @@ const (
 	// auth-method which uses the OIDC protocol.
 	ACLAuthMethodTypeOIDC = "OIDC"
 )
+
+// ACLBindingRule contains a direct relation to an ACLAuthMethod and represents
+// a rule to apply when logging in via the named AuthMethod. This allows the
+// transformation of OIDC provider claims, to Nomad based ACL concepts such as
+// ACL Roles and Policies.
+type ACLBindingRule struct {
+
+	// ID is an internally generated UUID for this rule and is controlled by
+	// Nomad.
+	ID string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the binding rule. This is an
+	// operational field.
+	Description string
+
+	// AuthMethod is the name of the auth method for which this rule applies
+	// to. This is required and the method must exist within state before the
+	// cluster administrator can create the rule.
+	AuthMethod string
+
+	// Selector is an expression that matches against verified identity
+	// attributes returned from the auth method during login. This is optional
+	// and when not set, provides a catch-all rule.
+	Selector string
+
+	// BindType adjusts how this binding rule is applied at login time. The
+	// valid values are ACLBindingRuleBindTypeRole and
+	// ACLBindingRuleBindTypePolicy.
+	BindType string
+
+	// BindName is the target of the binding. Can be lightly templated using
+	// HIL ${foo} syntax from available field names. How it is used depends
+	// upon the BindType.
+	BindName string
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+const (
+	// ACLBindingRuleBindTypeRole is the ACL binding rule bind type that only
+	// allows the binding rule to function if a role exists at login-time. The
+	// role will be specified within the ACLBindingRule.BindName parameter, and
+	// will identify whether this is an ID or Name.
+	ACLBindingRuleBindTypeRole = "role"
+
+	// ACLBindingRuleBindTypePolicy is the ACL binding rule bind type that
+	// assigns a policy to the generate ACL token. The role will be specified
+	// within the ACLBindingRule.BindName parameter, and will be the policy
+	// name.
+	ACLBindingRuleBindTypePolicy = "policy"
+)
+
+// ACLBindingRuleListStub is the stub object returned when performing a listing
+// of ACL binding rules.
+type ACLBindingRuleListStub struct {
+
+	// ID is an internally generated UUID for this role and is controlled by
+	// Nomad.
+	ID string
+
+	// Description is a human-readable, operator set description that can
+	// provide additional context about the binding role. This is an
+	// operational field.
+	Description string
+
+	// AuthMethod is the name of the auth method for which this rule applies
+	// to. This is required and the method must exist within state before the
+	// cluster administrator can create the rule.
+	AuthMethod string
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
