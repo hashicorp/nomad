@@ -107,6 +107,36 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl binding-rule": func() (cli.Command, error) {
+			return &ACLBindingRuleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl binding-rule create": func() (cli.Command, error) {
+			return &ACLBindingRuleCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl binding-rule delete": func() (cli.Command, error) {
+			return &ACLBindingRuleDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl binding-rule info": func() (cli.Command, error) {
+			return &ACLBindingRuleInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl binding-rule list": func() (cli.Command, error) {
+			return &ACLBindingRuleListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl binding-rule update": func() (cli.Command, error) {
+			return &ACLBindingRuleUpdateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl bootstrap": func() (cli.Command, error) {
 			return &ACLBootstrapCommand{
 				Meta: meta,
