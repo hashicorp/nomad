@@ -2311,9 +2311,9 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 	}
 }
 
-// diffACLAuthMethods is used to perform a two-way diff between the local ACL
-// auth-methods and the remote auth-methods to determine which ones need to be
-// deleted or updated. The returned array's contain ACL auth-method names.
+// diffACLBindingRules is used to perform a two-way diff between the local ACL
+// binding rules and the remote binding rules to determine which ones need to be
+// deleted or updated. The returned array's contain ACL binding rule names.
 func diffACLBindingRules(
 	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLBindingRuleListStub) (
 	delete []string, update []string) {
