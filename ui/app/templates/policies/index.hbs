@@ -32,7 +32,9 @@
       @class="policies no-mobile-condense" as |t|>
       <t.head>
         <th>Policy Name</th>
-        <th>Tokens</th>
+        {{#if (can "list token")}}
+          <th>Tokens</th>
+        {{/if}}
       </t.head>
       <t.body as |row|>
         <tr data-test-policy-row {{on "click" (action "openPolicy" row.model)}}
@@ -43,14 +45,16 @@
           <td data-test-policy-name>
 						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
 					</td>
-          <td data-test-policy-token-count>
-						<span>
-              {{row.model.tokens.length}}
-              {{#if (filter-by "isExpired" row.model.tokens)}}
-                <span class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
-              {{/if}}
-            </span>
-					</td>
+          {{#if (can "list token")}}
+            <td data-test-policy-token-count>
+              <span>
+                <span data-test-policy-total-tokens>{{row.model.tokens.length}}</span>
+                {{#if (filter-by "isExpired" row.model.tokens)}}
+                  <span data-test-policy-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+                {{/if}}
+              </span>
+            </td>
+          {{/if}}
         </tr>
       </t.body>
     </ListTable>

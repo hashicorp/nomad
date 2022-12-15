@@ -46,7 +46,11 @@ module('Acceptance | policies', function (hooks) {
     assert.dom('[data-test-title]').includesText(server.db.policies[0].name);
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/policies');
+    assert.equal(
+      currentURL(),
+      `/policies/${server.db.policies[0].name}`,
+      'remain on page after save'
+    );
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
@@ -68,7 +72,12 @@ module('Acceptance | policies', function (hooks) {
     await typeIn('[data-test-policy-name-input]', 'My-Fun-Policy');
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/policies');
+    assert.equal(
+      currentURL(),
+      '/policies/My-Fun-Policy',
+      'redirected to the now-created policy'
+    );
+    await visit('/policies');
     const newPolicy = [...findAll('[data-test-policy-name]')].filter((a) =>
       a.textContent.includes('My-Fun-Policy')
     )[0];

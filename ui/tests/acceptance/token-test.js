@@ -13,6 +13,7 @@ import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
 import { run } from '@ember/runloop';
+import { allScenarios } from '../../mirage/scenarios/default';
 
 let job;
 let node;
@@ -422,6 +423,123 @@ module('Acceptance | tokens', function (hooks) {
       Layout.error.message,
       'Failed to exchange the one-time token.'
     );
+  });
+
+  test('Tokens are shown on the policies index page', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    // Create an expired token
+    server.create('token', {
+      name: 'Expired Token',
+      id: 'just-expired',
+      policyIds: [server.db.policies[0].name],
+      expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
+    });
+
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+    assert.dom('[data-test-policy-token-count]').exists();
+    const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
+      return token.policyIds.includes(server.db.policies[0].name);
+    });
+    assert
+      .dom('[data-test-policy-total-tokens]')
+      .hasText(expectedFirstPolicyTokens.length.toString());
+    assert.dom('[data-test-policy-expired-tokens]').hasText('(1 expired)');
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('Tokens are shown on a policy page', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    // Create an expired token
+    server.create('token', {
+      name: 'Expired Token',
+      id: 'just-expired',
+      policyIds: [server.db.policies[0].name],
+      expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
+    });
+
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+
+    await click('[data-test-policy-row]:first-child');
+    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+
+    const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
+      return token.policyIds.includes(server.db.policies[0].name);
+    });
+
+    assert
+      .dom('[data-test-policy-token-row]')
+      .exists(
+        { count: expectedFirstPolicyTokens.length },
+        'Expected number of tokens are shown'
+      );
+    assert.dom('[data-test-token-expiration-time]').hasText('10 minutes ago');
+
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('Tokens Deletion', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    // Create an expired token
+    server.create('token', {
+      name: 'Doomed Token',
+      id: 'enjoying-my-day-here',
+      policyIds: [server.db.policies[0].name],
+    });
+
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+
+    await click('[data-test-policy-row]:first-child');
+    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+
+    assert
+      .dom('[data-test-policy-token-row]')
+      .exists({ count: 3 }, 'Expected number of tokens are shown');
+
+    const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
+      (a) => a.textContent.includes('Doomed Token')
+    );
+
+    assert.dom(doomedTokenRow).exists();
+
+    await click(doomedTokenRow.querySelector('button'));
+    assert
+      .dom(doomedTokenRow.querySelector('[data-test-confirm-button]'))
+      .exists();
+    await click(doomedTokenRow.querySelector('[data-test-confirm-button]'));
+    assert.dom('.flash-message.alert-success').exists();
+    assert
+      .dom('[data-test-policy-token-row]')
+      .exists({ count: 2 }, 'One fewer token after deletion');
+    await percySnapshot(assert);
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('Test Token Creation', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/policies');
+
+    await click('[data-test-policy-row]:first-child');
+    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+
+    assert
+      .dom('[data-test-policy-token-row]')
+      .exists({ count: 2 }, 'Expected number of tokens are shown');
+
+    await click('[data-test-create-test-token]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert
+      .dom('[data-test-policy-token-row]')
+      .exists({ count: 3 }, 'One more token after test token creation');
+    assert
+      .dom('[data-test-policy-token-row]:last-child [data-test-token-name]')
+      .hasText(`Example Token for ${server.db.policies[0].name}`);
+    await percySnapshot(assert);
+    window.localStorage.nomadTokenSecret = null;
   });
 
   function getHeader({ requestHeaders }, name) {
