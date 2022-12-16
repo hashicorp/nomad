@@ -29,6 +29,10 @@
         "path": "acl/auth-methods"
       },
       {
+        "title": "Binding Rules",
+        "path": "acl/binding-rules"
+      },
+      {
         "title": "Policies",
         "path": "acl/policies"
       },
