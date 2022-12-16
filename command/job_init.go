@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -60,11 +61,13 @@ func (c *JobInitCommand) Name() string { return "job init" }
 func (c *JobInitCommand) Run(args []string) int {
 	var short bool
 	var connect bool
+	var template string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&connect, "connect", false, "")
+	flags.StringVar(&template, "template", "", "The name of the job template variable to initialize")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -96,21 +99,56 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	var jobSpec []byte
-	switch {
-	case connect && !short:
-		jobSpec, err = Asset("command/assets/connect.nomad")
-	case connect && short:
-		jobSpec, err = Asset("command/assets/connect-short.nomad")
-	case !connect && short:
-		jobSpec, err = Asset("command/assets/example-short.nomad")
-	default:
-		jobSpec, err = Asset("command/assets/example.nomad")
-	}
-	if err != nil {
-		// should never see this because we've precompiled the assets
-		// as part of `make generate-examples`
-		c.Ui.Error(fmt.Sprintf("Accessed non-existent asset: %s", err))
-		return 1
+
+	if template != "" {
+		c.Ui.Output(fmt.Sprintf("Okay, parsing with %s", template))
+
+		// Get the HTTP client
+		client, err := c.Meta.Client()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error initializing: %s", err))
+			return 1
+		}
+
+		qo := &api.QueryOptions{
+			Namespace: c.Meta.namespace,
+		}
+		fmt.Println("template is", template)
+		sv, _, err := client.Variables().Read("nomad/job-templates/"+template, qo)
+		fmt.Println("sv is", sv)
+		if err != nil {
+			if err.Error() == "variable not found" {
+				c.Ui.Warn(errVariableNotFound)
+				return 1
+			}
+			c.Ui.Error(fmt.Sprintf("Error retrieving variable: %s", err))
+			return 1
+		}
+		// If the user provided an item key, return that value instead of the whole
+		// object
+		if v, ok := sv.Items["template"]; ok {
+			jobSpec = []byte(v)
+		} else {
+			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", args[1]))
+			return 1
+		}
+	} else {
+		switch {
+		case connect && !short:
+			jobSpec, err = Asset("command/assets/connect.nomad")
+		case connect && short:
+			jobSpec, err = Asset("command/assets/connect-short.nomad")
+		case !connect && short:
+			jobSpec, err = Asset("command/assets/example-short.nomad")
+		default:
+			jobSpec, err = Asset("command/assets/example.nomad")
+		}
+		if err != nil {
+			// should never see this because we've precompiled the assets
+			// as part of `make generate-examples`
+			c.Ui.Error(fmt.Sprintf("Accessed non-existent asset: %s", err))
+			return 1
+		}
 	}
 
 	// Write out the example
