@@ -64,7 +64,11 @@ export default class VariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.path?.startsWith('nomad/') && !this.path?.startsWith('nomad/jobs');
+      this.path?.startsWith('nomad/') &&
+      !(
+        this.path?.startsWith('nomad/jobs') ||
+        this.path?.startsWith('nomad/job-templates')
+      );
     return !!this.JSONError || !this.path || disallowedPath;
   }
 

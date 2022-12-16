@@ -168,8 +168,8 @@ func (v VariableDecrypted) Validate() error {
 	switch {
 	case len(parts) == 1 && parts[0] == "nomad":
 		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
-	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs":
-		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
+	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs" && parts[1] != "job-templates":
+		return fmt.Errorf("only paths at \"nomad/jobs\" or \"nomad/job-templates\" and below are valid paths under the top-level \"nomad\" directory")
 	}
 
 	if len(v.Items) == 0 {
