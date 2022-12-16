@@ -169,7 +169,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			}
 			if len(jobs) > 1 {
 				if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
-					c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+					c.Ui.Error(fmt.Sprintf("Prefix %q matched multiple jobs\n\n%s", jobID, createStatusListOutput(jobs, c.allNamespaces())))
 					statusCh <- 1
 					return
 				}
