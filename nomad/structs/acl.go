@@ -1105,6 +1105,13 @@ type ACLBindingRuleListStub struct {
 // ACLBindingRulesUpsertRequest is used to upsert a set of ACL binding rules.
 type ACLBindingRulesUpsertRequest struct {
 	ACLBindingRules []*ACLBindingRule
+
+	// AllowMissingAuthMethods skips the ACL binding rule auth method link
+	// verification and is used by the replication process. The replication
+	// cannot ensure auth methods are present before ACL binding rules are
+	// replicated.
+	AllowMissingAuthMethods bool
+
 	WriteRequest
 }
 

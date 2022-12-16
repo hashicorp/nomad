@@ -423,6 +423,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			go s.replicateACLTokens(stopCh)
 			go s.replicateACLRoles(stopCh)
 			go s.replicateACLAuthMethods(stopCh)
+			go s.replicateACLBindingRules(stopCh)
 			go s.replicateNamespaces(stopCh)
 		}
 	}
@@ -2165,6 +2166,202 @@ func diffACLAuthMethods(
 	for localACLAuthMethod := range local {
 		if _, ok := remote[localACLAuthMethod]; !ok {
 			delete = append(delete, localACLAuthMethod)
+		}
+	}
+	return
+}
+
+// replicateACLBindingRules is used to replicate ACL binding rules from the
+// authoritative region to this region. The loop should only be run on the
+// leader within the federated region.
+func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
+
+	// Generate our request object. We only need to do this once and reuse it
+	// for every RPC request. The MinQueryIndex is updated after every
+	// successful replication loop, so the next query acts as a blocking query
+	// and only returns upon a change in the authoritative region.
+	req := structs.ACLBindingRulesListRequest{
+		QueryOptions: structs.QueryOptions{
+			AllowStale: true,
+			Region:     s.config.AuthoritativeRegion,
+		},
+	}
+
+	// Create our replication rate limiter for ACL binding rules and log a
+	// lovely message to indicate the process is starting.
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting ACL Binding Rules replication from authoritative region",
+		"authoritative_region", req.Region)
+
+	// Enter the main ACL binding rules replication loop that will only exit
+	// when the stopCh is closed.
+	//
+	// Any error encountered will use the replicationBackoffContinue function
+	// which handles replication backoff and shutdown coordination in the event
+	// of an error inside the loop.
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+
+			// Rate limit how often we attempt replication. It is OK to ignore
+			// the error as the context will never be cancelled and the limit
+			// parameters are controlled internally.
+			_ = limiter.Wait(context.Background())
+
+			// Set the replication token on each replication iteration so that
+			// it is always current and can handle agent SIGHUP reloads.
+			req.AuthToken = s.ReplicationToken()
+
+			var resp structs.ACLBindingRulesListResponse
+
+			// Make the list RPC request to the authoritative region, so we
+			// capture the latest ACL binding rules listing.
+			err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLListBindingRulesRPCMethod, &req, &resp)
+			if err != nil {
+				s.logger.Error("failed to fetch ACL binding rules from authoritative region", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
+			// Perform a two-way diff on the ACL binding rules.
+			toDelete, toUpdate := diffACLBindingRules(s.State(), req.MinQueryIndex, resp.ACLBindingRules)
+
+			// A significant amount of time could pass between the last check
+			// on whether we should stop the replication process. Therefore, do
+			// a check here, before calling Raft.
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			// If we have ACL binding rules to delete, make this call directly
+			// to Raft.
+			if len(toDelete) > 0 {
+				args := structs.ACLBindingRulesDeleteRequest{ACLBindingRuleIDs: toDelete}
+				_, _, err := s.raftApply(structs.ACLBindingRulesDeleteRequestType, &args)
+
+				// If the error was because we lost leadership while calling
+				// Raft, avoid logging as this can be confusing to operators.
+				if err != nil {
+					if err != raft.ErrLeadershipLost {
+						s.logger.Error("failed to delete ACL binding rules", "error", err)
+					}
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Fetch any outdated binding rules.
+			var fetched []*structs.ACLBindingRule
+			if len(toUpdate) > 0 {
+				req := structs.ACLBindingRulesRequest{
+					ACLBindingRuleIDs: toUpdate,
+					QueryOptions: structs.QueryOptions{
+						Region:        s.config.AuthoritativeRegion,
+						AuthToken:     s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
+					},
+				}
+				var reply structs.ACLBindingRulesResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion, structs.ACLGetBindingRulesRPCMethod, &req, &reply); err != nil {
+					s.logger.Error("failed to fetch ACL binding rules from authoritative region", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+				for _, aclBindingRule := range reply.ACLBindingRules {
+					fetched = append(fetched, aclBindingRule)
+				}
+			}
+
+			// Update local binding rules.
+			if len(fetched) > 0 {
+				args := structs.ACLBindingRulesUpsertRequest{
+					ACLBindingRules:         fetched,
+					AllowMissingAuthMethods: true,
+				}
+
+				// Perform the upsert directly via Raft.
+				_, _, err := s.raftApply(structs.ACLBindingRulesUpsertRequestType, &args)
+				if err != nil {
+					s.logger.Error("failed to update ACL binding rules", "error", err)
+					if s.replicationBackoffContinue(stopCh) {
+						continue
+					} else {
+						return
+					}
+				}
+			}
+
+			// Update the minimum query index, blocks until there is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+}
+
+// diffACLBindingRules is used to perform a two-way diff between the local ACL
+// binding rules and the remote binding rules to determine which ones need to be
+// deleted or updated. The returned array's contain ACL binding rule names.
+func diffACLBindingRules(
+	store *state.StateStore, minIndex uint64, remoteList []*structs.ACLBindingRuleListStub) (
+	delete []string, update []string) {
+
+	// The local ACL binding rules tracking is keyed by the name and the value
+	// is the hash of the auth-method.
+	local := make(map[string][]byte)
+
+	// The remote ACL binding rules tracking is keyed by the name; the value is
+	// an empty struct as we already have the full object.
+	remote := make(map[string]struct{})
+
+	// Read all the ACL binding rules currently held within our local state.
+	// This panic will only happen as a developer making a mistake with naming
+	// the index to use.
+	iter, err := store.GetACLBindingRules(nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to iterate local ACL binding rules: %v", err))
+	}
+
+	// Iterate the local ACL binding rules and add them to our tracking of
+	// local binding rules.
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		aclBindingRule := raw.(*structs.ACLBindingRule)
+		local[aclBindingRule.ID] = aclBindingRule.Hash
+	}
+
+	// Iterate over the remote ACL binding rules.
+	for _, remoteACLBindingRule := range remoteList {
+		remote[remoteACLBindingRule.ID] = struct{}{}
+
+		// Identify whether the ACL auth-method is within the local state. If
+		// it is not, add this to our update list.
+		if localHash, ok := local[remoteACLBindingRule.ID]; !ok {
+			update = append(update, remoteACLBindingRule.ID)
+
+			// Check if the ACL binding rule is newer remotely and there is a
+			// hash mismatch.
+		} else if remoteACLBindingRule.ModifyIndex > minIndex && !bytes.Equal(localHash, remoteACLBindingRule.Hash) {
+			update = append(update, remoteACLBindingRule.ID)
+		}
+	}
+
+	// If we have ACL binding rules within state which are no longer present in
+	// the authoritative region we should delete them.
+	for localACLBindingRules := range local {
+		if _, ok := remote[localACLBindingRules]; !ok {
+			delete = append(delete, localACLBindingRules)
 		}
 	}
 	return
