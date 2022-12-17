@@ -311,7 +311,7 @@ func (s *TestServer) waitForLeader() {
 	}
 
 	test.Wait(s.t,
-		wait.On(
+		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
 			wait.Gap(1*time.Second),
