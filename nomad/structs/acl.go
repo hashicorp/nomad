@@ -1017,16 +1017,11 @@ func (a *ACLBindingRule) Validate() error {
 }
 
 // Merge merges binding rule a with b. It sets all required empty fields of rule
-// a to corresponding values of rule b, except for "ID" which must be provided,
-// and "authMethod" which is immutable.
-func (a *ACLBindingRule) Merge(b *ACLBindingRule) error {
-	a.Description = helper.Merge(a.Description, b.Description)
+// a to corresponding values of rule b, except for "ID" which must be provided.
+func (a *ACLBindingRule) Merge(b *ACLBindingRule) {
 	a.BindName = helper.Merge(a.BindName, b.BindName)
 	a.BindType = helper.Merge(a.BindType, b.BindType)
-	if a.AuthMethod != b.AuthMethod {
-		return fmt.Errorf("auth method is immutable, in order to change it, delete the existing binding rule and create a new one")
-	}
-	return nil
+	a.AuthMethod = helper.Merge(a.AuthMethod, b.AuthMethod)
 }
 
 // SetHash is used to compute and set the hash of the ACL binding rule. This

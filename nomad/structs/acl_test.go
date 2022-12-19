@@ -1222,15 +1222,9 @@ func TestACLBindingRule_Merge(t *testing.T) {
 		ID:          id,
 		Description: "new description",
 	}
-	must.NoError(t, br_description_update.Merge(br))
+	br_description_update.Merge(br)
 	must.Eq(t, br_description_update.Description, "new description")
 	must.Eq(t, br_description_update.BindType, "rule")
-
-	// attempt an auth method update
-	br_auth_method_update := &ACLBindingRule{
-		AuthMethod: "new auth method",
-	}
-	must.Error(t, br_auth_method_update.Merge(br))
 }
 
 func TestACLBindingRule_SetHash(t *testing.T) {

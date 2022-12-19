@@ -2074,9 +2074,12 @@ func (a *ACL) UpsertBindingRules(
 			}
 
 			// merge
-			if err := bindingRule.Merge(existingBindingRule); err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "tried to merge the update with an existing binding rule, but failed: %v", err,
+			bindingRule.Merge(existingBindingRule)
+
+			// Auth methods cannot be changed
+			if bindingRule.AuthMethod != existingBindingRule.AuthMethod {
+				return structs.NewErrRPCCoded(
+					http.StatusBadRequest, "cannot update auth method for binding rule, create a new rule instead",
 				)
 			}
 			bindingRule.AuthMethod = existingBindingRule.AuthMethod
