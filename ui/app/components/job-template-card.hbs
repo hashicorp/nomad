@@ -1,0 +1,6 @@
+<Hds::Form::RadioCard data-test-template-card={{@label}} @checked={{@selected}} {{on "change" @onChange}} as |R|>
+    {{#if @icon}}<R.Icon @name={{@icon}} />{{/if}}
+    <R.Label data-test-template-label>{{@label}}</R.Label>
+    {{#if @badge}}<R.Badge @text={{@badge}} />{{/if}}
+    <R.Description data-test-template-description>{{@description}}</R.Description>
+</Hds::Form::RadioCard>
