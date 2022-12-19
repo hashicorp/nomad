@@ -485,3 +485,12 @@ func WithLock(lock sync.Locker, f func()) {
 	defer lock.Unlock()
 	f()
 }
+
+// Merge takes two variables and returns variable b in case a has zero value.
+func Merge[T comparable](a, b T) T {
+	var zero T
+	if a == zero {
+		return b
+	}
+	return a
+}
