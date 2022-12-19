@@ -1024,7 +1024,7 @@ func (a *ACLBindingRule) Merge(b *ACLBindingRule) error {
 	a.BindName = helper.Merge(a.BindName, b.BindName)
 	a.BindType = helper.Merge(a.BindType, b.BindType)
 	if a.AuthMethod != "" {
-		return fmt.Errorf("auth method is immutable, in order to change it, delete the exisitng binding rule and create a new one")
+		return fmt.Errorf("auth method is immutable, in order to change it, delete the existing binding rule and create a new one")
 	}
 	return nil
 }
