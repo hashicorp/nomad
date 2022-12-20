@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { click, currentRouteName, currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -142,5 +142,44 @@ module('Acceptance | job run', function (hooks) {
 
     await JobRun.visit({ namespace: newNamespace });
     assert.equal(currentURL(), `/jobs/run?namespace=${newNamespace}`);
+  });
+
+  module('job template flow', function () {
+    test('allows user with the correct permissions to run a job based on a template', async function (assert) {
+      assert.expect(6);
+      // Arrange
+      await JobRun.visit();
+      assert
+        .dom('[data-test-choose-template]')
+        .exists('A button allowing a user to select a template appears.');
+
+      server.get('/vars', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            prefix: 'nomad/job-templates',
+            filter: 'Template is not empty"',
+          },
+          'It makes a request to the /vars endpoint with the appropriate filter expression for job templates.'
+        );
+        return [];
+      });
+      // Act
+      await click('[data-test-choose-template]');
+      assert.equal(currentRouteName(), 'jobs.run.templates.index');
+
+      // Assert
+      assert
+        .dom('[data-test-template-list]')
+        .exists('A list of available job templates is rendered.');
+      assert
+        .dom('[data-test-apply]')
+        .exists('A button to apply the selected templated is displayed.');
+      assert
+        .dom('[data-test-cancel]')
+        .exists('A button to cancel the template selection is displayed.');
+
+      // TODO:  Wiring the buttons with the application logic in next PR.
+    });
   });
 });
