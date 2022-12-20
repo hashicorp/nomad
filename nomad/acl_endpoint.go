@@ -1716,7 +1716,13 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Validate each auth method, canonicalize, and compute hash
+	// merge methods in case we're doing an update
 	for idx, authMethod := range args.AuthMethods {
+		// if there's an existing method with the same name, we treat this as
+		// an update
+		existingMethod, _ := stateSnapshot.GetACLAuthMethodByName(nil, authMethod.Name)
+		authMethod.Merge(existingMethod)
+
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,
 			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
@@ -2051,10 +2057,6 @@ func (a *ACL) UpsertBindingRules(
 	// Validate each binding rules and compute the hash.
 	for idx, bindingRule := range args.ACLBindingRules {
 
-		if err := bindingRule.Validate(); err != nil {
-			return structs.NewErrRPCCodedf(http.StatusBadRequest, "binding rule %d invalid: %v", idx, err)
-		}
-
 		// If the caller has passed a rule ID, this call is considered an
 		// update to an existing rule. We should therefore ensure it is found
 		// within state.
@@ -2068,6 +2070,22 @@ func (a *ACL) UpsertBindingRules(
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "cannot find binding rule %s", bindingRule.ID)
 			}
+
+			// merge
+			bindingRule.Merge(existingBindingRule)
+
+			// Auth methods cannot be changed
+			if bindingRule.AuthMethod != existingBindingRule.AuthMethod {
+				return structs.NewErrRPCCoded(
+					http.StatusBadRequest, "cannot update auth method for binding rule, create a new rule instead",
+				)
+			}
+			bindingRule.AuthMethod = existingBindingRule.AuthMethod
+		}
+
+		// Validate only if it's not an update
+		if err := bindingRule.Validate(); err != nil {
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "binding rule %d invalid: %v", idx, err)
 		}
 
 		// Ensure the auth method linked to exists within state.

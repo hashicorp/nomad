@@ -3056,6 +3056,18 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	}
 	// We expect this to err since there's already a default method of the same type
 	must.Error(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
+
+	// Update token locality
+	am3 := &structs.ACLAuthMethod{Name: am1.Name, TokenLocality: "global"}
+	req = &structs.ACLAuthMethodUpsertRequest{
+		AuthMethods: []*structs.ACLAuthMethod{am3},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
+	must.Eq(t, resp.AuthMethods[0].TokenLocality, am3.TokenLocality)
 }
 
 func TestACL_UpsertBindingRules(t *testing.T) {

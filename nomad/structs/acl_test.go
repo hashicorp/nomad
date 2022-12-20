@@ -713,7 +713,7 @@ func TestACLRole_Copy(t *testing.T) {
 		{
 			name: "general 1",
 			inputACLRole: &ACLRole{
-				Name:        fmt.Sprintf("acl-role"),
+				Name:        "acl-role",
 				Description: "mocked-test-acl-role",
 				Policies: []*ACLRolePolicyLink{
 					{Name: "mocked-test-policy-1"},
@@ -1039,6 +1039,45 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 	}
 }
 
+func TestACLAuthMethod_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	name := fmt.Sprintf("acl-auth-method-%s", uuid.Short())
+
+	maxTokenTTL, _ := time.ParseDuration("3600s")
+	am1 := &ACLAuthMethod{
+		Name:          name,
+		TokenLocality: "global",
+	}
+	am2 := &ACLAuthMethod{
+		Name:          name,
+		Type:          "OIDC",
+		TokenLocality: "locality",
+		MaxTokenTTL:   maxTokenTTL,
+		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			BoundAudiences:      []string{"audience1", "audience2"},
+			AllowedRedirectURIs: []string{"foo", "bar"},
+			DiscoveryCaPem:      []string{"foo"},
+			SigningAlgs:         []string{"bar"},
+			ClaimMappings:       map[string]string{"foo": "bar"},
+			ListClaimMappings:   map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+
+	am1.Merge(am2)
+	must.Eq(t, am1.TokenLocality, "global")
+	minTTL, _ := time.ParseDuration("10s")
+	maxTTL, _ := time.ParseDuration("10h")
+	must.NoError(t, am1.Validate(minTTL, maxTTL))
+}
+
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1161,6 +1200,31 @@ func TestACLBindingRule_Validate(t *testing.T) {
 	totallyInvalidACLBindingRule.BindType = "service"
 	err = totallyInvalidACLBindingRule.Validate()
 	must.StrContains(t, err.Error(), `unsupported bind type: "service"`)
+}
+
+func TestACLBindingRule_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	id := uuid.Short()
+	br := &ACLBindingRule{
+		ID:          id,
+		Description: "old description",
+		AuthMethod:  "example-acl-auth-method",
+		BindType:    "rule",
+		BindName:    "bind name",
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+
+	// make a description update
+	br_description_update := &ACLBindingRule{
+		ID:          id,
+		Description: "new description",
+	}
+	br_description_update.Merge(br)
+	must.Eq(t, br_description_update.Description, "new description")
+	must.Eq(t, br_description_update.BindType, "rule")
 }
 
 func TestACLBindingRule_SetHash(t *testing.T) {

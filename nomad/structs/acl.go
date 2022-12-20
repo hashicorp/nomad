@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"golang.org/x/crypto/blake2b"
@@ -758,6 +759,18 @@ func (a *ACLAuthMethod) Canonicalize() {
 	a.ModifyTime = t
 }
 
+// Merge merges auth method a with method b. It sets all required empty fields
+// of method a to corresponding values of method b, except for "default" and
+// "name."
+func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
+	if b != nil {
+		a.Type = helper.Merge(a.Type, b.Type)
+		a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
+		a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
+		a.Config = helper.Merge(a.Config, b.Config)
+	}
+}
+
 // Validate returns an error is the ACLAuthMethod is invalid.
 //
 // TODO revisit possible other validity conditions in the future
@@ -992,8 +1005,6 @@ func (a *ACLBindingRule) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("description longer than %d", maxACLRoleDescriptionLength))
 	}
 
-	// Be specific about the error as returning an error that includes an empty
-	// quote ("") can be a little confusing.
 	if a.BindType == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("bind type is missing"))
 	} else {
@@ -1005,6 +1016,14 @@ func (a *ACLBindingRule) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// Merge merges binding rule a with b. It sets all required empty fields of rule
+// a to corresponding values of rule b, except for "ID" which must be provided.
+func (a *ACLBindingRule) Merge(b *ACLBindingRule) {
+	a.BindName = helper.Merge(a.BindName, b.BindName)
+	a.BindType = helper.Merge(a.BindType, b.BindType)
+	a.AuthMethod = helper.Merge(a.AuthMethod, b.AuthMethod)
 }
 
 // SetHash is used to compute and set the hash of the ACL binding rule. This
