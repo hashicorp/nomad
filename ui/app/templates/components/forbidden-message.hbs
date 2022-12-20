@@ -18,7 +18,7 @@
         or
       {{/if}}
 
-      {{#if this.authMethods}}p{{else}}P{{/if}}rovide a <LinkTo @route="settings.tokens">token</LinkTo> with the
+      {{conditionally-capitalize "provide" (not this.authMethods.length)}} a <LinkTo @route="settings.tokens">token</LinkTo> with the
       {{#if this.permission}}
         <code>{{this.permission}}</code>
       {{else}}
