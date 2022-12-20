@@ -13,6 +13,7 @@ import classic from 'ember-classic-decorator';
 export default class JobEditor extends Component {
   @service store;
   @service config;
+  @service router;
 
   'data-test-job-editor' = true;
 
@@ -125,5 +126,10 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
+  }
+
+  @action
+  goToJobTemplates() {
+    this.router.transitionTo('jobs.run.templates');
   }
 }

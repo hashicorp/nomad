@@ -22,10 +22,23 @@
   <header class="run-job-header">
     <h1 class="title is-3">Run a job</h1>
     <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.</p>
-    <label class="job-spec-upload">
-      <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
-      <span class="button">Upload a job spec file</span>
-    </label>
+    <div>
+      <label class="job-spec-upload">
+        <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
+        <span class="button is-outline is-small">Upload file</span>
+      </label>
+      {{#let (cannot "write variable" path="*" namespace="*") as |editVar|}}
+        <button
+          data-test-choose-template
+          type="button"
+          class="button is-outline is-small {{if editVar "tooltip"}}"
+          disabled={{if editVar 'disabled'}}
+          aria-label={{if editVar "You don’t have permission to choose templates."}}
+          {{action "goToJobTemplates"}}>
+          <span>Choose from a template</span>
+        </button>
+    {{/let}}
+  </div>
   </header>
 
   <div class="boxed-section">
