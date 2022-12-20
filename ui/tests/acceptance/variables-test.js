@@ -509,6 +509,26 @@ module('Acceptance | variables', function (hooks) {
           'Cannot submit a variable that begins with nomad/<not-jobs>/'
         );
 
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/jobs/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isNotDisabled('Can submit a variable that begins with nomad/jobs/');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/another-foo/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isDisabled('Disabled state re-evaluated when path input changes');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/jobs/job-templates/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isNotDisabled(
+          'Can submit a variable that begins with nomad/job-templates/'
+        );
+
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });
