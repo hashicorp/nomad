@@ -27,13 +27,13 @@
         <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
         <span class="button is-outline is-small">Upload file</span>
       </label>
-      {{#let (cannot "write variable" path="*" namespace="*") as |editVar|}}
+      {{#let (cannot "write variable" path="*" namespace="*") as |cannotEditVar|}}
         <button
           data-test-choose-template
           type="button"
           class="button is-outline is-small {{if editVar "tooltip"}}"
-          disabled={{if editVar 'disabled'}}
-          aria-label={{if editVar "You don’t have permission to choose templates."}}
+          disabled={{if cannotEditVar 'disabled'}}
+          aria-label={{if cannotEditVar "You don’t have permission to choose templates."}}
           {{action "goToJobTemplates"}}>
           <span>Choose from a template</span>
         </button>
