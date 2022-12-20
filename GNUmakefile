@@ -302,17 +302,15 @@ test-nomad: dev ## Run Nomad test suites
 	fi
 
 .PHONY: test-nomad-module
-test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
-	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+test-nomad-module: dev ## Run Nomad unit tests on sub-module
+	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
+	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
+		-count=1 \
+		-race \
 		-tags "$(GO_TAGS)" \
-		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		./...
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
