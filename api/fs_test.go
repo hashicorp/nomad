@@ -10,29 +10,20 @@ import (
 	"testing"
 	"time"
 
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 )
 
 func TestFS_Logs(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
-	rpcPort := 0
 
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		rpcPort = c.Ports.RPC
-		c.Client = &testutil.ClientConfig{
-			Enabled: true,
-		}
+		c.DevMode = true
 	})
 	defer s.Stop()
-
-	//TODO There should be a way to connect the client to the servers in
-	//makeClient above
-	require.NoError(c.Agent().SetServers([]string{fmt.Sprintf("127.0.0.1:%d", rpcPort)}))
 
 	index := uint64(0)
 	testutil.WaitForResult(func() (bool, error) {
@@ -85,7 +76,7 @@ func TestFS_Logs(t *testing.T) {
 
 	jobs := c.Jobs()
 	jobResp, _, err := jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	index = jobResp.EvalCreateIndex
 	evals := c.Evaluations()
@@ -125,7 +116,7 @@ func TestFS_Logs(t *testing.T) {
 	})
 
 	alloc, _, err := c.Allocations().Info(allocID, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
 		stopCh := make(chan struct{})
@@ -150,13 +141,13 @@ func TestFS_Logs(t *testing.T) {
 		}
 
 		// Check length
-		assert.Equal(t, input.Len(), result.Len(), "file size mismatch")
+		test.Eq(t, input.Len(), result.Len())
 
 		// Check complete ordering
 		for i := 0; i < lines; i++ {
-			line, err := result.ReadBytes('\n')
-			require.NoErrorf(err, "unexpected error on line %d: %v", i, err)
-			require.Equal(fmt.Sprintf("%d\n", i), string(line))
+			line, readErr := result.ReadBytes('\n')
+			must.NoError(t, readErr, must.Sprintf("unexpected error on line %d: %v", i, readErr))
+			must.Eq(t, fmt.Sprintf("%d\n", i), string(line))
 		}
 	}
 }

@@ -16,16 +16,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
-	"github.com/hashicorp/nomad/api/internal/testutil/freeport"
 	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/portal"
+	"github.com/shoenig/test/wait"
 )
 
 // TestServerConfig is the main server configuration struct.
@@ -100,12 +102,13 @@ type Telemetry struct {
 // passed to NewTestServerConfig to modify the server config.
 type ServerConfigCallback func(c *TestServerConfig)
 
-// defaultServerConfig returns a new TestServerConfig struct
-// with all of the listen ports incremented by one.
+// defaultServerConfig returns a new TestServerConfig struct pre-populated with
+// usable config for running as server.
 func defaultServerConfig(t testing.T) *TestServerConfig {
-	ports := freeport.GetT(t, 3)
+	grabber := portal.New(t)
+	ports := grabber.Grab(3)
 
-	logLevel := "DEBUG"
+	logLevel := "ERROR"
 	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
 		logLevel = envLogLevel
 	}
@@ -155,23 +158,14 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Check that we are actually running nomad
-	if out, err := exec.Command(path, "-version").CombinedOutput(); err != nil {
-		t.Logf("nomad version failed: %v", err)
-		t.Logf("nomad version output:\n%s", string(out))
-		t.Skip()
-	}
+	_, err = exec.Command(path, "-version").CombinedOutput()
+	must.NoError(t, err)
 
-	dataDir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	dataDir, err := os.MkdirTemp("", "nomad")
+	must.NoError(t, err)
 
-	configFile, err := ioutil.TempFile(dataDir, "nomad")
-	if err != nil {
-		defer os.RemoveAll(dataDir)
-		t.Fatalf("err: %s", err)
-	}
-	defer configFile.Close()
+	configFile, err := os.CreateTemp(dataDir, "nomad")
+	must.NoError(t, err)
 
 	nomadConfig := defaultServerConfig(t)
 	nomadConfig.DataDir = dataDir
@@ -188,14 +182,17 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	configContent, err := json.Marshal(nomadConfig)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
-	if _, err := configFile.Write(configContent); err != nil {
-		t.Fatalf("err: %s", err)
+	_, err = configFile.Write(configContent)
+	must.NoError(t, err)
+	must.NoError(t, configFile.Sync())
+	must.NoError(t, configFile.Close())
+
+	args := []string{"agent", "-config", configFile.Name()}
+	if nomadConfig.DevMode {
+		args = append(args, "-dev")
 	}
-	configFile.Close()
 
 	stdout := io.Writer(os.Stdout)
 	if nomadConfig.Stdout != nil {
@@ -207,20 +204,14 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		stderr = nomadConfig.Stderr
 	}
 
-	args := []string{"agent", "-config", configFile.Name()}
-	if nomadConfig.DevMode {
-		args = append(args, "-dev")
-	}
-
 	// Start the server
 	cmd := exec.Command(path, args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, cmd.Start())
 
 	client := cleanhttp.DefaultClient()
+	client.Timeout = 10 * time.Second
 
 	server := &TestServer{
 		Config: nomadConfig,
@@ -249,21 +240,19 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
-	defer os.RemoveAll(s.Config.DataDir)
+	defer func() { _ = os.RemoveAll(s.Config.DataDir) }()
 
 	// wait for the process to exit to be sure that the data dir can be
 	// deleted on all platforms.
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-
-		s.cmd.Wait()
+		_ = s.cmd.Wait()
 	}()
 
 	// kill and wait gracefully
-	if err := s.cmd.Process.Signal(os.Interrupt); err != nil {
-		s.t.Errorf("err: %s", err)
-	}
+	err := s.cmd.Process.Signal(os.Interrupt)
+	must.NoError(s.t, err)
 
 	select {
 	case <-done:
@@ -272,9 +261,9 @@ func (s *TestServer) Stop() {
 		s.t.Logf("timed out waiting for process to gracefully terminate")
 	}
 
-	if err := s.cmd.Process.Kill(); err != nil {
-		s.t.Errorf("err: %s", err)
-	}
+	err = s.cmd.Process.Kill()
+	must.NoError(s.t, err, must.Sprint("failed to kill process"))
+
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
@@ -307,23 +296,30 @@ func (s *TestServer) waitForAPI() {
 // available, and then waits for a known leader and an index of
 // 1 or more to be observed to confirm leader election is done.
 func (s *TestServer) waitForLeader() {
-	WaitForResult(func() (bool, error) {
+	f := func() error {
 		// Query the API and check the status code
 		// Using this endpoint as it is does not have restricted access
 		resp, err := s.HTTPClient.Get(s.url("/v1/status/leader"))
 		if err != nil {
-			return false, err
+			return fmt.Errorf("failed to get leader: %w", err)
 		}
-		defer resp.Body.Close()
-		if err := s.requireOK(resp); err != nil {
-			return false, err
+		defer func() { _ = resp.Body.Close() }()
+		if err = s.requireOK(resp); err != nil {
+			return fmt.Errorf("leader response is not ok: %w", err)
 		}
+		return nil
+	}
 
-		return true, nil
-	}, func(err error) {
-		defer s.Stop()
-		s.t.Fatalf("err: %s", err)
-	})
+	test.Wait(s.t,
+		wait.On(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		),
+		must.Sprint("failed to wait for leader"),
+	)
+
+	// todo(shoenig): should be able to stop s on failure
 }
 
 // waitForClient waits for the Nomad client to be ready. The function returns
