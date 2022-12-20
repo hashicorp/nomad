@@ -1,0 +1,30 @@
+---
+layout: docs
+page_title: 'Commands: acl binding-rule delete'
+description: The binding-rule delete command is used to delete existing ACL Binding Rules.
+---
+
+# Command: acl binding-rule delete
+
+The `acl binding-rule delete` command is used to delete existing ACL Binding Rules.
+
+## Usage
+
+```plaintext
+nomad acl binding-rule delete [options] <binding-rule_id>
+```
+
+The `acl binding-rule delete` command requires an existing rule's ID.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+Delete an existing ACL Auth Method:
+
+```shell-session
+$ nomad acl binding-rule delete 698fdad6-dcb3-79dd-dc72-b43374057dea
+ACL binding rule 698fdad6-dcb3-79dd-dc72-b43374057dea successfully deleted
+```
