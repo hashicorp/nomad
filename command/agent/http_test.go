@@ -1302,9 +1302,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 				c.Limits.HTTPMaxConnsPerClient = tc.limit
 				c.LogLevel = "ERROR"
 			})
-			defer func() {
-				require.NoError(t, s.Shutdown())
-			}()
+			defer s.Shutdown()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
 

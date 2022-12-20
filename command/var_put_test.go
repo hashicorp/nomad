@@ -103,8 +103,8 @@ func TestVarPutCommand_GoodJson(t *testing.T) {
 
 func TestVarPutCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	_, client, url, shutdownFn := testAPIClient(t)
-	defer shutdownFn()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &VarPutCommand{Meta: Meta{Ui: ui, flagAddress: url}}

@@ -22,7 +22,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)
 
@@ -47,7 +47,7 @@ func TestACLBootstrapCommand_ExistingBootstrapToken(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	must.NotNil(t, srv.RootToken)
 
@@ -66,7 +66,7 @@ func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -100,7 +100,7 @@ func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 	must.NoError(t, err)
 
 	srv, _, url := testServer(t, true, config)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)
 
@@ -138,7 +138,7 @@ func TestACLBootstrapCommand_WithBadOperatorFileBootstrapToken(t *testing.T) {
 	must.NoError(t, err)
 
 	srv, _, url := testServer(t, true, config)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)
 
