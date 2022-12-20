@@ -190,7 +190,7 @@ func TestStateStore_GetACLBindingRules(t *testing.T) {
 		expected[i].ModifyIndex = 10
 	}
 
-	must.Eq(t, aclBindingRules, expected)
+	must.SliceContainsAll(t, aclBindingRules, expected)
 }
 
 func TestStateStore_GetACLBindingRule(t *testing.T) {
