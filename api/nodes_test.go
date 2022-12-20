@@ -27,7 +27,7 @@ func queryNodeList(t *testing.T, nodes *Nodes) ([]*NodeListStub, *QueryMeta) {
 		return nil
 	}
 
-	must.Wait(t, wait.On(
+	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(f),
 		wait.Timeout(10*time.Second),
 		wait.Gap(1*time.Second),
