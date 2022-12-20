@@ -1721,9 +1721,7 @@ func (a *ACL) UpsertAuthMethods(
 		// if there's an existing method with the same name, we treat this as
 		// an update
 		existingMethod, _ := stateSnapshot.GetACLAuthMethodByName(nil, authMethod.Name)
-		if existingMethod != nil {
-			authMethod.Merge(existingMethod)
-		}
+		authMethod.Merge(existingMethod)
 
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,

@@ -487,6 +487,7 @@ func WithLock(lock sync.Locker, f func()) {
 }
 
 // Merge takes two variables and returns variable b in case a has zero value.
+// For pointer values please use pointer.Merge.
 func Merge[T comparable](a, b T) T {
 	var zero T
 	if a == zero {

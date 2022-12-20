@@ -763,10 +763,12 @@ func (a *ACLAuthMethod) Canonicalize() {
 // of method a to corresponding values of method b, except for "default" and
 // "name."
 func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
-	a.Type = helper.Merge(a.Type, b.Type)
-	a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
-	a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
-	a.Config = helper.Merge(a.Config, b.Config)
+	if b != nil {
+		a.Type = helper.Merge(a.Type, b.Type)
+		a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
+		a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
+		a.Config = helper.Merge(a.Config, b.Config)
+	}
 }
 
 // Validate returns an error is the ACLAuthMethod is invalid.
