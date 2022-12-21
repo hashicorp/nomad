@@ -3147,6 +3147,7 @@ func TestACL_UpsertBindingRules(t *testing.T) {
 	// Create another ACL binding rule that will fail validation. Attempting to
 	// upsert this ensures the handler is triggering the validation function.
 	aclBindingRule2 := mock.ACLBindingRule()
+	aclBindingRule2.ID = ""
 	aclBindingRule2.BindType = ""
 
 	aclBindingRuleReq5 := &structs.ACLBindingRulesUpsertRequest{
