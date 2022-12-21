@@ -8,14 +8,11 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestAllocStopCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
-	var _ cli.Command = &AllocStopCommand{}
-}
+var _ cli.Command = (*AllocStopCommand)(nil)
 
 func TestAllocStop_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
@@ -66,7 +63,7 @@ func TestAllocStop_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	// Wait for a node to be ready
 	waitForNodes(t, client)

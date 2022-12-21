@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
@@ -261,9 +262,9 @@ func (a *TestAgent) start() (*Agent, error) {
 
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
-func (a *TestAgent) Shutdown() error {
-	if a.shutdown {
-		return nil
+func (a *TestAgent) Shutdown() {
+	if a == nil || a.shutdown {
+		return
 	}
 	a.shutdown = true
 
@@ -271,7 +272,7 @@ func (a *TestAgent) Shutdown() error {
 
 	defer func() {
 		if a.DataDir != "" {
-			os.RemoveAll(a.DataDir)
+			_ = os.RemoveAll(a.DataDir)
 		}
 	}()
 
@@ -286,11 +287,17 @@ func (a *TestAgent) Shutdown() error {
 		ch <- a.Agent.Shutdown()
 	}()
 
+	// one minute grace period on shutdown
+	timer, cancel := helper.NewSafeTimer(1 * time.Minute)
+	defer cancel()
+
 	select {
 	case err := <-ch:
-		return err
-	case <-time.After(1 * time.Minute):
-		return fmt.Errorf("timed out while shutting down test agent")
+		if err != nil {
+			a.T.Fatalf("agent shutdown error: %v", err)
+		}
+	case <-timer.C:
+		a.T.Fatal("agent shutdown timeout")
 	}
 }
 

@@ -16,7 +16,7 @@ func TestMonitorCommand_Implements(t *testing.T) {
 func TestMonitorCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &MonitorCommand{Meta: Meta{Ui: ui}}

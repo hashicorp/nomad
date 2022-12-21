@@ -19,9 +19,7 @@ func TestAllocChecksCommand_Implements(t *testing.T) {
 func TestAllocChecksCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	t.Cleanup(func() {
-		_ = srv.Shutdown()
-	})
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &AllocChecksCommand{Meta: Meta{Ui: ui}}
@@ -63,7 +61,7 @@ func TestAllocChecksCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &AllocChecksCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -85,7 +83,7 @@ func TestAllocChecksCommand_AutocompleteArgs(t *testing.T) {
 func TestAllocChecksCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	// wait for nodes
 	waitForNodes(t, client)
