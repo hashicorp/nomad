@@ -275,21 +275,25 @@ func (s *TestServer) Stop() {
 // responding. This is an indication that the agent has started,
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
-	WaitForResult(func() (bool, error) {
-		// Using this endpoint as it is does not have restricted access
+	f := func() error {
 		resp, err := s.HTTPClient.Get(s.url("/v1/metrics"))
 		if err != nil {
-			return false, err
+			return fmt.Errorf("failed to get metrics: %w", err)
 		}
-		defer resp.Body.Close()
-		if err := s.requireOK(resp); err != nil {
-			return false, err
+		defer func() { _ = resp.Body.Close() }()
+		if err = s.requireOK(resp); err != nil {
+			return fmt.Errorf("metrics response is not ok: %w", err)
 		}
-		return true, nil
-	}, func(err error) {
-		defer s.Stop()
-		s.t.Fatalf("err: %s", err)
-	})
+		return nil
+	}
+	test.Wait(s.t,
+		wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		),
+		must.Sprint("failed to wait for api"),
+	)
 }
 
 // waitForLeader waits for the Nomad server's HTTP API to become
@@ -309,7 +313,6 @@ func (s *TestServer) waitForLeader() {
 		}
 		return nil
 	}
-
 	test.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
@@ -318,8 +321,6 @@ func (s *TestServer) waitForLeader() {
 		),
 		must.Sprint("failed to wait for leader"),
 	)
-
-	// todo(shoenig): should be able to stop s on failure
 }
 
 // waitForClient waits for the Nomad client to be ready. The function returns
@@ -328,36 +329,32 @@ func (s *TestServer) waitForClient() {
 	if !s.Config.DevMode {
 		return
 	}
-
-	WaitForResult(func() (bool, error) {
+	f := func() error {
 		resp, err := s.HTTPClient.Get(s.url("/v1/nodes"))
 		if err != nil {
-			return false, err
+			return fmt.Errorf("failed to get nodes: %w", err)
 		}
-		defer resp.Body.Close()
-		if err := s.requireOK(resp); err != nil {
-			return false, err
+		defer func() { _ = resp.Body.Close() }()
+		if err = s.requireOK(resp); err != nil {
+			return fmt.Errorf("nodes response not ok: %w", err)
 		}
-
 		var decoded []struct {
 			ID     string
 			Status string
 		}
-
-		dec := json.NewDecoder(resp.Body)
-		if err := dec.Decode(&decoded); err != nil {
-			return false, err
+		if err = json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+			return fmt.Errorf("failed to decode nodes response: %w", err)
 		}
-
-		if len(decoded) != 1 || decoded[0].Status != "ready" {
-			return false, fmt.Errorf("Node not ready: %v", decoded)
-		}
-
-		return true, nil
-	}, func(err error) {
-		defer s.Stop()
-		s.t.Fatalf("err: %s", err)
-	})
+		return nil
+	}
+	test.Wait(s.t,
+		wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		),
+		must.Sprint("failed to wait for client (node)"),
+	)
 }
 
 // url is a helper function which takes a relative URL and
@@ -369,7 +366,7 @@ func (s *TestServer) url(path string) string {
 // requireOK checks the HTTP response code and ensures it is acceptable.
 func (s *TestServer) requireOK(resp *http.Response) error {
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("Bad status code: %d", resp.StatusCode)
+		return fmt.Errorf("bad status code: %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -377,16 +374,14 @@ func (s *TestServer) requireOK(resp *http.Response) error {
 // put performs a new HTTP PUT request.
 func (s *TestServer) put(path string, body io.Reader) *http.Response {
 	req, err := http.NewRequest("PUT", s.url(path), body)
-	if err != nil {
-		s.t.Fatalf("err: %s", err)
-	}
+	must.NoError(s.t, err)
+
 	resp, err := s.HTTPClient.Do(req)
-	if err != nil {
-		s.t.Fatalf("err: %s", err)
-	}
-	if err := s.requireOK(resp); err != nil {
-		defer resp.Body.Close()
-		s.t.Fatal(err)
+	must.NoError(s.t, err)
+
+	if err = s.requireOK(resp); err != nil {
+		_ = resp.Body.Close()
+		must.NoError(s.t, err)
 	}
 	return resp
 }
@@ -394,23 +389,20 @@ func (s *TestServer) put(path string, body io.Reader) *http.Response {
 // get performs a new HTTP GET request.
 func (s *TestServer) get(path string) *http.Response {
 	resp, err := s.HTTPClient.Get(s.url(path))
-	if err != nil {
-		s.t.Fatalf("err: %s", err)
-	}
-	if err := s.requireOK(resp); err != nil {
-		defer resp.Body.Close()
-		s.t.Fatal(err)
+	must.NoError(s.t, err)
+
+	if err = s.requireOK(resp); err != nil {
+		_ = resp.Body.Close()
+		must.NoError(s.t, err)
 	}
 	return resp
 }
 
 // encodePayload returns a new io.Reader wrapping the encoded contents
 // of the payload, suitable for passing directly to a new request.
-func (s *TestServer) encodePayload(payload interface{}) io.Reader {
+func (s *TestServer) encodePayload(payload any) io.Reader {
 	var encoded bytes.Buffer
-	enc := json.NewEncoder(&encoded)
-	if err := enc.Encode(payload); err != nil {
-		s.t.Fatalf("err: %s", err)
-	}
+	err := json.NewEncoder(&encoded).Encode(payload)
+	must.NoError(s.t, err)
 	return &encoded
 }

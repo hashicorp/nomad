@@ -1,12 +1,14 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestEvaluations_List(t *testing.T) {
@@ -55,15 +57,18 @@ func TestEvaluations_List(t *testing.T) {
 
 	// wait until the 2nd eval shows up before we try paging
 	results := []*Evaluation{}
-	testutil.WaitForResult(func() (bool, error) {
+
+	f := func() error {
 		results, _, err = e.List(nil)
-		if len(results) < 2 || err != nil {
-			return false, err
+		if err != nil {
+			return fmt.Errorf("failed to list evaluations: %w", err)
 		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+		if len(results) < 2 {
+			return fmt.Errorf("fewer than 2 results, got: %d", len(results))
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(f)))
 
 	// Check the evaluations again with paging; note that while this
 	// package sorts by timestamp, the actual HTTP API sorts by ID
