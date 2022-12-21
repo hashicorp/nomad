@@ -9,7 +9,9 @@ import (
 
 func TestOperator_MetricsSummary(t *testing.T) {
 	testutil.Parallel(t)
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 
 	operator := c.Operator()
@@ -33,6 +35,7 @@ func TestOperator_MetricsSummary(t *testing.T) {
 func TestOperator_Metrics_Prometheus(t *testing.T) {
 	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
 		c.Telemetry = &testutil.Telemetry{PrometheusMetrics: true}
 	})
 	defer s.Stop()
