@@ -38,7 +38,20 @@ func TestStopCommand_multi(t *testing.T) {
 	for i := 0; i < numJobs; i++ {
 		jobID := uuid.Generate()
 		jobIDs = append(jobIDs, jobID)
+	}
 
+	jobFilePath := func(jobID string) string {
+		return filepath.Join(os.TempDir(), jobID+".nomad")
+	}
+
+	// cleanup job files we will create
+	t.Cleanup(func() {
+		for _, jobID := range jobIDs {
+			_ = os.Remove(jobFilePath(jobID))
+		}
+	})
+
+	for _, jobID := range jobIDs {
 		job := testJob(jobID)
 		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
 		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
@@ -50,7 +63,7 @@ func TestStopCommand_multi(t *testing.T) {
 		jobJSON, err := json.MarshalIndent(job, "", " ")
 		must.NoError(t, err)
 
-		jobFile := filepath.Join(os.TempDir(), jobID)
+		jobFile := jobFilePath(jobID)
 		err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
 		must.NoError(t, err)
 
