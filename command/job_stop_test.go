@@ -1,85 +1,84 @@
 package command
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestStopCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
-	var _ cli.Command = &JobStopCommand{}
-}
+var _ cli.Command = (*JobStopCommand)(nil)
 
-func TestStopCommand_JSON(t *testing.T) {
+func TestStopCommand_multi(t *testing.T) {
 	ci.Parallel(t)
-	ui := cli.NewMockUi()
-	stop := func(args ...string) (stdout string, stderr string, code int) {
-		cmd := &JobStopCommand{
-			Meta: Meta{Ui: ui},
-		}
-		t.Logf("run: nomad job stop %s", strings.Join(args, " "))
-		code = cmd.Run(args)
-		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
-	}
 
-	// Agent startup is slow, do some work while we wait
-	agentReady := make(chan string)
-	var srv *agent.TestAgent
-	var client *api.Client
-	go func() {
-		var addr string
-		srv, client, addr = testServer(t, false, nil)
-		agentReady <- addr
-	}()
+	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
 	defer srv.Shutdown()
 
-	// Wait for agent to start and get its address
-	select {
-	case <-agentReady:
-	case <-time.After(20 * time.Second):
-		t.Fatalf("timed out waiting for agent to start")
-	}
+	ui := cli.NewMockUi()
 
-	// create and run 10 jobs
-	jobIDs := make([]string, 10)
-	for i := 0; i < 10; i++ {
+	// the number of jobs we want to run
+	numJobs := 10
+
+	// create and run a handful of jobs
+	jobIDs := make([]string, 0, numJobs)
+	for i := 0; i < numJobs; i++ {
 		jobID := uuid.Generate()
 		jobIDs = append(jobIDs, jobID)
 
 		job := testJob(jobID)
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
+		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
+		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
 		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 			"run_for": "30s",
 		}
 
-		resp, _, err := client.Jobs().Register(job, nil)
-		if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-			t.Fatalf("[DEBUG] waiting for job to register; status code non zero saw %d", code)
-		}
+		jobJSON, err := json.MarshalIndent(job, "", " ")
+		must.NoError(t, err)
 
-		require.NoError(t, err)
+		jobFile := filepath.Join(os.TempDir(), jobID)
+		err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
+		must.NoError(t, err)
+
+		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+		code := cmd.Run([]string{"-address", addr, "-json", jobFile})
+		must.Zero(t, code, must.Sprintf(
+			"job run failed, stdout: %s, stderr: %s",
+			ui.OutputWriter.String(), ui.ErrorWriter.String(),
+		))
 	}
 
-	// stop all jobs
-	var args []string
-	args = append(args, "-detach")
+	// helper for stopping a list of jobs
+	stop := func(args ...string) (stdout string, stderr string, code int) {
+		cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
+		t.Logf("run nomad job stop %s", strings.Join(args, " "))
+		code = cmd.Run(args)
+		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
+	}
+
+	// stop all jobs in one command
+	args := []string{"-address", addr, "-detach"}
 	args = append(args, jobIDs...)
 	stdout, stderr, code := stop(args...)
-	t.Logf("[DEBUG] run: nomad job stop stdout/stderr: %s/%s", stdout, stderr)
-	require.Zero(t, code)
-	require.Empty(t, stderr)
-
+	must.Zero(t, code,
+		must.Sprintf("job stop stdout: %s", stdout),
+		must.Sprintf("job stop stderr: %s", stderr),
+	)
 }
 
 func TestStopCommand_Fails(t *testing.T) {
