@@ -144,6 +144,6 @@
   {{/if}}
   <Hds::ButtonSet class="is-associative">
     <Hds::Button @size="small" @icon="play-circle" @text="Run" class="--token-color-nomad-foreground" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
-    <Hds::Button @size="small" @icon="x-circle" @color="critical" @text="Cancel" {{on "click" (fn this.reset)}} disabled={{this.submit.isRunning}} data-test-cancel />
+    <Hds::Button @size="small" @icon="x-circle" @color="critical" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
   </Hds::ButtonSet>
 {{/if}}
