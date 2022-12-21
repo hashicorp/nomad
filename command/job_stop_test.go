@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -28,8 +27,6 @@ func TestStopCommand_multi(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
-	ui := cli.NewMockUi()
-
 	// the number of jobs we want to run
 	numJobs := 10
 
@@ -51,6 +48,9 @@ func TestStopCommand_multi(t *testing.T) {
 		}
 	})
 
+	// record cli output
+	ui := cli.NewMockUi()
+
 	for _, jobID := range jobIDs {
 		job := testJob(jobID)
 		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
@@ -69,16 +69,15 @@ func TestStopCommand_multi(t *testing.T) {
 
 		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 		code := cmd.Run([]string{"-address", addr, "-json", jobFile})
-		must.Zero(t, code, must.Sprintf(
-			"job run failed, stdout: %s, stderr: %s",
-			ui.OutputWriter.String(), ui.ErrorWriter.String(),
-		))
+		must.Zero(t, code,
+			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
+			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
+		)
 	}
 
 	// helper for stopping a list of jobs
 	stop := func(args ...string) (stdout string, stderr string, code int) {
 		cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
-		t.Logf("run nomad job stop %s", strings.Join(args, " "))
 		code = cmd.Run(args)
 		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
 	}
