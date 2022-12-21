@@ -476,16 +476,31 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 func TestParseConsistency(t *testing.T) {
 	ci.Parallel(t)
 	var b structs.QueryOptions
+	var resp *httptest.ResponseRecorder
+
+	testCases := [3]string{"/v1/catalog/nodes?stale", "/v1/catalog/nodes?stale=true", "/v1/catalog/nodes?stale=false"}
+	for _, url := range testCases {
+		req, err := http.NewRequest("GET",
+			url, nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		resp = httptest.NewRecorder()
+		parseConsistency(resp, req, &b)
+		if !b.AllowStale {
+			t.Fatalf("Bad: %v", b)
+		}
+	}
 
 	req, err := http.NewRequest("GET",
-		"/v1/catalog/nodes?stale", nil)
+		"/v1/catalog/nodes?stale=random", nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	parseConsistency(req, &b)
-	if !b.AllowStale {
-		t.Fatalf("Bad: %v", b)
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
+	if resp.Code != 400 {
+		t.Fatalf("Bad: %v. Expect response code 400, got %v", b, resp.Code)
 	}
 
 	b = structs.QueryOptions{}
@@ -495,7 +510,8 @@ func TestParseConsistency(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	parseConsistency(req, &b)
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
 	if b.AllowStale {
 		t.Fatalf("Bad: %v", b)
 	}
