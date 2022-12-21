@@ -554,7 +554,7 @@ func sanitizeUUIDPrefix(prefix string) string {
 	return prefix[:len(prefix)-remainder]
 }
 
-// commandErrorText is used to easily render the same messaging across commads
+// commandErrorText is used to easily render the same messaging across commands
 // when an error is printed.
 func commandErrorText(cmd NamedCommand) string {
 	return fmt.Sprintf("For additional help try 'nomad %s -help'", cmd.Name())

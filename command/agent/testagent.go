@@ -96,14 +96,15 @@ type TestAgent struct {
 // configuration. The caller should call Shutdown() to stop the agent and
 // remove temporary directories.
 func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *TestAgent {
+	logger := testlog.HCLogger(t)
+	logger.SetLevel(testlog.HCLoggerTestLevel())
 	a := &TestAgent{
 		T:              t,
 		Name:           name,
 		ConfigCallback: configCallback,
 		Enterprise:     EnterpriseTestAgent,
-		logger:         testlog.HCLogger(t),
+		logger:         logger,
 	}
-
 	a.Start()
 	return a
 }
