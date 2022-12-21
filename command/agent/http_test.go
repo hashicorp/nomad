@@ -500,7 +500,7 @@ func TestParseConsistency(t *testing.T) {
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
 	if resp.Code != 400 {
-		t.Fatalf("Bad: %v. Expect response code 400, got %v", b, resp.Code)
+		t.Fatalf("bad code: %v", resp.Code)
 	}
 
 	b = structs.QueryOptions{}
