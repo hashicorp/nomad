@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -269,39 +269,14 @@ func TestAgent_Health(t *testing.T) {
 // functionality for a specific client node
 func TestAgent_MonitorWithNode(t *testing.T) {
 	testutil.Parallel(t)
-	rpcPort := 0
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		rpcPort = c.Ports.RPC
-		c.Client = &testutil.ClientConfig{
-			Enabled: true,
-		}
+		c.DevMode = true
 	})
 	defer s.Stop()
 
-	require.NoError(t, c.Agent().SetServers([]string{fmt.Sprintf("127.0.0.1:%d", rpcPort)}))
-
 	agent := c.Agent()
-
-	index := uint64(0)
-	var node *NodeListStub
-	// grab a node
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, qm, err := c.Nodes().List(&QueryOptions{WaitIndex: index})
-		if err != nil {
-			return false, err
-		}
-		index = qm.LastIndex
-		if len(nodes) != 1 {
-			return false, fmt.Errorf("expected 1 node but found: %s", pretty.Sprint(nodes))
-		}
-		if nodes[0].Status != "ready" {
-			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
-		}
-		node = nodes[0]
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	node := oneNodeFromNodeList(t, c.Nodes())
 
 	doneCh := make(chan struct{})
 	q := &QueryOptions{
@@ -316,7 +291,7 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 
 	// make a request to generate some logs
 	_, err := agent.NodeName()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Wait for a log message
 OUTER:
@@ -329,7 +304,7 @@ OUTER:
 		case err := <-errCh:
 			t.Errorf("Error: %v", err)
 		case <-time.After(2 * time.Second):
-			require.Fail(t, "failed to get a DEBUG log message")
+			t.Fatal("failed to get a DEBUG log message")
 		}
 	}
 }

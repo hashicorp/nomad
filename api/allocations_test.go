@@ -14,7 +14,9 @@ import (
 )
 
 func TestAllocations_List(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -106,7 +108,9 @@ func TestAllocations_PrefixList(t *testing.T) {
 }
 
 func TestAllocations_List_Resources(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
