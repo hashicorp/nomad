@@ -105,6 +105,7 @@ export default class JobEditor extends Component {
   })
   submit;
 
+  @action
   reset() {
     this.set('planOutput', null);
     this.set('planError', null);
@@ -126,10 +127,5 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
-  }
-
-  @action
-  goToJobTemplates() {
-    this.router.transitionTo('jobs.run.templates');
   }
 }

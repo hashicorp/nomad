@@ -1,4 +1,10 @@
-import { clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
+import {
+  clickable,
+  hasClass,
+  isPresent,
+  notHasClass,
+  text,
+} from 'ember-cli-page-object';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 
 import error from 'nomad-ui/tests/pages/components/error';
@@ -39,6 +45,6 @@ export default () => ({
     title: text('[data-test-dry-run-title]'),
     body: text('[data-test-dry-run-body]'),
     errored: hasClass('is-warning'),
-    succeeded: hasClass('is-primary'),
+    succeeded: notHasClass('is-warning'),
   },
 });
