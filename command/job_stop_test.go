@@ -102,30 +102,29 @@ func TestStopCommand_Fails(t *testing.T) {
 	cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"-some", "-bad", "-args"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, "flag provided but not defined: -some")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on nonexistent job ID
-	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
-		t.Fatalf("expect exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No job(s) with prefix or id") {
-		t.Fatalf("expect not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "nope"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No job(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "nope"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error deregistering job") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "nope"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Error finding jobs with prefix: nope")
 }
 
 func TestStopCommand_AutocompleteArgs(t *testing.T) {
