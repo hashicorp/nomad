@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
@@ -20,6 +19,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -766,11 +767,8 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 	// A check that ClusterID is not available yet
 	noIDYet := func() {
 		for _, s := range servers {
-			retry.Run(t, func(r *retry.R) {
-				if _, err := s.s.ClusterID(); err == nil {
-					r.Error("expected error")
-				}
-			})
+			_, err := s.s.ClusterID()
+			must.Error(t, err)
 		}
 	}
 
@@ -861,23 +859,32 @@ func TestLeader_ClusterID_noUpgrade(t *testing.T) {
 }
 
 func agreeClusterID(t *testing.T, servers []*Server) {
-	retries := &retry.Timer{Timeout: 60 * time.Second, Wait: 1 * time.Second}
-	ids := make([]string, 3)
-	for i, s := range servers {
-		retry.RunWith(retries, t, func(r *retry.R) {
-			id, err := s.ClusterID()
-			if err != nil {
-				r.Error(err.Error())
-				return
-			}
-			if !helper.IsUUID(id) {
-				r.Error("not a UUID")
-				return
-			}
-			ids[i] = id
-		})
+	must.Len(t, 3, servers)
+
+	f := func() error {
+		id1, err1 := servers[0].ClusterID()
+		if err1 != nil {
+			return err1
+		}
+		id2, err2 := servers[1].ClusterID()
+		if err2 != nil {
+			return err2
+		}
+		id3, err3 := servers[2].ClusterID()
+		if err3 != nil {
+			return err3
+		}
+		if id1 != id2 || id2 != id3 {
+			return fmt.Errorf("ids do not match, id1: %s, id2: %s, id3: %s", id1, id2, id3)
+		}
+		return nil
 	}
-	require.True(t, ids[0] == ids[1] && ids[1] == ids[2], "ids[0] %s, ids[1] %s, ids[2] %s", ids[0], ids[1], ids[2])
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(60*time.Second),
+		wait.Gap(1*time.Second),
+	))
 }
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
@@ -1186,165 +1193,124 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 
 func TestLeader_RollRaftServer(t *testing.T) {
 	ci.Parallel(t)
-	ci.SkipSlow(t, "flaky on GHA; #12358")
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 2
+		c.BootstrapExpect = 3
+		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.RaftConfig.ProtocolVersion = 2
+		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.RaftConfig.ProtocolVersion = 2
+		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS3()
 
 	servers := []*Server{s1, s2, s3}
-
-	// Try to join
 	TestJoin(t, s1, s2, s3)
 
-	for _, s := range servers {
-		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
-	}
+	t.Logf("waiting for initial stable cluster")
+	waitForStableLeadership(t, servers)
 
-	// Kill the first v2 server
+	t.Logf("killing server s1")
 	s1.Shutdown()
-
 	for _, s := range []*Server{s2, s3} {
 		s.RemoveFailedNode(s1.config.NodeID)
-
-		retry.Run(t, func(r *retry.R) {
-			minVer, err := s.autopilot.MinRaftProtocol()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if got, want := minVer, 2; got != want {
-				r.Fatalf("got min raft version %d want %d", got, want)
-			}
-
-			configFuture := s.raft.GetConfiguration()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if len(configFuture.Configuration().Servers) != 2 {
-				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
-			}
-		})
 	}
 
-	// Replace the dead server with one running raft protocol v3
+	t.Logf("waiting for server loss to be detected")
+	testutil.WaitForResultUntil(time.Second*10,
+		func() (bool, error) {
+			for _, s := range []*Server{s2, s3} {
+				err := wantPeers(s, 2)
+				if err != nil {
+					return false, err
+				}
+			}
+			return true, nil
+
+		},
+		func(err error) { must.NoError(t, err) },
+	)
+
+	t.Logf("adding replacement server s4")
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS4()
 	TestJoin(t, s2, s3, s4)
-	servers[0] = s4
+	servers = []*Server{s4, s2, s3}
 
-	// Kill the second v2 server
+	t.Logf("waiting for s4 to stabilize")
+	waitForStableLeadership(t, servers)
+
+	t.Logf("killing server s2")
 	s2.Shutdown()
-
 	for _, s := range []*Server{s3, s4} {
 		s.RemoveFailedNode(s2.config.NodeID)
-
-		retry.RunWith(&retry.Counter{
-			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
-		}, t, func(r *retry.R) {
-			minVer, err := s.autopilot.MinRaftProtocol()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if got, want := minVer, 2; got != want {
-				r.Fatalf("got min raft version %d want %d", got, want)
-			}
-
-			configFuture := s.raft.GetConfiguration()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if len(configFuture.Configuration().Servers) != 2 {
-				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
-			}
-		})
 	}
-	// Replace another dead server with one running raft protocol v3
+
+	t.Logf("waiting for server loss to be detected")
+	testutil.WaitForResultUntil(time.Second*10,
+		func() (bool, error) {
+			for _, s := range []*Server{s3, s4} {
+				err := wantPeers(s, 2)
+				if err != nil {
+					return false, err
+				}
+			}
+			return true, nil
+		},
+		func(err error) { must.NoError(t, err) },
+	)
+
+	t.Logf("adding replacement server s5")
 	s5, cleanupS5 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS5()
 	TestJoin(t, s3, s4, s5)
-	servers[1] = s5
+	servers = []*Server{s4, s5, s3}
 
-	// Kill the last v2 server, now minRaftProtocol should be 3
+	t.Logf("waiting for s5 to stabilize")
+	waitForStableLeadership(t, servers)
+
+	t.Logf("killing server s3")
 	s3.Shutdown()
 
-	for _, s := range []*Server{s4, s5} {
-		s.RemoveFailedNode(s2.config.NodeID)
+	t.Logf("waiting for server loss to be detected")
+	testutil.WaitForResultUntil(time.Second*10,
+		func() (bool, error) {
+			for _, s := range []*Server{s4, s5} {
+				err := wantPeers(s, 2)
+				if err != nil {
+					return false, err
+				}
+			}
+			return true, nil
+		},
+		func(err error) { must.NoError(t, err) },
+	)
 
-		retry.RunWith(&retry.Counter{
-			Count: int(10 * testutil.TestMultiplier()),
-			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
-		}, t, func(r *retry.R) {
-			minVer, err := s.autopilot.MinRaftProtocol()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if got, want := minVer, 3; got != want {
-				r.Fatalf("got min raft version %d want %d", got, want)
-			}
-
-			configFuture := s.raft.GetConfiguration()
-			if err != nil {
-				r.Fatal(err)
-			}
-			if len(configFuture.Configuration().Servers) != 2 {
-				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
-			}
-		})
-	}
-
-	// Replace the last dead server with one running raft protocol v3
+	t.Logf("adding replacement server s6")
 	s6, cleanupS6 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS6()
 	TestJoin(t, s6, s4)
-	servers[2] = s6
+	servers = []*Server{s4, s5, s6}
 
-	// Make sure all the dead servers are removed and we're back to 3 total peers
-	for _, s := range servers {
-		retry.Run(t, func(r *retry.R) {
-			addrs := 0
-			ids := 0
-			future := s.raft.GetConfiguration()
-			if err := future.Error(); err != nil {
-				r.Fatal(err)
-			}
-			for _, server := range future.Configuration().Servers {
-				if string(server.ID) == string(server.Address) {
-					addrs++
-				} else {
-					ids++
-				}
-			}
-			if got, want := addrs, 0; got != want {
-				r.Fatalf("got %d server addresses want %d", got, want)
-			}
-			if got, want := ids, 3; got != want {
-				r.Fatalf("got %d server ids want %d", got, want)
-			}
-		})
-	}
+	t.Logf("waiting for s6 to stabilize")
+	waitForStableLeadership(t, servers)
 }
 
 func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
