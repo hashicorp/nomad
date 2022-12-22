@@ -501,8 +501,7 @@ func TestParseConsistency(t *testing.T) {
 	must.EqOp(t, resp.Code, 400)
 
 	b = structs.QueryOptions{}
-	req, err = http.NewRequest("GET",
-		"/v1/catalog/nodes?consistent", nil)
+	req, err = http.NewRequest("GET", "/v1/catalog/nodes?consistent", nil)
 	must.NoError(t, err)
 
 	resp = httptest.NewRecorder()
