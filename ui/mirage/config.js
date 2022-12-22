@@ -8,6 +8,9 @@ import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
 import faker from 'nomad-ui/mirage/faker';
 
+// TODO -- create real mirage scenario for job template variables
+const jobJson = `{\n  \"Shallow\": false,\n  \"CreateRecommendations\": false,\n  \"WithTaskServices\": false,\n  \"WithGroupServices\": false,\n  \"WithRescheduling\": false,\n  \"NoHostVolumes\": false,\n  \"NoFailedPlacements\": false,\n  \"FailedPlacements\": false,\n  \"NoDeployments\": false,\n  \"ActiveDeployment\": false,\n  \"NoActiveDeployment\": false,\n  \"CreateAllocations\": false,\n  \"ModifyIndex\": 1344,\n  \"CreateIndex\": 3,\n  \"Meta\": null,\n  \"ChildrenCount\": 2,\n  \"Datacenters\": [\n    \"hm13\",\n    \"bi10\"\n  ],\n  \"Status\": \"running\",\n  \"AllAtOnce\": false,\n  \"Priority\": 83,\n  \"Type\": \"service\",\n  \"Region\": \"global\",\n  \"ResourceSpec\": null,\n  \"GroupsCount\": 1,\n  \"SubmitTime\": 1671651826938000000,\n  \"Version\": 1,\n  \"ID\": \"jbod-capacitor-3\",\n  \"Name\": \"jbod-capacitor-3\",\n  \"Namespace\": \"default\",\n  \"NamespaceID\": \"default\",\n  \"TaskGroups\": [\n    {\n      \"ResourceSpec\": null,\n      \"Shallow\": false,\n      \"CreateRecommendations\": false,\n      \"WithTaskServices\": false,\n      \"WithServices\": false,\n      \"WithRescheduling\": false,\n      \"CreateAllocations\": false,\n      \"Volumes\": {\n        \"mazie\": {\n          \"Name\": \"mazie\",\n          \"Type\": \"host\",\n          \"Source\": \"claire\",\n          \"ReadOnly\": false\n        },\n        \"leora\": {\n          \"Name\": \"leora\",\n          \"Type\": \"host\",\n          \"Source\": \"jamil\",\n          \"ReadOnly\": false\n        }\n      },\n      \"WithScaling\": false,\n      \"EphemeralDisk\": {\n        \"Sticky\": true,\n        \"SizeMB\": 10000,\n        \"Migrate\": true\n      },\n      \"Count\": 1,\n      \"Name\": \"bandwidth-g-4\",\n      \"ID\": \"5\",\n      \"Services\": null,\n      \"Tasks\": [\n        {\n          \"TaskGroupID\": \"5\",\n          \"Lifecycle\": null,\n          \"OriginalResources\": {\n            \"Cpu\": {\n              \"CpuShares\": 2500\n            },\n            \"Memory\": {\n              \"MemoryMB\": 2048,\n              \"MemoryMaxMB\": 0\n            },\n            \"Disk\": {\n              \"DiskMB\": 0\n            },\n            \"Networks\": [\n              {\n                \"Device\": \"eth1\",\n                \"CIDR\": \"\",\n                \"IP\": \"33.126.199.9\",\n                \"MBits\": 10,\n                \"Mode\": \"host\",\n                \"ReservedPorts\": [],\n                \"DynamicPorts\": []\n              },\n              {\n                \"Device\": \"eth4\",\n                \"CIDR\": \"\",\n                \"IP\": \"97.87.151.55\",\n                \"MBits\": 10,\n                \"Mode\": \"bridge\",\n                \"ReservedPorts\": [\n                  {\n                    \"Label\": \"sensor\",\n                    \"Value\": 19310,\n                    \"To\": 44856\n                  },\n                  {\n                    \"Label\": \"driver\",\n                    \"Value\": 16504,\n                    \"To\": 53721\n                  }\n                ],\n                \"DynamicPorts\": [\n                  {\n                    \"Label\": \"port\",\n                    \"Value\": 27942,\n                    \"To\": 41177\n                  }\n                ]\n              },\n              {\n                \"Device\": \"eth3\",\n                \"CIDR\": \"\",\n                \"IP\": \"107.213.52.132\",\n                \"MBits\": 10,\n                \"Mode\": \"bridge\",\n                \"ReservedPorts\": [\n                  {\n                    \"Label\": \"interface\",\n                    \"Value\": 22736,\n                    \"To\": 57290\n                  }\n                ],\n                \"DynamicPorts\": [\n                  {\n                    \"Label\": \"bandwidth\",\n                    \"Value\": 8885,\n                    \"To\": 36211\n                  }\n                ]\n              }\n            ],\n            \"Ports\": [\n              {\n                \"Label\": \"protocol\",\n                \"Value\": 22712,\n                \"To\": 6494,\n                \"HostIP\": \"8.95.3.34\"\n              },\n              {\n                \"Label\": \"matrix\",\n                \"Value\": 53026,\n                \"To\": 44890,\n                \"HostIP\": \"9e2e:3437:0ff5:999b:b602:bb72:1cd1:5d2c\"\n              }\n            ]\n          },\n          \"Resources\": {\n            \"CPU\": 2500,\n            \"MemoryMB\": 2048,\n            \"MemoryMaxMB\": 0,\n            \"DiskMB\": 0\n          },\n          \"Driver\": \"exec\",\n          \"Name\": \"task-capacitor-6\",\n          \"JobID\": \"\",\n          \"VolumeMounts\": [\n            {\n              \"Volume\": \"mazie\",\n              \"Destination\": \"/Willy_Hane/vicente/#562154\",\n              \"PropagationMode\": \"\",\n              \"ReadOnly\": false\n            }\n          ],\n          \"GroupNames\": [],\n          \"WithServices\": false,\n          \"CreateRecommendations\": false,\n          \"ID\": \"7\",\n          \"Services\": []\n        }\n      ]\n    }\n  ],\n  \"JobSummary\": {\n    \"GroupNames\": [\n      \"bandwidth-g-4\"\n    ],\n    \"Summary\": {\n      \"bandwidth-g-4\": {\n        \"Queued\": 4,\n        \"Complete\": 4,\n        \"Failed\": 7,\n        \"Running\": 8,\n        \"Starting\": 3,\n        \"Lost\": 4,\n        \"Unknown\": 2\n      }\n    },\n    \"Namespace\": \"default\",\n    \"ID\": \"4\",\n    \"JobID\": \"jbod-capacitor-3\"\n  }\n}`;
+
 export function findLeader(schema) {
   const agent = schema.agents.first();
   return formatHost(agent.member.Address, agent.member.Tags.port);
@@ -443,7 +446,7 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
-  this.get('/acl/tokens', function ({tokens}, req) {
+  this.get('/acl/tokens', function ({ tokens }, req) {
     return this.serialize(tokens.all());
   });
 
@@ -548,9 +551,14 @@ export default function () {
 
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
-    schema.tokens.all().models.filter(token => token.policyIds.includes(id)).forEach(token => {
-      token.update({ policyIds: token.policyIds.filter(pid => pid !== id) });
-    });
+    schema.tokens
+      .all()
+      .models.filter((token) => token.policyIds.includes(id))
+      .forEach((token) => {
+        token.update({
+          policyIds: token.policyIds.filter((pid) => pid !== id),
+        });
+      });
     server.db.policies.remove(id);
     return '';
   });
@@ -566,7 +574,6 @@ export default function () {
       description: Description,
       rules: Rules,
     });
-
   });
 
   this.get('/regions', function ({ regions }) {
@@ -887,7 +894,42 @@ export default function () {
 
   //#region Variables
 
-  this.get('/vars', function (schema, { queryParams: { namespace } }) {
+  this.get('/vars', function (schema, { queryParams: { namespace, prefix } }) {
+    // TODO -- extract into mirage scenario or helper
+    if (prefix === 'nomad/job-templates') {
+      schema.create('variable', {
+        id: '99',
+        Path: '99',
+        namespace: 'test',
+        items: {
+          label: 'Messi',
+          description: 'Not the GOAT.',
+          json: jobJson,
+        },
+      });
+      schema.create('variable', {
+        id: '999',
+        Path: '999',
+        namespace: 'test',
+        items: {
+          label: 'Lebron',
+          description: 'Not the GOAT.',
+          json: jobJson,
+        },
+      });
+      schema.create('variable', {
+        id: '9999',
+        Path: '9999',
+        namespace: 'test',
+        items: {
+          label: 'McGregor',
+          description: 'Not the GOAT.',
+          json: jobJson,
+        },
+      });
+      const val = schema.variables.where({ namespace: 'test' });
+      return this.serialize(val);
+    }
     if (namespace && namespace !== '*') {
       return schema.variables.all().filter((v) => v.namespace === namespace);
     } else {
@@ -979,26 +1021,37 @@ export default function () {
     return schema.authMethods.all();
   });
   this.post('/acl/oidc/auth-url', (schema, req) => {
-    const {AuthMethod, ClientNonce, RedirectUri, Meta} = JSON.parse(req.requestBody);
-    return new Response(200, {}, {
-      AuthURL: `/ui/oidc-mock?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`
-    });
+    const { AuthMethod, ClientNonce, RedirectUri, Meta } = JSON.parse(
+      req.requestBody
+    );
+    return new Response(
+      200,
+      {},
+      {
+        AuthURL: `/ui/oidc-mock?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`,
+      }
+    );
   });
 
   // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
-  this.post('/acl/oidc/complete-auth', function (schema, req) {
-    const code = JSON.parse(req.requestBody).Code;
-    const token = schema.tokens.findBy({
-      id: code
-    });
+  this.post(
+    '/acl/oidc/complete-auth',
+    function (schema, req) {
+      const code = JSON.parse(req.requestBody).Code;
+      const token = schema.tokens.findBy({
+        id: code,
+      });
 
-    return new Response(200, {}, {
-      ACLToken: token.secretId
-    });
-  }, {timing: 1000});
-
-
-
+      return new Response(
+        200,
+        {},
+        {
+          ACLToken: token.secretId,
+        }
+      );
+    },
+    { timing: 1000 }
+  );
 
   //#endregion SSO
 }
