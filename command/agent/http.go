@@ -717,6 +717,8 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 
 		if staleQuery || staleVal[0] == "" {
 			b.AllowStale = true
+		} else {
+			b.AllowStale = false
 		}
 	}
 }
