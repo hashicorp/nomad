@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shoenig/test/must"
 	"io"
 	"io/ioutil"
 	"net"
@@ -482,9 +483,7 @@ func TestParseConsistency(t *testing.T) {
 	for _, url := range testCases {
 		req, err := http.NewRequest("GET",
 			url, nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 		resp = httptest.NewRecorder()
 		parseConsistency(resp, req, &b)
 		if !b.AllowStale {
@@ -492,8 +491,7 @@ func TestParseConsistency(t *testing.T) {
 		}
 	}
 
-	req, err := http.NewRequest("GET",
-		"/v1/catalog/nodes?stale=random", nil)
+	req, err := http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -502,6 +500,7 @@ func TestParseConsistency(t *testing.T) {
 	if resp.Code != 400 {
 		t.Fatalf("bad code: %v", resp.Code)
 	}
+	must.EqOp(t, resp.Code, 400)
 
 	b = structs.QueryOptions{}
 	req, err = http.NewRequest("GET",
@@ -512,9 +511,7 @@ func TestParseConsistency(t *testing.T) {
 
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
-	if b.AllowStale {
-		t.Fatalf("Bad: %v", b)
-	}
+	must.True(t, !b.AllowStale)
 }
 
 func TestParseRegion(t *testing.T) {
