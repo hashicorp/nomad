@@ -5,15 +5,14 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ func (m *MockFSM) Snapshot() (raft.FSMSnapshot, error) {
 func (m *MockFSM) Restore(in io.ReadCloser) error {
 	m.Lock()
 	defer m.Unlock()
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 	dec := codec.NewDecoder(in, structs.MsgpackHandle)
 
 	m.logs = nil
@@ -63,10 +62,10 @@ func (m *MockFSM) Restore(in io.ReadCloser) error {
 func (m *MockSnapshot) Persist(sink raft.SnapshotSink) error {
 	enc := codec.NewEncoder(sink, structs.MsgpackHandle)
 	if err := enc.Encode(m.logs[:m.maxIndex]); err != nil {
-		sink.Cancel()
+		_ = sink.Cancel()
 		return err
 	}
-	sink.Close()
+	_ = sink.Close()
 	return nil
 }
 
@@ -100,19 +99,19 @@ func makeRaft(t *testing.T, dir string) (*raft.Raft, *MockFSM) {
 		t.Fatalf("err: %v", err)
 	}
 
-	raft, err := raft.NewRaft(config, fsm, store, store, snaps, trans)
+	raftNode, err := raft.NewRaft(config, fsm, store, store, snaps, trans)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	timeout := time.After(10 * time.Second)
 	for {
-		if raft.Leader() != "" {
+		if raftNode.Leader() != "" {
 			break
 		}
 
 		select {
-		case <-raft.LeaderCh():
+		case <-raftNode.LeaderCh():
 		case <-time.After(1 * time.Second):
 			// Need to poll because we might have missed the first
 			// go with the leader channel.
@@ -121,12 +120,11 @@ func makeRaft(t *testing.T, dir string) (*raft.Raft, *MockFSM) {
 		}
 	}
 
-	return raft, fsm
+	return raftNode, fsm
 }
 
 func TestSnapshot(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data. We tee everything we
 	// apply off to a buffer for checking post-snapshot.
@@ -136,8 +134,8 @@ func TestSnapshot(t *testing.T) {
 	defer before.Shutdown()
 	for i := 0; i < entries; i++ {
 		var log bytes.Buffer
-		var copy bytes.Buffer
-		both := io.MultiWriter(&log, &copy)
+		var buf bytes.Buffer
+		both := io.MultiWriter(&log, &buf)
 		if _, err := io.CopyN(both, rand.Reader, 256); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -145,16 +143,16 @@ func TestSnapshot(t *testing.T) {
 		if err := future.Error(); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		expected = append(expected, copy)
+		expected = append(expected, buf)
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	defer snap.Close()
+	t.Cleanup(func() { _ = snap.Close() })
 
 	// Verify the snapshot. We have to rewind it after for the restore.
 	metadata, err := Verify(snap)
@@ -191,7 +189,7 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	// Restore the snapshot.
-	if err := Restore(logger, snap, after); err != nil {
+	if err = Restore(logger, snap, after); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -234,8 +232,7 @@ func TestSnapshot_BadVerify(t *testing.T) {
 }
 
 func TestSnapshot_TruncatedVerify(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data. We tee everything we
 	// apply off to a buffer for checking post-snapshot.
@@ -245,22 +242,22 @@ func TestSnapshot_TruncatedVerify(t *testing.T) {
 	defer before.Shutdown()
 	for i := 0; i < entries; i++ {
 		var log bytes.Buffer
-		var copy bytes.Buffer
-		both := io.MultiWriter(&log, &copy)
+		var buf bytes.Buffer
+		both := io.MultiWriter(&log, &buf)
 
 		_, err := io.CopyN(both, rand.Reader, 256)
 		require.NoError(t, err)
 
 		future := before.Apply(log.Bytes(), time.Second)
 		require.NoError(t, future.Error())
-		expected = append(expected, copy)
+		expected = append(expected, buf)
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	require.NoError(t, err)
-	defer snap.Close()
+	t.Cleanup(func() { _ = snap.Close() })
 
 	var data []byte
 	{
@@ -282,8 +279,7 @@ func TestSnapshot_TruncatedVerify(t *testing.T) {
 }
 
 func TestSnapshot_BadRestore(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data.
 	before, _ := makeRaft(t, filepath.Join(dir, "before"))
@@ -300,7 +296,7 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -315,16 +311,16 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	var expected []bytes.Buffer
 	for i := 0; i < 16; i++ {
 		var log bytes.Buffer
-		var copy bytes.Buffer
-		both := io.MultiWriter(&log, &copy)
-		if _, err := io.CopyN(both, rand.Reader, 256); err != nil {
+		var buf bytes.Buffer
+		both := io.MultiWriter(&log, &buf)
+		if _, err = io.CopyN(both, rand.Reader, 256); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		future := after.Apply(log.Bytes(), time.Second)
-		if err := future.Error(); err != nil {
+		if err = future.Error(); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		expected = append(expected, copy)
+		expected = append(expected, buf)
 	}
 
 	// Attempt to restore a truncated version of the snapshot. This is
