@@ -18,7 +18,14 @@ export default class RunRoute extends Route {
     }
   }
 
-  model() {
+  async model() {
+    const transition = arguments[1];
+
+    if (transition.from?.name === 'jobs.run.templates.index') {
+      const plainId = transition.to.queryParams.plainId;
+      return this.store.peekAll('job').findBy('plainId', plainId);
+    }
+
     // When jobs are created with a namespace attribute, it is verified against
     // available namespaces to prevent redirecting to a non-existent namespace.
     return this.store.findAll('namespace').then(() => {
@@ -26,8 +33,11 @@ export default class RunRoute extends Route {
     });
   }
 
-  resetController(controller, isExiting) {
+  resetController(controller, isExiting, transition) {
     if (isExiting) {
+      if (transition.to.name === 'jobs.run.templates.index') {
+        return;
+      }
       controller.model.deleteRecord();
     }
   }
