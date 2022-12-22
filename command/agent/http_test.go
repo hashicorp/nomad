@@ -479,35 +479,31 @@ func TestParseConsistency(t *testing.T) {
 	var b structs.QueryOptions
 	var resp *httptest.ResponseRecorder
 
-	testCases := [3]string{"/v1/catalog/nodes?stale", "/v1/catalog/nodes?stale=true", "/v1/catalog/nodes?stale=false"}
+	testCases := [2]string{"/v1/catalog/nodes?stale", "/v1/catalog/nodes?stale=true"}
 	for _, url := range testCases {
-		req, err := http.NewRequest("GET",
-			url, nil)
+		req, err := http.NewRequest("GET", url, nil)
 		must.NoError(t, err)
 		resp = httptest.NewRecorder()
 		parseConsistency(resp, req, &b)
-		if !b.AllowStale {
-			t.Fatalf("Bad: %v", b)
-		}
+		must.True(t, b.AllowStale)
 	}
 
-	req, err := http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	req, err := http.NewRequest("GET", "/v1/catalog/nodes?stale=false", nil)
+	must.Nil(t, err, must.Sprintf("err: %v", err))
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
-	if resp.Code != 400 {
-		t.Fatalf("bad code: %v", resp.Code)
-	}
+	must.True(t, !b.AllowStale)
+
+	req, err = http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
+	must.Nil(t, err, must.Sprintf("err: %v", err))
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
 	must.EqOp(t, resp.Code, 400)
 
 	b = structs.QueryOptions{}
 	req, err = http.NewRequest("GET",
 		"/v1/catalog/nodes?consistent", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.Nil(t, err, must.Sprintf("err: %v", err))
 
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
