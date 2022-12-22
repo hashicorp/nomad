@@ -3,6 +3,7 @@ package testutil
 import (
 	"os"
 	"strconv"
+	"syscall"
 	"testing"
 )
 
@@ -22,4 +23,10 @@ func SkipSlow(t *testing.T, reason string) {
 // The API package has been vetted to be concurrency safe (ish).
 func Parallel(t *testing.T) {
 	t.Parallel() // :)
+}
+
+func RequireRoot(t *testing.T) {
+	if syscall.Getuid() != 0 {
+		t.Skip("test requires root")
+	}
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1789,55 +1792,55 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 
 func TestJobs_PeriodicForce(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
+
 	jobs := c.Jobs()
 
 	// Force-eval on a nonexistent job fails
 	_, _, err := jobs.PeriodicForce("job1", nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
+	must.ErrorContains(t, err, "not found")
 
 	// Create a new job
 	job := testPeriodicJob()
 	_, _, err = jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
-	testutil.WaitForResult(func() (bool, error) {
+	f := func() error {
 		out, _, err := jobs.Info(*job.ID, nil)
-		if err != nil || out == nil || *out.ID != *job.ID {
-			return false, err
+		if err != nil {
+			return fmt.Errorf("failed to get jobs info: %w", err)
 		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+		if out == nil {
+			return fmt.Errorf("jobs info response is nil")
+		}
+		if *out.ID != *job.ID {
+			return fmt.Errorf("expected job ids to match, out: %s, job: %s", *out.ID, *job.ID)
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(10*time.Second),
+		wait.Gap(1*time.Second),
+	))
 
 	// Try force again
 	evalID, wm, err := jobs.PeriodicForce(*job.ID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
+
 	assertWriteMeta(t, wm)
 
-	if evalID == "" {
-		t.Fatalf("empty evalID")
-	}
+	must.NotEq(t, "", evalID)
 
 	// Retrieve the eval
-	evals := c.Evaluations()
-	eval, qm, err := evals.Info(evalID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	evaluations := c.Evaluations()
+	eval, qm, err := evaluations.Info(evalID, nil)
+	must.NoError(t, err)
+
 	assertQueryMeta(t, qm)
-	if eval.ID == evalID {
-		return
-	}
-	t.Fatalf("evaluation %q missing", evalID)
+	must.Eq(t, eval.ID, evalID)
 }
 
 func TestJobs_Plan(t *testing.T) {
