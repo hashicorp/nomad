@@ -489,13 +489,13 @@ func TestParseConsistency(t *testing.T) {
 	}
 
 	req, err := http.NewRequest("GET", "/v1/catalog/nodes?stale=false", nil)
-	must.Nil(t, err, must.Sprintf("err: %v", err))
+	must.NoError(t, err)
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
 	must.True(t, !b.AllowStale)
 
 	req, err = http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
-	must.Nil(t, err, must.Sprintf("err: %v", err))
+	must.NoError(t, err)
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
 	must.EqOp(t, resp.Code, 400)
@@ -503,7 +503,7 @@ func TestParseConsistency(t *testing.T) {
 	b = structs.QueryOptions{}
 	req, err = http.NewRequest("GET",
 		"/v1/catalog/nodes?consistent", nil)
-	must.Nil(t, err, must.Sprintf("err: %v", err))
+	must.NoError(t, err)
 
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
