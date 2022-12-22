@@ -5,13 +5,16 @@ export default class RunTemplatesRoute extends Route {
   @service can;
   @service store;
 
-  beforeModel() {
-    if (
-      this.can.cannot('write variable', null, {
-        namespace: '*',
-        path: '*',
-      })
-    ) {
+  beforeModel(transition) {
+    const hasPermissions = this.can.can('write variable', null, {
+      namespace: '*',
+      path: '*',
+    });
+
+    // We create a job with no id in jobs.run that is populated by this form.
+    // A user cannot start at this route.
+    const wasJobModelCreated = transition.from?.name === 'jobs.run.index';
+    if (!hasPermissions || !wasJobModelCreated) {
       this.transitionTo('jobs');
     }
   }
