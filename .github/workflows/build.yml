@@ -76,7 +76,6 @@ jobs:
 
   build-other:
     needs: [get-go-version, get-product-version]
-    runs-on: [ custom, linux, xxl, 20.04 ]
     strategy:
       matrix:
         goos: [windows]
@@ -96,13 +95,11 @@ jobs:
 
   build-linux:
     needs: [get-go-version, get-product-version]
-    runs-on: [ custom, linux, xxl, 20.04 ]
     strategy:
       matrix:
         goos: [linux]
         goarch: [arm, arm64, 386, amd64]
       fail-fast: true
-
     uses: ./.github/workflows/build-nomad-oss.yml
     with:
       goarch: ${{ matrix.goarch }}
