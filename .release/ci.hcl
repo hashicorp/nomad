@@ -14,6 +14,7 @@ project "nomad" {
     release_branches = [
       "main",
       "release/**",
+      "crt-builder-script",
     ]
   }
 }
