@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: 'Commands: acl binding-rule info'
+description: |
+  The binding-rule info command is used to fetch information about an existing
+  ACL Binding Rule.
+---
+
+# Command: acl binding-rule info
+
+The `acl binding-rule info` command is used to fetch information about an existing ACL Binding Rule.
+
+## Usage
+
+```plaintext
+nomad acl binding-rule info [options] <binding-rule_id>
+```
+
+The `acl binding-rule info` command requires an existing rule's ID.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Info Options
+
+- `-json`: Output the ACL Binding Rule in a JSON format.
+
+- `-t`: Format and display the ACL Binding Rule using a Go template.
+
+## Examples
+
+Fetch information about an existing ACL Binding Rule:
+
+```shell-session
+$ nomad acl binding-rule info dc0e494d-0878-4e56-37d4-482e371e5bdb
+ID           = dc0e494d-0878-4e56-37d4-482e371e5bdb
+Description  = example binding rule
+Auth Method  = auth0
+Selector     = "engineering in list.roles"
+Bind Type    = role
+Bind Name    = engineering-ro
+Create Time  = 2022-12-20 11:17:40.483196 +0000 UTC
+Modify Time  = 2022-12-20 11:17:40.483196 +0000 UTC
+Create Index = 17
+Modify Index = 17
+```

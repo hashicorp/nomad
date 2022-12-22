@@ -262,6 +262,31 @@
             ]
           },
           {
+            "title": "binding-rule",
+            "routes": [
+              {
+                "title": "create",
+                "path": "commands/acl/binding-rule/create"
+              },
+              {
+                "title": "delete",
+                "path": "commands/acl/binding-rule/delete"
+              },
+              {
+                "title": "info",
+                "path": "commands/acl/binding-rule/info"
+              },
+              {
+                "title": "list",
+                "path": "commands/acl/binding-rule/list"
+              },
+              {
+                "title": "update",
+                "path": "commands/acl/binding-rule/update"
+              }
+            ]
+          },
+          {
             "title": "policy",
             "routes": [
               {
