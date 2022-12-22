@@ -21,6 +21,6 @@
     {{/if}}
     <Hds::ButtonSet>
         <Hds::Button @size="small" @text="Apply" {{on "click" this.onApply}} data-test-apply />
-        <Hds::Button @size="small" @text="Cancel" @color="critical" data-test-cancel />
+        <Hds::Button @size="small" @text="Cancel" {{on "click" this.navigateToJobsRun}} @color="critical" data-test-cancel />
     </Hds::ButtonSet>
 </section>
