@@ -709,13 +709,14 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) {
 	query := req.URL.Query()
 	if staleVal, ok := query["stale"]; ok {
-		if staleVal[0] == "true" || staleVal[0] == "" {
-			b.AllowStale = true
-		} else if staleVal[0] == "false" {
-			// fall through
-		} else {
+		staleQuery, err := strconv.ParseBool(staleVal[0])
+		if err != nil {
 			resp.WriteHeader(400)
 			resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
+		}
+
+		if staleQuery || staleVal[0] == "" {
+			b.AllowStale = true
 		}
 	}
 }
