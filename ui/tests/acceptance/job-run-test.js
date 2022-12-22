@@ -158,9 +158,8 @@ module('Acceptance | job run', function (hooks) {
           fakeRequest.queryParams,
           {
             prefix: 'nomad/job-templates',
-            filter: 'Template is not empty"',
           },
-          'It makes a request to the /vars endpoint with the appropriate filter expression for job templates.'
+          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
         );
         return [];
       });
