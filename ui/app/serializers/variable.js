@@ -8,14 +8,6 @@ export default class VariableSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // ID is a composite of both the job ID and the namespace the job is in
     hash.ID = `${hash.Path}@${hash.Namespace || 'default'}`;
-
-    hash.KeyValues = Object.entries(hash.Items).map(([key, value]) => {
-      return {
-        key,
-        value,
-      };
-    });
-
     return super.normalize(typeHash, hash);
   }
 
