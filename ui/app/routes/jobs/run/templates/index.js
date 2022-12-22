@@ -16,10 +16,14 @@ export default class RunTemplatesRoute extends Route {
     }
   }
 
-  model() {
-    return this.store.query('variable', {
+  async model() {
+    const jobTemplateVariables = await this.store.query('variable', {
       prefix: 'nomad/job-templates',
-      filter: 'Template is not empty"',
     });
+    const recordsToQuery = jobTemplateVariables.map((template) =>
+      this.store.findRecord('variable', template.id)
+    );
+
+    return Promise.all(recordsToQuery);
   }
 }
