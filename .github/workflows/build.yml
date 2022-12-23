@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
+      package-name: ${{ env.PKG_NAME }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -89,7 +90,7 @@ jobs:
       cgo-enabled: 1
       go-tags: release
       go-version: ${{ needs.get-go-version.outputs.go-version }}
-      package-name: ${{ env.PKG_NAME }}
+      package-name: ${{ needs.get-product-version.outputs.package-name }}
       nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
 
@@ -107,13 +108,13 @@ jobs:
       go-tags: release
       cgo-enabled: 1
       go-version: ${{ needs.get-go-version.outputs.go-version }}
-      package-name: ${{ env.PKG_NAME }}
+      package-name: ${{ needs.get-product-version.outputs.package-name }}
       nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
 
   build-darwin:
       name: Build Nomad Darwin
-      needs: product-metadata
+      needs:  [get-go-version, get-product-version]
       strategy:
         matrix:
           goos: [darwin]
@@ -127,7 +128,7 @@ jobs:
         go-tags: release netcgo
         cgo-enabled: 1
         go-version: ${{ needs.get-go-version.outputs.go-version }}
-        package-name: ${{ env.PKG_NAME }}
+        package-name: ${{ needs.get-product-version.outputs.package-name }}
         nomad-version: ${{ needs.get-product-version.outputs.product-version }}
       secrets: inherit
 

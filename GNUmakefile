@@ -419,3 +419,8 @@ cl: ## Create a new Changelog entry
 crt-build: ## Create a new Changelog entry
 	@echo "==> Initiating a CRT build ..."
 	@./scripts/crt-builder.sh build
+
+.PHONY: crt-build-ui
+crt-build-ui: ## Create a new Changelog entry
+	@echo "==> Initiating a CRT UI build ..."
+	@./scripts/crt-builder.sh build-ui
