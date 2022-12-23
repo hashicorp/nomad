@@ -715,11 +715,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 			resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
 		}
 
-		if staleQuery || staleVal[0] == "" {
-			b.AllowStale = true
-		} else {
-			b.AllowStale = false
-		}
+		b.AllowStale = staleQuery || staleVal[0] == ""
 	}
 }
 
