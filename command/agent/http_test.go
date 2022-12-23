@@ -480,8 +480,8 @@ func TestParseConsistency(t *testing.T) {
 	var resp *httptest.ResponseRecorder
 
 	testCases := [2]string{"/v1/catalog/nodes?stale", "/v1/catalog/nodes?stale=true"}
-	for _, url := range testCases {
-		req, err := http.NewRequest("GET", url, nil)
+	for _, urlPath := range testCases {
+		req, err := http.NewRequest("GET", urlPath, nil)
 		must.NoError(t, err)
 		resp = httptest.NewRecorder()
 		parseConsistency(resp, req, &b)
@@ -492,12 +492,13 @@ func TestParseConsistency(t *testing.T) {
 	must.NoError(t, err)
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
-	must.True(t, !b.AllowStale)
+	must.False(t, b.AllowStale)
 
 	req, err = http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
 	must.NoError(t, err)
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
+	must.False(t, b.AllowStale)
 	must.EqOp(t, resp.Code, 400)
 
 	b = structs.QueryOptions{}
@@ -506,7 +507,7 @@ func TestParseConsistency(t *testing.T) {
 
 	resp = httptest.NewRecorder()
 	parseConsistency(resp, req, &b)
-	must.True(t, !b.AllowStale)
+	must.False(t, b.AllowStale)
 }
 
 func TestParseRegion(t *testing.T) {
