@@ -415,3 +415,7 @@ ec2info: ## Generate AWS EC2 CPU specification table
 cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
 
+.PHONY: crt-build
+crt-build: ## Create a new Changelog entry
+	@echo "==> Initiating a CRT build ..."
+	@./scripts/crt-builder.sh build
