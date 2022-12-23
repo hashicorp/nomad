@@ -88,9 +88,9 @@ jobs:
       goos: ${{ matrix.goos }}
       cgo-enabled: 1
       go-tags: release
-      go-version: ${{ needs.product-metadata.outputs.go-version }}
-      package-name: ${{ needs.product-metadata.outputs.package-name }}
-      nomad-version: ${{ needs.product-metadata.outputs.nomad-version }}
+      go-version: ${{ needs.get-go-version.outputs.go-version }}
+      package-name: ${{ env.PKG_NAME }}
+      nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
 
   build-linux:
@@ -106,9 +106,9 @@ jobs:
       goos: ${{ matrix.goos }}
       go-tags: release
       cgo-enabled: 1
-      go-version: ${{ needs.product-metadata.outputs.go-version }}
-      package-name: ${{ needs.product-metadata.outputs.package-name }}
-      nomad-version: ${{ needs.product-metadata.outputs.nomad-version }}
+      go-version: ${{ needs.get-go-version.outputs.go-version }}
+      package-name: ${{ env.PKG_NAME }}
+      nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
 
   build-darwin:
@@ -126,9 +126,9 @@ jobs:
         goos: ${{ matrix.goos }}
         go-tags: release netcgo
         cgo-enabled: 1
-        go-version: ${{ needs.product-metadata.outputs.go-version }}
-        package-name: ${{ needs.product-metadata.outputs.package-name }}
-        nomad-version: ${{ needs.product-metadata.outputs.nomad-version }}
+        go-version: ${{ needs.get-go-version.outputs.go-version }}
+        package-name: ${{ env.PKG_NAME }}
+        nomad-version: ${{ needs.get-product-version.outputs.product-version }}
       secrets: inherit
 
   # This placed here for when the Nomad team is ready to build docker images.
