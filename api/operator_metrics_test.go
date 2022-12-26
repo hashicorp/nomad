@@ -27,7 +27,7 @@ func TestOperator_MetricsSummary(t *testing.T) {
 	must.NotNil(t, metrics)
 	must.NotNil(t, qm)
 	must.NotNil(t, metrics.Timestamp)       // should always get a TimeStamp
-	must.SliceNotEmpty(t, metrics.Points)   // may not have points yet
+	must.SliceEmpty(t, metrics.Points)      // may not have points yet
 	must.SliceNotEmpty(t, metrics.Gauges)   // should have at least 1 gauge
 	must.SliceNotEmpty(t, metrics.Counters) // should have at least 1 counter
 	must.SliceNotEmpty(t, metrics.Samples)  // should have at least 1 sample
