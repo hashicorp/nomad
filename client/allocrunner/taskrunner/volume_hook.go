@@ -88,9 +88,10 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 		}
 
 		mcfg := &drivers.MountConfig{
-			HostPath: hostVolume.Path,
-			TaskPath: m.Destination,
-			Readonly: hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
+			HostPath:        hostVolume.Path,
+			TaskPath:        m.Destination,
+			Readonly:        hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
+			PropagationMode: m.PropagationMode,
 		}
 		mounts = append(mounts, mcfg)
 	}
@@ -180,9 +181,10 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 
 		for _, m := range mountsForAlias {
 			mcfg := &drivers.MountConfig{
-				HostPath: csiMountPoint.Source,
-				TaskPath: m.Destination,
-				Readonly: request.ReadOnly || m.ReadOnly,
+				HostPath:        csiMountPoint.Source,
+				TaskPath:        m.Destination,
+				Readonly:        request.ReadOnly || m.ReadOnly,
+				PropagationMode: m.PropagationMode,
 			}
 			mounts = append(mounts, mcfg)
 		}
