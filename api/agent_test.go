@@ -1,9 +1,6 @@
 package api
 
 import (
-	"fmt"
-	"net/http"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -11,12 +8,11 @@ import (
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAgent_Self(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -25,55 +21,46 @@ func TestAgent_Self(t *testing.T) {
 
 	// Query the endpoint
 	res, err := a.Self()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Check that we got a valid response
-	if res.Member.Name == "" {
-		t.Fatalf("bad member name in response: %#v", res)
-	}
+	must.NotEq(t, "", res.Member.Name, must.Sprint("missing member name"))
 
 	// Local cache was populated
-	if a.nodeName == "" || a.datacenter == "" || a.region == "" {
-		t.Fatalf("cache should be populated, got: %#v", a)
-	}
+	must.NotEq(t, "", a.nodeName, must.Sprint("cache should be populated"))
+	must.NotEq(t, "", a.datacenter, must.Sprint("cache should be populated"))
+	must.NotEq(t, "", a.region, must.Sprint("cache should be populated"))
 }
 
 func TestAgent_NodeName(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	// Query the agent for the node name
-	res, err := a.NodeName()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if res == "" {
-		t.Fatalf("expected node name, got nothing")
-	}
+	nodeName, err := a.NodeName()
+	must.NoError(t, err)
+	must.NotEq(t, "", nodeName)
 }
 
 func TestAgent_Datacenter(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	// Query the agent for the datacenter
 	dc, err := a.Datacenter()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if dc != "dc1" {
-		t.Fatalf("expected dc1, got: %q", dc)
-	}
+	must.NoError(t, err)
+	must.Eq(t, "dc1", dc)
 }
 
 func TestAgent_Join(t *testing.T) {
 	testutil.Parallel(t)
+
 	c1, s1 := makeClient(t, nil, nil)
 	defer s1.Stop()
 	a1 := c1.Agent()
@@ -85,54 +72,43 @@ func TestAgent_Join(t *testing.T) {
 
 	// Attempting to join a nonexistent host returns error
 	n, err := a1.Join("nope")
-	if err == nil {
-		t.Fatalf("expected error, got nothing")
-	}
-	if n != 0 {
-		t.Fatalf("expected 0 nodes, got: %d", n)
-	}
+	must.Error(t, err)
+	must.Zero(t, 0, must.Sprint("should be zero errors"))
 
 	// Returns correctly if join succeeds
 	n, err = a1.Join(s2.SerfAddr)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if n != 1 {
-		t.Fatalf("expected 1 node, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.One(t, n)
 }
 
 func TestAgent_Members(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	// Query nomad for all the known members
 	mem, err := a.Members()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Check that we got the expected result
-	if n := len(mem.Members); n != 1 {
-		t.Fatalf("expected 1 member, got: %d", n)
-	}
-	if m := mem.Members[0]; m.Name == "" || m.Addr == "" || m.Port == 0 {
-		t.Fatalf("bad member: %#v", m)
-	}
+	must.Len(t, 1, mem.Members)
+	must.NotEq(t, "", mem.Members[0].Name)
+	must.NotEq(t, "", mem.Members[0].Addr)
+	must.NotEq(t, 0, mem.Members[0].Port)
 }
 
 func TestAgent_ForceLeave(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	// Force-leave on a nonexistent node does not error
-	if err := a.ForceLeave("nope"); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	err := a.ForceLeave("nope")
+	must.NoError(t, err)
 
 	// TODO: test force-leave on an existing node
 }
@@ -143,6 +119,7 @@ func (a *AgentMember) String() string {
 
 func TestAgents_Sort(t *testing.T) {
 	testutil.Parallel(t)
+
 	var sortTests = []struct {
 		in  []*AgentMember
 		out []*AgentMember
@@ -246,22 +223,20 @@ func TestAgents_Sort(t *testing.T) {
 	}
 	for _, tt := range sortTests {
 		sort.Sort(AgentMembersNameSort(tt.in))
-		if !reflect.DeepEqual(tt.in, tt.out) {
-			t.Errorf("\nexpected: %s\nget     : %s", tt.in, tt.out)
-		}
+		must.Eq(t, tt.in, tt.out)
 	}
 }
 
 func TestAgent_Health(t *testing.T) {
 	testutil.Parallel(t)
-	assert := assert.New(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	health, err := a.Health()
-	assert.Nil(err)
-	assert.True(health.Server.Ok)
+	must.NoError(t, err)
+	must.True(t, health.Server.Ok)
 }
 
 // TestAgent_MonitorWithNode tests the Monitor endpoint
@@ -314,6 +289,7 @@ OUTER:
 // monitor functionality
 func TestAgent_Monitor(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -331,7 +307,7 @@ func TestAgent_Monitor(t *testing.T) {
 
 	// make a request to generate some logs
 	_, err := agent.Region()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Wait for a log message
 OUTER:
@@ -347,7 +323,7 @@ OUTER:
 		case err := <-errCh:
 			t.Fatalf("error: %v", err)
 		case <-time.After(2 * time.Second):
-			require.Fail(t, "failed to get a DEBUG log message")
+			must.Unreachable(t, must.Sprint("failed to get DEBUG log message"))
 		}
 	}
 }
@@ -370,8 +346,8 @@ func TestAgentCPUProfile(t *testing.T) {
 			Seconds: 1,
 		}
 		resp, err := agent.CPUProfile(opts, q)
-		require.NoError(t, err)
-		require.NotNil(t, resp)
+		must.NoError(t, err)
+		must.NotNil(t, resp)
 	}
 
 	// Invalid server request
@@ -381,9 +357,9 @@ func TestAgentCPUProfile(t *testing.T) {
 			ServerID: "unknown.global",
 		}
 		resp, err := agent.CPUProfile(opts, q)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "500 (unknown Nomad server unknown.global)")
-		require.Nil(t, resp)
+		must.Error(t, err)
+		must.ErrorContains(t, err, "500 (unknown Nomad server unknown.global)")
+		must.Nil(t, resp)
 	}
 
 }
@@ -401,8 +377,8 @@ func TestAgentTrace(t *testing.T) {
 	}
 
 	resp, err := agent.Trace(PprofOptions{}, q)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
 }
 
 func TestAgentProfile(t *testing.T) {
@@ -419,16 +395,16 @@ func TestAgentProfile(t *testing.T) {
 
 	{
 		resp, err := agent.Lookup("heap", PprofOptions{}, q)
-		require.NoError(t, err)
-		require.NotNil(t, resp)
+		must.NoError(t, err)
+		must.NotNil(t, resp)
 	}
 
 	// unknown profile
 	{
 		resp, err := agent.Lookup("invalid", PprofOptions{}, q)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Unexpected response code: 404")
-		require.Nil(t, resp)
+		must.Error(t, err)
+		must.ErrorContains(t, err, "Unexpected response code: 404")
+		must.Nil(t, resp)
 	}
 }
 
@@ -440,12 +416,12 @@ func TestAgent_SchedulerWorkerConfig(t *testing.T) {
 	a := c.Agent()
 
 	config, err := a.GetSchedulerWorkerConfig(nil)
-	require.NoError(t, err)
-	require.NotNil(t, config)
+	must.NoError(t, err)
+	must.NotNil(t, config)
 	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: 0, EnabledSchedulers: []string{"_core", "system"}}
 	resp, err := a.SetSchedulerWorkerConfig(newConfig, nil)
-	require.NoError(t, err)
-	assert.NotEqual(t, config, resp)
+	must.NoError(t, err)
+	must.NotEq(t, config, resp)
 }
 
 func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
@@ -456,25 +432,26 @@ func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
 	a := c.Agent()
 
 	config, err := a.GetSchedulerWorkerConfig(nil)
-	require.NoError(t, err)
-	require.NotNil(t, config)
+	must.NoError(t, err)
+	must.NotNil(t, config)
 	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: -1, EnabledSchedulers: []string{"_core", "system"}}
 	_, err = a.SetSchedulerWorkerConfig(newConfig, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), fmt.Sprintf("%v (%s)", http.StatusBadRequest, "Invalid request"))
+	must.Error(t, err)
+	must.ErrorContains(t, err, "400 (Invalid request)")
 }
 
 func TestAgent_SchedulerWorkersInfo(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
 	info, err := a.GetSchedulerWorkersInfo(nil)
-	require.NoError(t, err)
-	require.NotNil(t, info)
+	must.NoError(t, err)
+	must.NotNil(t, info)
 	defaultSchedulers := []string{"batch", "system", "sysbatch", "service", "_core"}
 	for _, worker := range info.Schedulers {
-		require.ElementsMatch(t, defaultSchedulers, worker.EnabledSchedulers)
+		must.SliceContainsAll(t, defaultSchedulers, worker.EnabledSchedulers)
 	}
 }
