@@ -783,10 +783,16 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 }
 
 // parseConsistency is used to parse the ?stale query params.
-func parseConsistency(req *http.Request, b *structs.QueryOptions) {
+func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) {
 	query := req.URL.Query()
-	if _, ok := query["stale"]; ok {
-		b.AllowStale = true
+	if staleVal, ok := query["stale"]; ok {
+		staleQuery, err := strconv.ParseBool(staleVal[0])
+		if err != nil {
+			resp.WriteHeader(400)
+			resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
+		}
+
+		b.AllowStale = staleQuery || staleVal[0] == ""
 	}
 }
 
@@ -884,7 +890,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	s.parseToken(req, &b.AuthToken)
-	parseConsistency(req, b)
+	parseConsistency(resp, req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	parsePagination(req, b)
