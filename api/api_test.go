@@ -17,7 +17,6 @@ import (
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 type configCallback func(c *Config)
@@ -171,11 +170,11 @@ func TestSetQueryOptions(t *testing.T) {
 
 	try := func(key, exp string) {
 		result := r.params.Get(key)
-		require.Equal(t, exp, result)
+		must.Eq(t, exp, result)
 	}
 
 	// Check auth token is set
-	require.Equal(t, "foobar", r.token)
+	must.Eq(t, "foobar", r.token)
 
 	// Check query parameters are set
 	try("region", "foo")
@@ -500,30 +499,28 @@ func TestCloneHttpClient(t *testing.T) {
 
 	t.Run("closing with negative timeout", func(t *testing.T) {
 		clone, err := cloneWithTimeout(client, -1)
-		require.True(t, originalTransport == client.Transport, "original transport changed")
-		require.NoError(t, err)
-		require.Equal(t, client, clone)
-		require.True(t, client == clone)
+		must.True(t, originalTransport == client.Transport, must.Sprint("original transport changed"))
+		must.NoError(t, err)
+		must.True(t, client == clone)
 	})
 
 	t.Run("closing with positive timeout", func(t *testing.T) {
 		clone, err := cloneWithTimeout(client, 1*time.Second)
-		require.True(t, originalTransport == client.Transport, "original transport changed")
-		require.NoError(t, err)
-		require.NotEqual(t, client, clone)
-		require.True(t, client != clone)
-		require.True(t, client.Transport != clone.Transport)
+		must.True(t, originalTransport == client.Transport, must.Sprint("original transport changed"))
+		must.NoError(t, err)
+		must.True(t, client != clone)
+		must.True(t, client.Transport != clone.Transport)
 
 		// test that proxy function is the same in clone
 		clonedProxy := clone.Transport.(*http.Transport).Proxy
-		require.NotNil(t, clonedProxy)
+		must.NotNil(t, clonedProxy)
 		_, err = clonedProxy(nil)
-		require.Error(t, err)
-		require.Equal(t, "stub function", err.Error())
+		must.Error(t, err)
+		must.EqError(t, err, "stub function")
 
 		// if we reset transport, the strutcs are equal
 		clone.Transport = originalTransport
-		require.Equal(t, client, clone)
+		must.Eq(t, client, clone)
 	})
 
 }
@@ -556,7 +553,7 @@ func TestClient_autoUnzip(t *testing.T) {
 
 	try := func(resp *http.Response, exp error) {
 		err := client.autoUnzip(resp)
-		require.Equal(t, exp, err)
+		must.Eq(t, exp, err)
 	}
 
 	// response object is nil
@@ -586,9 +583,9 @@ func TestClient_autoUnzip(t *testing.T) {
 	var b bytes.Buffer
 	w := gzip.NewWriter(&b)
 	_, err := w.Write([]byte("hello world"))
-	require.NoError(t, err)
+	must.NoError(t, err)
 	err = w.Close()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// content-encoding is gzip and body is gzip data
 	try(&http.Response{
