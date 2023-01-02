@@ -50,7 +50,7 @@ func runTestCases(t *testing.T, cases testCases) {
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
 
-			assert.Equalf(t, code, c.expectedCode, "did not get expected exit code")
+			assert.Equalf(t, c.expectedCode, code, "did not get expected exit code")
 
 			if len(c.expectedOutputs) > 0 {
 				if assert.NotEmpty(t, out, "command output was empty") {
