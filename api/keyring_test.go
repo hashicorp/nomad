@@ -3,13 +3,13 @@ package api
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/shoenig/test/must"
 )
 
 func TestKeyring_CRUD(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -17,33 +17,33 @@ func TestKeyring_CRUD(t *testing.T) {
 
 	// Find the bootstrap key
 	keys, qm, err := kr.List(nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
-	require.Len(t, keys, 1)
+	must.Len(t, 1, keys)
 	oldKeyID := keys[0].KeyID
 
 	// Create a key by requesting a rotation
 	key, wm, err := kr.Rotate(nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, key)
+	must.NoError(t, err)
+	must.NotNil(t, key)
 	assertWriteMeta(t, wm)
 
 	// Read all the keys
 	keys, qm, err = kr.List(&QueryOptions{WaitIndex: key.CreateIndex})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
-	require.Len(t, keys, 2)
+	must.Len(t, 2, keys)
 
 	// Delete the old key
 	wm, err = kr.Delete(&KeyringDeleteOptions{KeyID: oldKeyID}, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Read all the keys back
 	keys, qm, err = kr.List(&QueryOptions{WaitIndex: key.CreateIndex})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
-	require.Len(t, keys, 1)
-	require.Equal(t, key.KeyID, keys[0].KeyID)
-	require.Equal(t, RootKeyState(RootKeyStateActive), keys[0].State)
+	must.Len(t, 1, keys)
+	must.Eq(t, key.KeyID, keys[0].KeyID)
+	must.Eq(t, RootKeyState(RootKeyStateActive), keys[0].State)
 }

@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/go-units"
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -129,7 +127,7 @@ func TestFS_Logs(t *testing.T) {
 		}
 
 		// Check length
-		test.Eq(t, input.Len(), result.Len())
+		must.Eq(t, input.Len(), result.Len())
 
 		// Check complete ordering
 		for i := 0; i < lines; i++ {
@@ -142,6 +140,7 @@ func TestFS_Logs(t *testing.T) {
 
 func TestFS_FrameReader(t *testing.T) {
 	testutil.Parallel(t)
+
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
 	errCh := make(chan error)
@@ -176,12 +175,8 @@ func TestFS_FrameReader(t *testing.T) {
 	p := make([]byte, 12)
 
 	n, err := r.Read(p[:5])
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-	if off := r.Offset(); off != n {
-		t.Fatalf("unexpected read bytes: got %v; wanted %v", n, off)
-	}
+	must.NoError(t, err)
+	must.Eq(t, n, r.Offset())
 
 	off := n
 	for {
@@ -190,24 +185,16 @@ func TestFS_FrameReader(t *testing.T) {
 			if err == io.EOF {
 				break
 			}
-			t.Fatalf("Read failed: %v", err)
+			must.NoError(t, err)
 		}
 		off += n
 	}
 
-	if !reflect.DeepEqual(p, expected) {
-		t.Fatalf("read %q, wanted %q", string(p), string(expected))
-	}
-
-	if err := r.Close(); err != nil {
-		t.Fatalf("Close() failed: %v", err)
-	}
-	if _, ok := <-cancelCh; ok {
-		t.Fatalf("Close() didn't close cancel channel")
-	}
-	if len(expected) != r.Offset() {
-		t.Fatalf("offset %d, wanted %d", r.Offset(), len(expected))
-	}
+	must.Eq(t, expected, p)
+	must.NoError(t, r.Close())
+	_, ok := <-cancelCh
+	must.False(t, ok)
+	must.Eq(t, len(expected), r.Offset())
 }
 
 func TestFS_FrameReader_Unblock(t *testing.T) {
@@ -224,13 +211,8 @@ func TestFS_FrameReader_Unblock(t *testing.T) {
 	p := make([]byte, 12)
 
 	n, err := r.Read(p)
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-
-	if n != 0 {
-		t.Fatalf("should have unblocked")
-	}
+	must.NoError(t, err)
+	must.Zero(t, n)
 
 	// Unset the unblock
 	r.SetUnblockTime(0)
@@ -243,7 +225,7 @@ func TestFS_FrameReader_Unblock(t *testing.T) {
 
 	select {
 	case <-resultCh:
-		t.Fatalf("shouldn't have unblocked")
+		must.Unreachable(t, must.Sprint("must not have unblocked"))
 	case <-time.After(300 * time.Millisecond):
 	}
 }
@@ -266,7 +248,5 @@ func TestFS_FrameReader_Error(t *testing.T) {
 	p := make([]byte, 12)
 
 	_, err := r.Read(p)
-	if err == nil || !strings.Contains(err.Error(), expected.Error()) {
-		t.Fatalf("bad error: %v", err)
-	}
+	must.ErrorIs(t, err, expected)
 }

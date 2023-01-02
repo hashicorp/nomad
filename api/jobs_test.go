@@ -2,22 +2,17 @@ package api
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobs_Register(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -25,31 +20,29 @@ func TestJobs_Register(t *testing.T) {
 
 	// Listing jobs before registering returns nothing
 	resp, _, err := jobs.List(nil)
-	require.Nil(err)
-	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
 
 	// Create a job and attempt to register it
 	job := testJob()
 	resp2, wm, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotNil(resp2)
-	require.NotEmpty(resp2.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
 	resp, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	require.Nil(err)
+	must.Nil(t, err)
 
 	// Check that we got the expected response
-	if len(resp) != 1 || resp[0].ID != *job.ID {
-		t.Fatalf("bad: %#v", resp[0])
-	}
+	must.Len(t, 1, resp)
+	must.Eq(t, *job.ID, resp[0].ID)
 }
 
 func TestJobs_Register_PreserveCounts(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -57,8 +50,8 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 
 	// Listing jobs before registering returns nothing
 	resp, _, err := jobs.List(nil)
-	require.Nil(err)
-	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
 
 	// Create a job
 	task := NewTask("task", "exec").
@@ -90,9 +83,9 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 
 	// Create a job and register it
 	resp2, wm, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotNil(resp2)
-	require.NotEmpty(resp2.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Update the job, new groups to test PreserveCounts
@@ -109,19 +102,18 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
 		PreserveCounts: true,
 	}, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Query the job scale status
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
-	require.NoError(err)
-	require.Equal(1, status.TaskGroups["group1"].Desired) // present and nil => preserved
-	require.Equal(2, status.TaskGroups["group2"].Desired) // present and specified => preserved
-	require.Equal(3, status.TaskGroups["group3"].Desired) // new => as specific in job spec
+	must.NoError(t, err)
+	must.Eq(t, 1, status.TaskGroups["group1"].Desired) // present and nil => preserved
+	must.Eq(t, 2, status.TaskGroups["group2"].Desired) // present and specified => preserved
+	must.Eq(t, 3, status.TaskGroups["group3"].Desired) // new => as specific in job spec
 }
 
 func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -129,8 +121,8 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 
 	// Listing jobs before registering returns nothing
 	resp, _, err := jobs.List(nil)
-	require.Nil(err)
-	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
 
 	// Create a job
 	task := NewTask("task", "exec").
@@ -162,9 +154,9 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 
 	// Create a job and register it
 	resp2, wm, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotNil(resp2)
-	require.NotEmpty(resp2.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Update the job, new groups to test PreserveCounts
@@ -179,73 +171,72 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 
 	// Update the job, with PreserveCounts = default [false]
 	_, _, err = jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Query the job scale status
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
-	require.NoError(err)
-	require.Equal("default", status.Namespace)
-	require.Equal(0, status.TaskGroups["group1"].Desired) // present => as specified
-	require.Equal(1, status.TaskGroups["group2"].Desired) // nil     => default (1)
-	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified
+	must.NoError(t, err)
+	must.Eq(t, "default", status.Namespace)
+	must.Eq(t, 0, status.TaskGroups["group1"].Desired) // present => as specified
+	must.Eq(t, 1, status.TaskGroups["group2"].Desired) // nil     => default (1)
+	must.Eq(t, 3, status.TaskGroups["group3"].Desired) // new     => as specified
 }
 
 func TestJobs_Register_EvalPriority(t *testing.T) {
 	testutil.Parallel(t)
-	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	// Listing jobs before registering returns nothing
 	listResp, _, err := c.Jobs().List(nil)
-	requireAssert.Nil(err)
-	requireAssert.Len(listResp, 0)
+	must.NoError(t, err)
+	must.Len(t, 0, listResp)
 
 	// Create a job and register it with an eval priority.
 	job := testJob()
 	registerResp, wm, err := c.Jobs().RegisterOpts(job, &RegisterOptions{EvalPriority: 99}, nil)
-	requireAssert.Nil(err)
-	requireAssert.NotNil(registerResp)
-	requireAssert.NotEmpty(registerResp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, registerResp)
+	must.UUIDv4(t, registerResp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Check the created job evaluation has a priority that matches our desired
 	// value.
 	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
-	requireAssert.NoError(err)
-	requireAssert.Equal(99, evalInfo.Priority)
+	must.NoError(t, err)
+	must.Eq(t, 99, evalInfo.Priority)
 }
 
 func TestJobs_Register_NoEvalPriority(t *testing.T) {
 	testutil.Parallel(t)
-	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	// Listing jobs before registering returns nothing
 	listResp, _, err := c.Jobs().List(nil)
-	requireAssert.Nil(err)
-	requireAssert.Len(listResp, 0)
+	must.NoError(t, err)
+	must.Len(t, 0, listResp)
 
 	// Create a job and register it with an eval priority.
 	job := testJob()
 	registerResp, wm, err := c.Jobs().RegisterOpts(job, nil, nil)
-	requireAssert.Nil(err)
-	requireAssert.NotNil(registerResp)
-	requireAssert.NotEmpty(registerResp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, registerResp)
+	must.UUIDv4(t, registerResp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Check the created job evaluation has a priority that matches the job
 	// priority.
 	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
-	requireAssert.NoError(err)
-	requireAssert.Equal(*job.Priority, evalInfo.Priority)
+	must.NoError(t, err)
+	must.Eq(t, *job.Priority, evalInfo.Priority)
 }
 
 func TestJobs_Validate(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -253,27 +244,18 @@ func TestJobs_Validate(t *testing.T) {
 	// Create a job and attempt to register it
 	job := testJob()
 	resp, _, err := jobs.Validate(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if len(resp.ValidationErrors) != 0 {
-		t.Fatalf("bad %v", resp)
-	}
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp.ValidationErrors)
 
 	job.ID = nil
 	resp1, _, err := jobs.Validate(job, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(resp1.ValidationErrors) == 0 {
-		t.Fatalf("bad %v", resp1)
-	}
+	must.NoError(t, err)
+	must.Positive(t, len(resp1.ValidationErrors))
 }
 
 func TestJobs_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
+
 	testCases := []struct {
 		name     string
 		expected *Job
@@ -1280,61 +1262,58 @@ func TestJobs_Canonicalize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
-			if !reflect.DeepEqual(tc.input, tc.expected) {
-				t.Fatalf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
-			}
+			must.Eq(t, tc.expected, tc.input)
 		})
 	}
 }
 
 func TestJobs_EnforceRegister(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
 	resp, _, err := jobs.List(nil)
-	require.Nil(err)
-	require.Empty(resp)
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
 	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
-	require.NotNil(err)
-	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
+	must.ErrorContains(t, err, RegisterEnforceIndexErrPrefix)
 
 	// Register
 	resp2, wm, err := jobs.EnforceRegister(job, 0, nil)
-	require.Nil(err)
-	require.NotNil(resp2)
-	require.NotZero(resp2.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
 	resp, qm, err := jobs.List(nil)
-	require.Nil(err)
-	require.Len(resp, 1)
-	require.Equal(*job.ID, resp[0].ID)
+	must.NoError(t, err)
+	must.Len(t, 1, resp)
+	must.Eq(t, *job.ID, resp[0].ID)
 	assertQueryMeta(t, qm)
 
 	// Fail at incorrect index
 	curIndex := resp[0].JobModifyIndex
 	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
-	require.NotNil(err)
-	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
+	must.ErrorContains(t, err, RegisterEnforceIndexErrPrefix)
 
 	// Works at correct index
 	resp3, wm, err := jobs.EnforceRegister(job, curIndex, nil)
-	require.Nil(err)
-	require.NotNil(resp3)
-	require.NotZero(resp3.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp3)
+	must.UUIDv4(t, resp3.EvalID)
 	assertWriteMeta(t, wm)
 }
 
 func TestJobs_Revert(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1342,49 +1321,32 @@ func TestJobs_Revert(t *testing.T) {
 	// Register twice
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp == nil || resp.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	must.NoError(t, err)
+	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
 	job.Meta = map[string]string{"foo": "new"}
 	resp, wm, err = jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp == nil || resp.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	must.NoError(t, err)
+	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
 	_, _, err = jobs.Revert(*job.ID, 0, pointerOf(uint64(10)), nil, "", "")
-	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
-		t.Fatalf("expected enforcement error: %v", err)
-	}
+	must.ErrorContains(t, err, "enforcing version")
 
 	// Works at correct index
 	revertResp, wm, err := jobs.Revert(*job.ID, 0, pointerOf(uint64(1)), nil, "", "")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if revertResp.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
-	if revertResp.EvalCreateIndex == 0 {
-		t.Fatalf("bad eval create index")
-	}
-	if revertResp.JobModifyIndex == 0 {
-		t.Fatalf("bad job modify index")
-	}
+	must.NoError(t, err)
+	must.UUIDv4(t, revertResp.EvalID)
+	must.Positive(t, revertResp.EvalCreateIndex)
+	must.Positive(t, revertResp.JobModifyIndex)
 	assertWriteMeta(t, wm)
 }
 
 func TestJobs_Info(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1393,35 +1355,26 @@ func TestJobs_Info(t *testing.T) {
 	// returns an error
 	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.Info(id, nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
+	must.ErrorContains(t, err, "not found")
 
 	// Register the job
 	job := testJob()
 	job.ID = &id
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
 	result, qm, err := jobs.Info(id, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if result == nil || *result.ID != *job.ID {
-		t.Fatalf("expect: %#v, got: %#v", job, result)
-	}
+	must.Eq(t, *result.ID, *job.ID)
 }
 
 func TestJobs_ScaleInvalidAction(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -1441,146 +1394,116 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 	}
 	for _, test := range tests {
 		_, _, err := jobs.Scale(test.jobID, test.group, &test.value, "reason", false, nil, nil)
-		require.Errorf(err, "expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
-		require.Containsf(err.Error(), test.want, "jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
+		must.ErrorContains(t, err, test.want)
 	}
 
 	// Register test job
 	job := testJob()
 	job.ID = pointerOf("TestJobs_Scale")
 	_, wm, err := jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Perform a scaling action with bad group name, verify error
 	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", pointerOf(2),
 		"because", false, nil, nil)
-	require.Error(err)
-	require.Contains(err.Error(), "does not exist")
+	must.ErrorContains(t, err, "does not exist")
 }
 
 func TestJobs_Versions(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Trying to retrieve a job by ID before it exists returns an error
 	_, _, _, err := jobs.Versions("job1", false, nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
+	must.ErrorContains(t, err, "not found")
 
 	// Register the job
 	job := testJob()
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
 	result, _, qm, err := jobs.Versions("job1", false, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if len(result) == 0 || *result[0].ID != *job.ID {
-		t.Fatalf("expect: %#v, got: %#v", job, result)
-	}
+	must.Eq(t, *job.ID, *result[0].ID)
 }
 
 func TestJobs_PrefixList(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
 	results, _, err := jobs.PrefixList("dummy")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if n := len(results); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.SliceEmpty(t, results)
 
 	// Register the job
 	job := testJob()
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
 	results, _, err = jobs.PrefixList((*job.ID)[:1])
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Check if we have the right list
-	if len(results) != 1 || results[0].ID != *job.ID {
-		t.Fatalf("bad: %#v", results)
-	}
+	must.Len(t, 1, results)
+	must.Eq(t, *job.ID, results[0].ID)
 }
 
 func TestJobs_List(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
 	results, _, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if n := len(results); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.SliceEmpty(t, results)
 
 	// Register the job
 	job := testJob()
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
 	results, _, err = jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Check if we have the right list
-	if len(results) != 1 || results[0].ID != *job.ID {
-		t.Fatalf("bad: %#v", results)
-	}
+	must.Len(t, 1, results)
+	must.Eq(t, *job.ID, results[0].ID)
 }
 
 func TestJobs_Allocations(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Looking up by a nonexistent job returns nothing
 	allocs, qm, err := jobs.Allocations("job1", true, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(allocs); n != 0 {
-		t.Fatalf("expected 0 allocs, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.Zero(t, qm.LastIndex)
+	must.SliceEmpty(t, allocs)
 
 	// TODO: do something here to create some allocations for
 	// an existing job, lookup again.
@@ -1588,48 +1511,39 @@ func TestJobs_Allocations(t *testing.T) {
 
 func TestJobs_Evaluations(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Looking up by a nonexistent job ID returns nothing
 	evals, qm, err := jobs.Evaluations("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(evals); n != 0 {
-		t.Fatalf("expected 0 evals, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.Zero(t, qm.LastIndex)
+	must.SliceEmpty(t, evals)
 
 	// Insert a job. This also creates an evaluation so we should
 	// be able to query that out after.
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Look up the evaluations again.
 	evals, qm, err = jobs.Evaluations("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that we got the evals back, evals are in order most recent to least recent
 	// so the last eval is the original registered eval
 	idx := len(evals) - 1
-	if n := len(evals); n == 0 || evals[idx].ID != resp.EvalID {
-		t.Fatalf("expected >= 1 eval (%s), got: %#v", resp.EvalID, evals[idx])
-	}
+	must.Len(t, 1, evals)
+	must.Eq(t, resp.EvalID, evals[idx].ID)
 }
 
 func TestJobs_Deregister(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1637,151 +1551,128 @@ func TestJobs_Deregister(t *testing.T) {
 	// Register a new job
 	job := testJob()
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Attempting delete on non-existing job returns an error
-	if _, _, err = jobs.Deregister("nope", false, nil); err != nil {
-		t.Fatalf("unexpected error deregistering job: %v", err)
-	}
+	_, _, err = jobs.Deregister("nope", false, nil)
+	must.NoError(t, err)
 
 	// Do a soft deregister of an existing job
 	evalID, wm3, err := jobs.Deregister("job1", false, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm3)
-	if evalID == "" {
-		t.Fatalf("missing eval ID")
-	}
+	must.UUIDv4(t, evalID)
 
 	// Check that the job is still queryable
 	out, qm1, err := jobs.Info("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm1)
-	if out == nil {
-		t.Fatalf("missing job")
-	}
+	must.NotNil(t, out)
 
 	// Do a purge deregister of an existing job
 	evalID, wm4, err := jobs.Deregister("job1", true, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
+
 	assertWriteMeta(t, wm4)
-	if evalID == "" {
-		t.Fatalf("missing eval ID")
-	}
+	must.UUIDv4(t, evalID)
 
 	// Check that the job is really gone
 	result, qm, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
+
 	assertQueryMeta(t, qm)
-	if n := len(result); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	must.SliceEmpty(t, result)
 }
 
 func TestJobs_Deregister_EvalPriority(t *testing.T) {
 	testutil.Parallel(t)
-	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	// Listing jobs before registering returns nothing
 	listResp, _, err := c.Jobs().List(nil)
-	requireAssert.Nil(err)
-	requireAssert.Len(listResp, 0)
+	must.NoError(t, err)
+	must.SliceEmpty(t, listResp)
 
 	// Create a job and register it.
 	job := testJob()
 	registerResp, wm, err := c.Jobs().Register(job, nil)
-	requireAssert.Nil(err)
-	requireAssert.NotNil(registerResp)
-	requireAssert.NotEmpty(registerResp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, registerResp)
+	must.UUIDv4(t, registerResp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Deregister the job with an eval priority.
 	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{EvalPriority: 97}, nil)
-	requireAssert.NoError(err)
-	requireAssert.NotEmpty(t, evalID)
+	must.NoError(t, err)
+	must.UUIDv4(t, evalID)
 
 	// Lookup the eval and check the priority on it.
 	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
-	requireAssert.NoError(err)
-	requireAssert.Equal(97, evalInfo.Priority)
+	must.NoError(t, err)
+	must.Eq(t, 97, evalInfo.Priority)
 }
 
 func TestJobs_Deregister_NoEvalPriority(t *testing.T) {
 	testutil.Parallel(t)
-	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	// Listing jobs before registering returns nothing
 	listResp, _, err := c.Jobs().List(nil)
-	requireAssert.Nil(err)
-	requireAssert.Len(listResp, 0)
+	must.NoError(t, err)
+	must.SliceEmpty(t, listResp)
 
 	// Create a job and register it.
 	job := testJob()
 	registerResp, wm, err := c.Jobs().Register(job, nil)
-	requireAssert.Nil(err)
-	requireAssert.NotNil(registerResp)
-	requireAssert.NotEmpty(registerResp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, registerResp)
+	must.UUIDv4(t, registerResp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Deregister the job with an eval priority.
 	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{}, nil)
-	requireAssert.NoError(err)
-	requireAssert.NotEmpty(t, evalID)
+	must.NoError(t, err)
+	must.UUIDv4(t, evalID)
 
 	// Lookup the eval and check the priority on it.
 	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
-	requireAssert.NoError(err)
-	requireAssert.Equal(*job.Priority, evalInfo.Priority)
+	must.NoError(t, err)
+	must.Eq(t, *job.Priority, evalInfo.Priority)
 }
 
 func TestJobs_ForceEvaluate(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Force-eval on a non-existent job fails
 	_, _, err := jobs.ForceEvaluate("job1", nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
+	must.ErrorContains(t, err, "not found")
 
 	// Create a new job
 	_, wm, err := jobs.Register(testJob(), nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Try force-eval again
 	evalID, wm, err := jobs.ForceEvaluate("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Retrieve the evals and see if we get a matching one
 	evals, qm, err := jobs.Evaluations("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
+
+	// todo(shoenig) fix must.SliceContainsFunc and use that
+	// https://github.com/shoenig/test/issues/88
 	for _, eval := range evals {
 		if eval.ID == evalID {
 			return
@@ -1845,6 +1736,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 
 func TestJobs_Plan(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1852,71 +1744,38 @@ func TestJobs_Plan(t *testing.T) {
 	// Create a job and attempt to register it
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp == nil || resp.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	must.NoError(t, err)
+	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Check that passing a nil job fails
-	if _, _, err := jobs.Plan(nil, true, nil); err == nil {
-		t.Fatalf("expect an error when job isn't provided")
-	}
+	_, _, err = jobs.Plan(nil, true, nil)
+	must.Error(t, err)
 
 	// Make a plan request
 	planResp, wm, err := jobs.Plan(job, true, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if planResp == nil {
-		t.Fatalf("nil response")
-	}
-
-	if planResp.JobModifyIndex == 0 {
-		t.Fatalf("bad JobModifyIndex value: %#v", planResp)
-	}
-	if planResp.Diff == nil {
-		t.Fatalf("got nil diff: %#v", planResp)
-	}
-	if planResp.Annotations == nil {
-		t.Fatalf("got nil annotations: %#v", planResp)
-	}
-	// Can make this assertion because there are no clients.
-	if len(planResp.CreatedEvals) == 0 {
-		t.Fatalf("got no CreatedEvals: %#v", planResp)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, planResp)
+	must.Positive(t, planResp.JobModifyIndex)
+	must.NotNil(t, planResp.Diff)
+	must.NotNil(t, planResp.Annotations)
+	must.SliceNotEmpty(t, planResp.CreatedEvals)
 	assertWriteMeta(t, wm)
 
 	// Make a plan request w/o the diff
 	planResp, wm, err = jobs.Plan(job, false, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, planResp)
 	assertWriteMeta(t, wm)
-
-	if planResp == nil {
-		t.Fatalf("nil response")
-	}
-
-	if planResp.JobModifyIndex == 0 {
-		t.Fatalf("bad JobModifyIndex value: %d", planResp.JobModifyIndex)
-	}
-	if planResp.Diff != nil {
-		t.Fatalf("got non-nil diff: %#v", planResp)
-	}
-	if planResp.Annotations == nil {
-		t.Fatalf("got nil annotations: %#v", planResp)
-	}
-	// Can make this assertion because there are no clients.
-	if len(planResp.CreatedEvals) == 0 {
-		t.Fatalf("got no CreatedEvals: %#v", planResp)
-	}
+	must.Positive(t, planResp.JobModifyIndex)
+	must.Nil(t, planResp.Diff)
+	must.NotNil(t, planResp.Annotations)
+	must.SliceNotEmpty(t, planResp.CreatedEvals)
 }
 
 func TestJobs_JobSummary(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1924,37 +1783,30 @@ func TestJobs_JobSummary(t *testing.T) {
 	// Trying to retrieve a job summary before the job exists
 	// returns an error
 	_, _, err := jobs.Summary("job1", nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %#v", err)
-	}
+	must.ErrorContains(t, err, "not found")
 
 	// Register the job
 	job := testJob()
 	taskName := job.TaskGroups[0].Name
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the job summary again and ensure it exists
 	result, qm, err := jobs.Summary("job1", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	if *job.ID != result.JobID {
-		t.Fatalf("err: expected job id of %s saw %s", *job.ID, result.JobID)
-	}
-	if _, ok := result.Summary[*taskName]; !ok {
-		t.Fatalf("err: unable to find %s key in job summary", *taskName)
-	}
+	must.Eq(t, *job.ID, result.JobID)
+
+	_, ok := result.Summary[*taskName]
+	must.True(t, ok)
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := NewBatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   pointerOf("global"),
@@ -1963,13 +1815,12 @@ func TestJobs_NewBatchJob(t *testing.T) {
 		Type:     pointerOf(JobTypeBatch),
 		Priority: pointerOf(5),
 	}
-	if !reflect.DeepEqual(job, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job)
-	}
+	must.Eq(t, expect, job)
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := NewServiceJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   pointerOf("global"),
@@ -1978,13 +1829,12 @@ func TestJobs_NewServiceJob(t *testing.T) {
 		Type:     pointerOf(JobTypeService),
 		Priority: pointerOf(5),
 	}
-	if !reflect.DeepEqual(job, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job)
-	}
+	must.Eq(t, expect, job)
 }
 
 func TestJobs_NewSystemJob(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := NewSystemJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   pointerOf("global"),
@@ -1993,13 +1843,12 @@ func TestJobs_NewSystemJob(t *testing.T) {
 		Type:     pointerOf(JobTypeSystem),
 		Priority: pointerOf(5),
 	}
-	if !reflect.DeepEqual(job, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job)
-	}
+	must.Eq(t, expect, job)
 }
 
 func TestJobs_NewSysbatchJob(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := NewSysbatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   pointerOf("global"),
@@ -2008,7 +1857,7 @@ func TestJobs_NewSysbatchJob(t *testing.T) {
 		Type:     pointerOf(JobTypeSysbatch),
 		Priority: pointerOf(5),
 	}
-	require.Equal(t, expect, job)
+	must.Eq(t, expect, job)
 }
 
 func TestJobs_SetMeta(t *testing.T) {
@@ -2017,37 +1866,28 @@ func TestJobs_SetMeta(t *testing.T) {
 
 	// Initializes a nil map
 	out := job.SetMeta("foo", "bar")
-	if job.Meta == nil {
-		t.Fatalf("should initialize metadata")
-	}
+	must.NotNil(t, job.Meta)
 
 	// Check that the job was returned
-	if job != out {
-		t.Fatalf("expect: %#v, got: %#v", job, out)
-	}
+	must.Eq(t, out, job)
 
 	// Setting another pair is additive
 	job.SetMeta("baz", "zip")
 	expect := map[string]string{"foo": "bar", "baz": "zip"}
-	if !reflect.DeepEqual(job.Meta, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job.Meta)
-	}
+	must.Eq(t, expect, job.Meta)
 }
 
 func TestJobs_Constrain(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := &Job{Constraints: nil}
 
 	// Create and add a constraint
 	out := job.Constrain(NewConstraint("kernel.name", "=", "darwin"))
-	if n := len(job.Constraints); n != 1 {
-		t.Fatalf("expected 1 constraint, got: %d", n)
-	}
+	must.Len(t, 1, job.Constraints)
 
 	// Check that the job was returned
-	if job != out {
-		t.Fatalf("expect: %#v, got: %#v", job, out)
-	}
+	must.Eq(t, job, out)
 
 	// Adding another constraint preserves the original
 	job.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
@@ -2063,25 +1903,20 @@ func TestJobs_Constrain(t *testing.T) {
 			Operand: ">=",
 		},
 	}
-	if !reflect.DeepEqual(job.Constraints, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job.Constraints)
-	}
+	must.Eq(t, expect, job.Constraints)
 }
 
 func TestJobs_AddAffinity(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := &Job{Affinities: nil}
 
 	// Create and add an affinity
 	out := job.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
-	if n := len(job.Affinities); n != 1 {
-		t.Fatalf("expected 1 affinity, got: %d", n)
-	}
+	must.Len(t, 1, job.Affinities)
 
 	// Check that the job was returned
-	if job != out {
-		t.Fatalf("expect: %#v, got: %#v", job, out)
-	}
+	must.Eq(t, job, out)
 
 	// Adding another affinity preserves the original
 	job.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
@@ -2099,13 +1934,12 @@ func TestJobs_AddAffinity(t *testing.T) {
 			Weight:  pointerOf(int8(50)),
 		},
 	}
-	if !reflect.DeepEqual(job.Affinities, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job.Affinities)
-	}
+	must.Eq(t, expect, job.Affinities)
 }
 
 func TestJobs_Sort(t *testing.T) {
 	testutil.Parallel(t)
+
 	jobs := []*JobListStub{
 		{ID: "job2"},
 		{ID: "job0"},
@@ -2118,13 +1952,12 @@ func TestJobs_Sort(t *testing.T) {
 		{ID: "job1"},
 		{ID: "job2"},
 	}
-	if !reflect.DeepEqual(jobs, expect) {
-		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
-	}
+	must.Eq(t, expect, jobs)
 }
 
 func TestJobs_AddSpread(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := &Job{Spreads: nil}
 
 	// Create and add a Spread
@@ -2132,14 +1965,10 @@ func TestJobs_AddSpread(t *testing.T) {
 
 	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
 	out := job.AddSpread(spread)
-	if n := len(job.Spreads); n != 1 {
-		t.Fatalf("expected 1 spread, got: %d", n)
-	}
+	must.Len(t, 1, job.Spreads)
 
 	// Check that the job was returned
-	if job != out {
-		t.Fatalf("expect: %#v, got: %#v", job, out)
-	}
+	must.Eq(t, job, out)
 
 	// Adding another spread preserves the original
 	spreadTarget2 := NewSpreadTarget("dc1", 100)
@@ -2169,15 +1998,12 @@ func TestJobs_AddSpread(t *testing.T) {
 			},
 		},
 	}
-	if !reflect.DeepEqual(job.Spreads, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
-	}
+	must.Eq(t, expect, job.Spreads)
 }
 
 // TestJobs_ScaleAction tests the scale target for task group count
 func TestJobs_ScaleAction(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -2191,14 +2017,12 @@ func TestJobs_ScaleAction(t *testing.T) {
 	newCount := origCount + 1
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", pointerOf(newCount), "this won't work",
-		false, nil, nil)
-	require.Error(err)
-	require.Contains(err.Error(), "not found")
+	_, _, err := jobs.Scale(id, "missing", pointerOf(newCount), "this won't work", false, nil, nil)
+	must.ErrorContains(t, err, "not found")
 
 	// Register the job
 	regResp, wm, err := jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
@@ -2208,37 +2032,34 @@ func TestJobs_ScaleAction(t *testing.T) {
 			"meta": "data",
 		}, nil)
 
-	require.NoError(err)
-	require.NotNil(scalingResp)
-	require.NotEmpty(scalingResp.EvalID)
-	require.NotEmpty(scalingResp.EvalCreateIndex)
-	require.Greater(scalingResp.JobModifyIndex, regResp.JobModifyIndex)
+	must.NoError(t, err)
+	must.NotNil(t, scalingResp)
+	must.UUIDv4(t, scalingResp.EvalID)
+	must.Positive(t, scalingResp.EvalCreateIndex)
+	must.Greater(t, regResp.JobModifyIndex, scalingResp.JobModifyIndex)
 	assertWriteMeta(t, wm)
 
 	// Query the job again
 	resp, _, err := jobs.Info(*job.ID, nil)
-	require.NoError(err)
-	require.Equal(*resp.TaskGroups[0].Count, newCount)
+	must.NoError(t, err)
+	must.Eq(t, *resp.TaskGroups[0].Count, newCount)
 
 	// Check for the scaling event
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
-	require.NoError(err)
-	require.Len(status.TaskGroups[groupName].Events, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, status.TaskGroups[groupName].Events)
 	scalingEvent := status.TaskGroups[groupName].Events[0]
-	require.False(scalingEvent.Error)
-	require.Equal("need more instances", scalingEvent.Message)
-	require.Equal(map[string]interface{}{
-		"meta": "data",
-	}, scalingEvent.Meta)
-	require.Greater(scalingEvent.Time, uint64(0))
-	require.NotNil(scalingEvent.EvalID)
-	require.Equal(scalingResp.EvalID, *scalingEvent.EvalID)
-	require.Equal(int64(origCount), scalingEvent.PreviousCount)
+	must.False(t, scalingEvent.Error)
+	must.Eq(t, "need more instances", scalingEvent.Message)
+	must.MapEq(t, map[string]interface{}{"meta": "data"}, scalingEvent.Meta)
+	must.Positive(t, scalingEvent.Time)
+	must.UUIDv4(t, *scalingEvent.EvalID)
+	must.Eq(t, scalingResp.EvalID, *scalingEvent.EvalID)
+	must.Eq(t, int64(origCount), scalingEvent.PreviousCount)
 }
 
 func TestJobs_ScaleAction_Error(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -2252,7 +2073,7 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 
 	// Register the job
 	regResp, wm, err := jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
@@ -2261,36 +2082,33 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 			"meta": "data",
 		}, nil)
 
-	require.NoError(err)
-	require.NotNil(scaleResp)
-	require.Empty(scaleResp.EvalID)
-	require.Empty(scaleResp.EvalCreateIndex)
+	must.NoError(t, err)
+	must.NotNil(t, scaleResp)
+	must.Eq(t, "", scaleResp.EvalID)
+	must.Zero(t, scaleResp.EvalCreateIndex)
 	assertWriteMeta(t, wm)
 
 	// Query the job again
 	resp, _, err := jobs.Info(*job.ID, nil)
-	require.NoError(err)
-	require.Equal(*resp.TaskGroups[0].Count, prevCount)
-	require.Equal(regResp.JobModifyIndex, scaleResp.JobModifyIndex)
-	require.Empty(scaleResp.EvalCreateIndex)
-	require.Empty(scaleResp.EvalID)
+	must.NoError(t, err)
+	must.Eq(t, *resp.TaskGroups[0].Count, prevCount)
+	must.Eq(t, regResp.JobModifyIndex, scaleResp.JobModifyIndex)
+	must.Zero(t, scaleResp.EvalCreateIndex)
+	must.Eq(t, "", scaleResp.EvalID)
 
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
-	require.NoError(err)
-	require.Len(status.TaskGroups[groupName].Events, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, status.TaskGroups[groupName].Events)
 	errEvent := status.TaskGroups[groupName].Events[0]
-	require.True(errEvent.Error)
-	require.Equal("something bad happened", errEvent.Message)
-	require.Equal(map[string]interface{}{
-		"meta": "data",
-	}, errEvent.Meta)
-	require.Greater(errEvent.Time, uint64(0))
-	require.Nil(errEvent.EvalID)
+	must.True(t, errEvent.Error)
+	must.Eq(t, "something bad happened", errEvent.Message)
+	must.Eq(t, map[string]interface{}{"meta": "data"}, errEvent.Meta)
+	must.Positive(t, errEvent.Time)
+	must.Nil(t, errEvent.EvalID)
 }
 
 func TestJobs_ScaleAction_Noop(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -2304,7 +2122,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 	// Register the job
 	regResp, wm, err := jobs.Register(job, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
@@ -2313,38 +2131,34 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 			"meta": "data",
 		}, nil)
 
-	require.NoError(err)
-	require.NotNil(scaleResp)
-	require.Empty(scaleResp.EvalID)
-	require.Empty(scaleResp.EvalCreateIndex)
+	must.NoError(t, err)
+	must.NotNil(t, scaleResp)
+	must.Eq(t, "", scaleResp.EvalID)
+	must.Zero(t, scaleResp.EvalCreateIndex)
 	assertWriteMeta(t, wm)
 
 	// Query the job again
 	resp, _, err := jobs.Info(*job.ID, nil)
-	require.NoError(err)
-	require.Equal(*resp.TaskGroups[0].Count, prevCount)
-	require.Equal(regResp.JobModifyIndex, scaleResp.JobModifyIndex)
-	require.Empty(scaleResp.EvalCreateIndex)
-	require.Empty(scaleResp.EvalID)
+	must.NoError(t, err)
+	must.Eq(t, *resp.TaskGroups[0].Count, prevCount)
+	must.Eq(t, regResp.JobModifyIndex, scaleResp.JobModifyIndex)
+	must.Zero(t, scaleResp.EvalCreateIndex)
+	must.NotNil(t, scaleResp.EvalID)
 
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
-	require.NoError(err)
-	require.Len(status.TaskGroups[groupName].Events, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, status.TaskGroups[groupName].Events)
 	noopEvent := status.TaskGroups[groupName].Events[0]
-	require.False(noopEvent.Error)
-	require.Equal("no count, just informative", noopEvent.Message)
-	require.Equal(map[string]interface{}{
-		"meta": "data",
-	}, noopEvent.Meta)
-	require.Greater(noopEvent.Time, uint64(0))
-	require.Nil(noopEvent.EvalID)
+	must.False(t, noopEvent.Error)
+	must.Eq(t, "no count, just informative", noopEvent.Message)
+	must.MapEq(t, map[string]interface{}{"meta": "data"}, noopEvent.Meta)
+	must.Positive(t, noopEvent.Time)
+	must.Nil(t, noopEvent.EvalID)
 }
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count
 func TestJobs_ScaleStatus(t *testing.T) {
 	testutil.Parallel(t)
-
-	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -2353,8 +2167,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	// Trying to retrieve a status before it exists returns an error
 	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.ScaleStatus(id, nil)
-	require.Error(err)
-	require.Contains(err.Error(), "not found")
+	must.ErrorContains(t, err, "not found")
 
 	// Register the job
 	job := testJob()
@@ -2362,18 +2175,16 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	groupName := *job.TaskGroups[0].Name
 	groupCount := *job.TaskGroups[0].Count
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Query the scaling endpoint and verify success
 	result, qm, err := jobs.ScaleStatus(id, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	require.Equal(groupCount, result.TaskGroups[groupName].Desired)
+	must.Eq(t, groupCount, result.TaskGroups[groupName].Desired)
 }
 
 func TestJobs_Services(t *testing.T) {
@@ -2390,11 +2201,10 @@ func TestJobs_Parse(t *testing.T) {
 	// that parsing is done server-side and not via the jobspec package.
 	{
 		c, err := NewClient(DefaultConfig())
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		_, err = c.Jobs().ParseHCL(jobspec, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Put")
+		must.ErrorContains(t, err, "Put")
 	}
 
 	c, s := makeClient(t, nil, nil)
@@ -2402,15 +2212,15 @@ func TestJobs_Parse(t *testing.T) {
 
 	// Test ParseHCL
 	job1, err := c.Jobs().ParseHCL(jobspec, false)
-	require.NoError(t, err)
-	require.Equal(t, "example", *job1.Name)
-	require.Nil(t, job1.Namespace)
+	must.NoError(t, err)
+	must.Eq(t, "example", *job1.Name)
+	must.Nil(t, job1.Namespace)
 
 	job1Canonicalized, err := c.Jobs().ParseHCL(jobspec, true)
-	require.NoError(t, err)
-	require.Equal(t, "example", *job1Canonicalized.Name)
-	require.Equal(t, "default", *job1Canonicalized.Namespace)
-	require.NotEqual(t, job1, job1Canonicalized)
+	must.NoError(t, err)
+	must.Eq(t, "example", *job1Canonicalized.Name)
+	must.Eq(t, "default", *job1Canonicalized.Namespace)
+	must.NotEq(t, job1, job1Canonicalized)
 
 	// Test ParseHCLOpts
 	req := &JobsParseRequest{
@@ -2420,8 +2230,8 @@ func TestJobs_Parse(t *testing.T) {
 	}
 
 	job2, err := c.Jobs().ParseHCLOpts(req)
-	require.NoError(t, err)
-	require.Equal(t, job1, job2)
+	must.NoError(t, err)
+	must.Eq(t, job1, job2)
 
 	// Test ParseHCLOpts with Canonicalize=true
 	req = &JobsParseRequest{
@@ -2430,8 +2240,8 @@ func TestJobs_Parse(t *testing.T) {
 		Canonicalize: true,
 	}
 	job2Canonicalized, err := c.Jobs().ParseHCLOpts(req)
-	require.NoError(t, err)
-	require.Equal(t, job1Canonicalized, job2Canonicalized)
+	must.NoError(t, err)
+	must.Eq(t, job1Canonicalized, job2Canonicalized)
 
 	// Test ParseHCLOpts with HCLv1=true
 	req = &JobsParseRequest{
@@ -2441,8 +2251,8 @@ func TestJobs_Parse(t *testing.T) {
 	}
 
 	job3, err := c.Jobs().ParseHCLOpts(req)
-	require.NoError(t, err)
-	require.Equal(t, job1, job3)
+	must.NoError(t, err)
+	must.Eq(t, job1, job3)
 
 	// Test ParseHCLOpts with HCLv1=true and Canonicalize=true
 	req = &JobsParseRequest{
@@ -2451,6 +2261,6 @@ func TestJobs_Parse(t *testing.T) {
 		Canonicalize: true,
 	}
 	job3Canonicalized, err := c.Jobs().ParseHCLOpts(req)
-	require.NoError(t, err)
-	require.Equal(t, job1Canonicalized, job3Canonicalized)
+	must.NoError(t, err)
+	must.Eq(t, job1Canonicalized, job3Canonicalized)
 }
