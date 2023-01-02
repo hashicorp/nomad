@@ -50,7 +50,7 @@ func runTestCases(t *testing.T, cases testCases) {
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
 
-			assert.Equalf(t, code, c.expectedCode, "did not get expected exit code")
+			assert.Equalf(t, c.expectedCode, code, "did not get expected exit code")
 
 			if len(c.expectedOutputs) > 0 {
 				if assert.NotEmpty(t, out, "command output was empty") {
@@ -727,7 +727,7 @@ func TestDebug_CollectConsul(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
-		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
+		c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
