@@ -305,11 +305,11 @@ func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Reque
 	query := req.URL.Query()
 	snap.PluginID = query.Get("plugin_id")
 	snap.ID = query.Get("snapshot_id")
+
 	secrets := query["secret"]
 	for _, raw := range secrets {
-		secret := strings.Split(raw, "=")
-		if len(secret) == 2 {
-			snap.Secrets[secret[0]] = secret[1]
+		if key, value, found := strings.Cut(raw, "="); found {
+			snap.Secrets[key] = value
 		}
 	}
 
@@ -340,9 +340,8 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 		secrets := strings.Split(querySecrets[0], ",")
 		args.Secrets = make(structs.CSISecrets)
 		for _, raw := range secrets {
-			secret := strings.Split(raw, "=")
-			if len(secret) == 2 {
-				args.Secrets[secret[0]] = secret[1]
+			if key, value, found := strings.Cut(raw, "="); found {
+				args.Secrets[key] = value
 			}
 		}
 	}
