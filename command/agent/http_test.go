@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -476,29 +477,37 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 func TestParseConsistency(t *testing.T) {
 	ci.Parallel(t)
 	var b structs.QueryOptions
+	var resp *httptest.ResponseRecorder
 
-	req, err := http.NewRequest("GET",
-		"/v1/catalog/nodes?stale", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	testCases := [2]string{"/v1/catalog/nodes?stale", "/v1/catalog/nodes?stale=true"}
+	for _, urlPath := range testCases {
+		req, err := http.NewRequest("GET", urlPath, nil)
+		must.NoError(t, err)
+		resp = httptest.NewRecorder()
+		parseConsistency(resp, req, &b)
+		must.True(t, b.AllowStale)
 	}
 
-	parseConsistency(req, &b)
-	if !b.AllowStale {
-		t.Fatalf("Bad: %v", b)
-	}
+	req, err := http.NewRequest("GET", "/v1/catalog/nodes?stale=false", nil)
+	must.NoError(t, err)
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
+	must.False(t, b.AllowStale)
+
+	req, err = http.NewRequest("GET", "/v1/catalog/nodes?stale=random", nil)
+	must.NoError(t, err)
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
+	must.False(t, b.AllowStale)
+	must.EqOp(t, 400, resp.Code)
 
 	b = structs.QueryOptions{}
-	req, err = http.NewRequest("GET",
-		"/v1/catalog/nodes?consistent", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	req, err = http.NewRequest("GET", "/v1/catalog/nodes?consistent", nil)
+	must.NoError(t, err)
 
-	parseConsistency(req, &b)
-	if b.AllowStale {
-		t.Fatalf("Bad: %v", b)
-	}
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
+	must.False(t, b.AllowStale)
 }
 
 func TestParseRegion(t *testing.T) {
