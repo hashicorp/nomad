@@ -15,9 +15,9 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -267,8 +267,6 @@ func (a *TestAgent) Shutdown() error {
 	}
 	a.shutdown = true
 
-	defer freeport.Return(a.ports)
-
 	defer func() {
 		if a.DataDir != "" {
 			os.RemoveAll(a.DataDir)
@@ -324,7 +322,7 @@ func (a *TestAgent) Client() *api.Client {
 // Instead of relying on one set of ports to be sufficient we retry
 // starting the agent with different ports on port conflict.
 func (a *TestAgent) pickRandomPorts(c *Config) {
-	ports := freeport.MustTake(3)
+	ports := ci.PortAllocator.Grab(3)
 	a.ports = append(a.ports, ports...)
 
 	c.Ports.HTTP = ports[0]

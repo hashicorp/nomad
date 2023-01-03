@@ -3,12 +3,11 @@ package testutil
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/freeport"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -30,10 +29,6 @@ type TestVault struct {
 	t      testing.T
 	waitCh chan error
 
-	// ports (if any) that are reserved through freeport that must be returned
-	// at the end of a test, done when Stop() is called.
-	ports []int
-
 	Addr      string
 	HTTPAddr  string
 	RootToken string
@@ -42,93 +37,70 @@ type TestVault struct {
 }
 
 func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
-	var ports []int
-	nextPort := func() int {
-		next := freeport.MustTake(1)
-		ports = append(ports, next...)
-		return next[0]
+	port := ci.PortAllocator.Grab(1)[0]
+	token := uuid.Generate()
+	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
+	http := fmt.Sprintf("http://127.0.0.1:%d", port)
+	root := fmt.Sprintf("-dev-root-token-id=%s", token)
+
+	cmd := exec.Command(binary, "server", "-dev", bind, root)
+	cmd.Stdout = testlog.NewWriter(t)
+	cmd.Stderr = testlog.NewWriter(t)
+
+	// Build the config
+	conf := vapi.DefaultConfig()
+	conf.Address = http
+
+	// Make the client and set the token to the root token
+	client, err := vapi.NewClient(conf)
+	if err != nil {
+		t.Fatalf("failed to build Vault API client: %v", err)
+	}
+	client.SetToken(token)
+
+	enable := true
+	tv := &TestVault{
+		cmd:       cmd,
+		t:         t,
+		Addr:      bind,
+		HTTPAddr:  http,
+		RootToken: token,
+		Client:    client,
+		Config: &config.VaultConfig{
+			Enabled: &enable,
+			Token:   token,
+			Addr:    http,
+		},
 	}
 
-	for i := 10; i >= 0; i-- {
-
-		port := nextPort() // collect every port for cleanup after the test
-
-		token := uuid.Generate()
-		bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
-		http := fmt.Sprintf("http://127.0.0.1:%d", port)
-		root := fmt.Sprintf("-dev-root-token-id=%s", token)
-
-		cmd := exec.Command(binary, "server", "-dev", bind, root)
-		cmd.Stdout = testlog.NewWriter(t)
-		cmd.Stderr = testlog.NewWriter(t)
-
-		// Build the config
-		conf := vapi.DefaultConfig()
-		conf.Address = http
-
-		// Make the client and set the token to the root token
-		client, err := vapi.NewClient(conf)
-		if err != nil {
-			t.Fatalf("failed to build Vault API client: %v", err)
-		}
-		client.SetToken(token)
-
-		enable := true
-		tv := &TestVault{
-			cmd:       cmd,
-			t:         t,
-			ports:     ports,
-			Addr:      bind,
-			HTTPAddr:  http,
-			RootToken: token,
-			Client:    client,
-			Config: &config.VaultConfig{
-				Enabled: &enable,
-				Token:   token,
-				Addr:    http,
-			},
-		}
-
-		if err := tv.cmd.Start(); err != nil {
-			tv.t.Fatalf("failed to start vault: %v", err)
-		}
-
-		// Start the waiter
-		tv.waitCh = make(chan error, 1)
-		go func() {
-			err := tv.cmd.Wait()
-			tv.waitCh <- err
-		}()
-
-		// Ensure Vault started
-		var startErr error
-		select {
-		case startErr = <-tv.waitCh:
-		case <-time.After(time.Duration(500*TestMultiplier()) * time.Millisecond):
-		}
-
-		if startErr != nil && i == 0 {
-			t.Fatalf("failed to start vault: %v", startErr)
-		} else if startErr != nil {
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			time.Sleep(wait)
-			continue
-		}
-
-		waitErr := tv.waitForAPI()
-		if waitErr != nil && i == 0 {
-			t.Fatalf("failed to start vault: %v", waitErr)
-		} else if waitErr != nil {
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			time.Sleep(wait)
-			continue
-		}
-
-		return tv
+	if err = tv.cmd.Start(); err != nil {
+		tv.t.Fatalf("failed to start vault: %v", err)
 	}
 
-	return nil
+	// Start the waiter
+	tv.waitCh = make(chan error, 1)
+	go func() {
+		err = tv.cmd.Wait()
+		tv.waitCh <- err
+	}()
 
+	// Ensure Vault started
+	var startErr error
+	select {
+	case startErr = <-tv.waitCh:
+	case <-time.After(time.Duration(500*TestMultiplier()) * time.Millisecond):
+	}
+
+	if startErr != nil {
+		t.Fatalf("failed to start vault: %v", startErr)
+	}
+
+	waitErr := tv.waitForAPI()
+	if waitErr != nil {
+		t.Fatalf("failed to start vault: %v", waitErr)
+	}
+
+	return tv
 }
 
 // NewTestVault returns a new TestVault instance that is ready for API calls
@@ -141,7 +113,7 @@ func NewTestVault(t testing.T) *TestVault {
 // Start must be called and it is the callers responsibility to deal with any
 // port conflicts that may occur and retry accordingly.
 func NewTestVaultDelayed(t testing.T) *TestVault {
-	port := freeport.MustTake(1)[0]
+	port := ci.PortAllocator.Grab(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -209,8 +181,6 @@ func (tv *TestVault) Start() error {
 
 // Stop stops the test Vault server
 func (tv *TestVault) Stop() {
-	defer freeport.Return(tv.ports)
-
 	if tv.cmd.Process == nil {
 		return
 	}

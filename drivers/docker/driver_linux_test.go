@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pointer"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -55,8 +54,7 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	driver := dh.Impl().(*Driver)
 	driver.config.PidsLimit = 5
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	cfg.PidsLimit = 7
@@ -75,8 +73,7 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.PidsLimit = 1
 	cfg.Command = "/bin/sh"
