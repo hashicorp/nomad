@@ -86,9 +86,9 @@ Connect][connect] integration.
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
 
-- `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
+- `name` `(string: "<job>-<taskgroup>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
-  name of the job, group, and task concatenated together with a dash, like
+  name of the job, task group, and task concatenated together with a dash, like
   `"docs-example-server"`. Each service must have a unique name within the
   cluster. Names must adhere to [RFC-1123
   §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited to
@@ -99,9 +99,9 @@ Connect][connect] integration.
   following keys are also available:
 
   - `${JOB}` - the name of the job
-  - `${GROUP}` - the name of the group
+  - `${TASKGROUP}` - the name of the task group
   - `${TASK}` - the name of the task
-  - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
+  - `${BASE}` - shorthand for `${JOB}-${TASKGROUP}-${TASK}`
 
   Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
   the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation.
