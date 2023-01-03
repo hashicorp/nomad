@@ -104,7 +104,7 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 
 	secrets := api.CSISecrets{}
 	for _, kv := range secretsArgs {
-		s := strings.Split(kv, "=")
+		s := strings.SplitN(kv, "=", 2)
 		if len(s) == 2 {
 			secrets[s[0]] = s[1]
 		} else {

@@ -117,7 +117,7 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 
 	secrets := api.CSISecrets{}
 	for _, kv := range secretsArgs {
-		s := strings.Split(kv, "=")
+		s := strings.SplitN(kv, "=", 2)
 		if len(s) == 2 {
 			secrets[s[0]] = s[1]
 		} else {
@@ -128,7 +128,7 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 
 	params := map[string]string{}
 	for _, kv := range parametersArgs {
-		p := strings.Split(kv, "=")
+		p := strings.SplitN(kv, "=", 2)
 		if len(p) == 2 {
 			params[p[0]] = p[1]
 		}
