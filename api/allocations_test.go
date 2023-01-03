@@ -22,6 +22,9 @@ func TestAllocations_List(t *testing.T) {
 	defer s.Stop()
 	a := c.Allocations()
 
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
 	// Querying when no allocs exist returns nothing
 	allocs, qm, err := a.List(nil)
 	must.NoError(t, err)
@@ -105,6 +108,9 @@ func TestAllocations_List_Resources(t *testing.T) {
 	defer s.Stop()
 	a := c.Allocations()
 
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
 	// Create a job and register it
 	job := testJob()
 	resp, wm, err := c.Jobs().Register(job, nil)
@@ -113,19 +119,24 @@ func TestAllocations_List_Resources(t *testing.T) {
 	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
-	// List the allocations
 	qo := &QueryOptions{
 		Params:    map[string]string{"resources": "true"},
 		WaitIndex: wm.LastIndex,
 	}
-	allocs, qm, err := a.List(qo)
+	var allocationStubs []*AllocationListStub
+	var qm *QueryMeta
+	allocationStubs, qm, err = a.List(qo)
 	must.NoError(t, err)
-	must.NonZero(t, qm.LastIndex)
 
 	// Check that we got the allocation back with resources
-	must.Len(t, 1, allocs)
-	must.Eq(t, resp.EvalID, allocs[0].EvalID)
-	must.NotNil(t, allocs[0].AllocatedResources)
+	must.Positive(t, qm.LastIndex)
+	must.Len(t, 1, allocationStubs)
+	alloc := allocationStubs[0]
+	must.Eq(t, resp.EvalID, alloc.EvalID,
+		must.Sprintf("registration: %#v", resp),
+		must.Sprintf("allocation:   %#v", alloc),
+	)
+	must.NotNil(t, alloc.AllocatedResources)
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {
