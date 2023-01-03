@@ -59,6 +59,8 @@ func TestHTTP_CSIParseSecrets(t *testing.T) {
 			structs.CSISecrets(map[string]string{"one": "overwrite"})},
 		{"one=value_one,two=value_two",
 			structs.CSISecrets(map[string]string{"one": "value_one", "two": "value_two"})},
+		{"one=value_one=two,two=value_two",
+			structs.CSISecrets(map[string]string{"one": "value_one=two", "two": "value_two"})},
 	}
 	for _, tc := range testCases {
 		req, _ := http.NewRequest("GET", "/v1/plugin/csi/foo", nil)

@@ -409,7 +409,7 @@ func parseCSISecrets(req *http.Request) structs.CSISecrets {
 	secrets := map[string]string{}
 	secretkvs := strings.Split(secretsHeader, ",")
 	for _, secretkv := range secretkvs {
-		kv := strings.Split(secretkv, "=")
+		kv := strings.SplitN(secretkv, "=", 2)
 		if len(kv) == 2 {
 			secrets[kv[0]] = kv[1]
 		}
