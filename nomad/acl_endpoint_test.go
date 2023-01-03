@@ -1568,8 +1568,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	ci.Parallel(t)
 
 	// Each sub-test uses the same server to avoid creating a new one for each
-	// test. This means some care has to be taken with resource naming, but
-	// does avoid lots of calls to systems such as freeport.
+	// test. This means some care has to be taken with resource naming.
 	testServer, rootACLToken, testServerCleanup := TestACLServer(t, nil)
 	defer testServerCleanup()
 	codec := rpcClient(t, testServer)
