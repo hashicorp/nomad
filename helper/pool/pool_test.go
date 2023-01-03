@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/freeport"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func newTestPool(t *testing.T) *ConnPool {
@@ -19,24 +19,19 @@ func newTestPool(t *testing.T) *ConnPool {
 }
 
 func TestConnPool_ConnListener(t *testing.T) {
-	require := require.New(t)
-
-	ports := freeport.MustTake(1)
-	defer freeport.Return(ports)
-
+	ports := ci.PortAllocator.Grab(1)
 	addrStr := fmt.Sprintf("127.0.0.1:%d", ports[0])
 	addr, err := net.ResolveTCPAddr("tcp", addrStr)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	exitCh := make(chan struct{})
 	defer close(exitCh)
 	go func() {
-		ln, err := net.Listen("tcp", addrStr)
-		require.Nil(err)
-		defer ln.Close()
+		ln, listenErr := net.Listen("tcp", addrStr)
+		must.NoError(t, listenErr)
+		defer func() { _ = ln.Close() }()
 		conn, _ := ln.Accept()
-		defer conn.Close()
-
+		defer func() { _ = conn.Close() }()
 		<-exitCh
 	}()
 
@@ -51,7 +46,7 @@ func TestConnPool_ConnListener(t *testing.T) {
 
 	// Make an RPC
 	_, err = pool.acquire("test", addr, structs.ApiMajorVersion)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Assert we get a connection.
 	select {
@@ -61,7 +56,9 @@ func TestConnPool_ConnListener(t *testing.T) {
 	}
 
 	// Test that the channel is closed when the pool shuts down.
-	require.Nil(pool.Shutdown())
+	err = pool.Shutdown()
+	must.NoError(t, err)
+
 	_, ok := <-c
-	require.False(ok)
+	must.False(t, ok)
 }

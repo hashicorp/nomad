@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -104,7 +104,7 @@ func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports, need to cleanup later
-		ports := freeport.MustTake(2)
+		ports := ci.PortAllocator.Grab(2)
 
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
@@ -125,8 +125,6 @@ func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 					if err != nil {
 						ch <- errors.Wrap(err, "failed to shutdown server")
 					}
-
-					freeport.Return(ports)
 				}()
 
 				select {
@@ -139,12 +137,10 @@ func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 				}
 			}
 		} else if i == 0 {
-			freeport.Return(ports)
-			t.Fatalf("err: %v", err)
+			t.Fatal("err:", err)
 		} else {
 			if server != nil {
 				_ = server.Shutdown()
-				freeport.Return(ports)
 			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
 			time.Sleep(wait)

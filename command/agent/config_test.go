@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -650,8 +649,7 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ports := freeport.MustTake(2)
-	defer freeport.Return(ports)
+	ports := ci.PortAllocator.Grab(2)
 
 	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
