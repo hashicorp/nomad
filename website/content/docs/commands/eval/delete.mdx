@@ -51,7 +51,7 @@ Successfuly deleted 1 evaluation
 
 Delete all evaluations with status `pending` for the `example` job:
 ```shell-session
-$ nomad eval delete -filter='Stauts == "pending" and JobID == "example"'
+$ nomad eval delete -filter='Status == "pending" and JobID == "example"'
 Do you want to list evals (3) before deletion? [y/N] y
 
 ID        Priority  Triggered By  Job ID   Namespace   Node ID   Status   Placement Failures
