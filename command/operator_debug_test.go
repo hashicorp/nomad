@@ -56,6 +56,7 @@ func runTestCases(t *testing.T, cases testCases) {
 			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
 			for _, expectedOutput := range c.expectedOutputs {
 				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
+
 			}
 			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
 		})
