@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -72,10 +71,9 @@ var (
 	busyboxLongRunningCmd = []string{"nc", "-l", "-p", "3000", "127.0.0.1"}
 )
 
-// Returns a task with a reserved and dynamic port. The ports are returned
-// respectively, and should be reclaimed with freeport.Return at the end of a test.
+// Returns a task with a reserved and dynamic port.
 func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
-	ports := freeport.MustTake(2)
+	ports := ci.PortAllocator.Grab(2)
 	dockerReserved := ports[0]
 	dockerDynamic := ports[1]
 
@@ -639,14 +637,11 @@ func TestDockerDriver_StartN(t *testing.T) {
 	testutil.DockerCompatible(t)
 	require := require.New(t)
 
-	task1, _, ports1 := dockerTask(t)
-	defer freeport.Return(ports1)
+	task1, _, _ := dockerTask(t)
 
-	task2, _, ports2 := dockerTask(t)
-	defer freeport.Return(ports2)
+	task2, _, _ := dockerTask(t)
 
-	task3, _, ports3 := dockerTask(t)
-	defer freeport.Return(ports3)
+	task3, _, _ := dockerTask(t)
 
 	taskList := []*drivers.TaskConfig{task1, task2, task3}
 
@@ -693,22 +688,22 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	testutil.DockerCompatible(t)
 	require := require.New(t)
 
-	task1, cfg1, ports1 := dockerTask(t)
-	defer freeport.Return(ports1)
+	task1, cfg1, _ := dockerTask(t)
+
 	tcfg1 := newTaskConfig("", []string{"echo", "hello"})
 	cfg1.Image = tcfg1.Image
 	cfg1.LoadImage = tcfg1.LoadImage
 	require.NoError(task1.EncodeConcreteDriverConfig(cfg1))
 
-	task2, cfg2, ports2 := dockerTask(t)
-	defer freeport.Return(ports2)
+	task2, cfg2, _ := dockerTask(t)
+
 	tcfg2 := newTaskConfig("musl", []string{"echo", "hello"})
 	cfg2.Image = tcfg2.Image
 	cfg2.LoadImage = tcfg2.LoadImage
 	require.NoError(task2.EncodeConcreteDriverConfig(cfg2))
 
-	task3, cfg3, ports3 := dockerTask(t)
-	defer freeport.Return(ports3)
+	task3, cfg3, _ := dockerTask(t)
+
 	tcfg3 := newTaskConfig("glibc", []string{"echo", "hello"})
 	cfg3.Image = tcfg3.Image
 	cfg3.LoadImage = tcfg3.LoadImage
@@ -758,8 +753,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.Labels = map[string]string{
 		"label1": "value1",
@@ -787,8 +781,7 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -822,8 +815,7 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -849,8 +841,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.ForcePull = true
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -873,8 +864,8 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.LoadImage = ""
 	cfg.Image = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
 	localDigest := "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7"
@@ -899,8 +890,8 @@ func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.SecurityOpt = []string{"seccomp=unconfined"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -923,8 +914,8 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.SecurityOpt = []string{"seccomp=./test-resources/docker/seccomp.json"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -942,8 +933,8 @@ func TestDockerDriver_Runtime(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.Runtime = "runc"
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -962,8 +953,8 @@ func TestDockerDriver_Runtime(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	ci.Parallel(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	opt := map[string]string{"size": "120G"}
 
 	cfg.StorageOpt = opt
@@ -986,8 +977,8 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 	ci.Parallel(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	task.DeviceEnv["NVIDIA_VISIBLE_DEVICES"] = "GPU_UUID_1"
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1025,8 +1016,8 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 		"custom",
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	for _, runtime := range allowRuntime {
@@ -1050,8 +1041,8 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
 	ci.Parallel(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	task.User = "random-user-1"
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1068,8 +1059,8 @@ func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	ci.Parallel(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	task.AllocID = uuid.Generate()
 	task.JobName = "redis-demo-job"
 
@@ -1159,8 +1150,7 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			task, cfg, ports := dockerTask(t)
-			defer freeport.Return(ports)
+			task, cfg, _ := dockerTask(t)
 
 			cfg.Logging = c.loggingConfig
 			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1181,8 +1171,7 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 	ci.Parallel(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.Mounts = []DockerMount{
 		{
@@ -1296,8 +1285,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			task, cfg, ports := dockerTask(t)
-			defer freeport.Return(ports)
+			task, cfg, _ := dockerTask(t)
 
 			dh := dockerDriverHarness(t, map[string]interface{}{
 				"allow_runtimes": []string{"runc", "nvidia", "nvidia-runtime-modified-name"},
@@ -1387,8 +1375,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			client := newTestDockerClient(t)
-			task, cfg, ports := dockerTask(t)
-			defer freeport.Return(ports)
+			task, cfg, _ := dockerTask(t)
 
 			if len(tc.CapAdd) > 0 {
 				cfg.CapAdd = tc.CapAdd
@@ -1465,8 +1452,8 @@ func TestDockerDriver_DNS(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		task, cfg, ports := dockerTask(t)
-		defer freeport.Return(ports)
+		task, cfg, _ := dockerTask(t)
+
 		task.DNS = c.cfg
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -1488,8 +1475,7 @@ func TestDockerDriver_Init(t *testing.T) {
 		t.Skip("Windows does not support init.")
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.Init = true
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1531,8 +1517,7 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			task, cfg, ports := dockerTask(t)
-			defer freeport.Return(ports)
+			task, cfg, _ := dockerTask(t)
 
 			cfg.CPUSetCPUs = testCase.CPUSetCPUs
 			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1556,8 +1541,7 @@ func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 		t.Skip("Windows does not support MemoryReservation")
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 
 	cfg.MemoryHardLimit = 300
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1580,8 +1564,8 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 		t.Skip("Windows docker does not support setting MacAddress")
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.MacAddress = "00:16:3e:00:00:00"
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -1599,8 +1583,8 @@ func TestDockerWorkDir(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.WorkDir = "/some/path"
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -1627,7 +1611,6 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	task, _, ports := dockerTask(t)
-	defer freeport.Return(ports)
 	res := ports[0]
 	dyn := ports[1]
 
@@ -1669,7 +1652,6 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
 	res := ports[0]
 	dyn := ports[1]
 	cfg.PortMap = map[string]int{
@@ -1718,7 +1700,6 @@ func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
 	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
 	hostIP := "127.0.0.1"
 	if runtime.GOOS == "windows" {
 		hostIP = ""
@@ -1761,7 +1742,6 @@ func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
 	res := ports[0]
 	dyn := ports[1]
 	cfg.PortMap = map[string]int{
@@ -1797,8 +1777,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 	cfg.Command = "echo"
 	cfg.Args = []string{"hello"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1835,8 +1814,7 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 	cfg.Command = "echo"
 	cfg.Args = []string{"hello"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1902,8 +1880,7 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 	cfg.Command = "echo"
 	cfg.Args = []string{"hello"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -1965,8 +1942,8 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.Command = "echo"
 	cfg.Args = []string{"hello"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -2032,8 +2009,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.Command = "sleep"
 	cfg.Args = []string{"1000"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -2258,8 +2235,8 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			driver.config.Volumes.Enabled = true
 
 			// Build the task
-			task, cfg, ports := dockerTask(t)
-			defer freeport.Return(ports)
+			task, cfg, _ := dockerTask(t)
+
 			cfg.Command = "sleep"
 			cfg.Args = []string{"10000"}
 			cfg.Mounts = c.Mounts
@@ -2457,7 +2434,7 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		task, cfg, ports := dockerTask(t)
+		task, cfg, _ := dockerTask(t)
 		cfg.Devices = tc.deviceConfig
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 		d := dockerDriverHarness(t, nil)
@@ -2468,7 +2445,6 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 		_, _, err := d.StartTask(task)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), tc.err.Error())
-		freeport.Return(ports)
 	}
 }
 
@@ -2494,8 +2470,8 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 		ContainerPath: containerPath,
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.Devices = []DockerDevice{config}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -2515,8 +2491,8 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	entrypoint := []string{"sh", "-c"}
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.Entrypoint = entrypoint
 	cfg.Command = strings.Join(busyboxLongRunningCmd, " ")
 	cfg.Args = []string{}
@@ -2543,8 +2519,8 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 		t.Skip("Windows Docker does not support root filesystem in read-only mode")
 	}
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.ReadonlyRootfs = true
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -2581,8 +2557,8 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	ci.Parallel(t)
 
 	// setup
-	_, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	_, cfg, _ := dockerTask(t)
+
 	driver := dockerDriverHarness(t, nil)
 
 	// assert volume error is recoverable
@@ -2596,8 +2572,8 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	expectedPrefix := "2001:db8:1::242:ac11"
 	expectedAdvertise := true
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	cfg.AdvertiseIPv6Addr = expectedAdvertise
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -2703,8 +2679,8 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
+
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client := newTestDockerClient(t)
@@ -2771,8 +2747,7 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 	ci.Parallel(t)
 
-	task, _, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, _, _ := dockerTask(t)
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
