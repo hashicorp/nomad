@@ -94,9 +94,8 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 
 	secrets := api.CSISecrets{}
 	for _, kv := range secretsArgs {
-		s := strings.Split(kv, "=")
-		if len(s) == 2 {
-			secrets[s[0]] = s[1]
+		if key, value, found := strings.Cut(kv, "="); found {
+			secrets[key] = value
 		} else {
 			c.Ui.Error("Secret must be in the format: -secret key=value")
 			return 1
