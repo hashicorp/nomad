@@ -67,7 +67,7 @@ export default class VariableFormComponent extends Component {
       this.path?.startsWith('nomad/') &&
       !(
         this.path?.startsWith('nomad/jobs') ||
-        this.path?.startsWith('nomad/job-templates')
+        (this.path?.startsWith('nomad/job-templates') && trimPath([this.path]) !== "nomad/job-templates")
       );
     return !!this.JSONError || !this.path || disallowedPath;
   }
