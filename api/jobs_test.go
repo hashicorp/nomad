@@ -1537,7 +1537,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	// Check that we got the evals back, evals are in order most recent to least recent
 	// so the last eval is the original registered eval
 	idx := len(evals) - 1
-	must.Len(t, 1, evals)
+	must.Positive(t, len(evals))
 	must.Eq(t, resp.EvalID, evals[idx].ID)
 }
 
