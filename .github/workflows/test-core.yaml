@@ -1,6 +1,6 @@
 name: Core CI Tests
 on:
-  push:
+  pull_request:
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
@@ -17,6 +17,27 @@ on:
       - 'terraform/**'
       - 'ui/**'
       - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+
 env:
   VERBOSE: 1
   GOTESTARCH: amd64
