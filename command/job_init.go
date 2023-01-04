@@ -109,15 +109,15 @@ func (c *JobInitCommand) Run(args []string) int {
 	var jobSpec []byte
 
 	if listTemplates {
-
 		// Get the HTTP client
 		client, err := c.Meta.Client()
 		qo := &api.QueryOptions{
 			Namespace: c.Meta.namespace,
 		}
+		// Get and list all variables at nomad/job-templates
 		vars, _, err := client.Variables().PrefixList("nomad/job-templates/", qo)
 		if err != nil {
-			fmt.Println(err)
+			c.Ui.Error(fmt.Sprintf("Error retrieving vars: %s", err))
 			return 1
 		}
 
@@ -127,15 +127,9 @@ func (c *JobInitCommand) Run(args []string) int {
 		} else {
 			c.Ui.Output(fmt.Sprintf("Use nomad job init -template=<template> with any of the following:"))
 			for _, v := range vars {
-				fmt.Printf("%s", v.Path)
+				fmt.Println(strings.TrimPrefix(v.Path, "nomad/job-templates/"))
 			}
 		}
-
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error retrieving vars: %s", err))
-			return 1
-		}
-
 		return 0
 	} else if template != "" {
 		// Get the HTTP client

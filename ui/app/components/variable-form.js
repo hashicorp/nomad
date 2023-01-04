@@ -78,7 +78,7 @@ export default class VariableFormComponent extends Component {
   }
 
   get jobTemplateName() {
-    return trimPath([this.path]).split('/')[2];
+    return this.path.split('nomad/job-templates/').slice(-1);
   }
 
   /**
@@ -189,19 +189,16 @@ export default class VariableFormComponent extends Component {
     set(this.args.model, 'path', e.target.value);
   }
 
-  @action updateKeyValue(key, value, b, c, d) {
-    console.log('UKV', key, value, b, c, d);
+  @action updateKeyValue(key, value) {
     if (this.keyValues.find((kv) => kv.key === key)) {
       this.keyValues.find((kv) => kv.key === key).value = value;
     } else {
       this.keyValues.pushObject({ key, value, warnings: EmberObject.create() });
     }
-    console.log('after the fact', this.keyValues);
   }
 
   @action
   async save(e, overwrite = false) {
-    console.log('about to save my var and', this.keyValues);
     if (e.type === 'submit') {
       e.preventDefault();
     }
