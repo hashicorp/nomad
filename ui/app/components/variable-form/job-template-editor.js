@@ -4,9 +4,6 @@ import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 
 export default class JobTemplateEditor extends Component {
-  // @tracked description = this.args.keyValues?.findBy('key', 'description')?.value;
-  // @tracked template = this.args.keyValues?.findBy('key', 'template')?.value;
-
   @tracked description;
   @tracked template;
   @action

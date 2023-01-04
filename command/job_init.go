@@ -111,9 +111,14 @@ func (c *JobInitCommand) Run(args []string) int {
 	if listTemplates {
 		// Get the HTTP client
 		client, err := c.Meta.Client()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+			return 1
+		}
 		qo := &api.QueryOptions{
 			Namespace: c.Meta.namespace,
 		}
+
 		// Get and list all variables at nomad/job-templates
 		vars, _, err := client.Variables().PrefixList("nomad/job-templates/", qo)
 		if err != nil {
@@ -122,10 +127,10 @@ func (c *JobInitCommand) Run(args []string) int {
 		}
 
 		if len(vars) == 0 {
-			c.Ui.Error(fmt.Sprintf("No variables in nomad/job-templates"))
+			c.Ui.Error("No variables in nomad/job-templates")
 			return 1
 		} else {
-			c.Ui.Output(fmt.Sprintf("Use nomad job init -template=<template> with any of the following:"))
+			c.Ui.Output("Use nomad job init -template=<template> with any of the following:")
 			for _, v := range vars {
 				fmt.Println(strings.TrimPrefix(v.Path, "nomad/job-templates/"))
 			}
