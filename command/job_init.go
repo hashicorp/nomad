@@ -37,6 +37,12 @@ Init Options:
 
   -connect
     If the connect flag is set, the jobspec includes Consul Connect integration.
+
+  -template
+    Specifies a predefined template to initialize. Must be a Nomad Variable that lives at nomad/job-templates/<template>
+
+  -list-templates
+    Display a list of possible job templates to pass to -template. Reads from all variables pathed at nomad/job-templates/<template>
 `
 	return strings.TrimSpace(helpText)
 }
@@ -62,12 +68,14 @@ func (c *JobInitCommand) Run(args []string) int {
 	var short bool
 	var connect bool
 	var template string
+	var listTemplates bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&connect, "connect", false, "")
 	flags.StringVar(&template, "template", "", "The name of the job template variable to initialize")
+	flags.BoolVar(&listTemplates, "list-templates", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -93,16 +101,43 @@ func (c *JobInitCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", filename, err))
 		return 1
 	}
-	if !os.IsNotExist(err) {
+	if !os.IsNotExist(err) && !listTemplates {
 		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", filename))
 		return 1
 	}
 
 	var jobSpec []byte
 
-	if template != "" {
-		c.Ui.Output(fmt.Sprintf("Okay, parsing with %s", template))
+	if listTemplates {
 
+		// Get the HTTP client
+		client, err := c.Meta.Client()
+		qo := &api.QueryOptions{
+			Namespace: c.Meta.namespace,
+		}
+		vars, _, err := client.Variables().PrefixList("nomad/job-templates/", qo)
+		if err != nil {
+			fmt.Println(err)
+			return 1
+		}
+
+		if len(vars) == 0 {
+			c.Ui.Error(fmt.Sprintf("No variables in nomad/job-templates"))
+			return 1
+		} else {
+			c.Ui.Output(fmt.Sprintf("Use nomad job init -template=<template> with any of the following:"))
+			for _, v := range vars {
+				fmt.Printf("%s", v.Path)
+			}
+		}
+
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving vars: %s", err))
+			return 1
+		}
+
+		return 0
+	} else if template != "" {
 		// Get the HTTP client
 		client, err := c.Meta.Client()
 		if err != nil {
@@ -113,9 +148,7 @@ func (c *JobInitCommand) Run(args []string) int {
 		qo := &api.QueryOptions{
 			Namespace: c.Meta.namespace,
 		}
-		fmt.Println("template is", template)
 		sv, _, err := client.Variables().Read("nomad/job-templates/"+template, qo)
-		fmt.Println("sv is", sv)
 		if err != nil {
 			if err.Error() == "variable not found" {
 				c.Ui.Warn(errVariableNotFound)
@@ -127,6 +160,7 @@ func (c *JobInitCommand) Run(args []string) int {
 		// If the user provided an item key, return that value instead of the whole
 		// object
 		if v, ok := sv.Items["template"]; ok {
+			c.Ui.Output(fmt.Sprintf("Initializing a job template from %s", template))
 			jobSpec = []byte(v)
 		} else {
 			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", args[1]))

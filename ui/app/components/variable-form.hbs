@@ -3,10 +3,12 @@
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}
-    <div class="related-entities related-entities-hint">
-      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
-      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-    </div>
+    {{#unless this.isJobTemplateVariable}}
+      <div class="related-entities related-entities-hint">
+        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      </div>
+    {{/unless}}
   {{/if}}
 
   {{#if this.hasConflict}}
@@ -61,6 +63,16 @@
           .
         </p>
       {{/if}}
+      {{#if this.isJobTemplateVariable}}
+        <p class="help job-template-hint">
+          Use this variable to generate job templates with
+          <code>nomad job init -template={{this.jobTemplateName}}
+            <CopyButton
+              @clipboardText="nomad job init -template={{this.jobTemplateName}}"
+            />
+          </code>
+        </p>
+      {{/if}}
     </label>
     <VariableForm::NamespaceFilter 
       @data={{hash 
@@ -76,8 +88,6 @@
   </div>
   {{#if this.isJobTemplateVariable}}
     <VariableForm::JobTemplateEditor
-      {{!-- @description={{this.keyValues.description}}
-      @template={{this.keyValues.template}} --}}
       @keyValues={{this.keyValues}}
       @updateKeyValue={{this.updateKeyValue}}
     />

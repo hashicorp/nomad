@@ -77,6 +77,10 @@ export default class VariableFormComponent extends Component {
     return this.path?.startsWith('nomad/job-templates/');
   }
 
+  get jobTemplateName() {
+    return trimPath([this.path]).split('/')[2];
+  }
+
   /**
    * @type {MutableArray<{key: string, value: string, warnings: EmberObject}>}
    */
