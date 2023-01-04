@@ -1,0 +1,179 @@
+---
+name: build_nomad
+
+# This workflow is intended to be called by the build workflow for each Nomad
+# binary that needs to be built and packaged. The ci make targets that are
+# utilized automatically determine build metadata and handle building and
+# packing Nomad.
+
+on:
+  workflow_call:
+    inputs:
+      bundle-path:
+        required: false
+        type: string
+      cgo-enabled:
+        type: string
+        default: 1
+      create-packages:
+        type: boolean
+        default: true
+      goos:
+        required: true
+        type: string
+      goarch:
+        required: true
+        type: string
+      go-tags:
+        type: string
+      go-version:
+        type: string
+      package-name:
+        type: string
+        default: nomad
+      nomad-version:
+        type: string
+        required: true
+      build-ref:
+        description: 'The git ref to build from'
+        type: string
+        default: ''
+        required: false
+      make-prerelease:
+        description: "Run prerelease to generate files"
+        type: "boolean"
+        required: false
+        default: true
+
+jobs:
+  determine-runner:
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.get-runner.outputs.runner }}
+    steps:
+      - name: Get runner
+        id: get-runner
+        run: |
+          RUNNER=""
+          if [ "${{ inputs.goos }}" == "darwin" ]; then
+            RUNNER="macos"
+          else
+            RUNNER="custom-linux-xxl-nomad-20.04"
+          fi
+          echo "::set-output name=runner::$RUNNER"
+      - name: Verify runner
+        run: |
+          echo "Runner: ${{ steps.get-runner.outputs.runner }}"
+  build:
+    needs: determine-runner
+    runs-on: ${{ needs.determine-runner.outputs.runner }}
+    name: Nomad ${{ inputs.goos }} ${{ inputs.goarch }} v${{ inputs.nomad-version }}
+    env:
+      GOPRIVATE: "github.com/hashicorp/*"
+      TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Setup Git
+        run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+      - name: Install Linux build utilties
+        if: ${{ inputs.goos == 'linux' }}
+        run: |
+          sudo apt-get install -y software-properties-common
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            libc6-dev-i386 \
+            libpcre3-dev \
+            linux-libc-dev:i386
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-multilib-arm-linux-gnueabihf
+
+      - name: Set gcc
+        if: ${{ inputs.goos == 'linux' }}
+        run: |
+          if [ "${{ inputs.goarch }}" == "arm" ]; then
+            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          elif [ "${{ inputs.goarch }}" == "arm64" ]; then
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+      - name: Build UI
+        run: make crt-build-ui
+      - name: Build Nomad
+        env:
+          CGO_ENABLED: ${{ inputs.cgo-enabled }}
+          GOARCH: ${{ inputs.goarch }}
+          GOOS: ${{ inputs.goos }}
+          GO_TAGS: ${{ inputs.go-tags }}
+        run: |
+          make crt-build
+          BUNDLE_PATH="${{ inputs.package-name }}_${{ inputs.nomad-version }}_${{ inputs.goos }}_${{ inputs.goarch }}.zip"
+          echo "--> Bundling pkg/* to $BUNDLE_PATH"
+          zip -r -j "$BUNDLE_PATH" pkg/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ inputs.goos }}_${{ inputs.goarch }}.zip
+          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ inputs.goos }}_${{ inputs.goarch }}.zip
+
+      - name: Package
+        if: ${{ inputs.goos == 'linux' }}
+        uses: hashicorp/actions-packaging-linux@v1
+        with:
+          name: ${{ env.PKG_NAME }}-enterprise
+          description: "Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications."
+          arch: ${{ inputs.goarch }}
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          maintainer: "HashiCorp"
+          homepage: "https://github.com/hashicorp/nomad"
+          license: "MPL-2.0"
+          binary: "pkg/${{ inputs.package-name }}"
+          deb_depends: "openssl"
+          rpm_depends: "openssl"
+          config_dir: ".release/linux/package/"
+          preinstall: ".release/linux/preinst"
+          postinstall: ".release/linux/postinst"
+          postremove: ".release/linux/postrm"
+
+      - name: Set Package Names
+        run: |
+          echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
+          echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.RPM_PACKAGE }}
+          path: out/${{ env.RPM_PACKAGE }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.DEB_PACKAGE }}
+          path: out/${{ env.DEB_PACKAGE }}
+

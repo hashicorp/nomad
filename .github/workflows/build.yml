@@ -75,7 +75,6 @@ jobs:
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
-
   build-other:
     needs: [get-go-version, get-product-version]
     strategy:
@@ -84,6 +83,7 @@ jobs:
         goarch: ["386", "amd64"]
       fail-fast: true
     uses: ./.github/workflows/build-nomad-oss.yml
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     with:
       create-packages: false
       goarch: ${{ matrix.goarch }}
@@ -94,50 +94,49 @@ jobs:
       package-name: ${{ needs.get-product-version.outputs.package-name }}
       nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
-
   build-linux:
     needs: [get-go-version, get-product-version]
     strategy:
       matrix:
         goos: [linux]
-        goarch: [arm, arm64, 386, amd64]
+        goarch: ["arm", "arm64", "386", "amd64"]
       fail-fast: true
     uses: ./.github/workflows/build-nomad-oss.yml
     with:
       goarch: ${{ matrix.goarch }}
       goos: ${{ matrix.goos }}
-      go-tags: release
       cgo-enabled: 1
+      go-tags: release
+      go-version: ${{ needs.get-go-version.outputs.go-version }}
+      package-name: ${{ needs.get-product-version.outputs.package-name }}
+      nomad-version: ${{ needs.get-product-version.outputs.product-version }}
+    secrets: inherit
+  build-darwin:
+    needs: [get-go-version, get-product-version]
+    strategy:
+      matrix:
+        goos: [darwin]
+        goarch: ["arm64", "amd64"]
+      fail-fast: true
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    uses: ./.github/workflows/build-nomad-oss.yml
+    with:
+      create-packages: false
+      goarch: ${{ matrix.goarch }}
+      goos: ${{ matrix.goos }}
+      cgo-enabled: 1
+      go-tags: release netcgo
       go-version: ${{ needs.get-go-version.outputs.go-version }}
       package-name: ${{ needs.get-product-version.outputs.package-name }}
       nomad-version: ${{ needs.get-product-version.outputs.product-version }}
     secrets: inherit
 
-  build-darwin:
-      name: Build Nomad Darwin
-      needs:  [get-go-version, get-product-version]
-      strategy:
-        matrix:
-          goos: [darwin]
-          goarch: [arm64, amd64]
-        fail-fast: true
-      uses: ./.github/workflows/build-nomad-oss.yml
-      with:
-        create-packages: false
-        goarch: ${{ matrix.goarch }}
-        goos: ${{ matrix.goos }}
-        go-tags: release netcgo
-        cgo-enabled: 1
-        go-version: ${{ needs.get-go-version.outputs.go-version }}
-        package-name: ${{ needs.get-product-version.outputs.package-name }}
-        nomad-version: ${{ needs.get-product-version.outputs.product-version }}
-      secrets: inherit
-
   # This placed here for when the Nomad team is ready to build docker images.
-  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
+  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc
+  # [template is housed in github.com/hashicorp/crt-core-helloworld-enterprise].
 
-  # build-docker-default:
-  #   name: Docker ${{ matrix.arch }} default release build
+  # build-docker:
+  #   name: Docker ${{ matrix.arch }} build
   #   needs:
   #     - get-product-version
   #     - build
