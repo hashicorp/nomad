@@ -473,12 +473,14 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 	// Create a log writer, and wrap a logOutput around it
 	writers := []io.Writer{logFilter}
 	logLevelMap := map[string]gsyslog.Priority{
-		"OFF":   gsyslog.LOG_EMERG,
 		"ERROR": gsyslog.LOG_ERR,
 		"WARN":  gsyslog.LOG_WARNING,
 		"INFO":  gsyslog.LOG_INFO,
 		"DEBUG": gsyslog.LOG_DEBUG,
 		"TRACE": gsyslog.LOG_DEBUG,
+	}
+	if config.LogLevel == "OFF" {
+		config.EnableSyslog = false
 	}
 	// Check if syslog is enabled
 	if config.EnableSyslog {
