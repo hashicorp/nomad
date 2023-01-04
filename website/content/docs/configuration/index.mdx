@@ -165,7 +165,8 @@ testing.
   diagnostic information about Nomad's internals.
 
 - `enable_syslog` `(bool: false)` - Specifies if the agent should log to syslog.
-  This option only works on Unix based systems.
+  This option only works on Unix based systems. The log level inherits from
+  the Nomad agent log set in `log_level`
 
 - `http_api_response_headers` `(map<string|string>: nil)` - Specifies
   user-defined headers to add to the HTTP API responses.
