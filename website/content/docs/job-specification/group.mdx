@@ -66,20 +66,21 @@ job "docs" {
   all tasks in this group. If omitted, a default policy exists for each job
   type, which can be found in the [restart stanza documentation][restart].
 
-- `service` <code>([Service][]: nil)</code> - Specifies integrations with
-  [Consul](/docs/configuration/consul) for service discovery.
-  Nomad automatically registers each service when an allocation
-  is started and de-registers them when the allocation is destroyed.
+- `service` <code>([Service][]: nil)</code> - Specifies integrations with Nomad
+  or [Consul](/docs/configuration/consul) for service discovery. Nomad
+  automatically registers each service when an allocation is started and
+  de-registers them when the allocation is destroyed.
 
 - `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
-  stopping a group's tasks. The delay occurs between Consul deregistration
-  and sending each task a shutdown signal. Ideally, services would fail
-  healthchecks once they receive a shutdown signal. Alternatively
+  stopping a group's tasks. The delay occurs between Consul or Nomad service
+  deregistration and sending each task a shutdown signal. Ideally, services
+  would fail health checks once they receive a shutdown signal. Alternatively,
   `shutdown_delay` may be set to give in-flight requests time to complete
   before shutting down. A group level `shutdown_delay` will run regardless
-  if there are any defined group services. In addition, tasks may have their
-  own [`shutdown_delay`](/docs/job-specification/task#shutdown_delay)
-  which waits between deregistering task services and stopping the task.
+  if there are any defined group [services](/docs/job-specification/group#service)
+  and only applies to these services. In addition, tasks may have their own
+  [`shutdown_delay`](/docs/job-specification/task#shutdown_delay) which waits
+  between de-registering task services and stopping the task.
 
 - `stop_after_client_disconnect` `(string: "")` - Specifies a duration after
   which a Nomad client will stop allocations, if it cannot communicate with the
