@@ -61,6 +61,10 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   respective services, each tagged appropriately with either `http` or `rpc`
   tag. Nomad servers also advertise a `serf` tagged service.
 
+- `grpc_ca_file` `(string: "")` - Specifies an optional path to the GRPC CA
+   certificate used for communication between Connect sidecar proxies and Consul
+   agents. Will default to the `CONSUL_GRPC_CACERT` environment variable if set.
+
 - `ca_file` `(string: "")` - Specifies an optional path to the CA certificate
   used for Consul communication. This defaults to the system bundle if
   unspecified. Will default to the `CONSUL_CACERT` environment variable if set.
