@@ -95,12 +95,13 @@ Linux clients support a network [`mode`][network_mode] called [`bridge`][]. A
 bridge network acts like a virtual network switch allowing processes connected
 to the bridge to reach each other while isolating them from others.
 
-When a Nomad agent starts in a Linux system it creates a bridge network called
-`nomad` (or the value set in [`bridge_network_name`][]) using the [`bridge` CNI
-plugin][cni_bridge]. Before using this mode you must first [install the CNI
-plugins][cni_install] into your clients.
+When an allocation uses bridge networking, the Nomad agent creates a bridge
+called `nomad` (or the value set in [`bridge_network_name`][]) using the
+[`bridge` CNI plugin][cni_bridge] if one doesn't exist yet. Before using this
+mode you must first [install the CNI plugins][cni_install] into your clients.
+By default a single bridge is created in each Nomad client.
 
-<!-- ource: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
+<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
 [![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
 
 Allocations that use the `bridge` network mode run in an isolated network
@@ -304,7 +305,7 @@ assigned random port numbers and so Nomad service discovery with DNS uses
 [allocation]: /docs/concepts/architecture#allocation
 [cni]: /docs/networking/cni
 [cni_bridge]: https://www.cni.dev/plugins/current/main/bridge/
-[cni_install]: /docs/integrations/consul-connect#cni-plugins
+[cni_install]: https://developer.hashicorp.com/nomad/tutorials/get-started/get-started-install#post-installation-steps
 [consul_dns]: https://developer.hashicorp.com/consul/docs/discovery/dns
 [consul_dns_forwarding]: https://developer.hashicorp.com/consul/tutorials/networking/dns-forwarding
 [consul_service_mesh]: /docs/integrations/consul-connect
