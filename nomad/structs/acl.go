@@ -916,7 +916,7 @@ type ACLWhoAmIResponse struct {
 // ACL Roles and Policies.
 type ACLBindingRule struct {
 
-	// ID is an internally generated UUID for this role and is controlled by
+	// ID is an internally generated UUID for this rule and is controlled by
 	// Nomad.
 	ID string
 
