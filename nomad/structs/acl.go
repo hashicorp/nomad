@@ -168,11 +168,11 @@ const (
 )
 
 var (
-	// validACLRoleName is used to validate an ACL role name.
-	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	// ValidACLRoleName is used to validate an ACL role name.
+	ValidACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
 	// validACLAuthMethodName is used to validate an ACL auth method name.
-	validACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	ValidACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
@@ -406,7 +406,7 @@ func (a *ACLRole) Validate() error {
 
 	var mErr multierror.Error
 
-	if !validACLRoleName.MatchString(a.Name) {
+	if !ValidACLRoleName.MatchString(a.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
@@ -777,7 +777,7 @@ func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
 func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	var mErr multierror.Error
 
-	if !validACLAuthMethod.MatchString(a.Name) {
+	if !ValidACLAuthMethod.MatchString(a.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 

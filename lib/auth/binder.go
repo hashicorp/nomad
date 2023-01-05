@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-bexpr"
@@ -121,9 +120,9 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 			}
 
 			if policy != nil {
-				// bindings.Policies = append(bindings.Policies, &structs.ACLTokenPolicyLink{
-				// Name: policy.Name,
-				// })
+				bindings.Policies = append(bindings.Policies, &structs.ACLRolePolicyLink{
+					Name: policy.Name,
+				})
 			}
 		}
 	}
@@ -157,7 +156,7 @@ func IsValidBindName(bindType, bindName string, availableVariables []string) (bo
 // - If the computed name is not valid for the type ("INVALID_NAME", false, nil) is returned.
 // - If the computed name is valid for the type ("VALID_NAME", true, nil) is returned.
 func computeBindName(bindType, bindName string, projectedVars map[string]string) (string, bool, error) {
-	bindName, err := InterpolateHIL(bindName, projectedVars, true)
+	bindName, err := interpolateHIL(bindName, projectedVars, true)
 	if err != nil {
 		return "", false, err
 	}
@@ -165,9 +164,9 @@ func computeBindName(bindType, bindName string, projectedVars map[string]string)
 	var valid bool
 	switch bindType {
 	case structs.ACLBindingRuleBindTypePolicy:
-		valid = IsValidPolicyName(bindName)
+		valid = structs.ValidPolicyName.MatchString(bindName)
 	case structs.ACLBindingRuleBindTypeRole:
-		valid = IsValidRoleName(bindName)
+		valid = structs.ValidACLRoleName.MatchString(bindName)
 	default:
 		return "", false, fmt.Errorf("unknown binding rule bind type: %s", bindType)
 	}
@@ -194,9 +193,9 @@ func doesSelectorMatch(selector string, selectableVars interface{}) bool {
 	return result
 }
 
-// InterpolateHIL processes the string as if it were HIL and interpolates only
+// interpolateHIL processes the string as if it were HIL and interpolates only
 // the provided string->string map as possible variables.
-func InterpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
+func interpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
 	if strings.Index(s, "${") == -1 {
 		// Skip going to the trouble of parsing something that has no HIL.
 		return s, nil
@@ -234,57 +233,4 @@ func InterpolateHIL(s string, vars map[string]string, lowercase bool) (string, e
 	}
 
 	return result.Value.(string), nil
-}
-
-const (
-	ServiceIdentityNameMaxLength = 256
-	NodeIdentityNameMaxLength    = 256
-)
-
-var (
-	validServiceIdentityName = regexp.MustCompile(`^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$`)
-	validNodeIdentityName    = regexp.MustCompile(`^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$`)
-	validPolicyName          = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,128}$`)
-	validRoleName            = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,256}$`)
-	validAuthMethodName      = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,128}$`)
-)
-
-// IsValidServiceIdentityName returns true if the provided name can be used as
-// an ACLServiceIdentity ServiceName. This is more restrictive than standard
-// catalog registration, which basically takes the view that "everything is
-// valid".
-func IsValidServiceIdentityName(name string) bool {
-	if len(name) < 1 || len(name) > ServiceIdentityNameMaxLength {
-		return false
-	}
-	return validServiceIdentityName.MatchString(name)
-}
-
-// IsValidNodeIdentityName returns true if the provided name can be used as
-// an ACLNodeIdentity NodeName. This is more restrictive than standard
-// catalog registration, which basically takes the view that "everything is
-// valid".
-func IsValidNodeIdentityName(name string) bool {
-	if len(name) < 1 || len(name) > NodeIdentityNameMaxLength {
-		return false
-	}
-	return validNodeIdentityName.MatchString(name)
-}
-
-// IsValidPolicyName returns true if the provided name can be used as an
-// ACLPolicy Name.
-func IsValidPolicyName(name string) bool {
-	return validPolicyName.MatchString(name)
-}
-
-// IsValidRoleName returns true if the provided name can be used as an
-// ACLRole Name.
-func IsValidRoleName(name string) bool {
-	return validRoleName.MatchString(name)
-}
-
-// IsValidRoleName returns true if the provided name can be used as an
-// ACLAuthMethod Name.
-func IsValidAuthMethodName(name string) bool {
-	return validAuthMethodName.MatchString(name)
 }
