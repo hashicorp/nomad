@@ -1,0 +1,290 @@
+package auth
+
+import (
+	"fmt"
+	"regexp"
+	"strings"
+
+	"github.com/hashicorp/go-bexpr"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/hil"
+	"github.com/hashicorp/hil/ast"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+// Binder is responsible for collecting the ACL roles and policies to be
+// assigned to a token generated as a result of "logging in" via an auth
+// method.
+//
+// It does so by applying the auth method's configured binding rules.
+type Binder struct {
+	store      BinderStateStore
+	datacenter string
+}
+
+type Identity struct {
+	// SelectableFields is the format of this Identity suitable for selection
+	// with a binding rule.
+	SelectableFields interface{}
+
+	// ProjectedVars is the format of this Identity suitable for interpolation
+	// in a bind name within a binding rule.
+	ProjectedVars map[string]string
+}
+
+// NewBinder creates a Binder with the given state store and datacenter.
+func NewBinder(store BinderStateStore, datacenter string) *Binder {
+	return &Binder{store, datacenter}
+}
+
+// BinderStateStore is the subset of state store methods used by the binder.
+type BinderStateStore interface {
+	GetACLBindingRulesByAuthMethod(ws memdb.WatchSet, authMethod string) (memdb.ResultIterator, error)
+	GetACLRoleByName(ws memdb.WatchSet, roleName string) (*structs.ACLRole, error)
+	ACLPolicyByName(ws memdb.WatchSet, name string) (*structs.ACLPolicy, error)
+}
+
+// Bindings contains the ACL roles and policies to be assigned to the created
+// token.
+type Bindings struct {
+	Roles    []*structs.ACLTokenRoleLink
+	Policies []*structs.ACLRolePolicyLink
+}
+
+// None indicates that the resulting bindings would not give the created token
+// access to any resources.
+func (b *Bindings) None() bool {
+	if b == nil {
+		return true
+	}
+
+	return len(b.Policies) == 0 && len(b.Roles) == 0
+}
+
+// Bind collects the ACL roles and policies to be assigned to the created token.
+func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*Bindings, error) {
+	var (
+		bindings Bindings
+		err      error
+	)
+
+	// Load the auth method's binding rules.
+	rulesIterator, err := b.store.GetACLBindingRulesByAuthMethod(nil, authMethod.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the rules with selectors that match the identity's fields.
+	matchingRules := []*structs.ACLBindingRule{}
+	for {
+		raw := rulesIterator.Next()
+		if raw == nil {
+			break
+		}
+		rule := raw.(*structs.ACLBindingRule)
+		if doesSelectorMatch(rule.Selector, identity.SelectableFields) {
+			matchingRules = append(matchingRules, rule)
+		}
+	}
+	if len(matchingRules) == 0 {
+		return &bindings, nil
+	}
+
+	// Compute role or policy names by interpolating the identity's projected
+	// variables into the rule BindName templates.
+	for _, rule := range matchingRules {
+		bindName, valid, err := computeBindName(rule.BindType, rule.BindName, identity.ProjectedVars)
+		switch {
+		case err != nil:
+			return nil, fmt.Errorf("cannot compute %q bind name for bind target: %w", rule.BindType, err)
+		case !valid:
+			return nil, fmt.Errorf("computed %q bind name for bind target is invalid: %q", rule.BindType, bindName)
+		}
+
+		switch rule.BindType {
+		case structs.ACLBindingRuleBindTypeRole:
+			role, err := b.store.GetACLRoleByName(nil, bindName)
+			if err != nil {
+				return nil, err
+			}
+
+			if role != nil {
+				bindings.Roles = append(bindings.Roles, &structs.ACLTokenRoleLink{
+					ID: role.ID,
+				})
+			}
+		case structs.ACLBindingRuleBindTypePolicy:
+			policy, err := b.store.ACLPolicyByName(nil, bindName)
+			if err != nil {
+				return nil, err
+			}
+
+			if policy != nil {
+				// bindings.Policies = append(bindings.Policies, &structs.ACLTokenPolicyLink{
+				// Name: policy.Name,
+				// })
+			}
+		}
+	}
+
+	return &bindings, nil
+}
+
+// IsValidBindName returns whether the given BindName template produces valid
+// results when interpolating the auth method's available variables.
+func IsValidBindName(bindType, bindName string, availableVariables []string) (bool, error) {
+	if bindType == "" || bindName == "" {
+		return false, nil
+	}
+
+	fakeVarMap := make(map[string]string)
+	for _, v := range availableVariables {
+		fakeVarMap[v] = "fake"
+	}
+
+	_, valid, err := computeBindName(bindType, bindName, fakeVarMap)
+	if err != nil {
+		return false, err
+	}
+	return valid, nil
+}
+
+// computeBindName processes the HIL for the provided bind type+name using the
+// projected variables.
+//
+// - If the HIL is invalid ("", false, AN_ERROR) is returned.
+// - If the computed name is not valid for the type ("INVALID_NAME", false, nil) is returned.
+// - If the computed name is valid for the type ("VALID_NAME", true, nil) is returned.
+func computeBindName(bindType, bindName string, projectedVars map[string]string) (string, bool, error) {
+	bindName, err := InterpolateHIL(bindName, projectedVars, true)
+	if err != nil {
+		return "", false, err
+	}
+
+	var valid bool
+	switch bindType {
+	case structs.ACLBindingRuleBindTypePolicy:
+		valid = IsValidPolicyName(bindName)
+	case structs.ACLBindingRuleBindTypeRole:
+		valid = IsValidRoleName(bindName)
+	default:
+		return "", false, fmt.Errorf("unknown binding rule bind type: %s", bindType)
+	}
+
+	return bindName, valid, nil
+}
+
+// doesSelectorMatch checks that a single selector matches the provided vars.
+func doesSelectorMatch(selector string, selectableVars interface{}) bool {
+	if selector == "" {
+		return true // catch-all
+	}
+
+	eval, err := bexpr.CreateEvaluator(selector)
+	if err != nil {
+		return false // fails to match if selector is invalid
+	}
+
+	result, err := eval.Evaluate(selectableVars)
+	if err != nil {
+		return false // fails to match if evaluation fails
+	}
+
+	return result
+}
+
+// InterpolateHIL processes the string as if it were HIL and interpolates only
+// the provided string->string map as possible variables.
+func InterpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
+	if strings.Index(s, "${") == -1 {
+		// Skip going to the trouble of parsing something that has no HIL.
+		return s, nil
+	}
+
+	tree, err := hil.Parse(s)
+	if err != nil {
+		return "", err
+	}
+
+	vm := make(map[string]ast.Variable)
+	for k, v := range vars {
+		if lowercase {
+			v = strings.ToLower(v)
+		}
+		vm[k] = ast.Variable{
+			Type:  ast.TypeString,
+			Value: v,
+		}
+	}
+
+	config := &hil.EvalConfig{
+		GlobalScope: &ast.BasicScope{
+			VarMap: vm,
+		},
+	}
+
+	result, err := hil.Eval(tree, config)
+	if err != nil {
+		return "", err
+	}
+
+	if result.Type != hil.TypeString {
+		return "", fmt.Errorf("generated unexpected hil type: %s", result.Type)
+	}
+
+	return result.Value.(string), nil
+}
+
+const (
+	ServiceIdentityNameMaxLength = 256
+	NodeIdentityNameMaxLength    = 256
+)
+
+var (
+	validServiceIdentityName = regexp.MustCompile(`^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$`)
+	validNodeIdentityName    = regexp.MustCompile(`^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$`)
+	validPolicyName          = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,128}$`)
+	validRoleName            = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,256}$`)
+	validAuthMethodName      = regexp.MustCompile(`^[A-Za-z0-9\-_]{1,128}$`)
+)
+
+// IsValidServiceIdentityName returns true if the provided name can be used as
+// an ACLServiceIdentity ServiceName. This is more restrictive than standard
+// catalog registration, which basically takes the view that "everything is
+// valid".
+func IsValidServiceIdentityName(name string) bool {
+	if len(name) < 1 || len(name) > ServiceIdentityNameMaxLength {
+		return false
+	}
+	return validServiceIdentityName.MatchString(name)
+}
+
+// IsValidNodeIdentityName returns true if the provided name can be used as
+// an ACLNodeIdentity NodeName. This is more restrictive than standard
+// catalog registration, which basically takes the view that "everything is
+// valid".
+func IsValidNodeIdentityName(name string) bool {
+	if len(name) < 1 || len(name) > NodeIdentityNameMaxLength {
+		return false
+	}
+	return validNodeIdentityName.MatchString(name)
+}
+
+// IsValidPolicyName returns true if the provided name can be used as an
+// ACLPolicy Name.
+func IsValidPolicyName(name string) bool {
+	return validPolicyName.MatchString(name)
+}
+
+// IsValidRoleName returns true if the provided name can be used as an
+// ACLRole Name.
+func IsValidRoleName(name string) bool {
+	return validRoleName.MatchString(name)
+}
+
+// IsValidRoleName returns true if the provided name can be used as an
+// ACLAuthMethod Name.
+func IsValidAuthMethodName(name string) bool {
+	return validAuthMethodName.MatchString(name)
+}
