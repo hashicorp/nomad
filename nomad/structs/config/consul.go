@@ -102,6 +102,11 @@ type ConsulConfig struct {
 	// Uses Consul's default and env var.
 	VerifySSL *bool `hcl:"verify_ssl"`
 
+	// GRPCCAFile is the path to the ca certificate used for Consul gRPC communication.
+	//
+	// Uses Consul's default and env var.
+	GRPCCAFile string `hcl:"grpc_ca_file"`
+
 	// CAFile is the path to the ca certificate used for Consul communication.
 	//
 	// Uses Consul's default and env var.
@@ -218,6 +223,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.ShareSSL != nil {
 		result.ShareSSL = pointer.Of(*b.ShareSSL)
+	}
+	if b.GRPCCAFile != "" {
+		result.GRPCCAFile = b.GRPCCAFile
 	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
