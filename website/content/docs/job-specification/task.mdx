@@ -85,17 +85,19 @@ job "docs" {
 - `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
   resource requirements such as RAM, CPU and devices.
 
-- `service` <code>([Service][]: nil)</code> - Specifies integrations with
-  [Consul][] for service discovery. Nomad automatically registers when a task
+- `service` <code>([Service][]: nil)</code> - Specifies integrations with Nomad
+  or [Consul][] for service discovery. Nomad automatically registers when a task
   is started and de-registers it when the task dies.
 
 - `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
-  killing a task between removing it from Consul and sending it a shutdown
-  signal. Ideally services would fail healthchecks once they receive a shutdown
-  signal. Alternatively `shutdown_delay` may be set to give in flight requests
-  time to complete before shutting down. In addition, task groups may have their
-  own [`shutdown_delay`](/docs/job-specification/group#shutdown_delay)
-  which waits between deregistering group services and stopping tasks.
+  killing a task between removing its service registrations from Consul or Nomad,
+  and sending it a shutdown signal. Ideally services would fail health checks
+  once they receive a shutdown signal. Alternatively, `shutdown_delay` may be
+  set to give in flight requests time to complete before shutting down. This
+  `shutdown_delay` only applies to services defined at the task level by the
+  [`service`](/docs/job-specification/task#service) block. In addition, task
+  groups have their own [`shutdown_delay`](/docs/job-specification/group#shutdown_delay)
+  which waits between de-registering group services and stopping tasks.
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
