@@ -39,10 +39,12 @@ Init Options:
     If the connect flag is set, the jobspec includes Consul Connect integration.
 
   -template
-    Specifies a predefined template to initialize. Must be a Nomad Variable that lives at nomad/job-templates/<template>
+    Specifies a predefined template to initialize. Must be a Nomad Variable that
+		lives at nomad/job-templates/<template>
 
   -list-templates
-    Display a list of possible job templates to pass to -template. Reads from all variables pathed at nomad/job-templates/<template>
+    Display a list of possible job templates to pass to -template. Reads from
+		all variables pathed at nomad/job-templates/<template>
 `
 	return strings.TrimSpace(helpText)
 }
@@ -122,7 +124,7 @@ func (c *JobInitCommand) Run(args []string) int {
 		// Get and list all variables at nomad/job-templates
 		vars, _, err := client.Variables().PrefixList("nomad/job-templates/", qo)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error retrieving vars: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error retrieving job templates from the server; unable to read variables at path nomad/job-templates/. Error: %s", err))
 			return 1
 		}
 
@@ -132,7 +134,7 @@ func (c *JobInitCommand) Run(args []string) int {
 		} else {
 			c.Ui.Output("Use nomad job init -template=<template> with any of the following:")
 			for _, v := range vars {
-				fmt.Println(strings.TrimPrefix(v.Path, "nomad/job-templates/"))
+				c.Ui.Output(fmt.Sprintf("  %s", strings.TrimPrefix(v.Path, "nomad/job-templates/")))
 			}
 		}
 		return 0
@@ -156,15 +158,15 @@ func (c *JobInitCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error retrieving variable: %s", err))
 			return 1
 		}
-		// If the user provided an item key, return that value instead of the whole
-		// object
+
 		if v, ok := sv.Items["template"]; ok {
 			c.Ui.Output(fmt.Sprintf("Initializing a job template from %s", template))
 			jobSpec = []byte(v)
 		} else {
-			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", args[1]))
+			c.Ui.Error(fmt.Sprintf("Job template %q is malformed and is missing a template field. Please visit the jobs/run/templates route in  the Nomad UI to add it", template))
 			return 1
 		}
+
 	} else {
 		switch {
 		case connect && !short:
