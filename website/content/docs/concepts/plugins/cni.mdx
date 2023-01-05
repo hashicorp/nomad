@@ -8,30 +8,26 @@ description: Learn how Nomad manages custom user-specified network configuration
 
 Nomad has built-in support for scheduling compute resources such as
 CPU, memory, and networking. Nomad's network plugin support extends
-this to allow scheduling tasks with externally created storage
-volumes. Network plugins are third-party plugins that conform to the
+this to allow scheduling tasks with purpose-created or specialty network
+configurations. Network plugins are third-party plugins that conform to the
 [Container Network Interface (CNI)][cni_spec] specification.
 
-Network plugins need to be installed and configured on each client. The Nomad
-installation instructions recommend installing the [CNI reference plugins][cni_ref]
-because certain Nomad networking features, like `bridge` network mode and
-Consul service mesh, leverage them to provide an operating-system agnostic
-interface to configure workload networking.
+Network plugins need to be installed and configured on each client. The [Nomad
+installation instructions][nomad_install] recommend installing the [CNI
+reference plugins][cni_ref] because certain Nomad networking features, like
+`bridge` network mode and Consul service mesh, leverage them to provide an
+operating-system agnostic interface to configure workload networking.
 
 Custom networking in Nomad is accomplished with a combination of CNI plugin
 binaries and CNI configuration files.
 
 ## CNI plugins
 
-As part of installing Consul service mesh support for Nomad, you will have
-installed the [CNI reference plugins][cni_ref]. There is also a
-[list of available third-party CNI plugins][3rd_party_cni], which can be found
-on the CNI.dev website. Spec-compliant plugins should work with Nomad.
-However, it's possible a plugin vendor has implemented their plugin to make
-non-standard API calls, or it is otherwise non-compliant with the CNI
-specification. In those situations the plugin may not function correctly in a
-Nomad environment. You should verify plugin compatibility with Nomad before
-deploying in production.
+Spec-compliant plugins should work with Nomad. However, it's possible a plugin
+vendor has implemented their plugin to make non-standard API calls, or it is
+otherwise non-compliant with the CNI specification. In those situations the
+plugin may not function correctly in a Nomad environment. You should verify
+plugin compatibility with Nomad before deploying in production.
 
 CNI plugins are installed and configured on a per-client basis. Nomad consults
 the path given in the client's [`cni_path`][] to find CNI plugin executables.
@@ -52,7 +48,8 @@ You can read more about how Nomad uses CNI plugins in the [CNI section of the
 Nomad Networking documentation](/docs/networking/cni).
 
 [3rd_party_cni]: https://www.cni.dev/docs/#3rd-party-plugins
+[`cni_config_dir`]: /docs/configuration/client#cni_config_dir
+[`cni_path`]: /docs/configuration/client#cni_path
 [cni_ref]: https://github.com/containernetworking/plugins
 [cni_spec]: https://www.cni.dev/docs/spec/
-[`cni_path`]: /docs/configuration/client#cni_path
-[`cni_config_dir`]: /docs/configuration/client#cni_config_dir
+[nomad_install]: https://developer.hashicorp.com/nomad/tutorials/get-started/get-started-install#post-installation-steps

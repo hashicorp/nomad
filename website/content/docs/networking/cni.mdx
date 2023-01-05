@@ -14,24 +14,22 @@ this to allow scheduling tasks with purpose-created or specialty network
 configurations. Network plugins are third-party plugins that conform to the
 [Container Network Interface (CNI)][cni_spec] specification.
 
-Network plugins need to be installed and configured on each client. The Nomad
-installation instructions recommend installing the [CNI reference plugins][cni_ref]
-because certain Nomad networking features, like `bridge` network mode and
-Consul service mesh, leverage them to provide an operating-system agnostic
-interface to configure workload networking.
+Network plugins need to be installed and configured on each client. The [Nomad
+installation instructions][nomad_install] recommend installing the [CNI
+reference plugins][cni_ref] because certain Nomad networking features, like
+`bridge` network mode and Consul service mesh, leverage them to provide an
+operating-system agnostic interface to configure workload networking.
 
 Custom networking in Nomad is accomplished with a combination of CNI plugin
 binaries and CNI configuration files.
 
-As part of installing Consul service mesh support for Nomad, you will have
-installed the [CNI reference plugins][cni_ref]. There is also a
-[list of available third-party CNI plugins][3rd_party_cni], which can be found
-on the [CNI.dev](https://cni.dev) website. Spec-compliant plugins should work
-with Nomad. However, it's possible a plugin vendor has implemented their plugin
-to make non-standard API calls, or is otherwise non-compliant with the CNI
-specification. In those situations the plugin may not function correctly in a
-Nomad environment. You should verify plugin compatibility with Nomad before
-deploying in production.
+## CNI plugins
+
+Spec-compliant plugins should work with Nomad. However, it's possible a plugin
+vendor has implemented their plugin to make non-standard API calls, or it is
+otherwise non-compliant with the CNI specification. In those situations the
+plugin may not function correctly in a Nomad environment. You should verify
+plugin compatibility with Nomad before deploying in production.
 
 CNI plugins are installed and configured on a per-client basis. Nomad consults
 the path given in the client's [`cni_path`][] to find CNI plugin executables.
@@ -49,7 +47,7 @@ Nomad reads all files with a `.conflist` extension in the [`cni_config_dir`][]�
 ## Using CNI networks with Nomad jobs
 
 To specify that a job should use a CNI network, set the task group's
-network's [`mode`][] attribute to the value "**cni/_your\_cni\_config\_name_**".
+network's [`mode`][] attribute to the value `cni/<your_cni_config_name>`.
 Nomad will then schedule the workload on client nodes that have fingerprinted a
 CNI configuration with the given name. For example, to use the configuration
 named `mynet`, you should set the task group's network mode to `cni/mynet`.
@@ -132,14 +130,15 @@ network connectivity to allocations, it's configured to be a gateway by setting
 bridge interface
 
 The bridge plugin connects allocations (on the same host) into a bridge (virtual
-switch) that resides in the host network namespace. Since Nomad's bridge network
-is designed to provide network connectivity to the allocations, it configures
-the bridge interface to be a gateway for outgoing traffic by providing it with
-an address using an `ipam` configuration. The default configuration creates a
-host-local address for the host side of the bridge in the `172.26.64.0/20`
-subnet at `172.26.64.1`. When associating allocations to the bridge, it creates
-addresses for the allocations from that same subnet using the host-local plugin.
-The configuration also specifies a default route for the allocations of the
+switch) that resides in the host network namespace. By default Nomad creates a
+single bridge for each client. Since Nomad's bridge network is designed to
+provide network connectivity to the allocations, it configures the bridge
+interface to be a gateway for outgoing traffic by providing it with an address
+using an `ipam` configuration. The default configuration creates a host-local
+address for the host side of the bridge in the `172.26.64.0/20` subnet at
+`172.26.64.1`. When associating allocations to the bridge, it creates addresses
+for the allocations from that same subnet using the host-local plugin. The
+configuration also specifies a default route for the allocations of the
 host-side bridge address.
 
 ### firewall
@@ -147,8 +146,8 @@ host-side bridge address.
 The firewall plugin creates firewall rules to allow traffic to/from the
 allocation's IP address via the host network. Nomad uses the iptables backend
 for the firewall plugin. This configuration creates two new iptables chains,
-CNI-FORWARD and NOMAD-ADMIN, in the filter table and add rules that allow the
-given interface to send/receive traffic.
+`CNI-FORWARD` and `NOMAD-ADMIN`, in the filter table and add rules that allow
+the given interface to send/receive traffic.
 
 The firewall creates an admin chain using the name provided in the
 `iptablesAdminChainName` attribute. For this case, it's called `NOMAD-ADMIN`.
@@ -156,10 +155,17 @@ The admin chain is a user-controlled chain for custom rules that run before
 rules managed by the firewall plugin. The firewall plugin does not add, delete,
 or modify rules in the admin chain.
 
-A new chain, `CNI-FORWARD` is added to the FORWARD chain. CNI-FORWARD is the
-chain where rules will be added when allocations are created and from where
-rules will be removed when those allocations stop. The `CNI-FORWARD` chain first
-sends all traffic to NOMAD-ADMIN chain.
+A new chain, `CNI-FORWARD` is added to the `FORWARD` chain. `CNI-FORWARD` is
+the chain where rules will be added when allocations are created and from where
+rules will be removed when those allocations stop. The `CNI-FORWARD` chain
+first sends all traffic to `NOMAD-ADMIN` chain.
+
+You can use the following command to list the iptables rules present in each
+chain.
+
+```shell-session
+$ sudo iptables -L
+```
 
 ### portmap
 
@@ -170,8 +176,14 @@ rules.
 
 The plugin sets up two sequences of chains and rules:
 
-- One “primary” DNAT (destination NAT) sequence to rewrite the destination.
-- One SNAT (source NAT) sequence that will masquerade traffic as needed.
+- One “primary” `DNAT` (destination NAT) sequence to rewrite the destination.
+- One `SNAT` (source NAT) sequence that will masquerade traffic as needed.
+
+You can use the following command to list the iptables rules in the NAT table.
+
+```shell-session
+$ sudo iptables -t nat -L
+```
 
 ## Create your own
 
@@ -182,15 +194,15 @@ based on this template, ensure that you change the `iptablesAdminChainName` to
 a unique value for your configuration.
 
 [3rd_party_cni]: https://www.cni.dev/docs/#3rd-party-plugins
-[cni_ref]: https://github.com/containernetworking/plugins
-[cni_spec]: https://www.cni.dev/docs/spec/
-[`cni_path`]: /docs/configuration/client#cni_path
-[`cni_config_dir`]: /docs/configuration/client#cni_config_dir
-[loopback]: https://github.com/containernetworking/plugins#main-interface-creating
-[bridge]: https://www.cni.dev/plugins/current/main/bridge/
-[portmap]: https://www.cni.dev/plugins/current/meta/portmap/
-[firewall]: https://www.cni.dev/plugins/current/meta/firewall/
 [`bridge_network_name`]: /docs/configuration/client#bridge_network_name
 [`bridge_network_subnet`]: /docs/configuration/client#bridge_network_subnet
+[`cni_config_dir`]: /docs/configuration/client#cni_config_dir
+[`cni_path`]: /docs/configuration/client#cni_path
 [`mode`]: /docs/job-specification/network#mode
-[img-bridge-network]: kk
+[bridge]: https://www.cni.dev/plugins/current/main/bridge/
+[cni_ref]: https://github.com/containernetworking/plugins
+[cni_spec]: https://www.cni.dev/docs/spec/
+[firewall]: https://www.cni.dev/plugins/current/meta/firewall/
+[loopback]: https://github.com/containernetworking/plugins#main-interface-creating
+[nomad_install]: https://developer.hashicorp.com/nomad/tutorials/get-started/get-started-install#post-installation-steps
+[portmap]: https://www.cni.dev/plugins/current/meta/portmap/
