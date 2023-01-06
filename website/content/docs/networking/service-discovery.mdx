@@ -17,9 +17,9 @@ that can be used to query data. In Nomad there are two service catalogs:
 - The **native service discovery** catalog is embedded in Nomad and requires no
   additional infrastructure.
 
-- The **[Consul service discovery catalog][consul_sd]** requires access to a
+- The [**Consul service discovery catalog**][consul_sd] requires access to a
   Consul cluster, but it provides additional features, including a [DNS
-  interface][consul_dns][] and [service mesh][] capabilities.
+  interface][consul_dns] and [service mesh][] capabilities.
 
 Services are registered using the [`service`][] block, with the [`provider`][]
 parameter defining which catalog to use. Nomad stores the IP and port of all

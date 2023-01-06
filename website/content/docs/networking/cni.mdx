@@ -25,7 +25,7 @@ binaries and CNI configuration files.
 
 ## CNI plugins
 
-Spec-compliant plugins should work with Nomad. However, it's possible a plugin
+Spec-compliant plugins should work with Nomad, however, it's possible a plugin
 vendor has implemented their plugin to make non-standard API calls, or it is
 otherwise non-compliant with the CNI specification. In those situations the
 plugin may not function correctly in a Nomad environment. You should verify
@@ -38,16 +38,23 @@ the path given in the client's [`cni_path`][] to find CNI plugin executables.
 
 The CNI specification defines a network configuration format for administrators.
 It contains directives for both the orchestrator and the plugins to consume.
-At plugin execution time, this configuration format is interpreted by the
-runtime and transformed in to a form to be passed to the plugins.
+At plugin execution time, this configuration format is interpreted by Nomad
+and transformed into arguments for the plugins.
 
-Nomad reads all files with a `.conflist` extension in the [`cni_config_dir`][]—
-`/opt/cni/config` by default.
+Nomad reads the following extensions from the [`cni_config_dir`][]—
+`/opt/cni/config` by default:
+
+* `.conflist` files are loaded as [network
+  configurations][cni_spec_net_config] that contain a list of plugin
+  configurations.
+
+* `.conf` and `.json` files are loaded as individual [plugin
+  configurations][cni_spec_plugin_config] for a specific network.
 
 ## Using CNI networks with Nomad jobs
 
 To specify that a job should use a CNI network, set the task group's
-network's [`mode`][] attribute to the value `cni/<your_cni_config_name>`.
+network [`mode`][] attribute to the value `cni/<your_cni_config_name>`.
 Nomad will then schedule the workload on client nodes that have fingerprinted a
 CNI configuration with the given name. For example, to use the configuration
 named `mynet`, you should set the task group's network mode to `cni/mynet`.
@@ -202,6 +209,8 @@ a unique value for your configuration.
 [bridge]: https://www.cni.dev/plugins/current/main/bridge/
 [cni_ref]: https://github.com/containernetworking/plugins
 [cni_spec]: https://www.cni.dev/docs/spec/
+[cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format
+[cni_spec_plugin_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects
 [firewall]: https://www.cni.dev/plugins/current/meta/firewall/
 [loopback]: https://github.com/containernetworking/plugins#main-interface-creating
 [nomad_install]: https://developer.hashicorp.com/nomad/tutorials/get-started/get-started-install#post-installation-steps
