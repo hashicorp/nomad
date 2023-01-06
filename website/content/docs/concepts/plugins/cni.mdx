@@ -23,7 +23,7 @@ binaries and CNI configuration files.
 
 ## CNI plugins
 
-Spec-compliant plugins should work with Nomad. However, it's possible a plugin
+Spec-compliant plugins should work with Nomad, however, it's possible a plugin
 vendor has implemented their plugin to make non-standard API calls, or it is
 otherwise non-compliant with the CNI specification. In those situations the
 plugin may not function correctly in a Nomad environment. You should verify
@@ -39,8 +39,15 @@ directives for both the orchestrator and the plugins to consume.
 At plugin execution time, this configuration format is interpreted by the
 runtime and transformed in to a form to be passed to the plugins.
 
-Nomad reads all files with a `.conflist` extension in the [`cni_config_dir`][]—
-`/opt/cni/config` by default.
+Nomad reads the following extensions from the [`cni_config_dir`][]—
+`/opt/cni/config` by default:
+
+* `.conflist` files are loaded as [network
+  configurations][cni_spec_net_config] that contain a list of plugin
+  configurations.
+
+* `.conf` and `.json` files are loaded as individual [plugin
+  configurations][cni_spec_plugin_config] for a specific network.
 
 ## Further reading
 
@@ -52,4 +59,6 @@ Nomad Networking documentation](/docs/networking/cni).
 [`cni_path`]: /docs/configuration/client#cni_path
 [cni_ref]: https://github.com/containernetworking/plugins
 [cni_spec]: https://www.cni.dev/docs/spec/
+[cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format
+[cni_spec_plugin_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects
 [nomad_install]: https://developer.hashicorp.com/nomad/tutorials/get-started/get-started-install#post-installation-steps

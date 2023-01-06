@@ -153,7 +153,7 @@ using [Consul Service Mesh][consul_service_mesh].
 The Docker daemon manages its own network configuration and creates its own
 [bridge network][docker_bridge], network namespaces, and [`iptable`
 rules][docker_iptables]. Tasks using the `docker` task driver connect to the
-Docker bridge instead of using the one create by Nomad and, by default, each
+Docker bridge instead of using the one created by Nomad and, by default, each
 container runs in its own Docker managed network namespace.
 
 When using `bridge` network mode, Nomad creates a placeholder container using
@@ -199,7 +199,7 @@ The tasks in the rightmost allocation are not able to communicate with each
 other using their loopback interface because they were placed in different
 network namespaces.
 
-Since the group `network.mode` is `bridge`, Nomad creates the pause cointainer
+Since the group `network.mode` is `bridge`, Nomad creates the pause container
 to establish a shared network namespace for all tasks, but setting the
 task-level `network_mode` to `bridge` places the task in a different namespace.
 This prevents, for example, a task from communicating with its sidecar proxy in
