@@ -158,6 +158,7 @@ module('Acceptance | job run', function (hooks) {
           fakeRequest.queryParams,
           {
             prefix: 'nomad/job-templates',
+            namespace: '*',
           },
           'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
         );
