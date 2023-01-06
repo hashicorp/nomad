@@ -67,9 +67,18 @@ export default class VariableFormComponent extends Component {
       this.path?.startsWith('nomad/') &&
       !(
         this.path?.startsWith('nomad/jobs') ||
-        (this.path?.startsWith('nomad/job-templates') && trimPath([this.path]) !== "nomad/job-templates")
+        (this.path?.startsWith('nomad/job-templates') &&
+          trimPath([this.path]) !== 'nomad/job-templates')
       );
     return !!this.JSONError || !this.path || disallowedPath;
+  }
+
+  get isJobTemplateVariable() {
+    return this.path?.startsWith('nomad/job-templates/');
+  }
+
+  get jobTemplateName() {
+    return this.path.split('nomad/job-templates/').slice(-1);
   }
 
   /**
@@ -178,6 +187,14 @@ export default class VariableFormComponent extends Component {
    */
   @action setModelPath(e) {
     set(this.args.model, 'path', e.target.value);
+  }
+
+  @action updateKeyValue(key, value) {
+    if (this.keyValues.find((kv) => kv.key === key)) {
+      this.keyValues.find((kv) => kv.key === key).value = value;
+    } else {
+      this.keyValues.pushObject({ key, value, warnings: EmberObject.create() });
+    }
   }
 
   @action
