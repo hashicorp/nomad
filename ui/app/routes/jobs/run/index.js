@@ -39,9 +39,7 @@ export default class RunRoute extends Route {
         );
 
         return this.store.createRecord('job', {
-          _newDefinition: templateRecord.keyValues?.find((el) => {
-            return el.key === 'template';
-          })?.value,
+          _newDefinition: templateRecord.items.template,
         });
       }
 
