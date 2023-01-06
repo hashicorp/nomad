@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,28 +98,21 @@ func TestInitCommand_listTemplates(t *testing.T) {
 	jobCmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 	jobCmd.Run([]string{"-address=" + url, "-list-templates"})
 	expectedOutput := "No variables in nomad/job-templates\n"
-	if ui.ErrorWriter.String() != expectedOutput {
-		t.Errorf("Expected output %q but got %q", expectedOutput, ui.ErrorWriter.String())
-	}
+	must.StrContains(t, ui.ErrorWriter.String(), expectedOutput)
 
 	varCmd := &VarPutCommand{Meta: Meta{Ui: ui}}
 	// Set up 3 job template variables
 	for i := 1; i <= 3; i++ {
 		templateName := fmt.Sprintf("template-%d", i)
-		code := varCmd.Run([]string{"-address=" + url, "-out=json", "nomad/job-templates/" + templateName, "k1=v1", "k2=v2", "k3=v3"})
-		require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+		must.Eq(t, 0, varCmd.Run([]string{"-address=" + url, "-out=json", "nomad/job-templates/" + templateName, "k1=v1", "k2=v2", "k3=v3"}))
 	}
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
 
 	jobCmd = &JobInitCommand{Meta: Meta{Ui: ui}}
-	if code := jobCmd.Run([]string{"-address=" + url, "-list-templates"}); code != 0 {
-		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
-	}
+	must.Eq(t, 0, jobCmd.Run([]string{"-address=" + url, "-list-templates"}))
 	expectedOutput = "Use nomad job init -template=<template> with any of the following:\n  template-1\n  template-2\n  template-3\n"
-	if ui.OutputWriter.String() != expectedOutput {
-		t.Errorf("Expected output %q but got %q", expectedOutput, ui.OutputWriter.String())
-	}
+	must.StrContains(t, ui.OutputWriter.String(), expectedOutput)
 }
 
 func TestInitCommand_fromJobTemplate(t *testing.T) {
@@ -158,27 +152,18 @@ func TestInitCommand_fromJobTemplate(t *testing.T) {
 	jobCmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
 	// Doesnt work if our var lacks a template key
-	if code := jobCmd.Run([]string{"-address=" + url, "-template=invalid-template"}); code != 1 {
-		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
-	}
+	must.Eq(t, 1, jobCmd.Run([]string{"-address=" + url, "-template=invalid-template"}))
 
 	// Works if the file doesn't exist
-	if code := jobCmd.Run([]string{"-address=" + url, "-template=valid-template"}); code != 0 {
-		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
-	}
+	must.Eq(t, 0, jobCmd.Run([]string{"-address=" + url, "-template=valid-template"}))
+
 	content, err := ioutil.ReadFile(DefaultInitName)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if string(content) != string(tinyJob) {
-		t.Fatalf("unexpected file content\n\n%s", string(content))
-	}
+	must.NoError(t, err)
+	must.Eq(t, string(content), string(tinyJob))
 
 	ui.ErrorWriter.Reset()
 	expectedOutput := "Initializing a job template from valid-template\nExample job file written to example.nomad\n"
-	if ui.OutputWriter.String() != expectedOutput {
-		t.Errorf("Expected output %q but got %q", expectedOutput, ui.OutputWriter.String())
-	}
+	must.StrContains(t, ui.OutputWriter.String(), expectedOutput)
 }
 
 func TestInitCommand_customFilename(t *testing.T) {
