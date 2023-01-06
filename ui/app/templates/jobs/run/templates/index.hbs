@@ -4,10 +4,10 @@
         <p>A plan will be requested before the job is submitted.  You can pick a template or write your own job spec.</p>
     </header>
     <main class="radio-group" data-test-template-list>
-        <Hds::Form::RadioCard::Group @name="radio-card-basic-example" @alignment="left" as |G|>
+        <Hds::Form::RadioCard::Group @alignment="left" as |G|>
             <G.Legend>Select a Template</G.Legend>
             {{#each this.templates as |card|}}
-                <G.RadioCard id={{card.id}} data-test-template-card={{card.label}} {{on "change" this.onChange}} as |R|>
+                <G.RadioCard @layout="fixed" @maxWidth="30%" id={{card.id}} data-test-template-card={{card.label}} {{on "change" this.onChange}} as |R|>
                     <R.Label data-test-template-label>{{card.label}}</R.Label>
                     <R.Description data-test-template-description>{{card.description}}</R.Description>
                 </G.RadioCard>
@@ -20,7 +20,7 @@
         </h3>
     {{/if}}
     <Hds::ButtonSet>
-        <Hds::Button @size="small" @text="Apply" {{on "click" this.onApply}} data-test-apply />
-        <Hds::Button @size="small" @text="Cancel" {{on "click" this.navigateToJobsRun}} @color="critical" data-test-cancel />
+        <Hds::Button @text="Apply" {{on "click" (fn this.navigateToJobsRun this.selectedTemplate)}} disabled={{is-equal this.selectedTemplate null}} data-test-apply />
+        <Hds::Button @text="Cancel" {{on "click" this.navigateToJobsRun}} @color="critical" data-test-cancel />
     </Hds::ButtonSet>
 </section>
