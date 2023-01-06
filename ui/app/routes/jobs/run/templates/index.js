@@ -13,9 +13,8 @@ export default class RunTemplatesRoute extends Route {
 
     // We create a job with no id in jobs.run that is populated by this form.
     // A user cannot start at this route.
-    const wasJobModelCreated = transition.from?.name === 'jobs.run.index';
-    if (!hasPermissions || !wasJobModelCreated) {
-      this.transitionTo('jobs');
+    if (!hasPermissions) {
+      transition.to('jobs');
     }
   }
 
