@@ -31,7 +31,7 @@ func init() {
 
 		// sandbox the host filesystem for this process
 		if !env.DisableFilesystemIsolation {
-			if err := lockdown(env.TaskDir); err != nil {
+			if err := lockdown(env.AllocDir, env.TaskDir); err != nil {
 				subproc.Print("failed to sandbox %s process: %v", SubCommand, err)
 				return subproc.ExitFailure
 			}

@@ -27,7 +27,8 @@ const paramsAsJSON = `
   "artifact_headers": {
     "X-Nomad-Artifact": ["hi"]
   },
-  "task_dir": "/path/to/task"
+  "alloc_dir": "/path/to/alloc",
+  "task_dir": "/path/to/alloc/task"
 }`
 
 var paramsAsStruct = &parameters{
@@ -42,7 +43,8 @@ var paramsAsStruct = &parameters{
 	Mode:        getter.ClientModeFile,
 	Source:      "https://example.com/file.txt",
 	Destination: "local/out.txt",
-	TaskDir:     "/path/to/task",
+	AllocDir:    "/path/to/alloc",
+	TaskDir:     "/path/to/alloc/task",
 	Headers: map[string][]string{
 		"X-Nomad-Artifact": {"hi"},
 	},
