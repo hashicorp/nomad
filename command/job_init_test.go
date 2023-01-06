@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -83,6 +84,40 @@ func TestInitCommand_defaultJob(t *testing.T) {
 	defaultJob, _ := Asset("command/assets/example.nomad")
 	if strings.Contains(string(defaultJob), "\t") {
 		t.Error("default job contains tab character - please convert to spaces")
+	}
+}
+
+func TestInitCommand_listTemplates(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+
+	jobCmd := &JobInitCommand{Meta: Meta{Ui: ui}}
+	jobCmd.Run([]string{"-address=" + url, "-list-templates"})
+	expectedOutput := "No variables in nomad/job-templates\n"
+	if ui.ErrorWriter.String() != expectedOutput {
+		t.Errorf("Expected output %q but got %q", expectedOutput, ui.ErrorWriter.String())
+	}
+
+	varCmd := &VarPutCommand{Meta: Meta{Ui: ui}}
+	// Set up 3 job template variables
+	for i := 1; i <= 3; i++ {
+		templateName := fmt.Sprintf("template-%d", i)
+		code := varCmd.Run([]string{"-address=" + url, "-out=json", "nomad/job-templates/" + templateName, "k1=v1", "k2=v2", "k3=v3"})
+		require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+	ui.ErrorWriter.Reset()
+	ui.OutputWriter.Reset()
+
+	jobCmd = &JobInitCommand{Meta: Meta{Ui: ui}}
+	if code := jobCmd.Run([]string{"-address=" + url, "-list-templates"}); code != 0 {
+		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
+	}
+	expectedOutput = "Use nomad job init -template=<template> with any of the following:\n  template-1\n  template-2\n  template-3\n"
+	if ui.OutputWriter.String() != expectedOutput {
+		t.Errorf("Expected output %q but got %q", expectedOutput, ui.OutputWriter.String())
 	}
 }
 
