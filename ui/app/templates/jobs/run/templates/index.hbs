@@ -20,7 +20,7 @@
         </h3>
     {{/if}}
     <Hds::ButtonSet>
-        <Hds::Button @text="Apply" {{on "click" (fn this.navigateToJobsRun this.selectedTemplate)}} disabled={{is-equal this.selectedTemplate null}} data-test-apply />
-        <Hds::Button @text="Cancel" {{on "click" this.navigateToJobsRun}} @color="critical" data-test-cancel />
+        <Hds::Button @text="Apply" @route="jobs.run" @query={{hash template=this.selectedTemplate}} disabled={{is-equal this.selectedTemplate null}} data-test-apply />
+        <Hds::Button @text="Cancel" @route="jobs.run" @color="critical" data-test-cancel />
     </Hds::ButtonSet>
 </section>

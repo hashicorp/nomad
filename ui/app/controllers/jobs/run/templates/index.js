@@ -31,11 +31,4 @@ export default class JobsRunTemplatesController extends Controller {
   onChange(e) {
     this.selectedTemplate = e.target.id;
   }
-
-  @action
-  navigateToJobsRun(selectedTemplate) {
-    return this.router.transitionTo('jobs.run', {
-      queryParams: { template: selectedTemplate },
-    });
-  }
 }
