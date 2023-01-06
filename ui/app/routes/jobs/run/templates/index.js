@@ -21,6 +21,7 @@ export default class RunTemplatesRoute extends Route {
   async model() {
     const jobTemplateVariables = await this.store.query('variable', {
       prefix: 'nomad/job-templates',
+      namespace: '*',
     });
     const recordsToQuery = jobTemplateVariables.map((template) =>
       this.store.findRecord('variable', template.id)
