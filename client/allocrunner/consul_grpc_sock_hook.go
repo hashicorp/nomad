@@ -60,7 +60,6 @@ func newConsulGRPCSocketHook(
 	if !ok {
 		consulGRPCPort = consulGRPCFallbackPort
 	}
-	logger.Info("CONSUL GRPC DEBUG", "consulGRPCPort", consulGRPCPort)
 
 	return &consulGRPCSocketHook{
 		alloc:  alloc,
@@ -301,8 +300,6 @@ func proxy(ctx context.Context, logger hclog.Logger, destAddr string, l net.List
 func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn net.Conn) {
 	// Close the connection when we're done with it.
 	defer conn.Close()
-
-	logger.Info("CONSUL GRPC DEBUG", "destAddr", destAddr)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

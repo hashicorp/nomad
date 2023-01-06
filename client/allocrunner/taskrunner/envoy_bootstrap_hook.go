@@ -282,8 +282,6 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// Create command line arguments
 	bootstrapArgs := bootstrap.args()
 
-	h.logger.Info("CONSUL GRPC DEBUG", "bootstrap args", bootstrapArgs)
-
 	// Write args to file for debugging
 	argsFile, err := os.Create(bootstrapCmdPath)
 	if err != nil {
