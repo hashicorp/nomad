@@ -21,7 +21,7 @@ export default class RunRoute extends Route {
         namespace: transition.to.queryParams.namespace,
       })
     ) {
-      this.transitionTo('jobs');
+      transition.transitionTo('jobs');
     }
   }
 
