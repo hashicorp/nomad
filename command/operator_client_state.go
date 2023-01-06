@@ -18,7 +18,8 @@ type OperatorClientStateCommand struct {
 func (c *OperatorClientStateCommand) Help() string {
 	helpText := `
 Usage: nomad operator client-state <path_to_nomad_dir>
-  Emits a json representation of the stored client state in json form.
+
+  Emits a representation of the stored client state in JSON format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -46,14 +47,14 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 	logger := hclog.L()
 	db, err := state.NewBoltStateDB(logger, args[0])
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to open client state: %v\n", err))
+		c.Ui.Error(fmt.Sprintf("failed to open client state: %v", err))
 		return 1
 	}
 	defer db.Close()
 
 	allocs, _, err := db.GetAllAllocations()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to get allocations: %v\n", err))
+		c.Ui.Error(fmt.Sprintf("failed to get allocations: %v", err))
 		return 1
 	}
 
@@ -98,10 +99,21 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 			Tasks:        tasks,
 		}
 	}
-	result, _ := json.Marshal(data)
-	c.Ui.Output(string(result))
+	output := debugOutput{
+		Allocations: data,
+	}
+	bytes, err := json.Marshal(output)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("failed to serialize client state: %v", err))
+		return 1
+	}
+	c.Ui.Output(string(bytes))
 
 	return 0
+}
+
+type debugOutput struct {
+	Allocations map[string]*clientStateAlloc
 }
 
 type clientStateAlloc struct {
