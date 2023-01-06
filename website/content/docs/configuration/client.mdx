@@ -133,7 +133,9 @@ client {
 
 - `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
   network configuration is located. The client will use this path when fingerprinting
-  CNI networks. Filenames should use the `.conflist` extension.
+  CNI networks. Filenames should use the `.conflist` extension. Filenames with
+  the `.conf` or `.json` extensions are loaded as individual plugin
+  configuration.
 
 - `bridge_network_name` `(string: "nomad")` - Sets the name of the bridge to be
   created by nomad for allocations running with bridge networking mode on the
