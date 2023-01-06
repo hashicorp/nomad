@@ -3,9 +3,10 @@ import { inject as service } from '@ember/service';
 
 export default class RunTemplatesRoute extends Route {
   @service can;
+  @service router;
   @service store;
 
-  beforeModel(transition) {
+  beforeModel() {
     const hasPermissions = this.can.can('write variable', null, {
       namespace: '*',
       path: '*',
@@ -14,7 +15,7 @@ export default class RunTemplatesRoute extends Route {
     // We create a job with no id in jobs.run that is populated by this form.
     // A user cannot start at this route.
     if (!hasPermissions) {
-      transition.to('jobs');
+      this.router.transitionTo('jobs');
     }
   }
 

@@ -6,6 +6,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 @classic
 export default class RunRoute extends Route {
   @service can;
+  @service router;
   @service store;
   @service system;
 
@@ -21,7 +22,7 @@ export default class RunRoute extends Route {
         namespace: transition.to.queryParams.namespace,
       })
     ) {
-      transition.transitionTo('jobs');
+      this.router.transitionTo('jobs');
     }
   }
 
