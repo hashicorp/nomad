@@ -1,4 +1,4 @@
-package auth
+package oidc
 
 import (
 	"fmt"
@@ -13,8 +13,7 @@ import (
 )
 
 // Binder is responsible for collecting the ACL roles and policies to be
-// assigned to a token generated as a result of "logging in" via an auth
-// method.
+// assigned to a token generated as a result of "logging in" via an auth method.
 //
 // It does so by applying the auth method's configured binding rules.
 type Binder struct {
@@ -23,13 +22,13 @@ type Binder struct {
 }
 
 type Identity struct {
-	// SelectableFields is the format of this Identity suitable for selection
+	// Claims is the format of this Identity suitable for selection
 	// with a binding rule.
-	SelectableFields interface{}
+	Claims interface{}
 
-	// ProjectedVars is the format of this Identity suitable for interpolation
-	// in a bind name within a binding rule.
-	ProjectedVars map[string]string
+	// ClaimMappings is the format of this Identity suitable for interpolation in a
+	// bind name within a binding rule.
+	ClaimMappings map[string]string
 }
 
 // NewBinder creates a Binder with the given state store and datacenter.
@@ -82,7 +81,7 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 			break
 		}
 		rule := raw.(*structs.ACLBindingRule)
-		if doesSelectorMatch(rule.Selector, identity.SelectableFields) {
+		if doesSelectorMatch(rule.Selector, identity.Claims) {
 			matchingRules = append(matchingRules, rule)
 		}
 	}
@@ -90,10 +89,10 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 		return &bindings, nil
 	}
 
-	// Compute role or policy names by interpolating the identity's projected
-	// variables into the rule BindName templates.
+	// Compute role or policy names by interpolating the identity's claim
+	// mappings into the rule BindName templates.
 	for _, rule := range matchingRules {
-		bindName, valid, err := computeBindName(rule.BindType, rule.BindName, identity.ProjectedVars)
+		bindName, valid, err := computeBindName(rule.BindType, rule.BindName, identity.ClaimMappings)
 		switch {
 		case err != nil:
 			return nil, fmt.Errorf("cannot compute %q bind name for bind target: %w", rule.BindType, err)
@@ -130,33 +129,14 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 	return &bindings, nil
 }
 
-// IsValidBindName returns whether the given BindName template produces valid
-// results when interpolating the auth method's available variables.
-func IsValidBindName(bindType, bindName string, availableVariables []string) (bool, error) {
-	if bindType == "" || bindName == "" {
-		return false, nil
-	}
-
-	fakeVarMap := make(map[string]string)
-	for _, v := range availableVariables {
-		fakeVarMap[v] = "fake"
-	}
-
-	_, valid, err := computeBindName(bindType, bindName, fakeVarMap)
-	if err != nil {
-		return false, err
-	}
-	return valid, nil
-}
-
 // computeBindName processes the HIL for the provided bind type+name using the
 // projected variables.
 //
 // - If the HIL is invalid ("", false, AN_ERROR) is returned.
 // - If the computed name is not valid for the type ("INVALID_NAME", false, nil) is returned.
 // - If the computed name is valid for the type ("VALID_NAME", true, nil) is returned.
-func computeBindName(bindType, bindName string, projectedVars map[string]string) (string, bool, error) {
-	bindName, err := interpolateHIL(bindName, projectedVars, true)
+func computeBindName(bindType, bindName string, claimMappings map[string]string) (string, bool, error) {
+	bindName, err := interpolateHIL(bindName, claimMappings, true)
 	if err != nil {
 		return "", false, err
 	}
@@ -196,7 +176,7 @@ func doesSelectorMatch(selector string, selectableVars interface{}) bool {
 // interpolateHIL processes the string as if it were HIL and interpolates only
 // the provided string->string map as possible variables.
 func interpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
-	if strings.Index(s, "${") == -1 {
+	if !strings.Contains(s, "${") {
 		// Skip going to the trouble of parsing something that has no HIL.
 		return s, nil
 	}
