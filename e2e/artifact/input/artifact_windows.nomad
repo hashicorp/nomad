@@ -8,7 +8,7 @@ job "windows" {
   }
 
   group "rawexec" {
-    task "rawexec" {
+    task "rawexec_file_default" {
       artifact {
         source = "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod"
       }
@@ -75,6 +75,7 @@ job "windows" {
     }
 
     # TODO(shoenig) setup git in our Windows e2e client
+    # https://github.com/hashicorp/nomad/issues/15505
     #    task "rawexec_git_custom" {
     #      artifact {
     #        source      = "git::https://github.com/hashicorp/go-set"
