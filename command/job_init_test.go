@@ -121,6 +121,66 @@ func TestInitCommand_listTemplates(t *testing.T) {
 	}
 }
 
+func TestInitCommand_fromJobTemplate(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	varCmd := &VarPutCommand{Meta: Meta{Ui: ui}}
+
+	tinyJob := `job "tiny" {
+		group "foo" {
+			task "bar" {
+			}
+		}
+	}`
+
+	// Set up job template variables
+	varCmd.Run([]string{"-address=" + url, "-out=json", "nomad/job-templates/invalid-template", "k1=v1"})
+	varCmd.Run([]string{"-address=" + url, "-out=json", "nomad/job-templates/valid-template", "template=" + tinyJob})
+	ui.ErrorWriter.Reset()
+	ui.OutputWriter.Reset()
+
+	// Ensure we change the cwd back
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Chdir(origDir)
+
+	// Create a temp dir and change into it
+	dir := t.TempDir()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	jobCmd := &JobInitCommand{Meta: Meta{Ui: ui}}
+
+	// Doesnt work if our var lacks a template key
+	if code := jobCmd.Run([]string{"-address=" + url, "-template=invalid-template"}); code != 1 {
+		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
+	}
+
+	// Works if the file doesn't exist
+	if code := jobCmd.Run([]string{"-address=" + url, "-template=valid-template"}); code != 0 {
+		require.Zero(t, code, "unexpected exit code: %d: %v", code, ui.ErrorWriter.String())
+	}
+	content, err := ioutil.ReadFile(DefaultInitName)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if string(content) != string(tinyJob) {
+		t.Fatalf("unexpected file content\n\n%s", string(content))
+	}
+
+	ui.ErrorWriter.Reset()
+	expectedOutput := "Initializing a job template from valid-template\nExample job file written to example.nomad\n"
+	if ui.OutputWriter.String() != expectedOutput {
+		t.Errorf("Expected output %q but got %q", expectedOutput, ui.OutputWriter.String())
+	}
+}
+
 func TestInitCommand_customFilename(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
