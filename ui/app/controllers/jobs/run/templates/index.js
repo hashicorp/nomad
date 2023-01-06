@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -34,19 +33,9 @@ export default class JobsRunTemplatesController extends Controller {
   }
 
   @action
-  navigateToJobsRun(plainId) {
-    return this.router.transitionTo('jobs.run', { queryParams: { plainId } });
-  }
-
-  @action
-  onApply() {
-    const job = getOwner(this).lookup('controller:jobs.run.index').model;
-    const { json } = this.templates?.find(
-      (template) => template.id === this.selectedTemplate
-    );
-
-    job.set('_newDefinition', json);
-    job.setIdByPayload(json);
-    this.navigateToJobsRun(job.plainId);
+  navigateToJobsRun(selectedTemplate) {
+    return this.router.transitionTo('jobs.run', {
+      queryParams: { template: selectedTemplate },
+    });
   }
 }
