@@ -65,7 +65,10 @@ func testWindows(t *testing.T) {
 	check("rawexec", "rawexec_file_custom")
 	check("rawexec", "rawexec_zip_default")
 	check("rawexec", "rawexec_zip_custom")
-	check("rawexec", "rawexec_git_custom")
+
+	// todo(shoenig) needs git on windows
+	// https://github.com/hashicorp/nomad/issues/15505
+	// check("rawexec", "rawexec_git_custom")
 }
 
 func testLinux(t *testing.T) {
