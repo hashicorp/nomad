@@ -273,22 +273,22 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			if tc.expectAccessor != "" {
 				must.NotNil(t, resp.Identity.ACLToken, must.Sprint("expected ACL token"))
 				test.Eq(t, tc.expectAccessor, resp.Identity.ACLToken.AccessorID,
-					must.Sprint("expected ACL token accessor ID"))
+					test.Sprint("expected ACL token accessor ID"))
 			}
 
 			test.Eq(t, tc.expectClientID, resp.Identity.ClientID,
-				must.Sprint("expected client ID"))
+				test.Sprint("expected client ID"))
 
 			if tc.expectAllocID != "" {
 				must.NotNil(t, resp.Identity.Claims, must.Sprint("expected claims"))
 				test.Eq(t, tc.expectAllocID, resp.Identity.Claims.AllocationID,
-					must.Sprint("expected workload identity"))
+					test.Sprint("expected workload identity"))
 			}
 
-			test.Eq(t, tc.expectTLSName, resp.Identity.TLSName, must.Sprint("expected TLS name"))
+			test.Eq(t, tc.expectTLSName, resp.Identity.TLSName, test.Sprint("expected TLS name"))
 
 			if tc.expectIP == "" {
-				test.Nil(t, resp.Identity.RemoteIP, must.Sprint("expected no remote IP"))
+				test.Nil(t, resp.Identity.RemoteIP, test.Sprint("expected no remote IP"))
 			} else {
 				test.Eq(t, tc.expectIP, resp.Identity.RemoteIP.String())
 			}
