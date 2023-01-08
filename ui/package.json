@@ -157,7 +157,7 @@
     "@storybook/addon-viewport": "^6.3.10",
     "@storybook/addons": "^6.3.10",
     "@storybook/ember": "^6.3.10",
-    "babel-loader": "^8.0.6",
+    "babel-loader": "^9.1.2",
     "ember-cli-get-component-path-option": "^1.0.0",
     "ember-cli-string-utils": "^1.1.0"
   },
