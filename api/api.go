@@ -963,10 +963,24 @@ func (c *Client) putQuery(endpoint string, in, out interface{}, q *QueryOptions)
 	return qm, nil
 }
 
-// write is used to do a PUT request against an endpoint
-// and serialize/deserialized using the standard Nomad conventions.
-func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
-	r, err := c.newRequest("PUT", endpoint)
+// put is used to do a PUT request against an endpoint and
+// serialize/deserialized using the standard Nomad conventions.
+func (c *Client) put(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+	return c.write(http.MethodPut, endpoint, in, out, q)
+}
+
+// post is used to do a POST request against an endpoint and
+// serialize/deserialized using the standard Nomad conventions.
+func (c *Client) post(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+	return c.write(http.MethodPost, endpoint, in, out, q)
+}
+
+// write is used to do a write request against an endpoint and
+// serialize/deserialized using the standard Nomad conventions.
+//
+// You probably want the delete, post, or put methods.
+func (c *Client) write(verb, endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+	r, err := c.newRequest(verb, endpoint)
 	if err != nil {
 		return nil, err
 	}

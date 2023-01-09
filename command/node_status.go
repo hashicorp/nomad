@@ -831,21 +831,8 @@ func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
 }
 
 func (c *NodeStatusCommand) formatMeta(node *api.Node) {
-	// Print the meta
-	keys := make([]string, 0, len(node.Meta))
-	for k := range node.Meta {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var meta []string
-	for _, k := range keys {
-		if k != "" {
-			meta = append(meta, fmt.Sprintf("%s|%s", k, node.Meta[k]))
-		}
-	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Meta[reset]"))
-	c.Ui.Output(formatKV(meta))
+	c.Ui.Output(formatNodeMeta(node.Meta))
 }
 
 func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {

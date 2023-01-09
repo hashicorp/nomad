@@ -95,7 +95,7 @@ func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 // ParseHCL is an alternative convenience API for HCLv2 users.
 func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
 	var job Job
-	_, err := j.client.write("/v1/jobs/parse", req, &job, nil)
+	_, err := j.client.put("/v1/jobs/parse", req, &job, nil)
 	return &job, err
 }
 
@@ -105,7 +105,7 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 	if q != nil {
 		req.WriteRequest = WriteRequest{Region: q.Region}
 	}
-	wm, err := j.client.write("/v1/validate/job", req, &resp, q)
+	wm, err := j.client.put("/v1/validate/job", req, &resp, q)
 	return &resp, wm, err
 }
 
@@ -148,7 +148,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 	}
 
 	var resp JobRegisterResponse
-	wm, err := j.client.write("/v1/jobs", req, &resp, q)
+	wm, err := j.client.put("/v1/jobs", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,7 +223,7 @@ func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool
 		Meta:    meta,
 	}
 	var resp JobRegisterResponse
-	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
+	qm, err := j.client.put(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -376,7 +376,7 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobRegisterResponse
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/evaluate", nil, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -392,7 +392,7 @@ func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions)
 	}
 
 	var resp JobRegisterResponse
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/evaluate", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/evaluate", req, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -402,7 +402,7 @@ func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions)
 // PeriodicForce spawns a new instance of the periodic job and returns the eval ID
 func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/periodic/force", nil, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/periodic/force", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -435,7 +435,7 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	}
 
 	var resp JobPlanResponse
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(*job.ID)+"/plan", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(*job.ID)+"/plan", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -460,7 +460,7 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 		Payload:          payload,
 		IdPrefixTemplate: idPrefixTemplate,
 	}
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -481,7 +481,7 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 		ConsulToken:         consulToken,
 		VaultToken:          vaultToken,
 	}
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -498,7 +498,7 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 		JobVersion: version,
 		Stable:     stable,
 	}
-	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/stable", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/stable", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

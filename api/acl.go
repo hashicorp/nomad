@@ -31,7 +31,7 @@ func (a *ACLPolicies) Upsert(policy *ACLPolicy, q *WriteOptions) (*WriteMeta, er
 	if policy == nil || policy.Name == "" {
 		return nil, errors.New("missing policy name")
 	}
-	wm, err := a.client.write("/v1/acl/policy/"+policy.Name, policy, nil, q)
+	wm, err := a.client.put("/v1/acl/policy/"+policy.Name, policy, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (c *Client) ACLTokens() *ACLTokens {
 // Bootstrap is used to get the initial bootstrap token
 func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
+	wm, err := a.client.put("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,7 +94,7 @@ func (a *ACLTokens) BootstrapOpts(btoken string, q *WriteOptions) (*ACLToken, *W
 	}
 
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/bootstrap", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/bootstrap", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -117,7 +117,7 @@ func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 		return nil, nil, errors.New("cannot specify Accessor ID")
 	}
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/token", token, &resp, q)
+	wm, err := a.client.put("/v1/acl/token", token, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +130,7 @@ func (a *ACLTokens) Update(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 		return nil, nil, errors.New("missing accessor ID")
 	}
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/token/"+token.AccessorID,
+	wm, err := a.client.put("/v1/acl/token/"+token.AccessorID,
 		token, &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -176,7 +176,7 @@ func (a *ACLTokens) Self(q *QueryOptions) (*ACLToken, *QueryMeta, error) {
 // UpsertOneTimeToken is used to create a one-time token
 func (a *ACLTokens) UpsertOneTimeToken(q *WriteOptions) (*OneTimeToken, *WriteMeta, error) {
 	var resp *OneTimeTokenUpsertResponse
-	wm, err := a.client.write("/v1/acl/token/onetime", nil, &resp, q)
+	wm, err := a.client.put("/v1/acl/token/onetime", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,7 +193,7 @@ func (a *ACLTokens) ExchangeOneTimeToken(secret string, q *WriteOptions) (*ACLTo
 	}
 	req := &OneTimeTokenExchangeRequest{OneTimeSecretID: secret}
 	var resp *OneTimeTokenExchangeResponse
-	wm, err := a.client.write("/v1/acl/token/onetime/exchange", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/token/onetime/exchange", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -243,7 +243,7 @@ func (a *ACLRoles) Create(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta,
 		return nil, nil, errors.New("cannot specify ACL role ID")
 	}
 	var resp ACLRole
-	wm, err := a.client.write("/v1/acl/role", role, &resp, w)
+	wm, err := a.client.put("/v1/acl/role", role, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -256,7 +256,7 @@ func (a *ACLRoles) Update(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta,
 		return nil, nil, errMissingACLRoleID
 	}
 	var resp ACLRole
-	wm, err := a.client.write("/v1/acl/role/"+role.ID, role, &resp, w)
+	wm, err := a.client.put("/v1/acl/role/"+role.ID, role, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -328,7 +328,7 @@ func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*AC
 		return nil, nil, errMissingACLAuthMethodName
 	}
 	var resp ACLAuthMethod
-	wm, err := a.client.write("/v1/acl/auth-method", authMethod, &resp, w)
+	wm, err := a.client.put("/v1/acl/auth-method", authMethod, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -341,7 +341,7 @@ func (a *ACLAuthMethods) Update(authMethod *ACLAuthMethod, w *WriteOptions) (*AC
 		return nil, nil, errMissingACLAuthMethodName
 	}
 	var resp ACLAuthMethod
-	wm, err := a.client.write("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
+	wm, err := a.client.put("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -397,7 +397,7 @@ func (a *ACLBindingRules) List(q *QueryOptions) ([]*ACLBindingRuleListStub, *Que
 // Create is used to create an ACL binding rule.
 func (a *ACLBindingRules) Create(bindingRule *ACLBindingRule, w *WriteOptions) (*ACLBindingRule, *WriteMeta, error) {
 	var resp ACLBindingRule
-	wm, err := a.client.write("/v1/acl/binding-rule", bindingRule, &resp, w)
+	wm, err := a.client.put("/v1/acl/binding-rule", bindingRule, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -410,7 +410,7 @@ func (a *ACLBindingRules) Update(bindingRule *ACLBindingRule, w *WriteOptions) (
 		return nil, nil, errMissingACLBindingRuleID
 	}
 	var resp ACLBindingRule
-	wm, err := a.client.write("/v1/acl/binding-rule/"+bindingRule.ID, bindingRule, &resp, w)
+	wm, err := a.client.put("/v1/acl/binding-rule/"+bindingRule.ID, bindingRule, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -456,7 +456,7 @@ func (c *Client) ACLOIDC() *ACLOIDC {
 // be visited in order to sign in to the provider.
 func (a *ACLOIDC) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLOIDCAuthURLResponse, *WriteMeta, error) {
 	var resp ACLOIDCAuthURLResponse
-	wm, err := a.client.write("/v1/acl/oidc/auth-url", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/oidc/auth-url", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -467,7 +467,7 @@ func (a *ACLOIDC) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLO
 // appropriate claims attached.
 func (a *ACLOIDC) CompleteAuth(req *ACLOIDCCompleteAuthRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/oidc/complete-auth", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/oidc/complete-auth", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

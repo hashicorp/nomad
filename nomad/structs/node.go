@@ -351,3 +351,25 @@ func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 
 	return true
 }
+
+// NodeMetaSetRequest is used to update Node metadata on Client agents.
+type NodeMetaSetRequest struct {
+	WriteRequest
+
+	// NodeID is the node being targeted by this request (or the node
+	// receiving this request if NodeID is empty).
+	NodeID string
+
+	// Meta is the new Node metadata being applied and differs slightly
+	// from Node.Meta as nil values are used to unset Node.Meta keys.
+	Meta map[string]*string
+}
+
+// NodeMetaResponse is used to read Node metadata directly from Client agents.
+type NodeMetaResponse struct {
+	// Meta is the merged static + dynamic Node metadata
+	Meta map[string]string
+
+	// Dynamic is the dynamic Node metadata
+	Dynamic map[string]*string
+}

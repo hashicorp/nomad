@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"errors"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -47,40 +46,5 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 		return nstructs.ErrPermissionDenied
 	}
 
-	// Verify the arguments.
-	if args.NodeID == "" {
-		return errors.New("missing NodeID")
-	}
-
-	// Check if the node even exists and is compatible with NodeRpc
-	snap, err := s.srv.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
-	// Make sure Node is new enough to support RPC
-	_, err = getNodeForRpc(snap, args.NodeID)
-	if err != nil {
-		return err
-	}
-
-	// Get the connection to the client
-	state, ok := s.srv.getNodeConn(args.NodeID)
-	if !ok {
-
-		// Determine the Server that has a connection to the node.
-		srv, err := s.srv.serverWithNodeConn(args.NodeID, s.srv.Region())
-		if err != nil {
-			return err
-		}
-
-		if srv == nil {
-			return nstructs.ErrNoNodeConn
-		}
-
-		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
-	}
-
-	// Make the RPC
-	return NodeRpc(state.Session, "ClientStats.Stats", args, reply)
+	return s.srv.forwardClientRPC("ClientStats.Stats", args.NodeID, args, reply)
 }

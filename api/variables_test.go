@@ -226,7 +226,7 @@ func TestVariables_Read(t *testing.T) {
 }
 
 func writeTestVariable(t *testing.T, c *Client, sv *Variable) {
-	_, err := c.write("/v1/var/"+sv.Path, sv, sv, nil)
+	_, err := c.put("/v1/var/"+sv.Path, sv, sv, nil)
 	must.NoError(t, err, must.Sprint("failed writing test variable"))
 	must.NoError(t, err, must.Sprint("failed writing test variable"))
 }

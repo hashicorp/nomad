@@ -13,11 +13,11 @@ type NodeConfigCommand struct {
 
 func (c *NodeConfigCommand) Help() string {
 	helpText := `
-Usage: nomad node config [options]
+Usage: nomad node meta [options]
 
-  View or modify a client node's configuration details. This command only works
-  on client nodes, and can be used to update the running client configurations
-  it supports.
+  View or modify a client node's metadata. This command only works
+  on client nodes, and can be used to update the scheduling metadata the node
+  registers.
 
   The arguments behave differently depending on the flags given. See each
   flag's description for its specific requirements.

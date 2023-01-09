@@ -192,7 +192,7 @@ func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfig
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
 func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
 	var out SchedulerSetConfigurationResponse
-	wm, err := op.c.write("/v1/operator/scheduler/configuration", conf, &out, q)
+	wm, err := op.c.put("/v1/operator/scheduler/configuration", conf, &out, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -204,7 +204,7 @@ func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *W
 // true on success or false on failures.
 func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
 	var out SchedulerSetConfigurationResponse
-	wm, err := op.c.write("/v1/operator/scheduler/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+	wm, err := op.c.put("/v1/operator/scheduler/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -241,7 +241,7 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 // SnapshotRestore is used to restore a running nomad cluster to an original
 // state.
 func (op *Operator) SnapshotRestore(in io.Reader, q *WriteOptions) (*WriteMeta, error) {
-	wm, err := op.c.write("/v1/operator/snapshot", in, nil, q)
+	wm, err := op.c.put("/v1/operator/snapshot", in, nil, q)
 	if err != nil {
 		return nil, err
 	}

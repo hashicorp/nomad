@@ -1255,6 +1255,7 @@ func (s *Server) setupStreamingEndpoints(server *rpc.Server) {
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// These endpoints are client RPCs and don't include a connection context
 	_ = server.Register(NewClientStatsEndpoint(s))
+	_ = server.Register(newNodeMetaEndpoint(s))
 
 	// These endpoints have their streaming component registered in
 	// setupStreamingEndpoints, but their non-streaming RPCs are registered
