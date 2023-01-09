@@ -5,17 +5,70 @@ import (
 
 	"github.com/shoenig/test/must"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func generateID(t *testing.T) string {
+	t.Helper()
+
+	id, err := uuid.GenerateUUID()
+	must.NoError(t, err)
+
+	return id
+}
+
 func TestBinder_Bind(t *testing.T) {
 	ci.Parallel(t)
 
 	testStore := state.TestStateStore(t)
 	testBind := NewBinder(testStore)
+
+	// create an authMethod method and insert into the state store
+	authMethod := mock.ACLAuthMethod()
+	must.NoError(t, testStore.UpsertACLAuthMethods(0, []*structs.ACLAuthMethod{authMethod}))
+
+	// create some roles and insert into the state store
+	targetRole := &structs.ACLRole{
+		ID:   generateID(t),
+		Name: "vim-role",
+	}
+	otherRole := &structs.ACLRole{
+		ID:   generateID(t),
+		Name: "frontend-engineers",
+	}
+	must.NoError(t, testStore.UpsertACLRoles(
+		structs.MsgTypeTestSetup, 0, []*structs.ACLRole{targetRole, otherRole}, true,
+	))
+
+	// create binding rules and insert into the state store
+	bindingRules := []*structs.ACLBindingRule{
+		{
+			ID:         generateID(t),
+			Selector:   "role==engineer",
+			BindType:   structs.ACLBindingRuleBindTypeRole,
+			BindName:   "${editor}-role",
+			AuthMethod: authMethod.Name,
+		},
+		{
+			ID:         generateID(t),
+			Selector:   "role==engineer",
+			BindType:   structs.ACLBindingRuleBindTypeRole,
+			BindName:   "this-role-does-not-exist",
+			AuthMethod: authMethod.Name,
+		},
+		{
+			ID:         generateID(t),
+			Selector:   "language==js",
+			BindType:   structs.ACLBindingRuleBindTypeRole,
+			BindName:   otherRole.Name,
+			AuthMethod: authMethod.Name,
+		},
+	}
+	must.NoError(t, testStore.UpsertACLBindingRules(0, bindingRules, true))
 
 	tests := []struct {
 		name       string
@@ -29,6 +82,21 @@ func TestBinder_Bind(t *testing.T) {
 			mock.ACLAuthMethod(),
 			&Identity{},
 			&Bindings{},
+			false,
+		},
+		{
+			"role",
+			mock.ACLAuthMethod(),
+			&Identity{
+				ClaimMappings: map[string]string{
+					"editor": "vim",
+				},
+				Claims: map[string]string{
+					"role":     "engineer",
+					"language": "go",
+				},
+			},
+			&Bindings{Roles: []*structs.ACLTokenRoleLink{{ID: targetRole.ID}}},
 			false,
 		},
 	}
