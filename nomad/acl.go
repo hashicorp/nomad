@@ -23,12 +23,6 @@ import (
 // if an ACL token or allocation's WI has just been created.
 func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.AuthenticatedIdentity, error) {
 
-	// Previously-connected clients will have a NodeID set and will be a large
-	// number of the RPCs sent, so we can fast path this case
-	if ctx != nil && ctx.NodeID != "" {
-		return &structs.AuthenticatedIdentity{ClientID: ctx.NodeID}, nil
-	}
-
 	// get the user ACLToken or anonymous token
 	aclToken, err := s.ResolveSecretToken(secretID)
 
@@ -86,6 +80,16 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 	}
 
 	// At this point we either have an anonymous token or an invalid one.
+
+	// Previously-connected clients will have a NodeID set on the context, which
+	// is available for all yamux streams over the same yamux session (and TCP
+	// connection). This will be a large portion of the RPCs sent, but we can't
+	// fast-path this at the top of the method, because authenticated HTTP
+	// requests to the clients will come in over to the same session.
+	if ctx.NodeID != "" {
+		return &structs.AuthenticatedIdentity{ClientID: ctx.NodeID}, nil
+	}
+
 	// Unlike clients that provide their Node ID on first connection, server
 	// RPCs don't include an ID for the server so we identify servers by cert
 	// and IP address.
