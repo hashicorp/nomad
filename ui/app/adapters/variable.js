@@ -1,4 +1,5 @@
 import ApplicationAdapter from './application';
+import AdapterError from '@ember-data/adapter/error';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 import { ConflictError } from '@ember-data/adapter/error';
@@ -26,9 +27,22 @@ export default class VariableAdapter extends ApplicationAdapter {
     return pluralize(baseUrl);
   }
 
-  urlForFindRecord(identifier, modelName, snapshot) {
-    const { namespace, id } = _extractIDAndNamespace(identifier, snapshot);
-    let baseUrl = this.buildURL(modelName, id);
+  urlForFindRecord(identifier, modelName) {
+    let path,
+      namespace = null;
+
+    // TODO: Variables are namespaced. This Adapter should extend the WatchableNamespaceId Adapter.
+    // When that happens, we will need to refactor this to accept JSON tuple like we do for jobs.
+    const delimiter = identifier.lastIndexOf('@');
+    if (delimiter !== -1) {
+      path = identifier.slice(0, delimiter);
+      namespace = identifier.slice(delimiter + 1);
+    } else {
+      path = identifier;
+      namespace = 'default';
+    }
+
+    let baseUrl = this.buildURL(modelName, path);
     return `${baseUrl}?namespace=${namespace}`;
   }
 
@@ -50,6 +64,9 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   handleResponse(status, _, payload) {
+    if (status === 404) {
+      return new AdapterError([{ detail: payload, status: 404 }]);
+    }
     if (status === 409) {
       return new ConflictError([
         { detail: _normalizeConflictErrorObject(payload), status: 409 },

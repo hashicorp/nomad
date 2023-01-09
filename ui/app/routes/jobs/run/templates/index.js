@@ -3,23 +3,31 @@ import { inject as service } from '@ember/service';
 
 export default class RunTemplatesRoute extends Route {
   @service can;
+  @service router;
   @service store;
 
   beforeModel() {
-    if (
-      this.can.cannot('write variable', null, {
-        namespace: '*',
-        path: '*',
-      })
-    ) {
-      this.transitionTo('jobs');
+    const hasPermissions = this.can.can('write variable', null, {
+      namespace: '*',
+      path: '*',
+    });
+
+    // We create a job with no id in jobs.run that is populated by this form.
+    // A user cannot start at this route.
+    if (!hasPermissions) {
+      this.router.transitionTo('jobs');
     }
   }
 
-  model() {
-    return this.store.query('variable', {
+  async model() {
+    const jobTemplateVariables = await this.store.query('variable', {
       prefix: 'nomad/job-templates',
-      filter: 'Template is not empty"',
+      namespace: '*',
     });
+    const recordsToQuery = jobTemplateVariables.map((template) =>
+      this.store.findRecord('variable', template.id)
+    );
+
+    return Promise.all(recordsToQuery);
   }
 }
