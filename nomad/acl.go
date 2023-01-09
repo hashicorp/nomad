@@ -16,7 +16,10 @@ import (
 
 // Authenticate extracts an AuthenticatedIdentity from the request context or
 // provided token. The caller can extract an acl.ACL, WorkloadIdentity, or other
-// identifying token to use for authorization.
+// identifying token to use for authorization. Keeping these fields independent
+// rather than merging them into an ephemeral ACLToken makes the original of the
+// credential clear to RPC handlers, who may have different behavior for
+// internal vs external origins.
 //
 // Note: when called on the follower we'll be making stale queries, so it's
 // possible if the follower is behind that the leader will get a different value

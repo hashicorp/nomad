@@ -461,6 +461,10 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // return a wrapper around the various elements that can be resolved as an
 // identity. RPC handlers will use the relevant fields for performing
 // authorization.
+//
+// Keeping these fields independent rather than merging them into an ephemeral
+// ACLToken makes the original of the credential clear to RPC handlers, who may
+// have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
 	ACLToken *ACLToken
 	Claims   *IdentityClaims
