@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
 	testing "github.com/mitchellh/go-testing-interface"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/portal"
 	"github.com/shoenig/test/wait"
@@ -286,7 +285,7 @@ func (s *TestServer) waitForAPI() {
 		}
 		return nil
 	}
-	test.Wait(s.t,
+	must.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
@@ -313,7 +312,7 @@ func (s *TestServer) waitForLeader() {
 		}
 		return nil
 	}
-	test.Wait(s.t,
+	must.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
@@ -347,7 +346,7 @@ func (s *TestServer) waitForClient() {
 		}
 		return nil
 	}
-	test.Wait(s.t,
+	must.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
