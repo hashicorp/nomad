@@ -6,6 +6,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 @classic
 export default class RunRoute extends Route {
   @service can;
+  @service flashMessages;
   @service router;
   @service store;
   @service system;
@@ -46,8 +47,24 @@ export default class RunRoute extends Route {
 
       return this.store.createRecord('job');
     } catch (e) {
-      notifyForbidden(this)(e);
+      this.handle404(e);
     }
+  }
+
+  handle404(e) {
+    const error404 = e.errors.find((err) => err.status === 404);
+    if (error404) {
+      this.flashMessages.add({
+        title: `Error loading ${this.template}`,
+        message: error404.detail,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+
+      return;
+    }
+    notifyForbidden(this)(e);
   }
 
   resetController(controller, isExiting) {

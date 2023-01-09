@@ -1,4 +1,5 @@
 import ApplicationAdapter from './application';
+import AdapterError from '@ember-data/adapter/error';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 import { ConflictError } from '@ember-data/adapter/error';
@@ -63,6 +64,9 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   handleResponse(status, _, payload) {
+    if (status === 404) {
+      return new AdapterError([{ detail: payload, status: 404 }]);
+    }
     if (status === 409) {
       return new ConflictError([
         { detail: _normalizeConflictErrorObject(payload), status: 409 },
