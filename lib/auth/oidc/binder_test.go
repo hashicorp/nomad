@@ -1,53 +1,52 @@
 package oidc
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/shoenig/test/must"
 
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestBinder_Bind(t *testing.T) {
-	type fields struct {
-		store      BinderStateStore
-		datacenter string
-	}
-	type args struct {
+	ci.Parallel(t)
+
+	testStore := state.TestStateStore(t)
+	testBind := NewBinder(testStore)
+
+	tests := []struct {
+		name       string
 		authMethod *structs.ACLAuthMethod
 		identity   *Identity
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Bindings
-		wantErr bool
+		want       *Bindings
+		wantErr    bool
 	}{
-		// {
-		// 	"bind to role",
-		// }
+		{
+			"empty identity",
+			mock.ACLAuthMethod(),
+			&Identity{},
+			&Bindings{},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &Binder{
-				store:      tt.fields.store,
-				datacenter: tt.fields.datacenter,
+			got, err := testBind.Bind(tt.authMethod, tt.identity)
+			if tt.wantErr {
+				must.Error(t, err)
+			} else {
+				must.NoError(t, err)
 			}
-			got, err := b.Bind(tt.args.authMethod, tt.args.identity)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Binder.Bind() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Binder.Bind() = %v, want %v", got, tt.want)
-			}
+			must.Eq(t, got, tt.want)
 		})
 	}
 }
 
 func Test_computeBindName(t *testing.T) {
+	ci.Parallel(t)
 	tests := []struct {
 		name          string
 		bindType      string
@@ -89,6 +88,7 @@ func Test_computeBindName(t *testing.T) {
 }
 
 func Test_doesSelectorMatch(t *testing.T) {
+	ci.Parallel(t)
 	tests := []struct {
 		name           string
 		selector       string

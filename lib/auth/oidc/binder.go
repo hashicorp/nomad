@@ -17,8 +17,7 @@ import (
 //
 // It does so by applying the auth method's configured binding rules.
 type Binder struct {
-	store      BinderStateStore
-	datacenter string
+	store BinderStateStore
 }
 
 type Identity struct {
@@ -31,9 +30,9 @@ type Identity struct {
 	ClaimMappings map[string]string
 }
 
-// NewBinder creates a Binder with the given state store and datacenter.
-func NewBinder(store BinderStateStore, datacenter string) *Binder {
-	return &Binder{store, datacenter}
+// NewBinder creates a Binder with the given state store.
+func NewBinder(store BinderStateStore) *Binder {
+	return &Binder{store}
 }
 
 // BinderStateStore is the subset of state store methods used by the binder.
