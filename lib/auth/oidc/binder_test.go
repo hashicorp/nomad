@@ -70,14 +70,14 @@ func TestBinder_Bind(t *testing.T) {
 	}{
 		{
 			"empty identity",
-			mock.ACLAuthMethod(),
+			authMethod,
 			&Identity{},
 			&Bindings{},
 			false,
 		},
 		{
 			"role",
-			mock.ACLAuthMethod(),
+			authMethod,
 			&Identity{
 				Claims: map[string]string{
 					"role":     "engineer",
