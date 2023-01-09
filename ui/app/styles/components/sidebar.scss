@@ -108,6 +108,9 @@ $subNavOffset: 49px;
   .task-events .boxed-section-body {
     height: 250px;
     overflow: auto;
+    table {
+      height: 100%;
+    }
   }
 
   // Instead of trying to calculate on the fly with JS, let's use vh and offset nav and headers above.
