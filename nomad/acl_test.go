@@ -219,7 +219,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:      "from failed workload", // ex. Variables.List
 			tlsCfg:    clientTLSCfg,
 			testToken: claims1Token,
-			expectErr: "rpc error: allocation is terminal",
+			expectErr: "allocation is terminal",
 		},
 		{
 			name:          "from running workload", // ex. Variables.List
@@ -237,7 +237,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:      "expired user token",
 			tlsCfg:    clientTLSCfg,
 			testToken: token2.SecretID,
-			expectErr: "rpc error: ACL token expired",
+			expectErr: "ACL token expired",
 		},
 	}
 

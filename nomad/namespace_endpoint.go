@@ -26,11 +26,10 @@ func NewNamespaceEndpoint(srv *Server, ctx *RPCContext) *Namespace {
 func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
 
-	identity, err := n.srv.Authenticate(n.ctx, args.AuthToken)
-	if err != nil {
-		return err
+	authErr := n.srv.Authenticate(n.ctx, args)
+	if authErr != nil {
+		return authErr
 	}
-	args.SetIdentity(identity)
 
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {

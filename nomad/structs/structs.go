@@ -343,6 +343,10 @@ func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
 }
 
+func (q *QueryOptions) GetAuthToken() string {
+	return q.AuthToken
+}
+
 func (q *QueryOptions) SetIdentity(identity *AuthenticatedIdentity) {
 	q.identity = identity
 }
@@ -449,6 +453,10 @@ func (w WriteRequest) AllowStaleRead() bool {
 	return false
 }
 
+func (w *WriteRequest) GetAuthToken() string {
+	return w.AuthToken
+}
+
 func (w *WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
 	w.identity = identity
 }
@@ -486,6 +494,12 @@ func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
 		return nil
 	}
 	return ai.Claims
+}
+
+type RequestWithIdentity interface {
+	GetAuthToken() string
+	SetIdentity(identity *AuthenticatedIdentity)
+	GetIdentity() *AuthenticatedIdentity
 }
 
 // QueryMeta allows a query response to include potentially
