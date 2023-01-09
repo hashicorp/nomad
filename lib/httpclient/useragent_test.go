@@ -1,4 +1,4 @@
-package useragent
+package httpclient
 
 import (
 	"testing"

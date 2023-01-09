@@ -1,4 +1,4 @@
-package useragent
+package httpclient
 
 import (
 	"fmt"
@@ -22,8 +22,7 @@ var (
 	}
 )
 
-// String returns the consistent user-agent string for Nomad.
-func String() string {
-	return fmt.Sprintf("Nomad/%s (+%s; %s)",
-		versionFunc(), projectURL, rt)
+// defaultUserAgent returns the consistent user-agent string for Nomad.
+func defaultUserAgent() string {
+	return fmt.Sprintf("Nomad/%s (+%s; %s)", versionFunc(), projectURL, rt)
 }
