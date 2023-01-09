@@ -105,16 +105,27 @@ $subNavOffset: 49px;
     }
   }
 
+  .task-events .boxed-section-body {
+    height: 250px;
+    overflow: auto;
+  }
+
   // Instead of trying to calculate on the fly with JS, let's use vh and offset nav and headers above.
   // We can make this a LOT more streamlined when CSS Container Queries are available.
   $sidebarTopOffset: 161px;
   $sidebarInnerPadding: 48px;
   $sidebarHeaderOffset: 74px;
   $cliHeaderOffset: 54.5px;
+  $offsetWithoutEvents: $sidebarTopOffset + $sidebarInnerPadding +
+    $sidebarHeaderOffset + $cliHeaderOffset;
+  $sidebarEventsHeight: 250px + 44px + 44px; // table + table header + horizontal rule
+
   .cli-window {
-    height: calc(
-      100vh - $sidebarTopOffset - $sidebarInnerPadding - $sidebarHeaderOffset -
-        $cliHeaderOffset
-    );
+    height: calc(100vh - $offsetWithoutEvents);
+  }
+  &.has-events {
+    .cli-window {
+      height: calc(100vh - $offsetWithoutEvents - $sidebarEventsHeight);
+    }
   }
 }
