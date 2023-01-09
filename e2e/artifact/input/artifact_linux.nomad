@@ -42,6 +42,42 @@ job "linux" {
       }
     }
 
+    task "rawexec_file_alloc_dots" {
+      artifact {
+        source      = "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod"
+        destination = "../alloc/go.mod"
+        mode        = "file"
+      }
+      driver = "raw_exec"
+      config {
+        command = "cat"
+        args    = ["../alloc/go.mod"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
+    task "rawexec_file_alloc_env" {
+      artifact {
+        source      = "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod"
+        destination = "${NOMAD_ALLOC_DIR}/go.mod"
+        mode        = "file"
+      }
+      driver = "raw_exec"
+      config {
+        command = "cat"
+        args    = ["${NOMAD_ALLOC_DIR}/go.mod"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
     task "rawexec_zip_default" {
       artifact {
         source = "https://github.com/hashicorp/go-set/archive/refs/heads/main.zip"
@@ -127,6 +163,24 @@ job "linux" {
       }
     }
 
+    task "exec_file_alloc" {
+      artifact {
+        source      = "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod"
+        destination = "${NOMAD_ALLOC_DIR}/go.mod"
+        mode        = "file"
+      }
+      driver = "exec"
+      config {
+        command = "cat"
+        args    = ["${NOMAD_ALLOC_DIR}/go.mod"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
     task "exec_zip_default" {
       artifact {
         source = "https://github.com/hashicorp/go-set/archive/refs/heads/main.zip"
@@ -204,6 +258,24 @@ job "linux" {
       config {
         image = "bash:5"
         args  = ["cat", "local/my/path/go.mod"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
+    task "docker_file_alloc" {
+      artifact {
+        source      = "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod"
+        destination = "${NOMAD_ALLOC_DIR}/go.mod"
+        mode        = "file"
+      }
+      driver = "docker"
+      config {
+        image = "bash:5"
+        args  = ["cat", "${NOMAD_ALLOC_DIR}/go.mod"]
       }
       resources {
         cpu    = 16

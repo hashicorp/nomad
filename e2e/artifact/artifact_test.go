@@ -93,18 +93,22 @@ func testLinux(t *testing.T) {
 
 	check("rawexec", "rawexec_file_default")
 	check("rawexec", "rawexec_file_custom")
+	check("rawexec", "rawexec_file_alloc_dots")
+	check("rawexec", "rawexec_file_alloc_env")
 	check("rawexec", "rawexec_zip_default")
 	check("rawexec", "rawexec_zip_custom")
 	check("rawexec", "rawexec_git_custom")
 
 	check("exec", "exec_file_default")
 	check("exec", "exec_file_custom")
+	check("exec", "exec_file_alloc")
 	check("exec", "exec_zip_default")
 	check("exec", "exec_zip_custom")
 	check("exec", "exec_git_custom")
 
 	check("docker", "docker_file_default")
 	check("docker", "docker_file_custom")
+	check("docker", "docker_file_alloc")
 	check("docker", "docker_zip_default")
 	check("docker", "docker_zip_custom")
 	check("docker", "docker_git_custom")

@@ -36,8 +36,9 @@ type parameters struct {
 	Destination string              `json:"artifact_destination"`
 	Headers     map[string][]string `json:"artifact_headers"`
 
-	// Task Environment
-	TaskDir string `json:"task_dir"`
+	// Task Filesystem
+	AllocDir string `json:"alloc_dir"`
+	TaskDir  string `json:"task_dir"`
 }
 
 func (p *parameters) reader() io.Reader {
