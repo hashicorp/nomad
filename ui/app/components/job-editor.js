@@ -13,6 +13,7 @@ import classic from 'ember-classic-decorator';
 export default class JobEditor extends Component {
   @service store;
   @service config;
+  @service router;
 
   'data-test-job-editor' = true;
 
@@ -104,6 +105,7 @@ export default class JobEditor extends Component {
   })
   submit;
 
+  @action
   reset() {
     this.set('planOutput', null);
     this.set('planError', null);
