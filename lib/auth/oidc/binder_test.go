@@ -5,21 +5,12 @@ import (
 
 	"github.com/shoenig/test/must"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-func generateID(t *testing.T) string {
-	t.Helper()
-
-	id, err := uuid.GenerateUUID()
-	must.NoError(t, err)
-
-	return id
-}
 
 func TestBinder_Bind(t *testing.T) {
 	ci.Parallel(t)
@@ -33,11 +24,11 @@ func TestBinder_Bind(t *testing.T) {
 
 	// create some roles and insert into the state store
 	targetRole := &structs.ACLRole{
-		ID:   generateID(t),
+		ID:   uuid.Generate(),
 		Name: "vim-role",
 	}
 	otherRole := &structs.ACLRole{
-		ID:   generateID(t),
+		ID:   uuid.Generate(),
 		Name: "frontend-engineers",
 	}
 	must.NoError(t, testStore.UpsertACLRoles(
@@ -47,21 +38,21 @@ func TestBinder_Bind(t *testing.T) {
 	// create binding rules and insert into the state store
 	bindingRules := []*structs.ACLBindingRule{
 		{
-			ID:         generateID(t),
+			ID:         uuid.Generate(),
 			Selector:   "role==engineer",
 			BindType:   structs.ACLBindingRuleBindTypeRole,
 			BindName:   "${editor}-role",
 			AuthMethod: authMethod.Name,
 		},
 		{
-			ID:         generateID(t),
+			ID:         uuid.Generate(),
 			Selector:   "role==engineer",
 			BindType:   structs.ACLBindingRuleBindTypeRole,
 			BindName:   "this-role-does-not-exist",
 			AuthMethod: authMethod.Name,
 		},
 		{
-			ID:         generateID(t),
+			ID:         uuid.Generate(),
 			Selector:   "language==js",
 			BindType:   structs.ACLBindingRuleBindTypeRole,
 			BindName:   otherRole.Name,
@@ -88,12 +79,12 @@ func TestBinder_Bind(t *testing.T) {
 			"role",
 			mock.ACLAuthMethod(),
 			&Identity{
-				ClaimMappings: map[string]string{
-					"editor": "vim",
-				},
 				Claims: map[string]string{
 					"role":     "engineer",
 					"language": "go",
+				},
+				ClaimMappings: map[string]string{
+					"editor": "vim",
 				},
 			},
 			&Bindings{Roles: []*structs.ACLTokenRoleLink{{ID: targetRole.ID}}},
