@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"github.com/hashicorp/nomad/lib/httpclient"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
 	"golang.org/x/exp/maps"
@@ -62,7 +63,6 @@ type OperatorDebugCommand struct {
 }
 
 const (
-	userAgent                     = "nomad operator debug"
 	clusterDir                    = "cluster"
 	clientDir                     = "client"
 	serverDir                     = "server"
@@ -1223,7 +1223,7 @@ func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlP
 	}
 
 	req.Header.Add("X-Consul-Token", c.consul.token())
-	req.Header.Add("User-Agent", userAgent)
+	req.Header.Add("User-Agent", httpclient.NomadUserAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -1257,7 +1257,7 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 	}
 
 	req.Header.Add("X-Vault-Token", c.vault.token())
-	req.Header.Add("User-Agent", userAgent)
+	req.Header.Add("User-Agent", httpclient.NomadUserAgent())
 	resp, err := client.Do(req)
 	c.writeBody(dir, "vault-sys-health.json", resp, err)
 

@@ -9,7 +9,7 @@ func TestUserAgent(t *testing.T) {
 	rt = "go5.0"
 	versionFunc = func() string { return "1.2.3" }
 
-	act := String()
+	act := NomadUserAgent()
 
 	exp := "Nomad/1.2.3 (+https://nomad-test.com; go5.0)"
 	if exp != act {

@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/lib/httpclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"oss.indeed.com/go/libtime"
 )
@@ -33,19 +34,20 @@ type Checker interface {
 
 // New creates a new Checker capable of executing HTTP and TCP checks.
 func New(log hclog.Logger) Checker {
-	httpClient := cleanhttp.DefaultPooledClient()
-	httpClient.Timeout = maxTimeoutHTTP
 	return &checker{
-		log:        log.Named("checks"),
-		httpClient: httpClient,
-		clock:      libtime.SystemClock(),
+		log: log.Named("checks"),
+		httpClient: httpclient.New(
+			httpclient.Timeout(maxTimeoutHTTP),
+			httpclient.RoundTripper(cleanhttp.DefaultPooledTransport()),
+		),
+		clock: libtime.SystemClock(),
 	}
 }
 
 type checker struct {
 	log        hclog.Logger
 	clock      libtime.Clock
-	httpClient *http.Client
+	httpClient httpclient.Client
 }
 
 func (c *checker) now() int64 {

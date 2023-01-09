@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/lib/httpclient"
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.
@@ -16,6 +17,16 @@ const (
 	// TightenNetworkTimeoutsConfig is a config key that can be used during
 	// tests to tighten the timeouts for fingerprinters that make network calls.
 	TightenNetworkTimeoutsConfig = "test.tighten_network_timeouts"
+)
+
+var (
+	// defaultEnvHttpClient creates a shared http client for use by each env
+	// fingerprinter, where a 2 second timeout should be plenty.
+	defaultEnvHttpClient = httpclient.New(httpclient.Timeout(2 * time.Second))
+
+	// minimalEnvHttpTimeout creates an httpclient.Option for setting a tiny
+	// timeout on an httpclient.Client for use in test cases or in dev mode.
+	minimalEnvHttpTimeout = httpclient.Timeout(1 * time.Millisecond)
 )
 
 func init() {
@@ -90,11 +101,10 @@ func NewFingerprint(name string, logger log.Logger) (Fingerprint, error) {
 // Factory is used to instantiate a new Fingerprint
 type Factory func(log.Logger) Fingerprint
 
-// HealthCheck is used for doing periodic health checks. On a given time
-// interfal, a health check will be called by the fingerprint manager of the
-// node.
+// HealthCheck is used for doing periodic health checks. On a given time interval,
+// a health check will be called by the fingerprint manager of the node.
 type HealthCheck interface {
-	// Check is used to update properties of the node on the status of the health
+	// HealthCheck is used to update properties of the node on the status of the health
 	// check
 	HealthCheck(*cstructs.HealthCheckRequest, *cstructs.HealthCheckResponse) error
 

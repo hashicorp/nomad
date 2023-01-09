@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/httpclient"
 
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -44,7 +43,7 @@ type AzureMetadataPair struct {
 // EnvAzureFingerprint is used to fingerprint Azure metadata
 type EnvAzureFingerprint struct {
 	StaticFingerprinter
-	client      *http.Client
+	client      httpclient.Client
 	logger      log.Logger
 	metadataURL string
 }
@@ -58,14 +57,8 @@ func NewEnvAzureFingerprint(logger log.Logger) Fingerprint {
 		metadataURL = AzureMetadataURL
 	}
 
-	// assume 2 seconds is enough time for inside Azure network
-	client := &http.Client{
-		Timeout:   AzureMetadataTimeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
 	return &EnvAzureFingerprint{
-		client:      client,
+		client:      defaultEnvHttpClient,
 		logger:      logger.Named("env_azure"),
 		metadataURL: metadataURL,
 	}
@@ -81,10 +74,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 	req := &http.Request{
 		Method: "GET",
 		URL:    parsedURL,
-		Header: http.Header{
-			"Metadata":   []string{"true"},
-			"User-Agent": []string{useragent.String()},
-		},
+		Header: http.Header{"Metadata": []string{"true"}},
 	}
 
 	res, err := f.client.Do(req)
@@ -126,7 +116,7 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
-		f.client.Timeout = 1 * time.Millisecond
+		f.client = httpclient.New(minimalEnvHttpTimeout)
 	}
 
 	if !f.isAzure() {

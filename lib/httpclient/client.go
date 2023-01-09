@@ -10,35 +10,37 @@ import (
 // A Client must implement the Do method.
 type Client interface {
 	Do(*http.Request) (*http.Response, error)
+	Get(string) (*http.Response, error)
 }
 
 // NomadHTTP is an implementation of Client that automatically configures an
 // underlying http.Client with Nomad specific details.
 type NomadHTTP struct {
+	*http.Client
+
 	userAgent string
-	client    *http.Client
 }
 
 // An Option is used to set configuration on a NomadHTTP client.
 type Option func(c *NomadHTTP)
 
-// WithUserAgent configures the User-Agent string to inject into every request,
+// UserAgent configures the User-Agent string to inject into every request,
 // regardless of configuration of the http.Request object.
-func WithUserAgent(ua string) Option {
+func UserAgent(ua string) Option {
 	return func(f *NomadHTTP) {
 		f.userAgent = ua
 	}
 }
 
-// WithRoundTripper configures the http.RoundTripper to set as the http.Transport
+// RoundTripper configures the http.RoundTripper to set as the http.Transport
 // of the http.Client. Defaults to a pooled connection configured by cleanhttp.DefaultClient.
-func WithRoundTripper(tr http.RoundTripper) Option {
+func RoundTripper(tr http.RoundTripper) Option {
 	return func(f *NomadHTTP) {
-		f.client.Transport = tr
+		f.Transport = tr
 	}
 }
 
-// WithTimeout configures the global timeout value on the http.Client. By default
+// Timeout configures the global timeout value on the http.Client. By default
 // this is left unset - however the underlying http client is configured with
 // - Transport.DialContext.Timeout
 // - Transport.IdleConnTimeout
@@ -46,10 +48,10 @@ func WithRoundTripper(tr http.RoundTripper) Option {
 // - Transport.ExpectContinueTimeout
 //
 // These detailed timeouts can be further configured by supplying your own http.Transport
-// via WithRoundTripper.
-func WithTimeout(timeout time.Duration) Option {
+// via RoundTripper.
+func Timeout(timeout time.Duration) Option {
 	return func(f *NomadHTTP) {
-		f.client.Timeout = timeout
+		f.Timeout = timeout
 	}
 }
 
@@ -57,8 +59,8 @@ func WithTimeout(timeout time.Duration) Option {
 // can be customized by specifying various Option values.
 func New(options ...Option) *NomadHTTP {
 	rf := &NomadHTTP{
-		userAgent: defaultUserAgent(),
-		client:    cleanhttp.DefaultClient(),
+		Client:    cleanhttp.DefaultClient(),
+		userAgent: NomadUserAgent(),
 	}
 	for _, opt := range options {
 		opt(rf)
@@ -66,8 +68,21 @@ func New(options ...Option) *NomadHTTP {
 	return rf
 }
 
+func (n *NomadHTTP) setUserAgent(request *http.Request) {
+	request.Header.Set("User-Agent", n.userAgent)
+}
+
 // Do executes the given request.
 func (n *NomadHTTP) Do(request *http.Request) (*http.Response, error) {
-	request.Header.Set("User-Agent", n.userAgent)
-	return n.client.Do(request)
+	n.setUserAgent(request)
+	return n.Client.Do(request)
+}
+
+// Get performs an HTTP get request to url.
+func (n *NomadHTTP) Get(url string) (*http.Response, error) {
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return n.Do(request)
 }

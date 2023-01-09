@@ -22,7 +22,7 @@ var (
 	}
 )
 
-// defaultUserAgent returns the consistent user-agent string for Nomad.
-func defaultUserAgent() string {
+// NomadUserAgent returns the consistent (version-specific) user-agent string for Nomad.
+func NomadUserAgent() string {
 	return fmt.Sprintf("Nomad/%s (+%s; %s)", versionFunc(), projectURL, rt)
 }

@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/httpclient"
 
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -55,7 +54,7 @@ func lastToken(s string) string {
 // EnvGCEFingerprint is used to fingerprint GCE metadata
 type EnvGCEFingerprint struct {
 	StaticFingerprinter
-	client      *http.Client
+	client      httpclient.Client
 	logger      log.Logger
 	metadataURL string
 }
@@ -68,15 +67,8 @@ func NewEnvGCEFingerprint(logger log.Logger) Fingerprint {
 	if metadataURL == "" {
 		metadataURL = DEFAULT_GCE_URL
 	}
-
-	// assume 2 seconds is enough time for inside GCE network
-	client := &http.Client{
-		Timeout:   GceMetadataTimeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
 	return &EnvGCEFingerprint{
-		client:      client,
+		client:      defaultEnvHttpClient,
 		logger:      logger.Named("env_gce"),
 		metadataURL: metadataURL,
 	}
@@ -96,10 +88,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	req := &http.Request{
 		Method: "GET",
 		URL:    parsedUrl,
-		Header: http.Header{
-			"Metadata-Flavor": []string{"Google"},
-			"User-Agent":      []string{useragent.String()},
-		},
+		Header: http.Header{"Metadata-Flavor": []string{"Google"}},
 	}
 
 	res, err := f.client.Do(req)
@@ -141,7 +130,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
-		f.client.Timeout = 1 * time.Millisecond
+		f.client = httpclient.New(minimalEnvHttpTimeout)
 	}
 
 	if !f.isGCE() {

@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/httpclient"
 
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -34,7 +33,7 @@ type DigitalOceanMetadataPair struct {
 // EnvDigitalOceanFingerprint is used to fingerprint DigitalOcean metadata
 type EnvDigitalOceanFingerprint struct {
 	StaticFingerprinter
-	client      *http.Client
+	client      httpclient.Client
 	logger      log.Logger
 	metadataURL string
 }
@@ -48,14 +47,8 @@ func NewEnvDigitalOceanFingerprint(logger log.Logger) Fingerprint {
 		metadataURL = DigitalOceanMetadataURL
 	}
 
-	// assume 2 seconds is enough time for inside DigitalOcean network
-	client := &http.Client{
-		Timeout:   DigitalOceanMetadataTimeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
 	return &EnvDigitalOceanFingerprint{
-		client:      client,
+		client:      defaultEnvHttpClient,
 		logger:      logger.Named("env_digitalocean"),
 		metadataURL: metadataURL,
 	}
@@ -71,9 +64,6 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 	req := &http.Request{
 		Method: http.MethodGet,
 		URL:    parsedURL,
-		Header: http.Header{
-			"User-Agent": []string{useragent.String()},
-		},
 	}
 
 	res, err := f.client.Do(req)
@@ -102,7 +92,7 @@ func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, re
 
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
-		f.client.Timeout = 1 * time.Millisecond
+		f.client = httpclient.New(minimalEnvHttpTimeout)
 	}
 
 	if !f.isDigitalOcean() {

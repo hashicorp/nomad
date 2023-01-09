@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/lib/httpclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -239,7 +240,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 	}
 
 	encoding := [2]string{"Accept-Encoding", "gzip"}
-	agent := [2]string{"User-Agent", "Go-http-client/1.1"}
+	agent := [2]string{"User-Agent", httpclient.NomadUserAgent()}
 
 	cases := []struct {
 		name    string

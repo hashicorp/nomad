@@ -22,9 +22,9 @@ import (
 	"os/exec"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/lib/httpclient"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -134,7 +134,7 @@ type TestServer struct {
 
 	HTTPAddr   string
 	SerfAddr   string
-	HTTPClient *http.Client
+	HTTPClient httpclient.Client
 }
 
 // NewTestServer creates a new TestServer, and makes a call to
@@ -205,8 +205,6 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		t.Fatalf("err: %s", err)
 	}
 
-	client := cleanhttp.DefaultClient()
-
 	server := &TestServer{
 		Config: nomadConfig,
 		cmd:    cmd,
@@ -214,7 +212,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 
 		HTTPAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.HTTP),
 		SerfAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.Serf),
-		HTTPClient: client,
+		HTTPClient: httpclient.New(),
 	}
 
 	// Wait for the server to be ready
