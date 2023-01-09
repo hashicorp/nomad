@@ -146,7 +146,7 @@ module('Acceptance | job run', function (hooks) {
 
   module('job template flow', function () {
     test('allows user with the correct permissions to run a job based on a template', async function (assert) {
-      assert.expect(6);
+      assert.expect(7);
       // Arrange
       await JobRun.visit();
       assert
@@ -162,8 +162,35 @@ module('Acceptance | job run', function (hooks) {
           },
           'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
         );
-        return [];
+        return [
+          {
+            ID: 'nomad/job-templates/foo',
+            Namespace: 'default',
+            Path: 'nomad/job-templates/foo',
+          },
+        ];
       });
+
+      server.get(
+        '/var/nomad%2Fjob-templates%2Ffoo',
+        function (_server, fakeRequest) {
+          assert.deepEqual(
+            fakeRequest.queryParams,
+            {
+              namespace: 'default',
+            },
+            'Dispatches O(n+1) query to retrive items.'
+          );
+          return [
+            {
+              ID: 'foo',
+              Namespace: 'default',
+              Path: 'nomad/job-templates/foo',
+              Items: [null, null],
+            },
+          ];
+        }
+      );
       // Act
       await click('[data-test-choose-template]');
       assert.equal(currentRouteName(), 'jobs.run.templates.index');
