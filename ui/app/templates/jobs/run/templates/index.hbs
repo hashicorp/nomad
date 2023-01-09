@@ -1,10 +1,28 @@
 <section class="section">
-    <h1 class="title with-flex">Hey buddy!</h1>
-    <span>Here are some preset template we create for you to get started. You can also create custom templates for you or your team to use in the future.</span>
-    <main data-test-template-list>PLACEHOLDER FOR RADIO CARD GROUP</main>
-    {{!-- Add Conditional Logic when no templates available --}}
-    <div>
-        <button data-test-apply>PLACEHOLDER USE HDS</button>
-        <button data-test-cancel>PLACEHOLDER USE HDS</button>
-    </div>
+    <header class="run-job-header">
+        <h1 class="title is-3">Choose a template</h1>
+        <p>A plan will be requested before the job is submitted.  You can pick a template or write your own job spec.</p>
+    </header>
+    {{#if (eq this.templates.length 0)}}
+        <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
+          You have no templates to choose from. Would you like to <Hds::Link::Inline @route="jobs.run.templates.new" data-test-create-inline>create</Hds::Link::Inline> one?
+        </h3>
+        <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
+    {{else}}
+    <main class="radio-group" data-test-template-list>
+        <Hds::Form::RadioCard::Group @alignment="left" as |G|>
+            <G.Legend>Select a Template</G.Legend>
+            {{#each this.templates as |card|}}
+                <G.RadioCard @checked={{eq card.id this.selectedTemplate}} @layout="fixed" @maxWidth="30%" id={{card.id}} data-test-template-card={{card.label}} {{on "change" this.onChange}} as |R|>
+                    <R.Label data-test-template-label>{{card.label}}</R.Label>
+                    <R.Description data-test-template-description>{{card.description}}</R.Description>
+                </G.RadioCard>
+            {{/each}}
+        </Hds::Form::RadioCard::Group>
+    </main>
+    <Hds::ButtonSet class="button-group">
+        <Hds::Button @text="Apply" @route="jobs.run" @query={{hash template=this.selectedTemplate}} disabled={{is-equal this.selectedTemplate null}} data-test-apply />
+        <Hds::Button @text="Cancel" @route="jobs.run" @color="critical" data-test-cancel />
+    </Hds::ButtonSet>
+    {{/if}}
 </section>
