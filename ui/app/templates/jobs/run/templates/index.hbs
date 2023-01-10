@@ -3,8 +3,9 @@
         <h1 class="title is-3">Choose a template</h1>
         <p>A plan will be requested before the job is submitted.  You can pick a template or write your own job spec.</p>
     </header>
+    <Hds::Button @text="Create New Template" @route="jobs.run.templates.new" data-test-create-new-button />
     {{#if (eq this.templates.length 0)}}
-        <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
+        <h3 data-test-empty-templates-list-headline class="empty-message-headline">
           You have no templates to choose from. Would you like to <Hds::Link::Inline @route="jobs.run.templates.new" data-test-create-inline>create</Hds::Link::Inline> one?
         </h3>
         <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
