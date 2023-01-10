@@ -2682,6 +2682,11 @@ func TestDeviceChecker(t *testing.T) {
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: nvidia.Instances[0].ID,
+						},
 					},
 				},
 			},
@@ -2714,6 +2719,11 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
+						},
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: fmt.Sprintf("%s,%s", nvidia.Instances[1].ID, nvidia.Instances[0].ID),
 						},
 					},
 				},
@@ -2813,6 +2823,24 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "does not meet ID constraint",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 1,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: "not_valid",
 						},
 					},
 				},

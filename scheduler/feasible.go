@@ -1373,6 +1373,13 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 	// Handle the interpolations
 	switch {
+	case "${device.ids}" == target:
+		ids := make([]string, len(d.Instances))
+		for i, device := range d.Instances {
+			ids[i] = device.ID
+		}
+		return psstructs.NewStringAttribute(strings.Join(ids, ",")), true
+
 	case "${device.model}" == target:
 		return psstructs.NewStringAttribute(d.Name), true
 
