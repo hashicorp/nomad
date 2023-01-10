@@ -145,8 +145,8 @@ module('Acceptance | job run', function (hooks) {
   });
 
   module('job template flow', function () {
-    test('allows user with the correct permissions to run a job based on a template', async function (assert) {
-      assert.expect(7);
+    test('allows user with the correct permissions to fill in the editor using a job template', async function (assert) {
+      assert.expect(10);
       // Arrange
       await JobRun.visit();
       assert
@@ -181,14 +181,15 @@ module('Acceptance | job run', function (hooks) {
             },
             'Dispatches O(n+1) query to retrive items.'
           );
-          return [
-            {
-              ID: 'foo',
-              Namespace: 'default',
-              Path: 'nomad/job-templates/foo',
-              Items: [null, null],
+          return {
+            ID: 'nomad/job-templates/foo',
+            Namespace: 'default',
+            Path: 'nomad/job-templates/foo',
+            Items: {
+              template: 'Hello World!',
+              label: 'foo',
             },
-          ];
+          };
         }
       );
       // Act
@@ -206,7 +207,14 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-cancel]')
         .exists('A button to cancel the template selection is displayed.');
 
-      // TODO:  Wiring the buttons with the application logic in next PR.
+      await click('[data-test-template-card=foo]');
+      await click('[data-test-apply]');
+
+      assert.equal(
+        currentURL(),
+        '/jobs/run?template=nomad%2Fjob-templates%2Ffoo%40default'
+      );
+      assert.dom('[data-test-editor]').containsText('Hello World!');
     });
   });
 });
