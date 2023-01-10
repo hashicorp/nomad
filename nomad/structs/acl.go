@@ -833,8 +833,8 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 // can be used with go-bexpr. This structure is used during rule binding
 // evaluation.
 type ACLAuthClaims struct {
-	Value any
-	List  any
+	Value map[string]string{}
+	List  map[string][]string{}
 }
 
 // ACLAuthMethodStub is used for listing ACL auth methods
