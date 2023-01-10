@@ -130,6 +130,12 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 			// Set the network mode to none which creates a network namespace
 			// with only a loopback interface.
 			NetworkMode: "none",
+
+			// Set the restart policy to unless-stopped. The pause container should
+			// never not be running until Nomad issues a stop.
+			//
+			// https://docs.docker.com/engine/reference/run/#restart-policies---restart
+			RestartPolicy: docker.RestartUnlessStopped(),
 		},
 	}, nil
 }
