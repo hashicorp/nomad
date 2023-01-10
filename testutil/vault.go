@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
@@ -57,6 +58,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		t.Fatalf("failed to build Vault API client: %v", err)
 	}
 	client.SetToken(token)
+	useragent.SetHeaders(client)
 
 	enable := true
 	tv := &TestVault{
@@ -133,6 +135,7 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 		t.Fatalf("failed to build Vault API client: %v", err)
 	}
 	client.SetToken(token)
+	useragent.SetHeaders(client)
 
 	enable := true
 	tv := &TestVault{

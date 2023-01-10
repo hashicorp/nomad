@@ -7,7 +7,7 @@ $subNavOffset: 49px;
   width: 750px;
   padding: 24px;
   right: 0%;
-  overflow-y: auto;
+  overflow: visible;
   bottom: 0;
   top: $topNavOffset;
   transform: translateX(100%);
@@ -20,6 +20,21 @@ $subNavOffset: 49px;
   }
   &.has-subnav {
     top: calc($topNavOffset + $subNavOffset);
+  }
+
+  &.wide {
+    width: calc(100vw - $gutter-width - 1rem);
+  }
+
+  .button.widener {
+    position: absolute;
+    left: 0;
+    top: calc(50% - 16px);
+    width: 32px;
+    height: 32px;
+    left: -16px;
+    box-shadow: -5px 0 10px -5px rgb(0 0 0 / 20%);
+    border-radius: 16px;
   }
 }
 
