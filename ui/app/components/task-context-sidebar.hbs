@@ -1,6 +1,6 @@
 <Portal @target="log-sidebar-portal">
 	<div
-		class="sidebar task-context-sidebar has-subnav {{if this.isSideBarOpen "open"}}"
+		class="sidebar task-context-sidebar has-subnav {{if this.wide "wide"}} {{if this.isSideBarOpen "open"}}"
 		{{on-click-outside
 			@fns.closeSidebar
 			capture=true
@@ -40,5 +40,12 @@
 
 
 	{{/if}}
+		<button
+			class="button is-borderless widener"
+			type="button"
+			{{on "click" this.toggleWide}}
+		>
+			{{x-icon (if this.wide "arrow-right" "arrow-left")}}
+		</button>
 	</div>
 </Portal>
