@@ -1,4 +1,9 @@
-import { click, currentRouteName, currentURL } from '@ember/test-helpers';
+import {
+  click,
+  currentRouteName,
+  currentURL,
+  fillIn,
+} from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -215,6 +220,95 @@ module('Acceptance | job run', function (hooks) {
         '/jobs/run?template=nomad%2Fjob-templates%2Ffoo%40default'
       );
       assert.dom('[data-test-editor]').containsText('Hello World!');
+    });
+
+    test('a user can create their own job template', async function (assert) {
+      assert.expect(8);
+      // Arrange
+      await JobRun.visit();
+      await click('[data-test-choose-template]');
+
+      // Assert
+      assert
+        .dom('[data-test-empty-templates-list-headline]')
+        .exists('No templates are listed if none have been created.');
+
+      await click('[data-test-create-inline]');
+      assert.equal(currentRouteName(), 'jobs.run.templates.new');
+
+      await fillIn('[data-test-template-name]', 'foo');
+      await fillIn('[data-test-template-description]', 'foo-bar-baz');
+      const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
+      codeMirror.setValue(jsonJob());
+
+      server.put(
+        '/var/nomad%2Fjob-templates%2Ffoo?cas=0',
+        function (_server, fakeRequest) {
+          assert.deepEqual(
+            fakeRequest.body,
+            {
+              Path: 'nomad/job-templates/foo',
+              CreateIndex: null,
+              ModifyIndex: null,
+              Namespace: 'default',
+              ID: 'nomad/job-templates/foo',
+              Items: { description: 'foo-bar-baz', template: jsonJob() },
+            },
+            'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+          );
+          return {
+            Items: { description: 'foo-bar-baz', template: jsonJob() },
+            Namespace: 'default',
+            Path: 'nomad/job-templates/foo',
+          };
+        }
+      );
+
+      server.get('/vars', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            prefix: 'nomad/job-templates',
+            namespace: '*',
+          },
+          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
+        );
+        return [
+          {
+            ID: 'nomad/job-templates/foo',
+            Namespace: 'default',
+            Path: 'nomad/job-templates/foo',
+          },
+        ];
+      });
+
+      server.get(
+        '/var/nomad%2Fjob-templates%2Ffoo',
+        function (_server, fakeRequest) {
+          assert.deepEqual(
+            fakeRequest.queryParams,
+            {
+              namespace: 'default',
+            },
+            'Dispatches O(n+1) query to retrive items.'
+          );
+          return {
+            ID: 'nomad/job-templates/foo',
+            Namespace: 'default',
+            Path: 'nomad/job-templates/foo',
+            Items: {
+              template: 'qud',
+              label: 'foo',
+            },
+          };
+        }
+      );
+
+      await click('[data-test-save-template]');
+      assert.equal(currentRouteName(), 'jobs.run.templates.index');
+      assert
+        .dom('[data-test-template-card=foo]')
+        .exists('The newly created template appears in the list.');
     });
   });
 });
