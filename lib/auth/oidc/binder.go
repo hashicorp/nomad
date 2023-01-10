@@ -46,7 +46,7 @@ type BinderStateStore interface {
 // token.
 type Bindings struct {
 	Roles    []*structs.ACLTokenRoleLink
-	Policies []*structs.ACLRolePolicyLink
+	Policies []string
 }
 
 // None indicates that the resulting bindings would not give the created token
@@ -118,9 +118,7 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 			}
 
 			if policy != nil {
-				bindings.Policies = append(bindings.Policies, &structs.ACLRolePolicyLink{
-					Name: policy.Name,
-				})
+				bindings.Policies = append(bindings.Policies, policy.Name)
 			}
 		}
 	}

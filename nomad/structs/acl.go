@@ -829,6 +829,14 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	return c
 }
 
+// ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
+// can be used with go-bexpr. This structure is used during rule binding
+// evaluation.
+type ACLAuthClaims struct {
+	Value any
+	List  any
+}
+
 // ACLAuthMethodStub is used for listing ACL auth methods
 type ACLAuthMethodStub struct {
 	Name    string

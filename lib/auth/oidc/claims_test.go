@@ -15,16 +15,16 @@ func TestSelectorData(t *testing.T) {
 		Mapping     map[string]string
 		ListMapping map[string]string
 		Data        map[string]interface{}
-		Expected    map[string]interface{}
+		Expected    *structs.ACLAuthClaims
 	}{
 		{
 			"no mappings",
 			nil,
 			nil,
 			map[string]interface{}{"iss": "https://hashicorp.com"},
-			map[string]interface{}{
-				"value": map[string]string{},
-				"list":  map[string][]string{},
+			&structs.ACLAuthClaims{
+				Value: map[string]string{},
+				List:  map[string][]string{},
 			},
 		},
 
@@ -33,11 +33,9 @@ func TestSelectorData(t *testing.T) {
 			map[string]string{"iss": "issuer"},
 			nil,
 			map[string]interface{}{"iss": "https://hashicorp.com"},
-			map[string]interface{}{
-				"value": map[string]string{
-					"issuer": "https://hashicorp.com",
-				},
-				"list": map[string][]string{},
+			&structs.ACLAuthClaims{
+				Value: map[string]string{"issuer": "https://hashicorp.com"},
+				List:  map[string][]string{},
 			},
 		},
 
@@ -46,9 +44,9 @@ func TestSelectorData(t *testing.T) {
 			map[string]string{"iss": "issuer"},
 			nil,
 			map[string]interface{}{"nope": "https://hashicorp.com"},
-			map[string]interface{}{
-				"value": map[string]string{},
-				"list":  map[string][]string{},
+			&structs.ACLAuthClaims{
+				Value: map[string]string{},
+				List:  map[string][]string{},
 			},
 		},
 
@@ -61,9 +59,9 @@ func TestSelectorData(t *testing.T) {
 					"A", 42, false,
 				},
 			},
-			map[string]interface{}{
-				"value": map[string]string{},
-				"list": map[string][]string{
+			&structs.ACLAuthClaims{
+				Value: map[string]string{},
+				List: map[string][]string{
 					"g": {"A", "42", "false"},
 				},
 			},

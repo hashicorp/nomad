@@ -13,7 +13,7 @@ import (
 
 // SelectorData returns the data for go-bexpr for selector evaluation.
 func SelectorData(
-	am *structs.ACLAuthMethod, idClaims, userClaims json.RawMessage) (map[string]interface{}, error) {
+	am *structs.ACLAuthMethod, idClaims, userClaims json.RawMessage) (*structs.ACLAuthClaims, error) {
 
 	// Extract the claims into a map[string]interface{}
 	var all map[string]interface{}
@@ -46,7 +46,7 @@ func SelectorData(
 // extracts the claims, and returns a map of data that can be used with
 // go-bexpr.
 func extractClaims(
-	am *structs.ACLAuthMethod, all map[string]interface{}) (map[string]interface{}, error) {
+	am *structs.ACLAuthMethod, all map[string]interface{}) (*structs.ACLAuthClaims, error) {
 
 	values, err := extractMappings(all, am.Config.ClaimMappings)
 	if err != nil {
@@ -58,9 +58,9 @@ func extractClaims(
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"value": values,
-		"list":  list,
+	return &structs.ACLAuthClaims{
+		Value: values,
+		List:  list,
 	}, nil
 }
 
