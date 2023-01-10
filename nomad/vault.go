@@ -470,7 +470,7 @@ func (v *vaultClient) buildClient() error {
 		v.clientSys = client
 	}
 
-	// SetHeaders the token
+	// Set the token
 	v.token = v.config.Token
 	client.SetToken(v.token)
 	v.auth = client.Auth().Token()
@@ -518,7 +518,7 @@ OUTER:
 		}
 	}
 
-	// SetHeaders the wrapping function such that token creation is wrapped now
+	// Set the wrapping function such that token creation is wrapped now
 	// that we know our role
 	v.client.SetWrappingLookupFunc(v.getWrappingFn())
 
@@ -993,7 +993,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, fmt.Errorf("Task does not require Vault token")
 	}
 
-	// SetHeaders namespace for task
+	// Set namespace for task
 	namespaceForTask := v.config.Namespace
 	if taskVault.Namespace != "" {
 		namespaceForTask = taskVault.Namespace

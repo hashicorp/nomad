@@ -151,7 +151,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		return nil, err
 	}
 
-	// SetHeaders our Nomad user agent
+	// Set our Nomad user agent
 	useragent.SetHeaders(client)
 
 	// SetHeaders above will replace all headers, make this call second
@@ -352,8 +352,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	var renewalErr error
 	leaseDuration := req.increment
 	if req.isToken {
-		// SetHeaders the token in the API client to the one that needs
-		// renewal
+		// Set the token in the API client to the one that needs renewal
 		c.client.SetToken(req.id)
 
 		// Renew the token
