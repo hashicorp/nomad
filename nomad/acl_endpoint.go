@@ -1997,11 +1997,10 @@ func (a *ACL) GetAuthMethods(
 // once other Workload Identity work is solidified
 func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIResponse) error {
 
-	identity, err := a.srv.Authenticate(a.ctx, args.AuthToken)
-	if err != nil {
-		return err
+	authErr := a.srv.Authenticate(a.ctx, args)
+	if authErr != nil {
+		return authErr
 	}
-	args.SetIdentity(identity)
 
 	if done, err := a.srv.forward("ACL.WhoAmI", args, args, reply); done {
 		return err

@@ -65,9 +65,11 @@ rules:
       # Pattern used by Authenticate method.
       # TODO: add authorization steps as well.
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
           ...
-          ... := $A.$B.Authenticate($A.ctx, args.AuthToken)
-          ...
+          if authErr != nil {
+            return authErr
+          }
       - metavariable-pattern:
           metavariable: $METHOD
           patterns:
