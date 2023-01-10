@@ -10,19 +10,11 @@ export default class JobsRunTemplatesController extends Controller {
   get templates() {
     return this.model.map((templateVariable) => {
       // THIS LOGIC SHOULD LIKELY MOVE TO THE SERIALIZATION LAYER
-      const description = templateVariable?.keyValues?.find((el) => {
-        return el.key === 'description';
-      })?.value;
-
-      const json = templateVariable?.keyValues?.find((el) => {
-        return el.key === 'template';
-      })?.value;
-
+      const description = templateVariable.items.description;
       return {
         id: templateVariable.id,
         label: templateVariable.path.split('nomad/job-templates/')[1],
         description,
-        json,
       };
     });
   }
