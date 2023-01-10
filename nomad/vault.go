@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/useragent"
 	tomb "gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
@@ -452,6 +453,7 @@ func (v *vaultClient) buildClient() error {
 		v.logger.Error("failed to create Vault client and not retrying", "error", err)
 		return err
 	}
+	useragent.SetHeaders(client)
 
 	// Store the client, create/assign the /sys client
 	v.client = client
@@ -462,12 +464,13 @@ func (v *vaultClient) buildClient() error {
 			v.logger.Error("failed to create Vault sys client and not retrying", "error", err)
 			return err
 		}
+		useragent.SetHeaders(v.clientSys)
 		client.SetNamespace(v.config.Namespace)
 	} else {
 		v.clientSys = client
 	}
 
-	// Set the token
+	// SetHeaders the token
 	v.token = v.config.Token
 	client.SetToken(v.token)
 	v.auth = client.Auth().Token()
@@ -515,7 +518,7 @@ OUTER:
 		}
 	}
 
-	// Set the wrapping function such that token creation is wrapped now
+	// SetHeaders the wrapping function such that token creation is wrapped now
 	// that we know our role
 	v.client.SetWrappingLookupFunc(v.getWrappingFn())
 
@@ -990,7 +993,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, fmt.Errorf("Task does not require Vault token")
 	}
 
-	// Set namespace for task
+	// SetHeaders namespace for task
 	namespaceForTask := v.config.Namespace
 	if taskVault.Namespace != "" {
 		namespaceForTask = taskVault.Namespace

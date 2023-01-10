@@ -8,6 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/useragent"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -35,18 +36,17 @@ func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 		return nil
 	}
 
-	// Only create the client once to avoid creating too many connections to
-	// Vault.
+	// Only create the client once to avoid creating too many connections to Vault
 	if f.client == nil {
 		vaultConfig, err := config.VaultConfig.ApiConfig()
 		if err != nil {
 			return fmt.Errorf("Failed to initialize the Vault client config: %v", err)
 		}
-
 		f.client, err = vapi.NewClient(vaultConfig)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize Vault client: %s", err)
 		}
+		useragent.SetHeaders(f.client)
 	}
 
 	// Connect to vault and parse its information

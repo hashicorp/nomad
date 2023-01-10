@@ -7,6 +7,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	vapi "github.com/hashicorp/vault/api"
 )
@@ -115,6 +116,7 @@ func (p *singleClusterProvisioner) SetupTestCase(t *testing.T, opts SetupOptions
 		if err != nil && opts.ExpectVault {
 			return nil, err
 		}
+		useragent.SetHeaders(vaultClient)
 		info.VaultClient = vaultClient
 	} else if opts.ExpectVault {
 		return nil, fmt.Errorf("vault client expected but environment variable %s not set",
