@@ -96,6 +96,27 @@ For JSON configurations:
 }
 ```
 
+#### Consul TLS
+
+~> **Note:** Consul 1.14+ made a [backwards incompatible change][consul_grpc_tls]
+in how TLS enabled grpc listeners work. When using Consul 1.14 with TLS enabled users
+will need to specify additional Nomad agent configuration to work with Connect. The
+`consul.grpc_ca_file` value must now be configured (introduced in Nomad 1.4.4),
+and `consul.grpc_address` will most likely need to be set to use the new standard
+`grpc_tls` port of `8503`.
+
+```hcl
+consul {
+  grpc_ca_file = "/etc/tls/consul-agent-ca.pem"
+  grpc_address = "127.0.0.1:8503"
+  ca_file      = "/etc/tls/consul-agent-ca.pem"
+  cert_file    = "/etc/tls/dc1-client-consul-0.pem"
+  key_file     = "/etc/tls/dc1-client-consul-0-key.pem"
+  ssl          = true
+  address      = "127.0.0.1:8501"
+}
+```
+
 #### Consul ACLs
 
 ~> **Note:** Starting in Nomad v1.3.0, Consul Service Identity ACL tokens automatically
@@ -356,3 +377,4 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 [`Local`]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#token-attributes
 [anon_token]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#special-purpose-tokens
 [consul_ports]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#ports
+[consul_grpc_tls]: https://developer.hashicorp.com/consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration
