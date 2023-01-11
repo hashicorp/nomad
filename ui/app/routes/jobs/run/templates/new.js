@@ -37,7 +37,7 @@ export default class RunRoute extends Route {
       !controller.model.isDestroyed &&
       !controller.model.isDestroying
     ) {
-      controller.model?.deleteRecord();
+      controller.model?.unloadRecord();
     }
     controller.set('templateName', null);
     controller.set('templateNamespace', 'default');
