@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -202,6 +203,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          connectMeshGateway(upstream.MeshGateway),
+			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams

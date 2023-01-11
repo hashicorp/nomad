@@ -11,6 +11,7 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/shoenig/test v0.6.0
+	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a
 )
 
 require (
