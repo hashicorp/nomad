@@ -4,8 +4,6 @@ import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
-const ALL_NAMESPACE_WILDCARD = '*';
-
 export default class JobsRunTemplatesController extends Controller {
   @service router;
   @tracked templateName = null;
@@ -17,14 +15,6 @@ export default class JobsRunTemplatesController extends Controller {
     const namespaces = this.store
       .peekAll('namespace')
       .map(({ name }) => ({ key: name, label: name }));
-
-    if (namespaces.length <= 1) return null;
-
-    // Create default namespace selection
-    namespaces.unshift({
-      key: ALL_NAMESPACE_WILDCARD,
-      label: 'All (*)',
-    });
 
     return namespaces;
   }
