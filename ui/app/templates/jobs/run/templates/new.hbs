@@ -1,33 +1,36 @@
+{{page-title "Create a custom template"}}
 <section class="section">
     <form class="new-job-template" autocomplete="off">
-        <div class={{if this.namespaceOptions "path-namespace"}}>
+        <div class={{if this.namespaceOptions "input-dropdown-row"}}>
             <label>
-            <span>
-                Template name
-            </span>
-            <Input
-                @type="text"
-                @value={{mut this.templateName}}
-                placeholder="your-template-name-here"
-                class="input path-input"
-                {{autofocus}}
-                data-test-template-name
-            />
+                <span>
+                    Template name
+                </span>
+                <Input
+                    @type="text"
+                    @value={{mut this.templateName}}
+                    placeholder="your-template-name-here"
+                    class="input path-input"
+                    {{autofocus}}
+                    data-test-template-name
+                />
             </label>
-            <SingleSelectDropdown
-                data-test-namespace-facet
-                @label="Namespace"
-                @options={{this.namespaceOptions}}
-                @selection={{this.templateNamespace}}
-                @onSelect={{fn (mut this.templateNamespace)}}
-            />
+            {{#if this.namespaceOptions.length}}
+                <SingleSelectDropdown
+                    data-test-namespace-facet
+                    @label="Namespace"
+                    @options={{this.namespaceOptions}}
+                    @selection={{this.templateNamespace}}
+                    @onSelect={{fn (mut this.templateNamespace)}}
+                />
+            {{/if}}
         </div>
         <VariableForm::JobTemplateEditor
             @keyValues={{this.model.keyValues}}
             @updateKeyValue={{this.updateKeyValue}}
         />
-        <footer>
-            <Hds::Button @text="Save" @route="jobs.run.templates" disabled={{this.shouldDisableSave}} {{on "click" this.save}} data-test-save-template />
+        <footer class="button-group">
+            <Hds::Button @text="Save" @route="jobs.run.templates" disabled={{is-empty this.templateName}} {{on "click" this.save}} data-test-save-template />
             <Hds::Button @text="Cancel" @route="jobs.run.templates" @color="critical" data-test-cancel-template />
         </footer>
     </form>

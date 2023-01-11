@@ -97,6 +97,27 @@
   margin: 16px 0px;
 }
 
+.align-right {
+  margin-right: calc(6.5% - 16px);
+}
+
+.new-job-template {
+  & > div {
+    margin-bottom: 1rem;
+    align-items: end;
+  }
+
+  .path-input {
+    height: 2.25em;
+  }
+
+  .input-dropdown-row {
+    display: grid;
+    grid-template-columns: 6fr 1fr;
+    gap: 0 1rem;
+  }
+}
+
 .mock-sso-provider {
   margin: 25vh auto;
   width: 500px;
