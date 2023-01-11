@@ -1874,13 +1874,13 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 		return nil
 	}
 
+	// pre-validate service Name and Hosts before passing along to consul:
+	// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#services
+
 	if s.Name == "" {
 		return errors.New("Consul Ingress Service requires a name")
 	}
 
-	// Validation of wildcard service name and hosts varies depending on the
-	// protocol for the gateway.
-	// https://www.consul.io/docs/connect/config-entries/ingress-gateway#hosts
 	switch protocol {
 	case "tcp":
 		if s.Name == "*" {
@@ -1891,12 +1891,8 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 			return errors.New(`Consul Ingress Service doesn't support associating hosts to a service for the "tcp" protocol`)
 		}
 	default:
-		if s.Name == "*" {
-			return nil
-		}
-
-		if len(s.Hosts) == 0 {
-			return fmt.Errorf("Consul Ingress Service requires one or more hosts when using %q protocol", protocol)
+		if s.Name == "*" && len(s.Hosts) != 0 {
+			return errors.New(`Consul Ingress Service with a wildcard "*" service name can not also specify hosts`)
 		}
 	}
 
