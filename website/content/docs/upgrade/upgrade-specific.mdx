@@ -64,10 +64,10 @@ setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 
 #### Server `rejoin_after_leave` (default: `false`) now enforced
 
-All Nomad versions prior to v1.4.4 have incorrectly ignored the Server [`rejoin_after_leave`]
-configuration option. This bug has been fixed in Nomad version v1.4.4.
+All Nomad versions prior to v1.5.0 have incorrectly ignored the Server [`rejoin_after_leave`]
+configuration option. This bug has been fixed in Nomad version v1.5.0.
 
-Previous to v1.4.4 the behavior of Nomad `rejoin_after_leave` was always `true`, regardless of 
+Previous to v1.5.0 the behavior of Nomad `rejoin_after_leave` was always `true`, regardless of 
 Nomad server configuration, while the documentation incorrectly indicated a default of `false`.
 
 Cluster operators should be aware that explicit `leave` events (such as `nomad server force-leave`) 
