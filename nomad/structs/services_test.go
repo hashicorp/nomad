@@ -382,11 +382,12 @@ func TestService_Hash(t *testing.T) {
 				Proxy: &ConsulProxy{
 					LocalServiceAddress: "127.0.0.1",
 					LocalServicePort:    24000,
-					Config:              map[string]interface{}{"foo": "bar"},
+					Config:              map[string]any{"foo": "bar"},
 					Upstreams: []ConsulUpstream{{
 						DestinationName:      "upstream1",
 						DestinationNamespace: "ns2",
 						LocalBindPort:        29000,
+						Config:               map[string]any{"foo": "bar"},
 					}},
 				},
 			},
@@ -477,6 +478,10 @@ func TestService_Hash(t *testing.T) {
 
 	t.Run("mod connect sidecar proxy upstream destination local bind port", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].LocalBindPort = 29999 })
+	})
+
+	t.Run("mod connect sidecar proxy upstream config", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].Config = map[string]any{"foo": "baz"} })
 	})
 }
 
@@ -703,13 +708,13 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 	t.Run("size mismatch", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		require.False(t, upstreamsEquals(a, b))
+		must.False(t, upstreamsEquals(a, b))
 	})
 
 	t.Run("different", func(t *testing.T) {
 		a := []ConsulUpstream{up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000)}
-		require.False(t, upstreamsEquals(a, b))
+		must.False(t, upstreamsEquals(a, b))
 	})
 
 	t.Run("different namespace", func(t *testing.T) {
@@ -719,25 +724,31 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		b := []ConsulUpstream{up("foo", 8000)}
 		b[0].DestinationNamespace = "ns2"
 
-		require.False(t, upstreamsEquals(a, b))
+		must.False(t, upstreamsEquals(a, b))
 	})
 
 	t.Run("different mesh_gateway", func(t *testing.T) {
 		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "local"}}}
 		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "remote"}}}
-		require.False(t, upstreamsEquals(a, b))
+		must.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different opaque config", func(t *testing.T) {
+		a := []ConsulUpstream{{Config: map[string]any{"foo": 1}}}
+		b := []ConsulUpstream{{Config: map[string]any{"foo": 2}}}
+		must.False(t, upstreamsEquals(a, b))
 	})
 
 	t.Run("identical", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
-		require.True(t, upstreamsEquals(a, b))
+		must.True(t, upstreamsEquals(a, b))
 	})
 
 	t.Run("unsorted", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("bar", 9000), up("foo", 8000)}
-		require.True(t, upstreamsEquals(a, b))
+		must.True(t, upstreamsEquals(a, b))
 	})
 }
 

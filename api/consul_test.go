@@ -172,6 +172,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
+			Config:               map[string]any{"connect_timeout_ms": 5000},
 		}
 		result := cu.Copy()
 		must.Eq(t, cu, result)
@@ -195,6 +196,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
+			Config:               make(map[string]any),
 		}
 		cu.Canonicalize()
 		must.Eq(t, &ConsulUpstream{
@@ -204,6 +206,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
+			Config:               nil,
 		}, cu)
 	})
 }

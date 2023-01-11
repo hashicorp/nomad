@@ -854,6 +854,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
+				hashConfig(h, upstream.Config)
 			}
 		}
 	}
@@ -1481,6 +1482,10 @@ type ConsulUpstream struct {
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
 	MeshGateway ConsulMeshGateway
+
+	// Config is an upstream configuration. It is opaque to Nomad and passed
+	// directly to Consul.
+	Config map[string]any
 }
 
 // Equal returns true if the structs are recursively equal.
@@ -1488,11 +1493,35 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 	if u == nil || o == nil {
 		return u == o
 	}
-	return *u == *o
+	switch {
+	case u.DestinationName != o.DestinationName:
+		return false
+	case u.DestinationNamespace != o.DestinationNamespace:
+		return false
+	case u.LocalBindPort != o.LocalBindPort:
+		return false
+	case u.Datacenter != o.Datacenter:
+		return false
+	case u.LocalBindAddress != o.LocalBindAddress:
+		return false
+	case !u.MeshGateway.Equal(o.MeshGateway):
+		return false
+	case !opaqueMapsEqual(u.Config, o.Config):
+		return false
+	}
+	return true
+}
+
+// Hash implements a GoString based "hash" function for ConsulUpstream; because
+// this struct now contains an opaque map we cannot do much better than this.
+func (u ConsulUpstream) Hash() string {
+	return fmt.Sprintf("%#v", u)
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
-	return set.From(a).Equal(set.From(b))
+	setA := set.HashSetFrom[ConsulUpstream, string](a)
+	setB := set.HashSetFrom[ConsulUpstream, string](b)
+	return setA.Equal(setB)
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
