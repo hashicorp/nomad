@@ -195,7 +195,6 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 			return fmt.Errorf("error parsing Consul address %q: %v",
 				p.config.Addr, err)
 		}
-
 		destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
 	}
 
