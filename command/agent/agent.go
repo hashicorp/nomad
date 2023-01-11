@@ -309,6 +309,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.RPCAddr.IP = rpcAddr.IP
 	conf.SerfConfig.MemberlistConfig.BindPort = serfAddr.Port
 	conf.SerfConfig.MemberlistConfig.BindAddr = serfAddr.IP.String()
+	conf.SerfConfig.RejoinAfterLeave = agentConfig.Server.RejoinAfterLeave
 
 	// Set up the advertise addresses
 	rpcAddr, err = net.ResolveTCPAddr("tcp", agentConfig.AdvertiseAddrs.RPC)

@@ -62,6 +62,18 @@ from the Nomad client by setting [`set_environment_variables`][artifact_env].
 The use of filesystem isolation can be disabled in Client configuration by
 setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 
+#### Server `rejoin_after_leave` (default: `false`) now enforced
+
+All Nomad versions prior to v1.5.0 have incorrectly ignored the Server [`rejoin_after_leave`]
+configuration option. This bug has been fixed in Nomad version v1.5.0.
+
+Previous to v1.5.0 the behavior of Nomad `rejoin_after_leave` was always `true`, regardless of 
+Nomad server configuration, while the documentation incorrectly indicated a default of `false`.
+
+Cluster operators should be aware that explicit `leave` events (such as `nomad server force-leave`) 
+will now result in behavior which matches this configuration, and should review whether they
+were inadvertently relying on the buggy behavior.
+
 ## Nomad 1.4.0
 
 #### Possible Panic During Upgrades
@@ -1545,6 +1557,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
 [`raft_protocol`]: /docs/configuration/server#raft_protocol
 [`raft protocol`]: /docs/configuration/server#raft_protocol
+[`rejoin_after_leave`]: /docs/configuration/server#rejoin_after_leave
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
