@@ -42,27 +42,29 @@ const (
 )
 
 type consulTransportConfig struct {
-	HTTPAddr  string // required
-	Auth      string // optional, env CONSUL_HTTP_AUTH
-	SSL       string // optional, env CONSUL_HTTP_SSL
-	VerifySSL string // optional, env CONSUL_HTTP_SSL_VERIFY
-	CAFile    string // optional, arg -ca-file
-	CertFile  string // optional, arg -client-cert
-	KeyFile   string // optional, arg -client-key
-	Namespace string // optional, only consul Enterprise, env CONSUL_NAMESPACE
+	HTTPAddr   string // required
+	Auth       string // optional, env CONSUL_HTTP_AUTH
+	SSL        string // optional, env CONSUL_HTTP_SSL
+	VerifySSL  string // optional, env CONSUL_HTTP_SSL_VERIFY
+	GRPCCAFile string // optional, arg -grpc-ca-file
+	CAFile     string // optional, arg -ca-file
+	CertFile   string // optional, arg -client-cert
+	KeyFile    string // optional, arg -client-key
+	Namespace  string // optional, only consul Enterprise, env CONSUL_NAMESPACE
 	// CAPath (dir) not supported by Nomad's config object
 }
 
-func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig {
+func newConsulTransportConfig(cc *config.ConsulConfig) consulTransportConfig {
 	return consulTransportConfig{
-		HTTPAddr:  consul.Addr,
-		Auth:      consul.Auth,
-		SSL:       decodeTriState(consul.EnableSSL),
-		VerifySSL: decodeTriState(consul.VerifySSL),
-		CAFile:    consul.CAFile,
-		CertFile:  consul.CertFile,
-		KeyFile:   consul.KeyFile,
-		Namespace: consul.Namespace,
+		HTTPAddr:   cc.Addr,
+		Auth:       cc.Auth,
+		SSL:        decodeTriState(cc.EnableSSL),
+		VerifySSL:  decodeTriState(cc.VerifySSL),
+		GRPCCAFile: cc.GRPCCAFile,
+		CAFile:     cc.CAFile,
+		CertFile:   cc.CertFile,
+		KeyFile:    cc.KeyFile,
+		Namespace:  cc.Namespace,
 	}
 }
 
@@ -123,7 +125,7 @@ type envoyBootstrapHook struct {
 	// envoyBootstrapWaitTime is the total amount of time hook will wait for Consul
 	envoyBootstrapWaitTime time.Duration
 
-	// envoyBootstrapInitialGap is the initial wait gap when retyring
+	// envoyBootstrapInitialGap is the initial wait gap when retrying
 	envoyBoostrapInitialGap time.Duration
 
 	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to retries
@@ -531,6 +533,10 @@ func (e envoyBootstrapArgs) args() []string {
 
 	if v := e.siToken; v != "" {
 		arguments = append(arguments, "-token", v)
+	}
+
+	if v := e.consulConfig.GRPCCAFile; v != "" {
+		arguments = append(arguments, "-grpc-ca-file", v)
 	}
 
 	if v := e.consulConfig.CAFile; v != "" {

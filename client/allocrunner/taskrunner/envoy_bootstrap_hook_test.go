@@ -108,13 +108,14 @@ var (
 	}
 
 	consulTLSConfig = consulTransportConfig{
-		HTTPAddr:  "2.2.2.2",            // arg
-		Auth:      "user:password",      // env
-		SSL:       "true",               // env
-		VerifySSL: "true",               // env
-		CAFile:    "/etc/tls/ca-file",   // arg
-		CertFile:  "/etc/tls/cert-file", // arg
-		KeyFile:   "/etc/tls/key-file",  // arg
+		HTTPAddr:   "2.2.2.2",               // arg
+		Auth:       "user:password",         // env
+		SSL:        "true",                  // env
+		VerifySSL:  "true",                  // env
+		GRPCCAFile: "/etc/tls/grpc-ca-file", // arg
+		CAFile:     "/etc/tls/ca-file",      // arg
+		CertFile:   "/etc/tls/cert-file",    // arg
+		KeyFile:    "/etc/tls/key-file",     // arg
 	}
 )
 
@@ -178,6 +179,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
+			"-grpc-ca-file", "/etc/tls/grpc-ca-file",
 			"-ca-file", "/etc/tls/ca-file",
 			"-client-cert", "/etc/tls/cert-file",
 			"-client-key", "/etc/tls/key-file",
