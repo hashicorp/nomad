@@ -614,6 +614,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+
+		"operator client-state": func() (cli.Command, error) {
+			return &OperatorClientStateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{
 				Meta: meta,
