@@ -1668,6 +1668,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
+			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams
