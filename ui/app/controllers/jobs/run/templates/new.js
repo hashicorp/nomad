@@ -3,9 +3,11 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { trimPath } from '../../../../helpers/trim-path';
 
 export default class JobsRunTemplatesController extends Controller {
   @service router;
+  @service store;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
 
@@ -17,6 +19,17 @@ export default class JobsRunTemplatesController extends Controller {
       .map(({ name }) => ({ key: name, label: name }));
 
     return namespaces;
+  }
+
+  get isDuplicateTemplate() {
+    const templates = this.store.peekAll('variable');
+    const templateName = trimPath([`nomad/job-templates/${this.templateName}`]);
+
+    return !!templates
+      .without(this.model)
+      .find(
+        (v) => v.path === templateName && v.namespace === this.templateNamespace
+      );
   }
 
   @action

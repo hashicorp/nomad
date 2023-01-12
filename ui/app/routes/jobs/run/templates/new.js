@@ -22,7 +22,13 @@ export default class RunRoute extends Route {
     try {
       // When variables are created with a namespace attribute, it is verified against
       // available namespaces to prevent redirecting to a non-existent namespace.
-      await this.store.findAll('namespace');
+      await Promise.all([
+        this.store.query('variable', {
+          prefix: 'nomad/job-templates',
+          namespace: '*',
+        }),
+        this.store.findAll('namespace'),
+      ]);
 
       return this.store.createRecord('variable');
     } catch (e) {

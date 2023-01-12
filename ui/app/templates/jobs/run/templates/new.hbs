@@ -10,19 +10,29 @@
                     @type="text"
                     @value={{mut this.templateName}}
                     placeholder="your-template-name-here"
-                    class="input path-input"
+                    class="input path-input {{if this.isDuplicateTemplate "error"}}"
                     {{autofocus}}
                     data-test-template-name
                 />
+                {{#if this.isDuplicateTemplate}}
+                    <p class="help is-danger" data-test-duplicate-error>
+                        There is already a templated named {{this.templateName}}.
+                    </p>
+                {{/if}}
             </label>
             {{#if this.namespaceOptions.length}}
-                <SingleSelectDropdown
-                    data-test-namespace-facet
-                    @label="Namespace"
-                    @options={{this.namespaceOptions}}
-                    @selection={{this.templateNamespace}}
-                    @onSelect={{fn (mut this.templateNamespace)}}
-                />
+                <label>
+                    <span>
+                        Namespace
+                    </span>
+                    <SingleSelectDropdown
+                        data-test-namespace-facet
+                        @label="Namespace"
+                        @options={{this.namespaceOptions}}
+                        @selection={{this.templateNamespace}}
+                        @onSelect={{fn (mut this.templateNamespace)}}
+                    />
+                </label>
             {{/if}}
         </div>
         <VariableForm::JobTemplateEditor

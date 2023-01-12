@@ -7,6 +7,10 @@ import {
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -350,6 +354,41 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('.flash-message.alert-error')
         .exists('A toast error message pops up.');
+    });
+
+    test('a user cannot create a job template if one with the same name and namespace already exists', async function (assert) {
+      assert.expect(4);
+      // Arrange
+      await JobRun.visit();
+      await click('[data-test-choose-template]');
+      server.create('variable', {
+        path: 'nomad/job-templates/foo',
+        namespace: 'default',
+        id: 'nomad/job-templates/foo',
+      });
+      server.create('namespace', { id: 'test' });
+
+      // Assert
+      assert
+        .dom('[data-test-empty-templates-list-headline]')
+        .exists('No templates are listed if none have been created.');
+
+      await click('[data-test-create-inline]');
+      assert.equal(currentRouteName(), 'jobs.run.templates.new');
+
+      await fillIn('[data-test-template-name]', 'foo');
+      assert
+        .dom('[data-test-duplicate-error]')
+        .exists('an error message alerts the user');
+
+      await clickTrigger('[data-test-namespace-facet]');
+      await selectChoose('[data-test-namespace-facet]', 'test');
+
+      assert
+        .dom('[data-test-duplicate-error]')
+        .doesNotExist(
+          'an error disappears when name or namespace combination is unique'
+        );
     });
   });
 });
