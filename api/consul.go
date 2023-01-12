@@ -205,7 +205,7 @@ type ConsulUpstream struct {
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
 	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
-	Config               map[string]any     `mapstructure:"config" hcl:"config,optional"`
+	Config               map[string]any     `mapstructure:"config" hcl:"config,block"`
 }
 
 func (cu *ConsulUpstream) Copy() *ConsulUpstream {
