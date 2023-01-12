@@ -46,16 +46,27 @@ export default class JobsRunTemplatesController extends Controller {
     this.model.set('keyValues', this.keyValues);
     this.model.set('path', `nomad/job-templates/${this.templateName}`);
     this.model.setAndTrimPath();
-    await this.model.save({ adapterOptions: { overwrite } });
 
-    this.flashMessages.add({
-      title: 'Job template saved',
-      message: `${this.templateName} successfully saved`,
-      type: 'success',
-      destroyOnClick: false,
-      timeout: 5000,
-    });
+    try {
+      await this.model.save({ adapterOptions: { overwrite } });
 
-    this.router.transitionTo('jobs.run.templates');
+      this.flashMessages.add({
+        title: 'Job template saved',
+        message: `${this.templateName} successfully saved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+
+      this.router.transitionTo('jobs.run.templates');
+    } catch (e) {
+      this.flashMessages.add({
+        title: 'Job template cannot be saved.',
+        message: e,
+        type: 'error',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+    }
   }
 }

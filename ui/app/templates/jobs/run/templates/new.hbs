@@ -30,7 +30,7 @@
             @updateKeyValue={{this.updateKeyValue}}
         />
         <footer class="button-group">
-            <Hds::Button @text="Save" @route="jobs.run.templates" disabled={{is-empty this.templateName}} {{on "click" this.save}} data-test-save-template />
+            <Hds::Button @text="Save" disabled={{is-empty this.templateName}} {{on "click" this.save}} data-test-save-template />
             <Hds::Button @text="Cancel" @route="jobs.run.templates" @color="critical" data-test-cancel-template />
         </footer>
     </form>

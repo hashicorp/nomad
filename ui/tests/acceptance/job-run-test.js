@@ -1,3 +1,4 @@
+import AdapterError from '@ember-data/adapter/error';
 import {
   click,
   currentRouteName,
@@ -309,6 +310,46 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-template-card=foo]')
         .exists('The newly created template appears in the list.');
+    });
+
+    test('a toast notification alerts the user if there is an error saving the newly created job template', async function (assert) {
+      assert.expect(5);
+      // Arrange
+      await JobRun.visit();
+      await click('[data-test-choose-template]');
+
+      // Assert
+      assert
+        .dom('[data-test-empty-templates-list-headline]')
+        .exists('No templates are listed if none have been created.');
+
+      await click('[data-test-create-inline]');
+      assert.equal(currentRouteName(), 'jobs.run.templates.new');
+      assert
+        .dom('[data-test-save-template]')
+        .isDisabled('the save button should be disabled if no path is set');
+
+      await fillIn('[data-test-template-name]', 'try@');
+      await fillIn('[data-test-template-description]', 'foo-bar-baz');
+      const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
+      codeMirror.setValue(jsonJob());
+
+      server.put('/var/:varId?cas=0', function () {
+        return new AdapterError({
+          detail: `invalid path "nomad/job-templates/try@"`,
+          status: 500,
+        });
+      });
+
+      await click('[data-test-save-template]');
+      assert.equal(
+        currentRouteName(),
+        'jobs.run.templates.new',
+        'We do not navigate away from the page if an error is returned by the API.'
+      );
+      assert
+        .dom('.flash-message.alert-error')
+        .exists('A toast error message pops up.');
     });
   });
 });
