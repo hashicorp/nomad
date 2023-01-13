@@ -1,7 +1,7 @@
 {{page-title "Create a custom template"}}
 <section class="section">
     <form class="new-job-template" autocomplete="off">
-        <div class={{if this.namespaceOptions "input-dropdown-row"}}>
+        <div class={{if this.system.shouldShowNamespaces "input-dropdown-row"}}>
             <label>
                 <span>
                     Template name
@@ -20,7 +20,7 @@
                     </p>
                 {{/if}}
             </label>
-            {{#if this.namespaceOptions.length}}
+            {{#if this.system.shouldShowNamespaces}}
                 <label>
                     <span>
                         Namespace

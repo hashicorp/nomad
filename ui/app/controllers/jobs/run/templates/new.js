@@ -8,6 +8,7 @@ import { trimPath } from '../../../../helpers/trim-path';
 export default class JobsRunTemplatesController extends Controller {
   @service router;
   @service store;
+  @service system;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
 
