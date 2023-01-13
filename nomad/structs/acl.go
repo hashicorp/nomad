@@ -149,6 +149,22 @@ const (
 	// Args: ACLBindingRuleRequest
 	// Reply: ACLBindingRuleResponse
 	ACLGetBindingRuleRPCMethod = "ACL.GetBindingRule"
+
+	// ACLOIDCAuthURLRPCMethod is the RPC method for starting the OIDC login
+	// workflow. It generates the OIDC provider URL which will be used for user
+	// authentication.
+	//
+	// Args: ACLOIDCAuthURLRequest
+	// Reply: ACLOIDCAuthURLResponse
+	ACLOIDCAuthURLRPCMethod = "ACL.OIDCAuthURL"
+
+	// ACLOIDCCompleteAuthRPCMethod is the RPC method for completing the OIDC
+	// login workflow. It exchanges the OIDC provider token for a Nomad ACL
+	// token with roles as defined within the remote provider.
+	//
+	// Args: ACLOIDCCompleteAuthRequest
+	// Reply: ACLOIDCCompleteAuthResponse
+	ACLOIDCCompleteAuthRPCMethod = "ACL.OIDCCompleteAuth"
 )
 
 const (
@@ -800,11 +816,16 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	return mErr.ErrorOrNil()
 }
 
+// TokenLocalityIsGlobal returns whether the auth method creates global ACL
+// tokens or not.
+func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality == "global" }
+
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
 	OIDCDiscoveryURL    string
 	OIDCClientID        string
 	OIDCClientSecret    string
+	OIDCScopes          []string
 	BoundAudiences      []string
 	AllowedRedirectURIs []string
 	DiscoveryCaPem      []string
@@ -821,6 +842,7 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	c := new(ACLAuthMethodConfig)
 	*c = *a
 
+	c.OIDCScopes = slices.Clone(a.OIDCScopes)
 	c.BoundAudiences = slices.Clone(a.BoundAudiences)
 	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
 	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
@@ -833,8 +855,8 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 // can be used with go-bexpr. This structure is used during rule binding
 // evaluation.
 type ACLAuthClaims struct {
-	Value map[string]string
-	List  map[string][]string
+	Value map[string]string   `bexpr:"value"`
+	List  map[string][]string `bexpr:"list"`
 }
 
 // ACLAuthMethodStub is used for listing ACL auth methods
@@ -1201,4 +1223,108 @@ type ACLBindingRuleRequest struct {
 type ACLBindingRuleResponse struct {
 	ACLBindingRule *ACLBindingRule
 	QueryMeta
+}
+
+// ACLOIDCAuthURLRequest is the request to make when starting the OIDC
+// authentication login flow.
+type ACLOIDCAuthURLRequest struct {
+
+	// AuthMethodName is the OIDC auth-method to use. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	// ClientNonce is a randomly generated string to prevent replay attacks. It
+	// is up to the client to generate this and Go integrations should use the
+	// oidc.NewID function within the hashicorp/cap library. This must then be
+	// passed back to ACLOIDCCompleteAuthRequest. This is a required parameter.
+	ClientNonce string
+
+	// WriteRequest is used due to the requirement by the RPC forwarding
+	// mechanism. This request doesn't write anything to Nomad's internal
+	// state.
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to start the OIDC authentication flow.
+func (a *ACLOIDCAuthURLRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCAuthURLResponse is the response when starting the OIDC authentication
+// login flow.
+type ACLOIDCAuthURLResponse struct {
+
+	// AuthURL is URL to begin authorization and is where the user logging in
+	// should go.
+	AuthURL string
+}
+
+// ACLOIDCCompleteAuthRequest is the request object to begin completing the
+// OIDC auth cycle after receiving the callback from the OIDC provider.
+type ACLOIDCCompleteAuthRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login via
+	// OIDC. This will match ACLOIDCAuthURLRequest.AuthMethodName. This is a
+	// required parameter.
+	AuthMethodName string
+
+	// ClientNonce, State, and Code are provided from the parameters given to
+	// the redirect URL. These are all required parameters.
+	ClientNonce string
+	State       string
+	Code        string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to complete the OIDC authentication flow.
+func (a *ACLOIDCCompleteAuthRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.State == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing state"))
+	}
+	if a.Code == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing code"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCCompleteAuthResponse is the response when the OIDC auth flow has been
+// completed successfully.
+type ACLOIDCCompleteAuthResponse struct {
+	ACLToken *ACLToken
+	WriteMeta
 }

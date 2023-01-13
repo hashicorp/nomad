@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -255,6 +256,11 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
 
+	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
+	// the provider performs background HTTP requests. When the Nomad server is
+	// shutting down, the oidcProviderCache.Shutdown() function must be called.
+	oidcProviderCache *oidc.ProviderCache
+
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
 	leaderAcl     string
@@ -413,6 +419,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, err
 	}
 	s.encrypter = encrypter
+
+	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
+	// be done separately so that the server can stop all background processes
+	// when it shuts down itself.
+	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
@@ -719,6 +730,12 @@ func (s *Server) Shutdown() error {
 
 	// Stop being able to set Configuration Entries
 	s.consulConfigEntries.Stop()
+
+	// Shutdown the OIDC provider cache which contains background resources and
+	// processes.
+	if s.oidcProviderCache != nil {
+		s.oidcProviderCache.Shutdown()
+	}
 
 	return nil
 }
