@@ -48,6 +48,21 @@ updates to remove a volume that it depends on.
   specify that it is `read_only` on a per mount level using the `read_only`
   option here.
 
+- `propagation_mode` `(string: "private")` - Specifies the mount propagation
+  mode for nested volumes. Possible values are:
+
+    - `private` - the task is not allowed to access nested mounts.
+
+    - `host-to-task` - allows new mounts that have been created outside of the
+    task to be visible inside the task.
+
+    - `bidirectional` - allows the task to both access new mounts from the host
+    and also create new mounts. This mode requires `ReadWrite` permission.
+
+    ~> **Warning:** `bidirectional` propagation mode can be dangerous to use
+    and cause problems in the host operating system if a task creates a mount
+    but does not clean it up properly before exiting.
+
 For examples of how to use [HCL2] interpolation for fine-grained control of
 volumes, see [Volume Interpolation].
 
