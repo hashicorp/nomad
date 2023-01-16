@@ -1,0 +1,3 @@
+```release-note:bug
+cli: fix nomad fmt -check flag not returning error code
+```
