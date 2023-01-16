@@ -33,11 +33,12 @@ type FormatCommand struct {
 
 	errs *multierror.Error
 
-	list      bool
-	check     bool
-	recursive bool
-	write     bool
-	paths     []string
+	list         bool
+	check        bool
+	checkSuccess bool
+	recursive    bool
+	write        bool
+	paths        []string
 
 	stdin io.Reader
 }
@@ -106,7 +107,7 @@ func (f *FormatCommand) Run(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
-
+	f.checkSuccess = true
 	f.parser = hclparse.NewParser()
 
 	color := terminal.IsTerminal(int(os.Stderr.Fd()))
@@ -141,6 +142,9 @@ func (f *FormatCommand) Run(args []string) int {
 		return 1
 	}
 
+	if !f.checkSuccess {
+		return 1
+	}
 	return 0
 }
 
@@ -252,6 +256,10 @@ func (f *FormatCommand) processFile(path string, r io.Reader) {
 				f.appendError(fmt.Errorf("Failed to write file %s: %w", path, err))
 				return
 			}
+		}
+
+		if f.check {
+			f.checkSuccess = false
 		}
 	}
 
