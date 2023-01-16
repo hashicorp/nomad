@@ -16,6 +16,18 @@ export default class TaskContextSidebarComponent extends Component {
     },
   ];
 
+  narrowCommand = {
+    label: 'Narrow Sidebar',
+    pattern: ['ArrowRight', 'ArrowRight'],
+    action: () => this.toggleWide(),
+  };
+
+  widenCommand = {
+    label: 'Widen Sidebar',
+    pattern: ['ArrowLeft', 'ArrowLeft'],
+    action: () => this.toggleWide(),
+  };
+
   @tracked wide = false;
   @action toggleWide() {
     this.wide = !this.wide;
