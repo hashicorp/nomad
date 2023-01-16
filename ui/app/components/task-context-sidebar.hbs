@@ -1,6 +1,6 @@
 <Portal @target="log-sidebar-portal">
 	<div
-		class="sidebar task-context-sidebar has-subnav {{if this.wide "wide"}} {{if this.isSideBarOpen "open"}} {{if this.isSideBarOpen "open"}}"
+		class="sidebar task-context-sidebar has-subnav {{if this.wide "wide"}} {{if @task.events.length "has-events"}} {{if this.isSideBarOpen "open"}}"
 		{{on-click-outside
 			@fns.closeSidebar
 			capture=true
@@ -74,7 +74,6 @@
 					</ListTable>
 				</div>
 			</div>
-			<hr />
 		{{/if}}
 
 		<TaskLog
