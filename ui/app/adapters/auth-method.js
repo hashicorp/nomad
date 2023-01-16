@@ -17,7 +17,7 @@ export default class AuthMethodAdapter extends ApplicationAdapter {
 
   /**
    * @typedef {Object} ACLOIDCAuthURLParams
-   * @property {string} AuthMethod
+   * @property {string} AuthMethodName
    * @property {string} RedirectUri
    * @property {string} ClientNonce
    * @property {Object[]} Meta // NOTE: unsure if array of objects or kv pairs
@@ -27,11 +27,11 @@ export default class AuthMethodAdapter extends ApplicationAdapter {
    * @param {ACLOIDCAuthURLParams} params
    * @returns
    */
-  getAuthURL({ AuthMethod, RedirectUri, ClientNonce, Meta }) {
+  getAuthURL({ AuthMethodName, RedirectUri, ClientNonce, Meta }) {
     const url = `/${this.namespace}/oidc/auth-url`;
     return this.ajax(url, 'POST', {
       data: {
-        AuthMethod,
+        AuthMethodName,
         RedirectUri,
         ClientNonce,
         Meta,

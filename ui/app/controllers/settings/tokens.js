@@ -90,13 +90,20 @@ export default class Tokens extends Controller {
     window.localStorage.setItem('nomadOIDCNonce', nonce);
     window.localStorage.setItem('nomadOIDCAuthMethod', provider);
 
+    let redirectURL;
+    if (Ember.testing) {
+      redirectURL = this.router.currentURL;
+    } else {
+      redirectURL = new URL(window.location.toString());
+      redirectURL.search = '';
+      redirectURL = redirectURL.href;
+    }
+
     method
       .getAuthURL({
-        AuthMethod: provider,
+        AuthMethodName: provider,
         ClientNonce: nonce,
-        RedirectUri: Ember.testing
-          ? this.router.currentURL
-          : window.location.toString(),
+        RedirectUri: redirectURL,
       })
       .then(({ AuthURL }) => {
         if (Ember.testing) {
@@ -111,7 +118,7 @@ export default class Tokens extends Controller {
   @tracked state = null;
 
   get isValidatingToken() {
-    if (this.code && this.state === 'success') {
+    if (this.code && this.state) {
       this.validateSSO();
       return true;
     } else {
@@ -120,25 +127,43 @@ export default class Tokens extends Controller {
   }
 
   async validateSSO() {
+    let redirectURL;
+    if (Ember.testing) {
+      redirectURL = this.router.currentURL;
+    } else {
+      redirectURL = new URL(window.location.toString());
+      redirectURL.search = '';
+      redirectURL = redirectURL.href;
+    }
+
     const res = await this.token.authorizedRequest(
       '/v1/acl/oidc/complete-auth',
       {
         method: 'POST',
         body: JSON.stringify({
-          AuthMethod: window.localStorage.getItem('nomadOIDCAuthMethod'),
+          AuthMethodName: window.localStorage.getItem('nomadOIDCAuthMethod'),
           ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
           Code: this.code,
           State: this.state,
+          RedirectURI: redirectURL,
         }),
       }
     );
 
     if (res.ok) {
       const data = await res.json();
-      this.token.set('secret', data.ACLToken);
-      this.verifyToken();
+      this.clearTokenProperties();
+      this.token.set('secret', data.SecretID);
       this.state = null;
       this.code = null;
+
+      this.resetStore();
+
+      // Refetch the token and associated policies
+      this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+      this.signInStatus = 'success';
+      this.token.set('tokenNotFound', false);
     } else {
       this.state = 'failure';
       this.code = null;

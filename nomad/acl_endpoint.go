@@ -1866,14 +1866,6 @@ func (a *ACL) ListAuthMethods(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_auth_methods"}, time.Now())
 
-	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	} else if acl == nil {
-		return structs.ErrPermissionDenied
-	}
-
 	// Set up and return the blocking query.
 	return a.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,

@@ -443,7 +443,7 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
-  this.get('/acl/tokens', function ({tokens}, req) {
+  this.get('/acl/tokens', function ({ tokens }, req) {
     return this.serialize(tokens.all());
   });
 
@@ -548,9 +548,14 @@ export default function () {
 
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
-    schema.tokens.all().models.filter(token => token.policyIds.includes(id)).forEach(token => {
-      token.update({ policyIds: token.policyIds.filter(pid => pid !== id) });
-    });
+    schema.tokens
+      .all()
+      .models.filter((token) => token.policyIds.includes(id))
+      .forEach((token) => {
+        token.update({
+          policyIds: token.policyIds.filter((pid) => pid !== id),
+        });
+      });
     server.db.policies.remove(id);
     return '';
   });
@@ -566,7 +571,6 @@ export default function () {
       description: Description,
       rules: Rules,
     });
-
   });
 
   this.get('/regions', function ({ regions }) {
@@ -979,26 +983,37 @@ export default function () {
     return schema.authMethods.all();
   });
   this.post('/acl/oidc/auth-url', (schema, req) => {
-    const {AuthMethod, ClientNonce, RedirectUri, Meta} = JSON.parse(req.requestBody);
-    return new Response(200, {}, {
-      AuthURL: `/ui/oidc-mock?auth_method=${AuthMethod}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`
-    });
+    const { AuthMethodName, ClientNonce, RedirectUri, Meta } = JSON.parse(
+      req.requestBody
+    );
+    return new Response(
+      200,
+      {},
+      {
+        AuthURL: `/ui/oidc-mock?auth_method=${AuthMethodName}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`,
+      }
+    );
   });
 
   // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
-  this.post('/acl/oidc/complete-auth', function (schema, req) {
-    const code = JSON.parse(req.requestBody).Code;
-    const token = schema.tokens.findBy({
-      id: code
-    });
+  this.post(
+    '/acl/oidc/complete-auth',
+    function (schema, req) {
+      const code = JSON.parse(req.requestBody).Code;
+      const token = schema.tokens.findBy({
+        id: code,
+      });
 
-    return new Response(200, {}, {
-      ACLToken: token.secretId
-    });
-  }, {timing: 1000});
-
-
-
+      return new Response(
+        200,
+        {},
+        {
+          SecretID: token.secretId,
+        }
+      );
+    },
+    { timing: 1000 }
+  );
 
   //#endregion SSO
 }
