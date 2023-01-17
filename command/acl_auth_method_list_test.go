@@ -39,13 +39,17 @@ func TestACLAuthMethodListCommand(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &ACLAuthMethodListCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	// Attempt to list auth methods without a valid management token
+	// List with an invalid token works fine
 	invalidToken := mock.ACLToken()
 	code := cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID})
-	must.One(t, code)
+	must.Zero(t, code)
 
 	// List with a valid management token
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID})
+	must.Zero(t, code)
+
+	// List with no token at all
+	code = cmd.Run([]string{"-address=" + url})
 	must.Zero(t, code)
 
 	// Check the output
