@@ -390,5 +390,36 @@ module('Acceptance | job run', function (hooks) {
           'an error disappears when name or namespace combination is unique'
         );
     });
+
+    test('a user can save code from the editor as a template', async function (assert) {
+      assert.expect(4);
+      // Arrange
+      await JobRun.visit();
+      await JobRun.editor.editor.fillIn(jsonJob());
+
+      await click('[data-test-save-as-template]');
+      assert.equal(
+        currentRouteName(),
+        'jobs.run.templates.new',
+        'We navigate template creation page.'
+      );
+
+      // Assert
+      assert
+        .dom('[data-test-template-name]')
+        .hasNoText('No template name is prefilled.');
+      assert
+        .dom('[data-test-template-description]')
+        .hasNoText('No template description is prefilled.');
+
+      const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
+      const json = codeMirror.getValue();
+
+      assert.equal(
+        json,
+        jsonJob(),
+        'Template is filled out with text from the editor.'
+      );
+    });
   });
 });

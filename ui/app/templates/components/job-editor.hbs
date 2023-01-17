@@ -63,6 +63,7 @@
         <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
       </label>
       {{#if (can "write variable" path="*" namespace="*")}}
+        <Hds::Button @icon="file-plus" @text="Save as template" @color="tertiary" @route="jobs.run.templates.new"  {{on "click" this.handleSaveAsTemplate}} data-test-save-as-template />
         <Hds::Button @icon="file-text" @text="Choose from a template" @color="tertiary" @route="jobs.run.templates" data-test-choose-template />
       {{/if}}
     </Hds::ButtonSet>

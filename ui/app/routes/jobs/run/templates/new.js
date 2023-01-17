@@ -1,3 +1,4 @@
+import { getOwner } from '@ember/application';
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
@@ -30,6 +31,13 @@ export default class RunRoute extends Route {
         this.store.findAll('namespace'),
       ]);
 
+      // When navigating from jobs.run.index using "Save as Template"
+      const json = getOwner(this).lookup('controller:jobs.run').jsonTemplate;
+      if (json) {
+        return this.store.createRecord('variable', {
+          keyValues: [{ key: 'template', value: json }],
+        });
+      }
       return this.store.createRecord('variable');
     } catch (e) {
       notifyForbidden(this)(e);
