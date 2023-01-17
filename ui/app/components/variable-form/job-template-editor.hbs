@@ -9,6 +9,7 @@
       @value={{this.description}}
       {{on "input" this.updateDescription}}
       class="input value-input"
+      data-test-template-description
     />
   </label>
 </div>
@@ -18,6 +19,7 @@
       Job Template
     </span>
     <div
+      data-test-template-json
       {{code-mirror
         theme="hashi"
         mode="ruby"

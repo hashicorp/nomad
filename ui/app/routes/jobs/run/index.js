@@ -69,7 +69,7 @@ export default class RunRoute extends Route {
 
   resetController(controller, isExiting) {
     if (isExiting) {
-      controller.model.deleteRecord();
+      controller.model?.deleteRecord();
       controller.set('template', null);
     }
   }

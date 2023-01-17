@@ -12,8 +12,6 @@ export default class RunTemplatesRoute extends Route {
       path: '*',
     });
 
-    // We create a job with no id in jobs.run that is populated by this form.
-    // A user cannot start at this route.
     if (!hasPermissions) {
       this.router.transitionTo('jobs');
     }
