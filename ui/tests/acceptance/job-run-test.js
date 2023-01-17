@@ -246,28 +246,25 @@ module('Acceptance | job run', function (hooks) {
       const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
       codeMirror.setValue(jsonJob());
 
-      server.put(
-        '/var/nomad%2Fjob-templates%2Ffoo?cas=0',
-        function (_server, fakeRequest) {
-          assert.deepEqual(
-            fakeRequest.body,
-            {
-              Path: 'nomad/job-templates/foo',
-              CreateIndex: null,
-              ModifyIndex: null,
-              Namespace: 'default',
-              ID: 'nomad/job-templates/foo',
-              Items: { description: 'foo-bar-baz', template: jsonJob() },
-            },
-            'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
-          );
-          return {
-            Items: { description: 'foo-bar-baz', template: jsonJob() },
-            Namespace: 'default',
+      server.put('/var/:varId', function (_server, fakeRequest) {
+        assert.deepEqual(
+          JSON.parse(fakeRequest.requestBody),
+          {
             Path: 'nomad/job-templates/foo',
-          };
-        }
-      );
+            CreateIndex: null,
+            ModifyIndex: null,
+            Namespace: 'default',
+            ID: 'nomad/job-templates/foo',
+            Items: { description: 'foo-bar-baz', template: jsonJob() },
+          },
+          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+        );
+        return {
+          Items: { description: 'foo-bar-baz', template: jsonJob() },
+          Namespace: 'default',
+          Path: 'nomad/job-templates/foo',
+        };
+      });
 
       server.get('/vars', function (_server, fakeRequest) {
         assert.deepEqual(
