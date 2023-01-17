@@ -2585,8 +2585,9 @@ func (a *ACL) OIDCCompleteAuth(
 		return err
 	}
 
-	// Create a new binder object based on the current state.
-	oidcBinder := oidc.NewBinder(a.srv.State())
+	// Create a new binder object based on the current state snapshot to
+	// provide consistency within the RPC handler.
+	oidcBinder := oidc.NewBinder(stateSnapshot)
 
 	// Generate the role and policy bindings that will be assigned to the ACL
 	// token. Ensure we have at least 1 role or policy, otherwise the RPC will

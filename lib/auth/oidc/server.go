@@ -71,7 +71,7 @@ func (s *CallbackServer) Nonce() string { return s.clientNonce }
 func (s *CallbackServer) ErrorCh() <-chan error { return s.errCh }
 
 // SuccessCh returns a channel that gets sent a partially completed
-// request to complete the OIDC auth with the Waypoint server.
+// request to complete the OIDC auth with the Nomad server.
 func (s *CallbackServer) SuccessCh() <-chan *api.ACLOIDCCompleteAuthRequest { return s.successCh }
 
 // ServeHTTP implements http.Handler and handles the callback request. This

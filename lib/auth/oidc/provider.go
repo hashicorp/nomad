@@ -35,7 +35,7 @@ func providerConfig(authMethod *structs.ACLAuthMethod) (*oidc.Config, error) {
 
 // ProviderCache is a cache for OIDC providers. OIDC providers are something
 // you don't want to recreate per-request since they make HTTP requests
-// themselves.
+// when they're constructed.
 //
 // The ProviderCache purges a provider under two scenarios: (1) the
 // provider config is updated, and it is different and (2) after a set
@@ -87,12 +87,8 @@ func (c *ProviderCache) Get(authMethod *structs.ACLAuthMethod) (*oidc.Provider, 
 		ok      bool
 	)
 
-	// This may be the first time the cache is being used, therefore we need to
-	// ensure we don't panic when attempting to access the map.
 	c.mu.RLock()
-	if c.providers != nil {
-		current, ok = c.providers[authMethod.Name]
-	}
+	current, ok = c.providers[authMethod.Name]
 	c.mu.RUnlock()
 
 	// If we have a current value, we want to compare hashes to detect changes.
