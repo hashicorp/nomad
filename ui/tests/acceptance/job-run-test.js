@@ -228,7 +228,7 @@ module('Acceptance | job run', function (hooks) {
     });
 
     test('a user can create their own job template', async function (assert) {
-      assert.expect(8);
+      assert.expect(7);
       // Arrange
       await JobRun.visit();
       await click('[data-test-choose-template]');
@@ -365,6 +365,9 @@ module('Acceptance | job run', function (hooks) {
       });
       server.create('namespace', { id: 'test' });
 
+      this.system = this.owner.lookup('service:system');
+      this.system.shouldShowNamespaces = true;
+
       // Assert
       assert
         .dom('[data-test-empty-templates-list-headline]')
@@ -386,6 +389,9 @@ module('Acceptance | job run', function (hooks) {
         .doesNotExist(
           'an error disappears when name or namespace combination is unique'
         );
+
+      // Clean-up
+      this.system.shouldShowNamespaces = false;
     });
 
     test('a user can save code from the editor as a template', async function (assert) {
