@@ -228,7 +228,7 @@ module('Acceptance | job run', function (hooks) {
     });
 
     test('a user can create their own job template', async function (assert) {
-      assert.expect(8);
+      assert.expect(7);
       // Arrange
       await JobRun.visit();
       await click('[data-test-choose-template]');
@@ -246,28 +246,25 @@ module('Acceptance | job run', function (hooks) {
       const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
       codeMirror.setValue(jsonJob());
 
-      server.put(
-        '/var/nomad%2Fjob-templates%2Ffoo?cas=0',
-        function (_server, fakeRequest) {
-          assert.deepEqual(
-            fakeRequest.body,
-            {
-              Path: 'nomad/job-templates/foo',
-              CreateIndex: null,
-              ModifyIndex: null,
-              Namespace: 'default',
-              ID: 'nomad/job-templates/foo',
-              Items: { description: 'foo-bar-baz', template: jsonJob() },
-            },
-            'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
-          );
-          return {
-            Items: { description: 'foo-bar-baz', template: jsonJob() },
-            Namespace: 'default',
+      server.put('/var/:varId', function (_server, fakeRequest) {
+        assert.deepEqual(
+          JSON.parse(fakeRequest.requestBody),
+          {
             Path: 'nomad/job-templates/foo',
-          };
-        }
-      );
+            CreateIndex: null,
+            ModifyIndex: null,
+            Namespace: 'default',
+            ID: 'nomad/job-templates/foo',
+            Items: { description: 'foo-bar-baz', template: jsonJob() },
+          },
+          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+        );
+        return {
+          Items: { description: 'foo-bar-baz', template: jsonJob() },
+          Namespace: 'default',
+          Path: 'nomad/job-templates/foo',
+        };
+      });
 
       server.get('/vars', function (_server, fakeRequest) {
         assert.deepEqual(
@@ -368,6 +365,9 @@ module('Acceptance | job run', function (hooks) {
       });
       server.create('namespace', { id: 'test' });
 
+      this.system = this.owner.lookup('service:system');
+      this.system.shouldShowNamespaces = true;
+
       // Assert
       assert
         .dom('[data-test-empty-templates-list-headline]')
@@ -389,6 +389,9 @@ module('Acceptance | job run', function (hooks) {
         .doesNotExist(
           'an error disappears when name or namespace combination is unique'
         );
+
+      // Clean-up
+      this.system.shouldShowNamespaces = false;
     });
 
     test('a user can save code from the editor as a template', async function (assert) {
