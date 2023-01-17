@@ -1,3 +1,4 @@
+import { getOwner } from '@ember/application';
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
@@ -22,8 +23,21 @@ export default class RunRoute extends Route {
     try {
       // When variables are created with a namespace attribute, it is verified against
       // available namespaces to prevent redirecting to a non-existent namespace.
-      await this.store.findAll('namespace');
+      await Promise.all([
+        this.store.query('variable', {
+          prefix: 'nomad/job-templates',
+          namespace: '*',
+        }),
+        this.store.findAll('namespace'),
+      ]);
 
+      // When navigating from jobs.run.index using "Save as Template"
+      const json = getOwner(this).lookup('controller:jobs.run').jsonTemplate;
+      if (json) {
+        return this.store.createRecord('variable', {
+          keyValues: [{ key: 'template', value: json }],
+        });
+      }
       return this.store.createRecord('variable');
     } catch (e) {
       notifyForbidden(this)(e);

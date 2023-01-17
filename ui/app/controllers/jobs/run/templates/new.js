@@ -3,9 +3,12 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { trimPath } from '../../../../helpers/trim-path';
 
 export default class JobsRunTemplatesController extends Controller {
   @service router;
+  @service store;
+  @service system;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
 
@@ -17,6 +20,17 @@ export default class JobsRunTemplatesController extends Controller {
       .map(({ name }) => ({ key: name, label: name }));
 
     return namespaces;
+  }
+
+  get isDuplicateTemplate() {
+    const templates = this.store.peekAll('variable');
+    const templateName = trimPath([`nomad/job-templates/${this.templateName}`]);
+
+    return !!templates
+      .without(this.model)
+      .find(
+        (v) => v.path === templateName && v.namespace === this.templateNamespace
+      );
   }
 
   @action
@@ -46,16 +60,27 @@ export default class JobsRunTemplatesController extends Controller {
     this.model.set('keyValues', this.keyValues);
     this.model.set('path', `nomad/job-templates/${this.templateName}`);
     this.model.setAndTrimPath();
-    await this.model.save({ adapterOptions: { overwrite } });
 
-    this.flashMessages.add({
-      title: 'Job template saved',
-      message: `${this.templateName} successfully saved`,
-      type: 'success',
-      destroyOnClick: false,
-      timeout: 5000,
-    });
+    try {
+      await this.model.save({ adapterOptions: { overwrite } });
 
-    this.router.transitionTo('jobs.run.templates');
+      this.flashMessages.add({
+        title: 'Job template saved',
+        message: `${this.templateName} successfully saved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+
+      this.router.transitionTo('jobs.run.templates');
+    } catch (e) {
+      this.flashMessages.add({
+        title: 'Job template cannot be saved.',
+        message: e,
+        type: 'error',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+    }
   }
 }

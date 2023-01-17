@@ -104,11 +104,19 @@
 .new-job-template {
   & > div {
     margin-bottom: 1rem;
-    align-items: end;
   }
 
   .path-input {
     height: 2.25em;
+    &.error {
+      color: $red;
+      border-color: $red;
+    }
+
+    + p {
+      position: relative;
+      animation: slide-in 0.3s ease-out;
+    }
   }
 
   .input-dropdown-row {

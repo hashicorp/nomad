@@ -19,6 +19,7 @@ export default class JobEditor extends Component {
 
   job = null;
   onSubmit() {}
+  handleSaveAsTemplate() {}
 
   @computed('_context')
   get context() {
