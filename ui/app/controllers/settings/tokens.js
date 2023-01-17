@@ -157,8 +157,6 @@ export default class Tokens extends Controller {
       this.state = null;
       this.code = null;
 
-      this.resetStore();
-
       // Refetch the token and associated policies
       this.get('token.fetchSelfTokenAndPolicies').perform().catch();
 
