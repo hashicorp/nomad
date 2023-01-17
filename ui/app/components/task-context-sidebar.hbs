@@ -89,6 +89,11 @@
 			type="button"
 			{{on "click" this.toggleWide}}
 		>
+			{{#if this.wide}}
+				{{keyboard-commands (array this.narrowCommand)}}
+			{{else}}
+				{{keyboard-commands (array this.widenCommand)}}
+			{{/if}}
 			{{x-icon (if this.wide "arrow-right" "arrow-left")}}
 		</button>
 	</div>
