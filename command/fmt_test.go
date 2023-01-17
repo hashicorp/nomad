@@ -3,7 +3,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,15 +18,19 @@ func TestFmtCommand(t *testing.T) {
 
 	const inSuffix = ".in.hcl"
 	const expectedSuffix = ".out.hcl"
-	tests := []string{"nomad", "job"}
-
+	tests := [][]string{
+		{"nomad", "-check"},
+		{"nomad", ""},
+		{"job", "-check"},
+		{"job", ""},
+	}
 	tmpDir := t.TempDir()
 
-	for _, testName := range tests {
-		t.Run(testName, func(t *testing.T) {
-			inFile := filepath.Join("testdata", "fmt", testName+inSuffix)
-			expectedFile := filepath.Join("testdata", "fmt", testName+expectedSuffix)
-			fmtFile := filepath.Join(tmpDir, testName+".hcl")
+	for _, test := range tests {
+		t.Run(test[0]+test[1], func(t *testing.T) {
+			inFile := filepath.Join("testdata", "fmt", test[0]+inSuffix)
+			expectedFile := filepath.Join("testdata", "fmt", test[0]+expectedSuffix)
+			fmtFile := filepath.Join(tmpDir, test[0]+".hcl")
 
 			input, err := os.ReadFile(inFile)
 			require.NoError(t, err)
@@ -42,8 +45,16 @@ func TestFmtCommand(t *testing.T) {
 				Meta: Meta{Ui: ui},
 			}
 
-			code := cmd.Run([]string{fmtFile})
-			assert.Equal(t, 0, code)
+			var code int
+			var expectedCode int
+			if test[1] == "-check" {
+				code = cmd.Run([]string{test[1], fmtFile})
+				expectedCode = 1
+			} else {
+				code = cmd.Run([]string{fmtFile})
+				expectedCode = 0
+			}
+			assert.Equal(t, expectedCode, code)
 
 			actual, err := os.ReadFile(fmtFile)
 			require.NoError(t, err)
@@ -64,11 +75,25 @@ func TestFmtCommand_FromStdin(t *testing.T) {
 		stdin: stdinFake,
 	}
 
-	if code := cmd.Run([]string{"-"}); code != 0 {
-		t.Fatalf("expected code 0, got %d", code)
-	}
+	tests := []string{"-check", ""}
+	for _, checkFlag := range tests {
+		t.Run(checkFlag, func(t *testing.T) {
+			var code int
+			var expectedCode int
 
-	assert.Contains(t, ui.OutputWriter.String(), string(fmtFixture.golden))
+			if checkFlag == "-check" {
+				code = cmd.Run([]string{checkFlag, "-"})
+				expectedCode = 1
+			} else {
+				code = cmd.Run([]string{"-"})
+				expectedCode = 0
+
+			}
+
+			assert.Equal(t, expectedCode, code)
+			assert.Contains(t, ui.OutputWriter.String(), string(fmtFixture.golden))
+		})
+	}
 }
 
 func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
@@ -86,10 +111,25 @@ func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
 		Meta: Meta{Ui: ui},
 	}
 
-	code := cmd.Run([]string{})
+	tests := []string{"-check", ""}
+	for _, checkFlag := range tests {
+		t.Run(checkFlag, func(t *testing.T) {
+			var code int
+			var expectedCode int
 
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", fmtFixture.filename), ui.OutputWriter.String())
+			if checkFlag == "-check" {
+				code = cmd.Run([]string{checkFlag})
+				expectedCode = 1
+			} else {
+				code = cmd.Run([]string{})
+				expectedCode = 0
+
+			}
+
+			assert.Equal(t, expectedCode, code)
+			assert.Equal(t, fmt.Sprintf("%s\n", fmtFixture.filename), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FromDirectoryArgument(t *testing.T) {
@@ -100,10 +140,25 @@ func TestFmtCommand_FromDirectoryArgument(t *testing.T) {
 		Meta: Meta{Ui: ui},
 	}
 
-	code := cmd.Run([]string{tmpDir})
+	tests := []string{"-check", ""}
+	for _, checkFlag := range tests {
+		t.Run(checkFlag, func(t *testing.T) {
+			var code int
+			var expectedCode int
 
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", filepath.Join(tmpDir, fmtFixture.filename)), ui.OutputWriter.String())
+			if checkFlag == "-check" {
+				code = cmd.Run([]string{checkFlag, tmpDir})
+				expectedCode = 1
+			} else {
+				code = cmd.Run([]string{tmpDir})
+				expectedCode = 0
+
+			}
+
+			assert.Equal(t, expectedCode, code)
+			assert.Equal(t, fmt.Sprintf("%s\n", filepath.Join(tmpDir, fmtFixture.filename)), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FromFileArgument(t *testing.T) {
@@ -113,13 +168,26 @@ func TestFmtCommand_FromFileArgument(t *testing.T) {
 	cmd := &FormatCommand{
 		Meta: Meta{Ui: ui},
 	}
-
 	path := filepath.Join(tmpDir, fmtFixture.filename)
 
-	code := cmd.Run([]string{path})
+	tests := []string{"-check", ""}
+	for _, checkFlag := range tests {
+		t.Run(checkFlag, func(t *testing.T) {
+			var code int
+			var expectedCode int
 
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", path), ui.OutputWriter.String())
+			if checkFlag == "-check" {
+				code = cmd.Run([]string{checkFlag, path})
+				expectedCode = 1
+			} else {
+				code = cmd.Run([]string{path})
+				expectedCode = 0
+
+			}
+			assert.Equal(t, expectedCode, code)
+			assert.Equal(t, fmt.Sprintf("%s\n", path), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FileDoesNotExist(t *testing.T) {
@@ -152,7 +220,7 @@ func TestFmtCommand_InvalidSyntax(t *testing.T) {
 func fmtFixtureWriteDir(t *testing.T) string {
 	dir := t.TempDir()
 
-	err := ioutil.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
+	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
 	require.NoError(t, err)
 
 	return dir
