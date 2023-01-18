@@ -6324,15 +6324,27 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 // NomadServices returns a list of all group and task - level services in tg that
 // are making use of the nomad service provider.
 func (tg *TaskGroup) NomadServices() []*Service {
+	return tg.filterServices(func(s *Service) bool {
+		return s.Provider == ServiceProviderNomad
+	})
+}
+
+func (tg *TaskGroup) ConsulServices() []*Service {
+	return tg.filterServices(func(s *Service) bool {
+		return s.Provider == ServiceProviderConsul || s.Provider == ""
+	})
+}
+
+func (tg *TaskGroup) filterServices(f func(s *Service) bool) []*Service {
 	var services []*Service
 	for _, service := range tg.Services {
-		if service.Provider == ServiceProviderNomad {
+		if f(service) {
 			services = append(services, service)
 		}
 	}
 	for _, task := range tg.Tasks {
 		for _, service := range task.Services {
-			if service.Provider == ServiceProviderNomad {
+			if f(service) {
 				services = append(services, service)
 			}
 		}
