@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/shoenig/test/must"
@@ -78,12 +77,8 @@ func TestSelectorData(t *testing.T) {
 				},
 			}
 
-			// Marshal our test data
-			jsonRaw, err := json.Marshal(tt.Data)
-			must.NoError(t, err)
-
 			// Get real selector data
-			actual, err := SelectorData(am, jsonRaw, nil)
+			actual, err := SelectorData(am, tt.Data, nil)
 			must.NoError(t, err)
 			must.Eq(t, actual, tt.Expected)
 		})

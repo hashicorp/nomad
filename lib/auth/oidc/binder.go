@@ -20,16 +20,6 @@ type Binder struct {
 	store BinderStateStore
 }
 
-type Identity struct {
-	// Claims is the format of this Identity suitable for selection
-	// with a binding rule.
-	Claims interface{}
-
-	// ClaimMappings is the format of this Identity suitable for interpolation in a
-	// bind name within a binding rule.
-	ClaimMappings map[string]string
-}
-
 // NewBinder creates a Binder with the given state store.
 func NewBinder(store BinderStateStore) *Binder {
 	return &Binder{store}

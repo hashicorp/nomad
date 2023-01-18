@@ -510,6 +510,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"login": func() (cli.Command, error) {
+			return &LoginCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &AllocLogsCommand{
 				Meta: meta,

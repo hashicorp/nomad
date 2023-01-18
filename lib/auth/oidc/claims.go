@@ -13,33 +13,27 @@ import (
 
 // SelectorData returns the data for go-bexpr for selector evaluation.
 func SelectorData(
-	am *structs.ACLAuthMethod, idClaims, userClaims json.RawMessage) (*structs.ACLAuthClaims, error) {
-
-	// Extract the claims into a map[string]interface{}
-	var all map[string]interface{}
-	if err := json.Unmarshal(idClaims, &all); err != nil {
-		return nil, err
-	}
+	am *structs.ACLAuthMethod, idClaims, userClaims map[string]interface{}) (*structs.ACLAuthClaims, error) {
 
 	// Ensure the issuer and subscriber data does not get overwritten.
 	if len(userClaims) > 0 {
 
-		iss, issOk := all["iss"]
-		sub, subOk := all["sub"]
+		iss, issOk := idClaims["iss"]
+		sub, subOk := idClaims["sub"]
 
-		if err := json.Unmarshal(userClaims, &all); err != nil {
-			return nil, err
+		for k, v := range userClaims {
+			idClaims[k] = v
 		}
 
 		if issOk {
-			all["iss"] = iss
+			idClaims["iss"] = iss
 		}
 		if subOk {
-			all["sub"] = sub
+			idClaims["sub"] = sub
 		}
 	}
 
-	return extractClaims(am, all)
+	return extractClaims(am, idClaims)
 }
 
 // extractClaims takes the claim mapping configuration of the OIDC auth method,

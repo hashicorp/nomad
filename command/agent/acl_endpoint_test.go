@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
+	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1213,10 +1215,10 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
-				url := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
+				authMethodURL := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
 
 				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodGet, url, nil)
+				req, err := http.NewRequest(http.MethodGet, authMethodURL, nil)
 				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1238,10 +1240,10 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
-				url := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
+				authMethodURL := "/v1/acl/auth-method/" + mockACLAuthMethod.Name
 
 				// Build the HTTP request to read the auth-method.
-				req, err := http.NewRequest(http.MethodGet, url, nil)
+				req, err := http.NewRequest(http.MethodGet, authMethodURL, nil)
 				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1258,7 +1260,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 				mockACLAuthMethod.MaxTokenTTL = 3600 * time.Hour
 				mockACLAuthMethod.SetHash()
 
-				req, err = http.NewRequest(http.MethodPost, url, encodeReq(mockACLAuthMethod))
+				req, err = http.NewRequest(http.MethodPost, authMethodURL, encodeReq(mockACLAuthMethod))
 				must.NoError(t, err)
 				respW = httptest.NewRecorder()
 
@@ -1270,7 +1272,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 				must.NoError(t, err)
 
 				// Delete the ACL auth-method.
-				req, err = http.NewRequest(http.MethodDelete, url, nil)
+				req, err = http.NewRequest(http.MethodDelete, authMethodURL, nil)
 				must.NoError(t, err)
 				respW = httptest.NewRecorder()
 
@@ -1619,6 +1621,224 @@ func TestHTTPServer_ACLBindingRuleSpecificRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cb := func(c *Config) { c.NomadConfig.ACLTokenMaxExpirationTTL = 3600 * time.Hour }
 			httpACLTest(t, cb, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLOIDCAuthURLRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "incorrect method",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/oidc/auth-url", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLOIDCAuthURLRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "success",
+			testFn: func(testAgent *TestAgent) {
+
+				// Set up the test OIDC provider.
+				oidcTestProvider := capOIDC.StartTestProvider(t)
+				defer oidcTestProvider.Stop()
+
+				// Generate and upsert an ACL auth method for use. Certain values must be
+				// taken from the cap OIDC provider just like real world use.
+				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
+				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
+				mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
+				mockedAuthMethod.Config.DiscoveryCaPem = []string{oidcTestProvider.CACert()}
+
+				must.NoError(t, testAgent.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+				// Generate the request body.
+				requestBody := structs.ACLOIDCAuthURLRequest{
+					AuthMethodName: mockedAuthMethod.Name,
+					RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+					ClientNonce:    "fpSPuaodKevKfDU3IeXa",
+					WriteRequest: structs.WriteRequest{
+						Region: "global",
+					},
+				}
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPost, "/v1/acl/oidc/auth-url", encodeReq(&requestBody))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLOIDCAuthURLRequest(respW, req)
+				must.NoError(t, err)
+
+				// The response URL comes encoded, so decode this and check we have each
+				// component we expect.
+				escapedURL, err := url.PathUnescape(obj.(structs.ACLOIDCAuthURLResponse).AuthURL)
+				must.NoError(t, err)
+				must.StrContains(t, escapedURL, "/authorize?client_id=mock")
+				must.StrContains(t, escapedURL, "&nonce=fpSPuaodKevKfDU3IeXa")
+				must.StrContains(t, escapedURL, "&redirect_uri=http://127.0.0.1:4649/oidc/callback")
+				must.StrContains(t, escapedURL, "&response_type=code")
+				must.StrContains(t, escapedURL, "&scope=openid")
+				must.StrContains(t, escapedURL, "&state=st_")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLOIDCCompleteAuthRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "incorrect method",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/oidc/complete-auth", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLOIDCCompleteAuthRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "success",
+			testFn: func(testAgent *TestAgent) {
+
+				// Set up the test OIDC provider.
+				oidcTestProvider := capOIDC.StartTestProvider(t)
+				defer oidcTestProvider.Stop()
+				oidcTestProvider.SetAllowedRedirectURIs([]string{"http://127.0.0.1:4649/oidc/callback"})
+
+				// Generate and upsert an ACL auth method for use. Certain values must be
+				// taken from the cap OIDC provider just like real world use.
+				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
+				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
+				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
+				mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
+				mockedAuthMethod.Config.DiscoveryCaPem = []string{oidcTestProvider.CACert()}
+				mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+				mockedAuthMethod.Config.ListClaimMappings = map[string]string{
+					"http://nomad.internal/roles":    "roles",
+					"http://nomad.internal/policies": "policies",
+				}
+
+				must.NoError(t, testAgent.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+				// Set our custom data and some expected values, so we can make the RPC and
+				// use the test provider.
+				oidcTestProvider.SetExpectedAuthNonce("fpSPuaodKevKfDU3IeXa")
+				oidcTestProvider.SetExpectedAuthCode("codeABC")
+				oidcTestProvider.SetCustomAudience("mock")
+				oidcTestProvider.SetExpectedState("st_someweirdstateid")
+				oidcTestProvider.SetCustomClaims(map[string]interface{}{
+					"azp":                            "mock",
+					"http://nomad.internal/policies": []string{"engineering"},
+					"http://nomad.internal/roles":    []string{"engineering"},
+				})
+
+				// Generate the request body.
+				requestBody := structs.ACLOIDCCompleteAuthRequest{
+					AuthMethodName: mockedAuthMethod.Name,
+					ClientNonce:    "fpSPuaodKevKfDU3IeXa",
+					State:          "st_someweirdstateid",
+					Code:           "codeABC",
+					RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+					WriteRequest: structs.WriteRequest{
+						Region: "global",
+					},
+				}
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPost, "/v1/acl/oidc/complete-auth", encodeReq(&requestBody))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				_, err = testAgent.Server.ACLOIDCCompleteAuthRequest(respW, req)
+				must.ErrorContains(t, err, "no role or policy bindings matched")
+
+				// Upsert an ACL policy and role, so that we can reference this within our
+				// OIDC claims.
+				mockACLPolicy := mock.ACLPolicy()
+				must.NoError(t, testAgent.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{mockACLPolicy}))
+
+				mockACLRole := mock.ACLRole()
+				mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: mockACLPolicy.Name}}
+				must.NoError(t, testAgent.server.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole}, true))
+
+				// Generate and upsert two binding rules, so we can test both ACL Policy
+				// and Role claim mapping.
+				mockBindingRule1 := mock.ACLBindingRule()
+				mockBindingRule1.AuthMethod = mockedAuthMethod.Name
+				mockBindingRule1.BindType = structs.ACLBindingRuleBindTypePolicy
+				mockBindingRule1.Selector = "engineering in list.policies"
+				mockBindingRule1.BindName = mockACLPolicy.Name
+
+				mockBindingRule2 := mock.ACLBindingRule()
+				mockBindingRule2.AuthMethod = mockedAuthMethod.Name
+				mockBindingRule2.BindName = mockACLRole.Name
+
+				must.NoError(t, testAgent.server.State().UpsertACLBindingRules(
+					40, []*structs.ACLBindingRule{mockBindingRule1, mockBindingRule2}, true))
+
+				// Build the HTTP request.
+				req, err = http.NewRequest(http.MethodPost, "/v1/acl/oidc/complete-auth", encodeReq(&requestBody))
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLOIDCCompleteAuthRequest(respW, req)
+				must.NoError(t, err)
+
+				aclTokenResp, ok := obj.(*structs.ACLToken)
+				must.True(t, ok)
+				must.NotNil(t, aclTokenResp)
+				must.Len(t, 1, aclTokenResp.Policies)
+				must.Eq(t, mockACLPolicy.Name, aclTokenResp.Policies[0])
+				must.Len(t, 1, aclTokenResp.Roles)
+				must.Eq(t, mockACLRole.Name, aclTokenResp.Roles[0].Name)
+				must.Eq(t, mockACLRole.ID, aclTokenResp.Roles[0].ID)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
 		})
 	}
 }
