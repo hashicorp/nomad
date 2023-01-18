@@ -578,6 +578,10 @@
         ]
       },
       {
+        "title": "login",
+        "path": "commands/login"
+      },
+      {
         "title": "monitor",
         "path": "commands/monitor"
       },

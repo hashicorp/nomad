@@ -60,6 +60,8 @@ The table below shows this endpoint's support for
   - `OIDCClientSecret` `(string: <required>)` - The OAuth Client Secret
     configured with your OIDC provider.
 
+  - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
+
   - `BoundAudiences` `(array<string>)` - List of aud claims that are valid for
     login; any match is sufficient.
 
@@ -97,6 +99,9 @@ The table below shows this endpoint's support for
     "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
     "OIDCClientID": "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt",
     "OIDCClientSecret": "example-client-secret",
+    "OIDCScopes": [
+      "groups"
+    ],
     "BoundAudiences": [
       "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt"
     ],
@@ -137,6 +142,9 @@ $ curl \
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
         "OIDCClientID": "v1rpi2myptmv1rpi2myptmv1rpi2mypt",
         "OIDCClientSecret": "example-client-secret",
+        "OIDCScopes": [
+            "groups"
+        ],
         "BoundAudiences": [
             "v1rpi2myptmv1rpi2myptmv1rpi2mypt"
         ],
@@ -211,6 +219,8 @@ queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls).
   - `OIDCClientSecret` `(string: "")` - The OAuth Client Secret
     configured with your OIDC provider.
 
+  - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
+
   - `BoundAudiences` `(array<string>)` - List of aud claims that are valid for
     login; any match is sufficient.
 
@@ -248,6 +258,9 @@ queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls).
     "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
     "OIDCClientID": "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt",
     "OIDCClientSecret": "example-client-secret",
+    "OIDCScopes": [
+      "groups"
+    ],
     "BoundAudiences": [
       "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt"
     ],
@@ -288,6 +301,9 @@ $ curl \
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
         "OIDCClientID": "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt",
         "OIDCClientSecret": "example-client-secret",
+        "OIDCScopes": [
+          "groups"
+        ],
         "BoundAudiences": [
           "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt"
         ],
@@ -301,7 +317,7 @@ $ curl \
         "ListClaimMappings": {
           "http://nomad.com/groups": "groups"
         }
-    }
+    },
     "CreateTime": "2022-12-08T11:04:43.46206Z",
     "ModifyTime": "2022-12-08T11:04:43.46206Z",
     "CreateIndex": 12,
@@ -394,6 +410,9 @@ $ curl \
       "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
       "OIDCClientID": "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt",
       "OIDCClientSecret": "example-client-secret",
+      "OIDCScopes": [
+        "groups"
+      ],
       "BoundAudiences": [
         "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt"
       ],
