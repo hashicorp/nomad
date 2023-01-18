@@ -157,10 +157,16 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
-	// Check if the SecretID has been tampered with
 	if originalNode != nil {
+		// Check if the SecretID has been tampered with
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
+		}
+
+		// Don't allow the Register method to update the node status. Only the
+		// UpdateStatus method should be able to do this.
+		if originalNode.Status != "" {
+			args.Node.Status = originalNode.Status
 		}
 	}
 
@@ -485,6 +491,26 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Update the timestamp of when the node status was updated
 	args.UpdatedAt = time.Now().Unix()
+
+	// Compute next status.
+	switch node.Status {
+	case structs.NodeStatusInit:
+		if args.Status == structs.NodeStatusReady {
+			allocs, err := snap.AllocsByNodeTerminal(ws, args.NodeID, false)
+			if err != nil {
+				return fmt.Errorf("failed to query node allocs: %v", err)
+			}
+
+			allocsUpdated := node.LastAllocUpdateIndex > node.LastMissedHeartbeatIndex
+			if len(allocs) > 0 && !allocsUpdated {
+				args.Status = structs.NodeStatusInit
+			}
+		}
+	case structs.NodeStatusDisconnected:
+		if args.Status == structs.NodeStatusReady {
+			args.Status = structs.NodeStatusInit
+		}
+	}
 
 	// Commit this update via Raft
 	var index uint64
@@ -1179,8 +1205,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if node == nil {
 		return fmt.Errorf("node %s not found", nodeID)
 	}
-	if node.Status != structs.NodeStatusReady {
-		return fmt.Errorf("node %s is %s, not %s", nodeID, node.Status, structs.NodeStatusReady)
+	if node.UnresponsiveStatus() {
+		return fmt.Errorf("node %s is not allow to update allocs while in status %s", nodeID, node.Status)
 	}
 
 	// Ensure that evals aren't set from client RPCs
@@ -1311,6 +1337,17 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Wait for the future
 	if err := future.Wait(); err != nil {
 		return err
+	}
+
+	// Update node alloc update index.
+	copyNode := node.Copy()
+	copyNode.LastAllocUpdateIndex = future.Index()
+
+	_, _, err = n.srv.raftApply(structs.NodeRegisterRequestType, &structs.NodeRegisterRequest{
+		Node: copyNode,
+	})
+	if err != nil {
+		return fmt.Errorf("node update failed: %v", err)
 	}
 
 	// Setup the response

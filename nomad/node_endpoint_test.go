@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -524,6 +525,171 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup server with tighther heartbeat so we don't have to wait so long
+	// for nodes to go down.
+	heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.MinHeartbeatTTL = heartbeatTTL
+		c.HeartbeatGrace = 2 * heartbeatTTL
+	})
+	codec := rpcClient(t, s)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Register node.
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeUpdateResp structs.NodeUpdateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeUpdateResp)
+	must.NoError(t, err)
+
+	// Start heartbeat.
+	stopHeartbeat := make(chan interface{})
+	heartbeat := func() {
+		ticker := time.NewTicker(heartbeatTTL / 2)
+		for {
+			select {
+			case <-stopHeartbeat:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				hb := &structs.NodeUpdateStatusRequest{
+					NodeID:       node.ID,
+					Status:       structs.NodeStatusReady,
+					WriteRequest: structs.WriteRequest{Region: "global"},
+				}
+				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", hb, &nodeUpdateResp)
+				must.NoError(t, err)
+			}
+		}
+	}
+	go heartbeat()
+
+	// Wait for node to be ready.
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+
+	// Register job with max_client_disconnect.
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{}
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+	job.TaskGroups[0].Constraints = []*structs.Constraint{}
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10m",
+	}
+
+	jobReq := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var jobResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
+	must.NoError(t, err)
+
+	// Wait for alloc run be pending in the server.
+	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+		structs.AllocClientStatusPending: 1,
+	})
+
+	// Get allocs that node should run.
+	allocsReq := &structs.NodeSpecificRequest{
+		NodeID: node.ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var allocsResp structs.NodeAllocsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
+	must.NoError(t, err)
+	must.Len(t, 1, allocsResp.Allocs)
+
+	// Tell server the alloc is running.
+	// Save the alloc so we can reuse the request later.
+	alloc := allocsResp.Allocs[0].Copy()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	allocUpdateReq := &structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
+	must.NoError(t, err)
+
+	// Wait for alloc run be running in the server.
+	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+		structs.AllocClientStatusRunning: 1,
+	})
+
+	// Stop heartbeat and wait for the client to be disconnected and the alloc
+	// to be unknown.
+	close(stopHeartbeat)
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
+	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+		structs.AllocClientStatusUnknown: 1,
+	})
+
+	// There should be a pending eval for the alloc replacement.
+	state := s.fsm.State()
+	ws := memdb.NewWatchSet()
+	evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
+	found := false
+	for _, eval := range evals {
+		if eval.Status == structs.EvalStatusPending {
+			found = true
+			break
+		}
+	}
+	must.True(t, found)
+
+	// Restart heartbeat to reconnect node.
+	stopHeartbeat = make(chan interface{})
+	go heartbeat()
+
+	// Wait for node to be initializing.
+	// It must remain initializing until it updates its allocs with the server
+	// so the scheduler have the necessary information to avoid unnecessary
+	// placements by the pending eval.
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
+
+	// Get allocs that node should run.
+	// The node should only have one alloc assigned until it updates its allocs
+	// status with the server.
+	allocsReq = &structs.NodeSpecificRequest{
+		NodeID: node.ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
+	must.NoError(t, err)
+	must.Len(t, 1, allocsResp.Allocs)
+
+	// Tell server the alloc is running.
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
+	must.NoError(t, err)
+
+	// Wait for alloc run be running in the server.
+	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+		structs.AllocClientStatusRunning: 1,
+	})
+
+	// Wait for the client to be ready.
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+}
+
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -639,14 +805,12 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	}
 
 	// Transition it to down and then ready
-	node.Status = structs.NodeStatusDown
-	reg = &structs.NodeRegisterRequest{
-		Node:         node,
+	req := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-
-	// Fetch the response
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -654,14 +818,12 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 		t.Fatalf("expected one eval; got %#v", resp.EvalIDs)
 	}
 
-	node.Status = structs.NodeStatusReady
-	reg = &structs.NodeRegisterRequest{
-		Node:         node,
+	req = &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusReady,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-
-	// Fetch the response
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1369,12 +1531,12 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
 
 	// Mark the node as down
-	node.Status = structs.NodeStatusDown
-	reg = &structs.NodeRegisterRequest{
-		Node:         node,
+	req := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp))
 
 	// Ensure that the allocation has transitioned to lost
 	testutil.WaitForResult(func() (bool, error) {
@@ -2581,7 +2743,7 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	}
 	var allocUpdateResp structs.NodeAllocsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
-	require.ErrorContains(t, err, "not ready")
+	require.ErrorContains(t, err, "not allow to update allocs")
 
 	// Send request without an explicit node ID.
 	updatedAlloc.NodeID = ""
