@@ -157,6 +157,9 @@ config {
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
+- `isolation` - (Optional) `hyper-v` or `process` (default). Enables [`Windows isolation`](https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container) 
+   modes.
+
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
 
