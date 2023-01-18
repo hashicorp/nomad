@@ -36,7 +36,7 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 
 	mode := getMode(artifact)
 	headers := getHeaders(env, artifact)
-	dir := getTaskDir(env)
+	allocDir, taskDir := getWritableDirs(env)
 
 	params := &parameters{
 		// downloader configuration
@@ -55,8 +55,9 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		Destination: destination,
 		Headers:     headers,
 
-		// task environment
-		TaskDir: dir,
+		// task filesystem
+		AllocDir: allocDir,
+		TaskDir:  taskDir,
 	}
 
 	if err = s.runCmd(params); err != nil {

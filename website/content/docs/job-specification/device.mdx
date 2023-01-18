@@ -105,6 +105,15 @@ follows:
   <tbody>
     <tr>
       <td>
+        <code>{'${device.ids}'}</code>
+      </td>
+      <td>Comma separated list of device IDs in the group</td>
+      <td>
+        <code>9afa5da1-8f39-25a2-48dc-ba31fd7c0023,c248b547-fed7-4d67-ade5-73a27d280ac4</code>
+      </td>
+    </tr>
+    <tr>
+      <td>
         <code>{'${device.type}'}</code>
       </td>
       <td>The type of device</td>
@@ -294,6 +303,23 @@ device "nvidia/gpu" {
     operator  = ">="
     value     = "1500 MiB"
     weight    = 75
+  }
+}
+```
+
+### Affinity Towards Specific GPU Devices
+
+This example uses affinity to indicate scheduling preference towards specific
+GPU devices, using their UUID as selection criteria. Since devices are
+fingerprinted as a group, you may specify multiple IDs as a comma separated
+list.
+
+```hcl
+device "nvidia/gpu" {
+  affinity {
+    attribute = "${device.ids}"
+    operator  = "set_contains"
+    value     = "9afa5da1-8f39-25a2-48dc-ba31fd7c0023,c248b547-fed7-4d67-ade5-73a27d280ac4"
   }
 }
 ```

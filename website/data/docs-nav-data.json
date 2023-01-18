@@ -660,6 +660,10 @@
             ]
           },
           {
+            "title": "client-state",
+            "path": "commands/operator/client-state"
+          },
+          {
             "title": "debug",
             "path": "commands/operator/debug"
           },

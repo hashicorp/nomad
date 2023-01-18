@@ -28,7 +28,8 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 					Image: "gcr.io/google_containers/pause-amd64:3.1",
 				},
 				HostConfig: &docker.HostConfig{
-					NetworkMode: "none",
+					NetworkMode:   "none",
+					RestartPolicy: docker.RestartUnlessStopped(),
 				},
 			},
 			name: "no input hostname",
@@ -45,7 +46,8 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 					Hostname: "linux",
 				},
 				HostConfig: &docker.HostConfig{
-					NetworkMode: "none",
+					NetworkMode:   "none",
+					RestartPolicy: docker.RestartUnlessStopped(),
 				},
 			},
 			name: "supplied input hostname",

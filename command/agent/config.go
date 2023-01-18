@@ -547,7 +547,7 @@ type ServerConfig struct {
 	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
-	// When set to false (default), a leave causes Consul to not rejoin
+	// When set to false (default), a leave causes Nomad to not rejoin
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`

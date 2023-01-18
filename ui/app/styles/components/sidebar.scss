@@ -7,7 +7,7 @@ $subNavOffset: 49px;
   width: 750px;
   padding: 24px;
   right: 0%;
-  overflow-y: auto;
+  overflow: visible;
   bottom: 0;
   top: $topNavOffset;
   transform: translateX(100%);
@@ -20,6 +20,21 @@ $subNavOffset: 49px;
   }
   &.has-subnav {
     top: calc($topNavOffset + $subNavOffset);
+  }
+
+  &.wide {
+    width: calc(100vw - $gutter-width - 1rem);
+  }
+
+  .button.widener {
+    position: absolute;
+    left: 0;
+    top: calc(50% - 16px);
+    width: 32px;
+    height: 32px;
+    left: -16px;
+    box-shadow: -5px 0 10px -5px rgb(0 0 0 / 20%);
+    border-radius: 16px;
   }
 }
 
@@ -58,6 +73,13 @@ $subNavOffset: 49px;
 }
 
 .task-context-sidebar {
+  display: grid;
+  gap: 1rem;
+  grid-template-rows: auto 1fr;
+
+  &.has-events {
+    grid-template-rows: auto minmax(auto, 25%) 1fr;
+  }
   header {
     display: grid;
     justify-content: left;
@@ -105,16 +127,24 @@ $subNavOffset: 49px;
     }
   }
 
-  // Instead of trying to calculate on the fly with JS, let's use vh and offset nav and headers above.
-  // We can make this a LOT more streamlined when CSS Container Queries are available.
-  $sidebarTopOffset: 161px;
-  $sidebarInnerPadding: 48px;
-  $sidebarHeaderOffset: 74px;
-  $cliHeaderOffset: 54.5px;
+  & > .task-events,
+  & > .task-log {
+    overflow: hidden;
+  }
+
+  .task-events,
+  .task-log {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    .boxed-section-body {
+      overflow: auto;
+    }
+    .notification {
+      grid-row: -1;
+    }
+  }
+
   .cli-window {
-    height: calc(
-      100vh - $sidebarTopOffset - $sidebarInnerPadding - $sidebarHeaderOffset -
-        $cliHeaderOffset
-    );
+    height: 100%;
   }
 }

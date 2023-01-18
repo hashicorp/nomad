@@ -854,6 +854,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
+				hashConfig(h, upstream.Config)
 			}
 		}
 	}
@@ -1481,6 +1482,10 @@ type ConsulUpstream struct {
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
 	MeshGateway ConsulMeshGateway
+
+	// Config is an upstream configuration. It is opaque to Nomad and passed
+	// directly to Consul.
+	Config map[string]any
 }
 
 // Equal returns true if the structs are recursively equal.
@@ -1488,11 +1493,35 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 	if u == nil || o == nil {
 		return u == o
 	}
-	return *u == *o
+	switch {
+	case u.DestinationName != o.DestinationName:
+		return false
+	case u.DestinationNamespace != o.DestinationNamespace:
+		return false
+	case u.LocalBindPort != o.LocalBindPort:
+		return false
+	case u.Datacenter != o.Datacenter:
+		return false
+	case u.LocalBindAddress != o.LocalBindAddress:
+		return false
+	case !u.MeshGateway.Equal(o.MeshGateway):
+		return false
+	case !opaqueMapsEqual(u.Config, o.Config):
+		return false
+	}
+	return true
+}
+
+// Hash implements a GoString based "hash" function for ConsulUpstream; because
+// this struct now contains an opaque map we cannot do much better than this.
+func (u ConsulUpstream) Hash() string {
+	return fmt.Sprintf("%#v", u)
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
-	return set.From(a).Equal(set.From(b))
+	setA := set.HashSetFrom[ConsulUpstream, string](a)
+	setB := set.HashSetFrom[ConsulUpstream, string](b)
+	return setA.Equal(setB)
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
@@ -1874,13 +1903,13 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 		return nil
 	}
 
+	// pre-validate service Name and Hosts before passing along to consul:
+	// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#services
+
 	if s.Name == "" {
 		return errors.New("Consul Ingress Service requires a name")
 	}
 
-	// Validation of wildcard service name and hosts varies depending on the
-	// protocol for the gateway.
-	// https://www.consul.io/docs/connect/config-entries/ingress-gateway#hosts
 	switch protocol {
 	case "tcp":
 		if s.Name == "*" {
@@ -1891,12 +1920,8 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 			return errors.New(`Consul Ingress Service doesn't support associating hosts to a service for the "tcp" protocol`)
 		}
 	default:
-		if s.Name == "*" {
-			return nil
-		}
-
-		if len(s.Hosts) == 0 {
-			return fmt.Errorf("Consul Ingress Service requires one or more hosts when using %q protocol", protocol)
+		if s.Name == "*" && len(s.Hosts) != 0 {
+			return errors.New(`Consul Ingress Service with a wildcard "*" service name can not also specify hosts`)
 		}
 	}
 

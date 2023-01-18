@@ -85,7 +85,10 @@ module('Acceptance | task logs', function (hooks) {
       .dom('.task-context-sidebar h1.title')
       .includesText(task.state, 'Task state is correctly displayed');
     await percySnapshot(assert, {
-      percyCSS: '.allocation-row td { display: none; }',
+      percyCSS: `
+        .allocation-row td { display: none; }
+        .task-events table td:nth-child(1) { color: transparent; }
+      `,
     });
 
     await click('.sidebar button.close');

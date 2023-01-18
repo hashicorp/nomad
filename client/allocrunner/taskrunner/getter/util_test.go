@@ -134,9 +134,10 @@ func TestUtil_getHeaders(t *testing.T) {
 func TestUtil_getTaskDir(t *testing.T) {
 	ci.Parallel(t)
 
-	env := noopTaskEnv("/path/to/task")
-	result := getTaskDir(env)
-	must.Eq(t, "/path/to/task", result)
+	env := noopTaskEnv("/path/to/alloc/task")
+	allocDir, taskDir := getWritableDirs(env)
+	must.Eq(t, "/path/to/alloc", allocDir)
+	must.Eq(t, "/path/to/alloc/task", taskDir)
 }
 
 func TestUtil_environment(t *testing.T) {

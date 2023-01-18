@@ -343,6 +343,10 @@ func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
 }
 
+func (q *QueryOptions) GetAuthToken() string {
+	return q.AuthToken
+}
+
 func (q *QueryOptions) SetIdentity(identity *AuthenticatedIdentity) {
 	q.identity = identity
 }
@@ -449,6 +453,10 @@ func (w WriteRequest) AllowStaleRead() bool {
 	return false
 }
 
+func (w *WriteRequest) GetAuthToken() string {
+	return w.AuthToken
+}
+
 func (w *WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
 	w.identity = identity
 }
@@ -461,6 +469,10 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // return a wrapper around the various elements that can be resolved as an
 // identity. RPC handlers will use the relevant fields for performing
 // authorization.
+//
+// Keeping these fields independent rather than merging them into an ephemeral
+// ACLToken makes the original of the credential clear to RPC handlers, who may
+// have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
 	ACLToken *ACLToken
 	Claims   *IdentityClaims
@@ -482,6 +494,12 @@ func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
 		return nil
 	}
 	return ai.Claims
+}
+
+type RequestWithIdentity interface {
+	GetAuthToken() string
+	SetIdentity(identity *AuthenticatedIdentity)
+	GetIdentity() *AuthenticatedIdentity
 }
 
 // QueryMeta allows a query response to include potentially
