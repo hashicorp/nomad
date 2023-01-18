@@ -26,6 +26,7 @@
             <Hds::Button @text="Cancel" @route="jobs.run" @color="critical" data-test-cancel />
         </Hds::ButtonSet>
         <Hds::ButtonSet class="button-group align-right">
+            <Hds::Button @text="Manage" @color="tertiary" @icon="edit" @route="jobs.run.templates.manage" data-test-manage-button />
             <Hds::Button @text="Create New Template" @color="tertiary" @icon="file-plus" @route="jobs.run.templates.new" data-test-create-new-button />
         </Hds::ButtonSet>
     </footer>
