@@ -908,6 +908,11 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
 
+		// Update last missed heartbeat if the node became unresponsive.
+		if !exist.UnresponsiveStatus() && node.UnresponsiveStatus() {
+			node.LastMissedHeartbeatIndex = index
+		}
+
 		// Retain node events that have already been set on the node
 		node.Events = exist.Events
 
@@ -922,6 +927,16 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 		node.LastDrain = exist.LastDrain                         // Retain the drain metadata
+
+		// Retain the last index the node missed a heartbeat.
+		if node.LastMissedHeartbeatIndex < exist.LastMissedHeartbeatIndex {
+			node.LastMissedHeartbeatIndex = exist.LastMissedHeartbeatIndex
+		}
+
+		// Retain the last index the node updated its allocs.
+		if node.LastAllocUpdateIndex < exist.LastAllocUpdateIndex {
+			node.LastAllocUpdateIndex = exist.LastAllocUpdateIndex
+		}
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
@@ -1027,6 +1042,11 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	// Update the status in the copy
 	copyNode.Status = status
 	copyNode.ModifyIndex = txn.Index
+
+	// Update last missed heartbeat if the node became unresponsive.
+	if !existingNode.UnresponsiveStatus() && copyNode.UnresponsiveStatus() {
+		copyNode.LastMissedHeartbeatIndex = txn.Index
+	}
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
