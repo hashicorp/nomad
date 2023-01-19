@@ -1,3 +1,0 @@
-```release-note:improvement
-acl: Added SSO authentication schema and state store functions
-```
