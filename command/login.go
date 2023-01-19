@@ -52,7 +52,7 @@ Login Options:
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
-    in the form of <IP>:<PORT> and defaults to "127.0.0.1:4649".
+    in the form of <IP>:<PORT> and defaults to "localhost:4649".
 
   -json
     Output the ACL token in JSON format.
@@ -89,7 +89,7 @@ func (l *LoginCommand) Run(args []string) int {
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
 	flags.StringVar(&l.authMethodType, "type", "OIDC", "")
-	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "127.0.0.1:4649", "")
+	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
 	if err := flags.Parse(args); err != nil {

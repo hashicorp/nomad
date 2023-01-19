@@ -8,7 +8,7 @@ import (
 
 func TestCallbackServer(t *testing.T) {
 
-	testCallbackServer, err := NewCallbackServer("127.0.0.1:4649")
+	testCallbackServer, err := NewCallbackServer("localhost:4649")
 	must.NoError(t, err)
 	must.NotNil(t, testCallbackServer)
 
@@ -16,5 +16,5 @@ func TestCallbackServer(t *testing.T) {
 		must.NoError(t, testCallbackServer.Close())
 	}()
 	must.StrNotEqFold(t, "", testCallbackServer.Nonce())
-	must.StrNotEqFold(t, "", testCallbackServer.RedirectURI())
+	must.Eq(t, "http://localhost:4649/oidc/callback", testCallbackServer.RedirectURI())
 }
