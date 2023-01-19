@@ -36,7 +36,7 @@ func NewCallbackServer(addr string) (*CallbackServer, error) {
 
 	// Initialize our callback server
 	srv := &CallbackServer{
-		url:         fmt.Sprintf("http://%s/oidc/callback", ln.Addr().String()),
+		url:         fmt.Sprintf("http://%s/oidc/callback", addr),
 		ln:          ln,
 		clientNonce: nonce,
 		errCh:       make(chan error, 5),
