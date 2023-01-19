@@ -231,6 +231,7 @@ func ACLAuthMethod() *structs.ACLAuthMethod {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},

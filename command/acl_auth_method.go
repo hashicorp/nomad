@@ -85,6 +85,7 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) []string {
 		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
 		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
 		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
+		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
 		fmt.Sprintf("Allowed redirects URIs|%s", strings.Join(config.AllowedRedirectURIs, ",")),
 		fmt.Sprintf("Discovery CA pem|%s", strings.Join(config.DiscoveryCaPem, ",")),

@@ -50,8 +50,8 @@ import (
 )
 
 var (
-	// validPolicyName is used to validate a policy name
-	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	// ValidPolicyName is used to validate a policy name
+	ValidPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
 	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
 	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
@@ -11993,7 +11993,7 @@ func (a *ACLPolicy) Stub() *ACLPolicyListStub {
 
 func (a *ACLPolicy) Validate() error {
 	var mErr multierror.Error
-	if !validPolicyName.MatchString(a.Name) {
+	if !ValidPolicyName.MatchString(a.Name) {
 		err := fmt.Errorf("invalid name '%s'", a.Name)
 		mErr.Errors = append(mErr.Errors, err)
 	}

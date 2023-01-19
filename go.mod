@@ -39,6 +39,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/hashicorp/cap v0.2.0
 	github.com/hashicorp/consul-template v0.29.6-0.20221026140134-90370e07bf62
 	github.com/hashicorp/consul/api v1.18.0
 	github.com/hashicorp/consul/sdk v0.13.0
@@ -71,6 +72,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.1-vault-3
 	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
+	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.5.0
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
@@ -177,6 +179,7 @@ require (
 	github.com/containerd/cgroups v1.0.3 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/containerd v1.6.12 // indirect
+	github.com/coreos/go-oidc/v3 v3.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -231,7 +234,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/mitchellh/pointerstructure v1.2.1 // indirect
+	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/mrunalp/fileutils v0.5.0 // indirect
 	github.com/muesli/reflow v0.3.0
