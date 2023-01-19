@@ -11,11 +11,11 @@ export default class RunRoute extends Route {
 
   beforeModel(transition) {
     if (
-      this.can.cannot('run job', null, {
+      this.can.cannot('write variable', null, {
         namespace: transition.to.queryParams.namespace,
       })
     ) {
-      this.router.transitionTo('jobs');
+      this.router.transitionTo('jobs.run');
     }
   }
 
