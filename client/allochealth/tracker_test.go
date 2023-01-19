@@ -403,7 +403,7 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 	}
 }
 
-func TestTracker_ConsulChecks_HealthToUnhealthy(t *testing.T) {
+func TestTracker_ConsulChecks_HealthyToUnhealthy(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
