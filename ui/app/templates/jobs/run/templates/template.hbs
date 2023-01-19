@@ -17,7 +17,7 @@
                 </span>
                 <Input
                     @type="text"
-                    @value={{the.model.path}}
+                    @value={{this.model.path}}
                     class="input path-input"
                     disabled
                     data-test-template-name
@@ -66,7 +66,7 @@
         <M.Footer as |F|>
         <Hds::ButtonSet>
             <Hds::Button type="submit" @text="Confirm"
-            {{on "click" (fn this.deleteTemplateAndClose)}}
+            {{on "click" this.deleteTemplateAndClose}}
             data-test-delete-template
             />
             <Hds::Button type="button" @text="Cancel" @color="secondary" {{on "click" F.close}} />
