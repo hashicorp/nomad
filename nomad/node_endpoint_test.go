@@ -559,14 +559,19 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
+				if t.Failed() {
+					return
+				}
+
 				req := &structs.NodeUpdateStatusRequest{
 					NodeID:       node.ID,
 					Status:       structs.NodeStatusReady,
 					WriteRequest: structs.WriteRequest{Region: "global"},
 				}
 				var resp structs.NodeUpdateResponse
-				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
-				must.NoError(t, err)
+				// Ignore errors since an unexpected failed hearbeat will cause
+				// the test conditions to fail.
+				msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
 			}
 		}
 	}
@@ -689,6 +694,10 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 
 	// Wait for the client to be ready.
 	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+
+	// Cleanup heartbeat goroutine before exiting.
+	close(stopHeartbeat)
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
