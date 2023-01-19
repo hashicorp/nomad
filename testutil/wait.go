@@ -272,11 +272,15 @@ func WaitForRunning(t testing.TB, rpc rpcFn, job *structs.Job) []*structs.AllocL
 	return WaitForRunningWithToken(t, rpc, job, "")
 }
 
+// WaitforJobAllocStatus blocks until the ClientStatus of allocations for a job
+// match the expected map of <ClientStatus>: <count>.
 func WaitForJobAllocStatus(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int) {
 	t.Helper()
 	WaitForJobAllocStatusWithToken(t, rpc, job, allocStatus, "")
 }
 
+// WaitForJobAllocStatusWithToken behaves the same way as WaitForJobAllocStatus
+// but is used for clusters with ACL enabled.
 func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int, token string) {
 	t.Helper()
 
