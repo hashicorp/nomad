@@ -9,12 +9,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -528,28 +528,22 @@ func evaluateConsulChecks(tg *structs.TaskGroup, registrations *serviceregistrat
 	// on the Consul side. Note that because check names are not unique, we must
 	// also keep track of the counts on each side and make sure those also match.
 	services := tg.ConsulServices()
-	expChecks := set.New[string](10)
-	expCount := 0
-	regChecks := set.New[string](10)
-	regCount := 0
+	expChecks := make(map[string]int)
+	regChecks := make(map[string]int)
 	for _, service := range services {
 		for _, check := range service.Checks {
-			expChecks.Insert(check.Name)
-			expCount++
+			expChecks[check.Name]++
 		}
 	}
 	for _, task := range registrations.Tasks {
 		for _, service := range task.Services {
 			for _, check := range service.Checks {
-				regChecks.Insert(check.Name)
-				regCount++
+				regChecks[check.Name]++
 			}
 		}
 	}
-	if expCount != regCount {
-		return false
-	}
-	if !expChecks.Equal(regChecks) {
+
+	if !maps.Equal(expChecks, regChecks) {
 		return false
 	}
 
