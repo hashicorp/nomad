@@ -11,12 +11,12 @@
         <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
     {{else}}
     <main class="radio-group" data-test-template-list>
-        <Hds::Table @model={{this.model}} @columns={{ create-columns "Name" "Namespace" "Description"}}>
+        <Hds::Table @model={{this.model}} @columns={{this.columns}}>
             <:body as |B|>
                 <B.Tr>
                     <B.Td>
                         <LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
-                            {{B.data.path}}
+                            {{invoke-fn this this.formatTemplateLabel B.data.path}}
                         </LinkTo>
                     </B.Td>
                     <B.Td>{{B.data.namespace}}</B.Td>
