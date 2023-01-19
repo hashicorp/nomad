@@ -15,7 +15,7 @@
             <:body as |B|>
                 <B.Tr>
                     <B.Td>
-                        <LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}}>
+                        <LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
                             {{B.data.path}}
                         </LinkTo>
                     </B.Td>
