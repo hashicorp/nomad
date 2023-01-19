@@ -14,6 +14,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -257,10 +258,9 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 // setCheckHealth is used to mark the checks as either healthy or unhealthy.
 // returns true if health is propagated and no more health monitoring is needed
 //
-// todo: this is currently being shared by watchConsulEvents and watchNomadEvents,
-//
-//	and must be split up if/when we support registering services (and thus checks)
-//	of different providers.
+// todo: this is currently being shared by watchConsulEvents and watchNomadEvents
+// and must be split up if/when we support registering services (and thus checks)
+// of different providers.
 func (t *Tracker) setCheckHealth(healthy bool) bool {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -437,6 +437,7 @@ func (h *healthyFuture) C() <-chan time.Time {
 //
 // Does not watch Nomad service checks; see watchNomadEvents for those.
 func (t *Tracker) watchConsulEvents() {
+
 	// checkTicker is the ticker that triggers us to look at the checks in Consul
 	checkTicker := time.NewTicker(t.checkLookupInterval)
 	defer checkTicker.Stop()
@@ -502,30 +503,10 @@ OUTER:
 		// Detect if all the checks are passing
 		passed := true
 
-	CHECKS:
-		for _, treg := range allocReg.Tasks {
-			for _, sreg := range treg.Services {
-				for _, check := range sreg.Checks {
-					onUpdate := sreg.CheckOnUpdate[check.CheckID]
-					switch check.Status {
-					case api.HealthPassing:
-						continue
-					case api.HealthWarning:
-						if onUpdate == structs.OnUpdateIgnoreWarn || onUpdate == structs.OnUpdateIgnore {
-							continue
-						}
-					case api.HealthCritical:
-						if onUpdate == structs.OnUpdateIgnore {
-							continue
-						}
-					default:
-					}
-
-					passed = false
-					t.setCheckHealth(false)
-					break CHECKS
-				}
-			}
+		// scan for missing or unhealthy consul checks
+		if !evaluateConsulChecks(t.tg, allocReg) {
+			t.setCheckHealth(false)
+			passed = false
 		}
 
 		if !passed {
@@ -537,10 +518,56 @@ OUTER:
 		} else if !primed {
 			// Reset the timer to fire after MinHealthyTime
 			primed = true
-			waiter.disable()
 			waiter.wait(t.minHealthyTime)
 		}
 	}
+}
+
+func evaluateConsulChecks(tg *structs.TaskGroup, registrations *serviceregistration.AllocRegistration) bool {
+	// First, identify any case where a check definition is missing or outdated
+	// on the Consul side. Note that because check names are not unique, we must
+	// also keep track of the counts on each side and make sure those also match.
+	services := tg.ConsulServices()
+	expChecks := make(map[string]int)
+	regChecks := make(map[string]int)
+	for _, service := range services {
+		for _, check := range service.Checks {
+			expChecks[check.Name]++
+		}
+	}
+	for _, task := range registrations.Tasks {
+		for _, service := range task.Services {
+			for _, check := range service.Checks {
+				regChecks[check.Name]++
+			}
+		}
+	}
+
+	if !maps.Equal(expChecks, regChecks) {
+		return false
+	}
+
+	// Now we can simply scan the status of each Check reported by Consul.
+	for _, task := range registrations.Tasks {
+		for _, service := range task.Services {
+			for _, check := range service.Checks {
+				onUpdate := service.CheckOnUpdate[check.CheckID]
+				switch check.Status {
+				case api.HealthWarning:
+					if onUpdate != structs.OnUpdateIgnoreWarn && onUpdate != structs.OnUpdateIgnore {
+						return false
+					}
+				case api.HealthCritical:
+					if onUpdate != structs.OnUpdateIgnore {
+						return false
+					}
+				}
+			}
+		}
+	}
+
+	// All checks are present and healthy.
+	return true
 }
 
 // watchNomadEvents is a watcher for the health of the allocation's Nomad checks.

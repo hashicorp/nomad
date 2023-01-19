@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
 
@@ -399,6 +400,193 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 		require.Failf(t, "expected no health value", " got %v", v)
 	default:
 		// good
+	}
+}
+
+func TestTracker_ConsulChecks_HealthyToUnhealthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	newCheck := task.Services[0].Checks[0].Copy()
+	newCheck.Name = "my-check"
+	task.Services[0].Checks = []*structs.ServiceCheck{newCheck}
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		task.Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	// Make Consul response - starts with a healthy check and transitions to unhealthy
+	// during the minimum healthy time window
+	checkHealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthPassing,
+	}
+	checkUnhealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthCritical,
+	}
+
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
+		task.Name: {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				task.Services[0].Name: {
+					Service: &consulapi.AgentService{
+						ID:      "s1",
+						Service: task.Services[0].Name,
+					},
+					Checks: []*consulapi.AgentCheck{checkHealthy}, // initially healthy
+				},
+			},
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checkInterval := 10 * time.Millisecond
+	minHealthyTime := 2 * time.Second
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, minHealthyTime, true)
+	tracker.checkLookupInterval = checkInterval
+
+	assertChecksHealth := func(exp bool) {
+		tracker.lock.Lock()
+		must.Eq(t, exp, tracker.checksHealthy, must.Sprint("tracker checks health in unexpected state"))
+		tracker.lock.Unlock()
+	}
+
+	// start the clock so we can degrade check status during minimum healthy time
+	startTime := time.Now()
+
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
+		// after 1 second, start failing the check
+		if time.Since(startTime) > 1*time.Second {
+			taskRegs[task.Name].Services[task.Services[0].Name].Checks = []*consulapi.AgentCheck{checkUnhealthy}
+		}
+
+		// assert tracker is observing unhealthy - we never cross minimum health
+		// time with healthy checks in this test case
+		assertChecksHealth(false)
+		reg := &serviceregistration.AllocRegistration{Tasks: taskRegs}
+		return reg, nil
+	}
+
+	// start the tracker and wait for evaluations to happen
+	tracker.Start()
+	time.Sleep(2 * time.Second)
+
+	// tracker should be observing unhealthy check
+	assertChecksHealth(false)
+
+	select {
+	case <-tracker.HealthyCh():
+		must.Unreachable(t, must.Sprint("did not expect unblock of healthy chan"))
+	default:
+		// ok
+	}
+}
+
+func TestTracker_ConsulChecks_SlowCheckRegistration(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	newCheck := task.Services[0].Checks[0].Copy()
+	newCheck.Name = "my-check"
+	task.Services[0].Checks = []*structs.ServiceCheck{newCheck}
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		task.Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	// Make Consul response - start with check not yet registered
+	checkHealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthPassing,
+	}
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
+		task.Name: {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				task.Services[0].Name: {
+					Service: &consulapi.AgentService{
+						ID:      "s1",
+						Service: task.Services[0].Name,
+					},
+					Checks: nil, // initially missing
+				},
+			},
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	tracker.checkLookupInterval = checkInterval
+
+	assertChecksHealth := func(exp bool) {
+		tracker.lock.Lock()
+		must.Eq(t, exp, tracker.checksHealthy, must.Sprint("tracker checks health in unexpected state"))
+		tracker.lock.Unlock()
+	}
+
+	var hits atomic.Int32
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
+		// after 10 queries, insert the check
+		hits.Add(1)
+		if count := hits.Load(); count > 10 {
+			taskRegs[task.Name].Services[task.Services[0].Name].Checks = []*consulapi.AgentCheck{checkHealthy}
+		} else {
+			// assert tracker is observing unhealthy (missing) checks
+			assertChecksHealth(false)
+		}
+		reg := &serviceregistration.AllocRegistration{Tasks: taskRegs}
+		return reg, nil
+	}
+
+	// start the tracker and wait for evaluations to happen
+	tracker.Start()
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool { return hits.Load() > 10 }),
+		wait.Gap(10*time.Millisecond),
+		wait.Timeout(1*time.Second),
+	))
+
+	// tracker should be observing healthy check now
+	assertChecksHealth(true)
+
+	select {
+	case v := <-tracker.HealthyCh():
+		must.True(t, v, must.Sprint("expected value from tracker chan to be healthy"))
+	default:
+		must.Unreachable(t, must.Sprint("expected value from tracker chan"))
 	}
 }
 
@@ -806,6 +994,291 @@ func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
 			default:
 				t.Fatal("expected tracker to exit after reporting healthy")
 			}
+		})
+	}
+}
+
+func TestTracker_evaluateConsulChecks(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name          string
+		tg            *structs.TaskGroup
+		registrations *serviceregistration.AllocRegistration
+		exp           bool
+	}{
+		{
+			name: "no checks",
+			exp:  true,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{Name: "group-s1"}},
+				Tasks:    []*structs.Task{{Services: []*structs.Service{{Name: "task-s2"}}}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {ServiceID: "abc123"},
+						},
+					},
+					"task": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"def234": {ServiceID: "def234"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "missing group check",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+				Tasks: []*structs.Task{{Services: []*structs.Service{{Name: "task-s2"}}}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {ServiceID: "abc123"},
+						},
+					},
+					"task": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"def234": {ServiceID: "def234"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "missing task check",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+				}},
+				Tasks: []*structs.Task{{Services: []*structs.Service{
+					{
+						Name: "task-s2",
+						Checks: []*structs.ServiceCheck{
+							{Name: "c1"},
+						},
+					},
+				}}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {ServiceID: "abc123"},
+						},
+					},
+					"task": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"def234": {ServiceID: "def234"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "failing group check",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								ServiceID: "abc123",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:      "c1",
+										Status:    consulapi.HealthCritical,
+										ServiceID: "abc123",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "failing task check",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Tasks: []*structs.Task{
+					{
+						Services: []*structs.Service{
+							{
+								Name: "task-s2",
+								Checks: []*structs.ServiceCheck{
+									{Name: "c1"},
+								},
+							},
+						},
+					},
+				},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"task": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"def234": {
+								ServiceID: "def234",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:      "c1",
+										Status:    consulapi.HealthCritical,
+										ServiceID: "abc123",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "passing checks",
+			exp:  true,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+				Tasks: []*structs.Task{
+					{
+						Services: []*structs.Service{
+							{
+								Name: "task-s2",
+								Checks: []*structs.ServiceCheck{
+									{Name: "c2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								ServiceID: "abc123",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:   "c1",
+										Status: consulapi.HealthPassing,
+									},
+								},
+							},
+						},
+					},
+					"task": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"def234": {
+								ServiceID: "def234",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:   "c2",
+										Status: consulapi.HealthPassing,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "on update ignore warn",
+			exp:  true,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name:     "group-s1",
+					OnUpdate: structs.OnUpdateIgnoreWarn,
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								CheckOnUpdate: map[string]string{
+									"c1": structs.OnUpdateIgnoreWarn,
+								},
+								Checks: []*consulapi.AgentCheck{
+									{
+										CheckID: "c1",
+										Name:    "c1",
+										Status:  consulapi.HealthWarning,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "on update ignore critical",
+			exp:  true,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name:     "group-s1",
+					OnUpdate: structs.OnUpdateIgnore,
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								CheckOnUpdate: map[string]string{
+									"c1": structs.OnUpdateIgnore,
+								},
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:    "c1",
+										CheckID: "c1",
+										Status:  consulapi.HealthCritical,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := evaluateConsulChecks(tc.tg, tc.registrations)
+			must.Eq(t, tc.exp, result)
 		})
 	}
 }
