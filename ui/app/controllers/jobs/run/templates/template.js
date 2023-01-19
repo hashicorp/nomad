@@ -30,11 +30,12 @@ export default class JobsRunTemplatesController extends Controller {
   async deleteTemplateAndClose() {
     try {
       this.toggleModal();
+      const name = this.model.path;
       await this.model.destroyRecord();
 
       this.flashMessages.add({
         title: 'Job template deleted',
-        message: `${this.templateName} successfully deleted`,
+        message: `${name} successfully deleted`,
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
@@ -65,7 +66,7 @@ export default class JobsRunTemplatesController extends Controller {
 
       this.flashMessages.add({
         title: 'Job template saved',
-        message: `${this.templateName} successfully editted`,
+        message: `${this.model.path} successfully editted`,
         type: 'success',
         destroyOnClick: false,
         timeout: 5000,
