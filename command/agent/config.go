@@ -1113,12 +1113,10 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 func (mode *devModeConfig) networkConfig() error {
 	if runtime.GOOS == "windows" {
 		mode.bindAddr = "127.0.0.1"
-		mode.iface = "Loopback Pseudo-Interface 1"
 		return nil
 	}
 	if runtime.GOOS == "darwin" {
 		mode.bindAddr = "127.0.0.1"
-		mode.iface = "lo0"
 		return nil
 	}
 	if mode != nil && mode.connectMode {
@@ -1139,7 +1137,6 @@ func (mode *devModeConfig) networkConfig() error {
 		return nil
 	}
 	mode.bindAddr = "127.0.0.1"
-	mode.iface = "lo"
 	return nil
 }
 
