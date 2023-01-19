@@ -559,12 +559,13 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				hb := &structs.NodeUpdateStatusRequest{
+				req := &structs.NodeUpdateStatusRequest{
 					NodeID:       node.ID,
 					Status:       structs.NodeStatusReady,
 					WriteRequest: structs.WriteRequest{Region: "global"},
 				}
-				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", hb, &nodeUpdateResp)
+				var resp structs.NodeUpdateResponse
+				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
 				must.NoError(t, err)
 			}
 		}
