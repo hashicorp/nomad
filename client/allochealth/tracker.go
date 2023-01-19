@@ -505,6 +505,7 @@ OUTER:
 
 		// scan for missing or unhealthy consul checks
 		if !evaluateConsulChecks(t.tg, allocReg) {
+			t.setCheckHealth(false)
 			passed = false
 		}
 
@@ -517,7 +518,6 @@ OUTER:
 		} else if !primed {
 			// Reset the timer to fire after MinHealthyTime
 			primed = true
-			waiter.disable()
 			waiter.wait(t.minHealthyTime)
 		}
 	}

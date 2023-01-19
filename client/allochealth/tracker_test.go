@@ -403,6 +403,102 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 	}
 }
 
+func TestTracker_ConsulChecks_HealthToUnhealthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	newCheck := task.Services[0].Checks[0].Copy()
+	newCheck.Name = "my-check"
+	task.Services[0].Checks = []*structs.ServiceCheck{newCheck}
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		task.Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	// Make Consul response - starts with a healthy check and transitions to unhealthy
+	// during the minimum healthy time window
+	checkHealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthPassing,
+	}
+	checkUnhealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthCritical,
+	}
+
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
+		task.Name: {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				task.Services[0].Name: {
+					Service: &consulapi.AgentService{
+						ID:      "s1",
+						Service: task.Services[0].Name,
+					},
+					Checks: []*consulapi.AgentCheck{checkHealthy}, // initially healthy
+				},
+			},
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checkInterval := 10 * time.Millisecond
+	minHealthyTime := 2 * time.Second
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, minHealthyTime, true)
+	tracker.checkLookupInterval = checkInterval
+
+	assertChecksHealth := func(exp bool) {
+		tracker.lock.Lock()
+		must.Eq(t, exp, tracker.checksHealthy, must.Sprint("tracker checks health in unexpected state"))
+		tracker.lock.Unlock()
+	}
+
+	// start the clock so we can degrade check status during minimum healthy time
+	startTime := time.Now()
+
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
+		// after 1 second, start failing the check
+		if time.Since(startTime) > 1*time.Second {
+			taskRegs[task.Name].Services[task.Services[0].Name].Checks = []*consulapi.AgentCheck{checkUnhealthy}
+		}
+
+		// assert tracker is observing unhealthy - we never cross minimum health
+		// time with healthy checks in this test case
+		assertChecksHealth(false)
+		reg := &serviceregistration.AllocRegistration{Tasks: taskRegs}
+		return reg, nil
+	}
+
+	// start the tracker and wait for evaluations to happen
+	tracker.Start()
+	time.Sleep(2 * time.Second)
+
+	// tracker should be observing unhealthy check
+	assertChecksHealth(false)
+
+	select {
+	case <-tracker.HealthyCh():
+		must.Unreachable(t, must.Sprint("did not expect unblock of healthy chan"))
+	default:
+		// ok
+	}
+}
+
 func TestTracker_ConsulChecks_SlowCheckRegistration(t *testing.T) {
 	ci.Parallel(t)
 
