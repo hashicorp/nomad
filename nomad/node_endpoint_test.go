@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -528,7 +529,7 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	ci.Parallel(t)
 
-	// Setup server with tighther heartbeat so we don't have to wait so long
+	// Setup server with tighter heartbeat so we don't have to wait so long
 	// for nodes to go down.
 	heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -550,13 +551,13 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	must.NoError(t, err)
 
 	// Start heartbeat.
-	stopHeartbeat := make(chan interface{})
-	heartbeat := func() {
+	heartbeat := func(ctx context.Context) {
 		ticker := time.NewTicker(heartbeatTTL / 2)
+		defer ticker.Stop()
+
 		for {
 			select {
-			case <-stopHeartbeat:
-				ticker.Stop()
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				if t.Failed() {
@@ -569,13 +570,15 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 					WriteRequest: structs.WriteRequest{Region: "global"},
 				}
 				var resp structs.NodeUpdateResponse
-				// Ignore errors since an unexpected failed hearbeat will cause
+				// Ignore errors since an unexpected failed heartbeat will cause
 				// the test conditions to fail.
 				msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
 			}
 		}
 	}
-	go heartbeat()
+	heartbeatCtx, cancelHeartbeat := context.WithCancel(context.Background())
+	defer cancelHeartbeat()
+	go heartbeat(heartbeatCtx)
 
 	// Wait for node to be ready.
 	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
@@ -602,7 +605,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
 	must.NoError(t, err)
 
-	// Wait for alloc run be pending in the server.
+	// Wait for alloc to be pending in the server.
 	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
 		structs.AllocClientStatusPending: 1,
 	})
@@ -634,40 +637,30 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
 	must.NoError(t, err)
 
-	// Wait for alloc run be running in the server.
+	// Wait for alloc to be running in the server.
 	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
 		structs.AllocClientStatusRunning: 1,
 	})
 
 	// Stop heartbeat and wait for the client to be disconnected and the alloc
 	// to be unknown.
-	close(stopHeartbeat)
+	cancelHeartbeat()
 	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
 	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
 		structs.AllocClientStatusUnknown: 1,
 	})
 
-	// There should be a pending eval for the alloc replacement.
-	state := s.fsm.State()
-	ws := memdb.NewWatchSet()
-	evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
-	found := false
-	for _, eval := range evals {
-		if eval.Status == structs.EvalStatusPending {
-			found = true
-			break
-		}
-	}
-	must.True(t, found)
-
 	// Restart heartbeat to reconnect node.
-	stopHeartbeat = make(chan interface{})
-	go heartbeat()
+	heartbeatCtx, cancelHeartbeat = context.WithCancel(context.Background())
+	defer cancelHeartbeat()
+	go heartbeat(heartbeatCtx)
 
-	// Wait for node to be initializing.
-	// It must remain initializing until it updates its allocs with the server
-	// so the scheduler have the necessary information to avoid unnecessary
-	// placements by the pending eval.
+	// Wait a few heartbeats and check that the node is still initializing.
+	//
+	// The heartbeat should not update the node to ready until it updates its
+	// allocs status with the server so the scheduler have the necessary
+	// information to avoid unnecessary placements.
+	time.Sleep(3 * heartbeatTTL)
 	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
 
 	// Get allocs that node should run.
@@ -683,21 +676,41 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	must.NoError(t, err)
 	must.Len(t, 1, allocsResp.Allocs)
 
-	// Tell server the alloc is running.
+	// Tell server the alloc is still running.
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
 	must.NoError(t, err)
 
-	// Wait for alloc run be running in the server.
+	// The client must end in the same state as before it disconnected:
+	// - client status is ready.
+	// - only 1 alloc and the alloc is running.
+	// - all evals are terminal, so cluster is in a stable state.
+	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
 	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
 		structs.AllocClientStatusRunning: 1,
 	})
+	testutil.WaitForResult(func() (bool, error) {
+		state := s.fsm.State()
+		ws := memdb.NewWatchSet()
+		evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
+		if err != nil {
+			return false, fmt.Errorf("failed to read evals: %v", err)
+		}
+		for _, eval := range evals {
+			// TODO: remove this check once the disconnect process stops
+			// leaking a max-disconnect-timeout eval.
+			// https://github.com/hashicorp/nomad/issues/12809
+			if eval.TriggeredBy == structs.EvalTriggerMaxDisconnectTimeout {
+				continue
+			}
 
-	// Wait for the client to be ready.
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
-
-	// Cleanup heartbeat goroutine before exiting.
-	close(stopHeartbeat)
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
+			if !eval.TerminalStatus() {
+				return false, fmt.Errorf("found %s eval", eval.Status)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
