@@ -214,10 +214,10 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	if vPtr := agentConfig.Server.RaftTrailingLogs; vPtr != nil {
-		conf.RaftConfig.TrailingLogs = uint64(*vPtr)
 		if *vPtr < 1 {
 			return nil, fmt.Errorf("raft_trailing_logs must be non-negative, got %d", *vPtr)
 		}
+		conf.RaftConfig.TrailingLogs = uint64(*vPtr)
 	}
 
 	if vPtr := agentConfig.Server.RaftSnapshotInterval; vPtr != nil {
@@ -229,14 +229,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			return nil, fmt.Errorf("raft_snapshot_interval must be greater than 5ms, got %q", *vPtr)
 		}
 		conf.RaftConfig.SnapshotInterval = dur
-
 	}
 
 	if vPtr := agentConfig.Server.RaftSnapshotThreshold; vPtr != nil {
-		conf.RaftConfig.SnapshotThreshold = uint64(*vPtr)
 		if *vPtr < 1 {
-			return nil, fmt.Errorf("raft_snapshot_threshold must non-negative, got %d", *vPtr)
+			return nil, fmt.Errorf("raft_snapshot_threshold must be non-negative, got %d", *vPtr)
 		}
+		conf.RaftConfig.SnapshotThreshold = uint64(*vPtr)
 	}
 
 	conf.RaftConfig.ElectionTimeout *= time.Duration(raftMultiplier)
