@@ -1435,18 +1435,18 @@ func TestEvalBroker_PendingEval_Ordering(t *testing.T) {
 	heap.Push(&pending, newEval("eval02", 100, 2))
 	heap.Push(&pending, newEval("eval01", 50, 1))
 
-	unpending := heap.Pop(&pending).(*structs.Evaluation)
-	test.Eq(t, "eval02", unpending.ID,
-		test.Sprint("expected eval with highest priority to get unpending"))
+	next := heap.Pop(&pending).(*structs.Evaluation)
+	test.Eq(t, "eval02", next.ID,
+		test.Sprint("expected eval with highest priority to be next"))
 
-	unpending = heap.Pop(&pending).(*structs.Evaluation)
-	test.Eq(t, "eval03", unpending.ID,
-		test.Sprint("expected eval with highest modify index to get unpending"))
+	next = heap.Pop(&pending).(*structs.Evaluation)
+	test.Eq(t, "eval03", next.ID,
+		test.Sprint("expected eval with highest modify index to be next"))
 
 	heap.Push(&pending, newEval("eval04", 30, 4))
-	unpending = heap.Pop(&pending).(*structs.Evaluation)
-	test.Eq(t, "eval01", unpending.ID,
-		test.Sprint("expected eval with highest priority to get unpending"))
+	next = heap.Pop(&pending).(*structs.Evaluation)
+	test.Eq(t, "eval01", next.ID,
+		test.Sprint("expected eval with highest priority to be nexct"))
 
 }
 
