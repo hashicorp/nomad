@@ -4,6 +4,7 @@ import {
   currentRouteName,
   currentURL,
   fillIn,
+  visit,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -422,6 +423,61 @@ module('Acceptance | job run', function (hooks) {
         json,
         jsonJob(),
         'Template is filled out with text from the editor.'
+      );
+    });
+
+    test('a user can edit a template', async function (assert) {
+      assert.expect(5);
+
+      // Arrange
+      server.create('variable', {
+        path: 'nomad/job-templates/foo',
+        namespace: 'default',
+        id: 'nomad/job-templates/foo',
+      });
+
+      await visit('/jobs/run/templates/manage');
+
+      assert.equal(currentRouteName(), 'jobs.run.templates.manage');
+      assert
+        .dom('[data-test-template-list]')
+        .exists('A list of templates is visible');
+
+      await click('[data-test-edit-template="nomad/job-templates/foo"]');
+      assert.equal(
+        currentRouteName(),
+        'jobs.run.templates.template',
+        'Navigates to edit template view'
+      );
+
+      server.put('/var/:varId', function (_server, fakeRequest) {
+        assert.deepEqual(
+          JSON.parse(fakeRequest.requestBody),
+          {
+            Path: 'nomad/job-templates/foo',
+            CreateIndex: null,
+            ModifyIndex: null,
+            Namespace: 'default',
+            ID: 'nomad/job-templates/foo',
+            Items: { description: 'baz qud thud' },
+          },
+          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+        );
+
+        return {
+          Items: { description: 'baz qud thud' },
+          Namespace: 'default',
+          Path: 'nomad/job-templates/foo',
+        };
+      });
+
+      await fillIn('[data-test-template-description]', 'baz qud thud');
+      await click('[data-test-edit-template]');
+
+      assert.equal(
+        currentRouteName(),
+        'jobs.run.templates.index',
+        'We navigate back to the templates view.'
       );
     });
   });

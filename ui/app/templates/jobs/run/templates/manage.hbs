@@ -1,0 +1,34 @@
+{{page-title "Manage templates"}}
+<section class="section">
+    <header class="run-job-header">
+        <h1 class="title is-3">Choose from a template</h1>
+        <p>A plan will be requested before the job is submitted.  You can pick a template or write your own job spec.</p>
+    </header>
+    {{#if (eq this.model.length 0)}}
+        <h3 data-test-empty-templates-list-headline class="empty-message-headline">
+          You have no templates to choose from. Would you like to <Hds::Link::Inline @route="jobs.run.templates.new" data-test-create-inline>create</Hds::Link::Inline> one?
+        </h3>
+        <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
+    {{else}}
+    <main class="radio-group" data-test-template-list>
+        <Hds::Table @model={{this.model}} @columns={{this.columns}}>
+            <:body as |B|>
+                <B.Tr>
+                    <B.Td>
+                        <LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
+                            {{invoke-fn this this.formatTemplateLabel B.data.path}}
+                        </LinkTo>
+                    </B.Td>
+                    <B.Td>{{B.data.namespace}}</B.Td>
+                    <B.Td>{{B.data.items.description}}</B.Td>
+                </B.Tr>
+            </:body>
+        </Hds::Table>
+    </main>
+    <footer class="buttonset">
+        <Hds::ButtonSet class="button-group">
+            <Hds::Button @icon="arrow-left" @text="Done" @route="jobs.run.templates" data-test-done />
+        </Hds::ButtonSet>
+    </footer>
+    {{/if}}
+</section>
