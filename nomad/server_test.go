@@ -519,10 +519,8 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 
 func TestServer_ReloadRaftConfig(t *testing.T) {
 	ci.Parallel(t)
-	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.DataDir = path.Join(dir, "nodeB")
 		c.NumSchedulers = 0
 		c.RaftConfig.TrailingLogs = 10
 	})
@@ -540,7 +538,6 @@ func TestServer_ReloadRaftConfig(t *testing.T) {
 	// Check it from the raft library
 	rc = s1.raft.ReloadableConfig()
 	must.Eq(t, rc.TrailingLogs, uint64(100))
-
 }
 
 func TestServer_InvalidSchedulers(t *testing.T) {
