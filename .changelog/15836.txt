@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: CLI login command used for SSO no longer defaults to "OIDC" type
+```
