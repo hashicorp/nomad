@@ -49,6 +49,10 @@ const (
 	// taskHandleVersion is the version of task handle which this driver sets
 	// and understands how to decode driver state
 	taskHandleVersion = 1
+
+	// defaultBinPath is what the binary_path is set to if one is not set in the
+	// plugin config
+	defaultBinPath = "qemu-system-ARCH"
 )
 
 var (
@@ -78,6 +82,7 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"binary_path":    hclspec.NewAttr("binary_path", "string", false),
 		"image_paths":    hclspec.NewAttr("image_paths", "list(string)", false),
 		"args_allowlist": hclspec.NewAttr("args_allowlist", "list(string)", false),
 	})
@@ -133,6 +138,9 @@ type TaskState struct {
 
 // Config is the driver configuration set by SetConfig RPC call
 type Config struct {
+	// BinaryPath is the path to the QEMU binary.
+	BinaryPath string `codec:"binary_path"`
+
 	// ImagePaths is an allow-list of paths qemu is allowed to load an image from
 	ImagePaths []string `codec:"image_paths"`
 
@@ -161,6 +169,12 @@ type Driver struct {
 	// nomadConf is the client agent's configuration
 	nomadConfig *base.ClientDriverConfig
 
+	// binPath is the path to the QEMU binary as set by the binary_path
+	// configuration parameter.
+	//
+	// read with resolveBinPath
+	binPath string
+
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
@@ -171,6 +185,7 @@ func NewQemuDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugi
 		eventer: eventer.NewEventer(ctx, logger),
 		tasks:   newTaskStore(),
 		ctx:     ctx,
+		binPath: defaultBinPath,
 		logger:  logger,
 	}
 }
@@ -195,6 +210,11 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
+
+	if config.BinaryPath != "" {
+		d.binPath = config.BinaryPath
+	}
+
 	return nil
 }
 
@@ -234,7 +254,13 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	bin := "qemu-system-x86_64"
+	bin, err := resolveBinPath(d.binPath)
+	if err != nil {
+		fingerprint.Health = drivers.HealthStateUndetected
+		fingerprint.HealthDescription = err.Error()
+		return fingerprint
+	}
+
 	if runtime.GOOS == "windows" {
 		// On windows, the "qemu-system-x86_64" command does not respond to the
 		// version flag.
@@ -433,11 +459,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	mem := fmt.Sprintf("%dM", mb)
 
-	absPath, err := GetAbsolutePath("qemu-system-x86_64")
-	if err != nil {
-		return nil, nil, err
-	}
-
 	driveInterface := "ide"
 	if driverConfig.DriveInterface != "" {
 		driveInterface = driverConfig.DriveInterface
@@ -446,8 +467,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("Unsupported drive_interface")
 	}
 
+	binPath, err := resolveBinPath(d.binPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	args := []string{
-		absPath,
+		binPath,
 		"-machine", "type=pc,accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
@@ -715,17 +741,6 @@ func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration
 
 }
 
-// GetAbsolutePath returns the absolute path of the passed binary by resolving
-// it in the path and following symlinks.
-func GetAbsolutePath(bin string) (string, error) {
-	lp, err := exec.LookPath(bin)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve path to %q executable: %v", bin, err)
-	}
-
-	return filepath.EvalSymlinks(lp)
-}
-
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
@@ -745,6 +760,88 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	case <-ctx.Done():
 	case <-d.ctx.Done():
 	case ch <- result:
+	}
+}
+
+// resolveBinPath returns the full path to the configured QEMU binary
+func resolveBinPath(rawPath string) (string, error) {
+	// Interpolate ARCH (cannot interpolate "${ARCH}" as HCL would try to parse
+	// that on agent startup)
+	p := strings.ReplaceAll(rawPath, "ARCH", arch())
+
+	fullPath, err := exec.LookPath(p)
+	if err != nil {
+		// Unwrap the most common error to include both the interpolated and
+		// uninterpolated string.
+		if execErr, ok := err.(*exec.Error); ok {
+			return "", fmt.Errorf("unable to use binary_path=%q: %w", rawPath, execErr.Err)
+		}
+		return "", fmt.Errorf("error finding binary_path=%q: %w", rawPath, err)
+	}
+
+	if fullPath, err = filepath.EvalSymlinks(fullPath); err != nil {
+		return "", fmt.Errorf("error evaluating symlink to qemu binary: %w", err)
+	}
+
+	return fullPath, nil
+}
+
+// arch returns the QEMU arch for the host system or GOARCH by default because
+// they often match so it's worth a try!
+func arch() string {
+	// See https://go.dev/src/go/build/syslist.go for GOARCH values.
+	switch runtime.GOARCH {
+	case "386":
+		return "i386"
+	case "amd64":
+		return "x86_64"
+	case "amd64p32":
+		return "i386" // Unsure but doubt anyone attempts this anyway
+	case "arm":
+		return "arm"
+	case "armbe":
+		return "arm"
+	case "arm64":
+		return "aarch64"
+	case "arm64be":
+		return "aarch64"
+	case "loong64":
+		return "loongarch64"
+	case "mips":
+		return "mips"
+	case "mipsle":
+		return "mipsel" // no clue why qemu mips spells Little Endian as "el"
+	case "mips64":
+		return "mips64"
+	case "mips64le":
+		return "mips64el" // no clue why qemu mips spells Little Endian as "el"
+	case "mips64p32":
+		return "mips64" // Unsure but doubt anyone attempts this anyway
+	case "mips64p32le":
+		return "mips64el" // Unsure but doubt anyone attempts this anyway
+	case "ppc":
+		return "ppc"
+	case "ppc64":
+		return "ppc64"
+	case "ppc64le":
+		return "ppc64le"
+	case "riscv":
+		return "riscv32"
+	case "riscv64":
+		return "riscv64"
+	case "s390":
+		return "s390x"
+	case "s390x":
+		return "s390x"
+	case "sparc":
+		return "sparc"
+	case "sparc64":
+		return "sparc64"
+	case "wasm":
+		return "i386" // Unsure but a 32bit x86 cpu seems like a good guess
+	default:
+		// Return GOARCH and hope QEMU matches
+		return runtime.GOARCH
 	}
 }
 
