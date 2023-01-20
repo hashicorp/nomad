@@ -1256,8 +1256,6 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 	tr.logger.Trace("setting task state", "state", state)
 
 	if event != nil {
-		tr.logger.Trace("appending task event", "state", state, "event", event.Type)
-
 		// Append the event
 		tr.appendEvent(event)
 	}
@@ -1369,6 +1367,8 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 		tr.state.Restarts++
 		tr.state.LastRestart = time.Unix(0, event.Time)
 	}
+
+	tr.logger.Info("Task event", "type", event.Type, "msg", event.DisplayMessage, "failed", event.FailsTask)
 
 	// Append event to slice
 	appendTaskEvent(tr.state, event, tr.maxEvents)
