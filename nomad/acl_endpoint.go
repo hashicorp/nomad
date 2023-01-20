@@ -2608,7 +2608,7 @@ func (a *ACL) OIDCCompleteAuth(
 		},
 		WriteRequest: structs.WriteRequest{
 			Region:    a.srv.Region(),
-			AuthToken: a.srv.getLeaderAcl(),
+			AuthToken: a.srv.GetLeaderACL(),
 		},
 	}
 

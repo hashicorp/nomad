@@ -57,7 +57,7 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 	case errors.Is(err, structs.ErrTokenNotFound):
 		// Check if the secret ID is the leader's secret ID, in which case treat
 		// it as a management token.
-		leaderAcl := s.getLeaderAcl()
+		leaderAcl := s.GetLeaderACL()
 		if leaderAcl != "" && secretID == leaderAcl {
 			aclToken = structs.LeaderACLToken
 		} else {
@@ -153,7 +153,7 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 
 	// Check if the secret ID is the leader secret ID, in which case treat it as
 	// a management token.
-	if leaderAcl := s.getLeaderAcl(); leaderAcl != "" && secretID == leaderAcl {
+	if leaderAcl := s.GetLeaderACL(); leaderAcl != "" && secretID == leaderAcl {
 		return acl.ManagementACL, nil
 	}
 

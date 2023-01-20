@@ -1107,7 +1107,7 @@ func (s *Server) setupDeploymentWatcher() error {
 // setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, NewCSIVolumeEndpoint(s, nil), s.getLeaderAcl())
+		s.logger, NewCSIVolumeEndpoint(s, nil), s.GetLeaderACL())
 
 	return nil
 }
@@ -1889,12 +1889,23 @@ func (s *Server) setLeaderAcl(token string) {
 	s.leaderAclLock.Unlock()
 }
 
-// getLeaderAcl retrieves the leader's ACL token
-func (s *Server) getLeaderAcl() string {
+// GetLeaderACL retrieves the leader's ACL token
+func (s *Server) GetLeaderACL() string {
 	s.leaderAclLock.Lock()
 	defer s.leaderAclLock.Unlock()
 	return s.leaderAcl
 }
+
+// GetNodeID returns the NodeID from the config.
+func (s *Server) GetNodeID() string {
+	return s.config.NodeID
+}
+
+func (s *Server) GetNodeBySecretID(secretID string) (*structs.Node, error) {
+	return s.State().NodeBySecretID(nil, secretID)
+}
+
+func (s *Server) GetRaftConfiguration()
 
 // Atomically sets a readiness state flag when leadership is obtained, to indicate that server is past its barrier write
 func (s *Server) setConsistentReadReady() {

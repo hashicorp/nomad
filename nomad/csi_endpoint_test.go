@@ -1869,7 +1869,7 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 
 	// Retry with management permissions
-	reqDel.AuthToken = srv.getLeaderAcl()
+	reqDel.AuthToken = srv.GetLeaderACL()
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
 	require.EqualError(t, err, "plugin in use")
 

@@ -86,7 +86,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 			JobID:       structs.CoreJobVariablesRekey,
 			Status:      structs.EvalStatusPending,
 			ModifyIndex: index,
-			LeaderACL:   k.srv.getLeaderAcl(),
+			LeaderACL:   k.srv.GetLeaderACL(),
 		}
 		k.srv.evalBroker.Enqueue(eval)
 	}

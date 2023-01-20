@@ -340,7 +340,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.nodeDrainer.SetEnabled(true, s.State())
 
 	// Enable the volume watcher, since we are now the leader
-	s.volumeWatcher.SetEnabled(true, s.State(), s.getLeaderAcl())
+	s.volumeWatcher.SetEnabled(true, s.State(), s.GetLeaderACL())
 
 	// Restore the eval broker state and blocked eval state. If these are
 	// currently paused, we do not need to do this.
@@ -915,7 +915,7 @@ func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,
 		JobID:       job,
-		LeaderACL:   s.getLeaderAcl(),
+		LeaderACL:   s.GetLeaderACL(),
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: modifyIndex,
 	}

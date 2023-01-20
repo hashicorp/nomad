@@ -87,6 +87,8 @@ func newRpcHandler(s *Server) *rpcHandler {
 }
 
 // RPCContext provides metadata about the RPC connection.
+//
+// YOU ARE HERE - move this into rpc.ConnectionContext
 type RPCContext struct {
 	// Conn exposes the raw connection.
 	Conn net.Conn

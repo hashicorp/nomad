@@ -1090,7 +1090,7 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	require.True(structs.IsErrPermissionDenied(err))
 
 	// Try with permissions
-	get.WriteRequest.AuthToken = s1.getLeaderAcl()
+	get.WriteRequest.AuthToken = s1.GetLeaderACL()
 	var resp2 structs.GenericResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp2))
 	require.NotZero(resp2.Index)
@@ -1142,7 +1142,7 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	require.True(structs.IsErrPermissionDenied(err), "expected permissions error, got: %v", err)
 
 	// Try with management permissions
-	req.WriteRequest.AuthToken = s1.getLeaderAcl()
+	req.WriteRequest.AuthToken = s1.GetLeaderACL()
 	var resp2 structs.AllocStopResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp2))
 	require.NotZero(resp2.Index)

@@ -203,7 +203,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		{
 			name:           "from peer to leader with leader ACL", // ex. core job GC
 			tlsCfg:         tlsCfg,
-			testToken:      leader.getLeaderAcl(),
+			testToken:      leader.GetLeaderACL(),
 			expectTLSName:  "regionFoo.nomad",
 			expectAccessor: "leader",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
@@ -313,7 +313,7 @@ func TestResolveACLToken(t *testing.T) {
 				testutil.WaitForLeader(t, testServer.RPC)
 
 				// Check the leader ACL token is correctly set.
-				leaderACL := testServer.getLeaderAcl()
+				leaderACL := testServer.GetLeaderACL()
 				require.NotEmpty(t, leaderACL)
 
 				// Resolve the token and ensure it's a management token.
