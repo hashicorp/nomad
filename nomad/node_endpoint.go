@@ -1325,17 +1325,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return err
 	}
 
-	// Update node alloc update index.
-	copyNode := node.Copy()
-	copyNode.LastAllocUpdateIndex = future.Index()
-
-	_, _, err = n.srv.raftApply(structs.NodeRegisterRequestType, &structs.NodeRegisterRequest{
-		Node: copyNode,
-	})
-	if err != nil {
-		return fmt.Errorf("node update failed: %v", err)
-	}
-
 	// Setup the response
 	reply.Index = future.Index()
 	return nil

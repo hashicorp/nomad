@@ -3460,8 +3460,13 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
+	// Capture all nodes being affected. Alloc updates from clients are batched
+	// so this request may include allocs from several nodes.
+	nodeIDs := make(map[string]interface{})
+
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
+		nodeIDs[alloc.NodeID] = struct{}{}
 		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
 			return err
 		}
@@ -3470,6 +3475,13 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// Update the indexes
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Update the index of when nodes last updated their allocs.
+	for nodeID := range nodeIDs {
+		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
+			return fmt.Errorf("node update failed: %v", err)
+		}
 	}
 
 	return txn.Commit()
@@ -3559,6 +3571,28 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
+	}
+	return nil
+}
+
+func (s *StateStore) updateClientAllocUpdateIndex(txn *txn, index uint64, nodeID string) error {
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return nil
+	}
+
+	node := existing.(*structs.Node)
+	copyNode := node.Copy()
+	copyNode.LastAllocUpdateIndex = index
+
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 	return nil
 }
