@@ -402,11 +402,12 @@ func (w *Worker) run() {
 			return
 		}
 
-		// since dequeue takes time, we could have shutdown the server after getting an eval that
-		// needs to be nacked before we exit. Explicitly checking the server to allow this eval
-		// to be processed on worker shutdown.
+		// since dequeue takes time, we could have shutdown the server after
+		// getting an eval that needs to be nacked before we exit. Explicitly
+		// check the server whether to allow this eval to be processed.
 		if w.srv.IsShutdown() {
-			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
+			w.logger.Warn("nacking eval because the server is shutting down",
+				"eval", log.Fmt("%#v", eval))
 			w.sendNack(eval, token)
 			return
 		}
@@ -417,19 +418,27 @@ func (w *Worker) run() {
 		if err != nil {
 			var timeoutErr ErrMinIndexDeadlineExceeded
 			if errors.As(err, &timeoutErr) {
-				w.logger.Warn("timeout waiting for Raft index required by eval", "index", waitIndex, "timeout", raftSyncLimit)
+				w.logger.Warn("timeout waiting for Raft index required by eval",
+					"eval", eval.ID, "index", waitIndex, "timeout", raftSyncLimit)
 				w.sendNack(eval, token)
 
-				// Timing out here means this server is woefully behind the leader's
-				// index. This can happen when a new server is added to a cluster and
-				// must initially sync the cluster state.
-				// Backoff dequeuing another eval until there's some indication this
-				// server would be up to date enough to process it.
+				// Timing out above means this server is woefully behind the
+				// leader's index. This can happen when a new server is added to
+				// a cluster and must initially sync the cluster state.
+				// Backoff dequeuing another eval until there's some indication
+				// this server would be up to date enough to process it.
 				const slowServerSyncLimit = 10 * raftSyncLimit
 				if _, err := w.snapshotMinIndex(waitIndex, slowServerSyncLimit); err != nil {
 					w.logger.Warn("server is unable to catch up to last eval's index", "error", err)
 				}
 
+			} else if errors.Is(err, context.Canceled) {
+				// If the server has shutdown while we're waiting, we'll get the
+				// Canceled error from the worker's context. We need to nack any
+				// dequeued evals before we exit.
+				w.logger.Warn("nacking eval because the server is shutting down", "eval", eval.ID)
+				w.sendNack(eval, token)
+				return
 			} else {
 				w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
 				w.sendNack(eval, token)
@@ -583,7 +592,7 @@ func (w *Worker) snapshotMinIndex(waitIndex uint64, timeout time.Duration) (*sta
 		}
 	}
 
-	return snap, nil
+	return snap, err
 }
 
 // invokeScheduler is used to invoke the business logic of the scheduler
