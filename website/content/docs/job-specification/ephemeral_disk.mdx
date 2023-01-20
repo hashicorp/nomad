@@ -30,6 +30,9 @@ job "docs" {
 The ephemeral disk can be referenced under `alloc/data/`. More information can
 be found in the [filesystem internals][].
 
+Each job's logs will be written to ephemeral disk space. See the [logs
+documentation][] for more information.
+
 ## `ephemeral_disk` Parameters
 
 - `migrate` `(bool: false)` - This specifies that the Nomad client should make a
@@ -67,3 +70,4 @@ ephemeral_disk {
 
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'
+[logs documentation]: /nomad/docs/job-specification/logs 'Nomad logs Job Specification'
