@@ -885,6 +885,18 @@ func (s *Server) Reload(newConfig *Config) error {
 		reloadSchedulers(s, newVals)
 	}
 
+	raftRC := raft.ReloadableConfig{
+		TrailingLogs:      newConfig.RaftConfig.TrailingLogs,
+		SnapshotInterval:  newConfig.RaftConfig.SnapshotInterval,
+		SnapshotThreshold: newConfig.RaftConfig.SnapshotThreshold,
+		HeartbeatTimeout:  newConfig.RaftConfig.HeartbeatTimeout,
+		ElectionTimeout:   newConfig.RaftConfig.ElectionTimeout,
+	}
+
+	if err := s.raft.ReloadConfig(raftRC); err != nil {
+		multierror.Append(&mErr, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 

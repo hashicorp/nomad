@@ -135,8 +135,8 @@ server {
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. See [Client
-  Heartbeats](#client-heartbeats) below for details.
+  increased to meet the target rate. See [Client Heartbeats](#client-heartbeats)
+  below for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
@@ -182,12 +182,31 @@ server {
   to setting this to a value of 1. Increasing the timings makes leader election
   less likely during periods of networking issues or resource starvation. Since
   leader elections pause Nomad's normal work, it may be beneficial for slow or
-  unreliable networks to wait longer before electing a new leader. The tradeoff
+  unreliable networks to wait longer before electing a new leader. The trade-off
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
   `nomad.raft.leader.lastContact` metrics](/docs/operations/metrics-reference) are a good
-  indicator of how often leader elections occur and raft latency.
+  indicator of how often leader elections occur and Raft latency.
+
+- `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
+  Raft logs to be written to disk before the node is allowed to take a snapshot.
+  This reduces the frequency and impact of creating snapshots. During node
+  startup, Raft restores the latest snapshot and then applies the individual
+  logs to catch the node up to the last known state. This can be tuned during
+  operation by a hot configuration reload.
+
+- `raft_snapshot_interval` `(string: "120s")` - Specifies the minimum time between
+  checks if Raft should perform a snapshot. The Raft library randomly staggers
+  between this value and twice this value to avoid the entire cluster performing
+  a snapshot at once. Nodes are eligible to snapshot once they have exceeded the
+  `raft_snapshot_threshold`. This value can be tuned during operation by a hot
+  configuration reload.
+
+- `raft_trailing_logs` `(int: "10240")` - Specifies how many logs are retained
+  after a snapshot. These logs are used so that Raft can quickly replay logs on
+  a follower instead of being forced to send an entire snapshot. This value can
+  be tuned during operation by a hot configuration reload.
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
@@ -441,7 +460,7 @@ told to heartbeat after the maximum interval.
 The actual value used should take into consideration how much tolerance your
 system has for a delay in noticing crashed Clients. For example a
 `failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
-largest clusters ample time to heartbeat after an election.  However if the
+largest clusters ample time to heartbeat after an election. However if the
 election was due to a datacenter-wide failure affecting Clients, it will be 30
 minutes before Nomad recognizes that they are `down` and reschedules their
 work.
