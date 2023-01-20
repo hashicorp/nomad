@@ -614,22 +614,20 @@ type ServerConfig struct {
 	// RaftSnapshotThreshold controls how many outstanding logs there must be
 	// before we perform a snapshot. This is to prevent excessive snapshotting by
 	// replaying a small set of logs instead. The value passed here is the initial
-	// setting used.
-	// TODO: This can be tuned during operation using ReloadConfig.
+	// setting used. This can be tuned during operation with a hot reload.
 	RaftSnapshotThreshold *int `hcl:"raft_snapshot_threshold"`
 
 	// RaftSnapshotInterval controls how often we check if we should perform a
 	// snapshot. We randomly stagger between this value and 2x this value to avoid
 	// the entire cluster from performing a snapshot at once. The value passed
-	// here is the initial setting used.
-	// TODO: This can be tuned during operation with a hot reload.
+	// here is the initial setting used. This can be tuned during operation with a
+	// hot reload.
 	RaftSnapshotInterval *string `hcl:"raft_snapshot_interval"`
 
 	// RaftTrailingLogs controls how many logs are left after a snapshot. This is
 	// used so that we can quickly replay logs on a follower instead of being
 	// forced to send an entire snapshot. The value passed here is the initial
-	// setting used.
-	// TODO: This can be tuned during operation using a hot reload.
+	// setting used. This can be tuned during operation using a hot reload.
 	RaftTrailingLogs *int `hcl:"raft_trailing_logs"`
 }
 
