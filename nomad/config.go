@@ -342,6 +342,12 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
+	// DisableRPCRateMetricsLabels drops the label for the identity of the
+	// requester when publishing metrics on RPC rate on the server. This may be
+	// useful to control metrics collection costs in environments where request
+	// rate is well-controlled but cardinality of requesters is high.
+	DisableRPCRateMetricsLabels bool
+
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
 	AutopilotConfig *structs.AutopilotConfig
