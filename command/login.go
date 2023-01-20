@@ -48,7 +48,7 @@ Login Options:
     has configured a default, this flag is optional.
 
   -type
-    Type of the auth method to login to. Defaults to "OIDC".
+    Type of the auth method to login to. 
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
@@ -88,7 +88,7 @@ func (l *LoginCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
-	flags.StringVar(&l.authMethodType, "type", "OIDC", "")
+	flags.StringVar(&l.authMethodType, "type", "", "")
 	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
