@@ -187,16 +187,14 @@ points in the scheduling process.
   evaluation at a time, entirely in-memory. If this metric increases,
   examine the CPU and memory resources of the scheduler.
 
-- **nomad.broker.total_blocked** - The number of blocked
+- **nomad.blocked_evals.total_blocked** - The number of blocked
   evaluations. Blocked evaluations are created when the scheduler
   cannot place all allocations as part of a plan. Blocked evaluations
   will be re-evaluated so that changes in cluster resources can be
   used for the blocked evaluation's allocations. An increase in
   blocked evaluations may mean that the cluster's clients are low in
   resources or that job have been submitted that can never have all
-  their allocations placed. Nomad also emits a similar metric for each
-  individual scheduler. For example `nomad.broker.batch_blocked` shows
-  the number of blocked evaluations for the batch scheduler.
+  their allocations placed.
 
 - **nomad.broker.total_unacked** - The number of unacknowledged
   evaluations. When an evaluation has been processed, the worker sends
@@ -210,6 +208,12 @@ points in the scheduling process.
   each individual scheduler. For example `nomad.broker.batch_unacked`
   shows the number of unacknowledged evaluations for the batch
   scheduler.
+
+- **nomad.broker.total_blocked** - The number of pending evaluations in the eval
+  broker. Nomad processes only one evaluation for a given job concurrently. When
+  an unacked evaluation is acknowledged, Nomad will discard all but the latest
+  evaluation for a job. An increase in this metric may mean that the cluster
+  state is changing more rapidly than the schedulers can keep up.
 
 - **nomad.plan.evaluate** - The time to evaluate a scheduler plan
   submitted by a worker. This operation happens on the leader to
