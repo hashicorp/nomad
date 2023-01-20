@@ -28,4 +28,8 @@ export default class RunTemplatesRoute extends Route {
 
     return Promise.all(recordsToQuery);
   }
+
+  resetController(controller) {
+    controller.set('selectedTemplate', null);
+  }
 }

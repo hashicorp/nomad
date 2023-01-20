@@ -55,5 +55,6 @@ export default class RunRoute extends Route {
     }
     controller.set('templateName', null);
     controller.set('templateNamespace', 'default');
+    getOwner(this).lookup('controller:jobs.run').jsonTemplate = null;
   }
 }
