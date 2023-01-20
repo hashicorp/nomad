@@ -71,7 +71,7 @@ type EvalBroker struct {
 	cancelable []*structs.Evaluation
 
 	// ready tracks the ready jobs by scheduler in a priority queue
-	ready map[string]PendingEvaluations
+	ready map[string]ReadyEvaluations
 
 	// unack is a map of evalID to an un-acknowledged evaluation
 	unack map[string]*unackEval
@@ -119,9 +119,9 @@ type unackEval struct {
 	NackTimer *time.Timer
 }
 
-// PendingEvaluations is a list of ready evaluations across multiple jobs. We
+// ReadyEvaluations is a list of ready evaluations across multiple jobs. We
 // implement the container/heap interface so that this is a priority queue.
-type PendingEvaluations []*structs.Evaluation
+type ReadyEvaluations []*structs.Evaluation
 
 // BlockedEvaluations is a list of blocked evaluations for a given job. We
 // implement the container/heap interface so that this is a priority queue.
@@ -148,7 +148,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		jobEvals:             make(map[structs.NamespacedID]string),
 		blocked:              make(map[structs.NamespacedID]BlockedEvaluations),
 		cancelable:           make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
-		ready:                make(map[string]PendingEvaluations),
+		ready:                make(map[string]ReadyEvaluations),
 		unack:                make(map[string]*unackEval),
 		waiting:              make(map[string]chan struct{}),
 		requeue:              make(map[string]*structs.Evaluation),
@@ -292,21 +292,21 @@ func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
 }
 
 // enqueueLocked is used to enqueue with the lock held
-func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
+func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 	// Do nothing if not enabled
 	if !b.enabled {
 		return
 	}
 
-	// Check if there is an evaluation for this JobID pending
+	// Check if there is a ready evaluation for this JobID
 	namespacedID := structs.NamespacedID{
 		ID:        eval.JobID,
 		Namespace: eval.Namespace,
 	}
-	pendingEval := b.jobEvals[namespacedID]
-	if pendingEval == "" {
+	readyEval := b.jobEvals[namespacedID]
+	if readyEval == "" {
 		b.jobEvals[namespacedID] = eval.ID
-	} else if pendingEval != eval.ID {
+	} else if readyEval != eval.ID {
 		blocked := b.blocked[namespacedID]
 		heap.Push(&blocked, eval)
 		b.blocked[namespacedID] = blocked
@@ -314,31 +314,31 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 		return
 	}
 
-	// Find the pending by scheduler class
-	pending, ok := b.ready[queue]
+	// Find the next ready eval by scheduler class
+	readyQueue, ok := b.ready[sched]
 	if !ok {
-		pending = make([]*structs.Evaluation, 0, 16)
-		if _, ok := b.waiting[queue]; !ok {
-			b.waiting[queue] = make(chan struct{}, 1)
+		readyQueue = make([]*structs.Evaluation, 0, 16)
+		if _, ok := b.waiting[sched]; !ok {
+			b.waiting[sched] = make(chan struct{}, 1)
 		}
 	}
 
 	// Push onto the heap
-	heap.Push(&pending, eval)
-	b.ready[queue] = pending
+	heap.Push(&readyQueue, eval)
+	b.ready[sched] = readyQueue
 
 	// Update the stats
 	b.stats.TotalReady += 1
-	bySched, ok := b.stats.ByScheduler[queue]
+	bySched, ok := b.stats.ByScheduler[sched]
 	if !ok {
 		bySched = &SchedulerStats{}
-		b.stats.ByScheduler[queue] = bySched
+		b.stats.ByScheduler[sched] = bySched
 	}
 	bySched.Ready += 1
 
 	// Unblock any blocked dequeues
 	select {
-	case b.waiting[queue] <- struct{}{}:
+	case b.waiting[sched] <- struct{}{}:
 	default:
 	}
 }
@@ -398,14 +398,14 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	var eligibleSched []string
 	var eligiblePriority int
 	for _, sched := range schedulers {
-		// Get the pending queue
-		pending, ok := b.ready[sched]
+		// Get the ready queue for this scheduler
+		readyQueue, ok := b.ready[sched]
 		if !ok {
 			continue
 		}
 
 		// Peek at the next item
-		ready := pending.Peek()
+		ready := readyQueue.Peek()
 		if ready == nil {
 			continue
 		}
@@ -444,10 +444,9 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 // dequeueForSched is used to dequeue the next work item for a given scheduler.
 // This assumes locks are held and that this scheduler has work
 func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string, error) {
-	// Get the pending queue
-	pending := b.ready[sched]
-	raw := heap.Pop(&pending)
-	b.ready[sched] = pending
+	readyQueue := b.ready[sched]
+	raw := heap.Pop(&readyQueue)
+	b.ready[sched] = readyQueue
 	eval := raw.(*structs.Evaluation)
 
 	// Generate a UUID for the token
@@ -761,7 +760,7 @@ func (b *EvalBroker) flush() {
 	b.jobEvals = make(map[structs.NamespacedID]string)
 	b.blocked = make(map[structs.NamespacedID]BlockedEvaluations)
 	b.cancelable = make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest)
-	b.ready = make(map[string]PendingEvaluations)
+	b.ready = make(map[string]ReadyEvaluations)
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
 	b.delayHeap = delayheap.NewDelayHeap()
@@ -784,8 +783,8 @@ func (d *evalWrapper) Namespace() string {
 	return d.eval.Namespace
 }
 
-// runDelayedEvalsWatcher is a long-lived function that waits till a time deadline is met for
-// pending evaluations before enqueuing them
+// runDelayedEvalsWatcher is a long-lived function that waits till a time
+// deadline is met for pending evaluations before enqueuing them
 func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context, updateCh <-chan struct{}) {
 	var timerChannel <-chan time.Time
 	var delayTimer *time.Timer
@@ -937,46 +936,46 @@ type SchedulerStats struct {
 }
 
 // Len is for the sorting interface
-func (p PendingEvaluations) Len() int {
-	return len(p)
+func (r ReadyEvaluations) Len() int {
+	return len(r)
 }
 
 // Less is for the sorting interface. We flip the check
 // so that the "min" in the min-heap is the element with the
 // highest priority
-func (p PendingEvaluations) Less(i, j int) bool {
-	if p[i].JobID != p[j].JobID && p[i].Priority != p[j].Priority {
-		return !(p[i].Priority < p[j].Priority)
+func (r ReadyEvaluations) Less(i, j int) bool {
+	if r[i].JobID != r[j].JobID && r[i].Priority != r[j].Priority {
+		return !(r[i].Priority < r[j].Priority)
 	}
-	return p[i].CreateIndex < p[j].CreateIndex
+	return r[i].CreateIndex < r[j].CreateIndex
 }
 
 // Swap is for the sorting interface
-func (p PendingEvaluations) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
+func (r ReadyEvaluations) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
 }
 
 // Push is used to add a new evaluation to the slice
-func (p *PendingEvaluations) Push(e interface{}) {
-	*p = append(*p, e.(*structs.Evaluation))
+func (r *ReadyEvaluations) Push(e interface{}) {
+	*r = append(*r, e.(*structs.Evaluation))
 }
 
 // Pop is used to remove an evaluation from the slice
-func (p *PendingEvaluations) Pop() interface{} {
-	n := len(*p)
-	e := (*p)[n-1]
-	(*p)[n-1] = nil
-	*p = (*p)[:n-1]
+func (r *ReadyEvaluations) Pop() interface{} {
+	n := len(*r)
+	e := (*r)[n-1]
+	(*r)[n-1] = nil
+	*r = (*r)[:n-1]
 	return e
 }
 
 // Peek is used to peek at the next element that would be popped
-func (p PendingEvaluations) Peek() *structs.Evaluation {
-	n := len(p)
+func (r ReadyEvaluations) Peek() *structs.Evaluation {
+	n := len(r)
 	if n == 0 {
 		return nil
 	}
-	return p[n-1]
+	return r[n-1]
 }
 
 // Len is for the sorting interface

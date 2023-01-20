@@ -1383,9 +1383,9 @@ func TestEvalBroker_NamespacedJobs(t *testing.T) {
 
 }
 
-func TestEvalBroker_PendingEvals_Ordering(t *testing.T) {
+func TestEvalBroker_ReadyEvals_Ordering(t *testing.T) {
 
-	ready := PendingEvaluations{}
+	ready := ReadyEvaluations{}
 
 	newEval := func(jobID, evalID string, priority int, index uint64) *structs.Evaluation {
 		eval := mock.Eval()
