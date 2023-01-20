@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -529,7 +530,7 @@ func TestServer_ReloadRaftConfig(t *testing.T) {
 
 	testutil.WaitForLeader(t, s1.RPC)
 	rc := s1.raft.ReloadableConfig()
-	require.Equal(t, rc.TrailingLogs, uint64(10))
+	must.Eq(t, rc.TrailingLogs, uint64(10))
 	cfg := s1.GetConfig()
 	cfg.RaftConfig.TrailingLogs = 100
 
@@ -538,7 +539,7 @@ func TestServer_ReloadRaftConfig(t *testing.T) {
 
 	// Check it from the raft library
 	rc = s1.raft.ReloadableConfig()
-	require.Equal(t, rc.TrailingLogs, uint64(100))
+	must.Eq(t, rc.TrailingLogs, uint64(100))
 
 }
 
