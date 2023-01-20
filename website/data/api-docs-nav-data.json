@@ -33,6 +33,10 @@
         "path": "acl/binding-rules"
       },
       {
+        "title": "OIDC",
+        "path": "acl/oidc"
+      },
+      {
         "title": "Policies",
         "path": "acl/policies"
       },
