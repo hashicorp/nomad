@@ -64,15 +64,25 @@ setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 
 #### Server `rejoin_after_leave` (default: `false`) now enforced
 
-All Nomad versions prior to v1.5.0 have incorrectly ignored the Server [`rejoin_after_leave`]
-configuration option. This bug has been fixed in Nomad version v1.5.0.
+All Nomad versions prior to v1.5.0 have incorrectly ignored the Server
+[`rejoin_after_leave`] configuration option. This bug has been fixed in Nomad
+version v1.5.0.
 
-Previous to v1.5.0 the behavior of Nomad `rejoin_after_leave` was always `true`, regardless of 
-Nomad server configuration, while the documentation incorrectly indicated a default of `false`.
+Previous to v1.5.0 the behavior of Nomad `rejoin_after_leave` was always `true`,
+regardless of Nomad server configuration, while the documentation incorrectly
+indicated a default of `false`.
 
-Cluster operators should be aware that explicit `leave` events (such as `nomad server force-leave`) 
-will now result in behavior which matches this configuration, and should review whether they
-were inadvertently relying on the buggy behavior.
+Cluster operators should be aware that explicit `leave` events (such as `nomad
+server force-leave`) will now result in behavior which matches this
+configuration, and should review whether they were inadvertently relying on the
+buggy behavior.
+
+#### Changes to eval broker metrics
+
+The metric `nomad.nomad.broker.total_blocked` has been changed to
+`nomad.nomad.broker.total_pending`. This state refers to internal state of the
+leader's broker, and this is easily confused with the unrelated evaluation
+status `"blocked"` in the Nomad API.
 
 ## Nomad 1.4.0
 
