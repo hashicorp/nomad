@@ -1,0 +1,3 @@
+```release-note:breaking-change
+metrics: The metric `nomad.nomad.broker.total_blocked` has been renamed to `nomad.nomad.broker.total_pending` to reduce confusion with the `nomad.blocked_eval.total_blocked` metric.
+```
