@@ -428,7 +428,24 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	return nil
 }
 
-// UpdateStatus is used to update the status of a client node
+// UpdateStatus is used to update the status of a client node.
+//
+// Clients with non-terminal allocations must first call UpdateAlloc to be able
+// to transition from the initializing status to ready.
+//
+//	                ┌────────────────────────────────────── No ───┐
+//	                │                                             │
+//	             ┌──▼───┐          ┌─────────────┐       ┌────────┴────────┐
+//	── Register ─► init ├─ ready ──► Has allocs? ├─ Yes ─► Allocs updated? │
+//	             └──▲───┘          └─────┬───────┘       └────────┬────────┘
+//	                │                    │                        │
+//	              ready                  └─ No ─┐  ┌─────── Yes ──┘
+//	                │                           │  │
+//	         ┌──────┴───────┐                ┌──▼──▼─┐         ┌──────┐
+//	         │ disconnected ◄─ disconnected ─┤ ready ├─ down ──► down │
+//	         └──────────────┘                └───▲───┘         └──┬───┘
+//	                                             │                │
+//	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
