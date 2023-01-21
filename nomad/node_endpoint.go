@@ -1189,8 +1189,11 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 // UpdateAlloc is used to update the client status of an allocation. It should
 // only be called by clients.
 //
-// Clients must first register and heartbeat successfully before they are able
-// to call this method.
+// Calling this method returns an error when:
+//   - The node is not registered in the server yet. Clients must first call the
+//     Register method.
+//   - The node status is down or disconnected. Clients must call the
+//     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
 	// Ensure the connection was initiated by another client if TLS is used.
 	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
