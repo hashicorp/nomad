@@ -1215,7 +1215,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("node %s not found", nodeID)
 	}
 	if node.UnresponsiveStatus() {
-		return fmt.Errorf("node %s is not allow to update allocs while in status %s", nodeID, node.Status)
+		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", nodeID, node.Status)
 	}
 
 	// Ensure that evals aren't set from client RPCs
