@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { capitalize } from '@ember/string';
 
 export default class JobsRunTemplatesIndexController extends Controller {
   @tracked selectedTemplate = null;
@@ -8,10 +9,25 @@ export default class JobsRunTemplatesIndexController extends Controller {
   get templates() {
     return this.model.map((templateVariable) => {
       // THIS LOGIC SHOULD LIKELY MOVE TO THE SERIALIZATION LAYER
-      const description = templateVariable.keyValues.findBy('key', 'description')?.value;
+      const description = templateVariable.keyValues.findBy(
+        'key',
+        'description'
+      )?.value;
+
+      // Removes the preceeding nomad/job-templates/default/, as well as the namespace, from the ID
+      let label;
+      const delimiter = templateVariable.id.lastIndexOf('/');
+      if (delimiter !== -1) {
+        label = templateVariable.id.slice(delimiter + 1);
+      } else {
+        label = templateVariable.id;
+      }
+
+      label = capitalize(label.split('@')[0].replace(/-/g, ' '));
+
       return {
         id: templateVariable.id,
-        label: templateVariable.id.split('nomad/job-templates/')[1].split('@')[0].replace(/-/g, ' '),
+        label,
         description,
       };
     });

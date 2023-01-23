@@ -1,85 +1,61 @@
+import helloWorld from './default_jobs/hello-world';
 import parameterized from './default_jobs/parameterized';
+import serviceDiscovery from './default_jobs/service-discovery';
+import variables from './default_jobs/variables';
 
 export default [
-  // {
-  //   id: "nomad/job-templates/hello-world",
-  //   keyValues: [
-  //     {
-  //       key: "template",
-  //       value: "beep boop lol"
-  //     },
-  //     {
-  //       key: "description",
-  //       value: "A CODE-DRIVEN simple job that runs a single task on a single node.",
-  //     },     
-  //   ]
-  // },
   {
-    id: "nomad/job-templates/parameterized-job",
+    id: 'nomad/job-templates/default/hello-world',
     keyValues: [
       {
-        key: "template",
-        value: parameterized
+        key: 'template',
+        value: helloWorld,
       },
       {
-        key: "description",
-        value: "TODO",
-      },     
-    ]
+        key: 'description',
+        value: 'A simple job that runs a single task on a single node.',
+      },
+    ],
   },
   {
-    id: "nomad/job-templates/service-discovery",
+    id: 'nomad/job-templates/default/parameterized-job',
     keyValues: [
       {
-        key: "template",
-        value: `job "service-discovery-example" {
-          datacenters = ["dc1"]
-        
-          group "cache" {
-            network {
-              port "db" {
-                to = 6379
-              }
-            }
-            service {
-              // TODO: COMMENT
-              provider = "nomad"
-              name = "redis"
-              // TODO: COMMENT
-              port = "db"
-              // TODO: COMMENT
-              check {
-                name = "up"
-                type = "tcp"
-                interval = "5s"
-                timeout = "1s"
-              }
-            }
-        
-            task "redis" {
-              driver = "docker"
-        
-              config {
-                image          = "redis:7"
-                ports          = ["db"]
-                auth_soft_fail = true
-              }
-        
-              resources {
-                cpu    = 500
-                memory = 256
-              }
-            }
-          }
-        }
-        
-        `
+        key: 'template',
+        value: parameterized,
       },
       {
-        key: "description",
-        value: "TODO",
-      },     
-    ]
-  }
-
+        key: 'description',
+        value:
+          'A job that can be dispatched multiple times with different payloads.',
+      },
+    ],
+  },
+  {
+    id: 'nomad/job-templates/default/service-discovery',
+    keyValues: [
+      {
+        key: 'template',
+        value: serviceDiscovery,
+      },
+      {
+        key: 'description',
+        value:
+          'A job that registers a Nomad service and can be discovered by other services.',
+      },
+    ],
+  },
+  {
+    id: 'nomad/job-templates/default/variables',
+    keyValues: [
+      {
+        key: 'template',
+        value: variables,
+      },
+      {
+        key: 'description',
+        value: 'A job that uses Nomad variables to configure task behaviour.',
+      },
+    ],
+  },
 ];

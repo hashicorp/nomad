@@ -43,8 +43,6 @@ export default class JobsRunIndexRoute extends Route {
         } else {
           templateRecord = await this.store.findRecord('variable', template);
         }
-        
-        
         return this.store.createRecord('job', {
           _newDefinition: templateRecord.items.template,
         });
