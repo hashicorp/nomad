@@ -1043,9 +1043,13 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	copyNode.Status = status
 	copyNode.ModifyIndex = txn.Index
 
-	// Update last missed heartbeat if the node became unresponsive.
+	// Update last missed heartbeat if the node became unresponsive or reset it
+	// zero if the node became ready.
 	if !existingNode.UnresponsiveStatus() && copyNode.UnresponsiveStatus() {
 		copyNode.LastMissedHeartbeatIndex = txn.Index
+	} else if existingNode.Status != structs.NodeStatusReady &&
+		copyNode.Status == structs.NodeStatusReady {
+		copyNode.LastMissedHeartbeatIndex = 0
 	}
 
 	// Insert the node
