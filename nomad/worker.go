@@ -149,7 +149,7 @@ func (w *Worker) ID() string {
 // to see if it paused using IsStarted()
 func (w *Worker) Start() {
 	w.setStatus(WorkerStarting)
-	go w.run()
+	go w.run(raftSyncLimit)
 }
 
 // Pause transitions a worker to the pausing state. Check
@@ -384,7 +384,7 @@ func (w *Worker) workerShuttingDown() bool {
 // ----------------------------------
 
 // run is the long-lived goroutine which is used to run the worker
-func (w *Worker) run() {
+func (w *Worker) run(raftSyncLimit time.Duration) {
 	defer func() {
 		w.markStopped()
 	}()
@@ -427,7 +427,7 @@ func (w *Worker) run() {
 				// a cluster and must initially sync the cluster state.
 				// Backoff dequeuing another eval until there's some indication
 				// this server would be up to date enough to process it.
-				const slowServerSyncLimit = 10 * raftSyncLimit
+				slowServerSyncLimit := 10 * raftSyncLimit
 				if _, err := w.snapshotMinIndex(waitIndex, slowServerSyncLimit); err != nil {
 					w.logger.Warn("server is unable to catch up to last eval's index", "error", err)
 				}

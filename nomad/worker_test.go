@@ -12,6 +12,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
@@ -56,9 +57,10 @@ func init() {
 // NewTestWorker returns the worker without calling it's run method.
 func NewTestWorker(shutdownCtx context.Context, srv *Server) *Worker {
 	w := &Worker{
-		srv:   srv,
-		start: time.Now(),
-		id:    uuid.Generate(),
+		srv:               srv,
+		start:             time.Now(),
+		id:                uuid.Generate(),
+		enabledSchedulers: srv.config.EnabledSchedulers,
 	}
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
@@ -337,6 +339,54 @@ func TestWorker_sendAck(t *testing.T) {
 	if stats.TotalReady != 0 && stats.TotalUnacked != 0 {
 		t.Fatalf("bad: %#v", stats)
 	}
+}
+
+func TestWorker_runBackoff(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer cleanupSrv()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	eval1 := mock.Eval()
+	eval1.ModifyIndex = 1000
+	srv.evalBroker.Enqueue(eval1)
+	must.Eq(t, 1, srv.evalBroker.Stats().TotalReady)
+
+	// make a new context here so we can still check the broker's state after
+	// we've shut down the worker
+	workerCtx, workerCancel := context.WithCancel(srv.shutdownCtx)
+	defer workerCancel()
+
+	w := NewTestWorker(workerCtx, srv)
+	doneCh := make(chan struct{})
+
+	go func() {
+		w.run(time.Millisecond)
+		doneCh <- struct{}{}
+	}()
+
+	// We expect to be paused for 10ms + 1ms but otherwise can't be all that
+	// precise here because of concurrency. But checking coverage for this test
+	// shows we've covered the logic
+	t1, cancelT1 := helper.NewSafeTimer(100 * time.Millisecond)
+	defer cancelT1()
+	select {
+	case <-doneCh:
+		t.Fatal("returned early")
+	case <-t1.C:
+	}
+
+	workerCancel()
+	<-doneCh
+
+	must.Eq(t, 1, srv.evalBroker.Stats().TotalWaiting)
+	must.Eq(t, 0, srv.evalBroker.Stats().TotalReady)
+	must.Eq(t, 0, srv.evalBroker.Stats().TotalPending)
+	must.Eq(t, 0, srv.evalBroker.Stats().TotalUnacked)
 }
 
 func TestWorker_waitForIndex(t *testing.T) {
