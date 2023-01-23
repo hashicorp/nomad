@@ -1355,6 +1355,102 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	require.False(watchFired(ws))
 }
 
+func TestStatStore_UpdateNodeStatus_LastMissedHeartbeatIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name            string
+		transitions     []string
+		expectedIndexes []uint64
+	}{
+		{
+			name: "disconnect",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+			},
+			expectedIndexes: []uint64{0, 1001},
+		},
+		{
+			name: "reconnect",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+				structs.NodeStatusInit,
+				structs.NodeStatusReady,
+			},
+			expectedIndexes: []uint64{0, 1001, 1001, 0},
+		},
+		{
+			name: "down",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDown,
+			},
+			expectedIndexes: []uint64{0, 1001},
+		},
+		{
+			name: "multiple reconnects",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+				structs.NodeStatusInit,
+				structs.NodeStatusReady,
+				structs.NodeStatusDown,
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+				structs.NodeStatusInit,
+				structs.NodeStatusReady,
+			},
+			expectedIndexes: []uint64{0, 1001, 1001, 0, 1004, 0, 1006, 1006, 0},
+		},
+		{
+			name: "multiple heartbeats",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+				structs.NodeStatusInit,
+				structs.NodeStatusReady,
+				structs.NodeStatusReady,
+				structs.NodeStatusReady,
+			},
+			expectedIndexes: []uint64{0, 1001, 1001, 0, 0, 0},
+		},
+		{
+			name: "delayed alloc update",
+			transitions: []string{
+				structs.NodeStatusReady,
+				structs.NodeStatusDisconnected,
+				structs.NodeStatusInit,
+				structs.NodeStatusInit,
+				structs.NodeStatusInit,
+				structs.NodeStatusReady,
+			},
+			expectedIndexes: []uint64{0, 1001, 1001, 1001, 1001, 0},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := testStateStore(t)
+			node := mock.Node()
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 999, node))
+
+			for i, status := range tc.transitions {
+				now := time.Now().UnixNano()
+				err := state.UpdateNodeStatus(structs.MsgTypeTestSetup, uint64(1000+i), node.ID, status, now, nil)
+				must.NoError(t, err)
+
+				ws := memdb.NewWatchSet()
+				out, err := state.NodeByID(ws, node.ID)
+				must.NoError(t, err)
+				must.Eq(t, tc.expectedIndexes[i], out.LastMissedHeartbeatIndex)
+				must.Eq(t, status, out.Status)
+			}
+		})
+	}
+}
+
 func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
