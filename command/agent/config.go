@@ -2012,6 +2012,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.MemoryMB != 0 {
 		result.MemoryMB = b.MemoryMB
 	}
+	if b.DiskTotalMB != 0 {
+		result.DiskTotalMB = b.DiskTotalMB
+	}
+	if b.DiskFreeMB != 0 {
+		result.DiskFreeMB = b.DiskFreeMB
+	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
 	}
