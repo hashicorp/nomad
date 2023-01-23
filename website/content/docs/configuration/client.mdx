@@ -65,6 +65,12 @@ client {
 - `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
   this value overrides any detected memory.
 
+- `disk_total_mb` `(int:0)` - Specifies an override for the total disk space. If set,
+  this value overrides any detected total disk space.
+
+- `disk_free_mb` `(int:0)` - Specifies an override for the free disk space. If set,
+  this value overrides any detected free disk space. (Workaround for https://github.com/hashicorp/nomad/issues/6172)
+
 - `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
   assigned. Individual ports and ranges of ports may be excluded from dynamic
   port assignment via [`reserved`](#reserved-parameters) parameters.

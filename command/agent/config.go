@@ -227,6 +227,12 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
+	// DiskTotalMB is used to override any detected or default total disk space.
+	DiskTotalMB int `hcl:"disk_total_mb"`
+
+	// DiskFreeMB is used to override any detected or default free disk space.
+	DiskFreeMB int `hcl:"disk_free_mb"`
+
 	// ReservableCores is used to override detected reservable cpu cores.
 	ReserveableCores string `hcl:"reservable_cores"`
 
