@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
+import DEFAULT_JOB_TEMPLATES from 'nomad-ui/utils/default-job-templates';
 
 export default class JobsRunTemplatesIndexRoute extends Route {
   @service can;

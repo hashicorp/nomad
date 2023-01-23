@@ -8,10 +8,10 @@ export default class JobsRunTemplatesIndexController extends Controller {
   get templates() {
     return this.model.map((templateVariable) => {
       // THIS LOGIC SHOULD LIKELY MOVE TO THE SERIALIZATION LAYER
-      const description = templateVariable.items.description;
+      const description = templateVariable.keyValues.findBy('key', 'description')?.value;
       return {
         id: templateVariable.id,
-        label: templateVariable.path.split('nomad/job-templates/')[1],
+        label: templateVariable.id.split('nomad/job-templates/')[1].split('@')[0].replace(/-/g, ' '),
         description,
       };
     });
