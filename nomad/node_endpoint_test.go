@@ -2766,7 +2766,7 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	}
 	var allocUpdateResp structs.NodeAllocsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp)
-	require.ErrorContains(t, err, "not allow to update allocs")
+	require.ErrorContains(t, err, "not allowed to update allocs")
 
 	// Send request without an explicit node ID.
 	updatedAlloc.NodeID = ""
