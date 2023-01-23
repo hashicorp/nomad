@@ -42,10 +42,10 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	}
 
 	if cfg.DiskTotalMB > 0 {
-		total = uint64(cfg.DiskTotalMB) * 1024 * 1024
+		total = uint64(cfg.DiskTotalMB) * bytesPerMegabyte
 	}
 	if cfg.DiskFreeMB > 0 {
-		free = uint64(cfg.DiskFreeMB) * 1024 * 1024
+		free = uint64(cfg.DiskFreeMB) * bytesPerMegabyte
 	}
 
 	if total < free {
