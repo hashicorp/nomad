@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2397,4 +2400,44 @@ func TestHasSidecarTasks(t *testing.T) {
 
 		})
 	}
+}
+
+type allocPreKillHook struct {
+	ran atomic.Bool
+}
+
+func (*allocPreKillHook) Name() string { return "test_prekill" }
+
+func (h *allocPreKillHook) PreKill() {
+	h.ran.Store(true)
+}
+
+func TestAllocRunner_PreKill_RunOnDone(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{"run_for": "2ms"}
+	alloc.DesiredStatus = "stop"
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
+	t.Cleanup(cleanup)
+
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	// set our custom prekill hook
+	hook := new(allocPreKillHook)
+	ar.runnerHooks = append(ar.runnerHooks, hook)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	// wait for completion or timeout
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(hook.ran.Load),
+		wait.Timeout(5*time.Second),
+		wait.Gap(500*time.Millisecond),
+	))
 }
