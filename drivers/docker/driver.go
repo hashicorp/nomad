@@ -835,6 +835,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
+	// Only windows supports alternative isolations modes
+	isolationMode := driverConfig.Isolation
+	if runtime.GOOS != "windows" && driverConfig.Isolation != "process" {
+		return c, fmt.Errorf("Failed to create container configuration for image %q, cannot use isolation mode \"%v\" on %v", driverConfig.Image, isolationMode, runtime.GOOS)
+	}
+
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	var pidsLimit int64
