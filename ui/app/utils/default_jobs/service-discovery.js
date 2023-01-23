@@ -8,12 +8,12 @@ export default `job "service-discovery-example" {
       }
     }
     service {
-      // Designates this service as a Nomad native service. Change to "consul" if you're using Consul.
+      # Designates this service as a Nomad native service. Change to "consul" if you're using Consul.
       provider = "nomad"
       name = "redis"
-      // Specifies the port to advertise for this service. This must match the port label in the group above.
+      # Specifies the port to advertise for this service. This must match the port label in the group above.
       port = "db"
-      // Adds a health check to the service that can be polled and responded-to elsewhere.
+      # Adds a health check to the service that can be polled and responded-to elsewhere.
       check {
         name = "up"
         type = "tcp"
