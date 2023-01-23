@@ -2090,8 +2090,8 @@ type Node struct {
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
-	// LastMissedHeartbeatIndex stores the Raft index when the node
-	// last missed a heartbeat.
+	// LastMissedHeartbeatIndex stores the Raft index when the node last missed
+	// a heartbeat. It resets to zero once the node is marked as ready again.
 	LastMissedHeartbeatIndex uint64
 
 	// LastAllocUpdateIndex stores the Raft index of the last time the node
