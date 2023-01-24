@@ -65,6 +65,15 @@ client {
 - `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
   this value overrides any detected memory.
 
+- `disk_total_mb` `(int:0)` - Specifies an override for the total disk space
+  fingerprint attribute. This value is not used by the scheduler unless you have
+  constraints set on the attribute `unique.storage.bytestotal`. The actual total
+  disk space can be determined via the [Read Stats API](https://github.com/api-docs/client#read-stats)
+
+- `disk_free_mb` `(int:0)` - Specifies the disk space free for scheduling
+  allocations. If set, this value overrides any detected free disk space. This
+  value can be seen in `nomad node status` under Allocated Resources.
+
 - `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
   assigned. Individual ports and ranges of ports may be excluded from dynamic
   port assignment via [`reserved`](#reserved-parameters) parameters.

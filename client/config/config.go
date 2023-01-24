@@ -113,6 +113,14 @@ type Config struct {
 	// determined dynamically.
 	MemoryMB int
 
+	// DiskTotalMB is the default node total disk space in megabytes if it cannot be
+	// determined dynamically.
+	DiskTotalMB int
+
+	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
+	// determined dynamically.
+	DiskFreeMB int
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
 	// used.
