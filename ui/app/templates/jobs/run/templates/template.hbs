@@ -4,10 +4,16 @@
         <div>
             <h1 class="title is-3">Edit template</h1>
         </div>
-        <Hds::Dropdown as |dd|>
-            <dd.ToggleButton @text="Manage" data-test-manage-dd />
-            <dd.Interactive @icon="trash" @text="Delete" @color="critical" {{on "click" this.toggleModal}} data-test-delete />
-        </Hds::Dropdown>
+        <TwoStepButton
+            data-test-delete
+            @alignRight={{true}}
+            @idleText="Delete"
+            @cancelText="Cancel"
+            @confirmText="Yes, Delete Text"
+            @awaitingConfirmation={{this.deleteTemplate.isRunning}}
+            @disabled={{cannot "destroy variable" namespace="*"}}
+            @onConfirm={{perform this.deleteTemplate}}
+        />
     </header>
     <form class="new-job-template" autocomplete="off">
         <div class={{if this.system.shouldShowNamespaces "input-dropdown-row"}}>

@@ -21,6 +21,17 @@
                     </B.Td>
                     <B.Td>{{B.data.namespace}}</B.Td>
                     <B.Td>{{B.data.items.description}}</B.Td>
+                    <B.Td>
+                        <TwoStepButton
+                            data-test-delete
+                            @idleText="Delete"
+                            @cancelText="Cancel"
+                            @confirmText="Yes, Delete Text"
+                            @awaitingConfirmation={{this.deleteTemplate.isRunning}}
+                            @disabled={{cannot "destroy variable" namespace="*"}}
+                            @onConfirm={{perform this.deleteTemplate B.data}}
+                        />
+                    </B.Td>
                 </B.Tr>
             </:body>
         </Hds::Table>

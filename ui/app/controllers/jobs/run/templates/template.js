@@ -3,8 +3,10 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { task } from 'ember-concurrency';
 
 export default class JobsRunTemplatesController extends Controller {
+  @service flashMessages;
   @service router;
   @service system;
 
@@ -24,33 +26,6 @@ export default class JobsRunTemplatesController extends Controller {
   @action
   toggleModal() {
     this.formModalActive = !this.formModalActive;
-  }
-
-  @action
-  async deleteTemplateAndClose() {
-    try {
-      this.toggleModal();
-      const name = this.model.path;
-      await this.model.destroyRecord();
-
-      this.flashMessages.add({
-        title: 'Job template deleted',
-        message: `${name} successfully deleted`,
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
-      });
-
-      this.router.transitionTo('jobs.run.templates');
-    } catch (e) {
-      this.flashMessages.add({
-        title: 'Job template could not be deleted.',
-        message: e,
-        type: 'error',
-        destroyOnClick: false,
-        timeout: 5000,
-      });
-    }
   }
 
   @action
@@ -83,4 +58,28 @@ export default class JobsRunTemplatesController extends Controller {
       });
     }
   }
+
+  @task(function* () {
+    try {
+      yield this.model.destroyRecord();
+
+      this.flashMessages.add({
+        title: 'Job template deleted',
+        message: `${this.model.path} successfully deleted`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
+      });
+      this.router.transitionTo('jobs.run.templates.manage');
+    } catch (err) {
+      this.flashMessages.add({
+        title: `Job template could not be deleted.`,
+        message: err,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
+  })
+  deleteTemplate;
 }
