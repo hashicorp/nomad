@@ -1,0 +1,3 @@
+```release-note:improvement
+client/fingerprint/storage: Added config options disk_total_mb and disk_free_mb to override detected disk space
+```
