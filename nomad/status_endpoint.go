@@ -22,7 +22,10 @@ func NewStatusEndpoint(srv *Server, ctx *RPCContext) *Status {
 }
 
 // Ping is used to just check for connectivity
-func (s *Status) Ping(args struct{}, reply *struct{}) error {
+func (s *Status) Ping(args structs.GenericRequest, reply *struct{}) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, &args)
 	return nil
 }
 

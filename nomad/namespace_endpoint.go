@@ -27,14 +27,14 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
-	if authErr != nil {
-		return authErr
-	}
-
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return authErr
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
 	// Check management permissions

@@ -29,7 +29,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 	defer agent.Shutdown()
 
 	var out struct{}
-	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
+	if err := agent.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }

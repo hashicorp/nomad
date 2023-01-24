@@ -28,7 +28,7 @@ func TestServer_RPC(t *testing.T) {
 	defer cleanupS1()
 
 	var out struct{}
-	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
+	if err := s1.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }

@@ -90,6 +90,10 @@ func NewNodeEndpoint(srv *Server, ctx *RPCContext) *Node {
 
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
+	// note that we trust-on-first use and the identity will be anonymous for
+	// that initial request; we lean on mTLS for handling that safely
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
@@ -102,6 +106,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
 
 	// Validate the arguments
@@ -435,6 +443,8 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 
 // UpdateStatus is used to update the status of a client node
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
@@ -447,6 +457,10 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
 
 	// Verify the arguments
@@ -1149,6 +1163,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 // Clients must first register and heartbeat successfully before they are able
 // to call this method.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	// Ensure the connection was initiated by another client if TLS is used.
 	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
 	if err != nil {
@@ -1158,6 +1174,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
 	// Ensure at least a single alloc

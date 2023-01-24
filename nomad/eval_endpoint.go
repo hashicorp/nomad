@@ -111,6 +111,11 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+	if authErr != nil {
+		return authErr
+	}
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
