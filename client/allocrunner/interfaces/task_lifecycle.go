@@ -64,6 +64,9 @@ type TaskPrestartRequest struct {
 
 	// TaskEnv is the task's environment
 	TaskEnv *taskenv.TaskEnv
+
+	// Alloc is the current version of the allocation
+	Alloc *structs.Allocation
 }
 
 type TaskPrestartResponse struct {
