@@ -835,5 +835,54 @@
         </div>
       </div>
     {{/if}}
+    {{#if (can "write client")}}
+      <div class="boxed-section-head">
+        Meta
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        <table class="table is-striped is-fixed is-compact is-darkened">
+          <tbody>
+            <tr>
+              <td>
+                <label>
+                  <strong>Key</strong>
+                  <Input
+                    @type="text"
+                    @value={{this.newMetaData.key}}
+                    class="input"
+                    {{autofocus}}
+                    {{on "input" (fn this.validateKey this.newMetadata)}}
+                  />
+                </label>
+              </td>
+              <td>
+                <label>
+                  <strong>Value</strong>
+                  <Input
+                    @type="text"
+                    @value={{this.newMetaData.value}}
+                    class="input"
+                    {{on "input" (fn this.validateKey this.newMetadata)}}
+                  />
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2">
+                <button
+                  type="button"
+                  class="button is-primary"
+                  {{on "click" (action this.addDynamicMetaData)}}
+                >
+                  Add {{this.newMetaData.key}} to node metadata
+                </button>
+              </td>
+            </tr>
+          </tbody>
+          <hr /><hr />TRACKING: {{this.newMetaData.key}}, {{this.newMetaData.value}}<hr /><hr />
+        </table>
+
+      </div>
+    {{/if}}
   </div>
 </section>

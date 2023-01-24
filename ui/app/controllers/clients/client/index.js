@@ -16,12 +16,16 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import { inject as service } from '@ember/service';
 
 @classic
 export default class ClientController extends Controller.extend(
   Sortable,
   Searchable
 ) {
+
+  @service flashMessages;
+
   queryParams = [
     {
       currentPage: 'page',
@@ -277,4 +281,39 @@ export default class ClientController extends Controller.extend(
       this.set('activeTask', null);
     }
   }
+  
+  // #region metadata
+  newMetaData = {
+    key: '',
+    value: '',
+  }
+
+  @action validateKey(key) {
+    console.log("VALID KEY?", key, this.model.meta);
+  }
+
+  @action async addDynamicMetaData() {
+    try {
+      await this.model.addMeta({[this.newMetaData.key]: this.newMetaData.value});
+      this.flashMessages.add({
+        title: 'Metadata added',
+        message: `${this.newMetaData.key} successfully saved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 3000,
+      });
+
+    } catch (err) {
+      const error = messageFromAdapterError(err) || 'Could not save new dynamic metadata';
+      this.flashMessages.add({
+        title: `Error saving Metadata`,
+        message: error,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
+
+  }
+  // #endregion metadata
 }

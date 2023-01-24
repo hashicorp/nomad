@@ -61,4 +61,16 @@ export default class NodeAdapter extends Watchable {
       },
     });
   }
+
+  getMeta(node) {
+    const url = `/v1/client/metadata?node_id=${node.id}`;
+    return this.ajax(url, 'GET');
+  }
+
+  addMeta(node, newMeta) {
+    const url = `/v1/client/metadata?node_id=${node.id}`;
+    return this.ajax(url, 'POST', {
+      data: {Meta: newMeta},
+    });
+  }
 }

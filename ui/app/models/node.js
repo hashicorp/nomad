@@ -153,4 +153,12 @@ export default class Node extends Model {
   cancelDrain() {
     return this.store.adapterFor('node').cancelDrain(this);
   }
+
+  getMeta() {
+    return this.store.adapterFor('node').getMeta(this);
+  }
+
+  addMeta(newMeta) {
+    return this.store.adapterFor('node').addMeta(this, newMeta);
+  }
 }
