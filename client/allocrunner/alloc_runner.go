@@ -590,9 +590,9 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		} else {
 			// there are no live runners left
 
-			// run AR pre-kill hooks if this alloc is terminal; any post-stop
-			// tasks would regularly run in this state anyway (?)
-			if done {
+			// run AR pre-kill hooks if this alloc is done, but not if it's because
+			// the agent is shutting down.
+			if !ar.isShuttingDown() && done {
 				ar.preKillHooks()
 			}
 
