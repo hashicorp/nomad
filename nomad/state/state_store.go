@@ -242,7 +242,7 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 		// Get the states current index
 		snapshotIndex, err := s.LatestIndex()
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine state store's index: %v", err)
+			return nil, fmt.Errorf("failed to determine state store's index: %w", err)
 		}
 
 		// We only need the FSM state to be as recent as the given index
