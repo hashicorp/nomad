@@ -1,4 +1,3 @@
-import { A } from '@ember/array';
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
@@ -11,8 +10,6 @@ export default class JobsRunTemplatesController extends Controller {
   @service system;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
-
-  keyValues = A([]);
 
   get namespaceOptions() {
     const namespaces = this.store
@@ -35,10 +32,10 @@ export default class JobsRunTemplatesController extends Controller {
 
   @action
   updateKeyValue(key, value) {
-    if (this.keyValues.find((kv) => kv.key === key)) {
-      this.keyValues.find((kv) => kv.key === key).value = value;
+    if (this.model.keyValues.find((kv) => kv.key === key)) {
+      this.model.keyValues.find((kv) => kv.key === key).value = value;
     } else {
-      this.keyValues.pushObject({ key, value });
+      this.model.keyValues.pushObject({ key, value });
     }
   }
 
@@ -57,7 +54,6 @@ export default class JobsRunTemplatesController extends Controller {
       }
     }
 
-    this.model.set('keyValues', this.keyValues);
     this.model.set('path', `nomad/job-templates/${this.templateName}`);
     this.model.setAndTrimPath();
 

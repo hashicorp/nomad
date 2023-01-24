@@ -12,14 +12,12 @@ export default class JobsRunTemplatesController extends Controller {
 
   @tracked formModalActive = false;
 
-  keyValues = A([]);
-
   @action
   updateKeyValue(key, value) {
-    if (this.keyValues.find((kv) => kv.key === key)) {
-      this.keyValues.find((kv) => kv.key === key).value = value;
+    if (this.model.keyValues.find((kv) => kv.key === key)) {
+      this.model.keyValues.find((kv) => kv.key === key).value = value;
     } else {
-      this.keyValues.pushObject({ key, value });
+      this.model.keyValues.pushObject({ key, value });
     }
   }
 
@@ -33,8 +31,6 @@ export default class JobsRunTemplatesController extends Controller {
     if (e.type === 'submit') {
       e.preventDefault();
     }
-
-    this.model.set('keyValues', this.keyValues);
 
     try {
       await this.model.save({ adapterOptions: { overwrite } });
