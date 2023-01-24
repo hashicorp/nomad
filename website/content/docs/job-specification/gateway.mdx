@@ -10,17 +10,17 @@ description: |-
 
 <Placement groups={['job', 'group', 'service', 'connect', 'gateway']} />
 
-The `gateway` stanza allows configuration of [Consul Connect Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways). Nomad will
-automatically create the necessary Gateway [Configuration Entry](https://developer.hashicorp.com/consul/docs/agent/config-entries)
+The `gateway` stanza allows configuration of [Consul Connect Gateways](/consul/docs/connect/gateways). Nomad will
+automatically create the necessary Gateway [Configuration Entry](/consul/docs/agent/config-entries)
 as well as inject an Envoy proxy task into the Nomad job to serve as the Gateway.
 
 The `gateway` configuration is valid within the context of a `connect` stanza.
 Additional information about Gateway configurations can be found in Consul's
-[Connect Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways) documentation.
+[Connect Gateways](/consul/docs/connect/gateways) documentation.
 
-~> **Note:** [Ingress Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways/ingress-gateway)
+~> **Note:** [Ingress Gateways](/consul/docs/connect/gateways/ingress-gateway)
 are generally intended for enabling access into a Consul service mesh from within the
-same network. For public ingress products like [NGINX](https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx?in=nomad/load-balancing)
+same network. For public ingress products like [NGINX](/nomad/tutorials/load-balancing/load-balancing-nginx)
 provide more suitable features.
 
 ```hcl
@@ -101,17 +101,17 @@ envoy_gateway_bind_addresses "<service>" {
 
 - `tls_min_version` `(string: optional)` - Set the default minimum TLS version
   supported by the gateway. Refer to
-  [`TLSMinVersion`](https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#tlsminversion)
+  [`TLSMinVersion`](/consul/docs/connect/config-entries/ingress-gateway#tlsminversion)
   in the Consul documentation for supported versions.
 
 - `tls_max_version` `(string: optional)` - Set the default maximum TLS version
   supported by the gateway. Refer to
-  [`TLSMaxVersion`](https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
+  [`TLSMaxVersion`](/consul/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
   in the Consul documentation for supported versions.
 
 - `cipher_suites` `(array<string>: optional)` - Set the default list of TLS
   cipher suites for the gateway's listeners. Refer to
-  [`CipherSuites`](https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
+  [`CipherSuites`](/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
   in the Consul documentation for the supported cipher suites.
 
 #### `listener` Parameters
@@ -121,7 +121,7 @@ envoy_gateway_bind_addresses "<service>" {
   of `tcp`, `http`, `http2`, or `grpc`.
 
   ~> **Note:** If using any protocol other than `tcp` (for example: `http` or `grpc`), preconfiguring a [service-default] in Consul to
-  set the [Protocol](https://developer.hashicorp.com/consul/docs/connect/config-entries/service-defaults#protocol)
+  set the [Protocol](/consul/docs/connect/config-entries/service-defaults#protocol)
   of the service to the desired protocol is mandatory due to an [open issue](https://github.com/hashicorp/nomad/issues/8647).
 
 - `service` <code>(array<[service]>: required)</code> - One or more services to be
@@ -647,20 +647,20 @@ job "countdash-mesh-two" {
 ```
 
 
-[address]: /docs/job-specification/gateway#address-parameters
-[advanced configuration]: https://developer.hashicorp.com/consul/docs/connect/proxies/envoy#advanced-configuration
-[connect_timeout_ms]: https://developer.hashicorp.com/consul/docs/connect/config-entries/service-resolver#connecttimeout
-[connect_mesh_gw]: https://developer.hashicorp.com/consul/docs/connect/gateways/mesh-gateway/wan-federation-via-mesh-gateways#mesh-gateways
+[address]: /nomad/docs/job-specification/gateway#address-parameters
+[advanced configuration]: /consul/docs/connect/proxies/envoy#advanced-configuration
+[connect_timeout_ms]: /consul/docs/connect/config-entries/service-resolver#connecttimeout
+[connect_mesh_gw]: /consul/docs/connect/gateways/mesh-gateway/wan-federation-via-mesh-gateways#mesh-gateways
 [envoy docker]: https://hub.docker.com/r/envoyproxy/envoy/tags
-[ingress]: /docs/job-specification/gateway#ingress-parameters
-[proxy]: /docs/job-specification/gateway#proxy-parameters
-[linked-service]: /docs/job-specification/gateway#service-parameters-1
-[listener]: /docs/job-specification/gateway#listener-parameters
-[interpolation]: /docs/runtime/interpolation
-[service]: /docs/job-specification/gateway#service-parameters
-[service-default]: https://developer.hashicorp.com/consul/docs/connect/config-entries/service-defaults
-[sidecar_task]: /docs/job-specification/sidecar_task
-[terminating]: /docs/job-specification/gateway#terminating-parameters
-[tls]: /docs/job-specification/gateway#tls-parameters
-[mesh]: /docs/job-specification/gateway#mesh-parameters
-[meta]: /docs/job-specification/service#meta
+[ingress]: /nomad/docs/job-specification/gateway#ingress-parameters
+[proxy]: /nomad/docs/job-specification/gateway#proxy-parameters
+[linked-service]: /nomad/docs/job-specification/gateway#service-parameters-1
+[listener]: /nomad/docs/job-specification/gateway#listener-parameters
+[interpolation]: /nomad/docs/runtime/interpolation
+[service]: /nomad/docs/job-specification/gateway#service-parameters
+[service-default]: /consul/docs/connect/config-entries/service-defaults
+[sidecar_task]: /nomad/docs/job-specification/sidecar_task
+[terminating]: /nomad/docs/job-specification/gateway#terminating-parameters
+[tls]: /nomad/docs/job-specification/gateway#tls-parameters
+[mesh]: /nomad/docs/job-specification/gateway#mesh-parameters
+[meta]: /nomad/docs/job-specification/service#meta

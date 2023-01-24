@@ -17,7 +17,7 @@ workloads including Docker, non-containerized, microservice, and batch
 applications.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
-Consul](https://developer.hashicorp.com/consul/docs/concepts/security), which provides
+Consul](/consul/docs/concepts/security), which provides
 various essential features. Both of these systems provide security mechanisms
 which should be utilized to help provide [confidentiality, integrity and
 authentication](https://en.wikipedia.org/wiki/Information_security).
@@ -28,22 +28,22 @@ features for multi-tenant deployments are offered exclusively in the enterprise
 version. This documentation may need to be adapted to your deployment situation,
 but the general mechanisms for a secure Nomad deployment revolve around:
 
-- **[mTLS](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls)** -
+- **[mTLS](/nomad/tutorials/transport-security/security-enable-tls)** -
   Mutual authentication of both the TLS server and client x509 certificates
   prevents internal abuse by preventing unauthenticated access to network
   components within the cluster.
 
-- **[ACLs](https://learn.hashicorp.com/collections/nomad/access-control)** - Enables
+- **[ACLs](/nomad/tutorials/access-control)** - Enables
   authorization for authenticated connections by granting capabilities to ACL
   tokens.
 
-- **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
+- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)**
 
   - Access to read and write to a namespace can be
     controlled to allow for granular access to job information managed within a
     multi-tenant cluster.
 
-- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
+- **[Sentinel Policies](/nomad/tutorials/governance-and-policy/sentinel)**
   (**Enterprise Only**) - Sentinel policies allow for granular control over
   components such as task drivers within a cluster.
 
@@ -53,9 +53,9 @@ When thinking about Nomad, it helps to consider the following types of base
 personas when managing the security requirements for the cluster deployment. The
 granularity may change depending on your team's use case where rigorous roles
 can be accurately defined and managed using the [Nomad backend secret engine for
-Vault](https://www.vaultproject.io/docs/secrets/nomad). This is
+Vault](/vault/docs/secrets/nomad). This is
 described further with getting started steps using a development server
-[here](https://learn.hashicorp.com/collections/nomad/access-control).
+[here](/nomad/tutorials/access-control).
 
 It's important to note that there's no traditional concept of a user
 within Nomad itself.
@@ -96,7 +96,7 @@ recommendations accordingly.
 
 #### Requirements
 
-- **[mTLS enabled](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls)**
+- **[mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)**
 
   - Mutual TLS (mTLS) enables [mutual
     authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
@@ -111,12 +111,12 @@ recommendations accordingly.
     traffic being encrypted using the well known network security protocol
     [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) version 1.2,
     with a [configurable minimal
-    version](/docs/configuration/tls#tls_min_version).
+    version](/nomad/docs/configuration/tls#tls_min_version).
     Both server and client agents must be configured to validate each other's
     certificates to ensure mTLS is actually enabled. This requires appropriate
     certificates to be distributed to servers, clients, machines, or operators
     for things like CLI usage. It is recommended to use
-    [Vault](https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad)
+    [Vault](/nomad/tutorials/integrate-vault/vault-pki-nomad)
     to securely manage the certificate creation and rotation for nodes.
 
   * Agent role misconfiguration is prevented using the X.509
@@ -130,14 +130,14 @@ recommendations accordingly.
     the same CA. This also avoids any potential pitfalls with certificates using
     the IP or Hostname of nodes within a cluster.
 
-- **[ACLs enabled](https://learn.hashicorp.com/collections/nomad/access-control)** - The
+- **[ACLs enabled](/nomad/tutorials/access-control)** - The
   access control list (ACL) system provides a capability-based control
   mechanism for Nomad administrators allowing for custom roles (typically
   within Vault) to be tied to an individual human or machine operator
   identity. This allows for access to capabilities within the cluster to be
   restricted to specific users.
 
-- **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
+- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)**
 
   - This feature allows for a cluster to be shared by
     multiple teams within a company. Using this logical separation is important
@@ -145,14 +145,14 @@ recommendations accordingly.
     from conflicting with each other. This requires ACLs to be enabled in order
     to be enforced.
 
-- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
+- **[Sentinel Policies](/nomad/tutorials/governance-and-policy/sentinel)**
   (**Enterprise Only**) - [Sentinel](https://www.hashicorp.com/sentinel/) is
   a feature which enables
   [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code)
   to enforce further restrictions on operators. This is used to augment the
   built-in ACL system for fine-grained control over jobs.
 
-- **[Resource Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas)**
+- **[Resource Quotas](/nomad/tutorials/governance-and-policy/quotas)**
   (**Enterprise Only**) - Can limit a namespace's access to the underlying
   compute resources in the cluster by setting upper-limits for operators.
   Access to these resource quotas can be managed via ACLs to ensure read-only
@@ -169,14 +169,14 @@ environment.
   frequently is highly recommended to reduce damage of accidentally leaked
   credentials.
 
-  - Use [Vault](/docs/integrations/vault-integration) to create and manage
+  - Use [Vault](/nomad/docs/integrations/vault-integration) to create and manage
     dynamic, rotated credentials prevent secrets from being easily exposed
-    within the [job specification](/docs/job-specification) itself
+    within the [job specification](/nomad/docs/job-specification) itself
     which may be leaked into version control or otherwise be accidentally stored
     on disk on an operator's local machine.
 
   - Rotate credentials used by the Nomad agent; e.g. [integrate with Vault's
-    PKI secret engine](https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad) to
+    PKI secret engine](/nomad/tutorials/integrate-vault/vault-pki-nomad) to
     automatically generate and renew dynamic, unique X.509 certificates for each
     Nomad node with a short [TTL](https://en.wikipedia.org/wiki/Time_to_live).
 
@@ -190,9 +190,9 @@ environment.
   Containers](https://katacontainers.io/). These types of runtimes provide
   sandboxing features which help prevent raw access to the underlying shared
   kernel for other containers and the Nomad client agent itself. Docker driver
-  allows [customizing runtimes](/docs/drivers/docker#runtime).
+  allows [customizing runtimes](/nomad/docs/drivers/docker#runtime).
 
-- **[Disable Unused Drivers](/docs/configuration/client#driver-denylist)** -
+- **[Disable Unused Drivers](/nomad/docs/configuration/client#driver-denylist)** -
   Each driver provides different degrees of isolation, and bugs may allow
   unintended privilege escalation. If a task driver is not needed, you can
   disable it to reduce risk.
@@ -202,20 +202,20 @@ environment.
   both the Nomad hosts and applied to containers for an extra layer of
   security. Seccomp profiles are able to be passed directly to containers
   using the
-  **[`security_opt`](/docs/drivers/docker#security_opt)**
+  **[`security_opt`](/nomad/docs/drivers/docker#security_opt)**
   parameter available in the default [Docker
-  driver](/docs/drivers/docker).
+  driver](/nomad/docs/drivers/docker).
 
 - **[Service Mesh](https://www.hashicorp.com/resources/service-mesh-microservices-networking)** -
   Integrating service mesh technologies such as
   **[Consul](https://www.consul.io/)** can be extremely useful for limiting
   and efficiently load balancing network connectivity within a cluster.
 
-- **[TLS Settings](/docs/configuration/tls)** -
-  TLS settings, such as the available [cipher suites](/docs/configuration/tls#tls_cipher_suites), should be tuned to fit the needs of your environment.
+- **[TLS Settings](/nomad/docs/configuration/tls)** -
+  TLS settings, such as the available [cipher suites](/nomad/docs/configuration/tls#tls_cipher_suites), should be tuned to fit the needs of your environment.
 
-- **[HTTP Headers](/docs/configuration#http_api_response_headers)** -
-  Additional security [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers), such as [`X-XSS-Protection`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection), can be [configured](/docs/configuration#http_api_response_headers) for HTTP API responses.
+- **[HTTP Headers](/nomad/docs/configuration#http_api_response_headers)** -
+  Additional security [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers), such as [`X-XSS-Protection`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection), can be [configured](/nomad/docs/configuration#http_api_response_headers) for HTTP API responses.
 
 ### Threat Model
 
@@ -272,7 +272,7 @@ The following are not part of the threat model for client agents:
 - **Access (read or write) to the Nomad configuration directory** - Access to a
   client's configuration file can enable and disable features for a client
   including insecure drivers such as
-  [`raw_exec`](/docs/drivers/raw_exec).
+  [`raw_exec`](/nomad/docs/drivers/raw_exec).
 
 - **Memory access to a running Nomad client agent** - Direct access to the
   memory of the Nomad client agent process allows an attack to extract secrets
@@ -304,7 +304,7 @@ The following are not part of the threat model for client agents:
   and the backend configuration of these drivers should be considered to
   implement defense in depth. For example, a custom Docker driver that limits
   the ability to mount the host file system may be subverted by network access
-  to an exposed Docker daemon API through other means such as the [`raw_exec`](/docs/drivers/raw_exec)
+  to an exposed Docker daemon API through other means such as the [`raw_exec`](/nomad/docs/drivers/raw_exec)
   driver.
 
 #### External Threats
@@ -326,9 +326,9 @@ There are two main components to consider to for external threats in a Nomad clu
 
 | **Port / Protocol**  | Agents  | Description                                                                                                                                                                         |
 | -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/tutorials/nomad/web-ui-access) and [API](/api-docs) access to agents. |
+| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/nomad/tutorials/web-ui/web-ui-access) and [API](/nomad/api-docs) access to agents. |
 | **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
-| **4648** / TCP + UDP | Servers | [gossip](/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
+| **4648** / TCP + UDP | Servers | [gossip](/nomad/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
 
 
-[Variables]: /docs/concepts/variables
+[Variables]: /nomad/docs/concepts/variables

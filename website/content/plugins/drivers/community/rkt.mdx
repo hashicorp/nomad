@@ -54,7 +54,7 @@ The `rkt` driver supports the following configuration in the job spec:
 
 - `args` - (Optional) A list of arguments to the optional `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
   ```hcl
@@ -162,7 +162,7 @@ task "redis" {
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/job-specification/network).
+[networking page](/nomad/docs/job-specification/network).
 
 When you use port allocation, the image manifest needs to declare public ports and host has configured network.
 For more information, please refer to [rkt Networking](https://coreos.com/rkt/docs/latest/networking/overview).
@@ -188,7 +188,7 @@ The `rkt` driver requires the following:
 ~> Note: client configuration options will soon be deprecated. Please use [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
 
 The `rkt` driver has the following [client configuration
-options](/docs/configuration/client#options):
+options](/nomad/docs/configuration/client#options):
 
 - `rkt.volumes.enabled` - Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
@@ -222,6 +222,6 @@ job "docs" {
 This driver supports CPU and memory isolation by delegating to `rkt`. Network
 isolation is not supported as of now.
 
-[user]: /docs/job-specification/task#user
+[user]: /nomad/docs/job-specification/task#user
 [plugin-options]: #plugin-options
-[plugin-stanza]: /docs/configuration/plugin
+[plugin-stanza]: /nomad/docs/configuration/plugin

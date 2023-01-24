@@ -26,7 +26,7 @@ Membership information provided by the gossip pool allows servers to perform cro
 requests. The integrated failure detection allows Nomad to gracefully handle an entire region
 losing connectivity, or just a single server in a remote region. The gossip protocol
 is also used to detect servers in the same region to perform automatic clustering
-via the [consensus protocol](/docs/concepts/consensus).
+via the [consensus protocol](/nomad/docs/concepts/consensus).
 
 All of these features are provided by leveraging [Serf](https://www.serf.io/). It
 is used as an embedded library to provide these features. From a user perspective,

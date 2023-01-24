@@ -20,7 +20,7 @@ install Consul on your nodes alongside Nomad, or schedule it as a system job.
 Nomad does not currently run Consul for you.
 
 To enable Consul integration, please see the
-[Nomad agent Consul integration](/docs/configuration/consul)
+[Nomad agent Consul integration](/nomad/docs/configuration/consul)
 configuration.
 
 ## Automatic Clustering with Consul
@@ -28,7 +28,7 @@ configuration.
 Nomad servers and clients will be automatically informed of each other's
 existence when a running Consul cluster already exists and the Consul agent is
 installed and configured on each host. Please see the [Automatic Clustering with
-Consul](https://learn.hashicorp.com/tutorials/nomad/clustering) guide for more information.
+Consul](/nomad/tutorials/manage-clusters/clustering) guide for more information.
 
 ## Service Discovery
 
@@ -43,13 +43,13 @@ To configure a job to register with service discovery, please see the
 
 ## Dynamic Configuration
 
-Nomad's job specification includes a [`template` stanza](/docs/job-specification/template)
+Nomad's job specification includes a [`template` stanza](/nomad/docs/job-specification/template)
 that utilizes a Consul ecosystem tool called [Consul Template](https://github.com/hashicorp/consul-template). This mechanism creates a convenient way to ship configuration files
 that are populated from environment variables, Consul data, Vault secrets, or just
 general configurations within a Nomad task.
 
 For more information on Nomad's template stanza and how it leverages Consul Template,
-please see the [`template` job specification documentation](/docs/job-specification/template).
+please see the [`template` job specification documentation](/nomad/docs/job-specification/template).
 
 ## Consul Namespaces
 
@@ -121,18 +121,18 @@ service_prefix "" {
   way is to run the container in the host networking mode, or make the Consul
   agent listen on an interface in the network namespace of the container.
 
-[`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
 
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 
-[consul_acls]: https://developer.hashicorp.com/consul/docs/security/acl
+[consul_acls]: /consul/docs/security/acl
 
-[consul_namespaces]: https://developer.hashicorp.com/consul/docs/enterprise/namespaces
+[consul_namespaces]: /consul/docs/enterprise/namespaces
 
-[consul_agent_namespace]: /docs/configuration/consul#namespace
+[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
 
-[consul_group_namespace]: /docs/job-specification/group#namespace
+[consul_group_namespace]: /nomad/docs/job-specification/group#namespace
 
-[consul_run_namespace]: /docs/commands/job/run#consul-namespace
+[consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
 
-[service]: /docs/job-specification/service "Nomad service Job Specification"
+[service]: /nomad/docs/job-specification/service "Nomad service Job Specification"

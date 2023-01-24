@@ -38,7 +38,7 @@ be provided with a Vault token.**
 ### Root Token Integration
 
 If Nomad is given a [root
-token](https://www.vaultproject.io/docs/concepts/tokens#root-tokens), no
+token](/vault/docs/concepts/tokens#root-tokens), no
 further configuration is needed as Nomad can derive a token for jobs using any
 Vault policies. Best practices recommend using a periodic token with the minimal
 permissions necessary instead of providing Nomad the root vault token.
@@ -114,7 +114,7 @@ path "auth/token/renew-self" {
 }
 ```
 
-The above [`nomad-server` policy](/data/vault/nomad-server-policy.hcl) is
+The above [`nomad-server` policy](https://nomadproject.io/data/vault/nomad-server-policy.hcl) is
 available for download. Below is an example of writing this policy to Vault:
 
 ```shell-session
@@ -208,7 +208,7 @@ documentation for all possible fields and more complete documentation.
 - `renewable` - Specifies whether created tokens are renewable. **Must be set to
   `true`**. This allows Nomad to renew tokens for tasks.
 
-The above [`nomad-cluster` token role](/data/vault/nomad-cluster-role.json) is
+The above [`nomad-cluster` token role](https://nomadproject.io/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
 
 ```shell-session
@@ -222,8 +222,8 @@ $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 #### Example Configuration
 
 To make getting started easy, the basic [`nomad-server`
-policy](/data/vault/nomad-server-policy.hcl) and
-[`nomad-cluster` role](/data/vault/nomad-cluster-role.json) described above are
+policy](https://nomadproject.io/data/vault/nomad-server-policy.hcl) and
+[`nomad-cluster` role](https://nomadproject.io/data/vault/nomad-cluster-role.json) described above are
 available for download.
 
 The below example assumes Vault is accessible, unsealed and the operator has
@@ -272,7 +272,7 @@ default of `orphan = false`.
 More information about creating orphan tokens can be found in
 [Vault's Token Hierarchies and Orphan Tokens documentation][tokenhierarchy].
 
-The [`-period` flag](https://www.vaultproject.io/docs/commands/token/create#period) is required to allow the automatic renewal of the token. If this is left out, a [`vault token renew` command](https://www.vaultproject.io/docs/commands/token/renew) will need to be run manually to renew the token.
+The [`-period` flag](/vault/docs/commands/token/create#period) is required to allow the automatic renewal of the token. If this is left out, a [`vault token renew` command](/vault/docs/commands/token/renew) will need to be run manually to renew the token.
 
 The token can then be set in the server configuration's
 [`vault` stanza][config], as a command-line flag, or via an environment
@@ -406,7 +406,7 @@ The same steps can be taken to inject a Vault token from the [Retrieving the Tok
 
 Since [`allow_unauthenticated`][allow_unauth] is set to `false` job submitters will need to provide a sufficiently privileged token when submitting a job.
 
-[allow_unauth]: /docs/configuration/vault#allow_unauthenticated
+[allow_unauth]: /nomad/docs/configuration/vault#allow_unauthenticated
 
 The example job file below specifies to use the `engineering` Namespace in Vault. It will then read the value at secret/foo and fetch the value for key `bar`
 
@@ -463,13 +463,13 @@ The token can then be submitted with our job
 $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 ```
 
-[auth]: https://www.vaultproject.io/docs/auth/token 'Vault Authentication Backend'
-[config]: /docs/configuration/vault 'Nomad Vault Configuration Block'
-[createfromrole]: /docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
-[template]: /docs/job-specification/template 'Nomad template Job Specification'
+[auth]: /vault/docs/auth/token 'Vault Authentication Backend'
+[config]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
+[createfromrole]: /nomad/docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
+[template]: /nomad/docs/job-specification/template 'Nomad template Job Specification'
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
-[vault-spec]: /docs/job-specification/vault 'Nomad Vault Job Specification'
-[tokenhierarchy]: https://www.vaultproject.io/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
-[vault-secrets-version]: https://www.vaultproject.io/docs/secrets/kv 'KV Secrets Engine'
-[vault-kv-templates]: /docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'
-[ent]: /docs/integrations/vault-integration#enterprise-configuration
+[vault-spec]: /nomad/docs/job-specification/vault 'Nomad Vault Job Specification'
+[tokenhierarchy]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
+[vault-secrets-version]: /vault/docs/secrets/kv 'KV Secrets Engine'
+[vault-kv-templates]: /nomad/docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'
+[ent]: /nomad/docs/integrations/vault-integration#enterprise-configuration

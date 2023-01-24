@@ -42,7 +42,7 @@ server {
 
 - `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
   for server-specific data, including the replicated log. By default, this is
-  the top-level [data_dir](/docs/configuration#data_dir) suffixed with "server",
+  the top-level [data_dir](/nomad/docs/configuration#data_dir) suffixed with "server",
   like `"/opt/nomad/server"`. The top-level option must be set, even when
   setting this value. This must be an absolute path.
 
@@ -186,7 +186,7 @@ server {
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
-  `nomad.raft.leader.lastContact` metrics](/docs/operations/metrics-reference) are a good
+  `nomad.raft.leader.lastContact` metrics](/nomad/docs/operations/metrics-reference) are a good
   indicator of how often leader elections occur and Raft latency.
 
 - `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
@@ -210,7 +210,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+  information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -236,7 +236,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+  For more information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
@@ -266,7 +266,7 @@ server {
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
   addresses, agent startup will fail. See the [server address
-  format](/docs/configuration/server_join#server-address-format)
+  format](/nomad/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join stanza][server-join].
 
@@ -329,7 +329,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/tutorials/nomad/clustering).
+[automatic Nomad bootstrapping documentation](/nomad/tutorials/manage-clusters/clustering).
 
 ### Restricting Schedulers
 
@@ -465,14 +465,14 @@ election was due to a datacenter-wide failure affecting Clients, it will be 30
 minutes before Nomad recognizes that they are `down` and reschedules their
 work.
 
-[encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
-[server-join]: /docs/configuration/server_join 'Server Join'
-[update-scheduler-config]: /api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
-[bootstrapping a cluster]: /docs/faq#bootstrapping
+[encryption]: /nomad/tutorials/transport-security/security-gossip-encryption 'Nomad Encryption Overview'
+[server-join]: /nomad/docs/configuration/server_join 'Server Join'
+[update-scheduler-config]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
+[bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
-[monitoring_nomad_progress]: /docs/operations/monitoring-nomad#progress
-[`nomad operator keygen`]: /docs/commands/operator/keygen
-[search]: /docs/configuration/search
-[encryption key]: /docs/operations/key-management
-[max_client_disconnect]: /docs/job-specification/group#max-client-disconnect
+[monitoring_nomad_progress]: /nomad/docs/operations/monitoring-nomad#progress
+[`nomad operator keygen`]: /nomad/docs/commands/operator/keygen
+[search]: /nomad/docs/configuration/search
+[encryption key]: /nomad/docs/operations/key-management
+[max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem

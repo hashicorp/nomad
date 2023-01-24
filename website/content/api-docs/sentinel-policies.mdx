@@ -9,9 +9,9 @@ description: >-
 # Sentinel Policies HTTP API
 
 The `/sentinel/policies` and `/sentinel/policy/` endpoints are used to manage Sentinel policies.
-For more details about Sentinel policies, please see the [Sentinel Policy Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel).
+For more details about Sentinel policies, please see the [Sentinel Policy Guide](/nomad/tutorials/governance-and-policy/sentinel).
 
-Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/collections/nomad/access-control).
+Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/nomad/tutorials/access-control).
 
 <EnterpriseAlert>
   This API endpoint and functionality only exists in Nomad Enterprise. This is
@@ -28,8 +28,8 @@ to the region, and may lag behind the authoritative region.
 | `GET`  | `/sentinel/policies` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
@@ -68,8 +68,8 @@ authoritative region.
 | `POST` | `/sentinel/policy/:policy_name` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -120,8 +120,8 @@ replicated to the region, and may lag behind the authoritative region.
 | `GET`  | `/sentinel/policy/:policy_name` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
@@ -159,8 +159,8 @@ authoritative region.
 | `DELETE` | `/sentinel/policy/:policy_name` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |

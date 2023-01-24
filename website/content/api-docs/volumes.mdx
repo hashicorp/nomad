@@ -18,8 +18,8 @@ This endpoint lists all volumes.
 | `GET`  | `/v1/volumes` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -51,7 +51,7 @@ The table below shows this endpoint's support for
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering)
   used to filter the results. Consider using pagination or a query parameter to
   reduce resource used to serve the request.
 
@@ -104,8 +104,8 @@ This endpoint reads information about a specific volume.
 | `GET`  | `/v1/volume/csi/:volume_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -286,8 +286,8 @@ to register an already registered volume.
 | `PUT`  | `/v1/volume/csi/:volume_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -353,8 +353,8 @@ the `CREATE_DELETE_VOLUME` capability support this endpoint.
 | `PUT`  | `/v1/volume/csi/:volume_id/create` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -425,8 +425,8 @@ deregister a volume that is in use.
 | `DELETE` | `/v1/volume/csi/:volume_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -463,8 +463,8 @@ interface with the `CREATE_DELETE_VOLUME` capability support this endpoint.
 | `DELETE` | `/v1/volume/csi/:volume_id/delete` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -500,8 +500,8 @@ error to detach a volume that is in use.
 | `DELETE` | `/v1/volume/csi/:volume_id/detach` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -536,8 +536,8 @@ implement the [Controller][csi_plugins_internals] interface with the
 | `GET`  | `/v1/volumes/external` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -603,8 +603,8 @@ provider. Only CSI plugins that implement the
 | `POST`    | `/v1/volumes/snapshot`           | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -671,8 +671,8 @@ provider. Only CSI plugins that implement the
 | `DELETE` | `/v1/volumes/snapshot` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
@@ -714,8 +714,8 @@ with the `LIST_SNAPSHOTS` capability support this endpoint.
 | `GET`  | `/v1/volumes/snapshot` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -778,6 +778,6 @@ $ curl \
 ```
 
 [csi]: https://github.com/container-storage-interface/spec
-[csi_plugin]: /docs/job-specification/csi_plugin
-[csi_plugins_internals]: /docs/concepts/plugins/csi#csi-plugins
+[csi_plugin]: /nomad/docs/job-specification/csi_plugin
+[csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
 [Create Volume]: #create-volume

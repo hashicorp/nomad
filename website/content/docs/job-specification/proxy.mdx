@@ -14,7 +14,7 @@ description: |-
 
 The `proxy` stanza allows configuring various options for the sidecar proxy
 managed by Nomad for [Consul
-Connect](/docs/integrations/consul-connect). It is valid only
+Connect](/nomad/docs/integrations/consul-connect). It is valid only
 within the context of a `sidecar_service` stanza.
 
 ```hcl
@@ -58,10 +58,10 @@ job "countdash" {
 - `upstreams` <code>([upstreams][]: nil)</code> - Used to configure details of each upstream service that
   this sidecar proxy communicates with.
 - `expose` <code>([expose]: nil)</code> - Used to configure expose path configuration for Envoy.
-  See Consul's [Expose Paths Configuration Reference](https://developer.hashicorp.com/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference)
+  See Consul's [Expose Paths Configuration Reference](/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference)
   for more information.
 - `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and
-  passed directly to Consul. See [Consul Connect documentation](https://developer.hashicorp.com/consul/docs/connect/proxies/envoy#dynamic-configuration)
+  passed directly to Consul. See [Consul Connect documentation](/consul/docs/connect/proxies/envoy#dynamic-configuration)
   for details. Keys and values support [runtime variable interpolation][interpolation].
 
 ## `proxy` Examples
@@ -79,10 +79,10 @@ sidecar_service {
 }
 ```
 
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
-[group]: /docs/job-specification/group 'Nomad group Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
-[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
-[upstreams]: /docs/job-specification/upstreams 'Nomad upstream config Specification'
-[expose]: /docs/job-specification/expose 'Nomad proxy expose configuration'
+[job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
+[group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
+[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
+[sidecar_service]: /nomad/docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
+[upstreams]: /nomad/docs/job-specification/upstreams 'Nomad upstream config Specification'
+[expose]: /nomad/docs/job-specification/expose 'Nomad proxy expose configuration'

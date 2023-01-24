@@ -11,7 +11,7 @@ description: |-
 
 This endpoint generates and returns an atomic, point-in-time snapshot of the
 Nomad server state for disaster recovery. Snapshots include all state managed by Nomad's
-Raft [consensus protocol](/docs/concepts/consensus).
+Raft [consensus protocol](/nomad/docs/concepts/consensus).
 
 Snapshots are exposed as gzipped tar archives which internally contain the Raft
 metadata required to restore, as well as a binary serialized version of the
@@ -26,8 +26,8 @@ restore.
 | `GET`  | `/v1/operator/snapshot` | `200 application/x-gzip` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -65,8 +65,8 @@ call to the `GET` method.
 | `PUT`  | `/v1/operator/snapshot` | `200 text/plain (empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |

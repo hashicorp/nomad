@@ -137,7 +137,7 @@ Connect][connect] integration.
 - `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
-  [documentation](https://developer.hashicorp.com/consul/docs/concepts/anti-entropy#enable-tag-override)
+  [documentation](/consul/docs/concepts/anti-entropy#enable-tag-override)
   for more information. Only available where `provider = "consul"`.
 
 - `address` `(string: <optional>)` - Specifies a custom address to advertise in
@@ -285,7 +285,7 @@ network {
 
 ### Using Driver Address Mode
 
-The [Docker](/docs/drivers/docker#network_mode) driver supports the `driver`
+The [Docker](/nomad/docs/drivers/docker#network_mode) driver supports the `driver`
 setting for the `address_mode` parameter in both `service` and `check` stanzas.
 The driver address mode allows advertising and health checking the IP and port
 assigned to a task by the driver. This way, if you're using a network plugin like
@@ -397,7 +397,7 @@ directly since Nomad isn't managing any port assignments.
 
 ### IPv6 Docker containers
 
-The [Docker](/docs/drivers/docker#advertise_ipv6_address) driver supports the
+The [Docker](/nomad/docs/drivers/docker#advertise_ipv6_address) driver supports the
 `advertise_ipv6_address` parameter in its configuration.
 
 Services will automatically advertise the IPv6 address when `advertise_ipv6_address`
@@ -499,21 +499,21 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 ---
 
-[check]: /docs/job-specification/check
-[check_restart_stanza]: /docs/job-specification/check_restart
-[consul_grpc]: https://developer.hashicorp.com/consul/api-docs/agent/check#grpc
-[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
-[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[qemu]: /docs/drivers/qemu 'Nomad QEMU Driver'
-[restart_stanza]: /docs/job-specification/restart 'restart stanza'
-[connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
-[type]: /docs/job-specification/service#type
-[shutdowndelay]: /docs/job-specification/task#shutdown_delay
-[killsignal]: /docs/job-specification/task#kill_signal
-[killtimeout]: /docs/job-specification/task#kill_timeout
-[service_task]: /docs/job-specification/service#task-1
-[network_mode]: /docs/job-specification/network#mode
-[on_update]: /docs/job-specification/service#on_update
-[tagged_addresses]: https://developer.hashicorp.com/consul/docs/discovery/services#tagged-addresses
+[check]: /nomad/docs/job-specification/check
+[check_restart_stanza]: /nomad/docs/job-specification/check_restart
+[consul_grpc]: /consul/api-docs/agent/check#grpc
+[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
+[service-discovery]: /nomad/docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
+[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
+[qemu]: /nomad/docs/drivers/qemu 'Nomad QEMU Driver'
+[restart_stanza]: /nomad/docs/job-specification/restart 'restart stanza'
+[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[type]: /nomad/docs/job-specification/service#type
+[shutdowndelay]: /nomad/docs/job-specification/task#shutdown_delay
+[killsignal]: /nomad/docs/job-specification/task#kill_signal
+[killtimeout]: /nomad/docs/job-specification/task#kill_timeout
+[service_task]: /nomad/docs/job-specification/service#task-1
+[network_mode]: /nomad/docs/job-specification/network#mode
+[on_update]: /nomad/docs/job-specification/service#on_update
+[tagged_addresses]: /consul/docs/discovery/services#tagged-addresses

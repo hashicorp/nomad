@@ -62,7 +62,7 @@ all groups (and tasks) in the job.
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
   to examine for the constraint. This can be any of the [Nomad interpolated
-  values](/docs/runtime/interpolation#interpreted_node_vars).
+  values](/nomad/docs/runtime/interpolation#interpreted_node_vars).
 
 - `operator` `(string: "=")` - Specifies the comparison operator. If the operator
   is one of `>, >=, <, <=`, the ordering is compared numerically if the operands
@@ -92,7 +92,7 @@ all groups (and tasks) in the job.
 - `value` `(string: "")` - Specifies the value to compare the attribute against
   using the specified operation. This can be a literal value, another attribute,
   or any [Nomad interpolated
-  values](/docs/runtime/interpolation#interpreted_node_vars).
+  values](/nomad/docs/runtime/interpolation#interpreted_node_vars).
 
 ### `operator` Values
 
@@ -308,11 +308,11 @@ constraint {
 }
 ```
 
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
-[group]: /docs/job-specification/group 'Nomad group Job Specification'
-[client-meta]: /docs/configuration/client#meta 'Nomad meta Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
-[node-variables]: /docs/runtime/interpolation#node-variables- 'Nomad interpolation-Node variables'
-[client-meta]: /docs/configuration/client#custom-metadata-network-speed-and-node-class 'Nomad Custom Metadata, Network Speed, and Node Class'
+[job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
+[group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
+[client-meta]: /nomad/docs/configuration/client#meta 'Nomad meta Job Specification'
+[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
+[node-variables]: /nomad/docs/runtime/interpolation#node-variables- 'Nomad interpolation-Node variables'
+[client-meta]: /nomad/docs/configuration/client#custom-metadata-network-speed-and-node-class 'Nomad Custom Metadata, Network Speed, and Node Class'
 [semver2]: https://semver.org/spec/v2.0.0.html 'Semantic Versioning 2.0'

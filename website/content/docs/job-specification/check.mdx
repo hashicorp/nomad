@@ -114,7 +114,7 @@ job "example" {
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
-- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/nomad/docs/job-specification/expose#path-parameters)
   should be automatically generated for this check. Only compatible with
   Connect-enabled task-group services using the default Connect proxy. If set, check
   [`type`][type] must be `http` or `grpc`, and check `name` must be set.
@@ -434,9 +434,9 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
   does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_stanza]: /docs/job-specification/check_restart
-[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[service]: /docs/job-specification/service
-[service_task]: /docs/job-specification/service#task-1
-[on_update]: /docs/job-specification/service#on_update
+[check_restart_stanza]: /nomad/docs/job-specification/check_restart
+[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
+[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
+[service]: /nomad/docs/job-specification/service
+[service_task]: /nomad/docs/job-specification/service#task-1
+[on_update]: /nomad/docs/job-specification/service#on_update

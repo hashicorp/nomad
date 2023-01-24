@@ -19,7 +19,7 @@ can set their values using CLI options and environment variables.
 variable is being discussed. Other kinds of variables in Nomad include
 _environment variables_ (set by the shell where Nomad runs) and _expression
 variables_ (used to indirectly represent a value in an
-[expression](/docs/job-specification/hcl2/expressions)).
+[expression](/nomad/docs/job-specification/hcl2/expressions)).
 
 ## Declaring an Input Variable
 
@@ -79,7 +79,7 @@ configuration.
 ## Using Input Variable Values
 
 Within the job that declared a variable, its value can be accessed from within
-[expressions](/docs/job-specification/hcl2/expressions) as `var.<NAME>`, where
+[expressions](/nomad/docs/job-specification/hcl2/expressions) as `var.<NAME>`, where
 `<NAME>` matches the label given in the declaration block:
 
 ```hcl
@@ -97,7 +97,7 @@ variable or local.
 ## Type Constraints
 
 The `type` argument in a `variable` block allows you to restrict the [type of
-value](/docs/job-specification/hcl2/expressions#types-and-values) that will be
+value](/nomad/docs/job-specification/hcl2/expressions#types-and-values) that will be
 accepted as the value for a variable. If no type constraint is set then a
 value of any type is accepted.
 
@@ -123,7 +123,7 @@ The type constructors allow you to specify complex types such as collections:
 The keyword `any` may be used to indicate that any type is acceptable. For more
 information on the meaning and behavior of these different types, as well as
 detailed information about automatic conversion of complex types, see [Type
-Constraints](https://www.terraform.io/language/expressions/type-constraints).
+Constraints](/terraform/language/expressions/type-constraints).
 
 If both the `type` and `default` arguments are specified, the given default
 value must be convertible to the specified type.
@@ -264,7 +264,7 @@ case letters as in the above example.
 ### Complex-typed Values
 
 When variable values are provided in a variable definitions file, Nomad's
-[usual syntax](/docs/job-specification/hcl2/expressions) can be used to assign
+[usual syntax](/nomad/docs/job-specification/hcl2/expressions) can be used to assign
 complex-typed values, like lists and maps.
 
 Some special rules apply to the `-var` command line option and to environment

@@ -9,10 +9,10 @@ description: The "connect" stanza allows specifying options for Consul Connect i
 <Placement groups={['job', 'group', 'service', 'connect']} />
 
 The `connect` stanza allows configuring various options for
-[Consul Connect](/docs/integrations/consul-connect). It is
+[Consul Connect](/nomad/docs/integrations/consul-connect). It is
 valid only within the context of a service definition at the task group
 level. For using `connect` when Consul ACLs are enabled, be sure to read through
-the [Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh)
+the [Secure Nomad Jobs with Consul Connect](/nomad/tutorials/integrate-consul/consul-service-mesh)
 guide.
 
 ```hcl
@@ -50,7 +50,7 @@ Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
 - `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](https://developer.hashicorp.com/consul/docs/connect/native) applications.
+  [Connect Native](/consul/docs/connect/native) applications.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
   configure the sidecar service created by Nomad for Consul Connect.
@@ -66,7 +66,7 @@ or `gateway` may be realized per `connect` block.
 ### Using Connect Native
 
 The following example is a minimal service stanza for a
-[Consul Connect Native](https://developer.hashicorp.com/consul/docs/connect/native)
+[Consul Connect Native](/consul/docs/connect/native)
 application implemented by a task named `generate`.
 
 ```hcl
@@ -239,24 +239,24 @@ job "ingress-demo" {
 
 ### Limitations
 
-[gateway]: /docs/job-specification/gateway
+[gateway]: /nomad/docs/job-specification/gateway
 
 [gh-7221]: https://github.com/hashicorp/nomad/issues/7221
 
-[group]: /docs/job-specification/group "Nomad group Job Specification"
+[group]: /nomad/docs/job-specification/group "Nomad group Job Specification"
 
-[interpolation]: /docs/runtime/interpolation "Nomad interpolation"
+[interpolation]: /nomad/docs/runtime/interpolation "Nomad interpolation"
 
-[job]: /docs/job-specification/job "Nomad job Job Specification"
+[job]: /nomad/docs/job-specification/job "Nomad job Job Specification"
 
-[native]: https://developer.hashicorp.com/consul/docs/connect/native
+[native]: /consul/docs/connect/native
 
-[service_task]: /docs/job-specification/service#task-1 "Nomad service task"
+[service_task]: /nomad/docs/job-specification/service#task-1 "Nomad service task"
 
-[sidecar_service]: /docs/job-specification/sidecar_service "Nomad sidecar service Specification"
+[sidecar_service]: /nomad/docs/job-specification/sidecar_service "Nomad sidecar service Specification"
 
-[sidecar_task]: /docs/job-specification/sidecar_task "Nomad sidecar task config Specification"
+[sidecar_task]: /nomad/docs/job-specification/sidecar_task "Nomad sidecar task config Specification"
 
-[task]: /docs/job-specification/task "Nomad task Job Specification"
+[task]: /nomad/docs/job-specification/task "Nomad task Job Specification"
 
-[upstreams]: /docs/job-specification/upstreams "Nomad sidecar service upstreams Specification"
+[upstreams]: /nomad/docs/job-specification/upstreams "Nomad sidecar service upstreams Specification"

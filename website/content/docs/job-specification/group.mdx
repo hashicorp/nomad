@@ -33,11 +33,11 @@ job "docs" {
 - `spread` <code>([Spread][spread]: nil)</code> - This can be provided
   multiple times to define criteria for spreading allocations across a
   node attribute or metadata. See the
-  [Nomad spread reference](/docs/job-specification/spread) for more details.
+  [Nomad spread reference](/nomad/docs/job-specification/spread) for more details.
 
 - `count` `(int)` - Specifies the number of instances that should be running
   under for this group. This value must be non-negative. This defaults to the
-  `min` value specified in the [`scaling`](/docs/job-specification/scaling)
+  `min` value specified in the [`scaling`](/nomad/docs/job-specification/scaling)
   block, if present; otherwise, this defaults to `1`.
 
 - `consul` <code>([Consul][consul]: nil)</code> - Specifies Consul configuration
@@ -67,7 +67,7 @@ job "docs" {
   type, which can be found in the [restart stanza documentation][restart].
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with Nomad
-  or [Consul](/docs/configuration/consul) for service discovery. Nomad
+  or [Consul](/nomad/docs/configuration/consul) for service discovery. Nomad
   automatically registers each service when an allocation is started and
   de-registers them when the allocation is destroyed.
 
@@ -77,9 +77,9 @@ job "docs" {
   would fail health checks once they receive a shutdown signal. Alternatively,
   `shutdown_delay` may be set to give in-flight requests time to complete
   before shutting down. A group level `shutdown_delay` will run regardless
-  if there are any defined group [services](/docs/job-specification/group#service)
+  if there are any defined group [services](/nomad/docs/job-specification/group#service)
   and only applies to these services. In addition, tasks may have their own
-  [`shutdown_delay`](/docs/job-specification/task#shutdown_delay) which waits
+  [`shutdown_delay`](/nomad/docs/job-specification/task#shutdown_delay) which waits
   between de-registering task services and stopping the task.
 
 - `stop_after_client_disconnect` `(string: "")` - Specifies a duration after
@@ -336,25 +336,25 @@ where some servers are not upgraded to 1.3.0, the `max_client_disconnect`
 flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
 `datacenter` of Nomad clients where all clients are not 1.3.0 or above is unsupported.
 
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
-[consul]: /docs/job-specification/group#consul-parameters
-[consul_namespace]: /docs/commands/job/run#consul-namespace
-[spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
-[`heartbeat_grace`]: /docs/configuration/server#heartbeat_grace
-[`max_client_disconnect`]: /docs/job-specification/group#max_client_disconnect
-[max-client-disconnect]: /docs/job-specification/group#max-client-disconnect 'the example code below'
-[`stop_after_client_disconnect`]: /docs/job-specification/group#stop_after_client_disconnect
-[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
-[migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
-[restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
-[service]: /docs/job-specification/service 'Nomad service Job Specification'
-[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[update]: /docs/job-specification/update 'Nomad update Job Specification'
-[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
-[volume]: /docs/job-specification/volume 'Nomad volume Job Specification'
+[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
+[job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
+[constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
+[consul]: /nomad/docs/job-specification/group#consul-parameters
+[consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
+[spread]: /nomad/docs/job-specification/spread 'Nomad spread Job Specification'
+[affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
+[ephemeraldisk]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
+[`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
+[`max_client_disconnect`]: /nomad/docs/job-specification/group#max_client_disconnect
+[max-client-disconnect]: /nomad/docs/job-specification/group#max-client-disconnect 'the example code below'
+[`stop_after_client_disconnect`]: /nomad/docs/job-specification/group#stop_after_client_disconnect
+[meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
+[migrate]: /nomad/docs/job-specification/migrate 'Nomad migrate Job Specification'
+[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
+[reschedule]: /nomad/docs/job-specification/reschedule 'Nomad reschedule Job Specification'
+[restart]: /nomad/docs/job-specification/restart 'Nomad restart Job Specification'
+[service]: /nomad/docs/job-specification/service 'Nomad service Job Specification'
+[service_discovery]: /nomad/docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
+[vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
+[volume]: /nomad/docs/job-specification/volume 'Nomad volume Job Specification'

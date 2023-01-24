@@ -82,7 +82,7 @@ Below is a table documenting common node properties:
 | `${attr.cpu.reservablecores}`                      | Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.          |
 | `${attr.cpu.totalcompute}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                |
 | `${attr.consul.datacenter}`                        | The Consul datacenter of the client (if Consul is found)                                                                                               |
-| `${attr.driver.<property>}`                              | See the [task drivers](/docs/drivers) for property documentation                                                                                       |
+| `${attr.driver.<property>}`                              | See the [task drivers](/nomad/docs/drivers) for property documentation                                                                                       |
 | `${attr.unique.hostname}`                          | Hostname of the client                                                                                                                                 |
 | `${attr.unique.network.ip-address}`                | The IP address fingerprinted by the client and from which task ports are allocated                                                                     |
 | `${attr.kernel.arch}`                              | Kernel architecture of the client (e.g. `x86_64`, `aarch64`)                                                                                           |

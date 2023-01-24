@@ -14,13 +14,13 @@ Only anonymous information, which cannot be used to identify the user or host, i
 sent to Checkpoint. An anonymous ID is sent which helps de-duplicate warning messages.
 This anonymous ID can be disabled. Using the Checkpoint service is optional and can be disabled.
 
-See [`disable_anonymous_signature`](/docs/configuration#disable_anonymous_signature)
-and [`disable_update_check`](/docs/configuration#disable_update_check).
+See [`disable_anonymous_signature`](/nomad/docs/configuration#disable_anonymous_signature)
+and [`disable_update_check`](/nomad/docs/configuration#disable_update_check).
 
 ## Q: Is Nomad eventually or strongly consistent?
 
-Nomad makes use of both a [consensus protocol](/docs/concepts/consensus) and
-a [gossip protocol](/docs/concepts/gossip). The consensus protocol is strongly
+Nomad makes use of both a [consensus protocol](/nomad/docs/concepts/consensus) and
+a [gossip protocol](/nomad/docs/concepts/gossip). The consensus protocol is strongly
 consistent, and is used for all state replication and scheduling. The gossip protocol
 is used to manage the addresses of servers for automatic clustering and multi-region
 federation. This means all data that is managed by Nomad is strongly consistent.
@@ -96,9 +96,9 @@ machine you will need to use the network interface IP address.
 $ curl http://192.168.0.10:8080
 ```
 
-[consul_dc]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#datacenter
-[consul_fed]: https://learn.hashicorp.com/tutorials/consul/federation-gossip-wan
-[nomad_region]: /docs/configuration#datacenter
-[`bootstrap_expect`]: /docs/configuration/server#bootstrap_expect
-[`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
+[consul_dc]: /consul/docs/agent/config/config-files#datacenter
+[consul_fed]: /consul/tutorials/networking/federation-gossip-wan
+[nomad_region]: /nomad/docs/configuration#datacenter
+[`bootstrap_expect`]: /nomad/docs/configuration/server#bootstrap_expect
+[`default_scheduler_config`]: /nomad/docs/configuration/server#default_scheduler_config
 [wsl2-docker]: https://docs.docker.com/docker-for-windows/wsl/
