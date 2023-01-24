@@ -1351,7 +1351,7 @@ func TestTelemetry_Parse(t *testing.T) {
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
-		disable_rpc_rate_metric_labels = true
+		disable_rpc_rate_metrics_labels = true
 	}`), 0600)
 	require.NoError(err)
 
