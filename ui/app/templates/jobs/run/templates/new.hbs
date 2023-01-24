@@ -44,7 +44,7 @@
         />
         <footer class="button-group">
             <Hds::Button @text="Save" disabled={{is-empty this.templateName}} {{on "click" this.save}} data-test-save-template />
-            <Hds::Button @text="Cancel" @route="jobs.run.templates" @color="critical" data-test-cancel-template />
+            <Hds::Button @text="Cancel" @route="jobs.run" @color="critical" data-test-cancel-template />
         </footer>
     </form>
 </section>
