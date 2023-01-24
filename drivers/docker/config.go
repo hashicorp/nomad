@@ -364,6 +364,7 @@ var (
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
+		"isolation":          hclspec.NewAttr("isolation", "string", false),
 		"labels":             hclspec.NewAttr("labels", "list(map(string))", false),
 		"load":               hclspec.NewAttr("load", "string", false),
 		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
@@ -446,6 +447,7 @@ type TaskConfig struct {
 	IPCMode           string             `codec:"ipc_mode"`
 	IPv4Address       string             `codec:"ipv4_address"`
 	IPv6Address       string             `codec:"ipv6_address"`
+	Isolation         string             `codec:"isolation"`
 	Labels            hclutils.MapStrStr `codec:"labels"`
 	LoadImage         string             `codec:"load"`
 	Logging           DockerLogging      `codec:"logging"`

@@ -157,6 +157,9 @@ config {
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
+- `isolation` - (Optional) One of `"hyper-v"`, `"process"`, or `"default"`
+  (which is the same as `process`). Enables [Windows isolation][] modes.
+
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
 
@@ -1208,3 +1211,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [`bridge`]: /docs/job-specification/network#bridge
 [network stanza]: /docs/job-specification/network#bridge-mode
 [`pids_limit`]: /docs/drivers/docker#pids_limit
+[Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
