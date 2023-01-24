@@ -38,7 +38,9 @@ export default class RunRoute extends Route {
           keyValues: [{ key: 'template', value: json }],
         });
       }
-      return this.store.createRecord('variable');
+
+      // Override Default Value
+      return this.store.createRecord('variable', { keyValues: [] });
     } catch (e) {
       notifyForbidden(this)(e);
     }
