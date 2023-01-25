@@ -73,15 +73,19 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward("ACL.UpsertPolicies", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -117,15 +121,19 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward("ACL.DeletePolicies", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -152,14 +160,17 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_policies"}, time.Now())
 
 	// Check management level permissions
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil {
@@ -242,13 +253,17 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policy"}, time.Now())
 
 	// Check management level permissions
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil {
@@ -513,7 +528,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	// Validate non-zero set of tokens
 	if len(args.Tokens) == 0 {
 		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one token")
@@ -545,10 +560,13 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	if done, err := a.srv.forward(structs.ACLUpsertTokensRPCMethod, args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -674,7 +692,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	// Validate non-zero set of tokens
 	if len(args.AccessorIDs) == 0 {
 		return structs.NewErrRPCCoded(400, "must specify as least one token")
@@ -683,10 +701,13 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -753,13 +774,17 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.ListTokens", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -837,12 +862,16 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.GetToken", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return authErr
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_token"}, time.Now())
 
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -898,13 +927,17 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.GetTokens", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return authErr
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -1134,13 +1167,16 @@ func (a *ACL) UpsertRoles(
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	// This endpoint always forwards to the authoritative region as ACL roles
 	// are global.
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward(structs.ACLUpsertRolesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_roles"}, time.Now())
 
@@ -1151,8 +1187,8 @@ func (a *ACL) UpsertRoles(
 			minACLRoleVersion)
 	}
 
-	// Only tokens with management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Only management level permissions can create ACL roles.
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -1278,12 +1314,17 @@ func (a *ACL) DeleteRolesByID(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
+
 	// This endpoint always forwards to the authoritative region as ACL roles
 	// are global.
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward(structs.ACLDeleteRolesByIDRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_roles"}, time.Now())
 
@@ -1294,8 +1335,8 @@ func (a *ACL) DeleteRolesByID(
 			minACLRoleVersion)
 	}
 
-	// Only tokens with management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Only management level permissions can create ACL roles.
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -1330,13 +1371,17 @@ func (a *ACL) ListRoles(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLListRolesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_roles"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil {
@@ -1481,13 +1526,17 @@ func (a *ACL) GetRoleByID(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLGetRoleByIDRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_id"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil {
@@ -1565,14 +1614,17 @@ func (a *ACL) GetRoleByName(
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLGetRoleByNameRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_role_name"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil {
@@ -1706,10 +1758,14 @@ func (a *ACL) UpsertAuthMethods(
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	args.Region = a.srv.config.AuthoritativeRegion
 
 	if done, err := a.srv.forward(structs.ACLUpsertAuthMethodsRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_auth_methods"}, time.Now())
 
@@ -1721,7 +1777,7 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -1810,9 +1866,13 @@ func (a *ACL) DeleteAuthMethods(
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(
 		structs.ACLDeleteAuthMethodsRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_auth_methods_by_name"}, time.Now())
 
@@ -1824,7 +1884,7 @@ func (a *ACL) DeleteAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -1906,14 +1966,18 @@ func (a *ACL) GetAuthMethod(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(
 		structs.ACLGetAuthMethodRPCMethod, args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveToken(args.AuthToken)
+	acl, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
@@ -2037,8 +2101,12 @@ func (a *ACL) UpsertBindingRules(
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLUpsertBindingRulesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_binding_rules"}, time.Now())
 
@@ -2050,7 +2118,7 @@ func (a *ACL) UpsertBindingRules(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -2164,8 +2232,12 @@ func (a *ACL) DeleteBindingRules(
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLDeleteBindingRulesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_binding_rules"}, time.Now())
 
@@ -2177,7 +2249,7 @@ func (a *ACL) DeleteBindingRules(
 	}
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -2213,13 +2285,17 @@ func (a *ACL) ListBindingRules(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLListBindingRulesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_binding_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -2267,13 +2343,17 @@ func (a *ACL) GetBindingRules(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLGetBindingRulesRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -2317,13 +2397,17 @@ func (a *ACL) GetBindingRule(
 		return aclDisabled
 	}
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLGetBindingRuleRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_binding_rule"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if acl, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
