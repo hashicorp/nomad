@@ -293,8 +293,9 @@ export default class ClientController extends Controller.extend(
     console.log("VALID KEY?", key, this.model.meta);
   }
 
-  @action async addDynamicMetaData() {
+  @action async addDynamicMetaData(e) {
     try {
+      e.preventDefault();
       await this.model.addMeta({[this.newMetaData.key]: this.newMetaData.value});
       // Clear newMetaData
       this.newMetaData = {
