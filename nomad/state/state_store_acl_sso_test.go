@@ -227,7 +227,7 @@ func TestStateStore_GetACLAuthMethodByName(t *testing.T) {
 	must.Equal(t, mockedACLAuthMethods[1], authMethod)
 }
 
-func TestStateStore_GetDefaultACLAuthMethodByType(t *testing.T) {
+func TestStateStore_GetDefaultACLAuthMethod(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
@@ -240,16 +240,12 @@ func TestStateStore_GetDefaultACLAuthMethodByType(t *testing.T) {
 	mockedACLAuthMethods := []*structs.ACLAuthMethod{am1, am2}
 	must.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
 
-	// Get the default method for OIDC
+	// Get the default method
 	ws := memdb.NewWatchSet()
-	defaultOIDCMethod, err := testState.GetDefaultACLAuthMethodByType(ws, "OIDC")
+	defaultACLAuthMethod, err := testState.GetDefaultACLAuthMethod(ws)
 	must.NoError(t, err)
 
-	must.True(t, defaultOIDCMethod.Default)
-	must.Eq(t, am1, defaultOIDCMethod)
+	must.True(t, defaultACLAuthMethod.Default)
+	must.Eq(t, am1, defaultACLAuthMethod)
 
-	// Get the default method for jwt (should not return anything)
-	defaultJWTMethod, err := testState.GetDefaultACLAuthMethodByType(ws, "JWT")
-	must.NoError(t, err)
-	must.Nil(t, defaultJWTMethod)
 }

@@ -1753,13 +1753,13 @@ func (a *ACL) UpsertAuthMethods(
 		}
 
 		// Are we trying to upsert a default auth method? Check if there isn't
-		// a default one for that very type already.
+		// a default one already.
 		if authMethod.Default {
-			existingMethodsDefaultmethod, _ := stateSnapshot.GetDefaultACLAuthMethodByType(nil, authMethod.Type)
-			if existingMethodsDefaultmethod != nil && existingMethodsDefaultmethod.Name != authMethod.Name {
+			existingMethodsDefaultMethod, _ := stateSnapshot.GetDefaultACLAuthMethod(nil)
+			if existingMethodsDefaultMethod != nil && existingMethodsDefaultMethod.Name != authMethod.Name {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest,
-					"default method for type %s already exists: %v", authMethod.Type, existingMethodsDefaultmethod.Name,
+					"default method for type %s already exists: %v", authMethod.Type, existingMethodsDefaultMethod.Name,
 				)
 			}
 		}
