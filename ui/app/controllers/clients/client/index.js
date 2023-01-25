@@ -293,21 +293,26 @@ export default class ClientController extends Controller.extend(
     console.log("VALID KEY?", key, this.model.meta);
   }
 
-  @action async addDynamicMetaData(e) {
+  @action resetNewMetaData() {
+    this.newMetaData = {
+      key: '',
+      value: '',
+    };
+  }
+
+  @action focusNewMetadata() {
+    document.querySelector('#new-meta-key').focus();
+  }
+
+  @action async addDynamicMetaData({key, value}, e) {
+    console.log('addDynamicMetaData', e, key, value);
     try {
       e.preventDefault();
-      await this.model.addMeta({[this.newMetaData.key]: this.newMetaData.value});
-      // Clear newMetaData
-      this.newMetaData = {
-        key: '',
-        value: '',
-      };
+      await this.model.addMeta({[key]: value});
 
-      // focus key input
-      document.querySelector('#new-meta-key').focus();
       this.flashMessages.add({
         title: 'Metadata added',
-        message: `${this.newMetaData.key} successfully saved`,
+        message: `${key} successfully saved`,
         type: 'success',
         destroyOnClick: false,
         timeout: 3000,

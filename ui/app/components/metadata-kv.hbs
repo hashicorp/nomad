@@ -1,0 +1,57 @@
+<tr data-test-attributes-section>
+  {{#if this.editing}}
+    <td colspan="2">
+      <MetadataEditor
+        @kv={{hash key=@key value=@value}}
+        @onEdit={{fn @onKVEdit (hash key=@key value=@value)}}
+        @constantKey={{true}}
+        @autofocusValue={{true}}
+        >
+        <button
+          type="button"
+          class="button"
+          {{on "click" (action (mut this.editing) false)}}
+          {{!-- TODO: add an item to reinstate the pre-edited value --}}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="button is-danger"
+          {{on "click" (queue
+            (action @onKVSave (hash key=@key value=null))
+            (action (mut this.editing) false)
+          )}}
+        >
+          Fire out of a cannon into the sun
+        </button>
+        <button
+          disabled={{or (not @key) (not @value)}}
+          type="submit"
+          class="button is-primary"
+          {{on "click" (queue
+            (action @onKVSave (hash key=@key value=@value))
+            (action (mut this.editing) false)
+          )}}
+        >
+          Update {{@key}}
+        </button>
+
+        </MetadataEditor>
+    </td>
+  {{else}}
+    <td data-test-key>
+      {{#if @prefix}}<span class="is-faded" data-test-prefix>{{@prefix}}.</span>{{/if}}
+      {{~@key}}
+    </td>
+    <td data-test-value title="{{@value}}">
+      {{@value}}
+      {{#if @editable}}
+      <button class="button is-light is-compact edit-existing-metadata-button" type="button"
+        {{on "click" (action (mut this.editing) true)}}
+        
+      >Edit</button>
+      {{/if}}
+    </td>
+  {{/if}}
+</tr>

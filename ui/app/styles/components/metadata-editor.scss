@@ -1,13 +1,25 @@
-.metadata-editor {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.add-dynamic-metadata {
   padding: 0.75rem;
   border: 1px solid $grey-blue;
   border-top-width: 0;
   margin-bottom: 3rem;
+}
 
-  h3, footer {
+.metadata-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  .constant-key {
+    display: block;
+  }
+
+  footer {
     grid-column: -1 / 1;
   }
 }
+
+.edit-existing-metadata-button {
+  float: right;
+}
+

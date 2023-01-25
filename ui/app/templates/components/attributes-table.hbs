@@ -6,6 +6,11 @@
     </tr>
   </thead>
   <tbody>
-    <AttributesSection @attributes={{@attributePairs}} />
+    <AttributesSection @attributes={{@attributePairs}}
+    @editable={{@editable}}
+    @onKVEdit={{@onKVEdit}}
+    @onKVSave={{@onKVSave}}
+
+    />
   </tbody>
 </table>

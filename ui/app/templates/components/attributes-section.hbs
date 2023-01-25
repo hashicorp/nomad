@@ -7,12 +7,7 @@
     </tr>
     <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}} />
   {{else}}
-    <tr data-test-attributes-section>
-      <td data-test-key>
-        {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}
-        {{~key}}
-      </td>
-      <td data-test-value title="{{value}}">{{value}}</td>
-    </tr>
+    <MetadataKv @prefix={{this.prefix}}
+    @key={{key}} @value={{value}} @editable={{@editable}} @onKVEdit={{@onKVEdit}} @onKVSave={{@onKVSave}} />
   {{/if}}
 {{/each-in}}

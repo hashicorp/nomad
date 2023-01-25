@@ -1,32 +1,38 @@
 <form class="metadata-editor">
-  <h3 class="title is-6">Add Dynamic Metadata</h3>
   <label>
     <strong>Key</strong>
-    <Input
-      id="new-meta-key"
-      @type="text"
-      @value={{@kv.key}}
-      class="input"
-      {{on "input" (fn @onEdit @kv)}}
-    />
+    {{#if @constantKey}}
+      <span class="constant-key">{{@kv.key}}</span>
+    {{else}}
+      <Input
+        id="new-meta-key"
+        @type="text"
+        @value={{@kv.key}}
+        class="input"
+        {{on "input" (fn @onEdit @kv)}}
+      />
+    {{/if}}
   </label>
   <label>
     <strong>Value</strong>
-    <Input
-      @type="text"
-      @value={{@kv.value}}
-      class="input"
-      {{on "input" (fn @onEdit @kv)}}
-    />
+    {{#if @autofocusValue}}
+      <Input
+        @type="text"
+        @value={{@kv.value}}
+        class="input"
+        {{autofocus}}
+        {{on "input" (fn @onEdit @kv)}}
+      />
+    {{else}}
+      <Input
+        @type="text"
+        @value={{@kv.value}}
+        class="input"
+        {{on "input" (fn @onEdit @kv)}}
+      />
+    {{/if}}
   </label>
   <footer>
-    <button
-      disabled={{or (not @kv.key) (not @kv.value)}}
-      type="submit"
-      class="button is-primary"
-      {{on "click" (action @onSave)}}
-    >
-      Add {{@kv.key}} to node metadata
-    </button>
+    {{yield}}
   </footer>
 </form>

@@ -820,6 +820,9 @@
         <AttributesTable
           data-test-meta
           @attributePairs={{this.model.meta.structured}}
+          @editable={{can "write client"}}
+          @onKVEdit={{this.validateKey}}
+          @onKVSave={{this.addDynamicMetaData}}
           @class="attributes-table"
         />
       </div>
@@ -836,12 +839,26 @@
       </div>
     {{/if}}
     {{#if (can "write client")}}
-    <MetadataEditor
-      @kv={{this.newMetaData}}
-      @onEdit={{this.validateKey}}
-      @onSave={{this.addDynamicMetaData}}
-      {{!-- @onCancel={{this.cancelMeta}} --}}
-    />
+    <div class="add-dynamic-metadata">
+      <h3 class="title is-6">Add Dynamic Metadata</h3>
+      <MetadataEditor
+        @kv={{this.newMetaData}}
+        @onEdit={{this.validateKey}}
+      >
+        <button
+          disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
+          type="submit"
+          class="button is-primary"
+          {{on "click" (queue
+            (action this.addDynamicMetaData this.newMetaData)
+            this.resetNewMetaData
+            this.focusNewMetaData
+          )}}
+        >
+          Add {{this.newMetaData.key}} to node metadata
+        </button>
+      </MetadataEditor>
+    </div>
     {{/if}}
   </div>
 </section>
