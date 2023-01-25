@@ -754,6 +754,24 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 		assert.Nil(out)
 	}
 
+	// Try with a bogus token
+	req.AuthToken = uuid.Generate()
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not create the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
 	// Try with a root token
 	req.AuthToken = root.SecretID
 	{

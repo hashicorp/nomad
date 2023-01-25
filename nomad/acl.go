@@ -24,6 +24,10 @@ import (
 // Note: when called on the follower we'll be making stale queries, so it's
 // possible if the follower is behind that the leader will get a different value
 // if an ACL token or allocation's WI has just been created.
+//
+// This method returns errors that are used for testing diagnostics. RPC callers
+// should always return ErrPermissionDenied after checking forwarding when one
+// of these errors is received.
 func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity) error {
 
 	// get the user ACLToken or anonymous token
@@ -60,6 +64,7 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 		leaderAcl := s.getLeaderAcl()
 		if leaderAcl != "" && secretID == leaderAcl {
 			aclToken = structs.LeaderACLToken
+			break
 		} else {
 			// Otherwise, see if the secret ID belongs to a node. We should
 			// reach this point only on first connection.
@@ -73,6 +78,15 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 				return nil
 			}
 		}
+
+		// we were passed a bogus token so we'll return an error, but we'll also
+		// want to capture the IP for metrics
+		remoteIP, err := s.remoteIPFromRPCContext(ctx)
+		if err != nil {
+			s.logger.Error("could not determine remote address", "error", err)
+		}
+		args.SetIdentity(&structs.AuthenticatedIdentity{RemoteIP: remoteIP})
+		return structs.ErrPermissionDenied
 
 	default: // any other error
 		return fmt.Errorf("could not resolve user: %w", err)
@@ -107,28 +121,39 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 		identity.TLSName = ctx.Certificate().Subject.CommonName
 	}
 
+	remoteIP, err := s.remoteIPFromRPCContext(ctx)
+	if err != nil {
+		s.logger.Error(
+			"could not authenticate RPC request or determine remote address", "error", err)
+		return err
+	}
+	identity.RemoteIP = remoteIP
+	args.SetIdentity(identity)
+	return nil
+}
+
+func (s *Server) remoteIPFromRPCContext(ctx *RPCContext) (net.IP, error) {
 	var remoteAddr *net.TCPAddr
 	var ok bool
+	if ctx == nil {
+		return nil, nil
+	}
 	if ctx.Session != nil {
 		remoteAddr, ok = ctx.Session.RemoteAddr().(*net.TCPAddr)
 		if !ok {
-			return errors.New("session address was not a TCP address")
+			return nil, errors.New("session address was not a TCP address")
 		}
 	}
 	if remoteAddr == nil && ctx.Conn != nil {
 		remoteAddr, ok = ctx.Conn.RemoteAddr().(*net.TCPAddr)
 		if !ok {
-			return errors.New("session address was not a TCP address")
+			return nil, errors.New("session address was not a TCP address")
 		}
 	}
 	if remoteAddr != nil {
-		identity.RemoteIP = remoteAddr.IP
-		args.SetIdentity(identity)
-		return nil
+		return remoteAddr.IP, nil
 	}
-
-	s.logger.Error("could not authenticate RPC request or determine remote address")
-	return structs.ErrPermissionDenied
+	return nil, structs.ErrPermissionDenied
 }
 
 func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {

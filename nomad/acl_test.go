@@ -198,6 +198,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			expectTLSName: "regionFoo.nomad",
 			expectIP:      follower.GetConfig().RPCAddr.IP.String(),
 			expectIDKey:   "regionFoo.nomad:127.0.0.1",
+			expectErr:     "rpc error: Permission denied",
 		},
 		{
 			name:           "from peer to leader with leader ACL", // ex. core job GC
