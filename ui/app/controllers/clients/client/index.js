@@ -17,6 +17,7 @@ import {
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class ClientController extends Controller.extend(
@@ -283,7 +284,7 @@ export default class ClientController extends Controller.extend(
   }
   
   // #region metadata
-  newMetaData = {
+  @tracked newMetaData = {
     key: '',
     value: '',
   }
@@ -295,6 +296,14 @@ export default class ClientController extends Controller.extend(
   @action async addDynamicMetaData() {
     try {
       await this.model.addMeta({[this.newMetaData.key]: this.newMetaData.value});
+      // Clear newMetaData
+      this.newMetaData = {
+        key: '',
+        value: '',
+      };
+
+      // focus key input
+      document.querySelector('#new-meta-key').focus();
       this.flashMessages.add({
         title: 'Metadata added',
         message: `${this.newMetaData.key} successfully saved`,
