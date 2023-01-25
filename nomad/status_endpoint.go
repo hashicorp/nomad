@@ -70,8 +70,12 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
+	authErr := s.srv.Authenticate(s.ctx, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	// Check node read permissions
-	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
