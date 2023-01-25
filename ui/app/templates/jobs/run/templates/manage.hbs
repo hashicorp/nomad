@@ -26,7 +26,7 @@
                             data-test-delete
                             @idleText="Delete"
                             @cancelText="Cancel"
-                            @confirmText="Yes, Delete Text"
+                            @confirmText="Yes"
                             @awaitingConfirmation={{this.deleteTemplate.isRunning}}
                             @disabled={{cannot "destroy variable" namespace="*"}}
                             @onConfirm={{perform this.deleteTemplate B.data}}
