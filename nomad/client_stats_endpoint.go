@@ -34,6 +34,7 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 	if done, err := s.srv.forward("ClientStats.Stats", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("client_stats", nstructs.RateMetricRead, args)
 	if authErr != nil {
 		return nstructs.ErrPermissionDenied
 	}

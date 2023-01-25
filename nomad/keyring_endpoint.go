@@ -32,6 +32,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	if done, err := k.srv.forward("Keyring.Rotate", args, args, reply); done {
 		return err
 	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -104,6 +105,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 	if done, err := k.srv.forward("Keyring.List", args, args, reply); done {
 		return err
 	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -162,6 +164,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 	if done, err := k.srv.forward("Keyring.Update", args, args, reply); done {
 		return err
 	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -309,6 +312,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	if done, err := k.srv.forward("Keyring.Delete", args, args, reply); done {
 		return err
 	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

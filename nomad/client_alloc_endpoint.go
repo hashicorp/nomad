@@ -45,6 +45,7 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 	if done, err := a.srv.forward("ClientAllocations.GarbageCollectAll", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -96,6 +97,7 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 	if done, err := a.srv.forward("ClientAllocations.Signal", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -153,6 +155,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	if done, err := a.srv.forward("ClientAllocations.GarbageCollect", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -210,6 +213,7 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 	if done, err := a.srv.forward("ClientAllocations.Restart", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -262,6 +266,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	if done, err := a.srv.forward("ClientAllocations.Stats", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -318,6 +323,7 @@ func (a *ClientAllocations) Checks(args *cstructs.AllocChecksRequest, reply *cst
 	if done, err := a.srv.forward("ClientAllocations.Checks", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -382,6 +388,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 			args.AllocID, &args.QueryOptions)
 		return
 	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, &args)
 	if authErr != nil {
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return

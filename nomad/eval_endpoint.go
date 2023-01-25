@@ -46,6 +46,7 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	if done, err := e.srv.forward("Eval.GetEval", args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -127,6 +128,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -453,6 +455,7 @@ func (e *Eval) Delete(
 	if done, err := e.srv.forward(structs.EvalDeleteRPCMethod, args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -644,6 +647,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -768,6 +772,7 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 	if done, err := e.srv.forward("Eval.Count", args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -872,6 +877,7 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	if done, err := e.srv.forward("Eval.Allocations", args, args, reply); done {
 		return err
 	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

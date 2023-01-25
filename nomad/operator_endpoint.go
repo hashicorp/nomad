@@ -40,6 +40,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	if done, err := op.srv.forward("Operator.RaftGetConfiguration", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -106,6 +107,7 @@ func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressReque
 	if done, err := op.srv.forward("Operator.RaftRemovePeerByAddress", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -163,6 +165,7 @@ func (op *Operator) RaftRemovePeerByID(args *structs.RaftPeerByIDRequest, reply 
 	if done, err := op.srv.forward("Operator.RaftRemovePeerByID", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -229,6 +232,7 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, repl
 	if done, err := op.srv.forward("Operator.AutopilotGetConfiguration", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -263,6 +267,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	if done, err := op.srv.forward("Operator.AutopilotSetConfiguration", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -308,6 +313,7 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *structs.Op
 	if done, err := op.srv.forward("Operator.ServerHealth", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -342,6 +348,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	if done, err := op.srv.forward("Operator.SchedulerSetConfiguration", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -396,6 +403,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	if done, err := op.srv.forward("Operator.SchedulerGetConfiguration", args, args, reply); done {
 		return err
 	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -497,6 +505,7 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 		}
 	}
 
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, &args)
 	if authErr != nil {
 		handleFailure(403, structs.ErrPermissionDenied)
 	}
@@ -583,6 +592,7 @@ func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
 
 	}
 
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, &args)
 	if authErr != nil {
 		handleFailure(403, structs.ErrPermissionDenied)
 	}

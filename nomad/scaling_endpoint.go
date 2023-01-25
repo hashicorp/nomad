@@ -32,6 +32,7 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 	if done, err := p.srv.forward("Scaling.ListPolicies", args, args, reply); done {
 		return err
 	}
+	p.srv.MeasureRPCRate("scaling", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -103,6 +104,7 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	if done, err := p.srv.forward("Scaling.GetPolicy", args, args, reply); done {
 		return err
 	}
+	p.srv.MeasureRPCRate("scaling", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

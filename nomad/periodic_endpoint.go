@@ -30,6 +30,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	if done, err := p.srv.forward("Periodic.Force", args, args, reply); done {
 		return err
 	}
+	p.srv.MeasureRPCRate("periodic", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

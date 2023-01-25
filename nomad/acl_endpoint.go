@@ -79,6 +79,7 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	if done, err := a.srv.forward("ACL.UpsertPolicies", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -127,6 +128,7 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 	if done, err := a.srv.forward("ACL.DeletePolicies", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -164,6 +166,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -257,6 +260,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -560,6 +564,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	if done, err := a.srv.forward(structs.ACLUpsertTokensRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -701,6 +706,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -778,6 +784,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	if done, err := a.srv.forward("ACL.ListTokens", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -866,6 +873,7 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 	if done, err := a.srv.forward("ACL.GetToken", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return authErr
 	}
@@ -931,6 +939,7 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	if done, err := a.srv.forward("ACL.GetTokens", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
 	if authErr != nil {
 		return authErr
 	}
@@ -1175,6 +1184,7 @@ func (a *ACL) UpsertRoles(
 	if done, err := a.srv.forward(structs.ACLUpsertRolesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1323,6 +1333,7 @@ func (a *ACL) DeleteRolesByID(
 	if done, err := a.srv.forward(structs.ACLDeleteRolesByIDRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1375,6 +1386,7 @@ func (a *ACL) ListRoles(
 	if done, err := a.srv.forward(structs.ACLListRolesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1530,6 +1542,7 @@ func (a *ACL) GetRoleByID(
 	if done, err := a.srv.forward(structs.ACLGetRoleByIDRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1618,6 +1631,7 @@ func (a *ACL) GetRoleByName(
 	if done, err := a.srv.forward(structs.ACLGetRoleByNameRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1764,6 +1778,7 @@ func (a *ACL) UpsertAuthMethods(
 	if done, err := a.srv.forward(structs.ACLUpsertAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1871,6 +1886,7 @@ func (a *ACL) DeleteAuthMethods(
 		structs.ACLDeleteAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1971,6 +1987,7 @@ func (a *ACL) GetAuthMethod(
 		structs.ACLGetAuthMethodRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2105,6 +2122,7 @@ func (a *ACL) UpsertBindingRules(
 	if done, err := a.srv.forward(structs.ACLUpsertBindingRulesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2236,6 +2254,7 @@ func (a *ACL) DeleteBindingRules(
 	if done, err := a.srv.forward(structs.ACLDeleteBindingRulesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2289,6 +2308,7 @@ func (a *ACL) ListBindingRules(
 	if done, err := a.srv.forward(structs.ACLListBindingRulesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2347,6 +2367,7 @@ func (a *ACL) GetBindingRules(
 	if done, err := a.srv.forward(structs.ACLGetBindingRulesRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2401,6 +2422,7 @@ func (a *ACL) GetBindingRule(
 	if done, err := a.srv.forward(structs.ACLGetBindingRuleRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

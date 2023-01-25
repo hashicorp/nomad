@@ -56,6 +56,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 	if done, err := v.srv.forward("CSIVolume.List", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -173,6 +174,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	if done, err := v.srv.forward("CSIVolume.Get", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -276,6 +278,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -372,6 +375,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 	if done, err := v.srv.forward("CSIVolume.Deregister", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -414,6 +418,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	if done, err := v.srv.forward("CSIVolume.Claim", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -601,6 +606,7 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	if done, err := v.srv.forward("CSIVolume.Unpublish", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -943,6 +949,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	if done, err := v.srv.forward("CSIVolume.Create", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1071,6 +1078,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 	if done, err := v.srv.forward("CSIVolume.Delete", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1154,6 +1162,7 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1218,6 +1227,7 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 	if done, err := v.srv.forward("CSIVolume.CreateSnapshot", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1313,6 +1323,7 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 	if done, err := v.srv.forward("CSIVolume.DeleteSnapshot", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1377,6 +1388,7 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 	if done, err := v.srv.forward("CSIVolume.ListSnapshots", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1454,6 +1466,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 	if done, err := v.srv.forward("CSIPlugin.List", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1512,6 +1525,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 	if done, err := v.srv.forward("CSIPlugin.Get", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1580,6 +1594,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	if done, err := v.srv.forward("CSIPlugin.Delete", args, args, reply); done {
 		return err
 	}
+	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

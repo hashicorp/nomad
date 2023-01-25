@@ -31,6 +31,7 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("namespace", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -82,6 +83,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("namespace", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -235,6 +237,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 	if done, err := n.srv.forward("Namespace.ListNamespaces", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("namespace", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -301,6 +304,7 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 	if done, err := n.srv.forward("Namespace.GetNamespace", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("namespace", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -354,6 +358,7 @@ func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *stru
 	if done, err := n.srv.forward("Namespace.GetNamespaces", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("namespace", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

@@ -34,6 +34,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	if done, err := a.srv.forward("Alloc.List", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -143,6 +144,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	if done, err := a.srv.forward("Alloc.GetAlloc", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -270,6 +272,7 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 	if done, err := a.srv.forward("Alloc.Stop", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -334,6 +337,7 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	if done, err := a.srv.forward("Alloc.UpdateDesiredTransition", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -374,6 +378,7 @@ func (a *Alloc) GetServiceRegistrations(
 	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

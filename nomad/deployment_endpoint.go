@@ -34,6 +34,7 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 	if done, err := d.srv.forward("Deployment.GetDeployment", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -98,6 +99,7 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	if done, err := d.srv.forward("Deployment.Fail", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -144,6 +146,7 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	if done, err := d.srv.forward("Deployment.Pause", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -194,6 +197,7 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	if done, err := d.srv.forward("Deployment.Promote", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -240,6 +244,7 @@ func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.Depl
 	if done, err := d.srv.forward("Deployment.Run", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -286,6 +291,7 @@ func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *stru
 	if done, err := d.srv.forward("Deployment.Unblock", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -332,6 +338,7 @@ func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *struct
 	if done, err := d.srv.forward("Deployment.Cancel", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -379,6 +386,7 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	if done, err := d.srv.forward("Deployment.SetAllocHealth", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -429,6 +437,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	if done, err := d.srv.forward("Deployment.List", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -520,6 +529,7 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 	if done, err := d.srv.forward("Deployment.Allocations", args, args, reply); done {
 		return err
 	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
