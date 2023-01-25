@@ -319,8 +319,12 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 // Deregister is used to remove a client from the cluster. If a client should
 // just be made unavailable for scheduling, a status update is preferred.
 func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.Deregister", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
@@ -341,8 +345,12 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 
 // BatchDeregister is used to remove client nodes from the cluster.
 func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *structs.NodeUpdateResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.BatchDeregister", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "batch_deregister"}, time.Now())
 

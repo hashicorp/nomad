@@ -664,7 +664,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 	}{
 		{"root", root.SecretID, 0, nil},
 		{"no_permission_token", deniedToken.SecretID, 403, structs.ErrPermissionDenied},
-		{"invalid token", uuid.Generate(), 400, structs.ErrTokenNotFound},
+		{"invalid token", uuid.Generate(), 403, structs.ErrPermissionDenied},
 		{"unauthenticated", "", 403, structs.ErrPermissionDenied},
 	}
 
@@ -886,7 +886,7 @@ func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 	}{
 		{"root", 0, nil},
 		{"no_permission_token", 403, structs.ErrPermissionDenied},
-		{"invalid token", 400, structs.ErrTokenNotFound},
+		{"invalid token", 403, structs.ErrPermissionDenied},
 		{"unauthenticated", 403, structs.ErrPermissionDenied},
 	}
 
