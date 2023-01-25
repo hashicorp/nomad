@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: made auth method default across all method types
+```
