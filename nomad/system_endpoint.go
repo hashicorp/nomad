@@ -27,6 +27,7 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 	if done, err := s.srv.forward("System.GarbageCollect", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("system", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -56,6 +57,7 @@ func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *stru
 	if done, err := s.srv.forward("System.ReconcileJobSummaries", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("system", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

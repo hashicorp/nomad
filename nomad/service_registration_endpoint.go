@@ -108,6 +108,7 @@ func (s *ServiceRegistration) DeleteByID(
 	if done, err := s.srv.forward(structs.ServiceRegistrationDeleteByIDRPCMethod, args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -205,6 +206,7 @@ func (s *ServiceRegistration) List(
 	if done, err := s.srv.forward(structs.ServiceRegistrationListRPCMethod, args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("service_registration", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -374,6 +376,7 @@ func (s *ServiceRegistration) GetService(
 	if done, err := s.srv.forward(structs.ServiceRegistrationGetServiceRPCMethod, args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("service_registration", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

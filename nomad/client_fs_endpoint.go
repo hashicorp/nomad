@@ -112,6 +112,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	if done, err := f.srv.forward("FileSystem.List", args, args, reply); done {
 		return err
 	}
+	f.srv.MeasureRPCRate("file_system", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -171,6 +172,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	if done, err := f.srv.forward("FileSystem.Stat", args, args, reply); done {
 		return err
 	}
+	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -239,6 +241,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 			args.AllocID, &args.QueryOptions)
 		return
 	}
+	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, &args)
 	if authErr != nil {
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
@@ -363,6 +366,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 			args.AllocID, &args.QueryOptions)
 		return
 	}
+	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, &args)
 	if authErr != nil {
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return

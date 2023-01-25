@@ -88,6 +88,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -491,6 +492,7 @@ func (j *Job) Summary(args *structs.JobSummaryRequest, reply *structs.JobSummary
 	if done, err := j.srv.forward("Job.Summary", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -543,6 +545,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 	if done, err := j.srv.forward("Job.Validate", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -594,6 +597,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	if done, err := j.srv.forward("Job.Revert", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -666,6 +670,7 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	if done, err := j.srv.forward("Job.Stable", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -716,6 +721,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	if done, err := j.srv.forward("Job.Evaluate", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -816,6 +822,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	if done, err := j.srv.forward("Job.Deregister", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -933,6 +940,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	if done, err := j.srv.forward("Job.BatchDeregister", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1022,6 +1030,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1208,6 +1217,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	if done, err := j.srv.forward("Job.GetJob", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1258,6 +1268,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1364,6 +1375,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	if done, err := j.srv.forward("Job.List", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1474,6 +1486,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	if done, err := j.srv.forward("Job.Allocations", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1533,6 +1546,7 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	if done, err := j.srv.forward("Job.Evaluations", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1579,6 +1593,7 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 	if done, err := j.srv.forward("Job.Deployments", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1625,6 +1640,7 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	if done, err := j.srv.forward("Job.LatestDeployment", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1676,6 +1692,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if done, err := j.srv.forward("Job.Plan", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1895,6 +1912,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if done, err := j.srv.forward("Job.Dispatch", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2134,6 +2152,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 	if done, err := j.srv.forward("Job.ScaleStatus", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -2253,6 +2272,7 @@ func (j *Job) GetServiceRegistrations(
 	if done, err := j.srv.forward(structs.JobServiceRegistrationsRPCMethod, args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

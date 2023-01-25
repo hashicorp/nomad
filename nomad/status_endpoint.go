@@ -71,6 +71,7 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
 	authErr := s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

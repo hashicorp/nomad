@@ -106,6 +106,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -329,6 +330,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	if done, err := n.srv.forward("Node.Deregister", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -355,6 +357,7 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 	if done, err := n.srv.forward("Node.BatchDeregister", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -488,6 +491,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -670,6 +674,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if done, err := n.srv.forward("Node.UpdateDrain", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -769,6 +774,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	if done, err := n.srv.forward("Node.UpdateEligibility", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -871,6 +877,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	if done, err := n.srv.forward("Node.Evaluate", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -931,6 +938,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	if done, err := n.srv.forward("Node.GetNode", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -991,6 +999,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	if done, err := n.srv.forward("Node.GetAllocs", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1237,6 +1246,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1499,6 +1509,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	if done, err := n.srv.forward("Node.List", args, args, reply); done {
 		return err
 	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

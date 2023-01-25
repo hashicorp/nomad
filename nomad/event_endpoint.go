@@ -48,6 +48,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
+	e.srv.MeasureRPCRate("event", structs.RateMetricRead, &args)
 	if authErr != nil {
 		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 	}

@@ -36,6 +36,7 @@ func (a *Agent) register() {
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	authErr := a.srv.Authenticate(nil, args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -134,6 +135,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 	authErr := a.srv.Authenticate(nil, &args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, &args)
 	if authErr != nil {
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
@@ -409,6 +411,7 @@ func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *str
 // Host returns data about the agent's host system for the `debug` command.
 func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
 	authErr := a.srv.Authenticate(nil, args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

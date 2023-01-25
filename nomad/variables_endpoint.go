@@ -39,6 +39,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	if done, err := sv.srv.forward(structs.VariablesApplyRPCMethod, args, args, reply); done {
 		return err
 	}
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -229,6 +230,7 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 	if done, err := sv.srv.forward(structs.VariablesReadRPCMethod, args, args, reply); done {
 		return err
 	}
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -279,6 +281,7 @@ func (sv *Variables) List(
 	if done, err := sv.srv.forward(structs.VariablesListRPCMethod, args, args, reply); done {
 		return err
 	}
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

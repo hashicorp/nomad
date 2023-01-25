@@ -553,6 +553,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -686,6 +687,7 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 	if done, err := s.srv.forward("Search.FuzzySearch", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
