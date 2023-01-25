@@ -26,11 +26,17 @@ func (s *Status) Ping(args structs.GenericRequest, reply *struct{}) error {
 	// note: we're intentionally throwing away any auth error here and only
 	// authenticate so that we can measure rate metrics
 	s.srv.Authenticate(s.ctx, &args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricRead, &args)
 	return nil
 }
 
 // Leader is used to get the address of the leader
 func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricRead, args)
+
 	if args.Region == "" {
 		args.Region = s.srv.config.Region
 	}
@@ -49,6 +55,11 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 
 // Peers is used to get all the Raft peers
 func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricList, args)
+
 	if args.Region == "" {
 		args.Region = s.srv.config.Region
 	}
@@ -71,7 +82,7 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
 	authErr := s.srv.Authenticate(s.ctx, args)
-	s.srv.MeasureRPCRate("status", structs.RateMetricRead, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -109,7 +120,12 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 }
 
 // RaftStats is used by Autopilot to query the raft stats of the local server.
-func (s *Status) RaftStats(args struct{}, reply *structs.RaftStats) error {
+func (s *Status) RaftStats(args *structs.GenericRequest, reply *structs.RaftStats) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricRead, args)
+
 	stats := s.srv.raft.Stats()
 
 	var err error
@@ -129,6 +145,11 @@ func (s *Status) RaftStats(args struct{}, reply *structs.RaftStats) error {
 // HasNodeConn returns whether the server has a connection to the requested
 // Node.
 func (s *Status) HasNodeConn(args *structs.NodeSpecificRequest, reply *structs.NodeConnQueryResponse) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricRead, args)
+
 	// Validate the args
 	if args.NodeID == "" {
 		return errors.New("Must provide the NodeID")
