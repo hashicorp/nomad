@@ -4,7 +4,7 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { trimPath } from '../../../../helpers/trim-path';
 
-export default class JobsRunTemplatesController extends Controller {
+export default class JobsRunTemplatesNewController extends Controller {
   @service router;
   @service store;
   @service system;

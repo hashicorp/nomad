@@ -1,7 +1,7 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
-export default class RunTemplatesRoute extends Route {
+export default class JobsRunTemplatesIndexRoute extends Route {
   @service can;
   @service router;
   @service store;
