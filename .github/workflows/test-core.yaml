@@ -18,9 +18,6 @@ on:
       - 'ui/**'
       - 'website/**'
   push:
-    branches:
-      - main
-      - release/**
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
