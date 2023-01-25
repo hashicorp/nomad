@@ -27,6 +27,9 @@
                             @idleText="Delete"
                             @cancelText="Cancel"
                             @confirmText="Yes"
+                            @inlineText={{true}}
+                            @confirmationMessage="Are you sure?"
+
                             @awaitingConfirmation={{this.deleteTemplate.isRunning}}
                             @disabled={{cannot "destroy variable" namespace="*"}}
                             @onConfirm={{perform this.deleteTemplate B.data}}
