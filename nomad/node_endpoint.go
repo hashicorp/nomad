@@ -361,7 +361,7 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	raftApplyFn func() (interface{}, uint64, error),
 ) error {
 	// Check request permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -614,13 +614,18 @@ func nodeStatusTransitionRequiresEval(newStatus, oldStatus string) bool {
 // UpdateDrain is used to update the drain mode of a client node
 func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	reply *structs.NodeDrainUpdateResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.UpdateDrain", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -708,13 +713,18 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 // UpdateEligibility is used to update the scheduling eligibility of a node
 func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	reply *structs.NodeEligibilityUpdateResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.UpdateEligibility", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_eligibility"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -805,13 +815,18 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 
 // Evaluate is used to force a re-evaluation of the node
 func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.Evaluate", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -860,33 +875,22 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 // GetNode is used to request information about a specific node
 func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	reply *structs.SingleNodeResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.GetNode", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
-		// If ResolveToken had an unexpected error return that
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID since nodes
-		// call this endpoint and don't have an ACL token.
-		node, stateErr := n.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			// Return the original ResolveToken error with this err
-			var merr multierror.Error
-			merr.Errors = append(merr.Errors, err, stateErr)
-			return merr.ErrorOrNil()
-		}
-
-		// Not a node or a valid ACL token
-		if node == nil {
-			return structs.ErrTokenNotFound
-		}
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	aclObj, err := n.srv.ResolveClientOrACL(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -931,13 +935,18 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 // GetAllocs is used to request allocations for a specific node
 func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeAllocsResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.GetAllocs", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	aclObj, err := n.srv.ResolveToken(args.AuthToken)
+	aclObj, err := n.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -1431,13 +1440,18 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 // List is used to list the available nodes
 func (n *Node) List(args *structs.NodeListRequest,
 	reply *structs.NodeListResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.List", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
