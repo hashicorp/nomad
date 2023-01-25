@@ -358,15 +358,6 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
 - `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
   container.
 
-- `user` - (Optional) Run the command as a specific user/uid within the
-  container. Refer to [task configuration][task].
-
-  ```hcl
-  config {
-    user = "nobody"
-  }
-  ```
-
 - `volumes` - (Optional) A list of `host_path:container_path:options` strings
   to bind host paths to container paths. Named volumes are not supported.
 
@@ -398,6 +389,9 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
     }
   }
   ```
+
+Additionally, the Podman driver supports customization of the container's user
+through the task's [`user` option](/nomad/docs/job-specification/task#user).
 
 ## Network Configuration
 
