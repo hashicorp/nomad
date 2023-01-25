@@ -11,11 +11,11 @@ export default class RunRoute extends Route {
 
   beforeModel(transition) {
     if (
-      this.can.cannot('run job', null, {
+      this.can.cannot('write variable', null, {
         namespace: transition.to.queryParams.namespace,
       })
     ) {
-      this.router.transitionTo('jobs');
+      this.router.transitionTo('jobs.run');
     }
   }
 
@@ -38,7 +38,9 @@ export default class RunRoute extends Route {
           keyValues: [{ key: 'template', value: json }],
         });
       }
-      return this.store.createRecord('variable');
+
+      // Override Default Value
+      return this.store.createRecord('variable', { keyValues: [] });
     } catch (e) {
       notifyForbidden(this)(e);
     }
@@ -55,5 +57,6 @@ export default class RunRoute extends Route {
     }
     controller.set('templateName', null);
     controller.set('templateNamespace', 'default');
+    getOwner(this).lookup('controller:jobs.run').jsonTemplate = null;
   }
 }

@@ -11,7 +11,7 @@
         <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
     {{else}}
     <main class="radio-group" data-test-template-list>
-        <Hds::Table @model={{this.model}} @columns={{this.columns}}>
+        <Hds::Table @model={{this.model}} @columns={{this.columns}} @isFixedLayout={{true}}>
             <:body as |B|>
                 <B.Tr>
                     <B.Td>
@@ -21,6 +21,20 @@
                     </B.Td>
                     <B.Td>{{B.data.namespace}}</B.Td>
                     <B.Td>{{B.data.items.description}}</B.Td>
+                    <B.Td>
+                        <TwoStepButton
+                            data-test-delete
+                            @idleText="Delete"
+                            @cancelText="Cancel"
+                            @confirmText="Yes"
+                            @inlineText={{true}}
+                            @confirmationMessage="Are you sure?"
+
+                            @awaitingConfirmation={{this.deleteTemplate.isRunning}}
+                            @disabled={{cannot "destroy variable" namespace="*"}}
+                            @onConfirm={{perform this.deleteTemplate B.data}}
+                        />
+                    </B.Td>
                 </B.Tr>
             </:body>
         </Hds::Table>

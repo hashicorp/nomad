@@ -434,6 +434,7 @@ module('Acceptance | job run', function (hooks) {
         path: 'nomad/job-templates/foo',
         namespace: 'default',
         id: 'nomad/job-templates/foo',
+        Items: {},
       });
 
       await visit('/jobs/run/templates/manage');
