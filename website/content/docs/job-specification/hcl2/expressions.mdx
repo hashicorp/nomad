@@ -260,7 +260,7 @@ network {
 ```
 
 You can dynamically construct repeatable nested blocks like `port` using a
-special `dynamic` block type, which is supported anywhere, example:
+special `dynamic` block type, which is supported in most places, example:
 
 ```hcl
 locals {
@@ -295,6 +295,12 @@ job "example" {
     }
     ...
 ```
+
+~> **Caveat:** Dynamic blocks are not supported inside blocks that are opaque
+to Nomad, such as the `config` attributes in [`task`][task_config],
+[`sidecar_task`][sidecar_task_config], [`proxy`][proxy_config], and
+[`gateway`][gateway_config], and the group scaling
+[`policy`][group_scaling_policy].
 
 A `dynamic` block acts much like a `for` expression, but produces nested blocks
 instead of a complex typed value. It iterates over a given complex value, and
@@ -424,3 +430,9 @@ beginning a template sequence, double the leading character: `$${` or `%%{`.
 Within quoted and heredoc string expressions, the sequences `${` and `%{` begin
 _template sequences_. Templates let you directly embed expressions into a string
 literal, to dynamically construct strings from other values.
+
+[gateway_config]: /nomad/docs/job-specification/gateway#config
+[group_scaling_policy]: /nomad/docs/job-specification/scaling#policy
+[proxy_config]: /nomad/docs/job-specification/proxy#config
+[sidecar_task_config]: /nomad/docs/job-specification/sidecar_task#config
+[task_config]: /nomad/docs/job-specification/task#config
