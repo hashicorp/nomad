@@ -890,7 +890,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNodeRead() {
+	if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
