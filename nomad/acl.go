@@ -156,6 +156,10 @@ func (s *Server) remoteIPFromRPCContext(ctx *RPCContext) (net.IP, error) {
 	return nil, structs.ErrPermissionDenied
 }
 
+// ResolveACL is an authentication wrapper which handles resolving both ACL
+// tokens and Workload Identities. If both are provided the ACL token is
+// preferred, but it is best for the RPC caller to only include the credentials
+// for the identity they intend the operation to be performed with.
 func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	identity := args.GetIdentity()
 	if !s.config.ACLEnabled || identity == nil {
