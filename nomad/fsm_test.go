@@ -1467,6 +1467,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	clientAlloc.ClientStatus = structs.AllocClientStatusComplete
 	update2 := &structs.Allocation{
 		ID:           alloc2.ID,
+		NodeID:       alloc2.NodeID,
 		ClientStatus: structs.AllocClientStatusRunning,
 	}
 
