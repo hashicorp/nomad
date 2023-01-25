@@ -124,7 +124,6 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
@@ -132,7 +131,6 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
-
 	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
 
 	// Ensure there is at least one scheduler
@@ -233,14 +231,19 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "ack"}, time.Now())
 
@@ -263,14 +266,19 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "nack"}, time.Now())
 
@@ -285,14 +293,19 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "update"}, time.Now())
 
@@ -322,14 +335,19 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "create"}, time.Now())
 
@@ -373,14 +391,20 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // Reblock is used to reinsert an existing blocked evaluation into the blocked
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reblock"}, time.Now())
 
@@ -422,14 +446,19 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 func (e *Eval) Reap(args *structs.EvalReapRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
 		return err
+	}
+	e.srv.MeasureRPCRate("eval", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reap"}, time.Now())
 

@@ -197,14 +197,19 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
+	authErr := a.srv.Authenticate(a.ctx, args)
+
 	// Ensure the connection was initiated by a client if TLS is used.
 	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}
-
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 

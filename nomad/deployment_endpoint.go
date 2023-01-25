@@ -590,14 +590,19 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	reply *structs.GenericResponse) error {
 
+	authErr := d.srv.Authenticate(d.ctx, args)
+
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(d.srv, d.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := d.srv.forward("Deployment.Reap", args, args, reply); done {
 		return err
+	}
+	d.srv.MeasureRPCRate("deployment", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "reap"}, time.Now())
 
