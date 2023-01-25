@@ -156,7 +156,33 @@ func (s *Server) remoteIPFromRPCContext(ctx *RPCContext) (net.IP, error) {
 	return nil, structs.ErrPermissionDenied
 }
 
-func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
+// ResolveACL is an authentication wrapper which handles resolving both ACL
+// tokens and Workload Identities. If both are provided the ACL token is
+// preferred, but it is best for the RPC caller to only include the credentials
+// for the identity they intend the operation to be performed with.
+func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
+	identity := args.GetIdentity()
+	if !s.config.ACLEnabled || identity == nil {
+		return nil, nil
+	}
+	aclToken := identity.GetACLToken()
+	if aclToken != nil {
+		return s.ResolveACLForToken(aclToken)
+	}
+	claims := identity.GetClaims()
+	if claims != nil {
+		return s.ResolveClaims(claims)
+	}
+	return nil, nil
+}
+
+// ResolveACLForToken resolves an ACL from a token only. It should be used only
+// by Variables endpoints, which have additional implicit policies for their
+// claims so we can't wrap them up in ResolveACL.
+//
+// TODO: figure out a way to the Variables endpoint implicit policies baked into
+// their acl.ACL object so that we can avoid using this method.
+func (s *Server) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
 	if !s.config.ACLEnabled {
 		return nil, nil
 	}
@@ -165,6 +191,22 @@ func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
 		return nil, err
 	}
 	return resolveACLFromToken(snap, s.aclCache, aclToken)
+}
+
+// ResolveClientOrACL resolves an ACL if the identity has a token or claim, and
+// falls back to verifying the client ID if one has been set
+func (s *Server) ResolveClientOrACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
+	identity := args.GetIdentity()
+	if !s.config.ACLEnabled || identity == nil || identity.ClientID != "" {
+		return nil, nil
+	}
+	aclObj, err := s.ResolveACL(args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Returns either the users aclObj, or nil if ACLs are disabled.
+	return aclObj, nil
 }
 
 // ResolveToken is used to translate an ACL Token Secret ID into

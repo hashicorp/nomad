@@ -68,8 +68,16 @@ rules:
           authErr := $A.$B.Authenticate($A.ctx, args)
           ...
           if authErr != nil {
-            return authErr
+            return $C
           }
+          ...
+      - pattern-not-inside: |
+          authErr := $A.$B.Authenticate(nil, args)
+          ...
+          if authErr != nil {
+            return $C
+          }
+          ...
       - metavariable-pattern:
           metavariable: $METHOD
           patterns:

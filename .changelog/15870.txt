@@ -1,0 +1,3 @@
+```release-note:improvement
+identity: Allow workloads to use RPCs associated with HTTP API
+```

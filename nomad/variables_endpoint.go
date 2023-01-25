@@ -40,7 +40,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return err
 	}
 	if authErr != nil {
-		return authErr
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{
@@ -114,8 +114,8 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 	canRead = false
 	var aclObj *acl.ACL
 
-	// Perform the ACL token resolution.
-	if aclObj, err = sv.srv.ResolveToken(args.AuthToken); err != nil {
+	// Perform the ACL resolution.
+	if aclObj, err = sv.srv.ResolveACL(args); err != nil {
 		return
 	} else if aclObj != nil {
 		hasPerm := func(perm string) bool {
@@ -230,7 +230,7 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 		return err
 	}
 	if authErr != nil {
-		return authErr
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "variables", "read"}, time.Now())
@@ -280,7 +280,7 @@ func (sv *Variables) List(
 		return err
 	}
 	if authErr != nil {
-		return authErr
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "variables", "list"}, time.Now())
@@ -295,7 +295,7 @@ func (sv *Variables) List(
 	var err error
 	aclToken := args.GetIdentity().GetACLToken()
 	if aclToken != nil {
-		aclObj, err = sv.srv.ResolveACL(args.GetIdentity().GetACLToken())
+		aclObj, err = sv.srv.ResolveACLForToken(aclToken)
 		if err != nil {
 			return err
 		}
@@ -385,7 +385,7 @@ func (sv *Variables) listAllVariables(
 	var err error
 	aclToken := args.GetIdentity().GetACLToken()
 	if aclToken != nil {
-		aclObj, err = sv.srv.ResolveACL(args.GetIdentity().GetACLToken())
+		aclObj, err = sv.srv.ResolveACLForToken(aclToken)
 		if err != nil {
 			return err
 		}
@@ -499,7 +499,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 	var err error
 	aclToken := args.GetIdentity().GetACLToken()
 	if aclToken != nil {
-		aclObj, err = sv.srv.ResolveACL(args.GetIdentity().GetACLToken())
+		aclObj, err = sv.srv.ResolveACLForToken(aclToken)
 		if err != nil {
 			return nil, nil, err
 		}

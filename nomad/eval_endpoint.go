@@ -41,14 +41,19 @@ func NewEvalEndpoint(srv *Server, ctx *RPCContext) *Eval {
 // GetEval is used to request information about a specific evaluation
 func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	reply *structs.SingleEvalResponse) error {
+
+	authErr := e.srv.Authenticate(e.ctx, args)
 	if done, err := e.srv.forward("Eval.GetEval", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "get_eval"}, time.Now())
 
 	// Check for read-job permissions before performing blocking query.
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
-	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	aclObj, err := e.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
@@ -112,9 +117,6 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
 
 	authErr := e.srv.Authenticate(e.ctx, args)
-	if authErr != nil {
-		return authErr
-	}
 
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
@@ -125,6 +127,10 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
 
 	// Ensure there is at least one scheduler
@@ -443,14 +449,18 @@ func (e *Eval) Delete(
 	args *structs.EvalDeleteRequest,
 	reply *structs.EvalDeleteResponse) error {
 
+	authErr := e.srv.Authenticate(e.ctx, args)
 	if done, err := e.srv.forward(structs.EvalDeleteRPCMethod, args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "delete"}, time.Now())
 
 	// This RPC endpoint is very destructive and alters Nomad's core state,
 	// meaning only those with management tokens can call it.
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := e.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -629,15 +639,20 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 
 // List is used to get a list of the evaluations in the system
 func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
+
+	authErr := e.srv.Authenticate(e.ctx, args)
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
 
 	// Check for read-job permissions
-	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	aclObj, err := e.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -748,14 +763,19 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 
 // Count is used to get a list of the evaluations in the system
 func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountResponse) error {
+
+	authErr := e.srv.Authenticate(e.ctx, args)
 	if done, err := e.srv.forward("Eval.Count", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "count"}, time.Now())
 	namespace := args.RequestNamespace()
 
 	// Check for read-job permissions
-	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	aclObj, err := e.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -847,14 +867,19 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 // Allocations is used to list the allocations for an evaluation
 func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	reply *structs.EvalAllocationsResponse) error {
+
+	authErr := e.srv.Authenticate(e.ctx, args)
 	if done, err := e.srv.forward("Eval.Allocations", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
 
 	// Check for read-job permissions
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
-	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	aclObj, err := e.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if !allowNsOp(aclObj, args.RequestNamespace()) {

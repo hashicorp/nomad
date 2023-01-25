@@ -2234,7 +2234,7 @@ func TestACL_ListRoles(t *testing.T) {
 	}
 	var aclRoleResp1 structs.ACLRolesListResponse
 	err := msgpackrpc.CallWithCodec(codec, structs.ACLListRolesRPCMethod, aclRoleReq1, &aclRoleResp1)
-	require.ErrorContains(t, err, "ACL token not found")
+	require.ErrorContains(t, err, structs.ErrPermissionDenied.Error())
 
 	// Try listing roles with a valid ACL token.
 	aclRoleReq2 := &structs.ACLRolesListRequest{
