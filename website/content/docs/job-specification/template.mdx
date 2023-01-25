@@ -758,7 +758,7 @@ access it by index. This secret was set using
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/docs/configuration/client#options):
+options](/nomad/docs/configuration/client#options):
 
 - `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
   rendering functions that should be disallowed in job specs. By default, the
@@ -769,7 +769,7 @@ options](/docs/configuration/client#options):
   files on the client host via the `file` function. By default, templates can
   access files only within the [task working directory].
 
-[`changescript`]: /docs/job-specification/change_script 'Nomad change_script Job Specification'
+[`changescript`]: /nomad/docs/job-specification/change_script 'Nomad change_script Job Specification'
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [ct_api]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md 'Consul Template API by HashiCorp'
 [ct_api_connect]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#connect 'Consul Template API by HashiCorp - connect'
@@ -778,18 +778,18 @@ options](/docs/configuration/client#options):
 [ct_api_service]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#service 'Consul Template API by HashiCorp - service'
 [ct_api_services]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#services 'Consul Template API by HashiCorp - services'
 [ct_api_nsvc]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#nomadService 'Consul Template API by HashiCorp - nomadService'
-[nvars]: /docs/concepts/variables 'Nomad Variables'
+[nvars]: /nomad/docs/concepts/variables 'Nomad Variables'
 [ct_api_tree]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#tree 'Consul Template API by HashiCorp - tree'
 [gt]: https://pkg.go.dev/text/template 'Go template package'
-[gt_learn]: https://learn.hashicorp.com/tutorials/nomad/go-template-syntax
-[artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
-[env]: /docs/runtime/environment 'Nomad Runtime Environment'
-[nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
+[gt_learn]: /nomad/tutorials/templates/go-template-syntax
+[artifact]: /nomad/docs/job-specification/artifact 'Nomad artifact Job Specification'
+[env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'
+[nodevars]: /nomad/docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
 [go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
-[task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
-[filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
-[`client.template.wait_bounds`]: /docs/configuration/client#wait_bounds
+[task working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
+[filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
+[`client.template.wait_bounds`]: /nomad/docs/configuration/client#wait_bounds
 [rhash]: https://en.wikipedia.org/wiki/Rendezvous_hashing
-[variables]: /docs/concepts/variables
-[workload identity]: /docs/concepts/workload-identity
+[variables]: /nomad/docs/concepts/variables
+[workload identity]: /nomad/docs/concepts/workload-identity
 [`time.Time`]: https://pkg.go.dev/time#Time

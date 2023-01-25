@@ -13,7 +13,7 @@ description: The yamlencode function encodes a given value as a YAML string.
 result format may change in future versions of Nomad, based on feedback.
 Do not use `yamldecode` to construct a value for any argument where
 changes to the result would be disruptive. To get a consistent string
-representation of a value use [`jsonencode`](/docs/job-specification/hcl2/functions/encoding/jsonencode) instead; its
+representation of a value use [`jsonencode`](/nomad/docs/job-specification/hcl2/functions/encoding/jsonencode) instead; its
 results are also valid YAML because YAML is a JSON superset.
 
 <!--
@@ -27,7 +27,7 @@ results are also valid YAML because YAML is a JSON superset.
 -->
 
 This function maps
-[Nomad language values](/docs/job-specification/hcl2/expressions#types-and-values)
+[Nomad language values](/nomad/docs/job-specification/hcl2/expressions#types-and-values)
 to YAML tags in the following way:
 
 | Nomad type    | YAML type            |
@@ -75,12 +75,12 @@ mean that this is rarely a problem in practice.
 
 `yamlencode` always uses YAML's "block style" for mappings and sequences, unless
 the mapping or sequence is empty. To generate flow-style YAML, use
-[`jsonencode`](/docs/job-specification/hcl2/functions/encoding/jsonencode) instead: YAML flow-style is a superset
+[`jsonencode`](/nomad/docs/job-specification/hcl2/functions/encoding/jsonencode) instead: YAML flow-style is a superset
 of JSON syntax.
 
 ## Related Functions
 
-- [`jsonencode`](/docs/job-specification/hcl2/functions/encoding/jsonencode) is a similar operation using JSON instead
+- [`jsonencode`](/nomad/docs/job-specification/hcl2/functions/encoding/jsonencode) is a similar operation using JSON instead
   of YAML.
-- [`yamldecode`](/docs/job-specification/hcl2/functions/encoding/yamldecode) performs the opposite operation, _decoding_
+- [`yamldecode`](/nomad/docs/job-specification/hcl2/functions/encoding/yamldecode) performs the opposite operation, _decoding_
   a YAML string to obtain its represented value.

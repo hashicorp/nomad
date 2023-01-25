@@ -40,7 +40,7 @@ job "docs" {
 
 When the `network` stanza is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
+[Consul Connect](/nomad/docs/integrations/consul-connect). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
@@ -61,7 +61,7 @@ All other operating systems use the `host` networking mode.
 
 ## `network` Parameters
 
-- `mbits` <code>([_deprecated_](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
+- `mbits` <code>([_deprecated_](/nomad/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
 
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
@@ -82,7 +82,7 @@ All other operating systems use the `host` networking mode.
 - `hostname` `(string: "")` - The hostname assigned to the network namespace. This
   is currently only supported using the [Docker driver][docker-driver] and when the
   [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
-  [interpolation](/docs/runtime/interpolation).
+  [interpolation](/nomad/docs/runtime/interpolation).
 
 - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
   for the allocations. By default all DNS configuration is inherited from the client host.
@@ -124,7 +124,7 @@ The label of the port is just text - it has no special meaning to Nomad.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
 - `options` `(array<string>: nil)` - Sets internal resolver variables.
 
-These parameters support [interpolation](/docs/runtime/interpolation).
+These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
 ## `network` Examples
 
@@ -325,8 +325,8 @@ network {
 - Only the `NOMAD_PORT_<label>` and `NOMAD_HOST_PORT_<label>` environment
   variables are set for group network ports.
 
-[docs_networking_bridge]: /docs/networking#bridge-networking
-[docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
-[qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
-[connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
-[`cni_path`]: /docs/configuration/client#cni_path
+[docs_networking_bridge]: /nomad/docs/networking#bridge-networking
+[docker-driver]: /nomad/docs/drivers/docker 'Nomad Docker Driver'
+[qemu-driver]: /nomad/docs/drivers/qemu 'Nomad QEMU Driver'
+[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[`cni_path`]: /nomad/docs/configuration/client#cni_path

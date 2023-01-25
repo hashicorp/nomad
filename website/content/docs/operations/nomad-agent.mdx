@@ -15,12 +15,12 @@ while servers are responsible for managing the cluster.
 
 Client mode agents are relatively simple. They make use of fingerprinting
 to determine the capabilities and resources of the host machine, as well as
-determining what [drivers](/docs/drivers) are available. Clients
+determining what [drivers](/nomad/docs/drivers) are available. Clients
 register with servers to provide the node information, heartbeat to provide
 liveness, and run any tasks assigned to them.
 
 Servers take on the responsibility of being part of the
-[consensus protocol](/docs/concepts/consensus) and [gossip protocol](/docs/concepts/gossip).
+[consensus protocol](/nomad/docs/concepts/consensus) and [gossip protocol](/nomad/docs/concepts/gossip).
 The consensus protocol, powered by Raft, allows the servers to perform
 leader election and state replication. The gossip protocol allows for simple
 clustering of servers and multi-region federation. The higher burden on the
@@ -34,7 +34,7 @@ thousands of clients.
 
 ## Running an Agent
 
-The agent is started with the [`nomad agent` command](/docs/commands/agent). This
+The agent is started with the [`nomad agent` command](/nomad/docs/commands/agent). This
 command blocks, running forever or until told to quit. The agent command takes a variety
 of configuration options, but most have sane defaults.
 
@@ -87,12 +87,12 @@ respective signals.
 When gracefully exiting, clients will update their status to terminal on
 the servers so that tasks can be migrated to healthy agents. Servers
 will notify their intention to leave the cluster which allows them to
-leave the [consensus](/docs/concepts/consensus) peer set.
+leave the [consensus](/nomad/docs/concepts/consensus) peer set.
 
 It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
 the consensus peer set. If a server does not gracefully leave, and will not
-return into service, the [`server force-leave` command](/docs/commands/server/force-leave)
+return into service, the [`server force-leave` command](/nomad/docs/commands/server/force-leave)
 should be used to eject it from the consensus peer set.
 
 ## Lifecycle
@@ -102,7 +102,7 @@ this lifecycle is useful for building a mental model of an agent's interactions
 with a cluster and how the cluster treats a node.
 
 When a client agent is first started, it fingerprints the host machine to
-identify its attributes, capabilities, and [task drivers](/docs/drivers).
+identify its attributes, capabilities, and [task drivers](/nomad/docs/drivers).
 These are reported to the servers during an initial registration. The addresses
 of known servers are provided to the agent via configuration, potentially using
 DNS for resolution. Using [Consul](https://www.consul.io/) provides a way to avoid hard
@@ -120,11 +120,11 @@ garbage collection of nodes. By default, if a node is in a failed or 'down'
 state for over 24 hours it will be garbage collected from the system.
 
 Servers are slightly more complex as they perform additional functions. They
-participate in a [gossip protocol](/docs/concepts/gossip) both to cluster
+participate in a [gossip protocol](/nomad/docs/concepts/gossip) both to cluster
 within a region and to support multi-region configurations. When a server is
 first started, it does not know the address of other servers in the cluster.
 To discover its peers, it must _join_ the cluster. This is done with the
-[`server join` command](/docs/commands/server/join) or by providing the
+[`server join` command](/nomad/docs/commands/server/join) or by providing the
 proper configuration on start. Once a node joins, this information is gossiped
 to the entire cluster, meaning all nodes will eventually be aware of each other.
 

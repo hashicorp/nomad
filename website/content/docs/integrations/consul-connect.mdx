@@ -11,7 +11,7 @@ description: >-
 ~> **Note:** Nomad's service mesh integration requires Linux network namespaces.
 Consul service mesh will not run on Windows or macOS.
 
-[Consul service mesh](https://developer.hashicorp.com/consul/docs/connect) provides
+[Consul service mesh](/consul/docs/connect) provides
 service-to-service connection authorization and encryption using mutual
 Transport Layer Security (TLS). Applications can use sidecar proxies in a
 service mesh configuration to automatically establish TLS connections for
@@ -35,7 +35,7 @@ security features in service mesh continue to work even as the application scale
 or down or gets rescheduled by Nomad.
 
 For using the Consul service mesh integration with Consul ACLs enabled, see the
-[Secure Nomad Jobs with Consul Service Mesh](https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh)
+[Secure Nomad Jobs with Consul Service Mesh](/nomad/tutorials/integrate-consul/consul-service-mesh)
 guide.
 
 # Nomad Consul Service Mesh Example
@@ -66,7 +66,7 @@ GRPC port and set `connect` to enabled by adding some additional information to
 your Consul client configurations, depending on format. Consul agents running TLS
 and a version greater than [1.14.0](https://releases.hashicorp.com/consul/1.14.0)
 should set the `grpc_tls` configuration parameter instead of `grpc`. Please see
-the Consul [port documentation](consul_ports) for further reference material.
+the Consul [port documentation](https://nomadproject.io/consul_ports) for further reference material.
 
 For HCL configurations:
 
@@ -374,7 +374,7 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 [count-dashboard]: /img/count-dashboard.png
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
 [gh-9907]: https://github.com/hashicorp/nomad/issues/9907
-[`Local`]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#token-attributes
-[anon_token]: https://developer.hashicorp.com/consul/docs/security/acl/acl-tokens#special-purpose-tokens
-[consul_ports]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#ports
-[consul_grpc_tls]: https://developer.hashicorp.com/consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration
+[`Local`]: /consul/docs/security/acl/acl-tokens#token-attributes
+[anon_token]: /consul/docs/security/acl/acl-tokens#special-purpose-tokens
+[consul_ports]: /consul/docs/agent/config/config-files#ports
+[consul_grpc_tls]: /consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration

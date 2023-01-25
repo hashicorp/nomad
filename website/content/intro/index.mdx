@@ -9,7 +9,7 @@ description: >-
 
 # Introduction to Nomad
 
-Welcome to the intro guide to Nomad. This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and how you can get started using it. If you are familiar with the basics of Nomad, the [documentation](/docs) and [tutorials](https://learn.hashicorp.com/nomad) provide a more detailed reference of available features.
+Welcome to the intro guide to Nomad. This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and how you can get started using it. If you are familiar with the basics of Nomad, the [documentation](/nomad/docs) and [tutorials](/nomad/tutorials) provide a more detailed reference of available features.
 
 <iframe
   src="https://www.youtube.com/embed/s_Fm9UtL4YU"
@@ -29,11 +29,11 @@ Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Tr
 
 ## Key Features
 
-- **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure. Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable [task drivers](/docs/drivers).
+- **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure. Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable [task drivers](/nomad/docs/drivers).
 
 - **Simple & Reliable**: Nomad runs as a single binary and is entirely self contained - combining resource management and scheduling into a single system. Nomad does not require any external services for storage or coordination. Nomad automatically handles application, node, and driver failures. Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
 
-- **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI). Nomad uses [device plugins](/docs/devices) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+- **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI). Nomad uses [device plugins](/nomad/docs/devices) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
 
 - **Federation for Multi-Region**: Nomad has native support for multi-region federation. This built-in capability allows multiple clusters to be linked together, which in turn enables developers to deploy jobs to any cluster in any region. Federation also enables automatic replication of ACL policies, namespaces, resource quotas and Sentinel policies across all clusters.
 
@@ -48,9 +48,9 @@ Nomad differentiates from related tools by virtue of its **simplicity**, **flexi
 HashiCorp Terraform, Consul, and Vault make it uniquely suited for easy integration into
 an organization's existing workflows, minimizing the time-to-market for critical initiatives.
 
-See the [Nomad vs. Other Software](/intro/vs) page for additional details and
+See the [Nomad vs. Other Software](/nomad/intro/vs) page for additional details and
 comparisons.
 
 ## Next Steps
 
-See the [Use Cases](/intro/use-cases) page to understand the many ways Nomad is used in production today across many industries to solve critical, real-world business objectives.
+See the [Use Cases](/nomad/intro/use-cases) page to understand the many ways Nomad is used in production today across many industries to solve critical, real-world business objectives.

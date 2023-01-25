@@ -114,8 +114,8 @@ The new max limit attribute is currently supported by the official `docker`,
 community-supported task drivers for their memory oversubscription support.
 
 Memory oversubscription is opt-in. Nomad operators can enable [Memory Oversubscription in the scheduler
-configuration](/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
-Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas) to limit the memory
+configuration](/nomad/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
+Quotas](/nomad/tutorials/governance-and-policy/quotas) to limit the memory
 oversubscription.
 
 To avoid degrading the cluster experience, we recommend examining and monitoring
@@ -126,11 +126,11 @@ resource utilization and considering the following suggestions:
 
 * Monitor hosts for memory utilization and set alerts on Out-Of-Memory errors
 
-* Set the [client `reserved`](/docs/configuration/client#reserved) with enough
+* Set the [client `reserved`](/nomad/docs/configuration/client#reserved) with enough
   memory for host services that aren't managed by Nomad as well as a buffer
   for the memory excess. For example, if the client reserved memory is 1GB,
   the allocations on the host may exceed their soft memory limit by almost
   1GB in aggregate before the memory becomes contended and allocations get
   killed.
 
-[device]: /docs/job-specification/device 'Nomad device Job Specification'
+[device]: /nomad/docs/job-specification/device 'Nomad device Job Specification'

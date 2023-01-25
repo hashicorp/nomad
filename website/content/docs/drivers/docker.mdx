@@ -53,7 +53,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task. For example:
 
   ```hcl
@@ -250,7 +250,7 @@ config {
   "02:68:b3:29:da:98").
 
 - `memory_hard_limit` - (Optional) The maximum allowable amount of memory used
-  (megabytes) by the container. If set, the [`memory`](/docs/job-specification/resources#memory)
+  (megabytes) by the container. If set, the [`memory`](/nomad/docs/job-specification/resources#memory)
   parameter of the task resource configuration becomes a soft limit passed to the
   docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
   and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
@@ -540,7 +540,7 @@ config {
 
 - `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
-  See [IPv6 Docker containers](/docs/job-specification/service#ipv6-docker-containers) for details.
+  See [IPv6 Docker containers](/nomad/docs/job-specification/service#ipv6-docker-containers) for details.
 
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
@@ -559,7 +559,7 @@ config {
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
-Additionally, the docker driver supports customization of the container's user through the task's [`user` option](/docs/job-specification/task#user).
+Additionally, the docker driver supports customization of the container's user through the task's [`user` option](/nomad/docs/job-specification/task#user).
 
 ### Container Name
 
@@ -664,7 +664,7 @@ scope of Nomad.
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/job-specification/network). Here is a recap:
+[networking page](/nomad/docs/job-specification/network). Here is a recap:
 
 ```hcl
 group {
@@ -760,7 +760,7 @@ When using network plugins like `weave` that assign containers a routable IP
 address, that address will automatically be used in any `service`
 advertisements for the task. You may override what address is advertised by
 using the `address_mode` parameter on a `service`. See
-[service](/docs/job-specification/service) for details.
+[service](/nomad/docs/job-specification/service) for details.
 
 ### Networking Protocols
 
@@ -776,7 +776,7 @@ through Nomad plugins or dynamic job configuration.
 
 ## Capabilities
 
-The `docker` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `docker` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation    |
 | -------------------- | ----------------- |
@@ -1010,7 +1010,7 @@ host system.
 documentation for more information.
 
 The `docker` driver has the following [client configuration
-options](/docs/configuration/client#options):
+options](/nomad/docs/configuration/client#options):
 
 - `docker.endpoint` - If using a non-standard socket, HTTP or another location,
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
@@ -1162,7 +1162,7 @@ Docker provides resource isolation by way of
 Containers essentially have a virtual file system all to themselves. If you
 need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
-[QEMU](/docs/drivers/qemu).
+[QEMU](/nomad/docs/drivers/qemu).
 
 ## Caveats
 
@@ -1194,21 +1194,21 @@ Docker for Windows only supports running Windows containers. Because Docker for
 Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][winissues].
 
-[faq-win-mac]: /docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
+[faq-win-mac]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
 [plugin-options]: #plugin-options
-[plugin-stanza]: /docs/configuration/plugin
-[allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[plugin-stanza]: /nomad/docs/configuration/plugin
+[allocation working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
-[cap_add]: /docs/drivers/docker#cap_add
-[cap_drop]: /docs/drivers/docker#cap_drop
-[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[upgrade_guide_extra_hosts]: /docs/upgrade/upgrade-specific#docker-driver
+[cap_add]: /nomad/docs/drivers/docker#cap_add
+[cap_drop]: /nomad/docs/drivers/docker#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
 [tini]: https://github.com/krallin/tini
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[allow_caps]: /docs/drivers/docker#allow_caps
-[Connect]: /docs/job-specification/connect
-[`bridge`]: /docs/job-specification/network#bridge
-[network stanza]: /docs/job-specification/network#bridge-mode
-[`pids_limit`]: /docs/drivers/docker#pids_limit
+[allow_caps]: /nomad/docs/drivers/docker#allow_caps
+[Connect]: /nomad/docs/job-specification/connect
+[`bridge`]: /nomad/docs/job-specification/network#bridge
+[network stanza]: /nomad/docs/job-specification/network#bridge-mode
+[`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container

@@ -10,7 +10,7 @@ Name: `java`
 
 The `java` driver is used to execute Java applications packaged into a Java Jar
 file. The driver requires the Jar file to be accessible from the Nomad
-client via the [`artifact` downloader](/docs/job-specification/artifact).
+client via the [`artifact` downloader](/nomad/docs/job-specification/artifact).
 
 ## Task Configuration
 
@@ -41,7 +41,7 @@ The `java` driver supports the following configuration in the job spec:
 
 - `args` - (Optional) A list of arguments to the Jar's main method. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
 - `jvm_options` - (Optional) A list of JVM options to be passed while invoking
@@ -133,7 +133,7 @@ task "web" {
 
 ## Capabilities
 
-The `java` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `java` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation                |
 | -------------------- | ----------------------------- |
@@ -242,12 +242,12 @@ the client manages garbage collection locally which mitigates any issue this may
 create.
 
 This list is configurable through the agent client
-[configuration file](/docs/configuration/client#chroot_env).
+[configuration file](/nomad/docs/configuration/client#chroot_env).
 
-[default_pid_mode]: /docs/drivers/java#default_pid_mode
-[default_ipc_mode]: /docs/drivers/java#default_ipc_mode
-[cap_add]: /docs/drivers/java#cap_add
-[cap_drop]: /docs/drivers/java#cap_drop
-[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[allow_caps]: /docs/drivers/java#allow_caps
+[default_pid_mode]: /nomad/docs/drivers/java#default_pid_mode
+[default_ipc_mode]: /nomad/docs/drivers/java#default_ipc_mode
+[cap_add]: /nomad/docs/drivers/java#cap_add
+[cap_drop]: /nomad/docs/drivers/java#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps]: /nomad/docs/drivers/java#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

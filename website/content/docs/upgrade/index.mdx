@@ -61,7 +61,7 @@ While it is possible to upgrade Nomad client nodes before servers, this guide
 recommends upgrading servers first as many new client features will not work
 until servers are upgraded.
 
-In a [federated cluster](https://learn.hashicorp.com/tutorials/nomad/federation),
+In a [federated cluster](/nomad/tutorials/manage-clusters/federation),
 new features are not guaranteed to work until all agents in a region and the
 server nodes in the authoritative region are upgraded.
 
@@ -130,8 +130,8 @@ Use the same actions in step #2 above to confirm cluster health.
 Following the successful upgrade of the servers you can now update your
 clients using a similar process as the servers. You may either upgrade clients
 in-place or start new nodes on the new version. See the [Workload Migration
-Guide](https://learn.hashicorp.com/tutorials/nomad/node-drain) for instructions on how to migrate running
-allocations from the old nodes to the new nodes with the [`nomad node drain`](/docs/commands/node/drain) command.
+Guide](/nomad/tutorials/manage-clusters/node-drain) for instructions on how to migrate running
+allocations from the old nodes to the new nodes with the [`nomad node drain`](/nomad/docs/commands/node/drain) command.
 
 ## Done
 
@@ -144,15 +144,15 @@ are in a `ready` state.
 The process of upgrading to a Nomad Enterprise version is identical to upgrading
 between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
-version details](/docs/upgrade/upgrade-specific) page as some version
+version details](/nomad/docs/upgrade/upgrade-specific) page as some version
 differences may require specific steps.
 
-[data_dir]: /docs/configuration#data_dir
-[heartbeat_grace]: /docs/configuration/server#heartbeat_grace
-[monitor]: /docs/commands/monitor
-[node-status]: /docs/commands/node/status
-[server-members]: /docs/commands/server/members
-[upgrade-specific]: /docs/upgrade/upgrade-specific
+[data_dir]: /nomad/docs/configuration#data_dir
+[heartbeat_grace]: /nomad/docs/configuration/server#heartbeat_grace
+[monitor]: /nomad/docs/commands/monitor
+[node-status]: /nomad/docs/commands/node/status
+[server-members]: /nomad/docs/commands/server/members
+[upgrade-specific]: /nomad/docs/upgrade/upgrade-specific
 
 ## Upgrading to Raft Protocol 3
 
@@ -167,7 +167,7 @@ To see the version of the Raft protocol in use on each server, use the
 Note that the format of `peers.json` used for outage recovery is
 different when running with the latest Raft protocol. See [Manual
 Recovery Using
-peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
+peers.json](/nomad/tutorials/manage-clusters/outage-recovery#manual-recovery-using-peersjson)
 for a description of the required format.
 
 When using Raft protocol version 3, servers are identified by their
@@ -235,5 +235,5 @@ After running this script, if the upgrade is for a Nomad version lower
 than v1.3.0, update the [`raft_protocol`] in the server's
 configuration to `3` and restart the server.
 
-[peers-json]: https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson
-[`raft_protocol`]: /docs/configuration/server#raft_protocol
+[peers-json]: /nomad/tutorials/manage-clusters/outage-recovery#manual-recovery-using-peersjson
+[`raft_protocol`]: /nomad/docs/configuration/server#raft_protocol

@@ -65,7 +65,7 @@ Ensure that Nomad can find the plugin, refer to [`plugin_dir`][plugin_dir].
 
 ## Capabilities
 
-The `podman` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `podman` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation          |
 | -------------------- | ----------------------- |
@@ -556,27 +556,27 @@ configuration file.
   }
   ```
 
-[`count`]: /docs/job-specification/group#count
+[`count`]: /nomad/docs/job-specification/group#count
 [`disable_log_collection`]: #disable_log_collection
-[docker-ports]: /docs/drivers/docker#forwarding-and-exposing-ports
+[docker-ports]: /nomad/docs/drivers/docker#forwarding-and-exposing-ports
 [`examples/jobs/nats_group.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_group.nomad
 [`examples/jobs/nats_simple_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_simple_pod.nomad
 [`examples/jobs/nats_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_pod.nomad
 [homepage]: https://github.com/hashicorp/nomad-driver-podman
-[memory-value]: /docs/job-specification/resources#memory
-[`network`]: /docs/job-specification/network
-[nomad-init]: /docs/commands/job/init
-[nomad_download]: /downloads
-[nomad_driver_ports]: /docs/drivers/docker#forwarding-and-exposing-ports
-[nomad_group_network]: /docs/job-specification/group#network
-[nomad_lifecycle_hooks]: /docs/job-specification/lifecycle
-[plugin_dir]: /docs/configuration#plugin_dir
+[memory-value]: /nomad/docs/job-specification/resources#memory
+[`network`]: /nomad/docs/job-specification/network
+[nomad-init]: /nomad/docs/commands/job/init
+[nomad_download]: /nomad/downloads
+[nomad_driver_ports]: /nomad/docs/drivers/docker#forwarding-and-exposing-ports
+[nomad_group_network]: /nomad/docs/job-specification/group#network
+[nomad_lifecycle_hooks]: /nomad/docs/job-specification/lifecycle
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [podman]: https://podman.io/
 [podman-cli]: https://podman.io/whatis.html
-[`prestart`]: /docs/job-specification/lifecycle#prestart
+[`prestart`]: /nomad/docs/job-specification/lifecycle#prestart
 [releases]: https://releases.hashicorp.com/nomad-driver-podman
 [rootless_tutorial]: https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md
-[task]: /docs/job-specification/task#user
+[task]: /nomad/docs/job-specification/task#user
 [`network_mode`]: #network_mode
 [network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
 [slirp-issue]: https://github.com/containers/libpod/issues/6097

@@ -9,7 +9,7 @@ description: The Exec task driver is used to run binaries using OS isolation pri
 Name: `exec`
 
 The `exec` driver is used to simply execute a particular command for a task.
-However, unlike [`raw_exec`](/docs/drivers/raw_exec) it uses the underlying isolation
+However, unlike [`raw_exec`](/nomad/docs/drivers/raw_exec) it uses the underlying isolation
 primitives of the operating system to limit the task's access to resources. While
 simple, since the `exec` driver can invoke any command, it can be used to call
 scripts or other wrappers which provide higher level features.
@@ -42,12 +42,12 @@ The `exec` driver supports the following configuration in the job spec:
     directory.
 
   If executing a binary that is downloaded
-  from an [`artifact`](/docs/job-specification/artifact), the path can be
+  from an [`artifact`](/nomad/docs/job-specification/artifact), the path can be
   relative from the allocation's root directory.
 
 - `args` - (Optional) A list of arguments to the `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
 - `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
@@ -102,7 +102,7 @@ task "example" {
 ```
 
 To execute a binary downloaded from an
-[`artifact`](/docs/job-specification/artifact):
+[`artifact`](/nomad/docs/job-specification/artifact):
 
 ```hcl
 task "example" {
@@ -123,7 +123,7 @@ task "example" {
 
 ## Capabilities
 
-The `exec` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `exec` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation |
 | -------------------- | -------------- |
@@ -244,14 +244,14 @@ the client manages garbage collection locally which mitigates any issue this may
 create.
 
 This list is configurable through the agent client
-[configuration file](/docs/configuration/client#chroot_env).
+[configuration file](/nomad/docs/configuration/client#chroot_env).
 
-[default_pid_mode]: /docs/drivers/exec#default_pid_mode
-[default_ipc_mode]: /docs/drivers/exec#default_ipc_mode
-[cap_add]: /docs/drivers/exec#cap_add
-[cap_drop]: /docs/drivers/exec#cap_drop
-[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[allow_caps]: /docs/drivers/exec#allow_caps
+[default_pid_mode]: /nomad/docs/drivers/exec#default_pid_mode
+[default_ipc_mode]: /nomad/docs/drivers/exec#default_ipc_mode
+[cap_add]: /nomad/docs/drivers/exec#cap_add
+[cap_drop]: /nomad/docs/drivers/exec#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps]: /nomad/docs/drivers/exec#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[host volume]: /docs/configuration/client#host_volume-stanza
-[volume_mount]: /docs/job-specification/volume_mount
+[host volume]: /nomad/docs/configuration/client#host_volume-stanza
+[volume_mount]: /nomad/docs/job-specification/volume_mount
