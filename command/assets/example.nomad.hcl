@@ -331,7 +331,6 @@ job "example" {
       #   }
       # }
 
-
       # The "logs" block instructs the Nomad client on how many log files and
       # the maximum size of those logs files to retain. Logging is enabled by
       # default, but the "logs" block allows for finer-grained control over
@@ -346,6 +345,14 @@ job "example" {
       #   max_files     = 10
       #   max_file_size = 15
       # }
+
+      # The "identity" block instructs Nomad to expose the task's workload
+      # identity token as an environment variable and in the file
+      # secrets/nomad_token.
+      identity {
+        env  = true
+        file = true
+      }
 
       # The "resources" block describes the requirements a task needs to
       # execute. Resource requirements include memory, cpu, and more.

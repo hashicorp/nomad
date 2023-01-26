@@ -16,6 +16,8 @@ job "example" {
         auth_soft_fail = true
       }
 
+      identity {}
+
       resources {
         cpu    = 500
         memory = 256
