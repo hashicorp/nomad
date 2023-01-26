@@ -1090,6 +1090,8 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
@@ -1101,6 +1103,10 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		}
 
 		return err
+	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
@@ -1235,6 +1241,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
+
 	authErr := n.srv.Authenticate(n.ctx, args)
 
 	// Ensure the connection was initiated by another client if TLS is used.
@@ -1242,7 +1249,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if err != nil {
 		return err
 	}
-
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
 		return err
 	}
@@ -1704,6 +1710,9 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 // DeriveVaultToken is used by the clients to request wrapped Vault tokens for
 // tasks
 func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *structs.DeriveVaultTokenResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	setError := func(e error, recoverable bool) {
 		if e != nil {
 			if re, ok := e.(*structs.RecoverableError); ok {
@@ -1718,6 +1727,10 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
 		setError(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
 		return nil
+	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
 
@@ -1926,6 +1939,9 @@ type connectTask struct {
 }
 
 func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.DeriveSITokenResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	setError := func(e error, recoverable bool) {
 		if e != nil {
 			if re, ok := e.(*structs.RecoverableError); ok {
@@ -1940,6 +1956,10 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	if done, err := n.srv.forward("Node.DeriveSIToken", args, args, reply); done {
 		setError(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
 		return nil
+	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_si_token"}, time.Now())
 
@@ -2159,14 +2179,20 @@ func taskUsesConnect(task *structs.Task) bool {
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
+
+	authErr := n.srv.Authenticate(n.ctx, args)
+
 	// Ensure the connection was initiated by another client if TLS is used.
 	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}
-
 	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
+	}
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 

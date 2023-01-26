@@ -241,16 +241,21 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
+
 	// ensure that only another server can make this request
 	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
 	}
-
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "get"}, time.Now())
 
 	if args.KeyID == "" {

@@ -37,13 +37,18 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
+	authErr := s.srv.Authenticate(s.ctx, args)
+
 	// Ensure the connection was initiated by a client if TLS is used.
 	if err := validateTLSCertificateLevel(s.srv, s.ctx, tlsCertificateLevelClient); err != nil {
 		return err
 	}
-
 	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
 		return err
+	}
+	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
