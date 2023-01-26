@@ -16,7 +16,7 @@ import (
 // based on the signed identity stored on the Allocation
 
 const (
-	// wiTokenFile is the name of the file holding the Vault token inside the
+	// wiTokenFile is the name of the file holding the Nomad token inside the
 	// task's secret directory
 	wiTokenFile = "nomad_token"
 )
