@@ -966,8 +966,8 @@ type ACLBindingRule struct {
 	Selector string
 
 	// BindType adjusts how this binding rule is applied at login time. The
-	// valid values are ACLBindingRuleBindTypeRole and
-	// ACLBindingRuleBindTypePolicy.
+	// valid values are ACLBindingRuleBindTypeRole,
+	// ACLBindingRuleBindTypePolicy, and ACLBindingRuleBindTypeManagement.
 	BindType string
 
 	// BindName is the target of the binding. Can be lightly templated using
@@ -998,6 +998,10 @@ const (
 	// within the ACLBindingRule.BindName parameter, and will be the policy
 	// name.
 	ACLBindingRuleBindTypePolicy = "policy"
+
+	// ACLBindingRuleBindTypeManagement is the ACL binding rule bind type that
+	// will generate management ACL tokens when matched.
+	ACLBindingRuleBindTypeManagement = "management"
 )
 
 // Canonicalize performs basic canonicalization on the ACL token object. It is
@@ -1028,21 +1032,26 @@ func (a *ACLBindingRule) Validate() error {
 	if a.AuthMethod == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("auth method is missing"))
 	}
-	if a.BindName == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("bind name is missing"))
-	}
 	if len(a.Description) > maxACLBindingRuleDescriptionLength {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("description longer than %d", maxACLRoleDescriptionLength))
 	}
 
-	if a.BindType == "" {
+	// Depending on the bind type, we have some specific validation. Catching
+	// the empty string also provides easier to understand feedback to the
+	// user.
+	switch a.BindType {
+	case "":
 		mErr.Errors = append(mErr.Errors, errors.New("bind type is missing"))
-	} else {
-		switch a.BindType {
-		case ACLBindingRuleBindTypeRole, ACLBindingRuleBindTypePolicy: // fall-through.
-		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
+	case ACLBindingRuleBindTypeRole, ACLBindingRuleBindTypePolicy:
+		if a.BindName == "" {
+			mErr.Errors = append(mErr.Errors, errors.New("bind name is missing"))
 		}
+	case ACLBindingRuleBindTypeManagement:
+		if a.BindName != "" {
+			mErr.Errors = append(mErr.Errors, errors.New("bind name should be empty"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
 	}
 
 	return mErr.ErrorOrNil()

@@ -35,8 +35,9 @@ type BinderStateStore interface {
 // Bindings contains the ACL roles and policies to be assigned to the created
 // token.
 type Bindings struct {
-	Roles    []*structs.ACLTokenRoleLink
-	Policies []string
+	Management bool
+	Roles      []*structs.ACLTokenRoleLink
+	Policies   []string
 }
 
 // None indicates that the resulting bindings would not give the created token
@@ -110,6 +111,11 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 			if policy != nil {
 				bindings.Policies = append(bindings.Policies, policy.Name)
 			}
+		case structs.ACLBindingRuleBindTypeManagement:
+			bindings.Management = true
+			bindings.Policies = nil
+			bindings.Roles = nil
+			return &bindings, nil
 		}
 	}
 
@@ -134,6 +140,8 @@ func computeBindName(bindType, bindName string, claimMappings map[string]string)
 		valid = structs.ValidPolicyName.MatchString(bindName)
 	case structs.ACLBindingRuleBindTypeRole:
 		valid = structs.ValidACLRoleName.MatchString(bindName)
+	case structs.ACLManagementToken:
+		valid = true
 	default:
 		return "", false, fmt.Errorf("unknown binding rule bind type: %s", bindType)
 	}

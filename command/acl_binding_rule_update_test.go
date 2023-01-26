@@ -76,7 +76,7 @@ func TestACLBindingRuleUpdateCommand_Run(t *testing.T) {
 	// Try a merge update without setting any parameters to update.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, aclBindingRule.ID})
 	must.Eq(t, 1, code)
-	must.StrContains(t, ui.ErrorWriter.String(), "Please provide all required flags to update the ACL binding rule")
+	must.StrContains(t, ui.ErrorWriter.String(), "Please provide at least one update for the ACL binding rule")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -91,15 +91,6 @@ func TestACLBindingRuleUpdateCommand_Run(t *testing.T) {
 	must.StrContains(t, s, "acl-binding-rule-cli-test")
 	must.StrContains(t, s, "role")
 	must.StrContains(t, s, "engineering")
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Try updating the role using no-merge without setting the required flags.
-	code = cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", aclBindingRule.ID})
-	must.Eq(t, 1, code)
-	must.StrContains(t, ui.ErrorWriter.String(),
-		"ACL binding rule bind name must be specified using the -bind-name flag")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

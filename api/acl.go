@@ -799,8 +799,8 @@ type ACLBindingRule struct {
 	Selector string
 
 	// BindType adjusts how this binding rule is applied at login time. The
-	// valid values are ACLBindingRuleBindTypeRole and
-	// ACLBindingRuleBindTypePolicy.
+	// valid values are ACLBindingRuleBindTypeRole,
+	// ACLBindingRuleBindTypePolicy, and ACLBindingRuleBindTypeManagement.
 	BindType string
 
 	// BindName is the target of the binding. Can be lightly templated using
@@ -826,6 +826,10 @@ const (
 	// within the ACLBindingRule.BindName parameter, and will be the policy
 	// name.
 	ACLBindingRuleBindTypePolicy = "policy"
+
+	// ACLBindingRuleBindTypeManagement is the ACL binding rule bind type that
+	// will generate management ACL tokens when matched.
+	ACLBindingRuleBindTypeManagement = "management"
 )
 
 // ACLBindingRuleListStub is the stub object returned when performing a listing

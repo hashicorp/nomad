@@ -130,11 +130,12 @@ The table below shows this endpoint's support for
   optional and when not set, provides a catch-all rule.
 
 - `BindType` `(string: <required>)` - Adjusts how this binding rule is applied
-  at login time. Valid values are `role` and `policy`.
+  at login time. Valid values are `role`, `policy`, and `management`.
 
 - `BindName` `(string: <required>)` - Target of the binding. Can be lightly
-  templated using HIL ${foo} syntax from available field names. How it is used
-  depends on the BindType. 
+  templated using HIL ${foo} syntax from available field names. If the bind
+  type is set to `management`, this should not be set. How it is used depends
+  on the BindType.
 
 ### Sample Payload
 
@@ -202,11 +203,11 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   optional and when not set, provides a catch-all rule.
 
 - `BindType` `(string: "")` - Adjusts how this binding rule is applied at login
-  time. Valid values are `role` and `policy`.
+  time. Valid values are `role`, `policy`, and `management`.
 
 - `BindName` `(string: "")` - Target of the binding. Can be lightly templated
   using HIL ${foo} syntax from available field names. How it is used depends on
-  the BindType. 
+  the BindType.
 
 ### Sample Payload
 
