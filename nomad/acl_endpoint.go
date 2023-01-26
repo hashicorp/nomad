@@ -368,7 +368,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	// policies need to be fetched so that the client can determine what to allow.
 	token := args.GetIdentity().GetACLToken()
 	if token == nil {
-		return structs.ErrTokenNotFound
+		return structs.ErrPermissionDenied
 	}
 
 	// Generate a set of policy names. This is initially generated from the
