@@ -4,7 +4,7 @@ import classic from 'ember-classic-decorator';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 @classic
-export default class RunRoute extends Route {
+export default class JobsRunIndexRoute extends Route {
   @service can;
   @service flashMessages;
   @service router;

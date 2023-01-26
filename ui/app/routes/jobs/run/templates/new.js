@@ -3,7 +3,7 @@ import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
-export default class RunRoute extends Route {
+export default class JobsRunTemplatesNewRoute extends Route {
   @service can;
   @service router;
   @service store;

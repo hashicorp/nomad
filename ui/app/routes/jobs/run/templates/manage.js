@@ -1,7 +1,7 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
-export default class RunTemplatesRoute extends Route {
+export default class JobsRunTemplatesManageRoute extends Route {
   @service can;
   @service router;
   @service store;
@@ -22,10 +22,14 @@ export default class RunTemplatesRoute extends Route {
       prefix: 'nomad/job-templates',
       namespace: '*',
     });
-    const recordsToQuery = jobTemplateVariables.map((template) =>
-      this.store.findRecord('variable', template.id)
+
+    // Dispatch O(n+1) query
+    await Promise.all(
+      jobTemplateVariables.map((template) =>
+        this.store.findRecord('variable', template.id)
+      )
     );
 
-    return Promise.all(recordsToQuery);
+    return jobTemplateVariables;
   }
 }
