@@ -58,6 +58,13 @@ func TestBinder_Bind(t *testing.T) {
 			BindName:   otherRole.Name,
 			AuthMethod: authMethod.Name,
 		},
+		{
+			ID:         uuid.Generate(),
+			Selector:   "role==admin",
+			BindType:   structs.ACLBindingRuleBindTypeManagement,
+			BindName:   "",
+			AuthMethod: authMethod.Name,
+		},
 	}
 	must.NoError(t, testStore.UpsertACLBindingRules(0, bindingRules, true))
 
@@ -69,16 +76,16 @@ func TestBinder_Bind(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			"empty identity",
-			authMethod,
-			&Identity{},
-			&Bindings{},
-			false,
+			name:       "empty identity",
+			authMethod: authMethod,
+			identity:   &Identity{},
+			want:       &Bindings{},
+			wantErr:    false,
 		},
 		{
-			"role",
-			authMethod,
-			&Identity{
+			name:       "role",
+			authMethod: authMethod,
+			identity: &Identity{
 				Claims: map[string]string{
 					"role":     "engineer",
 					"language": "go",
@@ -87,8 +94,20 @@ func TestBinder_Bind(t *testing.T) {
 					"editor": "vim",
 				},
 			},
-			&Bindings{Roles: []*structs.ACLTokenRoleLink{{ID: targetRole.ID}}},
-			false,
+			want:    &Bindings{Roles: []*structs.ACLTokenRoleLink{{ID: targetRole.ID}}},
+			wantErr: false,
+		},
+		{
+			name:       "management",
+			authMethod: authMethod,
+			identity: &Identity{
+				Claims: map[string]string{
+					"role": "admin",
+				},
+				ClaimMappings: map[string]string{},
+			},
+			want:    &Bindings{Management: true},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -116,22 +135,31 @@ func Test_computeBindName(t *testing.T) {
 		wantErr       bool
 	}{
 		{
-			"valid bind name and type",
-			structs.ACLBindingRuleBindTypeRole,
-			"cluster-admin",
-			map[string]string{"cluster-admin": "root"},
-			"cluster-admin",
-			true,
-			false,
+			name:          "valid bind name and type",
+			bindType:      structs.ACLBindingRuleBindTypeRole,
+			bindName:      "cluster-admin",
+			claimMappings: map[string]string{"cluster-admin": "root"},
+			wantName:      "cluster-admin",
+			wantTrue:      true,
+			wantErr:       false,
 		},
 		{
-			"invalid type",
-			"amazing",
-			"cluster-admin",
-			map[string]string{"cluster-admin": "root"},
-			"",
-			false,
-			true,
+			name:          "valid management",
+			bindType:      structs.ACLBindingRuleBindTypeManagement,
+			bindName:      "",
+			claimMappings: map[string]string{"cluster-admin": "root"},
+			wantName:      "",
+			wantTrue:      true,
+			wantErr:       false,
+		},
+		{
+			name:          "invalid type",
+			bindType:      "amazing",
+			bindName:      "cluster-admin",
+			claimMappings: map[string]string{"cluster-admin": "root"},
+			wantName:      "",
+			wantTrue:      false,
+			wantErr:       true,
 		},
 	}
 	for _, tt := range tests {

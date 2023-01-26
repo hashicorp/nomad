@@ -3701,4 +3701,35 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
 	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
 	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+
+	// Create a binding rule which generates management tokens. This should
+	// override the other rules, giving us a management token when we next
+	// log in.
+	mockBindingRule3 := mock.ACLBindingRule()
+	mockBindingRule3.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule3.BindType = structs.ACLBindingRuleBindTypeManagement
+	mockBindingRule3.Selector = "engineering in list.policies"
+	mockBindingRule3.BindName = ""
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		50, []*structs.ACLBindingRule{mockBindingRule3}, true))
+
+	completeAuthReq5 := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp5 structs.ACLOIDCCompleteAuthResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq5, &completeAuthResp5)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
+	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
+	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
 }

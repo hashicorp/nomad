@@ -2587,7 +2587,7 @@ func (a *ACL) OIDCCompleteAuth(
 	if err != nil {
 		return err
 	}
-	if tokenBindings.None() {
+	if tokenBindings.None() && !tokenBindings.Management {
 		return structs.NewErrRPCCoded(http.StatusBadRequest, "no role or policy bindings matched")
 	}
 
@@ -2595,17 +2595,22 @@ func (a *ACL) OIDCCompleteAuth(
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	token := structs.ACLToken{
+		Name:          "OIDC-" + authMethod.Name,
+		Global:        authMethod.TokenLocalityIsGlobal(),
+		ExpirationTTL: authMethod.MaxTokenTTL,
+	}
+
+	if tokenBindings.Management {
+		token.Type = structs.ACLManagementToken
+	} else {
+		token.Type = structs.ACLClientToken
+		token.Policies = tokenBindings.Policies
+		token.Roles = tokenBindings.Roles
+	}
+
 	tokenUpsertRequest := structs.ACLTokenUpsertRequest{
-		Tokens: []*structs.ACLToken{
-			{
-				Name:          "OIDC-" + authMethod.Name,
-				Type:          structs.ACLClientToken,
-				Policies:      tokenBindings.Policies,
-				Roles:         tokenBindings.Roles,
-				Global:        authMethod.TokenLocalityIsGlobal(),
-				ExpirationTTL: authMethod.MaxTokenTTL,
-			},
-		},
+		Tokens: []*structs.ACLToken{&token},
 		WriteRequest: structs.WriteRequest{
 			Region:    a.srv.Region(),
 			AuthToken: a.srv.getLeaderAcl(),
