@@ -5,6 +5,7 @@ import {
   currentURL,
   fillIn,
   visit,
+  waitFor,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -533,6 +534,38 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-edit-template="nomad/job-templates/bar"]')
         .doesNotExist('The template is removed from the list.');
+    });
+
+    test('a user sees accurate template information', async function (assert) {
+      assert.expect(3);
+
+      // Arrange
+      server.create('variable', {
+        path: 'nomad/job-templates/foo',
+        namespace: 'default',
+        id: 'nomad/job-templates/foo',
+        Items: {
+          template: 'qud',
+          label: 'foo',
+          description: 'bar baz',
+        },
+      });
+
+      await visit('/jobs/run/templates');
+
+      assert.equal(currentRouteName(), 'jobs.run.templates.index');
+      assert.dom('[data-test-template-card="foo"]').exists();
+
+      this.store = this.owner.lookup('service:store');
+      this.store.unloadAll();
+
+      await waitFor('[data-test-empty-templates-list-headline]');
+
+      assert
+        .dom('[data-test-template-card="foo"]')
+        .doesNotExist(
+          'The template reactively updates to changes in the Ember Data Store.'
+        );
     });
   });
 });
