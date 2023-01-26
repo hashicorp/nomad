@@ -26,6 +26,9 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 				Name: "nomad_init_768b5e8c-a52e-825c-d564-51100230eb62",
 				Config: &docker.Config{
 					Image: "gcr.io/google_containers/pause-amd64:3.1",
+					Labels: map[string]string{
+						dockerLabelAllocID: "768b5e8c-a52e-825c-d564-51100230eb62",
+					},
 				},
 				HostConfig: &docker.HostConfig{
 					NetworkMode:   "none",
@@ -44,6 +47,9 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 				Config: &docker.Config{
 					Image:    "gcr.io/google_containers/pause-amd64:3.1",
 					Hostname: "linux",
+					Labels: map[string]string{
+						dockerLabelAllocID: "768b5e8c-a52e-825c-d564-51100230eb62",
+					},
 				},
 				HostConfig: &docker.HostConfig{
 					NetworkMode:   "none",
