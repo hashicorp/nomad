@@ -197,6 +197,6 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		return 0
 	}
 
-	a.Ui.Output(fmt.Sprintf("Created ACL auth method:\n%s", formatAuthMethod(method)))
+	outputAuthMethod(a.Meta, method)
 	return 0
 }
