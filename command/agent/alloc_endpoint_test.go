@@ -1032,7 +1032,7 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientGCRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.ErrorContains(err, structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure

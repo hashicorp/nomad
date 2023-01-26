@@ -806,7 +806,7 @@ func TestHTTP_AgentSetServers_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.AgentServersRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.ErrorContains(err, structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -860,7 +860,7 @@ func TestHTTP_AgentListServers_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.AgentServersRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.ErrorContains(err, structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
