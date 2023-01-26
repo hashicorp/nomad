@@ -1,6 +1,6 @@
+// @ts-check
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
-import DEFAULT_JOB_TEMPLATES from 'nomad-ui/utils/default-job-templates';
 
 export default class JobsRunTemplatesIndexRoute extends Route {
   @service can;
@@ -19,18 +19,9 @@ export default class JobsRunTemplatesIndexRoute extends Route {
   }
 
   async model() {
-    const jobTemplateVariables = await this.store.query('variable', {
-      prefix: 'nomad/job-templates',
-      namespace: '*',
-    });
-
-    await Promise.all(
-      jobTemplateVariables.map((template) =>
-        this.store.findRecord('variable', template.id)
-      )
-    );
-
-    return jobTemplateVariables;
+    const VariableAdapter = this.store.adapterFor('variable');
+    const jobTemplates = await VariableAdapter.getJobTemplates();
+    return jobTemplates;
   }
 
   resetController(controller) {

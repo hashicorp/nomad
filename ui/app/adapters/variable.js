@@ -1,11 +1,16 @@
+// @ts-check
 import ApplicationAdapter from './application';
 import AdapterError from '@ember-data/adapter/error';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 import { ConflictError } from '@ember-data/adapter/error';
+import DEFAULT_JOB_TEMPLATES from 'nomad-ui/utils/default-job-templates';
+import { inject as service } from '@ember/service';
 
 @classic
 export default class VariableAdapter extends ApplicationAdapter {
+  @service store;
+
   pathForType = () => 'var';
 
   // PUT instead of POST on create;
@@ -15,6 +20,42 @@ export default class VariableAdapter extends ApplicationAdapter {
     let baseUrl = this.buildURL(type.modelName, data.ID);
     const checkAndSetValue = snapshot?.attr('modifyIndex') || 0;
     return this.ajax(`${baseUrl}?cas=${checkAndSetValue}`, 'PUT', { data });
+  }
+
+  /**
+   * Query for job templates, both defaults and variables at the nomad/job-templates path.
+   * @returns {Promise<Variable[]>}
+   */
+  async getJobTemplates() {
+    const jobTemplateVariables = await this.store.query('variable', {
+      prefix: 'nomad/job-templates',
+      namespace: '*',
+    });
+    const queriedTemplateVariables = await Promise.all(
+      jobTemplateVariables.map((template) =>
+        this.store.findRecord('variable', template.id)
+      )
+    );
+    return [...this.getDefaultJobTemplates(), ...queriedTemplateVariables];
+  }
+
+  /**
+   * @typedef Variable
+   * @type {object}
+   */
+
+  /**
+   * Lookup a job template variable by ID/path.
+   * @param {string} templateID
+   * @returns {Promise<Variable>}
+   */
+  async getJobTemplate(templateID) {
+    const defaultJobs = this.getDefaultJobTemplates();
+    if (defaultJobs.find((job) => job.id === templateID)) {
+      return defaultJobs.find((job) => job.id === templateID);
+    } else {
+      return this.store.findRecord('variable', templateID);
+    }
   }
 
   urlForFindAll(modelName) {
@@ -73,6 +114,16 @@ export default class VariableAdapter extends ApplicationAdapter {
       ]);
     }
     return super.handleResponse(...arguments);
+  }
+
+  getDefaultJobTemplates() {
+    const templates = DEFAULT_JOB_TEMPLATES.map((template) => {
+      let templateVariable =
+        this.store.peekRecord('variable', template.id) ||
+        this.store.createRecord('variable', template);
+      return templateVariable;
+    });
+    return templates;
   }
 }
 
