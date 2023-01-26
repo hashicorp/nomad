@@ -20,7 +20,7 @@ require (
 	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.142
+	github.com/aws/aws-sdk-go v1.44.184
 	github.com/boltdb/bolt v1.3.1
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v1.1.7
