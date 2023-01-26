@@ -11,3 +11,13 @@ type WorkloadIdentity struct {
 	// if set.
 	File bool
 }
+
+func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
+	if wi == nil {
+		return nil
+	}
+	return &WorkloadIdentity{
+		Env:  wi.Env,
+		File: wi.File,
+	}
+}

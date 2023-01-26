@@ -570,6 +570,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
+
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
@@ -752,6 +753,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 		tgrp.Merge(t.RestartPolicy)
 		t.RestartPolicy = tgrp
 	}
+	t.Identity.Canonicalize()
 }
 
 // TaskArtifact is used to download artifacts before running a task.

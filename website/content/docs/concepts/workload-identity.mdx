@@ -6,10 +6,11 @@ description: Learn about Nomad's workload identity feature
 
 # Workload Identity
 
-When an [allocation][] is accepted by the [plan applier][], the leader generates
-a Workload Identity for each task in the allocation. This workload identity is a
-[JSON Web Token (JWT)][] that has been signed by the leader's keyring. The
-workload identity includes the following identity claims:
+Every workload running in Nomad is given an identity. When an [allocation][] is
+accepted by the [plan applier][], the leader generates a Workload Identity for
+each task in the allocation. This workload identity is a [JSON Web Token
+(JWT)][] that has been signed by the leader's keyring. The workload identity
+includes the following identity claims:
 
 ```json
 {
@@ -19,6 +20,11 @@ workload identity includes the following identity claims:
   "nomad_task": "web"
 }
 ```
+
+# Using Workload Identity
+
+While Nomad always creates and uses workload identities internally, the JWT is
+not exposed to tasks by default.
 
 # Workload Associated ACL Policies
 

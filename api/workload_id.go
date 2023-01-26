@@ -6,3 +6,15 @@ type WorkloadIdentity struct {
 	Env  *bool `hcl:"env,optional"`
 	File *bool `hcl:"file,optional"`
 }
+
+func (wi *WorkloadIdentity) Canonicalize() {
+	if wi == nil {
+		return
+	}
+	if wi.Env == nil {
+		wi.Env = pointerOf(true)
+	}
+	if wi.File == nil {
+		wi.File = pointerOf(true)
+	}
+}
