@@ -1254,7 +1254,6 @@ func (s *Server) setupStreamingEndpoints(server *rpc.Server) {
 // handlers can have per-connection context.
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// These endpoints are client RPCs and don't include a connection context
-	_ = server.Register(NewClientCSIEndpoint(s))
 	_ = server.Register(NewClientStatsEndpoint(s))
 
 	// These endpoints have their streaming component registered in
@@ -1270,6 +1269,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 	_ = server.Register(NewACLEndpoint(s, ctx))
 	_ = server.Register(NewAllocEndpoint(s, ctx))
+	_ = server.Register(NewClientCSIEndpoint(s, ctx))
 	_ = server.Register(NewCSIVolumeEndpoint(s, ctx))
 	_ = server.Register(NewCSIPluginEndpoint(s, ctx))
 	_ = server.Register(NewDeploymentEndpoint(s, ctx))
