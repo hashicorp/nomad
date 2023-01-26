@@ -129,8 +129,8 @@ func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
 		if v.MountOptions != nil {
 			addErr("host volumes cannot have mount options")
 		}
-		if v.PerAlloc {
-			addErr("host volumes do not support per_alloc")
+		if v.PerAlloc && canaries > 0 {
+			addErr("volume cannot be per_alloc when canaries are in use")
 		}
 
 	case VolumeTypeCSI:

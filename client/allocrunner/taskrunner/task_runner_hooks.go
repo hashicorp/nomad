@@ -208,6 +208,8 @@ func (tr *TaskRunner) prestart() error {
 	joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 	defer joinedCancel()
 
+	alloc := tr.Alloc()
+
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
@@ -218,6 +220,7 @@ func (tr *TaskRunner) prestart() error {
 
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
+			Alloc:         alloc,
 			Task:          tr.Task(),
 			TaskDir:       tr.taskDir,
 			TaskEnv:       tr.envBuilder.Build(),
