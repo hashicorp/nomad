@@ -6,77 +6,83 @@ rules:
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
+      # Pattern used by typical endpoints that take an auth token or workload
+      # identity. Some of these endpoints have no context for Authenticate
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate(...)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $X.$Y.ResolveToken(...)
+          ... := $A.$B.ResolveACL(...)
           ...
+      # Pattern used by endpoints that are used by both ACLs and Clients.
+      # These endpoints will always have a ctx passed to Authenticate
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $U.requestACLToken(...)
+          ... := $A.$B.ResolveClientOrACL(...)
           ...
+      # Pattern used by ACL endpoints that need to interact with the token directly
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $T.NamespaceValidator(...)
+          ... := args.GetIdentity().GetACLToken()
           ...
       # Pattern used by endpoints called exclusively between agents
       # (server -> server or client -> server)
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
           ...
           ... := validateTLSCertificateLevel(...)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
-      # Pattern used by endpoints that support both normal ACLs and
-      # workload identity
+      # Pattern used by endpoints that support both normal ACLs and workload
+      # identity but break authentication and authorization up
+      # TODO: currently this is just for Variables and should be removed once
+      # https://github.com/hashicorp/nomad/issues/15875 is complete.
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
           ... := $T.handleMixedAuthEndpoint(...)
           ...
-      # Pattern used by endpoints that support both normal ACLs and
+      # Second pattern used by endpoints that support both normal ACLs and
       # workload identity but break authentication and authorization up
+      # TODO: currently this is just for Variables and should be removed once
+      # https://github.com/hashicorp/nomad/issues/15875 is complete.
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $T.authorize(...)
+          ... := svePreApply($A, args, args.Var)
           ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
+          authErr := $A.$B.Authenticate($A.ctx, args)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
           return $A.deregister(...)
-          ...
-      # Pattern used by Authenticate method.
-      # TODO: add authorization steps as well.
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
-          if authErr != nil {
-            return $C
-          }
-          ...
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate(nil, args)
-          ...
-          if authErr != nil {
-            return $C
-          }
           ...
       - metavariable-pattern:
           metavariable: $METHOD
@@ -86,6 +92,7 @@ rules:
             - pattern-not: '"ACL.ResolveToken"'
             - pattern-not: '"ACL.UpsertOneTimeToken"'
             - pattern-not: '"ACL.ExchangeOneTimeToken"'
+            - pattern-not: '"ACL.WhoAmI"'
             - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
             - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
             - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
@@ -100,4 +107,4 @@ rules:
     severity: "WARNING"
     paths:
       include:
-        - "*_endpoint.go"
+        - "nomad/*_endpoint.go"
