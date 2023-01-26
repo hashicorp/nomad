@@ -481,5 +481,58 @@ module('Acceptance | job run', function (hooks) {
         'We navigate back to the templates view.'
       );
     });
+
+    test('a user can delete a template', async function (assert) {
+      assert.expect(5);
+
+      // Arrange
+      server.create('variable', {
+        path: 'nomad/job-templates/foo',
+        namespace: 'default',
+        id: 'nomad/job-templates/foo',
+        Items: {},
+      });
+
+      server.create('variable', {
+        path: 'nomad/job-templates/bar',
+        namespace: 'default',
+        id: 'nomad/job-templates/bar',
+        Items: {},
+      });
+
+      server.create('variable', {
+        path: 'nomad/job-templates/baz',
+        namespace: 'default',
+        id: 'nomad/job-templates/baz',
+        Items: {},
+      });
+
+      await visit('/jobs/run/templates/manage');
+
+      assert.equal(currentRouteName(), 'jobs.run.templates.manage');
+      assert
+        .dom('[data-test-template-list]')
+        .exists('A list of templates is visible');
+
+      await click('[data-test-idle-button]');
+      await click('[data-test-confirm-button]');
+      assert
+        .dom('[data-test-edit-template="nomad/job-templates/foo"]')
+        .doesNotExist('The template is removed from the list.');
+
+      await click('[data-test-edit-template="nomad/job-templates/bar"]');
+      await click('[data-test-idle-button]');
+      await click('[data-test-confirm-button]');
+
+      assert.equal(
+        currentRouteName(),
+        'jobs.run.templates.manage',
+        'We navigate back to the templates manager view.'
+      );
+
+      assert
+        .dom('[data-test-edit-template="nomad/job-templates/bar"]')
+        .doesNotExist('The template is removed from the list.');
+    });
   });
 });
