@@ -915,16 +915,61 @@ func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality ==
 
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
-	OIDCDiscoveryURL    string
-	OIDCClientID        string
-	OIDCClientSecret    string
-	OIDCScopes          []string
-	BoundAudiences      []string
+	// A list of PEM-encoded public keys to use to authenticate signatures
+	// locally
+	JWTValidationPubKeys []string
+
+	// JSON Web Key Sets url for authenticating signatures
+	JWKSURL string
+
+	// The OIDC Discovery URL, without any .well-known component (base path)
+	OIDCDiscoveryURL string
+
+	// The OAuth Client ID configured with the OIDC provider
+	OIDCClientID string
+
+	// The OAuth Client Secret configured with the OIDC provider
+	OIDCClientSecret string
+
+	// List of OIDC scopes
+	OIDCScopes []string
+
+	// List of auth claims that are valid for login
+	BoundAudiences []string
+
+	// The value against which to match the iss claim in a JWT
+	BoundIssuer []string
+
+	// A list of allowed values for redirect_uri
 	AllowedRedirectURIs []string
-	DiscoveryCaPem      []string
-	SigningAlgs         []string
-	ClaimMappings       map[string]string
-	ListClaimMappings   map[string]string
+
+	// PEM encoded CA certs for use by the TLS client used to talk with the
+	// OIDC Discovery URL.
+	DiscoveryCaPem []string
+
+	// PEM encoded CA cert for use by the TLS client used to talk with the JWKS
+	// URL
+	JWKSCACert string
+
+	// A list of supported signing algorithms
+	SigningAlgs []string
+
+	// Duration in seconds of leeway when validating expiration of a token to
+	// account for clock skew
+	ExpirationLeeway time.Duration
+
+	// Duration in seconds of leeway when validating not before values of a
+	// token to account for clock skew.
+	NotBeforeLeeway time.Duration
+
+	// Duration in seconds of leeway when validating all claims to account for
+	// clock skew.
+	ClockSkewLeeway time.Duration
+
+	// Mappings of claims (key) that will be copied to a metadata field
+	// (value).
+	ClaimMappings     map[string]string
+	ListClaimMappings map[string]string
 }
 
 func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
@@ -935,8 +980,10 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	c := new(ACLAuthMethodConfig)
 	*c = *a
 
+	c.JWTValidationPubKeys = slices.Clone(a.JWTValidationPubKeys)
 	c.OIDCScopes = slices.Clone(a.OIDCScopes)
 	c.BoundAudiences = slices.Clone(a.BoundAudiences)
+	c.BoundIssuer = slices.Clone(a.BoundIssuer)
 	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
 	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
 	c.SigningAlgs = slices.Clone(a.SigningAlgs)
