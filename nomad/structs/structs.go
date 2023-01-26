@@ -7214,9 +7214,9 @@ type Task struct {
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
 
-	// EmitWorkloadToken says whether or not the task workload token is put in
-	// the task environment
-	EmitWorkloadToken bool
+	// Identity controls if and how the workload identity is exposed to
+	// tasks similar to the Vault block.
+	Identity *WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use

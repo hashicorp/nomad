@@ -1150,7 +1150,16 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
-	structsTask.EmitWorkloadToken = apiTask.EmitWorkloadToken
+
+	if apiTask.Identity != nil {
+		structsTask.Identity = &structs.WorkloadIdentity{}
+		if apiTask.Identity.Env != nil {
+			structsTask.Identity.Env = *apiTask.Identity.Env
+		}
+		if apiTask.Identity.File != nil {
+			structsTask.Identity.File = *apiTask.Identity.File
+		}
+	}
 
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{

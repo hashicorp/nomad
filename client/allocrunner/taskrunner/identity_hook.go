@@ -49,29 +49,30 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	defer h.lock.Unlock()
 	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, wiTokenFile)
 
-	token := h.tr.alloc.SignedIdentities[h.taskName]
-	if token == "" {
-		return nil
-	}
-	h.tr.setNomadToken(token)
-	if h.tr.task.EmitWorkloadToken {
-		h.writeToken(token)
-	}
-
-	return nil
+	return h.setToken()
 }
 
 func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
+	return h.setToken()
+}
+
+// setToken adds the Nomad token to the task's environment and writes it to a
+// file if requested by the jobsepc.
+func (h *identityHook) setToken() error {
 	token := h.tr.alloc.SignedIdentities[h.taskName]
 	if token == "" {
 		return nil
 	}
+
 	h.tr.setNomadToken(token)
-	if h.tr.task.EmitWorkloadToken {
-		h.writeToken(token)
+
+	if id := h.tr.task.Identity; id != nil && id.File {
+		if err := h.writeToken(token); err != nil {
+			return err
+		}
 	}
 
 	return nil

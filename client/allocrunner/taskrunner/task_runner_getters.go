@@ -86,7 +86,14 @@ func (tr *TaskRunner) setNomadToken(token string) {
 	tr.nomadTokenLock.Lock()
 	defer tr.nomadTokenLock.Unlock()
 	tr.nomadToken = token
-	tr.envBuilder.SetWorkloadToken(token, tr.task.EmitWorkloadToken)
+
+	if id := tr.task.Identity; id != nil {
+		tr.envBuilder.SetWorkloadToken(token, id.Env)
+	} else {
+		// Default to *not* injecting the workload token into the task's
+		// environment.
+		tr.envBuilder.SetWorkloadToken(token, false)
+	}
 }
 
 // getDriverHandle returns a driver handle.
