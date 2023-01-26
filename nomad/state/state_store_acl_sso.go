@@ -68,8 +68,7 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 		existingMethodsDefaultMethod, _ := s.GetDefaultACLAuthMethod(nil)
 		if existingMethodsDefaultMethod != nil && existingMethodsDefaultMethod.Name != method.Name {
 			return false, fmt.Errorf(
-				"default ACL auth method for type %s already exists: %v",
-				method.Type, existingMethodsDefaultMethod.Name,
+				"default ACL auth method already exists: %v", existingMethodsDefaultMethod.Name,
 			)
 		}
 	}

@@ -1759,7 +1759,7 @@ func (a *ACL) UpsertAuthMethods(
 			if existingMethodsDefaultMethod != nil && existingMethodsDefaultMethod.Name != authMethod.Name {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest,
-					"default method for type %s already exists: %v", authMethod.Type, existingMethodsDefaultMethod.Name,
+					"default method already exists: %v", existingMethodsDefaultMethod.Name,
 				)
 			}
 		}
