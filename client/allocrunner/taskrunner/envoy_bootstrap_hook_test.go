@@ -672,7 +672,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	// Run the hook
 	err := h.Prestart(context.Background(), req, resp)
-	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+	require.ErrorIs(t, err, errEnvoyBootstrapError)
 	require.True(t, structs.IsRecoverable(err))
 
 	// Assert it is not Done
@@ -760,7 +760,7 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 
 	// Run the hook and get the error
 	err := h.Prestart(context.Background(), req, &resp)
-	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+	require.ErrorIs(t, err, errEnvoyBootstrapError)
 
 	// Current time should be at least start time + total wait time
 	minimum := begin.Add(h.envoyBootstrapWaitTime)

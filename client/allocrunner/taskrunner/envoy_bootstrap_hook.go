@@ -43,6 +43,10 @@ const (
 	envoyBootstrapMaxJitter = 500 * time.Millisecond
 )
 
+var (
+	errEnvoyBootstrapError = errors.New("error creating bootstrap configuration for Connect proxy sidecar")
+)
+
 type consulTransportConfig struct {
 	HTTPAddr   string // required
 	Auth       string // optional, env CONSUL_HTTP_AUTH
@@ -373,7 +377,10 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		// Wrap the last error from Consul and set that as our status.
 		_, recoverable := cmdErr.(*exec.ExitError)
 		return structs.NewRecoverableError(
-			fmt.Errorf("error creating bootstrap configuration for Connect proxy sidecar: %v", cmdErr),
+			fmt.Errorf("%w: %v; see: <https://www.nomadproject.io/s/envoy-bootstrap-error>",
+				errEnvoyBootstrapError,
+				cmdErr,
+			),
 			recoverable,
 		)
 	}

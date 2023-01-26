@@ -1,0 +1,3 @@
+```release-note:improvement
+docs: link to an envoy troubleshooting doc when envoy bootstrap fails
+```
