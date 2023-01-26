@@ -48,7 +48,8 @@ Login Options:
     has configured a default, this flag is optional.
 
   -type
-    Type of the auth method to login to. Defaults to "OIDC".
+	Type of the auth method to login to. If the cluster administrator has
+	configured a default, this flag is optional.
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
@@ -88,7 +89,7 @@ func (l *LoginCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
-	flags.StringVar(&l.authMethodType, "type", "OIDC", "")
+	flags.StringVar(&l.authMethodType, "type", "", "")
 	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
@@ -112,9 +113,6 @@ func (l *LoginCommand) Run(args []string) int {
 	// means an empty type is only possible is the caller specifies this
 	// explicitly.
 	switch sanitizedMethodType {
-	case "":
-		l.Ui.Error("Please supply an authentication type")
-		return 1
 	case api.ACLAuthMethodTypeOIDC:
 	default:
 		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", sanitizedMethodType))
@@ -127,9 +125,10 @@ func (l *LoginCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If the caller did not supply and auth method name, attempt to lookup the
-	// default. This ensures a nice UX as clusters are expected to only have
-	// one method, and this avoids having to type the name during each login.
+	// If the caller did not supply an auth method name or type, attempt to
+	// lookup the default. This ensures a nice UX as clusters are expected to
+	// only have one method, and this avoids having to type the name during
+	// each login.
 	if l.authMethodName == "" {
 
 		authMethodList, _, err := client.ACLAuthMethods().List(nil)
@@ -141,11 +140,21 @@ func (l *LoginCommand) Run(args []string) int {
 		for _, authMethod := range authMethodList {
 			if authMethod.Default {
 				l.authMethodName = authMethod.Name
+				if l.authMethodType == "" {
+					l.authMethodType = authMethod.Type
+				}
+				if l.authMethodType != authMethod.Type {
+					l.Ui.Error(fmt.Sprintf(
+						"Specified type: %s does not match the type of the default method: %s",
+						l.authMethodType, authMethod.Type,
+					))
+					return 1
+				}
 			}
 		}
 
-		if l.authMethodName == "" {
-			l.Ui.Error("Must specify an auth method name, no default found")
+		if l.authMethodName == "" || l.authMethodType == "" {
+			l.Ui.Error("Must specify an auth method name and type, no default found")
 			return 1
 		}
 	}
