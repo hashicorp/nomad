@@ -119,12 +119,14 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 // createSandboxContainerConfig creates a docker container configuration which
 // starts a container with an empty network namespace.
 func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *drivers.NetworkCreateRequest) (*docker.CreateContainerOptions, error) {
-
 	return &docker.CreateContainerOptions{
 		Name: fmt.Sprintf("nomad_init_%s", allocID),
 		Config: &docker.Config{
 			Image:    d.config.InfraImage,
 			Hostname: createSpec.Hostname,
+			Labels: map[string]string{
+				dockerLabelAllocID: allocID,
+			},
 		},
 		HostConfig: &docker.HostConfig{
 			// Set the network mode to none which creates a network namespace
