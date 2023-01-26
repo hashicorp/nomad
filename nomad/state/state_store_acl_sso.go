@@ -185,9 +185,8 @@ func (s *StateStore) GetACLAuthMethodByName(ws memdb.WatchSet, authMethod string
 	return nil, nil
 }
 
-// GetDefaultACLAuthMethod returns a default ACL Auth Methods for a given
-// auth type. Since we only want 1 default auth method per type, this function
-// is used during upserts to facilitate that check.
+// GetDefaultACLAuthMethod returns a default ACL Auth Method. This function is
+// used during upserts to facilitate a check that there's only 1 default Auth Method.
 func (s *StateStore) GetDefaultACLAuthMethod(ws memdb.WatchSet) (*structs.ACLAuthMethod, error) {
 	txn := s.db.ReadTxn()
 
