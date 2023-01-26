@@ -143,6 +143,13 @@ func (l *LoginCommand) Run(args []string) int {
 				if l.authMethodType == "" {
 					l.authMethodType = authMethod.Type
 				}
+				if l.authMethodType != authMethod.Type {
+					l.Ui.Error(fmt.Sprintf(
+						"Specified type: %s does not match the type of the default method: %s",
+						l.authMethodType, authMethod.Type,
+					))
+					return 1
+				}
 			}
 		}
 
