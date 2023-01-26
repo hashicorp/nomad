@@ -22,11 +22,14 @@ export default class JobsRunTemplatesIndexRoute extends Route {
       prefix: 'nomad/job-templates',
       namespace: '*',
     });
-    const recordsToQuery = jobTemplateVariables.map((template) =>
-      this.store.findRecord('variable', template.id)
+
+    await Promise.all(
+      jobTemplateVariables.map((template) =>
+        this.store.findRecord('variable', template.id)
+      )
     );
 
-    return Promise.all(recordsToQuery);
+    return jobTemplateVariables;
   }
 
   resetController(controller) {
