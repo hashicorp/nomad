@@ -77,6 +77,7 @@ $ nomad job run -output example.nomad.hcl
             "User": "",
             "Lifecycle": null,
             "Config": {
+              "auth_soft_fail": true,
               "image": "redis:7",
               "ports": [
                 "db"
@@ -109,7 +110,11 @@ $ nomad job run -output example.nomad.hcl
             "ShutdownDelay": 0,
             "KillSignal": "",
             "Kind": "",
-            "ScalingPolicies": null
+            "ScalingPolicies": null,
+            "Identity": {
+              "Env": true,
+              "File": true
+            }
           }
         ],
         "Spreads": null,
@@ -151,7 +156,6 @@ $ nomad job run -output example.nomad.hcl
         "Meta": null,
         "Services": [
           {
-            "Id": "",
             "Name": "redis-cache",
             "Tags": [
               "global",
@@ -161,14 +165,16 @@ $ nomad job run -output example.nomad.hcl
             "EnableTagOverride": false,
             "PortLabel": "db",
             "AddressMode": "",
+            "Address": "",
             "Checks": null,
             "CheckRestart": null,
             "Connect": null,
             "Meta": null,
             "CanaryMeta": null,
+            "TaggedAddresses": null,
             "TaskName": "",
             "OnUpdate": "",
-            "Provider": ""
+            "Provider": "nomad"
           }
         ],
         "ShutdownDelay": null,
@@ -452,6 +458,16 @@ The `Task` object supports the following keys:
     }
   }
   ```
+
+- `Identity` - Specifies whether or not to expose Nomad's [Workload Identity][]
+  to the task. If non-null the `NOMAD_TOKEN` environment variable and the
+  `secrets/nomad_token` file will contain the task's workload identity token.
+
+  - `Env` - If set to `false` the `NOMAD_TOKEN` environment variable will not
+    be set.
+
+  - `File` - If set to `false` the `secrets/nomad_token` file will not be
+    created.
 
 - `KillSignal` - Specifies a configurable kill signal for a task, where the
   default is SIGINT. Note that this is only supported for drivers which accept
@@ -1189,5 +1205,6 @@ The `Scaling` object supports the following keys:
   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
-[drain]: /nomad/docs/commands/node/drain
-[env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'
+[drain]: /docs/commands/node/drain
+[env]: /docs/runtime/environment 'Nomad Runtime Environment'
+[Workload Identity]: /docs/concepts/workload-identity 'Nomad Workload Identity'
