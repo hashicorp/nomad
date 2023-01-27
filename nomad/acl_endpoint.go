@@ -353,20 +353,22 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.GetPolicies", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
 	// For client typed tokens, allow them to query any policies associated with that token.
 	// This is used by clients which are resolving the policies to enforce. Any associated
 	// policies need to be fetched so that the client can determine what to allow.
-	token, err := a.requestACLToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
+	token := args.GetIdentity().GetACLToken()
 	if token == nil {
-		return structs.ErrTokenNotFound
+		return structs.ErrPermissionDenied
 	}
 
 	// Generate a set of policy names. This is initially generated from the
@@ -423,8 +425,13 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	args.Region = a.srv.config.AuthoritativeRegion
 	providedTokenID := args.BootstrapSecret
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
 
@@ -1135,9 +1142,14 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 // called only by garbage collection
 func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply *structs.GenericResponse) error {
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(
 		"ACL.ExpireOneTimeTokens", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "expire_one_time_tokens"}, time.Now())
@@ -1148,7 +1160,7 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 
 	// Check management level permissions
 	if a.srv.config.ACLEnabled {
-		if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		if acl, err := a.srv.ResolveACL(args); err != nil {
 			return err
 		} else if acl == nil || !acl.IsManagement() {
 			return structs.ErrPermissionDenied
@@ -1480,19 +1492,20 @@ func (a *ACL) GetRolesByID(args *structs.ACLRolesByIDRequest, reply *structs.ACL
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.ACLGetRolesByIDRPCMethod, args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_roles_id"}, time.Now())
 
 	// For client typed tokens, allow them to query any roles associated with
 	// that token. This is used by Nomad agents in client mode which are
 	// resolving the roles to enforce.
-	token, err := a.requestACLToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
+	token := args.GetIdentity().GetACLToken()
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}
@@ -2041,17 +2054,19 @@ func (a *ACL) GetAuthMethods(
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(
 		structs.ACLGetAuthMethodsRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_methods"}, time.Now())
 
 	// allow only management token holders to query this endpoint
-	token, err := a.requestACLToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
+	token := args.GetIdentity().GetACLToken()
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}
