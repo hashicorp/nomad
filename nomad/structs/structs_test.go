@@ -429,6 +429,10 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
+						Identity: &WorkloadIdentity{
+							Env:  true,
+							File: true,
+						},
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,

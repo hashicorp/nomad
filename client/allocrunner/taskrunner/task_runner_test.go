@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2521,4 +2522,36 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	require.Equal(task.Name, labels["task"])
 	require.Equal(alloc.ID, labels["alloc_id"])
 	require.Equal(alloc.Namespace, labels["namespace"])
+}
+
+// TestTaskRunner_IdentityHook asserts that the identity hook exposes a
+// workload identity to a task.
+func TestTaskRunner_IdentityHook(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	// Fake an identity and expose it to the task
+	alloc.SignedIdentities = map[string]string{
+		task.Name: "foo",
+	}
+	task.Identity = &structs.WorkloadIdentity{
+		Env:  true,
+		File: true,
+	}
+
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	testWaitForTaskToDie(t, tr)
+
+	// Assert the token was written to the filesystem
+	tokenBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_token"))
+	must.NoError(t, err)
+	must.Eq(t, "foo", string(tokenBytes))
+
+	// Assert the token is built into the task env
+	taskEnv := tr.envBuilder.Build()
+	must.Eq(t, "foo", taskEnv.EnvMap["NOMAD_TOKEN"])
 }
