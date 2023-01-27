@@ -1570,6 +1570,10 @@
         "path": "job-specification/group"
       },
       {
+        "title": "identity",
+        "path": "job-specification/identity"
+      },
+      {
         "title": "job",
         "path": "job-specification/job"
       },
