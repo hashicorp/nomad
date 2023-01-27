@@ -3,13 +3,13 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/helper/users"
 )
 
 // identityHook sets the task runner's Nomad workload identity token
@@ -80,8 +80,9 @@ func (h *identityHook) setToken() error {
 
 // writeToken writes the given token to disk
 func (h *identityHook) writeToken(token string) error {
-	if err := ioutil.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
-		return fmt.Errorf("failed to write nomad token: %v", err)
+	// Write token as owner readable only
+	if err := users.WriteFileFor(h.tokenPath, []byte(token), h.tr.task.User); err != nil {
+		return fmt.Errorf("failed to write nomad token: %w", err)
 	}
 
 	return nil
