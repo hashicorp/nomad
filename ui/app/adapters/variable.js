@@ -27,16 +27,29 @@ export default class VariableAdapter extends ApplicationAdapter {
    * @returns {Promise<Variable[]>}
    */
   async getJobTemplates() {
+    this.populateDefaultJobTemplates();
     const jobTemplateVariables = await this.store.query('variable', {
       prefix: 'nomad/job-templates',
       namespace: '*',
     });
     const queriedTemplateVariables = await Promise.all(
-      jobTemplateVariables.map((template) =>
-        this.store.findRecord('variable', template.id)
-      )
+      jobTemplateVariables.map(t => this.store.findRecord('variable', t.id))
     );
-    return [...this.getDefaultJobTemplates(), ...queriedTemplateVariables];
+    const defaultTemplates = this.store.peekAll('variable').filter(t => t.isDefaultJobTemplate);
+    return [...queriedTemplateVariables, ...defaultTemplates];
+  }
+
+  async populateDefaultJobTemplates() {
+    await Promise.all(
+      DEFAULT_JOB_TEMPLATES.map((template) => {
+        if (!this.store.peekRecord('variable', template.id)) {
+          let variableSerializer = this.store.serializerFor('variable');
+          let normalized = variableSerializer.normalizeDefaultJobTemplate(template);
+          return this.store.createRecord('variable', normalized);
+        }
+        return null;
+      })
+    );
   }
 
   /**
@@ -50,7 +63,8 @@ export default class VariableAdapter extends ApplicationAdapter {
    * @returns {Promise<Variable>}
    */
   async getJobTemplate(templateID) {
-    const defaultJobs = this.getDefaultJobTemplates();
+    await this.populateDefaultJobTemplates();
+    const defaultJobs = this.store.peekAll('variable').filter((template) => template.isDefaultJobTemplate);
     if (defaultJobs.find((job) => job.id === templateID)) {
       return defaultJobs.find((job) => job.id === templateID);
     } else {
@@ -114,16 +128,6 @@ export default class VariableAdapter extends ApplicationAdapter {
       ]);
     }
     return super.handleResponse(...arguments);
-  }
-
-  getDefaultJobTemplates() {
-    const templates = DEFAULT_JOB_TEMPLATES.map((template) => {
-      let templateVariable =
-        this.store.peekRecord('variable', template.id) ||
-        this.store.createRecord('variable', template);
-      return templateVariable;
-    });
-    return templates;
   }
 }
 
