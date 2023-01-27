@@ -12,7 +12,7 @@
     <main class="radio-group" data-test-template-list>
         <Hds::Form::RadioCard::Group as |G|>
             <G.Legend>Select a Template</G.Legend>
-            {{#each this.model as |card|}}
+            {{#each this.templates as |card|}}
                 <G.RadioCard class="form-container" @layout="fixed" @maxWidth="30%" @checked={{eq card.id this.selectedTemplate}} id={{card.id}} data-test-template-card={{format-template-label card.path}} {{on "change" this.onChange}} as |R|>
                     <R.Label data-test-template-label>{{format-template-label card.path}}</R.Label>
                     <R.Description data-test-template-description>{{card.items.description}}</R.Description>

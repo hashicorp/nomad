@@ -2,11 +2,14 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
-import { getOwner } from '@ember/application';
 
 export default class JobsRunTemplatesManageController extends Controller {
   @service flashMessages;
   @service router;
+
+  get templates() {
+    return [...this.model.variables.toArray(), ...this.model.default];
+  }
 
   @tracked selectedTemplate = null;
 
@@ -24,7 +27,6 @@ export default class JobsRunTemplatesManageController extends Controller {
   @task(function* (model) {
     try {
       yield model.destroyRecord();
-      getOwner(this).lookup('route:jobs.run.templates.manage').refresh();
       this.flashMessages.add({
         title: 'Job template deleted',
         message: `${model.path} successfully deleted`,

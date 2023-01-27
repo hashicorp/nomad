@@ -5,7 +5,7 @@ import {
   currentURL,
   fillIn,
   visit,
-  waitFor,
+  settled,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -558,8 +558,7 @@ module('Acceptance | job run', function (hooks) {
 
       this.store = this.owner.lookup('service:store');
       this.store.unloadAll();
-
-      await waitFor('[data-test-empty-templates-list-headline]');
+      await settled();
 
       assert
         .dom('[data-test-template-card="Foo"]')

@@ -17,9 +17,7 @@ export default class JobsRunTemplatesManageRoute extends Route {
     }
   }
 
-  async model() {
-    const VariableAdapter = this.store.adapterFor('variable');
-    const jobTemplates = await VariableAdapter.getJobTemplates();
-    return jobTemplates;
+  model() {
+    return this.store.adapterFor('variable').getJobTemplates();
   }
 }

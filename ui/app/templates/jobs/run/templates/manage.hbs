@@ -11,7 +11,7 @@
         <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
     {{else}}
     <main class="radio-group" data-test-template-list>
-        <Hds::Table @model={{this.model}} @columns={{this.columns}} @isFixedLayout={{true}}>
+        <Hds::Table @model={{this.templates}} @columns={{this.columns}} @isFixedLayout={{true}}>
             <:body as |B|>
                 <B.Tr>
                     <B.Td>

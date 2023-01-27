@@ -24,7 +24,7 @@ export default class VariableAdapter extends ApplicationAdapter {
 
   /**
    * Query for job templates, both defaults and variables at the nomad/job-templates path.
-   * @returns {Promise<Variable[]>}
+   * @returns {Promise<{variables: Variable[], default: Variable[]}>}
    */
   async getJobTemplates() {
     this.populateDefaultJobTemplates();
@@ -32,13 +32,17 @@ export default class VariableAdapter extends ApplicationAdapter {
       prefix: 'nomad/job-templates',
       namespace: '*',
     });
-    const queriedTemplateVariables = await Promise.all(
+
+    // Ensure we run a findRecord on each to get its keyValues
+    await Promise.all(
       jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id))
     );
+
     const defaultTemplates = this.store
       .peekAll('variable')
       .filter((t) => t.isDefaultJobTemplate);
-    return [...queriedTemplateVariables, ...defaultTemplates];
+
+    return { variables: jobTemplateVariables, default: defaultTemplates };
   }
 
   async populateDefaultJobTemplates() {
