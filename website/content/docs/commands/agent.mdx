@@ -16,6 +16,10 @@ in its own section. See the [Nomad Agent] guide and the [Configuration]
 documentation section for more information on how to use this command and the
 options it has.
 
+-> **Note:** If you are running Nomad on Linux, you'll need to run client agents
+as root (or with `sudo`) so that cpuset accounting and network namespaces work
+correctly.
+
 ## Command-line Options
 
 A subset of the available Nomad agent configuration can optionally be passed in
