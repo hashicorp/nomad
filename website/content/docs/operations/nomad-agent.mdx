@@ -38,10 +38,14 @@ The agent is started with the [`nomad agent` command](/docs/commands/agent). Thi
 command blocks, running forever or until told to quit. The agent command takes a variety
 of configuration options, but most have sane defaults.
 
+-> **Note:** If you are running Nomad on Linux, you'll need to run client agents
+as root (or with `sudo`) so that cpuset accounting and network namespaces work
+correctly.
+
 When running `nomad agent`, you should see output similar to this:
 
 ```shell-session
-$ nomad agent -dev
+$ sudo nomad agent -dev
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
