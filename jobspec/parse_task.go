@@ -33,6 +33,7 @@ var (
 		"constraint",
 		"affinity",
 		"dispatch_payload",
+		"identity",
 		"lifecycle",
 		"leader",
 		"restart",
@@ -104,6 +105,7 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	delete(m, "dispatch_payload")
 	delete(m, "lifecycle")
 	delete(m, "env")
+	delete(m, "identity")
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
@@ -279,6 +281,16 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		if err := parseArtifacts(&t.Artifacts, o); err != nil {
 			return nil, multierror.Prefix(err, "artifact ->")
 		}
+	}
+
+	// Parse identity
+	if o := listVal.Filter("identity"); len(o.Items) > 0 {
+		v := &api.WorkloadIdentity{}
+		v.Canonicalize()
+		if err := parseIdentity(v, o); err != nil {
+			return nil, multierror.Prefix(err, "identity ->")
+		}
+		t.Identity = v
 	}
 
 	// Parse templates
@@ -740,5 +752,43 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 	}
 
 	*out = mounts
+	return nil
+}
+
+func parseIdentity(out *api.WorkloadIdentity, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) == 0 {
+		return nil
+	}
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'identity' block allowed per task")
+	}
+
+	o := list.Items[0]
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("identity: should be an object")
+	}
+
+	valid := []string{
+		"env",
+		"file",
+	}
+
+	if err := checkHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "identity ->")
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	if err := mapstructure.WeakDecode(m, out); err != nil {
+		return err
+	}
+
 	return nil
 }
