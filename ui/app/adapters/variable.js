@@ -33,9 +33,11 @@ export default class VariableAdapter extends ApplicationAdapter {
       namespace: '*',
     });
     const queriedTemplateVariables = await Promise.all(
-      jobTemplateVariables.map(t => this.store.findRecord('variable', t.id))
+      jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id))
     );
-    const defaultTemplates = this.store.peekAll('variable').filter(t => t.isDefaultJobTemplate);
+    const defaultTemplates = this.store
+      .peekAll('variable')
+      .filter((t) => t.isDefaultJobTemplate);
     return [...queriedTemplateVariables, ...defaultTemplates];
   }
 
@@ -44,7 +46,8 @@ export default class VariableAdapter extends ApplicationAdapter {
       DEFAULT_JOB_TEMPLATES.map((template) => {
         if (!this.store.peekRecord('variable', template.id)) {
           let variableSerializer = this.store.serializerFor('variable');
-          let normalized = variableSerializer.normalizeDefaultJobTemplate(template);
+          let normalized =
+            variableSerializer.normalizeDefaultJobTemplate(template);
           return this.store.createRecord('variable', normalized);
         }
         return null;
@@ -64,7 +67,9 @@ export default class VariableAdapter extends ApplicationAdapter {
    */
   async getJobTemplate(templateID) {
     await this.populateDefaultJobTemplates();
-    const defaultJobs = this.store.peekAll('variable').filter((template) => template.isDefaultJobTemplate);
+    const defaultJobs = this.store
+      .peekAll('variable')
+      .filter((template) => template.isDefaultJobTemplate);
     if (defaultJobs.find((job) => job.id === templateID)) {
       return defaultJobs.find((job) => job.id === templateID);
     } else {

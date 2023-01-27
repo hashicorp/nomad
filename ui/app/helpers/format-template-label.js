@@ -8,7 +8,7 @@ export default helper(function formatTemplateLabel([path]) {
   if (delimiter !== -1) {
     label = path.slice(delimiter + 1);
   } else {
-    label = path
+    label = path;
   }
   return capitalize(label).split('-').join(' ');
 });

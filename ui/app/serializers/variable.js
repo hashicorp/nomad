@@ -37,7 +37,7 @@ export default class VariableSerializer extends ApplicationSerializer {
       path: hash.id,
       isDefaultJobTemplate: true,
       ...hash,
-    }
+    };
   }
 
   // Transform our KeyValues array into an Items object
