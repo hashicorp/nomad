@@ -44,6 +44,9 @@ If you would like to try Nomad locally, you can install Nomad on your local
 machine using the same steps that you would for a production environments and
 run a single-node development instance using the `nomad agent -dev` command
 
+-> **Note:** If you are running Nomad on Linux, you'll need to run with `sudo`
+so that cpuset accounting and network namespaces work correctly.
+
 [Installing Nomad][installing-binary]
 
 -> **Note:** If you are using Docker Desktop for Windows or MacOS, please check
