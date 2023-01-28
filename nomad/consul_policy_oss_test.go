@@ -1,5 +1,4 @@
 //go:build !ent
-// +build !ent
 
 package nomad
 
@@ -10,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
@@ -23,8 +22,8 @@ func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
 			logger:    logger,
 		}
 		result, err := cAPI.canWriteService(namespace, task, token)
-		require.NoError(t, err)
-		require.Equal(t, exp, result)
+		must.NoError(t, err)
+		must.Eq(t, exp, result)
 	}
 
 	// In Nomad OSS, group consul namespace will always be empty string.
@@ -40,6 +39,10 @@ func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
 
 		t.Run("working role only", func(t *testing.T) {
 			try(t, "", "service1", consul.ExampleOperatorToken4, true)
+		})
+
+		t.Run("working service identity only", func(t *testing.T) {
+			try(t, "", "service1", consul.ExampleOperatorToken6, true)
 		})
 	})
 }
