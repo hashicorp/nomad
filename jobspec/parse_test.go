@@ -1256,8 +1256,8 @@ func TestParse(t *testing.T) {
 						Connect: &api.ConsulConnect{
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
-									ExposeConfig: &api.ConsulExposeConfig{
-										Path: []*api.ConsulExposePath{{
+									Expose: &api.ConsulExposeConfig{
+										Paths: []*api.ConsulExposePath{{
 											Path:          "/health",
 											Protocol:      "http",
 											LocalPathPort: 2222,
@@ -1360,8 +1360,8 @@ func TestParse(t *testing.T) {
 								Proxy: &api.ConsulProxy{
 									LocalServiceAddress: "10.0.1.2",
 									LocalServicePort:    8080,
-									ExposeConfig: &api.ConsulExposeConfig{
-										Path: []*api.ConsulExposePath{{
+									Expose: &api.ConsulExposeConfig{
+										Paths: []*api.ConsulExposePath{{
 											Path:          "/metrics",
 											Protocol:      "http",
 											LocalPathPort: 9001,
