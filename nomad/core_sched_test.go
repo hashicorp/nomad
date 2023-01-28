@@ -434,6 +434,41 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobCompletedEvalCompletedAlloc})
 	must.NoError(t, err)
 
+	// A job that ran once and was then purged.
+	purgedJob := mock.Job()
+	purgedJob.Type = structs.JobTypeBatch
+	purgedJob.Status = structs.JobStatusDead
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, purgedJob)
+	must.NoError(t, err)
+
+	purgedJobEval := mock.Eval()
+	purgedJobEval.Status = structs.EvalStatusComplete
+	purgedJobEval.Type = structs.JobTypeBatch
+	purgedJobEval.JobID = purgedJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{purgedJobEval})
+	must.NoError(t, err)
+
+	purgedJobCompleteAlloc := mock.Alloc()
+	purgedJobCompleteAlloc.Job = purgedJob
+	purgedJobCompleteAlloc.JobID = purgedJob.ID
+	purgedJobCompleteAlloc.EvalID = purgedJobEval.ID
+	purgedJobCompleteAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	purgedJobCompleteAlloc.ClientStatus = structs.AllocClientStatusLost
+
+	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{purgedJobCompleteAlloc})
+	must.NoError(t, err)
+
+	purgedJobCompleteEval := mock.Eval()
+	purgedJobCompleteEval.Status = structs.EvalStatusComplete
+	purgedJobCompleteEval.Type = structs.JobTypeBatch
+	purgedJobCompleteEval.JobID = purgedJob.ID
+	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{purgedJobCompleteEval})
+	must.NoError(t, err)
+
+	// Purge job.
+	err = store.DeleteJob(jobModifyIdx, purgedJob.Namespace, purgedJob.ID)
+	must.NoError(t, err)
+
 	// A little helper for assertions
 	assertCorrectJobEvalAlloc := func(
 		ws memdb.WatchSet,
@@ -497,9 +532,19 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		memdb.NewWatchSet(),
 		[]*structs.Job{deadJob, activeJob, stoppedJob},
 		[]*structs.Job{},
-		[]*structs.Evaluation{deadJobEval, activeJobEval, activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Evaluation{
+			deadJobEval,
+			activeJobEval, activeJobCompleteEval,
+			stoppedJobEval,
+			purgedJobEval,
+		},
 		[]*structs.Evaluation{},
-		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobStoppedAlloc, stoppedJobLostAlloc},
+		[]*structs.Allocation{
+			stoppedAlloc, lostAlloc,
+			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
+			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
+			purgedJobCompleteAlloc,
+		},
 		[]*structs.Allocation{},
 	)
 
@@ -517,9 +562,19 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		memdb.NewWatchSet(),
 		[]*structs.Job{deadJob, activeJob, stoppedJob},
 		[]*structs.Job{},
-		[]*structs.Evaluation{deadJobEval, activeJobEval, activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Evaluation{
+			deadJobEval,
+			activeJobEval, activeJobCompleteEval,
+			stoppedJobEval,
+			purgedJobEval,
+		},
 		[]*structs.Evaluation{},
-		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobStoppedAlloc, stoppedJobLostAlloc},
+		[]*structs.Allocation{
+			stoppedAlloc, lostAlloc,
+			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
+			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
+			purgedJobCompleteAlloc,
+		},
 		[]*structs.Allocation{},
 	)
 
@@ -534,20 +589,25 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// We expect the following:
 	//
-	//	1. The stopped jbo remains, but its evaluation and allocations are both removed.
+	//	1. The stopped job remains, but its evaluation and allocations are both removed.
 	//	2. The dead job remains with its evaluation and allocations intact. This is because
 	//    for them the BatchEvalGCThreshold has not yet elapsed (their modification idx are larger
 	//    than that of the job).
 	//	3. The active job remains since it is active, even though the allocations are otherwise
 	//      eligible for GC. However, the inactive allocation is GCed for it.
+	//	4. The eval and allocation for the purged job are GCed.
 	assertCorrectJobEvalAlloc(
 		memdb.NewWatchSet(),
 		[]*structs.Job{deadJob, activeJob, stoppedJob},
 		[]*structs.Job{},
 		[]*structs.Evaluation{deadJobEval, activeJobEval},
-		[]*structs.Evaluation{activeJobCompleteEval, stoppedJobEval},
+		[]*structs.Evaluation{activeJobCompleteEval, stoppedJobEval, purgedJobEval},
 		[]*structs.Allocation{stoppedAlloc, lostAlloc, activeJobRunningAlloc},
-		[]*structs.Allocation{activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc, stoppedJobLostAlloc, stoppedJobLostAlloc})
+		[]*structs.Allocation{
+			activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
+			stoppedJobLostAlloc, stoppedJobLostAlloc,
+			purgedJobCompleteAlloc,
+		})
 }
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
