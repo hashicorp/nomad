@@ -133,7 +133,7 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 		cp.Canonicalize()
 		must.Eq(t, "", cp.LocalServiceAddress)
 		must.Zero(t, cp.LocalServicePort)
-		must.Nil(t, cp.ExposeConfig)
+		must.Nil(t, cp.Expose)
 		must.Nil(t, cp.Upstreams)
 		must.MapEmpty(t, cp.Config)
 	})
@@ -142,14 +142,14 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 		cp := &ConsulProxy{
 			LocalServiceAddress: "127.0.0.1",
 			LocalServicePort:    80,
-			ExposeConfig:        new(ConsulExposeConfig),
+			Expose:              new(ConsulExposeConfig),
 			Upstreams:           make([]*ConsulUpstream, 0),
 			Config:              make(map[string]interface{}),
 		}
 		cp.Canonicalize()
 		must.Eq(t, "127.0.0.1", cp.LocalServiceAddress)
 		must.Eq(t, 80, cp.LocalServicePort)
-		must.Eq(t, &ConsulExposeConfig{}, cp.ExposeConfig)
+		must.Eq(t, &ConsulExposeConfig{}, cp.Expose)
 		must.Nil(t, cp.Upstreams)
 		must.Nil(t, cp.Config)
 	})
