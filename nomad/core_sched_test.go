@@ -294,7 +294,12 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		// Set EvalGCThreshold past BatchEvalThreshold to make sure that only
+		// BatchEvalThreshold affects the results.
+		c.BatchEvalGCThreshold = time.Hour
+		c.EvalGCThreshold = 2 * time.Hour
+	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -498,9 +503,10 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		[]*structs.Allocation{},
 	)
 
-	// Update the time tables by `EvalGCThreshold` which is still must too small to make anything become GCed.
+	// Update the time tables by half of the BatchEvalGCThreshold which is too
+	// small to GC anything.
 	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add((-1)*s1.config.EvalGCThreshold))
+	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add((-1)*s1.config.BatchEvalGCThreshold/2))
 
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
@@ -517,7 +523,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		[]*structs.Allocation{},
 	)
 
-	// Update the time tables so that `BatchEvalGCThreshold` has elapsed.
+	// Update the time tables so that BatchEvalGCThreshold has elapsed.
 	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
 	tt = s1.fsm.TimeTable()
 	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
