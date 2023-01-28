@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where exposeConfig field was not provided correctly when getting the jobs via the API
+```
