@@ -112,7 +112,7 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/shoenig/go-landlock v0.1.4
-	github.com/shoenig/test v0.6.0
+	github.com/shoenig/test v0.6.1
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
