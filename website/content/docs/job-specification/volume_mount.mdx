@@ -26,6 +26,7 @@ job "docs" {
       volume_mount {
         volume      = "certs"
         destination = "/etc/ssl/certs"
+        propagation_mode = "private"
       }
     }
   }
