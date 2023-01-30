@@ -100,22 +100,22 @@ that volume.
   `$CONSUL_HTTP_TOKEN` environment variable and that found in the job.
 
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
-  specified Consul namespace. Any `template` stanza reading from Consul KV will
+  specified Consul namespace. Any `template` block reading from Consul KV will
   scoped to the specified Consul namespace. If Consul ACLs are enabled and the
-  [`consul` stanza `allow_unauthenticated`] is disabled in the Nomad server configuration, then
+  [`consul` block `allow_unauthenticated`] is disabled in the Nomad server configuration, then
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.
 
 - `-vault-token`: Used to validate if the user submitting the job has
   permission to run the job according to its Vault policies. A Vault token must
-  be supplied if the [`vault` stanza `allow_unauthenticated`] is disabled in
+  be supplied if the [`vault` block `allow_unauthenticated`] is disabled in
   the Nomad server configuration. If the `-vault-token` flag is set, the passed
   Vault token is added to the jobspec before sending to the Nomad servers. This
   allows passing the Vault token without storing it in the job file. This
   overrides the token found in the `$VAULT_TOKEN` environment variable and the
   [`vault_token`] field in the job file. This token is cleared from the job
   after validating and cannot be used within the job executing environment. Use
-  the `vault` stanza when templating in a job with a Vault token.
+  the `vault` block when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
@@ -237,7 +237,7 @@ $ nomad job run example.nomad
 ```
 
 [`batch`]: /nomad/docs/schedulers#batch
-[`consul` stanza `allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[`consul` block `allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
 [deployment status]: /nomad/docs/commands/deployment#status
 [eval status]: /nomad/docs/commands/eval/status
 [`go-getter`]: https://github.com/hashicorp/go-getter
@@ -245,5 +245,5 @@ $ nomad job run example.nomad
 [job specification]: /nomad/docs/job-specification
 [JSON jobs]: /nomad/api-docs/json-jobs
 [`system`]: /nomad/docs/schedulers#system
-[`vault` stanza `allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
+[`vault` block `allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
 [`vault_token`]: /nomad/docs/job-specification/job#vault_token

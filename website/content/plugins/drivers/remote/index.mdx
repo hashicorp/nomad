@@ -52,13 +52,13 @@ which Remote Task Drivers do not support by default.
 ~> See [*Remote Task Drivers and Resources* #10549][gh-10549] on Github for
 details.  Comments, ideas, and use cases welcome!
 
-The [`resources`][resources] stanza has not been altered for remote task
+The [`resources`][resources] block has not been altered for remote task
 drivers. Since remote tasks do not consume local resources, remote task drivers
-should not use the existing `resources` stanza and instead implement their own
+should not use the existing `resources` block and instead implement their own
 resource parameters in their [`task.config`][task-config] block.
 
 Jobs using remote task drivers should use the minimum allowed resources in
-their [`task.resources`][resources] stanza:
+their [`task.resources`][resources] block:
 
 ```hcl
 resources {

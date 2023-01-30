@@ -615,7 +615,7 @@ func consulNamespaceUpdated(tgA, tgB *structs.TaskGroup) bool {
 	return tgA.Consul.GetNamespace() != tgB.Consul.GetNamespace()
 }
 
-// connectServiceUpdated returns true if any services with a connect stanza have
+// connectServiceUpdated returns true if any services with a connect block have
 // been changed in such a way that requires a destructive update.
 //
 // Ordinary services can be updated in-place by updating the service definition

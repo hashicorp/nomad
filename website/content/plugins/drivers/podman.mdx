@@ -293,7 +293,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
 
 - `network_mode` - (Optional) Set the [network mode][network-mode] for the
   container. By default the task uses the network stack defined in the task
-  group [`network`][nomad_group_network] stanza. If the groups network behavior
+  group [`network`][nomad_group_network] block. If the groups network behavior
   is also undefined, it will fallback to `bridge` in rootful mode or
   `slirp4netns` for rootless containers.
 
@@ -441,7 +441,7 @@ closesly the idea of a `pod` by starting a `pause` task, named `pod` via a
 [`prestart`] sidecar hook.
 
 Next, the main workload, `server` is started and joins the network namespace by
-using the `network_mode = "task:pod"` stanza. Finally, Nomad starts the
+using the `network_mode = "task:pod"` block. Finally, Nomad starts the
 `poststart` sidecar `exporter` which also joins the network.
 
 Note that all ports must be defined on the `pod` level.
@@ -452,7 +452,7 @@ Reference [`examples/jobs/nats_group.nomad`].
 
 This example is very different. Both `server` and `exporter` join a network
 namespace which is created and managed by Nomad itself. Refer to Nomad's
-[`network`] stanza to get started with this generic approach.
+[`network`] block to get started with this generic approach.
 
 ## Plugin Options
 
@@ -473,7 +473,7 @@ configuration file.
   }
   ```
 
-- `gc` stanza:
+- `gc` block:
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits.
@@ -530,7 +530,7 @@ configuration file.
   }
   ```
 
-- `volumes` stanza:
+- `volumes` block:
 
   - `enabled` - Defaults to `true`. Allows tasks to bind host paths (volumes)
     inside their container.

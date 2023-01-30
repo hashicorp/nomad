@@ -43,12 +43,12 @@ To configure a job to register with service discovery, please see the
 
 ## Dynamic Configuration
 
-Nomad's job specification includes a [`template` stanza](/nomad/docs/job-specification/template)
+Nomad's job specification includes a [`template` block](/nomad/docs/job-specification/template)
 that utilizes a Consul ecosystem tool called [Consul Template](https://github.com/hashicorp/consul-template). This mechanism creates a convenient way to ship configuration files
 that are populated from environment variables, Consul data, Vault secrets, or just
 general configurations within a Nomad task.
 
-For more information on Nomad's template stanza and how it leverages Consul Template,
+For more information on Nomad's template block and how it leverages Consul Template,
 please see the [`template` job specification documentation](/nomad/docs/job-specification/template).
 
 ## Consul Namespaces

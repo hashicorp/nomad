@@ -565,7 +565,7 @@ func TestTaskGroup_Merge_Update(t *testing.T) {
 	}
 	job.Canonicalize()
 
-	// Merge and canonicalize part of an update stanza
+	// Merge and canonicalize part of an update block
 	tg := &TaskGroup{
 		Name: pointerOf("foo"),
 		Update: &UpdateStrategy{
@@ -743,7 +743,7 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 	}
 }
 
-// TestSpread_Canonicalize asserts that the spread stanza is canonicalized correctly
+// TestSpread_Canonicalize asserts that the spread block is canonicalized correctly
 func TestSpread_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
 

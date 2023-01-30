@@ -420,10 +420,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// node where the allocation failed previously
 	s.nodeReschedulingPenalty = NewNodeReschedulingPenaltyIterator(ctx, s.jobAntiAff)
 
-	// Apply scores based on affinity stanza
+	// Apply scores based on affinity block
 	s.nodeAffinity = NewNodeAffinityIterator(ctx, s.nodeReschedulingPenalty)
 
-	// Apply scores based on spread stanza
+	// Apply scores based on spread block
 	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
 
 	// Add the preemption options scoring iterator

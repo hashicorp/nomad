@@ -1,8 +1,8 @@
 ---
 layout: docs
-page_title: reschedule Stanza - Job Specification
+page_title: reschedule Block - Job Specification
 description: >-
-  The "reschedule" stanza specifies the group's rescheduling strategy upon
+  The "reschedule" block specifies the group's rescheduling strategy upon
 
   allocation failures. Nomad will only attempt to reschedule failed allocations
   on
@@ -13,7 +13,7 @@ description: >-
   have been exceeded.
 ---
 
-# `reschedule` Stanza
+# `reschedule` Block
 
 <Placement
   groups={[
@@ -22,10 +22,10 @@ description: >-
   ]}
 />
 
-The `reschedule` stanza specifies the group's rescheduling strategy. If specified at the job
+The `reschedule` block specifies the group's rescheduling strategy. If specified at the job
 level, the configuration will apply to all groups within the job. If the
-reschedule stanza is present on both the job and the group, they are merged with
-the group stanza taking the highest precedence and then the job.
+reschedule block is present on both the job and the group, they are merged with
+the group block taking the highest precedence and then the job.
 
 Nomad will attempt to schedule the allocation on another node if any of its
 task statuses become `failed`. The scheduler prefers to create a replacement
@@ -47,7 +47,7 @@ job "docs" {
 }
 ```
 
-~> The reschedule stanza does not apply to `system` or `sysbatch` jobs because
+~> The reschedule block does not apply to `system` or `sysbatch` jobs because
 they run on every node.
 
 ## `reschedule` Parameters

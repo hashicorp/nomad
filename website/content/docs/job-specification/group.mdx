@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: group Stanza - Job Specification
+page_title: group Block - Job Specification
 description: |-
-  The "group" stanza defines a series of tasks that should be co-located on the
+  The "group" block defines a series of tasks that should be co-located on the
   same Nomad client. Any task within a group will be placed on the same client.
 ---
 
-# `group` Stanza
+# `group` Block
 
 <Placement groups={['job', 'group']} />
 
-The `group` stanza defines a series of tasks that should be co-located on the
+The `group` block defines a series of tasks that should be co-located on the
 same Nomad client. Any [task][] within a group will be placed on the same
 client.
 
@@ -52,7 +52,7 @@ job "docs" {
 
 - `migrate` <code>([Migrate][]: nil)</code> - Specifies the group strategy for
   migrating off of draining nodes. Only service jobs with a count greater than
-  1 support migrate stanzas.
+  1 support migrate blocks.
 
 - `network` <code>([Network][]: &lt;optional&gt;)</code> - Specifies the network
   requirements and configuration, including static and dynamic port allocations,
@@ -64,7 +64,7 @@ job "docs" {
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
-  type, which can be found in the [restart stanza documentation][restart].
+  type, which can be found in the [restart block documentation][restart].
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with Nomad
   or [Consul](/nomad/docs/configuration/consul) for service discovery. Nomad
@@ -125,8 +125,8 @@ job "docs" {
 
 ## `group` Examples
 
-The following examples only show the `group` stanzas. Remember that the
-`group` stanza is only valid in the placements listed above.
+The following examples only show the `group` blocks. Remember that the
+`group` block is only valid in the placements listed above.
 
 ### Specifying Count
 
@@ -175,7 +175,7 @@ group "example" {
 
 ### Network
 
-This example shows network constraints as specified in the [network][] stanza
+This example shows network constraints as specified in the [network][] block
 which uses the `bridge` networking mode, dynamically allocates two ports, and
 statically allocates one port:
 
@@ -222,7 +222,7 @@ group "example" {
 ### Stop After Client Disconnect
 
 This example shows how `stop_after_client_disconnect` interacts with
-other stanzas. For the `first` group, after the default 10 second
+other blocks. For the `first` group, after the default 10 second
 [`heartbeat_grace`] window expires and 90 more seconds passes, the
 server will reschedule the allocation. The client will wait 90 seconds
 before sending a stop signal (`SIGTERM`) to the `first-task`

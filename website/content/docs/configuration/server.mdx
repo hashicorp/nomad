@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: server Stanza - Agent Configuration
+page_title: server Block - Agent Configuration
 description: |-
-  The "server" stanza configures the Nomad agent to operate in server mode to
+  The "server" block configures the Nomad agent to operate in server mode to
   participate in scheduling decisions, register with service discovery, handle
   join failures, and more.
 ---
 
-# `server` Stanza
+# `server` Block
 
 <Placement groups={['server']} />
 
-The `server` stanza configures the Nomad agent to operate in server mode to
+The `server` block configures the Nomad agent to operate in server mode to
 participate in scheduling decisions, register with service discovery, handle
 join failures, and more.
 
@@ -252,23 +252,23 @@ server {
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
   both options**. See the [server_join][server-join]
   section for more information on the format of the string. This field is
-  deprecated in favor of the [server_join stanza][server-join].
+  deprecated in favor of the [server_join block][server-join].
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
   join attempts. This field is deprecated in favor of the [server_join
-  stanza][server-join].
+  block][server-join].
 
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
   which is interpreted as infinite retries. This field is deprecated in favor of
-  the [server_join stanza][server-join].
+  the [server_join block][server-join].
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
   addresses, agent startup will fail. See the [server address
   format](/nomad/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
-  deprecated in favor of the [server_join stanza][server-join].
+  deprecated in favor of the [server_join block][server-join].
 
 ### `plan_rejection_tracker` Parameters
 
@@ -298,7 +298,7 @@ account.
 
 ### Common Setup
 
-This example shows a common Nomad agent `server` configuration stanza. The two
+This example shows a common Nomad agent `server` configuration block. The two
 IP addresses could also be DNS, and should point to the other Nomad servers in
 the cluster
 
@@ -346,7 +346,7 @@ server {
 
 ### Bootstrapping with a Custom Scheduler Config ((#configuring-scheduler-config))
 
-While [bootstrapping a cluster], you can use the `default_scheduler_config` stanza
+While [bootstrapping a cluster], you can use the `default_scheduler_config` block
 to prime the cluster with a [`SchedulerConfig`][update-scheduler-config]. The
 scheduler configuration determines which scheduling algorithm is configured—
 spread scheduling or binpacking—and which job types are eligible for preemption.

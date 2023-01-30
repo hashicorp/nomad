@@ -71,7 +71,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
   Attempt to continue without auth. If the Nomad client configuration has an
-  [`auth.helper`](#plugin_auth_helper) stanza, the helper will be tried for
+  [`auth.helper`](#plugin_auth_helper) block, the helper will be tried for
   all images, including public images. If you mix private and public images,
   you will need to include `auth_soft_fail=true` in every job using a public
   image.
@@ -292,7 +292,7 @@ config {
   group-wide bridge networking, you may encounter issues preventing your
   containers from reaching networks outside of the bridge interface on systems with
   firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
-  network as trusted and can be resolved as described in the [network stanza] documentation.
+  network as trusted and can be resolved as described in the [network block] documentation.
 
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
@@ -744,12 +744,12 @@ expose and port forwarding.
 
 #### Deprecated `port_map` Syntax
 
-Up until Nomad 0.12, ports could be specified in a task's resource stanza and set using the docker
+Up until Nomad 0.12, ports could be specified in a task's resource block and set using the docker
 `port_map` field. As more features have been added to the group network resource allocation, task based
 network resources are deprecated. With it the `port_map` field is also deprecated and can only be used
 with task network resources.
 
-Users should migrate their jobs to define ports in the group network stanza and specified which ports
+Users should migrate their jobs to define ports in the group network block and specified which ports
 a task maps with the `ports` field.
 
 ### Advertising Container IPs
@@ -807,7 +807,7 @@ For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
 If you would like to change any of the options related to the `docker` driver
-on a Nomad client, you can modify them with the [plugin stanza][plugin-stanza]
+on a Nomad client, you can modify them with the [plugin block][plugin-block]
 syntax. Below is an example of a configuration (many of the values are the
 default). See the next section for more information on the options.
 
@@ -897,7 +897,7 @@ host system.
 - `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
   docker runtimes a task may use.
 
-- `auth` stanza:
+- `auth` block:
 
   - `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
     JSON file which is in the dockercfg format containing authentication
@@ -914,7 +914,7 @@ host system.
     public images. If you mix private and public images, you will need to
     include [`auth_soft_fail=true`] in every job using a public image.
 
-- `tls` stanza:
+- `tls` block:
 
   - `cert` - Path to the server's certificate file (`.pem`). Specify this
     along with `key` and `ca` to use a TLS client to connect to the docker
@@ -937,7 +937,7 @@ host system.
   Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
   `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
 
-- `logging` stanza:
+- `logging` block:
 
   - `type` - Defaults to `"json-file"`. Specifies the logging driver docker
     should use for all containers Nomad starts. Note that for older versions
@@ -950,7 +950,7 @@ host system.
     [configuration](https://docs.docker.com/config/containers/logging/configure/)
     to the logging driver.
 
-- `gc` stanza:
+- `gc` block:
 
   - `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
     from removing images from stopped tasks.
@@ -965,7 +965,7 @@ host system.
     from removing a container when the task exits. Under a name conflict,
     Nomad may still remove the dead container.
 
-  - `dangling_containers` stanza for controlling dangling container detection
+  - `dangling_containers` block for controlling dangling container detection
     and cleanup:
 
     - `enabled` - Defaults to `true`. Enables dangling container handling.
@@ -982,7 +982,7 @@ host system.
       GC. Should not need adjusting higher but may be adjusted lower to GC
       more aggressively.
 
-- `volumes` stanza:
+- `volumes` block:
 
   - `enabled` - Defaults to `false`. Allows tasks to bind host paths
     (`volumes`) inside their container and use volume drivers
@@ -1006,7 +1006,7 @@ host system.
 ## Client Configuration
 
 ~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza]
+[plugin options][plugin-options] instead. See the [plugin block][plugin-block]
 documentation for more information.
 
 The `docker` driver has the following [client configuration
@@ -1186,7 +1186,7 @@ Containers that don't match Nomad container patterns are left untouched.
 
 Operators can run the reaper in a dry-run mode, where it only logs dangling
 container ids without killing them, or disable it by setting the
-`gc.dangling_containers` config stanza.
+`gc.dangling_containers` config block.
 
 ### Docker for Windows
 
@@ -1197,7 +1197,7 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [faq-win-mac]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
 [plugin-options]: #plugin-options
-[plugin-stanza]: /nomad/docs/configuration/plugin
+[plugin-block]: /nomad/docs/configuration/plugin
 [allocation working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
 [cap_add]: /nomad/docs/drivers/docker#cap_add
@@ -1209,6 +1209,6 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [allow_caps]: /nomad/docs/drivers/docker#allow_caps
 [Connect]: /nomad/docs/job-specification/connect
 [`bridge`]: /nomad/docs/job-specification/network#bridge
-[network stanza]: /nomad/docs/job-specification/network#bridge-mode
+[network block]: /nomad/docs/job-specification/network#bridge-mode
 [`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container

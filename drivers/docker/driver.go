@@ -1128,7 +1128,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			if mapping, ok := task.Resources.Ports.Get(port); ok {
 				ports.add(mapping.Label, mapping.HostIP, mapping.Value, mapping.To)
 			} else {
-				return c, fmt.Errorf("Port %q not found, check network stanza", port)
+				return c, fmt.Errorf("Port %q not found, check network block", port)
 			}
 		}
 	case len(task.Resources.NomadResources.Networks) > 0:
