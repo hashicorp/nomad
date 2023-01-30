@@ -7,6 +7,10 @@ export default class JobsRunTemplatesManageController extends Controller {
   @service flashMessages;
   @service router;
 
+  get templates() {
+    return [...this.model.variables.toArray(), ...this.model.default];
+  }
+
   @tracked selectedTemplate = null;
 
   columns = ['name', 'namespace', 'description', 'delete'].map((column) => {
@@ -23,7 +27,6 @@ export default class JobsRunTemplatesManageController extends Controller {
   @task(function* (model) {
     try {
       yield model.destroyRecord();
-
       this.flashMessages.add({
         title: 'Job template deleted',
         message: `${model.path} successfully deleted`,

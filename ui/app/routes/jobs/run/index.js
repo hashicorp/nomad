@@ -1,3 +1,4 @@
+// @ts-check
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import classic from 'ember-classic-decorator';
@@ -33,29 +34,25 @@ export default class JobsRunIndexRoute extends Route {
       // available namespaces to prevent redirecting to a non-existent namespace.
       await this.store.findAll('namespace');
 
-      // If template is set in URL, create the job model and add the definition
       if (template) {
-        const templateRecord = await this.store.findRecord(
-          'variable',
-          template
-        );
-
+        const VariableAdapter = this.store.adapterFor('variable');
+        const templateRecord = await VariableAdapter.getJobTemplate(template);
         return this.store.createRecord('job', {
           _newDefinition: templateRecord.items.template,
         });
+      } else {
+        return this.store.createRecord('job');
       }
-
-      return this.store.createRecord('job');
     } catch (e) {
       this.handle404(e);
     }
   }
 
   handle404(e) {
-    const error404 = e.errors.find((err) => err.status === 404);
+    const error404 = e.errors?.find((err) => err.status === 404);
     if (error404) {
       this.flashMessages.add({
-        title: `Error loading ${this.template}`,
+        title: `Error loading job template`,
         message: error404.detail,
         type: 'error',
         destroyOnClick: false,

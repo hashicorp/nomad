@@ -11,28 +11,41 @@
         <Hds::Button class="button-group" @text="Back to editor" @route="jobs.run" @icon="arrow-left" data-test-cancel />
     {{else}}
     <main class="radio-group" data-test-template-list>
-        <Hds::Table @model={{this.model}} @columns={{this.columns}} @isFixedLayout={{true}}>
+        <Hds::Table @model={{this.templates}} @columns={{this.columns}} @isFixedLayout={{true}}>
             <:body as |B|>
                 <B.Tr>
                     <B.Td>
-                        <LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
-                            {{invoke-fn this this.formatTemplateLabel B.data.path}}
-                        </LinkTo>
+                        {{#if B.data.isDefaultJobTemplate}}
+                            {{format-template-label B.data.path}}
+                        {{else}}
+													<LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
+														{{format-template-label B.data.path}}
+													</LinkTo>
+                        {{/if}}
                     </B.Td>
                     <B.Td>{{B.data.namespace}}</B.Td>
-                    <B.Td>{{B.data.items.description}}</B.Td>
                     <B.Td>
-                        <TwoStepButton
-                            data-test-delete
-                            @idleText="Delete"
-                            @cancelText="Cancel"
-                            @confirmText="Yes"
-                            @inlineText={{true}}
-                            @confirmationMessage="Are you sure?"
-                            @awaitingConfirmation={{this.deleteTemplate.isRunning}}
-                            @disabled={{cannot "destroy variable" namespace="*"}}
-                            @onConfirm={{perform this.deleteTemplate B.data}}
-                        />
+											{{#if B.data.isDefaultJobTemplate}}
+											<em>(Default Job)</em>
+											{{/if}}
+											{{B.data.items.description}}
+										</B.Td>
+                    <B.Td>
+                        {{#if B.data.isDefaultJobTemplate}}
+													--
+                        {{else}}
+													<TwoStepButton
+														data-test-delete
+														@idleText="Delete"
+														@cancelText="Cancel"
+														@confirmText="Yes"
+														@inlineText={{true}}
+														@confirmationMessage="Are you sure?"
+														@awaitingConfirmation={{this.deleteTemplate.isRunning}}
+														@disabled={{cannot "destroy variable" namespace="*"}}
+														@onConfirm={{perform this.deleteTemplate B.data}}
+													/>
+                        {{/if}}
                     </B.Td>
                 </B.Tr>
             </:body>

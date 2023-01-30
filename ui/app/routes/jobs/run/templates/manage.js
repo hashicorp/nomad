@@ -17,19 +17,7 @@ export default class JobsRunTemplatesManageRoute extends Route {
     }
   }
 
-  async model() {
-    const jobTemplateVariables = await this.store.query('variable', {
-      prefix: 'nomad/job-templates',
-      namespace: '*',
-    });
-
-    // Dispatch O(n+1) query
-    await Promise.all(
-      jobTemplateVariables.map((template) =>
-        this.store.findRecord('variable', template.id)
-      )
-    );
-
-    return jobTemplateVariables;
+  model() {
+    return this.store.adapterFor('variable').getJobTemplates();
   }
 }

@@ -5,7 +5,7 @@ import {
   currentURL,
   fillIn,
   visit,
-  waitFor,
+  settled,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -219,7 +219,7 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-cancel]')
         .exists('A button to cancel the template selection is displayed.');
 
-      await click('[data-test-template-card=foo]');
+      await click('[data-test-template-card=Foo]');
       await click('[data-test-apply]');
 
       assert.equal(
@@ -237,10 +237,10 @@ module('Acceptance | job run', function (hooks) {
 
       // Assert
       assert
-        .dom('[data-test-empty-templates-list-headline]')
-        .exists('No templates are listed if none have been created.');
+        .dom('[data-test-template-card]')
+        .exists({ count: 4 }, 'A list of default job templates is rendered.');
 
-      await click('[data-test-create-inline]');
+      await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
 
       await fillIn('[data-test-template-name]', 'foo');
@@ -311,7 +311,7 @@ module('Acceptance | job run', function (hooks) {
       await click('[data-test-save-template]');
       assert.equal(currentRouteName(), 'jobs.run.templates.index');
       assert
-        .dom('[data-test-template-card=foo]')
+        .dom('[data-test-template-card=Foo]')
         .exists('The newly created template appears in the list.');
     });
 
@@ -323,10 +323,10 @@ module('Acceptance | job run', function (hooks) {
 
       // Assert
       assert
-        .dom('[data-test-empty-templates-list-headline]')
-        .exists('No templates are listed if none have been created.');
+        .dom('[data-test-template-card]')
+        .exists({ count: 4 }, 'A list of default job templates is rendered.');
 
-      await click('[data-test-create-inline]');
+      await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
       assert
         .dom('[data-test-save-template]')
@@ -372,10 +372,10 @@ module('Acceptance | job run', function (hooks) {
 
       // Assert
       assert
-        .dom('[data-test-empty-templates-list-headline]')
-        .exists('No templates are listed if none have been created.');
+        .dom('[data-test-template-card]')
+        .exists({ count: 4 }, 'A list of default job templates is rendered.');
 
-      await click('[data-test-create-inline]');
+      await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
 
       await fillIn('[data-test-template-name]', 'foo');
@@ -554,15 +554,14 @@ module('Acceptance | job run', function (hooks) {
       await visit('/jobs/run/templates');
 
       assert.equal(currentRouteName(), 'jobs.run.templates.index');
-      assert.dom('[data-test-template-card="foo"]').exists();
+      assert.dom('[data-test-template-card="Foo"]').exists();
 
       this.store = this.owner.lookup('service:store');
       this.store.unloadAll();
-
-      await waitFor('[data-test-empty-templates-list-headline]');
+      await settled();
 
       assert
-        .dom('[data-test-template-card="foo"]')
+        .dom('[data-test-template-card="Foo"]')
         .doesNotExist(
           'The template reactively updates to changes in the Ember Data Store.'
         );
