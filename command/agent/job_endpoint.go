@@ -1608,8 +1608,15 @@ func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulE
 	if in == nil {
 		return nil
 	}
+
+	// TODO: to maintain backwards compatibility
+	paths := in.Paths
+	if in.Path != nil {
+		paths = in.Path
+	}
+
 	return &structs.ConsulExposeConfig{
-		Paths: apiConsulExposePathsToStructs(in.Path),
+		Paths: apiConsulExposePathsToStructs(paths),
 	}
 }
 
