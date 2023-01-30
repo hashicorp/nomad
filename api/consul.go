@@ -135,7 +135,8 @@ func (st *SidecarTask) Canonicalize() {
 type ConsulProxy struct {
 	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
 	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
-	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
+	Expose              *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
+	ExposeConfig        *ConsulExposeConfig    // Deprecated: only to maintain backwards compatibility. Use Expose instead.
 	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
 	Config              map[string]interface{} `hcl:"config,block"`
 }
@@ -145,7 +146,7 @@ func (cp *ConsulProxy) Canonicalize() {
 		return
 	}
 
-	cp.ExposeConfig.Canonicalize()
+	cp.Expose.Canonicalize()
 
 	if len(cp.Upstreams) == 0 {
 		cp.Upstreams = nil
@@ -227,12 +228,17 @@ func (cu *ConsulUpstream) Canonicalize() {
 }
 
 type ConsulExposeConfig struct {
-	Path []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
+	Paths []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
+	Path  []*ConsulExposePath // Deprecated: only to maintain backwards compatibility. Use Paths instead.
 }
 
 func (cec *ConsulExposeConfig) Canonicalize() {
 	if cec == nil {
 		return
+	}
+
+	if len(cec.Paths) == 0 {
+		cec.Paths = nil
 	}
 
 	if len(cec.Path) == 0 {
