@@ -135,13 +135,12 @@ func (st *SidecarTask) Canonicalize() {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
-	LocalServiceAddress string              `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
-	LocalServicePort    int                 `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
-	Expose              *ConsulExposeConfig `mapstructure:"expose" hcl:"expose,block"`
-	// Deprecated, only to maintain backwards compatibility. Use Expose instead
-	ExposeConfig *ConsulExposeConfig
-	Upstreams    []*ConsulUpstream      `hcl:"upstreams,block"`
-	Config       map[string]interface{} `hcl:"config,block"`
+	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
+	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
+	Expose              *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
+	ExposeConfig        *ConsulExposeConfig    // Deprecated: only to maintain backwards compatibility. Use Expose instead.
+	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
+	Config              map[string]interface{} `hcl:"config,block"`
 }
 
 func (cp *ConsulProxy) Canonicalize() {
@@ -237,8 +236,7 @@ func (cu *ConsulUpstream) Canonicalize() {
 
 type ConsulExposeConfig struct {
 	Paths []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
-	// Deprecated, only to maintain backwards compatibility. Use Paths instead
-	Path []*ConsulExposePath
+	Path  []*ConsulExposePath // Deprecated: only to maintain backwards compatibility. Use Paths instead.
 }
 
 func (cec *ConsulExposeConfig) Canonicalize() {
