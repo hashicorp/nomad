@@ -1,19 +1,19 @@
 ---
 layout: docs
-page_title: lifecycle Stanza - Job Specification
+page_title: lifecycle Block - Job Specification
 description: |-
-  The "lifecycle" stanza configures when a task is run within the lifecycle of a
+  The "lifecycle" block configures when a task is run within the lifecycle of a
   task group
 ---
 
-# `lifecycle` Stanza
+# `lifecycle` Block
 
 <Placement groups={['job', 'group', 'task', 'lifecycle']} />
 
-The `lifecycle` stanza is used to express task dependencies in Nomad by
+The `lifecycle` block is used to express task dependencies in Nomad by
 configuring when a task is run within the lifecycle of a task group.
 
-Main tasks are tasks that do not have a `lifecycle` stanza. Lifecycle task hooks
+Main tasks are tasks that do not have a `lifecycle` block. Lifecycle task hooks
 specify when other tasks are run in relation to the main tasks.
 There are three different lifecycle hooks, indicating when a task is started:
 
