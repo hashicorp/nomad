@@ -275,7 +275,7 @@ More information about creating orphan tokens can be found in
 The [`-period` flag](/vault/docs/commands/token/create#period) is required to allow the automatic renewal of the token. If this is left out, a [`vault token renew` command](/vault/docs/commands/token/renew) will need to be run manually to renew the token.
 
 The token can then be set in the server configuration's
-[`vault` stanza][config], as a command-line flag, or via an environment
+[`vault` block][config], as a command-line flag, or via an environment
 variable.
 
 ```shell-session
@@ -318,7 +318,7 @@ but will log the reasons the token is invalid and disable Vault integration.
 
 ### Permission Denied errors
 
-If you are using a Vault version less than 0.7.1 with a Nomad version greater than or equal to 0.6.1, you will need to update your task's policy (listed in [the `vault` stanza of the job specification][vault-spec]) to add the following:
+If you are using a Vault version less than 0.7.1 with a Nomad version greater than or equal to 0.6.1, you will need to update your task's policy (listed in [the `vault` block of the job specification][vault-spec]) to add the following:
 
 ```hcl
 path "sys/leases/renew" {

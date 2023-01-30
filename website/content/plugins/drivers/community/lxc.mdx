@@ -138,7 +138,7 @@ The `lxc` driver requires the following:
 
 - `lxc_path` - The location in which all containers are stored (commonly defaults to `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details.
 
-- `gc` stanza:
+- `gc` block:
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits. Under a name conflict,
     Nomad may still remove the dead container.

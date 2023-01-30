@@ -1,20 +1,20 @@
 ---
 layout: docs
-page_title: volume Stanza - Job Specification
+page_title: volume Block - Job Specification
 description: >-
-  The "volume" stanza allows the group to specify that it requires a given
+  The "volume" block allows the group to specify that it requires a given
   volume from the cluster. Nomad will automatically handle ensuring that the
   volume is available and mounted into the task.
 ---
 
-# `volume` Stanza
+# `volume` Block
 
 <Placement groups={['job', 'group', 'volume']} />
 
-The `volume` stanza allows the group to specify that it requires a
+The `volume` block allows the group to specify that it requires a
 given volume from the cluster.
 
-The key of the stanza is the name of the volume as it will be exposed
+The key of the block is the name of the volume as it will be exposed
 to task configuration.
 
 ```hcl
@@ -52,12 +52,12 @@ job "docs" {
 
 The Nomad server will ensure that the allocations are only scheduled
 on hosts that have a set of volumes that meet the criteria specified
-in the `volume` stanzas. These may be [host volumes][host_volume]
+in the `volume` blocks. These may be [host volumes][host_volume]
 configured on the client, or [CSI volumes][csi_volume] dynamically
 mounted by [CSI plugins][csi_plugin].
 
 The Nomad client will make the volumes available to tasks according to
-the [volume_mount][volume_mount] stanza in the `task` configuration.
+the [volume_mount][volume_mount] block in the `task` configuration.
 
 ## `volume` Parameters
 
@@ -198,7 +198,7 @@ ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
 ```
 
 [volume_mount]: /nomad/docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
-[host_volume]: /nomad/docs/configuration/client#host_volume-stanza
+[host_volume]: /nomad/docs/configuration/client#host_volume-block
 [csi_volume]: /nomad/docs/commands/volume/register
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
 [csi_volume]: /nomad/docs/commands/volume/register

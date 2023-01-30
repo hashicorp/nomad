@@ -1,14 +1,14 @@
 ---
 layout: docs
-page_title: connect Stanza - Job Specification
-description: The "connect" stanza allows specifying options for Consul Connect integration
+page_title: connect Block - Job Specification
+description: The "connect" block allows specifying options for Consul Connect integration
 ---
 
-# `connect` Stanza
+# `connect` Block
 
 <Placement groups={['job', 'group', 'service', 'connect']} />
 
-The `connect` stanza allows configuring various options for
+The `connect` block allows configuring various options for
 [Consul Connect](/nomad/docs/integrations/consul-connect). It is
 valid only within the context of a service definition at the task group
 level. For using `connect` when Consul ACLs are enabled, be sure to read through
@@ -65,7 +65,7 @@ or `gateway` may be realized per `connect` block.
 
 ### Using Connect Native
 
-The following example is a minimal service stanza for a
+The following example is a minimal service block for a
 [Consul Connect Native](/consul/docs/connect/native)
 application implemented by a task named `generate`.
 
@@ -83,7 +83,7 @@ service {
 
 ### Using Sidecar Service
 
-The following example is a minimal connect stanza with defaults and is
+The following example is a minimal connect block with defaults and is
 sufficient to start an Envoy proxy sidecar for allowing incoming connections
 via Consul Connect.
 
@@ -191,7 +191,7 @@ job "countdash" {
 
 ### Using a Gateway
 
-The following is an example service stanza for creating and using a connect ingress
+The following is an example service block for creating and using a connect ingress
 gateway. It includes a gateway service definition and an api service fronted by
 the gateway. Once running, the gateway can be used to reach the api service by first
 looking up the gateway Consul DNS address, e.g.

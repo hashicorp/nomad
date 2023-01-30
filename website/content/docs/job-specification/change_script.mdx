@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: change_script Stanza - Job Specification
-description: The "change_script" stanza configures a script to be run on template re-render.
+page_title: change_script Block - Job Specification
+description: The "change_script" block configures a script to be run on template re-render.
 ---
 
-# `change_script` Stanza
+# `change_script` Block
 
 <Placement groups={['job', 'group', 'task', 'template', 'change_script']} />
 
-The `change_script` stanza allows operators to configure scripts that
-will be executed on template change. This stanza is only used when template
+The `change_script` block allows operators to configure scripts that
+will be executed on template change. This block is only used when template
 `change_mode` is set to `script`.
 
 ```hcl
@@ -53,7 +53,7 @@ job "docs" {
 ### Template as a script example
 
 Below is an example of how a script can be embedded in a `data` block of another
-`template` stanza:
+`template` block:
 
 ```hcl
 job "docs" {

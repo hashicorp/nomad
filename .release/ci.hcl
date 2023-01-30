@@ -170,7 +170,7 @@ event "fossa-scan" {
 }
 
 ## These are promotion and post-publish events
-## they should be added to the end of the file after the verify event stanza.
+## they should be added to the end of the file after the verify event block.
 
 event "trigger-staging" {
   // This event is dispatched by the bob trigger-promotion command  // and is required - do not delete.

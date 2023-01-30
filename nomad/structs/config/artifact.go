@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 
-// ArtifactConfig is the configuration specific to the Artifact stanza
+// ArtifactConfig is the configuration specific to the Artifact block
 type ArtifactConfig struct {
 	// HTTPReadTimeout is the duration in which a download must complete or
 	// it will be canceled. Defaults to 30m.
