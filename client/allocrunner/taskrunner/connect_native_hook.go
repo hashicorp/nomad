@@ -265,7 +265,7 @@ func (h *connectNativeHook) hostEnv(env map[string]string) map[string]string {
 func (h *connectNativeHook) maybeSetSITokenEnv(dir, task string, env map[string]string) error {
 	if _, exists := env["CONSUL_HTTP_TOKEN"]; exists {
 		// Consul token was already set - typically by using the Vault integration
-		// and a template stanza to set the environment. Ignore the SI token as
+		// and a template block to set the environment. Ignore the SI token as
 		// the configured token takes precedence.
 		return nil
 	}

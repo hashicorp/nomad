@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// The following levels are the only valid values for the `policy = "read"` stanza.
+	// The following levels are the only valid values for the `policy = "read"` block.
 	// When policies are merged together, the most privilege is granted, except for deny
 	// which always takes precedence and supersedes.
 	PolicyDeny  = "deny"
@@ -20,7 +20,7 @@ const (
 
 const (
 	// The following are the fine-grained capabilities that can be granted within a namespace.
-	// The Policy stanza is a short hand for granting several of these. When capabilities are
+	// The Policy block is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
@@ -54,7 +54,7 @@ var (
 
 const (
 	// The following are the fine-grained capabilities that can be granted for a volume set.
-	// The Policy stanza is a short hand for granting several of these. When capabilities are
+	// The Policy block is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 

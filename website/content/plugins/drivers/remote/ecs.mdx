@@ -101,7 +101,7 @@ job "nomad-ecs-demo" {
 }
 ```
 
-- `config.task` stanza defines the configuration of the ECS task:
+- `config.task` block defines the configuration of the ECS task:
 
   - `launch_type` - The launch type on which to run your task.
   - `task_definition` - The family and revision (`family:revision`) or full ARN

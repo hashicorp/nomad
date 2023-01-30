@@ -56,7 +56,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 	// Parse the job out
 	matches := list.Filter("job")
 	if len(matches.Items) == 0 {
-		return nil, fmt.Errorf("'job' stanza not found")
+		return nil, fmt.Errorf("'job' block not found")
 	}
 	if err := parseJob(&job, matches); err != nil {
 		return nil, fmt.Errorf("error parsing 'job': %s", err)

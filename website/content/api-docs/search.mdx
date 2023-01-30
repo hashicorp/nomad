@@ -127,7 +127,7 @@ The `/search/fuzzy` endpoint returns partial substring matches for a given searc
 term and context, where a context can be jobs, allocations, nodes, plugins, or namespaces.
 Additionally, fuzzy searching can be done across all contexts. For better control
 over the performance implications of fuzzy searching on Nomad servers, aspects of
-fuzzy searching can be tuned through the <code>[search]</code> stanza in Nomad agent config.
+fuzzy searching can be tuned through the <code>[search]</code> block in Nomad agent config.
 
 Fuzzy search results are ordered starting with closest matching terms. Items of
 a name that exactly matches the search term are listed first.

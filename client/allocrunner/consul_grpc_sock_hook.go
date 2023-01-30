@@ -39,7 +39,7 @@ var (
 // consulGRPCSocketHook creates Unix sockets to allow communication from inside a
 // netns to Consul gRPC endpoint.
 //
-// Noop for allocations without a group Connect stanza using bridge networking.
+// Noop for allocations without a group Connect block using bridge networking.
 type consulGRPCSocketHook struct {
 	logger hclog.Logger
 
