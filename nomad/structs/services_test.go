@@ -485,7 +485,7 @@ func TestConsulConnect_Validate(t *testing.T) {
 
 	c := &ConsulConnect{}
 
-	// An empty Connect stanza is invalid
+	// An empty Connect block is invalid
 	require.Error(t, c.Validate())
 
 	c.Native = true
@@ -993,7 +993,7 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 		require.True(t, modifiable.Equals(modifiable))
 	}
 
-	// proxy stanza equality checks
+	// proxy block equality checks
 
 	t.Run("mod gateway timeout", func(t *testing.T) {
 		try(t, func(g *cg) { g.Proxy.ConnectTimeout = pointer.Of(9 * time.Second) })
@@ -1079,7 +1079,7 @@ func TestConsulGateway_Equals_terminating(t *testing.T) {
 		require.True(t, modifiable.Equals(modifiable))
 	}
 
-	// proxy stanza equality checks
+	// proxy block equality checks
 
 	t.Run("mod dns discovery type", func(t *testing.T) {
 		try(t, func(g *cg) { g.Proxy.EnvoyDNSDiscoveryType = "LOGICAL_DNS" })

@@ -23,7 +23,7 @@ ignored.
 
 Nomad clients have separate metrics for the host they are running on as well as
 for each allocation being run. Both of these metrics [must be explicitly
-enabled][telemetry-stanza].
+enabled][telemetry-block].
 
 By default, the Nomad agent collects telemetry data at a [1 second
 interval][collection-interval]. Note that Nomad supports [gauges, counters, and
@@ -312,7 +312,7 @@ latency and packet loss for the [Serf] address.
 [statsd-telem]: /docs/configuration/telemetry#statsd
 [statsite-telem]: /docs/configuration/telemetry#statsite
 [tagged-metrics]: /docs/operations/metrics-reference#tagged-metrics
-[telemetry-stanza]: /docs/configuration/telemetry
+[telemetry-block]: /docs/configuration/telemetry
 [Consensus Protocol (Raft)]: /docs/operations/monitoring-nomad#consensus-protocol-raft
 [Job Summary Metrics]: /docs/operations/metrics-reference#job-summary-metrics
 [Scheduling]: /docs/concepts/scheduling/scheduling

@@ -134,7 +134,7 @@ job "kadalu-csi-controller" {
         }
 
         mount {
-          # If you are not using gluster native quota comment out this stanza
+          # If you are not using gluster native quota comment out this block
           type     = "bind"
           source   = "./${NOMAD_SECRETS_DIR}/ssh-privatekey"
           target   = "/etc/secret-volume/ssh-privatekey"

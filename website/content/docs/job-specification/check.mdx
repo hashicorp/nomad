@@ -5,7 +5,7 @@ description: |-
   The "check" block declares service check definition for a service registered into the Nomad or Consul service provider.
 ---
 
-# `check` Stanza
+# `check` Block
 
 <Placement
   groups={[
@@ -63,7 +63,7 @@ job "example" {
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
-- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+- `check_restart` - See [`check_restart` block][check_restart_block].
 
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
@@ -123,7 +123,7 @@ job "example" {
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
-  in the [`network`][network] stanza. If a port value was declared on the
+  in the [`network`][network] block. If a port value was declared on the
   `service`, this will inherit from that value if not supplied. If supplied,
   this value takes precedence over the `service.port` value. This is useful for
   services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
@@ -136,7 +136,7 @@ job "example" {
 
 - `task` `(string: "")` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
-  `check_restart` stanzas will apply to the specified task. Inherits
+  `check_restart` blocks will apply to the specified task. Inherits
   the [`service.task`][service_task] value if not set. Must be unset
   or equivelent to `service.task` in task-level services.
 
@@ -177,14 +177,14 @@ job "example" {
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  [`check_restart`][check_restart_block] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
   `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
 
-#### `header` Stanza
+#### `header` Block
 
-HTTP checks may include a `header` stanza to set HTTP headers. The `header`
-stanza parameters have lists of strings as values. Multiple values will cause
+HTTP checks may include a `header` block to set HTTP headers. The `header`
+block parameters have lists of strings as values. Multiple values will cause
 the header to be set multiple times, once for each value.
 
 ```hcl
@@ -285,7 +285,7 @@ service {
 ```
 
 In this example Consul would health check the `example.Service` service on the
-`rpc` port defined in the task's [network resources][network] stanza. See
+`rpc` port defined in the task's [network resources][network] block. See
 [Using Driver Address Mode](#using-driver-address-mode) for details on address
 selection.
 
@@ -434,7 +434,7 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
   does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_stanza]: /docs/job-specification/check_restart
+[check_restart_block]: /docs/job-specification/check_restart
 [consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
 [service]: /docs/job-specification/service

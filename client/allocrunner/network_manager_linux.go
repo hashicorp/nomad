@@ -171,7 +171,7 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) (NetworkConfigurator, error) {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
-	// Check if network stanza is given
+	// Check if network block is given
 	if len(tg.Networks) == 0 {
 		return &hostNetworkConfigurator{}, nil
 	}

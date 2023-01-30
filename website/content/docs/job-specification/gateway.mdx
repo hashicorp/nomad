@@ -1,20 +1,20 @@
 ---
 layout: docs
-page_title: gateway Stanza - Job Specification
+page_title: gateway Block - Job Specification
 description: |-
-  The "gateway" stanza allows specifying options for configuring Consul Gateways
+  The "gateway" block allows specifying options for configuring Consul Gateways
   used in the Consul Connect integration
 ---
 
-# `gateway` Stanza
+# `gateway` Block
 
 <Placement groups={['job', 'group', 'service', 'connect', 'gateway']} />
 
-The `gateway` stanza allows configuration of [Consul Connect Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways). Nomad will
+The `gateway` block allows configuration of [Consul Connect Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways). Nomad will
 automatically create the necessary Gateway [Configuration Entry](https://developer.hashicorp.com/consul/docs/agent/config-entries)
 as well as inject an Envoy proxy task into the Nomad job to serve as the Gateway.
 
-The `gateway` configuration is valid within the context of a `connect` stanza.
+The `gateway` configuration is valid within the context of a `connect` block.
 Additional information about Gateway configurations can be found in Consul's
 [Connect Gateways](https://developer.hashicorp.com/consul/docs/connect/gateways) documentation.
 
@@ -211,7 +211,7 @@ meta.connect.gateway_image = custom/envoy-${NOMAD_envoy_version}:latest
 ### Custom gateway task
 
 The task created for the gateway can be configured manually using the
-[`sidecar_task`][sidecar_task] stanza.
+[`sidecar_task`][sidecar_task] block.
 
 ```
 connect {

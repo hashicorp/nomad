@@ -398,7 +398,7 @@ func TestIsValidConfig(t *testing.T) {
 					},
 				},
 			},
-			err: "client.artifact stanza invalid: http_read_timeout must be > 0",
+			err: "client.artifact block invalid: http_read_timeout must be > 0",
 		},
 	}
 

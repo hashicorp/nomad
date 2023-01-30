@@ -408,7 +408,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	if err := config.Client.Artifact.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("client.artifact stanza invalid: %v", err))
+		c.Ui.Error(fmt.Sprintf("client.artifact block invalid: %v", err))
 		return false
 	}
 
@@ -1191,7 +1191,7 @@ func (c *Command) startupJoin(config *Config) error {
 		new = len(config.Server.ServerJoin.StartJoin)
 	}
 	if old != 0 && new != 0 {
-		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join block")
 	}
 
 	// Nothing to do

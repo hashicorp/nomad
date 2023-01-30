@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: vault Stanza - Job Specification
+page_title: vault Block - Job Specification
 description: |-
-  The "vault" stanza allows the task to specify that it requires a token from a
+  The "vault" block allows the task to specify that it requires a token from a
   HashiCorp Vault server. Nomad will automatically retrieve a Vault token for
   the task and handle token renewal for the task.
 ---
 
-# `vault` Stanza
+# `vault` Block
 
 <Placement
   groups={[
@@ -17,12 +17,12 @@ description: |-
   ]}
 />
 
-The `vault` stanza allows a task to specify that it requires a token from a
+The `vault` block allows a task to specify that it requires a token from a
 [HashiCorp Vault][vault] server. Nomad will automatically retrieve a Vault token
 for the task and handle token renewal for the task. If specified at the `group`
 level, the configuration will apply to all tasks within the group. If specified
 at the `job` level, the configuration will apply to all tasks within the job. If
-multiple `vault` stanzas are specified, they are merged with the `task` stanza
+multiple `vault` blocks are specified, they are merged with the `task` block
 taking the highest precedence, then the `group`, then the `job`.
 
 ```hcl
@@ -51,7 +51,7 @@ network error), the client will attempt to retrieve a new Vault token. If succes
 contents of the secrets file are updated on disk, and action will be taken
 according to the value set in the `change_mode` parameter.
 
-If a `vault` stanza is specified, the [`template`][template] stanza can interact
+If a `vault` block is specified, the [`template`][template] block can interact
 with Vault as well.
 
 ## `vault` Parameters
@@ -80,8 +80,8 @@ with Vault as well.
 
 ## `vault` Examples
 
-The following examples only show the `vault` stanzas. Remember that the
-`vault` stanza is only valid in the placements listed above.
+The following examples only show the `vault` blocks. Remember that the
+`vault` block is only valid in the placements listed above.
 
 ### Retrieve Token
 
