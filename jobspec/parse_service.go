@@ -803,7 +803,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 		if e, err := parseExpose(eo.Items[0]); err != nil {
 			return nil, err
 		} else {
-			proxy.ExposeConfig = e
+			proxy.Expose = e
 		}
 	}
 
@@ -854,13 +854,13 @@ func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 
 	po := listVal.Filter("path") // array
 	if len(po.Items) > 0 {
-		expose.Path = make([]*api.ConsulExposePath, len(po.Items))
+		expose.Paths = make([]*api.ConsulExposePath, len(po.Items))
 		for i := range po.Items {
 			p, err := parseExposePath(po.Items[i])
 			if err != nil {
 				return nil, err
 			}
-			expose.Path[i] = p
+			expose.Paths[i] = p
 		}
 	}
 
