@@ -62,7 +62,7 @@ func (a *ACLAuthMethodCommand) Run(_ []string) int { return cli.RunResultHelp }
 func outputAuthMethod(meta Meta, authMethod *api.ACLAuthMethod) {
 	meta.Ui.Output(formatAuthMethod(authMethod))
 	if authMethod.Config != nil {
-		meta.Ui.Output(meta.Colorize().Color("\n[bold]Config:[reset]\n"))
+		meta.Ui.Output(meta.Colorize().Color("\n[bold]Auth Method Config[reset]\n"))
 		meta.Ui.Output(formatAuthMethodConfig(authMethod.Config))
 	}
 }
