@@ -48,7 +48,7 @@ func (m *mockImageClient) InspectImage(id string) (*docker.Image, error) {
 	}, nil
 }
 
-func (m *mockImageClient) RemoveImage(id string) error {
+func (m *mockImageClient) RemoveImageExtended(id string, options docker.RemoveImageOptions) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.removed[id]++
