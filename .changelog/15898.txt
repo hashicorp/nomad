@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where infra_image did not get alloc_id label
+```
