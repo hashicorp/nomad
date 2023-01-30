@@ -18,6 +18,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
+import percySnapshot from '@percy/ember';
 
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
@@ -565,6 +566,29 @@ module('Acceptance | job run', function (hooks) {
         .doesNotExist(
           'The template reactively updates to changes in the Ember Data Store.'
         );
+    });
+
+    test('default templates', async function (assert) {
+      assert.expect(4);
+      const NUMBER_OF_DEFAULT_TEMPLATES = 4;
+
+      await visit('/jobs/run/templates');
+
+      assert.equal(currentRouteName(), 'jobs.run.templates.index');
+      assert
+        .dom('[data-test-template-card]')
+        .exists({ count: NUMBER_OF_DEFAULT_TEMPLATES });
+
+      await percySnapshot(assert);
+
+      await click('[data-test-template-card="Hello world"]');
+      await click('[data-test-apply]');
+
+      assert.equal(
+        currentURL(),
+        '/jobs/run?template=nomad%2Fjob-templates%2Fdefault%2Fhello-world'
+      );
+      assert.dom('[data-test-editor]').includesText('job "hello-world"');
     });
   });
 });
