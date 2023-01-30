@@ -13,7 +13,7 @@ export default [
       },
       {
         key: 'description',
-        value: 'A simple job that runs a single task on a single node.',
+        value: 'A simple job that runs a single task on a single node',
       },
     ],
   },
@@ -27,7 +27,7 @@ export default [
       {
         key: 'description',
         value:
-          'A job that can be dispatched multiple times with different payloads.',
+          'A job that can be dispatched multiple times with different payloads and meta values',
       },
     ],
   },
@@ -41,7 +41,7 @@ export default [
       {
         key: 'description',
         value:
-          'A job that registers a Nomad service and can be discovered by other services.',
+          'Registers a service in one group, and discovers it in another. Provides a recurring check to ensure the service is healthy',
       },
     ],
   },
@@ -55,7 +55,7 @@ export default [
       {
         key: 'description',
         value:
-          'Use Nomad Variables to configure the output of a simple HTML page.',
+          'Use Nomad Variables to configure the output of a simple HTML page',
       },
     ],
   },
