@@ -22,8 +22,13 @@ export default `job "parameterized-job" {
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args = ["-c", "cat local/template.out"]
+        args    = ["-c", "cat local/template.out", "local/payload.txt"]
       }
+
+      dispatch_payload {
+        file = "payload.txt"
+      }
+
       template {
         data = <<EOH
 MY_META_KEY: {{env "NOMAD_META_MY_META_KEY"}}
