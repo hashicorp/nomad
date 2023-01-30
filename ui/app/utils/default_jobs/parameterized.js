@@ -38,5 +38,4 @@ MY_META_KEY: {{env "NOMAD_META_MY_META_KEY"}}
       }
     }
   }
-}
-`;
+}`;
