@@ -23,7 +23,7 @@ job "identity" {
       }
     }
 
-    # empty task should log both env and file
+    # empty task should log no secrets
     task "empty" {
 
       identity {}
@@ -46,6 +46,25 @@ job "identity" {
       identity {
         env  = true
         file = false
+      }
+
+      driver = "docker"
+      config {
+        image = "bash:5"
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
+    # file task should log only env var
+    task "file" {
+
+      identity {
+        file = true
       }
 
       driver = "docker"

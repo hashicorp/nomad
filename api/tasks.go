@@ -753,7 +753,6 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 		tgrp.Merge(t.RestartPolicy)
 		t.RestartPolicy = tgrp
 	}
-	t.Identity.Canonicalize()
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -1112,4 +1111,11 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.HealthTimeout == 0 {
 		t.HealthTimeout = 30 * time.Second
 	}
+}
+
+// WorkloadIdentity is the jobspec block which determines if and how a workload
+// identity is exposed to tasks.
+type WorkloadIdentity struct {
+	Env  *bool `hcl:"env,optional"`
+	File *bool `hcl:"file,optional"`
 }

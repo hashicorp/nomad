@@ -12,8 +12,13 @@ job "nobodyid" {
     # nobody task should have a file owned by nobody with -rw------- perms
     task "nobody" {
       user = "nobody"
-      identity {}
+
+      identity {
+        file = true
+      }
+
       driver = "docker"
+
       config {
         image = "bash:5"
         args  = ["-c", "stat -c 'perms=%#a username=%U' secrets/nomad_token; echo done"]

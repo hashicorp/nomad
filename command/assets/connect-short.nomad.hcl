@@ -17,8 +17,6 @@ job "countdash" {
     task "web" {
       driver = "docker"
 
-      identity {}
-
       config {
         image          = "hashicorpdev/counter-api:v3"
         auth_soft_fail = true
@@ -63,8 +61,6 @@ job "countdash" {
         image          = "hashicorpdev/counter-dashboard:v3"
         auth_soft_fail = true
       }
-
-      identity {}
     }
   }
 }

@@ -359,10 +359,10 @@ job "countdash" {
       # The "identity" block instructs Nomad to expose the task's workload
       # identity token as an environment variable and in the file
       # secrets/nomad_token.
-      identity {
-        env  = true
-        file = true
-      }
+      # identity {
+      #   env  = true
+      #   file = true
+      # }
 
       # The "resources" block describes the requirements a task needs to
       # execute. Resource requirements include memory, network, cpu, and more.

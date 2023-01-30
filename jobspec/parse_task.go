@@ -286,7 +286,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// Parse identity
 	if o := listVal.Filter("identity"); len(o.Items) > 0 {
 		v := &api.WorkloadIdentity{}
-		v.Canonicalize()
 		if err := parseIdentity(v, o); err != nil {
 			return nil, multierror.Prefix(err, "identity ->")
 		}

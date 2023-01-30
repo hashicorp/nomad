@@ -21,7 +21,7 @@ func TestWorkloadIdentity(t *testing.T) {
 	e2eutil.WaitForNodesReady(t, nomad, 1)
 
 	t.Run("testIdentity", testIdentity)
-	t.Run("testNobody", testIdentity)
+	t.Run("testNobody", testNobody)
 }
 
 // testIdentity asserts that the various combinations of identity block
@@ -54,8 +54,8 @@ func testIdentity(t *testing.T) {
 		},
 		{
 			task: "empty",
-			env:  true,
-			file: true,
+			env:  false,
+			file: false,
 		},
 		{
 			task: "env",
@@ -63,11 +63,20 @@ func testIdentity(t *testing.T) {
 			file: false,
 		},
 		{
+			task: "file",
+			env:  false,
+			file: true,
+		},
+		{
 			task: "falsey",
 			env:  false,
 			file: false,
 		},
 	}
+
+	// Ensure the assertions and input file match
+	must.Len(t, len(assertions), alloc.Job.TaskGroups[0].Tasks,
+		must.Sprintf("test and jobspec mismatch"))
 
 	for _, tc := range assertions {
 		logFile := fmt.Sprintf("alloc/logs/%s.stdout.0", tc.task)
