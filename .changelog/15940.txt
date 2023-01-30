@@ -1,3 +1,0 @@
-```release-note:bug
-docs: Added further explanation that any `-` string in key in `meta` block will be replaced with `_`
-```
