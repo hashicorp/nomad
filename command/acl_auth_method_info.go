@@ -110,7 +110,6 @@ func (a *ACLAuthMethodInfoCommand) Run(args []string) int {
 	}
 
 	// Format the output.
-	a.Ui.Output(formatAuthMethod(method))
-
+	outputAuthMethod(a.Meta, method)
 	return 0
 }

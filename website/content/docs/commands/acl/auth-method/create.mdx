@@ -55,12 +55,16 @@ Create a new ACL Auth Method:
 
 ```shell-session
 $ nomad acl auth-method create -name "example-acl-auth-method" -type "OIDC" -max-token-ttl "1h" -token-locality "local" -config "@config.json"
-Created ACL auth method:
-Name                   = example-acl-auth-method
-Type                   = OIDC
-Locality               = local
-MaxTokenTTL            = 1h0m0s
-Default                = false
+Name         = example-acl-auth-method
+Type         = OIDC
+Locality     = local
+MaxTokenTTL  = 1h0m0s
+Default      = false
+Create Index = 14
+Modify Index = 14
+
+Auth Method Config
+
 OIDC Discovery URL     = https://my-corp-app-name.auth0.com/
 OIDC Client ID         = V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt
 OIDC Client Secret     = example-client-secret
@@ -70,8 +74,6 @@ Discovery CA pem       = <none>
 Signing algorithms     = <none>
 Claim mappings         = {http://example.com/first_name: first_name}; {http://example.com/last_name: last_name}
 List claim mappings    = {http://nomad.com/groups: groups}
-Create Index           = 14
-Modify Index           = 14
 ```
 
 Example config file:
