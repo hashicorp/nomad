@@ -54,7 +54,8 @@ export default [
       },
       {
         key: 'description',
-        value: 'A job that uses Nomad variables to configure task behaviour.',
+        value:
+          'Use Nomad Variables to configure the output of a simple HTML page.',
       },
     ],
   },
