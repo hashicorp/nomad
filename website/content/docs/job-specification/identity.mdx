@@ -26,25 +26,9 @@ job "docs" {
   group "example" {
     task "api" {
 
-      identity {}
-
-      # ...
-    }
-  }
-}
-```
-
-The empty block `identity {}` will expose both the environment variable and
-file, but either may be individually disabled:
-
-```hcl
-job "docs" {
-  group "example" {
-    task "api" {
-
       identity {
         env  = true
-        file = false
+        file = true
       }
 
       # ...

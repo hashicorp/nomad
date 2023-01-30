@@ -459,15 +459,12 @@ The `Task` object supports the following keys:
   }
   ```
 
-- `Identity` - Specifies whether or not to expose Nomad's [Workload Identity][]
-  to the task. If non-null the `NOMAD_TOKEN` environment variable and the
-  `secrets/nomad_token` file will contain the task's workload identity token.
+- `Identity` - Specifies whether to expose Nomad's [Workload Identity][]
+  to the task.
 
-  - `Env` - If set to `false` the `NOMAD_TOKEN` environment variable will not
-    be set.
+  - `Env` - If `true` the `NOMAD_TOKEN` environment variable will be set.
 
-  - `File` - If set to `false` the `secrets/nomad_token` file will not be
-    created.
+  - `File` - If `true` the `secrets/nomad_token` file will be created.
 
 - `KillSignal` - Specifies a configurable kill signal for a task, where the
   default is SIGINT. Note that this is only supported for drivers which accept
