@@ -445,7 +445,7 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-template-list]')
         .exists('A list of templates is visible');
-
+      await percySnapshot(assert);
       await click('[data-test-edit-template="nomad/job-templates/foo"]');
       assert.equal(
         currentRouteName(),
