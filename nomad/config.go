@@ -461,7 +461,7 @@ func DefaultConfig() *Config {
 		ReconcileInterval:                60 * time.Second,
 		EvalGCInterval:                   5 * time.Minute,
 		EvalGCThreshold:                  1 * time.Hour,
-		BatchEvalGCThreshold:             168 * time.Hour,
+		BatchEvalGCThreshold:             24 * time.Hour,
 		JobGCInterval:                    5 * time.Minute,
 		JobGCThreshold:                   4 * time.Hour,
 		NodeGCInterval:                   5 * time.Minute,
