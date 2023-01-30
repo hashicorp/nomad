@@ -3610,8 +3610,8 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 		Upstreams: []*api.ConsulUpstream{{
 			DestinationName: "upstream",
 		}},
-		ExposeConfig: &api.ConsulExposeConfig{
-			Path: []*api.ConsulExposePath{{
+		Expose: &api.ConsulExposeConfig{
+			Paths: []*api.ConsulExposePath{{
 				Path: "/health",
 			}},
 		},

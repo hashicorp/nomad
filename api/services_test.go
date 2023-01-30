@@ -194,7 +194,7 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 		cp.Canonicalize()
 		require.Empty(t, cp.LocalServiceAddress)
 		require.Zero(t, cp.LocalServicePort)
-		require.Nil(t, cp.ExposeConfig)
+		require.Nil(t, cp.Expose)
 		require.Nil(t, cp.Upstreams)
 		require.Empty(t, cp.Config)
 	})
@@ -203,14 +203,14 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 		cp := &ConsulProxy{
 			LocalServiceAddress: "127.0.0.1",
 			LocalServicePort:    80,
-			ExposeConfig:        new(ConsulExposeConfig),
+			Expose:              new(ConsulExposeConfig),
 			Upstreams:           make([]*ConsulUpstream, 0),
 			Config:              make(map[string]interface{}),
 		}
 		cp.Canonicalize()
 		require.Equal(t, "127.0.0.1", cp.LocalServiceAddress)
 		require.Equal(t, 80, cp.LocalServicePort)
-		require.Equal(t, &ConsulExposeConfig{}, cp.ExposeConfig)
+		require.Equal(t, &ConsulExposeConfig{}, cp.Expose)
 		require.Nil(t, cp.Upstreams)
 		require.Nil(t, cp.Config)
 	})

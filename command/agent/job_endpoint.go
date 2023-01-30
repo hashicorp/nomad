@@ -1568,11 +1568,18 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 	if in == nil {
 		return nil
 	}
+
+	// TODO: to maintain backwards compatibility
+	expose := in.Expose
+	if in.ExposeConfig != nil {
+		expose = in.ExposeConfig
+	}
+
 	return &structs.ConsulProxy{
 		LocalServiceAddress: in.LocalServiceAddress,
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
-		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
+		Expose:              apiConsulExposeConfigToStructs(expose),
 		Config:              maps.Clone(in.Config),
 	}
 }
@@ -1608,8 +1615,15 @@ func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulE
 	if in == nil {
 		return nil
 	}
+
+	// TODO: to maintain backwards compatibility
+	paths := in.Paths
+	if in.Path != nil {
+		paths = in.Path
+	}
+
 	return &structs.ConsulExposeConfig{
-		Paths: apiConsulExposePathsToStructs(in.Path),
+		Paths: apiConsulExposePathsToStructs(paths),
 	}
 }
 
