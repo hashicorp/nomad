@@ -137,7 +137,7 @@ OUTER:
 		allEvalsGC := true
 		var jobAlloc, jobEval []string
 		for _, eval := range evals {
-			gc, allocs, err := c.gcEval(eval, oldThreshold, oldThreshold, true)
+			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
 			} else if gc {
@@ -246,9 +246,12 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
 
-		// The Evaluation GC should not handle batch jobs since those need to be
-		// garbage collected in one shot
-		gc, allocs, err := c.gcEval(eval, oldThreshold, batchOldThreshold, false)
+		gcThreshold := oldThreshold
+		if eval.Type == structs.JobTypeBatch {
+			gcThreshold = batchOldThreshold
+		}
+
+		gc, allocs, err := c.gcEval(eval, gcThreshold, false)
 		if err != nil {
 			return err
 		}
@@ -274,15 +277,10 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 // allocs are not older than the threshold. If the eval should be garbage
 // collected, the associated alloc ids that should also be removed are also
 // returned
-func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, batchThresholdIndex uint64, allowBatch bool) (
+func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, allowBatch bool) (
 	bool, []string, error) {
 	// Ignore non-terminal and new evaluations
-	if !eval.TerminalStatus() {
-		return false, nil, nil
-	}
-
-	if (eval.Type == structs.JobTypeBatch && eval.ModifyIndex > batchThresholdIndex) ||
-		(eval.Type != structs.JobTypeBatch && eval.ModifyIndex > thresholdIndex) {
+	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
 		return false, nil, nil
 	}
 
@@ -319,19 +317,9 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		//   - allowBatch and the job is dead
 		//
 		// If we cannot collect outright, check if a partial GC may occur
-		collect := false
-		if job == nil {
-			collect = true
-		} else if job.Status != structs.JobStatusDead {
-			collect = false
-		} else if job.Stop {
-			collect = true
-		} else if allowBatch {
-			collect = true
-		}
-
+		collect := job == nil || job.Status == structs.JobStatusDead && (job.Stop || allowBatch)
 		if !collect {
-			oldAllocs := olderVersionTerminalAllocs(allocs, job, batchThresholdIndex)
+			oldAllocs := olderVersionTerminalAllocs(allocs, job, thresholdIndex)
 			gcEval := (len(oldAllocs) == len(allocs))
 			return gcEval, oldAllocs, nil
 		}
