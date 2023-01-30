@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: resources Stanza - Job Specification
+page_title: resources Block - Job Specification
 description: |-
-  The "resources" stanza describes the requirements a task needs to execute.
+  The "resources" block describes the requirements a task needs to execute.
   Resource requirements include memory, cpu, and more.
 ---
 
-# `resources` Stanza
+# `resources` Block
 
 <Placement groups={['job', 'group', 'task', 'resources']} />
 
-The `resources` stanza describes the requirements a task needs to execute.
+The `resources` block describes the requirements a task needs to execute.
 Resource requirements include memory, CPU, and more.
 
 ```hcl
@@ -46,12 +46,12 @@ job "docs" {
 
 ## `resources` Examples
 
-The following examples only show the `resources` stanzas. Remember that the
-`resources` stanza is only valid in the placements listed above.
+The following examples only show the `resources` blocks. Remember that the
+`resources` block is only valid in the placements listed above.
 
 ### Cores
 
-This example specifies that the task requires 2 reserved cores. With this stanza, Nomad will find
+This example specifies that the task requires 2 reserved cores. With this block, Nomad will find
 a client with enough spare capacity to reserve 2 cores exclusively for the task. Unlike the `cpu` field, the
 task will not share cpu time with any other tasks managed by Nomad on the client.
 
@@ -61,7 +61,7 @@ resources {
 }
 ```
 
-If `cores` and `cpu` are both defined in the same resource stanza, validation of the job will fail.
+If `cores` and `cpu` are both defined in the same resource block, validation of the job will fail.
 
 ### Memory
 
@@ -76,7 +76,7 @@ resources {
 
 ### Devices
 
-This example shows a device constraints as specified in the [device][] stanza
+This example shows a device constraints as specified in the [device][] block
 which require two nvidia GPUs to be made available:
 
 ```hcl

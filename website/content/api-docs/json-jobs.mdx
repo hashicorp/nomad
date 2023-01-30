@@ -261,7 +261,7 @@ The `Job` object supports the following keys:
   token and is not stored after job submission.
 
 - `VaultToken` - Specifies the Vault token that proves the submitter of the job
-  has access to the specified policies in the `vault` stanza. This field is
+  has access to the specified policies in the `vault` block. This field is
   only used to transfer the token and is not stored after job submission.
 
 - `Namespace` - The namespace to execute the job in, defaults to "default".
@@ -303,7 +303,7 @@ The `Job` object supports the following keys:
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
   the update blocks are merged with the task group's taking precedence. For more
-  details on the update stanza, please see below.
+  details on the update block, please see below.
 
 - `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
   or intervals. The periodic expression is always evaluated in the UTC
@@ -403,7 +403,7 @@ attributes:
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
   the update blocks are merged with the task group's taking precedence. For more
-  details on the update stanza, please see below.
+  details on the update block, please see below.
 
 - `Tasks` - A list of `Task` object that are part of the task group.
 
@@ -569,7 +569,7 @@ The `Task` object supports the following keys:
     - `PortLabel`: Specifies the label of the port on which the check will
       be performed. Note this is the _label_ of the port and not the port
       number unless `AddressMode: "driver"`. The port label must match one
-      defined in the Network stanza. If a port value was declared on the
+      defined in the Network block. If a port value was declared on the
       `Service`, this will inherit from that value if not supplied. If
       supplied, this value takes precedence over the `Service.PortLabel`
       value. This is useful for services which operate on multiple ports.
@@ -759,9 +759,9 @@ The `RestartPolicy` object supports the following keys:
 ### Update
 
 Specifies the task group update strategy. When omitted, rolling updates are
-disabled. The update stanza can be specified at the job or task group level.
-When specified at the job, the update stanza is inherited by all task groups.
-When specified in both the job and in a task group, the stanzas are merged with
+disabled. The update block can be specified at the job or task group level.
+When specified at the job, the update block is inherited by all task groups.
+When specified in both the job and in a task group, the blocks are merged with
 the task group's taking precedence. The `Update` object supports the following
 attributes:
 
@@ -1070,13 +1070,13 @@ README][ct].
     executed on template change. Path is relative to the driver, e.g., if running
     with a container driver the path must be existing in the container. This
     option is required is the `change_mode` is `script`.
-  
+
   - `Args` - List of arguments that are passed to the script that is to be
-    executed on template change. 
-  
+    executed on template change.
+
   - `Timeout` - Timeout for script execution specified using a label suffix like
     "30s" or "1h". Default value is `"5s"`.
-  
+
   - `FailOnError` - If `true`, Nomad will kill the task if the script execution
     fails. If `false`, script failure will be logged but the task will continue
     uninterrupted. Default value is `false`.
@@ -1099,18 +1099,18 @@ README][ct].
   given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `Uid` - Specifies the rendered template owner's user ID.
- 
+
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, such as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
+  feature will also **not** work with Docker Desktop.
 
 - `Gid` - Specifies the rendered template owner's group ID.
-  
+
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, such as `docker` or `podman`, as groups and users
   inside the container may have different IDs than on the host system. This
-  feature will also **not** work with Docker Desktop. 
+  feature will also **not** work with Docker Desktop.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that

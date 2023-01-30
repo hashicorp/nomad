@@ -113,7 +113,7 @@ func TestConnectNativeHook_tlsEnv(t *testing.T) {
 		},
 	}
 
-	// existing config from task env stanza
+	// existing config from task env block
 	taskEnv := map[string]string{
 		"CONSUL_CACERT":          "fakeCA.pem",
 		"CONSUL_CLIENT_CERT":     "fakeCert.pem",
@@ -489,7 +489,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		request := &interfaces.TaskPrestartRequest{
 			Task:    tg.Tasks[0],
 			TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
-			TaskEnv: taskenv.NewEmptyTaskEnv(), // nothing set in env stanza
+			TaskEnv: taskenv.NewEmptyTaskEnv(), // nothing set in env block
 		}
 		require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -619,7 +619,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
 		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
-		TaskEnv: taskEnv, // env stanza is configured w/ non-default tls configs
+		TaskEnv: taskEnv, // env block is configured w/ non-default tls configs
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -633,7 +633,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	require.True(t, response.Done)
 
 	// Assert environment variable for CONSUL_HTTP_SSL is set, because it was
-	// the only one not overridden by task env stanza config
+	// the only one not overridden by task env block config
 	require.NotEmpty(t, response.Env)
 	require.Equal(t, map[string]string{
 		"CONSUL_HTTP_SSL": "true",
