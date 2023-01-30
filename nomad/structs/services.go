@@ -1306,7 +1306,7 @@ LOOP: // order does not matter
 	return true
 }
 
-// Copy the stanza recursively. Returns nil if u is nil.
+// Copy the block recursively. Returns nil if u is nil.
 func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	if u == nil {
 		return nil
