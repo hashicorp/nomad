@@ -98,13 +98,13 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 }
 
 // SetTargetAttribute is used to populate this property set without also storing allowed count
-// This is used when evaluating spread stanzas
+// This is used when evaluating spread blocks
 func (p *propertySet) SetTargetAttribute(targetAttribute string, taskGroup string) {
 	p.setTargetAttributeWithCount(targetAttribute, 0, taskGroup)
 }
 
 // setTargetAttributeWithCount is a shared helper for setting a job or task group attribute and allowedCount
-// allowedCount can be zero when this is used in evaluating spread stanzas
+// allowedCount can be zero when this is used in evaluating spread blocks
 func (p *propertySet) setTargetAttributeWithCount(targetAttribute string, allowedCount uint64, taskGroup string) {
 	// Store that this is for a task group
 	if taskGroup != "" {

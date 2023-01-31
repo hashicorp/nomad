@@ -2,10 +2,9 @@ package agent
 
 import (
 	"fmt"
+	golog "log"
 	"strings"
 	"time"
-
-	golog "log"
 
 	log "github.com/hashicorp/go-hclog"
 )
@@ -56,25 +55,25 @@ type retryJoiner struct {
 }
 
 // Validate ensures that the configuration passes validity checks for the
-// retry_join stanza. If the configuration is not valid, returns an error that
+// retry_join block. If the configuration is not valid, returns an error that
 // will be displayed to the operator, otherwise nil.
 func (r *retryJoiner) Validate(config *Config) error {
 
 	// If retry_join is defined for the server, ensure that deprecated
-	// fields and the server_join stanza are not both set
+	// fields and the server_join block are not both set
 	if config.Server != nil && config.Server.ServerJoin != nil && len(config.Server.ServerJoin.RetryJoin) != 0 {
 		if len(config.Server.RetryJoin) != 0 {
-			return fmt.Errorf("server_join and retry_join cannot both be defined; prefer setting the server_join stanza")
+			return fmt.Errorf("server_join and retry_join cannot both be defined; prefer setting the server_join block")
 		}
 		if len(config.Server.StartJoin) != 0 {
-			return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+			return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join block")
 		}
 		if config.Server.RetryMaxAttempts != 0 {
-			return fmt.Errorf("server_join and retry_max cannot both be defined; prefer setting the server_join stanza")
+			return fmt.Errorf("server_join and retry_max cannot both be defined; prefer setting the server_join block")
 		}
 
 		if config.Server.RetryInterval != 0 {
-			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join stanza")
+			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join block")
 		}
 
 		if len(config.Server.ServerJoin.StartJoin) != 0 {
