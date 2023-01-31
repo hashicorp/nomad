@@ -25,14 +25,11 @@
                     </B.Td>
                     <B.Td>{{B.data.namespace}}</B.Td>
                     <B.Td>
-											{{#if B.data.isDefaultJobTemplate}}
-											<em>(Default Job)</em>
-											{{/if}}
 											{{B.data.items.description}}
 										</B.Td>
                     <B.Td>
                         {{#if B.data.isDefaultJobTemplate}}
-													--
+													<em>(Default Job — cannot be deleted)</em>
                         {{else}}
 													<TwoStepButton
 														data-test-delete
@@ -53,7 +50,7 @@
     </main>
     <footer class="buttonset">
         <Hds::ButtonSet class="button-group">
-            <Hds::Button @icon="arrow-left" @text="Done" @route="jobs.run.templates" data-test-done />
+            <Hds::Button @text="Cancel" @color="secondary" @route="jobs.run.templates" data-test-done />
         </Hds::ButtonSet>
     </footer>
     {{/if}}

@@ -23,7 +23,7 @@
     <footer class="buttonset">
         <Hds::ButtonSet class="button-group">
             <Hds::Button @text="Apply" @route="jobs.run" @query={{hash template=this.selectedTemplate}} disabled={{is-equal this.selectedTemplate null}} data-test-apply />
-            <Hds::Button @text="Cancel" @route="jobs.run" @color="critical" data-test-cancel />
+            <Hds::Button @text="Cancel" @route="jobs.run" @color="secondary" data-test-cancel />
         </Hds::ButtonSet>
         <Hds::ButtonSet class="button-group align-right">
             <Hds::Button @text="Manage" @color="tertiary" @icon="edit" @route="jobs.run.templates.manage" data-test-manage-button />
