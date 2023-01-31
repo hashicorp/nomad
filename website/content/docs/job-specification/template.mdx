@@ -388,7 +388,7 @@ template {
 # Configuration for 1 redis instances, as assigned via rendezvous hashing.
 {{$allocID := env "NOMAD_ALLOC_ID" -}}
 {{range nomadService 1 $allocID "redis"}}
-  server {{ .Address }}:{{ .Port }};{{- end }}
+  server {{ .Address }}:{{ .Port }};
 {{- end}}
 EOH
 }
