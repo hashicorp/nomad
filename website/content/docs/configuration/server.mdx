@@ -93,7 +93,15 @@ server {
 
 - `eval_gc_threshold` `(string: "1h")` - Specifies the minimum time an
   evaluation must be in the terminal state before it is eligible for garbage
-  collection. This is specified using a label suffix like "30s" or "1h".
+  collection. This is specified using a label suffix like "30s" or "1h". Note
+  that batch job evaluations are controlled via `batch_eval_gc_threshold`.
+
+- `batch_eval_gc_threshold` `(string: "24h")` - Specifies the minimum time an
+  evaluation stemming from a batch job must be in the terminal state before it is
+  eligible for garbage collection. This is specified using a label suffix like
+  "30s" or "1h". Note that the threshold is a necessary but insufficient condition
+  for collection, and the most recent evaluation won't be garbage collected even if
+  it breaches the threshold.
 
 - `deployment_gc_threshold` `(string: "1h")` - Specifies the minimum time a
   deployment must be in the terminal state before it is eligible for garbage

@@ -473,8 +473,13 @@ type ServerConfig struct {
 
 	// EvalGCThreshold controls how "old" an eval must be to be collected by GC.
 	// Age is not the only requirement for a eval to be GCed but the threshold
-	// can be used to filter by age.
+	// can be used to filter by age. Please note that batch job evaluations are
+	// controlled by 'BatchEvalGCThreshold' instead.
 	EvalGCThreshold string `hcl:"eval_gc_threshold"`
+
+	// BatchEvalGCThreshold controls how "old" an evaluation must be to be eligible
+	// for GC if the eval belongs to a batch job.
+	BatchEvalGCThreshold string `hcl:"batch_eval_gc_threshold"`
 
 	// DeploymentGCThreshold controls how "old" a deployment must be to be
 	// collected by GC. Age is not the only requirement for a deployment to be
@@ -1860,6 +1865,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
+	}
+	if b.BatchEvalGCThreshold != "" {
+		result.BatchEvalGCThreshold = b.BatchEvalGCThreshold
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
