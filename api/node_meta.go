@@ -1,7 +1,7 @@
 package api
 
-// NodeMetaSetRequest contains the Node meta update.
-type NodeMetaSetRequest struct {
+// NodeMetaApplyRequest contains the Node meta update.
+type NodeMetaApplyRequest struct {
 	NodeID string
 	Meta   map[string]*string
 }
@@ -25,9 +25,9 @@ func (n *Nodes) Meta() *NodeMeta {
 	return &NodeMeta{client: n.client}
 }
 
-// Set dynamic Node metadata updates to a Node. If NodeID is unset then Node
+// Apply dynamic Node metadata updates to a Node. If NodeID is unset then Node
 // receiving the request is modified.
-func (n *NodeMeta) Set(meta *NodeMetaSetRequest, qo *WriteOptions) (*NodeMetaResponse, error) {
+func (n *NodeMeta) Apply(meta *NodeMetaApplyRequest, qo *WriteOptions) (*NodeMetaResponse, error) {
 	var out NodeMetaResponse
 	_, err := n.client.post("/v1/client/metadata", meta, &out, qo)
 	if err != nil {

@@ -22,7 +22,7 @@ func newNodeMetaEndpoint(srv *Server) *NodeMeta {
 	return n
 }
 
-func (n *NodeMeta) Set(args *structs.NodeMetaSetRequest, reply *structs.NodeMetaResponse) error {
+func (n *NodeMeta) Set(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
 	const method = "NodeMeta.Set"
 	if done, err := n.srv.forward(method, args, args, reply); done {
 		return err

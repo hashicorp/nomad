@@ -9,15 +9,15 @@ import (
 func (s *HTTPServer) NodeMetaRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodGet:
-		return s.nodeMetaGet(resp, req)
+		return s.nodeMetaRead(resp, req)
 	case http.MethodPost:
-		return s.nodeMetaSet(resp, req)
+		return s.nodeMetaApply(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) nodeMetaGet(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) nodeMetaRead(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Build the request by parsing all common parameters and node id
 	args := structs.NodeSpecificRequest{}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
@@ -51,10 +51,10 @@ func (s *HTTPServer) nodeMetaGet(resp http.ResponseWriter, req *http.Request) (i
 	return reply, nil
 }
 
-func (s *HTTPServer) nodeMetaSet(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Build the request by decoding body and then parsing all common
 	// parameters and node id
-	args := structs.NodeMetaSetRequest{}
+	args := structs.NodeMetaApplyRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}

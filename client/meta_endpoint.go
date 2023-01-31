@@ -17,7 +17,7 @@ func newNodeMetaEndpoint(c *Client) *NodeMeta {
 	return n
 }
 
-func (n *NodeMeta) Set(args *structs.NodeMetaSetRequest, reply *structs.NodeMetaResponse) error {
+func (n *NodeMeta) Set(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
 	defer metrics.MeasureSince([]string{"client", "node_meta", "set"}, time.Now())
 
 	// Check node write permissions

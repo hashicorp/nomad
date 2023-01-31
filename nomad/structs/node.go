@@ -352,8 +352,8 @@ func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 	return true
 }
 
-// NodeMetaSetRequest is used to update Node metadata on Client agents.
-type NodeMetaSetRequest struct {
+// NodeMetaApplyRequest is used to update Node metadata on Client agents.
+type NodeMetaApplyRequest struct {
 	WriteRequest
 
 	// NodeID is the node being targeted by this request (or the node

@@ -8,16 +8,16 @@ import (
 	"github.com/posener/complete"
 )
 
-type NodeMetaGetCommand struct {
+type NodeMetaReadCommand struct {
 	Meta
 }
 
-func (c *NodeMetaGetCommand) Help() string {
+func (c *NodeMetaReadCommand) Help() string {
 	helpText := `
-Usage: nomad node meta get [-json] [-node-id ...]
+Usage: nomad node meta read [-json] [-node-id ...]
 
-  Get a node's metadata. This command only works on client agents. The node
-  status command can be used to retrieve node metadata from any agent.
+	Read a node's metadata. This command only works on client agents. The node
+	status command can be used to retrieve node metadata from any agent.
 
   Changes via the "node meta apply" subcommand are batched and may take up to
   10 seconds to propagate to the servers and affect scheduling. This command
@@ -32,8 +32,8 @@ General Options:
 Node Meta Options:
 
   -node-id
-    Gets metadata from the specified node. If not specified the node receiving
-    the request will be used by default.
+		Reads metadata from the specified node. If not specified the node receiving
+		the request will be used by default.
 
   -json
     Output the node metadata in its JSON format.
@@ -42,18 +42,18 @@ Node Meta Options:
     Format and display node metadata using a Go template.
 
     Example:
-      $ nomad node meta get -node-id 3b58b0a6
+      $ nomad node meta read -node-id 3b58b0a6
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *NodeMetaGetCommand) Synopsis() string {
-	return "Get node metadata"
+func (c *NodeMetaReadCommand) Synopsis() string {
+	return "Read node metadata"
 }
 
-func (c *NodeMetaGetCommand) Name() string { return "node meta get" }
+func (c *NodeMetaReadCommand) Name() string { return "node meta read" }
 
-func (c *NodeMetaGetCommand) Run(args []string) int {
+func (c *NodeMetaReadCommand) Run(args []string) int {
 	var nodeID, tmpl string
 	var json bool
 
@@ -86,7 +86,7 @@ func (c *NodeMetaGetCommand) Run(args []string) int {
 
 	meta, err := client.Nodes().Meta().Read(nodeID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error getting dynamic node metadata: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error reading dynamic node metadata: %s", err))
 		return 1
 	}
 
@@ -126,7 +126,7 @@ func (c *NodeMetaGetCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *NodeMetaGetCommand) AutocompleteFlags() complete.Flags {
+func (c *NodeMetaReadCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-node-id": complete.PredictAnything,
@@ -135,6 +135,6 @@ func (c *NodeMetaGetCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *NodeMetaGetCommand) AutocompleteArgs() complete.Predictor {
+func (c *NodeMetaReadCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
