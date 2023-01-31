@@ -38,7 +38,7 @@ func (c *Consul) MergeNamespace(namespace *string) {
 	}
 }
 
-// ConsulConnect represents a Consul Connect jobspec stanza.
+// ConsulConnect represents a Consul Connect jobspec block.
 type ConsulConnect struct {
 	Native         bool                  `hcl:"native,optional"`
 	Gateway        *ConsulGateway        `hcl:"gateway,block"`
@@ -57,7 +57,7 @@ func (cc *ConsulConnect) Canonicalize() {
 }
 
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
-// stanza.
+// block.
 type ConsulSidecarService struct {
 	Tags                   []string     `hcl:"tags,optional"`
 	Port                   string       `hcl:"port,optional"`
@@ -131,7 +131,7 @@ func (st *SidecarTask) Canonicalize() {
 	}
 }
 
-// ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
+// ConsulProxy represents a Consul Connect sidecar proxy jobspec block.
 type ConsulProxy struct {
 	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
 	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
@@ -196,7 +196,7 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 	}
 }
 
-// ConsulUpstream represents a Consul Connect upstream jobspec stanza.
+// ConsulUpstream represents a Consul Connect upstream jobspec block.
 type ConsulUpstream struct {
 	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`

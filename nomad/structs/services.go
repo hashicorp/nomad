@@ -69,7 +69,7 @@ type ServiceCheck struct {
 	OnUpdate               string
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (sc *ServiceCheck) Copy() *ServiceCheck {
 	if sc == nil {
 		return nil
@@ -497,7 +497,7 @@ const (
 	OnUpdateIgnore         = "ignore"
 )
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (s *Service) Copy() *Service {
 	if s == nil {
 		return nil
@@ -825,7 +825,7 @@ func (s *Service) Equals(o *Service) bool {
 	return true
 }
 
-// ConsulConnect represents a Consul Connect jobspec stanza.
+// ConsulConnect represents a Consul Connect jobspec block.
 type ConsulConnect struct {
 	// Native indicates whether the service is Consul Connect Native enabled.
 	Native bool
@@ -840,7 +840,7 @@ type ConsulConnect struct {
 	Gateway *ConsulGateway
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (c *ConsulConnect) Copy() *ConsulConnect {
 	if c == nil {
 		return nil
@@ -957,7 +957,7 @@ func (c *ConsulConnect) Validate() error {
 }
 
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
-// stanza.
+// block.
 type ConsulSidecarService struct {
 	// Tags are optional service tags that get registered with the sidecar service
 	// in Consul. If unset, the sidecar service inherits the parent service tags.
@@ -967,7 +967,7 @@ type ConsulSidecarService struct {
 	// a port label or a literal port number.
 	Port string
 
-	// Proxy stanza defining the sidecar proxy configuration.
+	// Proxy block defining the sidecar proxy configuration.
 	Proxy *ConsulProxy
 
 	// DisableDefaultTCPCheck, if true, instructs Nomad to avoid setting a
@@ -980,7 +980,7 @@ func (s *ConsulSidecarService) HasUpstreams() bool {
 	return s != nil && s.Proxy != nil && len(s.Proxy.Upstreams) > 0
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 	if s == nil {
 		return nil
@@ -1015,7 +1015,7 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 }
 
 // SidecarTask represents a subset of Task fields that are able to be overridden
-// from the sidecar_task stanza
+// from the sidecar_task block
 type SidecarTask struct {
 	// Name of the task
 	Name string
@@ -1209,7 +1209,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 	}
 }
 
-// ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
+// ConsulProxy represents a Consul Connect sidecar proxy jobspec block.
 type ConsulProxy struct {
 
 	// LocalServiceAddress is the address the local service binds to.
@@ -1226,7 +1226,7 @@ type ConsulProxy struct {
 	// connect to.
 	Upstreams []ConsulUpstream
 
-	// Expose configures the consul proxy.expose stanza to "open up" endpoints
+	// Expose configures the consul proxy.expose block to "open up" endpoints
 	// used by task-group level service checks using HTTP or gRPC protocols.
 	Expose *ConsulExposeConfig
 
@@ -1235,7 +1235,7 @@ type ConsulProxy struct {
 	Config map[string]interface{}
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (p *ConsulProxy) Copy() *ConsulProxy {
 	if p == nil {
 		return nil
@@ -1356,7 +1356,7 @@ func (c *ConsulMeshGateway) Validate() error {
 	}
 }
 
-// ConsulUpstream represents a Consul Connect upstream jobspec stanza.
+// ConsulUpstream represents a Consul Connect upstream jobspec block.
 type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
 	DestinationName string
@@ -1397,7 +1397,7 @@ LOOP: // order does not matter
 	return true
 }
 
-// Copy the stanza recursively. Returns nil if u is nil.
+// Copy the block recursively. Returns nil if u is nil.
 func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	if u == nil {
 		return nil
@@ -1437,7 +1437,7 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 	return true
 }
 
-// ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
+// ConsulExposeConfig represents a Consul Connect expose jobspec block.
 type ConsulExposeConfig struct {
 	Paths []ConsulExposePath
 }
@@ -1466,7 +1466,7 @@ LOOP: // order does not matter
 	return true
 }
 
-// Copy the stanza. Returns nil if e is nil.
+// Copy the block. Returns nil if e is nil.
 func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 	if e == nil {
 		return nil

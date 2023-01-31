@@ -1,12 +1,12 @@
 # There can only be a single job definition per file. This job is named
 # "example" so it will create a job with the ID and Name "example".
 
-# The "job" stanza is the top-most configuration option in the job
+# The "job" block is the top-most configuration option in the job
 # specification. A job is a declarative specification of tasks that Nomad
 # should run. Jobs have a globally unique name, one or many task groups, which
 # are themselves collections of one or many tasks.
 #
-# For more information and examples on the "job" stanza, please see
+# For more information and examples on the "job" block, please see
 # the online documentation at:
 #
 #     https://www.nomadproject.io/docs/job-specification/job
@@ -31,11 +31,11 @@ job "example" {
   #
   type = "service"
 
-  # The "constraint" stanza defines additional constraints for placing this job,
-  # in addition to any resource or driver constraints. This stanza may be placed
+  # The "constraint" block defines additional constraints for placing this job,
+  # in addition to any resource or driver constraints. This block may be placed
   # at the "job", "group", or "task" level, and supports variable interpolation.
   #
-  # For more information and examples on the "constraint" stanza, please see
+  # For more information and examples on the "constraint" block, please see
   # the online documentation at:
   #
   #     https://www.nomadproject.io/docs/job-specification/constraint
@@ -45,14 +45,14 @@ job "example" {
   #   value     = "linux"
   # }
 
-  # The "update" stanza specifies the update strategy of task groups. The update
+  # The "update" block specifies the update strategy of task groups. The update
   # strategy is used to control things like rolling upgrades, canaries, and
   # blue/green deployments. If omitted, no update strategy is enforced. The
-  # "update" stanza may be placed at the job or task group. When placed at the
+  # "update" block may be placed at the job or task group. When placed at the
   # job, it applies to all groups within the job. When placed at both the job and
-  # group level, the stanzas are merged with the group's taking precedence.
+  # group level, the blocks are merged with the group's taking precedence.
   #
-  # For more information and examples on the "update" stanza, please see
+  # For more information and examples on the "update" block, please see
   # the online documentation at:
   #
   #     https://www.nomadproject.io/docs/job-specification/update
@@ -99,10 +99,10 @@ job "example" {
     # version is deployed and upon promotion the old version is stopped.
     canary = 0
   }
-  # The migrate stanza specifies the group's strategy for migrating off of
+  # The migrate block specifies the group's strategy for migrating off of
   # draining nodes. If omitted, a default migration strategy is applied.
   #
-  # For more information on the "migrate" stanza, please see
+  # For more information on the "migrate" block, please see
   # the online documentation at:
   #
   #     https://www.nomadproject.io/docs/job-specification/migrate
@@ -127,11 +127,11 @@ job "example" {
     # is specified using a label suffix like "2m" or "1h".
     healthy_deadline = "5m"
   }
-  # The "group" stanza defines a series of tasks that should be co-located on
+  # The "group" block defines a series of tasks that should be co-located on
   # the same Nomad client. Any task within a group will be placed on the same
   # client.
   #
-  # For more information and examples on the "group" stanza, please see
+  # For more information and examples on the "group" block, please see
   # the online documentation at:
   #
   #     https://www.nomadproject.io/docs/job-specification/group
@@ -142,10 +142,10 @@ job "example" {
     # to 1.
     count = 1
 
-    # The "network" stanza specifies the network configuration for the allocation
+    # The "network" block specifies the network configuration for the allocation
     # including requesting port bindings.
     #
-    # For more information and examples on the "network" stanza, please see
+    # For more information and examples on the "network" block, please see
     # the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/network
@@ -156,12 +156,12 @@ job "example" {
       }
     }
 
-    # The "service" stanza instructs Nomad to register this task as a service
+    # The "service" block instructs Nomad to register this task as a service
     # in the service discovery engine, which is currently Nomad or Consul. This
     # will make the service discoverable after Nomad has placed it on a host and
     # port.
     #
-    # For more information and examples on the "service" stanza, please see
+    # For more information and examples on the "service" block, please see
     # the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/service
@@ -172,10 +172,10 @@ job "example" {
       port     = "db"
       provider = "nomad"
 
-      # The "check" stanza instructs Nomad to create a Consul health check for
+      # The "check" block instructs Nomad to create a Consul health check for
       # this service. A sample check is provided here for your convenience;
-      # uncomment it to enable it. The "check" stanza is documented in the
-      # "service" stanza documentation.
+      # uncomment it to enable it. The "check" block is documented in the
+      # "service" block documentation.
 
       # check {
       #   name     = "alive"
@@ -186,10 +186,10 @@ job "example" {
 
     }
 
-    # The "restart" stanza configures a group's behavior on task failure. If
+    # The "restart" block configures a group's behavior on task failure. If
     # left unspecified, a default restart policy is used based on the job type.
     #
-    # For more information and examples on the "restart" stanza, please see
+    # For more information and examples on the "restart" block, please see
     # the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/restart
@@ -210,12 +210,12 @@ job "example" {
       mode = "fail"
     }
 
-    # The "ephemeral_disk" stanza instructs Nomad to utilize an ephemeral disk
-    # instead of a hard disk requirement. Clients using this stanza should
-    # not specify disk requirements in the resources stanza of the task. All
+    # The "ephemeral_disk" block instructs Nomad to utilize an ephemeral disk
+    # instead of a hard disk requirement. Clients using this block should
+    # not specify disk requirements in the resources block of the task. All
     # tasks in this group will share the same ephemeral disk.
     #
-    # For more information and examples on the "ephemeral_disk" stanza, please
+    # For more information and examples on the "ephemeral_disk" block, please
     # see the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/ephemeral_disk
@@ -236,10 +236,10 @@ job "example" {
       size = 300
     }
 
-    # The "affinity" stanza enables operators to express placement preferences
+    # The "affinity" block enables operators to express placement preferences
     # based on node attributes or metadata.
     #
-    # For more information and examples on the "affinity" stanza, please
+    # For more information and examples on the "affinity" block, please
     # see the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/affinity
@@ -260,11 +260,11 @@ job "example" {
     #  }
 
 
-    # The "spread" stanza allows operators to increase the failure tolerance of
+    # The "spread" block allows operators to increase the failure tolerance of
     # their applications by specifying a node attribute that allocations
     # should be spread over.
     #
-    # For more information and examples on the "spread" stanza, please
+    # For more information and examples on the "spread" block, please
     # see the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/spread
@@ -285,10 +285,10 @@ job "example" {
     #   }
     #  }
 
-    # The "task" stanza creates an individual unit of work, such as a Docker
+    # The "task" block creates an individual unit of work, such as a Docker
     # container, web application, or batch processing.
     #
-    # For more information and examples on the "task" stanza, please see
+    # For more information and examples on the "task" block, please see
     # the online documentation at:
     #
     #     https://www.nomadproject.io/docs/job-specification/task
@@ -298,7 +298,7 @@ job "example" {
       # run the task.
       driver = "docker"
 
-      # The "config" stanza specifies the driver configuration, which is passed
+      # The "config" block specifies the driver configuration, which is passed
       # directly to the driver to start the task. The details of configurations
       # are specific to each driver, so please see specific driver
       # documentation for more information.
@@ -312,13 +312,13 @@ job "example" {
         auth_soft_fail = true
       }
 
-      # The "artifact" stanza instructs Nomad to download an artifact from a
+      # The "artifact" block instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
-      # task. It is possible to specify the "artifact" stanza multiple times to
+      # task. It is possible to specify the "artifact" block multiple times to
       # download multiple artifacts.
       #
-      # For more information and examples on the "artifact" stanza, please see
+      # For more information and examples on the "artifact" block, please see
       # the online documentation at:
       #
       #     https://www.nomadproject.io/docs/job-specification/artifact
@@ -331,12 +331,12 @@ job "example" {
       # }
 
 
-      # The "logs" stanza instructs the Nomad client on how many log files and
+      # The "logs" block instructs the Nomad client on how many log files and
       # the maximum size of those logs files to retain. Logging is enabled by
-      # default, but the "logs" stanza allows for finer-grained control over
+      # default, but the "logs" block allows for finer-grained control over
       # the log rotation and storage configuration.
       #
-      # For more information and examples on the "logs" stanza, please see
+      # For more information and examples on the "logs" block, please see
       # the online documentation at:
       #
       #     https://www.nomadproject.io/docs/job-specification/logs
@@ -346,12 +346,12 @@ job "example" {
       #   max_file_size = 15
       # }
 
-      # The "resources" stanza describes the requirements a task needs to
+      # The "resources" block describes the requirements a task needs to
       # execute. Resource requirements include memory, cpu, and more.
       # This ensures the task will execute on a machine that contains enough
       # resource capacity.
       #
-      # For more information and examples on the "resources" stanza, please see
+      # For more information and examples on the "resources" block, please see
       # the online documentation at:
       #
       #     https://www.nomadproject.io/docs/job-specification/resources
@@ -362,11 +362,11 @@ job "example" {
       }
 
 
-      # The "template" stanza instructs Nomad to manage a template, such as
+      # The "template" block instructs Nomad to manage a template, such as
       # a configuration file or script. This template can optionally pull data
       # from Consul or Vault to populate runtime configuration data.
       #
-      # For more information and examples on the "template" stanza, please see
+      # For more information and examples on the "template" block, please see
       # the online documentation at:
       #
       #     https://www.nomadproject.io/docs/job-specification/template
@@ -378,7 +378,7 @@ job "example" {
       #   change_signal = "SIGHUP"
       # }
 
-      # The "template" stanza can also be used to create environment variables
+      # The "template" block can also be used to create environment variables
       # for tasks that prefer those to config files. The task will be restarted
       # when data pulled from Consul or Vault changes.
       #
@@ -388,14 +388,14 @@ job "example" {
       #   env         = true
       # }
 
-      # The "vault" stanza instructs the Nomad client to acquire a token from
+      # The "vault" block instructs the Nomad client to acquire a token from
       # a HashiCorp Vault server. The Nomad servers must be configured and
       # authorized to communicate with Vault. By default, Nomad will inject
       # The token into the job via an environment variable and make the token
-      # available to the "template" stanza. The Nomad client handles the renewal
+      # available to the "template" block. The Nomad client handles the renewal
       # and revocation of the Vault token.
       #
-      # For more information and examples on the "vault" stanza, please see
+      # For more information and examples on the "vault" block, please see
       # the online documentation at:
       #
       #     https://www.nomadproject.io/docs/job-specification/vault

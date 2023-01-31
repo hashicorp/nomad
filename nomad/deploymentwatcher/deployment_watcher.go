@@ -612,7 +612,7 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
-		// Determine if the update stanza for this group is progress based
+		// Determine if the update block for this group is progress based
 		progressBased := dstate.ProgressDeadline != 0
 
 		// Check if the allocation has failed and we need to mark it for allow

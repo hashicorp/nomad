@@ -1031,7 +1031,7 @@ type TaskEvent struct {
 }
 
 // CSIPluginType is an enum string that encapsulates the valid options for a
-// CSIPlugin stanza's Type. These modes will allow the plugin to be used in
+// CSIPlugin block's Type. These modes will allow the plugin to be used in
 // different ways by the client.
 type CSIPluginType string
 

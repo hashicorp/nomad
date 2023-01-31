@@ -69,7 +69,7 @@ func (tr *TaskRunner) initHooks() {
 		newDeviceHook(tr.devicemanager, hookLogger),
 	}
 
-	// If the task has a CSI stanza, add the hook.
+	// If the task has a CSI block, add the hook.
 	if task.CSIPluginConfig != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
 			&csiPluginSupervisorHookConfig{
@@ -85,14 +85,14 @@ func (tr *TaskRunner) initHooks() {
 	// If Vault is enabled, add the hook
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
-			vaultStanza: task.Vault,
-			client:      tr.vaultClient,
-			events:      tr,
-			lifecycle:   tr,
-			updater:     tr,
-			logger:      hookLogger,
-			alloc:       tr.Alloc(),
-			task:        tr.taskName,
+			vaultBlock: task.Vault,
+			client:     tr.vaultClient,
+			events:     tr,
+			lifecycle:  tr,
+			updater:    tr,
+			logger:     hookLogger,
+			alloc:      tr.Alloc(),
+			task:       tr.taskName,
 		}))
 	}
 

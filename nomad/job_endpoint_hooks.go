@@ -127,7 +127,7 @@ func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) 
 }
 
 // jobImpliedConstraints adds constraints to a job implied by other job fields
-// and stanzas.
+// and blocks.
 type jobImpliedConstraints struct{}
 
 func (jobImpliedConstraints) Name() string {
