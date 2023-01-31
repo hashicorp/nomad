@@ -620,8 +620,8 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Build the register request
 	revJob := jobV.Copy()
-	// Use Vault Token from revert request to perform registration of reverted job.
-	revJob.VaultToken = args.VaultToken
+	revJob.VaultToken = args.VaultToken   // use vault token from revert to perform (re)registration
+	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
 	reg := &structs.JobRegisterRequest{
 		Job:          revJob,
 		WriteRequest: args.WriteRequest,
