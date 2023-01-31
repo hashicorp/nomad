@@ -363,6 +363,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.EvalGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.BatchEvalGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.BatchEvalGCThreshold = dur
+	}
 	if gcThreshold := agentConfig.Server.DeploymentGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {

@@ -240,15 +240,20 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 	oldThreshold := c.getThreshold(eval, "eval",
 		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
+	batchOldThreshold := c.getThreshold(eval, "eval",
+		"batch_eval_gc_threshold", c.srv.config.BatchEvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
 
-		// The Evaluation GC should not handle batch jobs since those need to be
-		// garbage collected in one shot
-		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
+		gcThreshold := oldThreshold
+		if eval.Type == structs.JobTypeBatch {
+			gcThreshold = batchOldThreshold
+		}
+
+		gc, allocs, err := c.gcEval(eval, gcThreshold, false)
 		if err != nil {
 			return err
 		}
@@ -299,33 +304,26 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	// If the eval is from a running "batch" job we don't want to garbage
-	// collect its allocations. If there is a long running batch job and its
-	// terminal allocations get GC'd the scheduler would re-run the
-	// allocations.
+	// collect its most current allocations. If there is a long running batch job and its
+	// terminal allocations get GC'd the scheduler would re-run the allocations. However,
+	// we do want to GC old Evals and Allocs if there are newer ones due to update.
+	//
+	// The age of the evaluation must also reach the threshold configured to be GCed so that
+	// one may debug old evaluations and referenced allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
 
-		// Can collect if:
-		// Job doesn't exist
-		// Job is Stopped and dead
-		// allowBatch and the job is dead
-		collect := false
-		if job == nil {
-			collect = true
-		} else if job.Status != structs.JobStatusDead {
-			collect = false
-		} else if job.Stop {
-			collect = true
-		} else if allowBatch {
-			collect = true
-		}
-
-		// We don't want to gc anything related to a job which is not dead
-		// If the batch job doesn't exist we can GC it regardless of allowBatch
+		// Can collect if either holds:
+		//   - Job doesn't exist
+		//   - Job is Stopped and dead
+		//   - allowBatch and the job is dead
+		//
+		// If we cannot collect outright, check if a partial GC may occur
+		collect := job == nil || job.Status == structs.JobStatusDead && (job.Stop || allowBatch)
 		if !collect {
-			// Find allocs associated with older (based on createindex) and GC them if terminal
-			oldAllocs := olderVersionTerminalAllocs(allocs, job)
-			return false, oldAllocs, nil
+			oldAllocs := olderVersionTerminalAllocs(allocs, job, thresholdIndex)
+			gcEval := (len(oldAllocs) == len(allocs))
+			return gcEval, oldAllocs, nil
 		}
 	}
 
@@ -346,12 +344,12 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	return gcEval, gcAllocIDs, nil
 }
 
-// olderVersionTerminalAllocs returns terminal allocations whose job create index
-// is older than the job's create index
-func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+// olderVersionTerminalAllocs returns a list of terminal allocations that belong to the evaluation and may be
+// GCed.
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, thresholdIndex uint64) []string {
 	var ret []string
 	for _, alloc := range allocs {
-		if alloc.Job != nil && alloc.Job.CreateIndex < job.CreateIndex && alloc.TerminalStatus() {
+		if alloc.CreateIndex < job.JobModifyIndex && alloc.ModifyIndex < thresholdIndex && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
 		}
 	}
