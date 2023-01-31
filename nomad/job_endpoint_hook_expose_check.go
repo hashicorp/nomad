@@ -140,10 +140,10 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 func tgValidateUseOfBridgeMode(tg *structs.TaskGroup) error {
 	if tgUsesExposeCheck(tg) {
 		if len(tg.Networks) != 1 {
-			return fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
+			return fmt.Errorf("group %q must specify one bridge or CNI network for exposing service check(s)", tg.Name)
 		}
 		if !tg.SupportsConnect() {
-			return fmt.Errorf("group %q must use bridge network for exposing service check(s)", tg.Name)
+			return fmt.Errorf("group %q must use bridge or CNI network for exposing service check(s)", tg.Name)
 		}
 	}
 	return nil

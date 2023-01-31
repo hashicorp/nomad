@@ -546,7 +546,7 @@ func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error
 	}
 
 	if !g.SupportsConnect() {
-		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
+		return fmt.Errorf("Consul Connect sidecar requires bridge or CNI network, found %q in group %q", g.Networks[0].Mode, g.Name)
 	}
 
 	// We must enforce lowercase characters on group and service names for connect
@@ -582,7 +582,7 @@ func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 	}
 
 	if !g.SupportsConnectGateway() {
-		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
+		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with bridge, host, or CNI network, found %q in group %q`, g.Networks[0].Mode, g.Name)
 	}
 
 	return nil

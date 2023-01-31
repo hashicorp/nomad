@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"sync"
 
 	"golang.org/x/exp/maps"
@@ -44,13 +45,15 @@ var (
 // NetworkModeSupportsConnect returns true if the given network mode can be
 // used with Consul Connect.
 func NetworkModeSupportsConnect(mode string) bool {
-	return mode == NetworkModeBridge
+	return mode == NetworkModeBridge || strings.HasPrefix(mode, NetworkModeCNIPrefix)
 }
 
 // NetworkModeSupportsConnectGateway returns true if the given network mode can
 // be used for Consul Connect gateways.
 func NetworkModeSupportsConnectGateway(mode string) bool {
-	return mode == NetworkModeBridge || mode == NetworkModeHost
+	return mode == NetworkModeBridge ||
+		mode == NetworkModeHost ||
+		strings.HasPrefix(mode, NetworkModeCNIPrefix)
 }
 
 // NetworkIndex is used to index the available network resources
