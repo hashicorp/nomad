@@ -32,7 +32,8 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
-
+  -json
+    Output quota information in its JSON format.
   -t
     Format and display the namespaces using a Go template.
 `
@@ -43,7 +44,8 @@ Inspect Options:
 func (c *QuotaInspectCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-t": complete.PredictAnything,
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
 		})
 }
 
@@ -59,15 +61,18 @@ func (c *QuotaInspectCommand) Name() string { return "quota inspect" }
 
 func (c *QuotaInspectCommand) Run(args []string) int {
 	var tmpl string
+	var json bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
-	// Check that we got one arguments
+	// Check that we got one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <quota>")
@@ -110,8 +115,7 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		Usages:   usages,
 		Failures: failuresConverted,
 	}
-
-	out, err := Format(len(tmpl) == 0, tmpl, data)
+	out, err := Format(json, tmpl, data)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
