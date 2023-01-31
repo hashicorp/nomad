@@ -65,6 +65,16 @@ func TestQuotaInspectCommand_Good(t *testing.T) {
 	if !strings.Contains(out, "Usages") || !strings.Contains(out, qs.Name) {
 		t.Fatalf("expected quota, got: %s", out)
 	}
+
+	// Test -json flag
+	if code := cmd.Run([]string{"-address=" + url, qs.Name, "-json"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "Usages") || !strings.Contains(out, qs.Name) {
+		t.Fatalf("expected quota, got: %s", out)
+	}
 }
 
 func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
