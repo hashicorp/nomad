@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -395,7 +394,7 @@ func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGa
 		proxy.ConnectTimeout = pointer.Of(defaultConnectTimeout)
 	}
 
-	if mode == structs.NetworkModeBridge {
+	if structs.NetworkModeSupportsConnect(mode) {
 		// magically configure bind address(es) for bridge networking, per gateway type
 		// non-default configuration is gated above
 		switch {
@@ -546,7 +545,7 @@ func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error
 		return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
 	}
 
-	if g.Networks[0].Mode != structs.NetworkModeBridge {
+	if !g.SupportsConnect() {
 		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
 	}
 
@@ -582,8 +581,7 @@ func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 		return fmt.Errorf("Consul Connect gateways require exactly 1 network, found %d in group %q", n, g.Name)
 	}
 
-	modes := []string{structs.NetworkModeBridge, structs.NetworkModeHost}
-	if !slices.Contains(modes, g.Networks[0].Mode) {
+	if !g.SupportsConnectGateway() {
 		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
 	}
 

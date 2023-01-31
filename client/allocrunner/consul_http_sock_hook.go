@@ -17,13 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-func tgFirstNetworkIsBridge(tg *structs.TaskGroup) bool {
-	if len(tg.Networks) < 1 || tg.Networks[0].Mode != structs.NetworkModeBridge {
-		return false
-	}
-	return true
-}
-
 const (
 	consulHTTPSocketHookName = "consul_http_socket"
 )
@@ -57,8 +50,8 @@ func (*consulHTTPSockHook) Name() string {
 func (h *consulHTTPSockHook) shouldRun() bool {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 
-	// we must be in bridge networking and at least one connect native task
-	if !tgFirstNetworkIsBridge(tg) {
+	// we must support Connect and at least one connect native task
+	if !tg.SupportsConnect() {
 		return false
 	}
 

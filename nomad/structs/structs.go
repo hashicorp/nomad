@@ -2829,6 +2829,18 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
+// SupportsConnect returns true if the network configuration allows for Consul
+// Connect to be used.
+func (n *NetworkResource) SupportsConnect() bool {
+	return NetworkModeSupportsConnect(n.Mode)
+}
+
+// SupportsConnectGateway returns true if the network configuration allows for
+// Consul Connect gateway to be used.
+func (n *NetworkResource) SupportsConnectGateway() bool {
+	return NetworkModeSupportsConnectGateway(n.Mode)
+}
+
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
@@ -6997,6 +7009,18 @@ func (tg *TaskGroup) UsesConnectGateway() bool {
 		}
 	}
 	return false
+}
+
+// SupportsConnect returns true if the task group configuration allows for
+// Consul Connect to be used.
+func (tg *TaskGroup) SupportsConnect() bool {
+	return len(tg.Networks) == 1 && tg.Networks[0].SupportsConnect()
+}
+
+// SupportsConnectGateway returns true if the task group configuration allows
+// for Consul Connect gateway to be used.
+func (tg *TaskGroup) SupportsConnectGateway() bool {
+	return len(tg.Networks) == 1 && tg.Networks[0].SupportsConnectGateway()
 }
 
 func (tg *TaskGroup) GoString() string {

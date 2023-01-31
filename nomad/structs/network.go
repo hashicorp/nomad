@@ -41,6 +41,18 @@ var (
 	bitmapPool = new(sync.Pool)
 )
 
+// NetworkModeSupportsConnect returns true if the given network mode can be
+// used with Consul Connect.
+func NetworkModeSupportsConnect(mode string) bool {
+	return mode == NetworkModeBridge
+}
+
+// NetworkModeSupportsConnectGateway returns true if the given network mode can
+// be used for Consul Connect gateways.
+func NetworkModeSupportsConnectGateway(mode string) bool {
+	return mode == NetworkModeBridge || mode == NetworkModeHost
+}
+
 // NetworkIndex is used to index the available network resources
 // and the used network resources on a machine given allocations
 //
