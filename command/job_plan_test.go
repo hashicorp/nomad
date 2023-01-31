@@ -125,7 +125,7 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 		got := cmd.Run([]string{
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
-			"assets/example-short.nomad",
+			"assets/example-short.nomad.hcl",
 		})
 		// Exit code 1 here means that an alloc will be created, which is
 		// expected.

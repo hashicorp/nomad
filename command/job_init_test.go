@@ -53,7 +53,7 @@ func TestInitCommand_Run(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defaultJob, _ := Asset("command/assets/example.nomad")
+	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
 	if string(content) != string(defaultJob) {
 		t.Fatalf("unexpected file content\n\n%s", string(content))
 	}
@@ -65,7 +65,7 @@ func TestInitCommand_Run(t *testing.T) {
 	}
 	content, err = ioutil.ReadFile(DefaultInitName)
 	require.NoError(t, err)
-	shortJob, _ := Asset("command/assets/example-short.nomad")
+	shortJob, _ := Asset("command/assets/example-short.nomad.hcl")
 	require.Equal(t, string(content), string(shortJob))
 
 	// Fails if the file exists
@@ -82,7 +82,7 @@ func TestInitCommand_defaultJob(t *testing.T) {
 	// Ensure the job file is always written with spaces instead of tabs. Since
 	// the default job file is embedded in the go file, it's easy for tabs to
 	// slip in.
-	defaultJob, _ := Asset("command/assets/example.nomad")
+	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
 	if strings.Contains(string(defaultJob), "\t") {
 		t.Error("default job contains tab character - please convert to spaces")
 	}
@@ -193,7 +193,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defaultJob, _ := Asset("command/assets/example.nomad")
+	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
 	if string(content) != string(defaultJob) {
 		t.Fatalf("unexpected file content\n\n%s", string(content))
 	}
@@ -205,7 +205,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	}
 	content, err = ioutil.ReadFile(filename)
 	require.NoError(t, err)
-	shortJob, _ := Asset("command/assets/example-short.nomad")
+	shortJob, _ := Asset("command/assets/example-short.nomad.hcl")
 	require.Equal(t, string(content), string(shortJob))
 
 	// Fails if the file exists
