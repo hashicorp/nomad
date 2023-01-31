@@ -13,7 +13,7 @@ export default class OptimizeSummaryRoute extends Route {
         `Unable to find summary for ${slug} in namespace ${jobNamespace}`
       );
       error.code = 404;
-      notifyError(this)(error);
+      notifyError.call(this, error);
     } else {
       return model;
     }

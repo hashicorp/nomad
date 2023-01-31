@@ -18,21 +18,23 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
     return { job_name: model.get('plainId') };
   }
 
-  model(params, transition) {
+  async model(params, transition) {
     const namespace = transition.to.queryParams.namespace;
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
 
-    const jobPromise = this.store
-      .findRecord('job', fullId)
-      .then((job) => {
-        return job.get('allocations').then(() => job);
-      })
-      .catch(notifyError(this));
+    try {
+      const [job, { Terminal }] = await Promise.all([
+        this.store.findRecord('job', fullId),
+        import('xterm'),
+      ]);
 
-    const xtermImport = import('xterm').then((module) => module.Terminal);
+      await job.get('allocations');
 
-    return Promise.all([jobPromise, xtermImport]);
+      return [job, Terminal];
+    } catch (e) {
+      notifyError.call(this, e);
+    }
   }
 
   setupController(controller, [job, Terminal]) {

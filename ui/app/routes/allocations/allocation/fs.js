@@ -1,35 +1,37 @@
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
 export default class FsRoute extends Route {
-  model({ path = '/' }) {
+  async model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const allocation = this.modelFor('allocations.allocation');
 
     if (!allocation) return;
 
-    return RSVP.all([allocation.stat(decodedPath), allocation.get('node')])
-      .then(([statJson]) => {
-        if (statJson.IsDir) {
-          return RSVP.hash({
-            path: decodedPath,
-            allocation,
-            directoryEntries: allocation
-              .ls(decodedPath)
-              .catch(notifyError(this)),
-            isFile: false,
-          });
-        } else {
-          return {
-            path: decodedPath,
-            allocation,
-            isFile: true,
-            stat: statJson,
-          };
-        }
-      })
-      .catch(notifyError(this));
+    try {
+      const [statJson] = await Promise.all([
+        allocation.stat(decodedPath),
+        allocation.get('node'),
+      ]);
+
+      if (statJson.IsDir) {
+        return {
+          path: decodedPath,
+          allocation,
+          directoryEntries: await allocation.ls(decodedPath),
+          isFile: false,
+        };
+      } else {
+        return {
+          path: decodedPath,
+          allocation,
+          isFile: true,
+          stat: statJson,
+        };
+      }
+    } catch (e) {
+      notifyError.call(this, e);
+    }
   }
 
   setupController(
