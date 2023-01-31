@@ -34,7 +34,7 @@ const (
 	// maxVariableSize is the maximum size of the unencrypted contents of a
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
-	maxVariableSize = 16384
+	maxVariableSize = 65536
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -176,7 +176,7 @@ func (v VariableDecrypted) Validate() error {
 		return errors.New("empty variables are invalid")
 	}
 	if v.Items.Size() > maxVariableSize {
-		return errors.New("variables are limited to 16KiB in total size")
+		return errors.New("variables are limited to 64KiB in total size")
 	}
 	if v.Namespace == AllNamespacesSentinel {
 		return errors.New("can not target wildcard (\"*\")namespace")
