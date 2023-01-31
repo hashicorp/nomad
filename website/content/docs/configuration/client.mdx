@@ -155,9 +155,8 @@ client {
 
 - `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
   is enabled on the network bridge created by Nomad for allocations running
-  with bridge networking mode on this client. This value is exposed to the
-  scheduler as a node attribute—`nomad.bridge.hairpin_mode`—for use in
-  constraints.
+  with bridge networking mode on this client. You may use the corresponding
+  node attribute `nomad.bridge.hairpin_mode` in constraints.
 
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
