@@ -1,22 +1,22 @@
 ---
 layout: docs
-page_title: device Stanza - Job Specification
+page_title: device Block - Job Specification
 description: |-
-  The "device" stanza is used to require a certain device be made available
+  The "device" block is used to require a certain device be made available
   to the task.
 ---
 
-# `device` Stanza
+# `device` Block
 
 <Placement groups={['job', 'group', 'task', 'resources', 'device']} />
 
-The `device` stanza is used to create both a scheduling and runtime requirement
+The `device` block is used to create both a scheduling and runtime requirement
 that the given task has access to the specified devices. A device is a hardware
 device that is attached to the node and may be made available to the task.
 Examples are GPUs, FPGAs, and TPUs.
 
-When a `device` stanza is added, Nomad will schedule the task onto a node that
-contains the set of device(s) that meet the specified requirements. The `device` stanza
+When a `device` block is added, Nomad will schedule the task onto a node that
+contains the set of device(s) that meet the specified requirements. The `device` block
 allows the operator to specify as little as just the type of device required,
 such as `gpu`, all the way to specifying arbitrary constraints and affinities.
 Once the scheduler has placed the allocation on a suitable node, the Nomad
@@ -57,7 +57,7 @@ In the above example, the task is requesting two GPUs, from the Nvidia vendor,
 but is not specifying the specific model required. Instead it is placing a hard
 constraint that the device has at least 2 GiB of memory and that it would prefer
 to use GPUs that have at least 4 GiB. This examples shows how expressive the
-`device` stanza can be.
+`device` block can be.
 
 ~> Device support is currently limited to Linux, and container based drivers
 due to the ability to isolate devices to specific tasks.
@@ -218,8 +218,8 @@ Conversion is only possible within the same base unit.
 
 ## `device` Examples
 
-The following examples only show the `device` stanzas. Remember that the
-`device` stanza is only valid in the placements listed above.
+The following examples only show the `device` blocks. Remember that the
+`device` block is only valid in the placements listed above.
 
 ### Single Nvidia GPU
 

@@ -404,7 +404,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if args.Job.Type != nil && *args.Job.Type == api.JobTypeSystem {
 		for _, tg := range args.Job.TaskGroups {
 			if tg.Scaling != nil {
-				return nil, CodedError(400, "Task groups with job type system do not support scaling stanzas")
+				return nil, CodedError(400, "Task groups with job type system do not support scaling blocks")
 			}
 		}
 	}

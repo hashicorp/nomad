@@ -256,7 +256,7 @@ Starting with Nomad 1.3.0, services and checks that utilise Consul will have an
 automatic constraint placed upon the task group. This ensures they are placed
 on a client with a Consul agent running that meets a minimum version
 requirement. The minimum version of Consul supported by Nomad's service and
-check stanzas is now Consul v1.7.0.
+check blocks is now Consul v1.7.0.
 
 #### Linux Control Groups Version 2
 
@@ -589,7 +589,7 @@ property can be set in client configuration to override the default value.
 
 Nomad v1.0.0 adopts HCL2 for parsing the job spec. HCL2 extends HCL with more
 expression and reuse support, but adds some stricter schema for HCL blocks
-(a.k.a. stanzas). Check [HCL](/docs/job-specification/hcl2) for more details.
+(a.k.a. blocks). Check [HCL](/docs/job-specification/hcl2) for more details.
 
 ### Signal used when stopping Docker tasks
 
@@ -667,7 +667,7 @@ restarting. Nomad 1.0 with Consul 1.9 do not have this limitation.
 
 Nomad v1.0.0 changes the behavior around the selection of Envoy version used for
 Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2 if
-neither the `meta.connect.sidecar_image` parameter or `sidecar_task` stanza were
+neither the `meta.connect.sidecar_image` parameter or `sidecar_task` block were
 explicitly configured. Likewise the same version of Envoy would be used for
 Connect ingress gateways if `meta.connect.gateway_image` was unset. Starting
 with Nomad v1.0.0, each Nomad Client will query Consul for a list of supported
@@ -675,7 +675,7 @@ Envoy versions. Nomad will make use of the latest version of Envoy supported by
 the Consul agent when launching Envoy as a Connect sidecar proxy. If the version
 of the Consul agent is older than v1.7.8, v1.8.4, or v1.9.0, Nomad will fallback
 to the v1.11.2 version of Envoy. As before, if the `meta.connect.sidecar_image`,
-`meta.connect.gateway_image`, or `sidecar_task` stanza are set, those settings
+`meta.connect.gateway_image`, or `sidecar_task` block are set, those settings
 take precedence.
 
 When upgrading Nomad Clients from a previous version to v1.0.0 and above, it is
@@ -739,7 +739,7 @@ mounts = [
 ### Artifact and Template Paths
 
 Nomad 0.12.6 includes security fixes for privilege escalation vulnerabilities
-in handling of job `template` and `artifact` stanzas:
+in handling of job `template` and `artifact` blocks:
 
 - The `template.source` and `template.destination` fields are now protected by
   the file sandbox introduced in 0.9.6. These paths are now restricted to fall
@@ -802,7 +802,7 @@ Prior to Nomad 0.12, Docker tasks may mount and then manipulate any host file
 and may pose a security risk.
 
 Operators now must explicitly allow tasks to access host filesystem. [Host
-Volumes](/docs/configuration/client#host_volume-stanza) provide a fine tune
+Volumes](/docs/configuration/client#host_volume-block) provide a fine tune
 access to individual paths.
 
 To restore pre-0.12.0 behavior, you can enable [Docker
@@ -877,7 +877,7 @@ mounts = [
 ### Artifact and Template Paths
 
 Nomad 0.11.5 includes backported security fixes for privilege escalation
-vulnerabilities in handling of job `template` and `artifact` stanzas:
+vulnerabilities in handling of job `template` and `artifact` blocks:
 
 - The `template.source` and `template.destination` fields are now protected by
   the file sandbox introduced in 0.9.6. These paths are now restricted to fall
@@ -991,7 +991,7 @@ mounts = [
 ### Artifact and Template Paths
 
 Nomad 0.10.6 includes backported security fixes for privilege escalation
-vulnerabilities in handling of job `template` and `artifact` stanzas:
+vulnerabilities in handling of job `template` and `artifact` blocks:
 
 - The `template.source` and `template.destination` fields are now protected by
   the file sandbox introduced in 0.9.6. These paths are now restricted to fall
@@ -1059,7 +1059,7 @@ or SAN of all Nomad server node certs is `server.<region>.nomad`.
 
 Nomad 0.10.3 introduces the [limits][] agent configuration parameters for
 mitigating denial of service attacks from users who are not authenticated via
-mTLS. The default limits stanza is:
+mTLS. The default limits block is:
 
 ```hcl
 limits {
@@ -1101,26 +1101,26 @@ For more information, see [Docker Dangling containers][dangling-containers].
 ### Deployments
 
 Nomad 0.10 enables rolling deployments for service jobs by default and adds a
-default update stanza when a service job is created or updated. This does not
-affect jobs with an update stanza.
+default update block when a service job is created or updated. This does not
+affect jobs with an update block.
 
-In pre-0.10 releases, when updating a service job without an update stanza, all
+In pre-0.10 releases, when updating a service job without an update block, all
 existing allocations are stopped while new allocations start up, and this may
 cause a service degradation or an outage. You can regain this behavior and
 disable deployments by setting `max_parallel` to 0.
 
-For more information, see [`update` stanza][update].
+For more information, see [`update` block][update].
 
 ## Nomad 0.9.5
 
 ### Template Rendering
 
 Nomad 0.9.5 includes security fixes for privilege escalation vulnerabilities in
-handling of job `template` stanzas:
+handling of job `template` blocks:
 
 - The client host's environment variables are now cleaned before rendering the
   template. If a template includes the `env` function, the job should include an
-  [`env`](/docs/job-specification/env) stanza to allow access to the variable in
+  [`env`](/docs/job-specification/env) block to allow access to the variable in
   the template.
 
 - The `plugin` function is no longer permitted by default and will raise an
@@ -1154,13 +1154,13 @@ user visible differences between 0.8 and 0.9 drivers:
 
 - [LXC][lxc] is now community supported and distributed independently.
 
-- Task driver [`config`][task-config] stanzas are no longer validated by
+- Task driver [`config`][task-config] blocks are no longer validated by
   the [`nomad job validate`][validate] command. This is a regression that will
   be fixed in a future release.
 
 There is a new method for client driver configuration options, but existing
 `client.options` settings are supported in 0.9. See [plugin
-configuration][plugin-stanza] for details.
+configuration][plugin-block] for details.
 
 #### LXC
 
@@ -1206,7 +1206,7 @@ env {
   image.version = "3.2"
 }
 
-# v0.8 task config stanza:
+# v0.8 task config block:
 task {
   driver = "docker"
   config {
@@ -1214,7 +1214,7 @@ task {
   }
 }
 
-# v0.9 task config stanza:
+# v0.9 task config block:
 task {
   driver = "docker"
   config {
@@ -1224,7 +1224,7 @@ task {
 ```
 
 This only affects users who interpolate unusual variables with multiple
-consecutive dots in their task `config` stanza. All other interpolation is
+consecutive dots in their task `config` block. All other interpolation is
 unchanged.
 
 Since HCL2 uses dotted object notation for interpolation users should transition
@@ -1238,18 +1238,18 @@ downgrade safely, users should erase the Nomad client's data directory.
 
 ### `port_map` Environment Variable Changes
 
-Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
+Before Nomad 0.9.0 ports mapped via a task driver's `port_map` block could be
 interpolated via the `NOMAD_PORT_<label>` environment variables.
 
-However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
-its `port_map`, are available for interpolation. This means `{{ env NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT = "${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the _host_ ports,
+However, in Nomad 0.9.0 no parameters in a driver's `config` block, including
+its `port_map`, are available for interpolation. This means `{{ env NOMAD_PORT_<label> }}` in a `template` block or `HTTP_PORT = "${NOMAD_PORT_http}"` in an `env` block will now interpolate the _host_ ports,
 not the container's.
 
 Nomad 0.10 introduced Task Group Networking which natively supports port mapping
 without relying on task driver specific `port_map` fields. The
-[`to`](/docs/job-specification/network#to) field on group network port stanzas
+[`to`](/docs/job-specification/network#to) field on group network port blocks
 will be interpolated properly. Please see the
-[`network`](/docs/job-specification/network/) stanza documentation for details.
+[`network`](/docs/job-specification/network/) block documentation for details.
 
 ## Nomad 0.8.0
 
@@ -1257,7 +1257,7 @@ will be interpolated properly. Please see the
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
 to set the [`raft_protocol`] option in
-their `server` stanza to 1 in order to maintain backwards compatibility with the
+their `server` block to 1 in order to maintain backwards compatibility with the
 old servers during the upgrade. After the servers have been migrated to version
 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted to match
 the default.
@@ -1299,14 +1299,14 @@ later.
 Node draining via the [`node drain`][drain-cli] command or the [drain
 API][drain-api] has been substantially changed in Nomad 0.8. In Nomad 0.7.1 and
 earlier draining a node would immediately stop all allocations on the node
-being drained. Nomad 0.8 now supports a [`migrate`][migrate] stanza in job
+being drained. Nomad 0.8 now supports a [`migrate`][migrate] block in job
 specifications to control how many allocations may be migrated at once and the
 default will be used for existing jobs.
 
 The `drain` command now blocks until the drain completes. To get the Nomad 0.7.1
 and earlier drain behavior use the command: `nomad node drain -enable -force -detach <node-id>`
 
-See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
+See the [`migrate` block documentation][migrate] and [Decommissioning Nodes
 guide](https://learn.hashicorp.com/tutorials/nomad/node-drain) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
@@ -1316,12 +1316,12 @@ with underscores must be updated._
 
 In Nomad 0.7 periods (`.`) in environment variables names were replaced with an
 underscore in both the [`env`](/docs/job-specification/env) and
-[`template`](/docs/job-specification/template) stanzas.
+[`template`](/docs/job-specification/template) blocks.
 
 In Nomad 0.8 periods are _not_ replaced and will be included in environment
 variables verbatim.
 
-For example the following stanza:
+For example the following block:
 
 ```text
 env {
@@ -1486,7 +1486,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [lxc]: /plugins/drivers/community/lxc
 [migrate]: /docs/job-specification/migrate
 [nvidia]: /plugins/devices/nvidia
-[plugin-stanza]: /docs/configuration/plugin
+[plugin-block]: /docs/configuration/plugin
 [plugins]: /plugins/drivers/community
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
 [preemption]: /docs/concepts/scheduling/preemption

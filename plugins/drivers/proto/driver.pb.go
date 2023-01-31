@@ -308,7 +308,7 @@ func (m *TaskConfigSchemaRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_TaskConfigSchemaRequest proto.InternalMessageInfo
 
 type TaskConfigSchemaResponse struct {
-	// Spec is the configuration schema for the job driver config stanza
+	// Spec is the configuration schema for the job driver config block
 	Spec                 *hclspec.Spec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`

@@ -154,7 +154,7 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 
 	if o := listVal.Filter("csi_plugin"); len(o.Items) > 0 {
 		if len(o.Items) != 1 {
-			return nil, fmt.Errorf("csi_plugin -> Expected single stanza, got %d", len(o.Items))
+			return nil, fmt.Errorf("csi_plugin -> Expected single block, got %d", len(o.Items))
 		}
 		i := o.Elem().Items[0]
 
@@ -497,7 +497,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		if o := listVal.Filter("change_script"); len(o.Items) > 0 {
 			if len(o.Items) != 1 {
 				return fmt.Errorf(
-					"change_script -> expected single stanza, got %d", len(o.Items),
+					"change_script -> expected single block, got %d", len(o.Items),
 				)
 			}
 			var m map[string]interface{}
