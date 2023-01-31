@@ -1,3 +1,0 @@
-```release-note:breaking-change
-core:  ensure no leakage of evaluations for batch jobs.
-```
