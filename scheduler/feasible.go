@@ -374,13 +374,13 @@ type NetworkChecker struct {
 }
 
 func NewNetworkChecker(ctx Context) *NetworkChecker {
-	return &NetworkChecker{ctx: ctx, networkMode: "host"}
+	return &NetworkChecker{ctx: ctx, networkMode: structs.NetworkModeHost}
 }
 
 func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 	c.networkMode = network.Mode
 	if c.networkMode == "" {
-		c.networkMode = "host"
+		c.networkMode = structs.NetworkModeHost
 	}
 
 	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
@@ -390,7 +390,7 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 	// Allow jobs not requiring any network resources
-	if c.networkMode == "none" {
+	if c.networkMode == structs.NetworkModeNone {
 		return true
 	}
 
@@ -400,7 +400,7 @@ func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 		// the server is 0.12 or newer, we need to maintain an upgrade path for
 		// jobs looking for a bridge network that will not have been fingerprinted
 		// on the client (which was added in 0.12)
-		if c.networkMode == "bridge" {
+		if c.networkMode == structs.NetworkModeBridge {
 			sv, err := version.NewSemver(option.Attributes["nomad.version"])
 			if err == nil && predatesBridgeFingerprint.Check(sv) {
 				return true
@@ -452,7 +452,7 @@ func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
 	for _, nw := range option.NodeResources.Networks {
 		mode := nw.Mode
 		if mode == "" {
-			mode = "host"
+			mode = structs.NetworkModeHost
 		}
 		if mode == c.networkMode {
 			return true

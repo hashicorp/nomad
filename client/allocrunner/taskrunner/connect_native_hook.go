@@ -215,7 +215,7 @@ func (h *connectNativeHook) tlsEnv(env map[string]string) map[string]string {
 // Sets CONSUL_TLS_SERVER_NAME if not already set, and consul tls is enabled.
 func (h *connectNativeHook) bridgeEnv(env map[string]string) map[string]string {
 
-	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != "bridge" {
+	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != structs.NetworkModeBridge {
 		return nil
 	}
 
@@ -240,7 +240,7 @@ func (h *connectNativeHook) bridgeEnv(env map[string]string) map[string]string {
 //
 // Sets CONSUL_HTTP_ADDR if not already set.
 func (h *connectNativeHook) hostEnv(env map[string]string) map[string]string {
-	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != "host" {
+	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != structs.NetworkModeHost {
 		return nil
 	}
 

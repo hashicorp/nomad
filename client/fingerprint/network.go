@@ -145,7 +145,7 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 		}
 
 		newNetwork := &structs.NodeNetworkResource{
-			Mode:       "host",
+			Mode:       structs.NetworkModeHost,
 			Device:     iface.Name,
 			MacAddress: iface.HardwareAddr.String(),
 			Speed:      speed,
@@ -276,7 +276,7 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	for _, addr := range addrs {
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
-			Mode:   "host",
+			Mode:   structs.NetworkModeHost,
 			Device: intf.Name,
 			MBits:  throughput,
 		}

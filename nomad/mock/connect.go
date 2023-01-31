@@ -25,7 +25,7 @@ func ConnectJob() *structs.Job {
 		},
 	}}
 	tg.Networks = structs.Networks{{
-		Mode: "bridge", // always bridge ... for now?
+		Mode: structs.NetworkModeBridge, // always bridge ... for now?
 	}}
 	return job
 }
@@ -211,7 +211,7 @@ func BatchConnectJob() *structs.Job {
 			Count:         1,
 			EphemeralDisk: &structs.EphemeralDisk{SizeMB: 150},
 			Networks: []*structs.NetworkResource{{
-				Mode: "bridge",
+				Mode: structs.NetworkModeBridge,
 			}},
 			Tasks: []*structs.Task{{
 				Name:   "connect-proxy-testconnect",
@@ -268,7 +268,7 @@ func ConnectAlloc() *structs.Allocation {
 	alloc.Job = ConnectJob()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
 		{
-			Mode: "bridge",
+			Mode: structs.NetworkModeBridge,
 			IP:   "10.0.0.1",
 			DynamicPorts: []structs.Port{
 				{
@@ -327,7 +327,7 @@ func BatchConnectAlloc() *structs.Allocation {
 			},
 			Shared: structs.AllocatedSharedResources{
 				Networks: []*structs.NetworkResource{{
-					Mode: "bridge",
+					Mode: structs.NetworkModeBridge,
 					IP:   "10.0.0.1",
 					DynamicPorts: []structs.Port{{
 						Label: "connect-proxy-testconnect",

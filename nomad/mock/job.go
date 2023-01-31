@@ -54,7 +54,7 @@ func Job() *structs.Job {
 				Migrate: structs.DefaultMigrateStrategy(),
 				Networks: []*structs.NetworkResource{
 					{
-						Mode: "host",
+						Mode: structs.NetworkModeHost,
 						DynamicPorts: []structs.Port{
 							{Label: "http"},
 							{Label: "admin"},
@@ -160,7 +160,7 @@ func MultiTaskGroupJob() *structs.Job {
 		Migrate: structs.DefaultMigrateStrategy(),
 		Networks: []*structs.NetworkResource{
 			{
-				Mode: "host",
+				Mode: structs.NetworkModeHost,
 				DynamicPorts: []structs.Port{
 					{Label: "http"},
 					{Label: "admin"},

@@ -1618,7 +1618,7 @@ func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
 		upd := []*structs.NetworkResource{}
 		for _, n := range up {
 			switch n.Mode {
-			case "host":
+			case structs.NetworkModeHost:
 				if c.NetworkInterface == n.Device {
 					upd = append(upd, n)
 				}
@@ -1633,7 +1633,7 @@ func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
 	// if set, apply the config NetworkSpeed to networks in host mode
 	if c.NetworkSpeed != 0 {
 		for _, n := range up {
-			if n.Mode == "host" {
+			if n.Mode == structs.NetworkModeHost {
 				n.MBits = c.NetworkSpeed
 			}
 		}

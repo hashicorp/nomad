@@ -18,7 +18,7 @@ import (
 )
 
 func tgFirstNetworkIsBridge(tg *structs.TaskGroup) bool {
-	if len(tg.Networks) < 1 || tg.Networks[0].Mode != "bridge" {
+	if len(tg.Networks) < 1 || tg.Networks[0].Mode != structs.NetworkModeBridge {
 		return false
 	}
 	return true

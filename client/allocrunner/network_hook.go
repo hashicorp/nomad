@@ -103,7 +103,7 @@ func (h *networkHook) Name() string {
 
 func (h *networkHook) Prerun() error {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	if len(tg.Networks) == 0 || tg.Networks[0].Mode == "host" || tg.Networks[0].Mode == "" {
+	if len(tg.Networks) == 0 || tg.Networks[0].Mode == structs.NetworkModeHost || tg.Networks[0].Mode == "" {
 		return nil
 	}
 

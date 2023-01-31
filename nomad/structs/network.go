@@ -24,6 +24,13 @@ const (
 
 	// MaxValidPort is the max valid port number
 	MaxValidPort = 65536
+
+	// NetworkMode constants used in NetworkResource.Mode.
+	NetworkModeNone      = "none"
+	NetworkModeHost      = "host"
+	NetworkModeBridge    = "bridge"
+	NetworkModeDriver    = "driver"
+	NetworkModeCNIPrefix = "cni/"
 )
 
 var (
@@ -771,14 +778,14 @@ func AllocatedPortsToNetworkResouce(ask *NetworkResource, ports AllocatedPorts, 
 	}
 	if len(node.NodeNetworks) > 0 {
 		for _, nw := range node.NodeNetworks {
-			if nw.Mode == "host" {
+			if nw.Mode == NetworkModeHost {
 				out.IP = nw.Addresses[0].Address
 				break
 			}
 		}
 	} else {
 		for _, nw := range node.Networks {
-			if nw.Mode == "host" {
+			if nw.Mode == NetworkModeHost {
 				out.IP = nw.IP
 			}
 		}

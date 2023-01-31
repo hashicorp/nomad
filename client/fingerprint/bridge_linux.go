@@ -27,10 +27,10 @@ func (f *BridgeFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 
 	resp.NodeResources = &structs.NodeResources{
 		Networks: []*structs.NetworkResource{{
-			Mode: "bridge",
+			Mode: structs.NetworkModeBridge,
 		}},
 		NodeNetworks: []*structs.NodeNetworkResource{{
-			Mode:   "bridge",
+			Mode:   structs.NetworkModeBridge,
 			Device: req.Config.BridgeNetworkName,
 		}},
 	}

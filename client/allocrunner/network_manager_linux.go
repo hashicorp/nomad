@@ -21,7 +21,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	// default netmode to host, this can be overridden by the task or task group
-	tgNetMode := "host"
+	tgNetMode := structs.NetworkModeHost
 	if len(tg.Networks) > 0 && tg.Networks[0].Mode != "" {
 		tgNetMode = tg.Networks[0].Mode
 	}
@@ -51,7 +51,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 		}
 
 		// netmode host should always work to support backwards compat
-		if taskNetMode == "host" {
+		if taskNetMode == structs.NetworkModeHost {
 			continue
 		}
 
@@ -154,14 +154,14 @@ func (*defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.Netwo
 
 func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	switch strings.ToLower(netMode) {
-	case "host":
+	case structs.NetworkModeHost:
 		return drivers.NetIsolationModeHost
-	case "bridge", "none":
+	case structs.NetworkModeBridge, structs.NetworkModeNone:
 		return drivers.NetIsolationModeGroup
-	case "driver":
+	case structs.NetworkModeDriver:
 		return drivers.NetIsolationModeTask
 	default:
-		if strings.HasPrefix(strings.ToLower(netMode), "cni/") {
+		if strings.HasPrefix(strings.ToLower(netMode), structs.NetworkModeCNIPrefix) {
 			return drivers.NetIsolationModeGroup
 		}
 		return drivers.NetIsolationModeHost
@@ -183,13 +183,13 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 	}
 
 	switch {
-	case netMode == "bridge":
+	case netMode == structs.NetworkModeBridge:
 		c, err := newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
 		if err != nil {
 			return nil, err
 		}
 		return &synchronizedNetworkConfigurator{c}, nil
-	case strings.HasPrefix(netMode, "cni/"):
+	case strings.HasPrefix(netMode, structs.NetworkModeCNIPrefix):
 		c, err := newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
 		if err != nil {
 			return nil, err

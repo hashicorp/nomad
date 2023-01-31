@@ -420,7 +420,7 @@ func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskE
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	port := basePort
 	switch tg.Networks[0].Mode {
-	case "host":
+	case structs.NetworkModeHost:
 		interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
 		for _, svc := range interpolatedServices {
 			if svc.Name == service {
@@ -460,7 +460,7 @@ func (h *envoyBootstrapHook) grpcAddress(env map[string]string) string {
 
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	switch tg.Networks[0].Mode {
-	case "host":
+	case structs.NetworkModeHost:
 		return grpcDefaultAddress
 	default:
 		return "unix://" + allocdir.AllocGRPCSocket

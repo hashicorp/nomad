@@ -63,7 +63,7 @@ func Node() *structs.Node {
 			},
 			Networks: []*structs.NetworkResource{
 				{
-					Mode:   "host",
+					Mode:   structs.NetworkModeHost,
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,
@@ -71,7 +71,7 @@ func Node() *structs.Node {
 			},
 			NodeNetworks: []*structs.NodeNetworkResource{
 				{
-					Mode:   "host",
+					Mode:   structs.NetworkModeHost,
 					Device: "eth0",
 					Speed:  1000,
 					Addresses: []structs.NodeNetworkAddress{

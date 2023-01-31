@@ -60,7 +60,7 @@ func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
 	}
 
 	if hostNetwork {
-		m["network_mode"] = "host"
+		m["network_mode"] = structs.NetworkModeHost
 	}
 
 	return m
@@ -326,7 +326,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 				// detect whether the group is in host networking mode, which will
 				// require tweaking the default gateway task config
-				netHost := netMode == "host"
+				netHost := netMode == structs.NetworkModeHost
 				customizedTLS := service.Connect.IsCustomizedTLS()
 
 				task := newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
@@ -395,7 +395,7 @@ func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGa
 		proxy.ConnectTimeout = pointer.Of(defaultConnectTimeout)
 	}
 
-	if mode == "bridge" {
+	if mode == structs.NetworkModeBridge {
 		// magically configure bind address(es) for bridge networking, per gateway type
 		// non-default configuration is gated above
 		switch {
@@ -546,7 +546,7 @@ func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error
 		return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
 	}
 
-	if g.Networks[0].Mode != "bridge" {
+	if g.Networks[0].Mode != structs.NetworkModeBridge {
 		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
 	}
 
@@ -582,7 +582,7 @@ func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 		return fmt.Errorf("Consul Connect gateways require exactly 1 network, found %d in group %q", n, g.Name)
 	}
 
-	modes := []string{"bridge", "host"}
+	modes := []string{structs.NetworkModeBridge, structs.NetworkModeHost}
 	if !slices.Contains(modes, g.Networks[0].Mode) {
 		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
 	}

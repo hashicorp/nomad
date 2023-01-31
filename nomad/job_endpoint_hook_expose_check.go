@@ -142,7 +142,7 @@ func tgValidateUseOfBridgeMode(tg *structs.TaskGroup) error {
 		if len(tg.Networks) != 1 {
 			return fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
 		}
-		if tg.Networks[0].Mode != "bridge" {
+		if tg.Networks[0].Mode != structs.NetworkModeBridge {
 			return fmt.Errorf("group %q must use bridge network for exposing service check(s)", tg.Name)
 		}
 	}
