@@ -139,7 +139,15 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 }
 
 func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
+	// Parse the internal template that generates the Nomad bridge interface.
+	// The template's parsablity is tested in networking_bridge_linux_test.go
+	// so any template issues should be caught by the test rather than at this
+	// point.
 	tmpl, err := template.New("cniConf").Parse(nomadCNIConfigTemplate)
+	if err != nil {
+		// Panic on error for catching issues in testing
+		panic(err)
+	}
 
 	// TODO: Consider exporting these directly from bridgeNetworkConfigurator
 	// so they aren't repeated in the input struct
@@ -157,12 +165,14 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
 		CNIAdminChainName: cniAdminChainName,
 	}
 
-	if err != nil {
-		panic(err)
-	}
 	var out bytes.Buffer
+
+	// Since the input object provides all of the variable elements used in the
+	// template and out is a buffer (rather than a closable writer) the template
+	// execution should not error.
 	err = tmpl.Execute(&out, tIn)
 	if err != nil {
+		// Panic on error for catching issues in testing
 		panic(err)
 	}
 	return out.Bytes()
