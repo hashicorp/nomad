@@ -84,6 +84,36 @@ The metric `nomad.nomad.broker.total_blocked` has been changed to
 leader's broker, and this is easily confused with the unrelated evaluation
 status `"blocked"` in the Nomad API.
 
+#### Garbage collection of evaluations and allocations for batch job
+
+Versions prior to 1.5.0 only delete evaluations and allocations of batch jobs
+that are explicitly stopped which can lead to unbounded memory growth of Nomad
+when the batch job is executed multiple times.
+
+Nomad 1.5.0 introduces a new server configuration
+[`batch_eval_gc_threshold`](/nomad/docs/configuration/server#batch_eval_gc_threshold)
+to control how allocations and evaluations for batch jobs are collected.
+
+The default threshold is `24h`. If you need to access completed allocations for
+batch jobs that are older than 24h you must increase this value when upgrading
+Nomad.
+
+## Nomad 1.4.4, 1.3.9
+
+#### Garbage collection of evaluations and allocations for batch job
+
+Versions prior to 1.4.4 and 1.3.9 only delete evaluations and allocations of
+batch jobs that are explicitly stopped which can lead to unbounded memory
+growth of Nomad when the batch job is executed multiple times.
+
+Nomad 1.4.4 and 1.3.9 introduces a new server configuration
+[`batch_eval_gc_threshold`](/nomad/docs/configuration/server#batch_eval_gc_threshold)
+to control how allocations and evaluations for batch jobs are collected.
+
+The default threshold is `24h`. If you need to access completed allocations for
+batch jobs that are older than 24h you must increase this value when upgrading
+Nomad.
+
 ## Nomad 1.4.0
 
 #### Possible Panic During Upgrades
