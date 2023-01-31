@@ -959,7 +959,8 @@ host system.
     here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
     The delay controls how long Nomad will wait between an image being unused
     and deleting it. If a task is received that uses the same image within
-    the delay, the image will be reused.
+    the delay, the image will be reused. If an image is referenced by more than
+    one tag, `image_delay` may not work correctly.
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits. Under a name conflict,
