@@ -115,7 +115,7 @@ func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan s
 	case structs.TaskLifecycleHookPoststop:
 		return c.poststopTaskCtx.Done()
 	default:
-		// it should never have a lifecycle stanza w/o a hook, so report an error but allow the task to start normally
+		// it should never have a lifecycle block w/o a hook, so report an error but allow the task to start normally
 		c.logger.Error("invalid lifecycle hook", "task", task.Name, "hook", task.Lifecycle.Hook)
 		return c.mainTaskCtx.Done()
 	}

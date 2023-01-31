@@ -16,7 +16,7 @@ import (
 func newConnect(serviceId string, serviceName string, nc *structs.ConsulConnect, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceConnect, error) {
 	switch {
 	case nc == nil:
-		// no connect stanza means there is no connect service to register
+		// no connect block means there is no connect service to register
 		return nil, nil
 
 	case nc.IsGateway():
@@ -54,7 +54,7 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 
 	var envoyConfig map[string]interface{}
 
-	// Populate the envoy configuration from the gateway.proxy stanza, if
+	// Populate the envoy configuration from the gateway.proxy block, if
 	// such configuration is provided.
 	if proxy := connect.Gateway.Proxy; proxy != nil {
 		envoyConfig = make(map[string]interface{})
@@ -91,7 +91,7 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 
 func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceRegistration, error) {
 	if css == nil {
-		// no sidecar stanza means there is no sidecar service to register
+		// no sidecar block means there is no sidecar service to register
 		return nil, nil
 	}
 

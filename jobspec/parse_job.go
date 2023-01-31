@@ -128,7 +128,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		}
 	}
 
-	// If we have a reschedule stanza, then parse that
+	// If we have a reschedule block, then parse that
 	if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
 		if err := parseReschedulePolicy(&result.Reschedule, o); err != nil {
 			return multierror.Prefix(err, "reschedule ->")
