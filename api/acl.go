@@ -545,6 +545,53 @@ type ACLTokenRoleLink struct {
 	Name string
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLToken.ExpirationTTL to be marshaled correctly.
+func (a *ACLToken) MarshalJSON() ([]byte, error) {
+	type Alias ACLToken
+	exported := &struct {
+		ExpirationTTL string
+		*Alias
+	}{
+		ExpirationTTL: a.ExpirationTTL.String(),
+		Alias:         (*Alias)(a),
+	}
+	if a.ExpirationTTL == 0 {
+		exported.ExpirationTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLToken.ExpirationTTL to be unmarshalled correctly.
+func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLToken
+	aux := &struct {
+		ExpirationTTL any
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.ExpirationTTL != nil {
+		switch v := aux.ExpirationTTL.(type) {
+		case string:
+			if v != "" {
+				if a.ExpirationTTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.ExpirationTTL = time.Duration(v)
+		}
+
+	}
+	return nil
+}
+
 type ACLTokenListStub struct {
 	AccessorID string
 	Name       string
