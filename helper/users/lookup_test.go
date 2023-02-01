@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/shoenig/test/must"
+	"golang.org/x/sys/unix"
 )
 
 func TestLookup(t *testing.T) {
@@ -46,8 +47,8 @@ func TestLookup_NobodyIDs(t *testing.T) {
 
 func TestWriteFileFor_Linux(t *testing.T) {
 	// This is really how you have to retrieve umask. See `man 2 umask`
-	umask := syscall.Umask(0)
-	syscall.Umask(umask)
+	umask := unix.Umask(0)
+	unix.Umask(umask)
 
 	path := filepath.Join(t.TempDir(), "secret.txt")
 	contents := []byte("TOO MANY SECRETS")
