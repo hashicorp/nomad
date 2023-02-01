@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -464,6 +465,48 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, out)
 		assert.Equal(t, outTK, out)
+	})
+}
+
+func TestHTTP_ACLTokenCreateExpirationTTL(t *testing.T) {
+	ci.Parallel(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+
+		// Generate an example token which has an expiration TTL in string
+		// format.
+		aclToken := `
+{
+  "Name": "Readonly token",
+  "Type": "client",
+  "Policies": ["readonly"],
+  "ExpirationTTL": "10h",
+  "Global": false
+}`
+
+		req, err := http.NewRequest("PUT", "/v1/acl/token", bytes.NewReader([]byte(aclToken)))
+		must.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		setToken(req, s.RootToken)
+
+		// Make the request.
+		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.NotNil(t, obj)
+
+		// Ensure the returned token includes expiration.
+		createdTokenResp := obj.(*structs.ACLToken)
+		must.Eq(t, "10h0m0s", createdTokenResp.ExpirationTTL.String())
+		must.False(t, createdTokenResp.CreateTime.IsZero())
+
+		// Check for the index.
+		must.StrNotEqFold(t, "", respW.Result().Header.Get("X-Nomad-Index"))
+
+		// Check token was created and stored properly within state.
+		out, err := s.Agent.server.State().ACLTokenByAccessorID(nil, createdTokenResp.AccessorID)
+		must.NoError(t, err)
+		must.NotNil(t, out)
+		must.Eq(t, createdTokenResp, out)
 	})
 }
 
