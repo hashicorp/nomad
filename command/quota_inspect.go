@@ -115,6 +115,7 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		Usages:   usages,
 		Failures: failuresConverted,
 	}
+
 	out, err := Format(json, tmpl, data)
 	if err != nil {
 		c.Ui.Error(err.Error())
