@@ -100,7 +100,7 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	// Validate each policy, compute hash
 	for idx, policy := range args.Policies {
 		if err := policy.Validate(); err != nil {
-			return structs.NewErrRPCCodedf(404, "policy %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(http.StatusBadRequest, "policy %d invalid: %v", idx, err)
 		}
 		policy.SetHash()
 	}

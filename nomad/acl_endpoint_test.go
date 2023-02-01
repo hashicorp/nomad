@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -722,10 +721,8 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	}
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertPolicies", req, &resp)
-	assert.NotNil(t, err)
-	if !strings.Contains(err.Error(), "failed to parse") {
-		t.Fatalf("bad: %s", err)
-	}
+	must.ErrorContains(t, err, "400")
+	must.ErrorContains(t, err, "failed to parse")
 }
 
 func TestACLEndpoint_GetToken(t *testing.T) {
