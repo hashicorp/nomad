@@ -385,7 +385,7 @@ func (a *ACLToken) MarshalJSON() ([]byte, error) {
 func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLToken
 	aux := &struct {
-		ExpirationTTL interface{}
+		ExpirationTTL any
 		*Alias
 	}{
 		Alias: (*Alias)(a),
