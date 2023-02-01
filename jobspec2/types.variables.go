@@ -95,6 +95,17 @@ func (v *Variable) validateValue(val VariableAssignment) (diags hcl.Diagnostics)
 	for _, validation := range v.Validations {
 		const errInvalidCondition = "Invalid variable validation result"
 
+		if validation.Condition == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity:    hcl.DiagError,
+				Summary:     "Invalid variable validation specification",
+				Detail:      "validation requires a condition.",
+				Subject:     validation.DeclRange.Ptr(),
+				EvalContext: hclCtx,
+			})
+			continue
+		}
+
 		result, moreDiags := validation.Condition.Value(hclCtx)
 		diags = append(diags, moreDiags...)
 		if !result.IsKnown() {
