@@ -201,7 +201,8 @@ The table below shows this endpoint's support for
 
 - `ExpirationTTL` `(duration: 0s)` - This is a convenience field and if set will
   initialize the `ExpirationTime` field to a value of `CreateTime` +
-  `ExpirationTTL`.
+  `ExpirationTTL`. This value must be between the [`token_min_expiration_ttl`][]
+  and [`token_max_expiration_ttl`][] ACL configuration parameters.
 
 ### Sample Payload
 
@@ -499,3 +500,6 @@ $ curl \
   }
 }
 ```
+
+[`token_min_expiration_ttl`]: /nomad/docs/configuration/acl#token_min_expiration_ttl
+[`token_max_expiration_ttl`]: /nomad/docs/configuration/acl#token_max_expiration_ttl
