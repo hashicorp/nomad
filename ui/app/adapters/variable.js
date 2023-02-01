@@ -27,7 +27,7 @@ export default class VariableAdapter extends ApplicationAdapter {
    * @returns {Promise<{variables: Variable[], default: Variable[]}>}
    */
   async getJobTemplates() {
-    this.populateDefaultJobTemplates();
+    await this.populateDefaultJobTemplates();
     const jobTemplateVariables = await this.store.query('variable', {
       prefix: 'nomad/job-templates',
       namespace: '*',
