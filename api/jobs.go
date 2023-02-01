@@ -822,7 +822,7 @@ func (p *PeriodicConfig) Canonicalize() {
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
-	if *p.SpecType == PeriodicSpecCron {
+	if p != nil && *p.SpecType == PeriodicSpecCron {
 		e, err := cronexpr.Parse(*p.Spec)
 		if err != nil {
 			return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
