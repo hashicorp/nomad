@@ -76,9 +76,11 @@ job "docs" {
   to define criteria for spreading allocations across a node attribute or metadata.
   See the [Nomad spread reference][spread] for more details.
 
-- `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
-  for task placement. This must be provided, and does not have a default. It allows wildcard globbing 
-  through use of the '*' for multi-character matching, or '?' for single-character matching.
+- `datacenters` `(array<string>: <optional>)` - A list of datacenters in the
+  region which are eligible for task placement. This field allows wildcard
+  globbing through the use of `*` for multi-character matching. The default
+  value is `["*"]`, which allows the job to be placed in any available
+  datacenter.
 
 - `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
