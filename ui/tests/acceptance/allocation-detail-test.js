@@ -78,7 +78,10 @@ module('Acceptance | allocation detail', function (hooks) {
     );
     assert.ok(Allocation.execButton.isPresent);
 
-    assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
+    assert.equal(
+      document.title,
+      `Allocation ${allocation.name} - Mirage - Nomad`
+    );
 
     await Allocation.details.visitJob();
     assert.equal(

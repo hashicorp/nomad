@@ -22,7 +22,7 @@ export default Factory.extend({
       Label: {
         TextColor: 'white',
         BackgroundColor: 'hotpink',
-        Text: 'Mirage Mocked',
+        Text: 'Mirage',
       },
     },
     ACL: {
