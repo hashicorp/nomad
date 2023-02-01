@@ -4369,6 +4369,10 @@ func (j *Job) Canonicalize() {
 		j.Namespace = DefaultNamespace
 	}
 
+	if len(j.Datacenters) == 0 {
+		j.Datacenters = []string{"*"}
+	}
+
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}

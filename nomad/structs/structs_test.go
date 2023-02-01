@@ -58,7 +58,7 @@ func TestJob_Validate(t *testing.T) {
 		Name:        "my-job",
 		Type:        JobTypeService,
 		Priority:    50,
-		Datacenters: []string{"dc1"},
+		Datacenters: []string{"*"},
 		TaskGroups: []*TaskGroup{
 			{
 				Name: "web",
@@ -91,7 +91,7 @@ func TestJob_Validate(t *testing.T) {
 		"group 3 missing name",
 		"Task group web validation failed",
 	)
-	// test for empty datacenters
+	// test for invalid datacenters
 	j = &Job{
 		Datacenters: []string{""},
 	}
@@ -372,7 +372,7 @@ func testJob() *Job {
 		Type:        JobTypeService,
 		Priority:    50,
 		AllAtOnce:   false,
-		Datacenters: []string{"dc1"},
+		Datacenters: []string{"*"},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
