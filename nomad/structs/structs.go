@@ -44,6 +44,7 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
+	"github.com/ryanuber/go-glob"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -2292,6 +2293,10 @@ func (n *Node) ComparableResources() *ComparableResources {
 			DiskMB: int64(n.Resources.DiskMB),
 		},
 	}
+}
+
+func (n *Node) IsInDC(dc string) bool {
+	return glob.Glob(dc, n.Datacenter)
 }
 
 // Stub returns a summarized version of the node

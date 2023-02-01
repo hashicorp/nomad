@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
@@ -1107,10 +1108,9 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
-	// Check the available nodes
-	if _, ok := metrics.NodesAvailable["dc1"]; ok {
-		t.Fatalf("bad: %#v", metrics)
-	}
+	_, ok = metrics.NodesAvailable["dc1"]
+	must.False(t, ok, must.Sprintf(
+		"expected NodesAvailable metric to be unpopulated when there are no nodes"))
 
 	// Check queued allocations
 	queued := outEval.QueuedAllocations["web"]

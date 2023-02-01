@@ -383,73 +383,15 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 			notReady[node.ID] = struct{}{}
 			continue
 		}
-
-		match := matchDcs(dcs, node)
-
-		if !match {
-			continue
-		}
-
-		out = append(out, node)
-		dcMap[node.Datacenter]++
-	}
-	return out, notReady, dcMap, nil
-}
-
-func matchDcs(dcs []string, node *structs.Node) bool {
-	for _, dc := range dcs {
-		match := globMatch(dc, node.Datacenter)
-
-		if match {
-			return true
-		}
-	}
-
-	return false
-}
-
-// globMatch is used to match names against simple glob patterns
-func globMatch(pattern, name string) bool {
-	px := 0
-	nx := 0
-	nextPx := 0
-	nextNx := 0
-	for px < len(pattern) || nx < len(name) {
-		if px < len(pattern) {
-			c := pattern[px]
-			switch c {
-			default: // ordinary character
-				if nx < len(name) && name[nx] == c {
-					px++
-					nx++
-					continue
-				}
-			case '?': // single-character wildcard
-				if nx < len(name) {
-					px++
-					nx++
-					continue
-				}
-			case '*': // zero-or-more-character wildcard
-				// Try to match at nx.
-				// If that doesn't work out,
-				// restart at nx+1 next.
-				nextPx = px
-				nextNx = nx + 1
-				px++
-				continue
+		for _, dc := range dcs {
+			if node.IsInDC(dc) {
+				out = append(out, node)
+				dcMap[node.Datacenter]++
+				break
 			}
 		}
-		// Mismatch. Maybe restart.
-		if 0 < nextNx && nextNx <= len(name) {
-			px = nextPx
-			nx = nextNx
-			continue
-		}
-		return false
 	}
-	// Matched all of pattern to all of name. Success.
-	return true
+	return out, notReady, dcMap, nil
 }
 
 // retryMax is used to retry a callback until it returns success or
