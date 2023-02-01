@@ -134,7 +134,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 
 	// Reset the max selector and context
 	s.maxScore.Reset()
-	s.ctx.Reset()
+	s.ctx.Reset(options.Preempt)
 	start := time.Now()
 
 	// Get the task groups constraints.
@@ -311,7 +311,7 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 	// Reset the binpack selector and context
 	s.scoreNorm.Reset()
-	s.ctx.Reset()
+	s.ctx.Reset(options.Preempt)
 	start := time.Now()
 
 	// Get the task groups constraints.

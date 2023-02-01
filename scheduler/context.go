@@ -23,7 +23,7 @@ type Context interface {
 	Metrics() *structs.AllocMetric
 
 	// Reset is invoked after making a placement
-	Reset()
+	Reset(preempt bool)
 
 	// ProposedAllocs returns the proposed allocations for a node which are
 	// the existing allocations, removing evictions, and adding any planned
@@ -166,8 +166,12 @@ func (e *EvalContext) SetState(s State) {
 	e.state = s
 }
 
-func (e *EvalContext) Reset() {
-	e.metrics = new(structs.AllocMetric)
+func (e *EvalContext) Reset(preempt bool) {
+	if !preempt {
+		// if we _are_ doing preemption, we want to accumulate the placement failures
+		// around so we can produce useful output on the deployment monitor
+		e.metrics = new(structs.AllocMetric)
+	}
 }
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
