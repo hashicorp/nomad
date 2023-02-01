@@ -174,4 +174,27 @@
       border-top-color: white;
     }
   }
+
+  .custom-label {
+    border-radius: 1rem;
+    padding: 0.25rem 1rem;
+    background: black;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.5rem;
+    align-self: center;
+    align-items: center;
+    margin-left: 1rem;
+    & > strong {
+      color: white;
+      font-weight: normal;
+    }
+    & > span {
+      border-radius: 4px;
+      height: 8px;
+      width: 8px;
+      display: block;
+      float: left;
+    }
+  }
 }

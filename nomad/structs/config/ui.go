@@ -13,6 +13,9 @@ type UIConfig struct {
 
 	// Vault configures deep links for Vault UI
 	Vault *VaultUIConfig `hcl:"vault"`
+
+	Label      string `hcl:"label"`
+	LabelColor string `hcl:"label_color"`
 }
 
 // ConsulUIConfig configures deep links to this cluster's Consul
@@ -34,9 +37,11 @@ type VaultUIConfig struct {
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
 	return &UIConfig{
-		Enabled: true,
-		Consul:  &ConsulUIConfig{},
-		Vault:   &VaultUIConfig{},
+		Enabled:    true,
+		Consul:     &ConsulUIConfig{},
+		Vault:      &VaultUIConfig{},
+		Label:      "",
+		LabelColor: "#000000",
 	}
 }
 
@@ -69,6 +74,8 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Enabled = other.Enabled
 	result.Consul = result.Consul.Merge(other.Consul)
 	result.Vault = result.Vault.Merge(other.Vault)
+	result.Label = other.Label
+	result.LabelColor = other.LabelColor
 
 	return result
 }
