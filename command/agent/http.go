@@ -1003,7 +1003,7 @@ func parseReverse(req *http.Request, b *structs.QueryOptions) {
 // parseNode parses the node_id query parameter for node specific requests.
 func parseNode(req *http.Request, nodeID *string) {
 	if n := req.URL.Query().Get("node_id"); n != "" {
-		nodeID = &n
+		*nodeID = n
 	}
 }
 

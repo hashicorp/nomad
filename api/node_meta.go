@@ -43,14 +43,20 @@ func (n *NodeMeta) Apply(meta *NodeMetaApplyRequest, qo *WriteOptions) (*NodeMet
 // If nodeID is empty then the metadata for the Node receiving the request is
 // returned.
 func (n *NodeMeta) Read(nodeID string, qo *QueryOptions) (*NodeMetaResponse, error) {
-	var out NodeMetaResponse
-
-	url := "/v1/client/metadata"
-	if nodeID != "" {
-		url += "?node_id=" + nodeID
+	if qo == nil {
+		qo = &QueryOptions{}
 	}
 
-	_, err := n.client.query(url, &out, qo)
+	if qo.Params == nil {
+		qo.Params = make(map[string]string)
+	}
+
+	if nodeID != "" {
+		qo.Params["node_id"] = nodeID
+	}
+
+	var out NodeMetaResponse
+	_, err := n.client.query("/v1/client/metadata", &out, qo)
 	if err != nil {
 		return nil, err
 	}
