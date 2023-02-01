@@ -13,9 +13,8 @@
       <NomadLogo />
     </LinkTo>
     {{#if this.system.agent.config.UI.Label}}
-      <div class="custom-label">
-        <span style="background-color: {{this.system.agent.config.UI.LabelColor}}" />
-        <strong>{{this.system.agent.config.UI.Label}}</strong>
+      <div class="custom-label" style={{this.labelStyles}}>
+        {{this.system.agent.config.UI.Label.Text}}
       </div>
     {{/if}}
   </div>

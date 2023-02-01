@@ -19,8 +19,11 @@ export default Factory.extend({
   config: {
     UI: {
       Enabled: true,
-      Label: 'Mirage Mocked',
-      LabelColor: 'hotpink',
+      Label: {
+        TextColor: 'white',
+        BackgroundColor: 'hotpink',
+        Text: 'Mirage Mocked',
+      },
     },
     ACL: {
       Enabled: true,
