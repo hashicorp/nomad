@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,7 +15,7 @@ const (
 	binPackingMaxFitScore = 18.0
 )
 
-// Rank is used to provide a score and various ranking metadata
+// RankedNode is used to provide a score and various ranking metadata
 // along with a node when iterating. This state can be modified as
 // various rank methods are applied.
 type RankedNode struct {
@@ -225,10 +225,7 @@ OUTER:
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node,
-				Allocations: make([]*structs.Allocation, len(proposed)),
-			}
-			for i, alloc := range proposed {
-				event.Allocations[i] = alloc.Copy()
+				Allocations: helper.CopySlice(proposed),
 			}
 			iter.ctx.SendEvent(event)
 			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")

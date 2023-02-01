@@ -24,7 +24,7 @@ type Stack interface {
 	// SetNodes is used to set the base set of potential nodes
 	SetNodes([]*structs.Node)
 
-	// SetTaskGroup is used to set the job for selection
+	// SetJob is used to set the job for selection
 	SetJob(job *structs.Job)
 
 	// Select is used to select a node for the task group
