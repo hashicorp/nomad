@@ -1,10 +1,11 @@
 package allocrunner
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func Test_buildNomadBridgeNetConfig(t *testing.T) {
@@ -26,12 +27,22 @@ func Test_buildNomadBridgeNetConfig(t *testing.T) {
 				hairpinMode: true,
 			},
 		},
+		{
+			name: "bad_input",
+			b: &bridgeNetworkConfigurator{
+				bridgeName:  `bad"`,
+				allocSubnet: defaultNomadAllocSubnet,
+				hairpinMode: true,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
 			tc := tc
-			require.NotPanics(t, func() { _ = buildNomadBridgeNetConfig(*tc.b) })
+			ci.Parallel(t)
+			bCfg := buildNomadBridgeNetConfig(*tc.b)
+			// Validate that the JSON created is rational
+			must.True(t, json.Valid(bCfg))
 		})
 	}
 }
