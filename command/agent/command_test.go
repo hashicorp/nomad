@@ -157,9 +157,6 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		"char-\\000-in-the-middle",
 		"ends-with-\\000",
 		"\\000-at-the-beginning",
-		"char-?-in-the-middle",
-		"ends-with-?",
-		"?-at-the-beginning",
 		"char-*-in-the-middle",
 		"ends-with-*",
 		"*-at-the-beginning",
@@ -194,7 +191,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		}
 
 		out := ui.ErrorWriter.String()
-		exp := "Datacenter contains invalid characters (null, '?', or '*')"
+		exp := "Datacenter contains invalid characters (null or '*')"
 		if !strings.Contains(out, exp) {
 			t.Fatalf("expect to find %q\n\n%s", exp, out)
 		}
