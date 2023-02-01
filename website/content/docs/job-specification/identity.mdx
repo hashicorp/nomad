@@ -39,9 +39,9 @@ job "docs" {
 
 ## `identity` Parameters
 
-- `env` `(bool: true)` - If true the workload identity will be available in the
+- `env` `(bool: false)` - If true the workload identity will be available in the
   task's `NOMAD_TOKEN` environment variable.
-- `file` `(bool: true)` - If true the workload identity will be available in
+- `file` `(bool: false)` - If true the workload identity will be available in
   the task's filesystem via the path `secrets/nomad_token`. If the
   [`task.user`][taskuser] parameter is set, the token file will only be
   readable by that user. Otherwise the file is readable by everyone but is
