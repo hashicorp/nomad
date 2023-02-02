@@ -9,10 +9,12 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,6 +66,15 @@ func TestSystemSched_JobRegister(t *testing.T) {
 
 	// Ensure all allocations placed
 	require.Len(t, out, 10)
+
+	// Note that all system allocations have the same name derived from Job.Name
+	allocNames := helper.ConvertSlice(out,
+		func(alloc *structs.Allocation) string { return alloc.Name })
+	expectAllocNames := []string{}
+	for i := 0; i < 10; i++ {
+		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[0]", job.Name))
+	}
+	must.SliceContainsAll(t, expectAllocNames, allocNames)
 
 	// Check the available nodes
 	count, ok := out[0].Metrics.NodesAvailable["dc1"]
