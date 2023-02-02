@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a panic in `deployment status` when rollback deployments are slow to appear
+```
