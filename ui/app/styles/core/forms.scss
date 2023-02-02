@@ -124,6 +124,13 @@
     grid-template-columns: 6fr 1fr;
     gap: 0 1rem;
   }
+
+  footer {
+    display: grid;
+    grid-auto-columns: max-content;
+    grid-auto-flow: column;
+    gap: 1rem;
+  }
 }
 
 .mock-sso-provider {
