@@ -82,6 +82,9 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
   volume ID `myvolume[0]`.
 
+  The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
+  that use canaries.
+
 The following fields are only valid for volumes with `type = "csi"`:
 
 - `access_mode` `(string: <required>)` - Defines whether a volume should be

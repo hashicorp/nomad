@@ -9,6 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -91,6 +92,15 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	// Ensure allocations have unique names derived from Job.ID
+	allocNames := helper.ConvertSlice(out,
+		func(alloc *structs.Allocation) string { return alloc.Name })
+	expectAllocNames := []string{}
+	for i := 0; i < 10; i++ {
+		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[%d]", job.ID, i))
+	}
+	must.SliceContainsAll(t, expectAllocNames, allocNames)
 
 	// Ensure different ports were used.
 	used := make(map[int]map[string]struct{})
