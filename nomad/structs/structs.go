@@ -501,12 +501,6 @@ func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
 	return ai.Claims
 }
 
-type RequestWithIdentity interface {
-	GetAuthToken() string
-	SetIdentity(identity *AuthenticatedIdentity)
-	GetIdentity() *AuthenticatedIdentity
-}
-
 func (ai *AuthenticatedIdentity) String() string {
 	if ai == nil {
 		return "unauthenticated"
@@ -521,6 +515,12 @@ func (ai *AuthenticatedIdentity) String() string {
 		return fmt.Sprintf("client:%s", ai.ClientID)
 	}
 	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+}
+
+type RequestWithIdentity interface {
+	GetAuthToken() string
+	SetIdentity(identity *AuthenticatedIdentity)
+	GetIdentity() *AuthenticatedIdentity
 }
 
 // QueryMeta allows a query response to include potentially

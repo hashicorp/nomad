@@ -2102,7 +2102,9 @@ func (a *ACL) GetAuthMethods(
 }
 
 // WhoAmI is a RPC for debugging authentication. This endpoint returns the same
-// AuthenticatedIdentity that will be used by RPC handlers.
+// AuthenticatedIdentity that will be used by RPC handlers, but unlike other
+// endpoints will try to authenticate workload identities even if ACLs are
+// disabled.
 //
 // TODO: At some point we might want to give this an equivalent HTTP endpoint
 // once other Workload Identity work is solidified
@@ -2117,6 +2119,15 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "acl", "whoami"}, time.Now())
+
+	if !a.srv.config.ACLEnabled {
+		// Authenticate never verifies claimed when ACLs are disabled, but since
+		// this endpoint is explicitly for resolving identities, always try to
+		// verify any claims.
+		if claims, _ := a.srv.VerifyClaim(args.AuthToken); claims != nil {
+			args.SetIdentity(&structs.AuthenticatedIdentity{Claims: claims})
+		}
+	}
 
 	reply.Identity = args.GetIdentity()
 	return nil

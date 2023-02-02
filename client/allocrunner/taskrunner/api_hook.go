@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -44,7 +45,6 @@ func (h *apiHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 		return fmt.Errorf("error creating api socket directory: %w", err)
 	}
 
-	//TODO(schmichael) what name
 	udsPath := filepath.Join(udsDir, "nomad.socket")
 	if err := os.RemoveAll(udsPath); err != nil {
 		return fmt.Errorf("could not remove existing api socket: %w", err)
@@ -56,9 +56,10 @@ func (h *apiHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	}
 
 	go func() {
-		if err := h.srv.Serve(ctx, udsln); err != nil {
-			//TODO(schmichael) probably ignore http.ErrServerClosed
-			h.logger.Warn("error serving api", "error", err)
+		// Cannot use Prestart's context as it is closed after all prestart hooks
+		// have been closed.
+		if err := h.srv.Serve(context.TODO(), udsln); err != http.ErrServerClosed {
+			h.logger.Error("error serving api", "error", err)
 		}
 	}()
 

@@ -542,25 +542,17 @@ func (b *builtinAPI) SetServer(srv *http.Server) {
 
 // Serve the HTTP API on the listener unless the context is canceled before the
 // HTTP API is ready to serve listeners. A non-nil error will always be
-// returned on the chan.
-func (b *builtinAPI) Serve(ctx context.Context, l net.Listener) chan error {
-	errCh := make(chan error, 1)
+// returned, but http.ErrServerClosed can likely be ignored.
+func (b *builtinAPI) Serve(ctx context.Context, l net.Listener) error {
 	select {
 	case <-ctx.Done():
 		// Caller canceled context before server was ready.
-		errCh <- ctx.Err()
-		close(errCh)
-		return errCh
+		return ctx.Err()
 	case <-b.srvReadyCh:
 		// Server ready for listeners! Continue on...
 	}
 
-	go func() {
-		defer close(errCh)
-		errCh <- b.srv.Serve(l)
-	}()
-
-	return errCh
+	return b.srv.Serve(l)
 }
 
 // HTTPCodedError is used to provide the HTTP error code
@@ -1083,6 +1075,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	//TODO(schmichael) this is janky but works?
 	// Require an acl token or workload identity
 	if reply.Identity == nil || (reply.Identity.ACLToken == nil && reply.Identity.Claims == nil) {
+		a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
 		resp.WriteHeader(http.StatusForbidden)
 		resp.Write([]byte("Forbidden\n"))
 		return
