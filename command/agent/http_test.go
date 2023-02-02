@@ -743,6 +743,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 			CertFile:          foocert,
 			KeyFile:           fookey,
 		}
+		c.LogLevel = "off"
 	})
 	defer s.Shutdown()
 
@@ -758,7 +759,9 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
 	}
-	hostErr, ok := urlErr.Err.(x509.HostnameError)
+
+	cveErr := (urlErr.Err.(*tls.CertificateVerificationError)).Err
+	hostErr, ok := cveErr.(x509.HostnameError)
 	if !ok {
 		t.Fatalf("expected a x509.HostnameError but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
@@ -786,7 +789,9 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
 	}
-	_, ok = urlErr.Err.(x509.UnknownAuthorityError)
+
+	cveErr = (urlErr.Err.(*tls.CertificateVerificationError)).Err
+	_, ok = cveErr.(x509.UnknownAuthorityError)
 	if !ok {
 		t.Fatalf("expected a x509.UnknownAuthorityError but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
