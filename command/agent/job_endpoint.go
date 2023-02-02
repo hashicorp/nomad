@@ -1152,12 +1152,9 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
 	if apiTask.Identity != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{}
-		if apiTask.Identity.Env != nil {
-			structsTask.Identity.Env = *apiTask.Identity.Env
-		}
-		if apiTask.Identity.File != nil {
-			structsTask.Identity.File = *apiTask.Identity.File
+		structsTask.Identity = &structs.WorkloadIdentity{
+			Env:  apiTask.Identity.Env,
+			File: apiTask.Identity.File,
 		}
 	}
 
