@@ -5,6 +5,7 @@
       <span class="constant-key">{{@kv.key}}</span>
     {{else}}
       <Input
+        {{autofocus}}
         id="new-meta-key"
         @type="text"
         @value={{@kv.key}}

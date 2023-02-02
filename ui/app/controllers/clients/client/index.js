@@ -24,7 +24,6 @@ export default class ClientController extends Controller.extend(
   Sortable,
   Searchable
 ) {
-
   @service flashMessages;
 
   queryParams = [
@@ -282,15 +281,15 @@ export default class ClientController extends Controller.extend(
       this.set('activeTask', null);
     }
   }
-  
+
   // #region metadata
   @tracked newMetaData = {
     key: '',
     value: '',
-  }
+  };
 
   @action validateKey(key) {
-    console.log("VALID KEY?", key, this.model.meta);
+    // TODO: make sure key is valid
   }
 
   @action resetNewMetaData() {
@@ -300,15 +299,10 @@ export default class ClientController extends Controller.extend(
     };
   }
 
-  @action focusNewMetadata() {
-    document.querySelector('#new-meta-key').focus();
-  }
-
-  @action async addDynamicMetaData({key, value}, e) {
-    console.log('addDynamicMetaData', e, key, value);
+  @action async addDynamicMetaData({ key, value }, e) {
     try {
       e.preventDefault();
-      await this.model.addMeta({[key]: value});
+      await this.model.addMeta({ [key]: value });
 
       this.flashMessages.add({
         title: 'Metadata added',
@@ -317,9 +311,9 @@ export default class ClientController extends Controller.extend(
         destroyOnClick: false,
         timeout: 3000,
       });
-
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not save new dynamic metadata';
+      const error =
+        messageFromAdapterError(err) || 'Could not save new dynamic metadata';
       this.flashMessages.add({
         title: `Error saving Metadata`,
         message: error,
@@ -328,7 +322,6 @@ export default class ClientController extends Controller.extend(
         sticky: true,
       });
     }
-
   }
   // #endregion metadata
 }
