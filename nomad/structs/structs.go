@@ -11771,6 +11771,7 @@ type KeyringRequest struct {
 type RecoverableError struct {
 	Err         string
 	Recoverable bool
+	wrapped     error
 }
 
 // NewRecoverableError is used to wrap an error and mark it as recoverable or
@@ -11783,6 +11784,7 @@ func NewRecoverableError(e error, recoverable bool) error {
 	return &RecoverableError{
 		Err:         e.Error(),
 		Recoverable: recoverable,
+		wrapped:     e,
 	}
 }
 
@@ -11803,6 +11805,10 @@ func (r *RecoverableError) IsRecoverable() bool {
 
 func (r *RecoverableError) IsUnrecoverable() bool {
 	return !r.Recoverable
+}
+
+func (r *RecoverableError) Unwrap() error {
+	return r.wrapped
 }
 
 // Recoverable is an interface for errors to implement to indicate whether or
