@@ -10700,10 +10700,7 @@ func NewAllocStubFields() *AllocStubFields {
 	}
 }
 
-// AllocMetric is used to track various metrics while attempting
-// to make an allocation. These are used to debug a job, or to better
-// understand the pressure within the system.
-type AllocMetric struct {
+type metricStats struct {
 	// NodesEvaluated is the number of nodes that were evaluated
 	NodesEvaluated int
 
@@ -10735,6 +10732,21 @@ type AllocMetric struct {
 	// ResourcesExhausted provides the amount of resources exhausted by task
 	// during the allocation placement
 	ResourcesExhausted map[string]*Resources
+}
+
+func (s metricStats) Copy() metricStats {
+	return metricStats{
+		NodesEvaluated: s.NodesEvaluated,
+		// todo KEEP GOING
+	}
+}
+
+// AllocMetric is used to track various metrics while attempting
+// to make an allocation. These are used to debug a job, or to better
+// understand the pressure within the system.
+type AllocMetric struct {
+	Evaluation   metricStats // while placing an allocation
+	Accumulation metricStats // accumulation while trying preemption
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
