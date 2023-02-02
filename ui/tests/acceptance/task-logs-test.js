@@ -46,7 +46,7 @@ module('Acceptance | task logs', function (hooks) {
       'No redirect'
     );
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
-    assert.equal(document.title, `Task ${task.name} logs - Nomad`);
+    assert.equal(document.title, `Task ${task.name} logs - Mirage - Nomad`);
   });
 
   test('the stdout log immediately starts streaming', async function (assert) {

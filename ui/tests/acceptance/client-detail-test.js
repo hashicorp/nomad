@@ -62,7 +62,7 @@ module('Acceptance | client detail', function (hooks) {
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(document.title, `Client ${node.name} - Nomad`);
+    assert.equal(document.title, `Client ${node.name} - Mirage - Nomad`);
 
     assert.equal(
       Layout.breadcrumbFor('clients.index').text,
