@@ -29,9 +29,7 @@ func Register(jobID, jobFilePath string) error {
 func RegisterWithArgs(jobID, jobFilePath string, args ...string) error {
 
 	baseArgs := []string{"job", "run", "-detach"}
-	for i := range args {
-		baseArgs = append(baseArgs, args[i])
-	}
+	baseArgs = append(baseArgs, args...)
 	baseArgs = append(baseArgs, "-")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -224,9 +222,7 @@ func StopJob(jobID string, args ...string) error {
 	// Build our argument list in the correct order, ensuring the jobID is last
 	// and the Nomad subcommand are first.
 	baseArgs := []string{"job", "stop"}
-	for i := range args {
-		baseArgs = append(baseArgs, args[i])
-	}
+	baseArgs = append(baseArgs, args...)
 	baseArgs = append(baseArgs, jobID)
 
 	// Execute the command. We do not care about the stdout, only stderr.
