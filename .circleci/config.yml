@@ -463,7 +463,7 @@ executors:
       resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOLANG_VERSION: 1.20
+      GOLANG_VERSION: '1.20'
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -472,7 +472,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.20
+      GOLANG_VERSION: '1.20'
 
   go-windows:
     machine:
@@ -484,7 +484,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.20
+      GOLANG_VERSION: '1.20'
       GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
