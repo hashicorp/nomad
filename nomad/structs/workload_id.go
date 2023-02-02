@@ -21,3 +21,19 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		File: wi.File,
 	}
 }
+
+func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
+	if wi == nil || other == nil {
+		return wi == other
+	}
+
+	if wi.Env != other.Env {
+		return false
+	}
+
+	if wi.File != other.File {
+		return false
+	}
+
+	return true
+}

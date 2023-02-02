@@ -600,7 +600,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		}
 
 		// Inspect Identity being exposed
-		if !reflect.DeepEqual(at.Identity, bt.Identity) {
+		if !at.Identity.Equal(bt.Identity) {
 			return true
 		}
 	}
