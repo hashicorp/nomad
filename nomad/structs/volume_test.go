@@ -68,8 +68,11 @@ func TestVolumeRequest_Validate(t *testing.T) {
 			},
 		},
 		{
-			name:          "CSI volume per-alloc with canaries",
-			expected:      []string{"volume cannot be per_alloc when canaries are in use"},
+			name: "CSI volume per-alloc with canaries",
+			expected: []string{
+				"volume cannot be per_alloc for system or sysbatch jobs",
+				"volume cannot be per_alloc when canaries are in use",
+			},
 			canariesCount: 1,
 			req: &VolumeRequest{
 				Type:     VolumeTypeCSI,
@@ -81,7 +84,7 @@ func TestVolumeRequest_Validate(t *testing.T) {
 	for _, tc := range testCases {
 		tc = tc
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.req.Validate(tc.taskGroupCount, tc.canariesCount)
+			err := tc.req.Validate(JobTypeSystem, tc.taskGroupCount, tc.canariesCount)
 			for _, expected := range tc.expected {
 				require.Contains(t, err.Error(), expected)
 			}
