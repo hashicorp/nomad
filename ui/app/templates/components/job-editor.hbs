@@ -21,11 +21,9 @@
 
   <header class="run-job-header">
     <h1 class="title is-3">Run a job</h1>
-    <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.</p>
-    <label class="job-spec-upload">
-      <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
-      <span class="button">Upload a job spec file</span>
-    </label>
+    <p>
+      Paste or author HCL or JSON to submit to your cluster, or select from a list of templates. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.
+    </p>
   </header>
 
   <div class="boxed-section">
@@ -54,14 +52,23 @@
     </div>
   </div>
 
-  <div class="content is-associative">
-    <button
-      class="button is-primary {{if this.plan.isRunning 'is-loading'}}"
-      type="button"
-      onclick={{perform this.plan}}
+  <div class="is-associative buttonset">
+    <Hds::Button
+      {{on "click" (perform this.plan)}}
       disabled={{or this.plan.isRunning (not this.job._newDefinition)}}
       data-test-plan
-    >Plan</button>
+      @text="Plan"
+    />
+    <Hds::ButtonSet>
+      <label class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium">
+        <div class="hds-button__text">Upload file</div>
+        <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
+      </label>
+      {{#if (can "write variable" path="*" namespace="*")}}
+        <Hds::Button @icon="file-plus" @text="Save as template" @color="tertiary" @route="jobs.run.templates.new"  {{on "click" this.handleSaveAsTemplate}} data-test-save-as-template />
+        <Hds::Button @icon="file-text" @text="Choose from a template" @color="tertiary" @route="jobs.run.templates" data-test-choose-template />
+      {{/if}}
+    </Hds::ButtonSet>
   </div>
 {{/if}}
 
@@ -75,12 +82,7 @@
             will have on your cluster.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button
-            class="button is-info"
-            onclick={{toggle-action "showPlanMessage" this}}
-            data-test-plan-help-dismiss
-            type="button"
-          >Okay</button>
+          <Hds::Button @text="Okay" {{on "click" (toggle-action "showPlanMessage" this)}} data-test-plan-help-dismiss />
         </div>
       </div>
     </div>
@@ -147,19 +149,8 @@
       </div>
     </div>
   {{/if}}
-  <div class="content is-associative">
-    <button
-      class="button is-primary {{if this.submit.isRunning 'is-loading'}}"
-      type="button"
-      onclick={{perform this.submit}}
-      disabled={{this.submit.isRunning}}
-      data-test-run
-    >Run</button>
-    <button
-      class="button is-light"
-      type="button"
-      onclick={{action this.reset}}
-      data-test-cancel
-    >Cancel</button>
-  </div>
+  <Hds::ButtonSet class="is-associative">
+    <Hds::Button @size="small" @text="Run" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
+    <Hds::Button @size="small" @color="critical" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
+  </Hds::ButtonSet>
 {{/if}}

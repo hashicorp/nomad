@@ -32,6 +32,14 @@ export default class VariableSerializer extends ApplicationSerializer {
     );
   }
 
+  normalizeDefaultJobTemplate(hash) {
+    return {
+      path: hash.id,
+      isDefaultJobTemplate: true,
+      ...hash,
+    };
+  }
+
   // Transform our KeyValues array into an Items object
   serialize(snapshot, options) {
     const json = super.serialize(snapshot, options);

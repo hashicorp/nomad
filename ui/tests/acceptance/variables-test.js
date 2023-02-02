@@ -509,6 +509,59 @@ module('Acceptance | variables', function (hooks) {
           'Cannot submit a variable that begins with nomad/<not-jobs>/'
         );
 
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/jobs/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isNotDisabled('Can submit a variable that begins with nomad/jobs/');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/another-foo/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isDisabled('Disabled state re-evaluated when path input changes');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'nomad/jobs/job-templates/');
+      assert
+        .dom('[data-test-submit-var]')
+        .isNotDisabled(
+          'Can submit a variable that begins with nomad/job-templates/'
+        );
+
+      // Reset Token
+      window.localStorage.nomadTokenSecret = null;
+    });
+
+    test('shows a custom editor when editing a job template variable', async function (assert) {
+      // Arrange Test Set-up
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await Variables.visitNew();
+      // End Test Set-up
+
+      assert
+        .dom('.related-entities-hint')
+        .exists('Shows a hint about related entities by default');
+      assert.dom('.CodeMirror').doesNotExist();
+      await typeIn('[data-test-path-input]', 'nomad/job-templates/hello-world');
+      assert
+        .dom('.related-entities-hint')
+        .doesNotExist('Hides the hint when editing a job template variable');
+      assert
+        .dom('.job-template-hint')
+        .exists('Shows a hint about job templates');
+      assert
+        .dom('.CodeMirror')
+        .exists('Shows a custom editor for job templates');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'hello-world-non-template');
+      assert
+        .dom('.related-entities-hint')
+        .exists('Shows a hint about related entities by default');
+      assert.dom('.CodeMirror').doesNotExist();
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });

@@ -891,7 +891,12 @@ export default function () {
 
   //#region Variables
 
-  this.get('/vars', function (schema, { queryParams: { namespace } }) {
+  this.get('/vars', function (schema, { queryParams: { namespace, prefix } }) {
+    if (prefix === 'nomad/job-templates') {
+      return schema.variables
+        .all()
+        .filter((v) => v.path.includes('nomad/job-templates'));
+    }
     if (namespace && namespace !== '*') {
       return schema.variables.all().filter((v) => v.namespace === namespace);
     } else {

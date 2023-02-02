@@ -169,6 +169,25 @@ table.path-tree {
   }
 }
 
+.job-template-hint {
+  margin-top: 0.5rem;
+  code {
+    background-color: #eee;
+    padding: 0.25rem;
+  }
+  .copy-button {
+    display: inline-block;
+    padding-left: 0;
+    position: relative;
+    top: -5px;
+    button,
+    .button {
+      background-color: transparent;
+      padding-right: 0.25rem;
+    }
+  }
+}
+
 table.variable-items {
   // table-layout: fixed;
   td.value-cell {
