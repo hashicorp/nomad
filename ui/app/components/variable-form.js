@@ -24,6 +24,7 @@ export default class VariableFormComponent extends Component {
   @service flashMessages;
   @service router;
   @service store;
+  @service theme;
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
@@ -64,7 +65,8 @@ export default class VariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.path?.startsWith('nomad/') && !this.path?.startsWith('nomad/jobs');
+      this.path?.startsWith('nomad/') &&
+      !(this.path?.startsWith('nomad/jobs') || this.path === 'nomad/ui');
     return !!this.JSONError || !this.path || disallowedPath;
   }
 
@@ -116,15 +118,20 @@ export default class VariableFormComponent extends Component {
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     const pathValue = trimPath([this.path]);
-    let existingVariable = existingVariables
-      .without(this.args.model)
-      .find(
-        (v) => v.path === pathValue && v.namespace === this.variableNamespace
-      );
+    let existingVariable = null;
+    if (this.variableNamespace) {
+      existingVariable = existingVariables
+        .without(this.args.model)
+        .find(
+          (v) => v.path === pathValue && v.namespace === this.variableNamespace
+        );
+    } else {
+      existingVariable = existingVariables
+        .without(this.args.model)
+        .find((v) => v.path === pathValue);
+    }
     if (existingVariable) {
-      return {
-        path: existingVariable.path,
-      };
+      return existingVariable;
     } else {
       return null;
     }
@@ -343,6 +350,10 @@ export default class VariableFormComponent extends Component {
     );
   }
 
+  get shouldShowUIHints() {
+    return this.path === 'nomad/ui';
+  }
+
   //#region Unsaved Changes Confirmation
 
   hasRemovedExitHandler = false;
@@ -398,4 +409,46 @@ export default class VariableFormComponent extends Component {
   }
 
   //#endregion Unsaved Changes Confirmation
+
+  //#region UI Hints
+  uiHints = {
+    banner_color: '#16704d',
+    background_color: '#ffffff',
+    show_a_weird_little_marquee: false,
+  };
+
+  @action addKeyValue(key, event) {
+    // console.log('AKV', key, event);
+    const value =
+      event.target.type === 'checkbox'
+        ? event.target.checked
+          ? 'true'
+          : 'false'
+        : event.target.value;
+    const alreadyExistingEntry = this.keyValues.find((kv) => kv.key === key);
+    if (alreadyExistingEntry) {
+      set(alreadyExistingEntry, 'value', value);
+    } else {
+      this.keyValues.pushObject({
+        key,
+        value,
+        warnings: EmberObject.create(),
+      });
+    }
+  }
+
+  get uiHintValues() {
+    // console.log('UHV', this.keyValues);
+    return this.keyValues.mapBy('value');
+  }
+
+  @action
+  setThemeValues() {
+    console.log('setting theme values!', this.keyValues);
+    this.keyValues.forEach((kv) => {
+      set(this.theme.theme.items, kv.key, kv.value);
+      // this.theme.theme.items.set(kv.key, kv.value);
+    });
+  }
+  //#endregion UI Hints
 }

@@ -8,6 +8,7 @@ import { attributeBindings } from '@ember-decorators/component';
 export default class GlobalHeader extends Component {
   @service config;
   @service system;
+  @service theme;
 
   'data-test-global-header' = true;
   onHamburgerClick() {}
