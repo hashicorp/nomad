@@ -6,9 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestNetworkIndex_Copy(t *testing.T) {
@@ -931,23 +933,32 @@ func TestNetworkIndex_SetNode_HostNets(t *testing.T) {
 		},
 	}
 
+	check := func() {
+		// TaskNetworks should only contain the bridge and agent network
+		must.Len(t, 2, idx.TaskNetworks,
+			must.Sprintf("expected 2 TaskNetworks, got: %#v", idx.TaskNetworks))
+
+		// Ports should be used across all 4 IPs
+		must.Eq(t, 4, len(idx.UsedPorts),
+			must.Sprintf("expected 4 UsedPorts, got: %#v", idx.UsedPorts))
+
+		// 22 should be reserved on all IPs
+		must.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
+		must.True(t, idx.UsedPorts["::1"].Check(22))
+		must.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
+		must.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
+
+		// 80 should only be reserved on eth1's address
+		must.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
+		must.False(t, idx.UsedPorts["::1"].Check(80))
+		must.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
+		must.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
+	}
+
+	must.NoError(t, idx.SetNode(n))
+	check()
+
+	// SetNode must be idempotent
 	require.NoError(t, idx.SetNode(n))
-
-	// TaskNetworks should only contain the bridge and agent network
-	require.Len(t, idx.TaskNetworks, 2)
-
-	// Ports should be used across all 4 IPs
-	require.Equal(t, 4, len(idx.UsedPorts))
-
-	// 22 should be reserved on all IPs
-	require.True(t, idx.UsedPorts["127.0.0.1"].Check(22))
-	require.True(t, idx.UsedPorts["::1"].Check(22))
-	require.True(t, idx.UsedPorts["192.168.0.1"].Check(22))
-	require.True(t, idx.UsedPorts["192.168.1.1"].Check(22))
-
-	// 80 should only be reserved on eth1's address
-	require.False(t, idx.UsedPorts["127.0.0.1"].Check(80))
-	require.False(t, idx.UsedPorts["::1"].Check(80))
-	require.False(t, idx.UsedPorts["192.168.0.1"].Check(80))
-	require.True(t, idx.UsedPorts["192.168.1.1"].Check(80))
+	check()
 }
