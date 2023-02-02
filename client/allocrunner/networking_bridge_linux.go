@@ -3,7 +3,6 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"text/template"
 
 	"github.com/coreos/go-iptables/iptables"
 	hclog "github.com/hashicorp/go-hclog"
@@ -28,8 +27,6 @@ const (
 	// forwarding traffic to allocations
 	cniAdminChainName = "NOMAD-ADMIN"
 )
-
-var nomadBridgeTmpl = template.Must(template.New("cniConf").Parse(nomadCNIConfigTemplate))
 
 // bridgeNetworkConfigurator is a NetworkConfigurator which adds the alloc to a
 // shared bridge, configures masquerading for egress traffic and port mapping
