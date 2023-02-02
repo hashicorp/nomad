@@ -7546,6 +7546,99 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "Identity added",
+			Old:  &Task{},
+			New: &Task{
+				Identity: &WorkloadIdentity{
+					Env: true,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Identity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Env",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "File",
+								Old:  "",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Identity removed",
+			Old: &Task{
+				Identity: &WorkloadIdentity{
+					Env: true,
+				},
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Identity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Env",
+								Old:  "true",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "File",
+								Old:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Identity modified",
+			Old: &Task{
+				Identity: &WorkloadIdentity{
+					Env: true,
+				},
+			},
+			New: &Task{
+				Identity: &WorkloadIdentity{
+					Env:  true,
+					File: true,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Identity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "File",
+								Old:  "false",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
