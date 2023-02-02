@@ -92,6 +92,17 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
+	// Ensure allocations have unique names derived from Job.ID
+	allocNames := []string{}
+	for _, alloc := range out {
+		allocNames = append(allocNames, alloc.Name)
+	}
+	expectAllocNames := []string{}
+	for i := 0; i < 10; i++ {
+		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[%d]", job.ID, i))
+	}
+	must.SliceContainsAll(t, expectAllocNames, allocNames)
+
 	// Ensure different ports were used.
 	used := make(map[int]map[string]struct{})
 	for _, alloc := range out {

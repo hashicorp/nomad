@@ -66,6 +66,17 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	// Ensure all allocations placed
 	require.Len(t, out, 10)
 
+	// Note that all system allocations have the same name derived from Job.Name
+	allocNames := []string{}
+	for _, alloc := range out {
+		allocNames = append(allocNames, alloc.Name)
+	}
+	expectAllocNames := []string{}
+	for i := 0; i < 10; i++ {
+		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[0]", job.Name))
+	}
+	must.SliceContainsAll(t, expectAllocNames, allocNames)
+
 	// Check the available nodes
 	count, ok := out[0].Metrics.NodesAvailable["dc1"]
 	require.True(t, ok)
