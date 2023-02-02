@@ -102,7 +102,7 @@ type VolumeRequest struct {
 	PerAlloc       bool
 }
 
-func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
+func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) error {
 	if !(v.Type == VolumeTypeHost ||
 		v.Type == VolumeTypeCSI) {
 		return fmt.Errorf("volume has unrecognized type %s", v.Type)
@@ -170,9 +170,13 @@ func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
 		case CSIVolumeAccessModeMultiNodeMultiWriter:
 			// note: we intentionally allow read-only mount of this mode
 		}
-
-		if v.PerAlloc && canaries > 0 {
-			addErr("volume cannot be per_alloc when canaries are in use")
+		if v.PerAlloc {
+			if jobType == JobTypeSystem || jobType == JobTypeSysBatch {
+				addErr("volume cannot be per_alloc for system or sysbatch jobs")
+			}
+			if canaries > 0 {
+				addErr("volume cannot be per_alloc when canaries are in use")
+			}
 		}
 
 	}

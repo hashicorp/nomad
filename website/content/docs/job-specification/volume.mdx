@@ -99,6 +99,9 @@ The following fields are only valid for volumes with `type = "csi"`:
   = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
   volume ID `myvolume[0]`.
 
+  The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
+  that use canaries.
+
 - `mount_options` - Options for mounting CSI volumes that have the
   `file-system` [attachment mode]. These options override the `mount_options`
   field from [volume registration]. Consult the documentation for your storage
