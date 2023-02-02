@@ -3,7 +3,6 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"text/template"
 
 	"github.com/coreos/go-iptables/iptables"
 	hclog "github.com/hashicorp/go-hclog"
