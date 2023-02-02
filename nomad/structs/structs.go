@@ -44,6 +44,7 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
+	"github.com/ryanuber/go-glob"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -2294,6 +2295,10 @@ func (n *Node) ComparableResources() *ComparableResources {
 	}
 }
 
+func (n *Node) IsInDC(dc string) bool {
+	return glob.Glob(dc, n.Datacenter)
+}
+
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
@@ -4362,6 +4367,10 @@ func (j *Job) Canonicalize() {
 	// Ensure the job is in a namespace.
 	if j.Namespace == "" {
 		j.Namespace = DefaultNamespace
+	}
+
+	if len(j.Datacenters) == 0 {
+		j.Datacenters = []string{"*"}
 	}
 
 	for _, tg := range j.TaskGroups {

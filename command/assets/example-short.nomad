@@ -1,5 +1,4 @@
 job "example" {
-  datacenters = ["dc1"]
 
   group "cache" {
     network {

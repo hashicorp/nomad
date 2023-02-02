@@ -1621,7 +1621,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		// datacenter cardinality tends to be low so the check
 		// shouldn't add much work.
 		for _, dc := range job.Datacenters {
-			if dc == node.Datacenter {
+			if node.IsInDC(dc) {
 				sysJobs = append(sysJobs, job)
 				break
 			}

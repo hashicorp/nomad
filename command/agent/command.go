@@ -315,8 +315,8 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	// Check that the datacenter name does not contain invalid characters
-	if strings.ContainsAny(config.Datacenter, "\000") {
-		c.Ui.Error("Datacenter contains invalid characters")
+	if strings.ContainsAny(config.Datacenter, "\000*") {
+		c.Ui.Error("Datacenter contains invalid characters (null or '*')")
 		return false
 	}
 

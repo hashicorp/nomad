@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -560,25 +561,47 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.DrainNode()
+	node5 := mock.Node()
+	node5.Datacenter = "not-this-dc"
 
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)) // dc1 ready
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)) // dc2 ready
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3)) // dc2 not ready
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4)) // dc2 not ready
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1004, node5)) // ready never match
 
-	nodes, notReady, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
-	require.NoError(t, err)
-	require.Equal(t, 2, len(nodes))
-	require.NotEqual(t, node3.ID, nodes[0].ID)
-	require.NotEqual(t, node3.ID, nodes[1].ID)
+	testCases := []struct {
+		name           string
+		datacenters    []string
+		expectReady    []*structs.Node
+		expectNotReady map[string]struct{}
+		expectIndex    map[string]int
+	}{
+		{
+			name:           "no wildcards",
+			datacenters:    []string{"dc1", "dc2"},
+			expectReady:    []*structs.Node{node1, node2},
+			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
+		},
+		{
+			name:           "with wildcard",
+			datacenters:    []string{"dc*"},
+			expectReady:    []*structs.Node{node1, node2},
+			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
+		},
+	}
 
-	require.Contains(t, dc, "dc1")
-	require.Equal(t, 1, dc["dc1"])
-	require.Contains(t, dc, "dc2")
-	require.Equal(t, 1, dc["dc2"])
-
-	require.Contains(t, notReady, node3.ID)
-	require.Contains(t, notReady, node4.ID)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ready, notReady, dcIndex, err := readyNodesInDCs(state, tc.datacenters)
+			must.NoError(t, err)
+			must.SliceContainsAll(t, tc.expectReady, ready, must.Sprint("expected ready to match"))
+			must.Eq(t, tc.expectNotReady, notReady, must.Sprint("expected not-ready to match"))
+			must.Eq(t, tc.expectIndex, dcIndex, must.Sprint("expected datacenter counts to match"))
+		})
+	}
 }
 
 func TestRetryMax(t *testing.T) {
