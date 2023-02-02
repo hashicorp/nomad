@@ -598,6 +598,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		} else if !ar.Devices.Equal(&br.Devices) {
 			return true
 		}
+
+		// Inspect Identity being exposed
+		if !at.Identity.Equal(bt.Identity) {
+			return true
+		}
 	}
 	return false
 }

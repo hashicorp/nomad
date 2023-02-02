@@ -1848,3 +1848,20 @@ func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
 		require.False(t, connectSidecarServiceUpdated(a, b))
 	})
 }
+
+func TestTasksUpdated_Identity(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+	j1.TaskGroups[0].Tasks[0].Identity = nil
+
+	j2 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name))
+
+	// Set identity on j1 and assert update
+	j1.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{}
+
+	must.True(t, tasksUpdated(j1, j2, name))
+}

@@ -7213,6 +7213,10 @@ type Task struct {
 
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
+
+	// Identity controls if and how the workload identity is exposed to
+	// tasks similar to the Vault block.
+	Identity *WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7273,6 +7277,7 @@ func (t *Task) Copy() *Task {
 	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
+	nt.Identity = nt.Identity.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
