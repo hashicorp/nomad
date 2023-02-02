@@ -10736,8 +10736,16 @@ type metricStats struct {
 
 func (s metricStats) Copy() metricStats {
 	return metricStats{
-		NodesEvaluated: s.NodesEvaluated,
-		// todo KEEP GOING
+		NodesEvaluated:     s.NodesEvaluated,
+		NodesFiltered:      s.NodesFiltered,
+		NodesAvailable:     maps.Clone(s.NodesAvailable),
+		ClassFiltered:      maps.Clone(s.ClassFiltered),
+		ConstraintFiltered: maps.Clone(s.ConstraintFiltered),
+		NodesExhausted:     s.NodesEvaluated,
+		ClassExhausted:     maps.Clone(s.ClassExhausted),
+		DimensionExhausted: maps.Clone(s.DimensionExhausted),
+		QuotaExhausted:     slices.Clone(s.QuotaExhausted),
+		ResourcesExhausted: helper.DeepCopyMap(s.ResourcesExhausted),
 	}
 }
 
@@ -10779,17 +10787,11 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	if a == nil {
 		return nil
 	}
-	na := new(AllocMetric)
-	*na = *a
-	na.NodesAvailable = maps.Clone(na.NodesAvailable)
-	na.ClassFiltered = maps.Clone(na.ClassFiltered)
-	na.ConstraintFiltered = maps.Clone(na.ConstraintFiltered)
-	na.ClassExhausted = maps.Clone(na.ClassExhausted)
-	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
-	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
-	na.Scores = maps.Clone(na.Scores)
-	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
-	return na
+	return &AllocMetric{
+		// HERE
+		Scores:        maps.Clone(a.Scores),
+		ScoreMetaData: CopySliceNodeScoreMeta(a.ScoreMetaData),
+	}
 }
 
 func (a *AllocMetric) EvaluateNode() {
