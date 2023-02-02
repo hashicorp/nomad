@@ -162,7 +162,7 @@ func TestInitCommand_fromJobTemplate(t *testing.T) {
 	must.Eq(t, string(content), string(tinyJob))
 
 	ui.ErrorWriter.Reset()
-	expectedOutput := "Initializing a job template from valid-template\nExample job file written to example.nomad\n"
+	expectedOutput := "Initializing a job template from valid-template\nExample job file written to example.nomad.hcl\n"
 	must.StrContains(t, ui.OutputWriter.String(), expectedOutput)
 }
 
