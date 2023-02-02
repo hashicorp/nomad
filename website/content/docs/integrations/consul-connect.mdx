@@ -181,8 +181,8 @@ net.bridge.bridge-nf-call-iptables = 1
 ## Run the Service Mesh-enabled Services
 
 Once Nomad and Consul are running, submit the following service mesh-enabled services
-to Nomad by copying the HCL into a file named `servicemesh.nomad` and running:
-`nomad job run servicemesh.nomad`
+to Nomad by copying the HCL into a file named `servicemesh.nomad.hcl` and running:
+`nomad job run servicemesh.nomad.hcl`
 
 ```hcl
 job "countdash" {

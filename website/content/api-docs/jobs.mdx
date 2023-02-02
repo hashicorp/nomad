@@ -250,7 +250,7 @@ You can use a tool such as [`jq`](https://stedolan.github.io/jq/) to generate
 the payload from a local HCL file:
 
 ```shell-session
-$ jq -Rsc '{ JobHCL: ., Canonicalize: true }' example.nomad > payload.json
+$ jq -Rsc '{ JobHCL: ., Canonicalize: true }' example.nomad.hcl > payload.json
 ```
 
 ### Sample Request

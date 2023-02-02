@@ -13,7 +13,7 @@ import (
 const (
 	// DefaultInitName is the default name we use when
 	// initializing the example file
-	DefaultInitName = "example.nomad"
+	DefaultInitName = "example.nomad.hcl"
 )
 
 // JobInitCommand generates a new job template that you can customize to your
@@ -28,7 +28,7 @@ Usage: nomad job init <filename>
 Alias: nomad init <filename>
 
   Creates an example job file that can be used as a starting point to customize
-  further. If no filename is given, the default of "example.nomad" will be used.
+  further. If no filename is given, the default of "example.nomad.hcl" will be used.
 
 Init Options:
 
@@ -170,13 +170,13 @@ func (c *JobInitCommand) Run(args []string) int {
 	} else {
 		switch {
 		case connect && !short:
-			jobSpec, err = Asset("command/assets/connect.nomad")
+			jobSpec, err = Asset("command/assets/connect.nomad.hcl")
 		case connect && short:
-			jobSpec, err = Asset("command/assets/connect-short.nomad")
+			jobSpec, err = Asset("command/assets/connect-short.nomad.hcl")
 		case !connect && short:
-			jobSpec, err = Asset("command/assets/example-short.nomad")
+			jobSpec, err = Asset("command/assets/example-short.nomad.hcl")
 		default:
-			jobSpec, err = Asset("command/assets/example.nomad")
+			jobSpec, err = Asset("command/assets/example.nomad.hcl")
 		}
 		if err != nil {
 			// should never see this because we've precompiled the assets
