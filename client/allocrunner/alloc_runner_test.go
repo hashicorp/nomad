@@ -524,12 +524,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 1},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 1},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -538,12 +538,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartRunning(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -561,12 +561,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 1},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 1},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -584,12 +584,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartRunning(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -599,12 +599,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartAll(ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 1},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 1},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 1},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -616,12 +616,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return nil
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 0},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -630,12 +630,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartTask("main", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 0},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -645,12 +645,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartTask("main", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 0},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -668,12 +668,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return nil
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -692,12 +692,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return nil
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -715,12 +715,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return nil
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -738,12 +738,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return nil
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -764,12 +764,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 			},
 			expectedErr: "Task not running",
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "dead", Restarts: 1},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "dead", Restarts: 0},
-				"poststop":          structs.TaskState{State: "dead", Restarts: 0},
+				"main":              {State: "dead", Restarts: 1},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "dead", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "dead", Restarts: 0},
+				"poststop":          {State: "dead", Restarts: 0},
 			},
 		},
 		{
@@ -778,12 +778,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartTask("prestart-sidecar", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 0},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 1},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 0},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 0},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 1},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 0},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 		{
@@ -792,12 +792,12 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 				return ar.RestartTask("poststart-sidecar", ev)
 			},
 			expectedAfter: map[string]structs.TaskState{
-				"main":              structs.TaskState{State: "running", Restarts: 0},
-				"prestart-oneshot":  structs.TaskState{State: "dead", Restarts: 0},
-				"prestart-sidecar":  structs.TaskState{State: "running", Restarts: 0},
-				"poststart-oneshot": structs.TaskState{State: "dead", Restarts: 0},
-				"poststart-sidecar": structs.TaskState{State: "running", Restarts: 1},
-				"poststop":          structs.TaskState{State: "pending", Restarts: 0},
+				"main":              {State: "running", Restarts: 0},
+				"prestart-oneshot":  {State: "dead", Restarts: 0},
+				"prestart-sidecar":  {State: "running", Restarts: 0},
+				"poststart-oneshot": {State: "dead", Restarts: 0},
+				"poststart-sidecar": {State: "running", Restarts: 1},
+				"poststop":          {State: "pending", Restarts: 0},
 			},
 		},
 	}

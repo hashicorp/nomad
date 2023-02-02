@@ -147,11 +147,16 @@ client {
   configuration.
 
 - `bridge_network_name` `(string: "nomad")` - Sets the name of the bridge to be
-  created by nomad for allocations running with bridge networking mode on the
+  created by Nomad for allocations running with bridge networking mode on the
   client.
 
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
+
+- `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
+  is enabled on the network bridge created by Nomad for allocations running
+  with bridge networking mode on this client. You may use the corresponding
+  node attribute `nomad.bridge.hairpin_mode` in constraints.
 
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
