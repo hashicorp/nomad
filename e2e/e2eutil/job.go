@@ -21,9 +21,7 @@ func Register(jobID, jobFilePath string) error {
 func RegisterWithArgs(jobID, jobFilePath string, args ...string) error {
 
 	baseArgs := []string{"job", "run", "-detach"}
-	for i := range args {
-		baseArgs = append(baseArgs, args[i])
-	}
+	baseArgs = append(baseArgs, args...)
 	baseArgs = append(baseArgs, "-")
 
 	return register(jobID, jobFilePath, exec.Command("nomad", baseArgs...))
