@@ -2385,11 +2385,9 @@ func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
 	if reflect.DeepEqual(oldWI, newWI) {
 		return nil
 	} else if oldWI == nil {
-		oldWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
 	} else if newWI == nil {
-		newWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 	} else {
