@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TestLookup(t *testing.T) {
+func TestLookup_Linux(t *testing.T) {
 	cases := []struct {
 		username string
 
