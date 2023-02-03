@@ -10729,6 +10729,9 @@ type AllocMetric struct {
 	// DimensionExhausted provides the count by dimension or reason
 	DimensionExhausted map[string]int
 
+	// DimensionExhaustedPre provides the count by dimension or reason, in the preemption case
+	DimensionExhaustedPre map[string]int
+
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
 

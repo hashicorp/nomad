@@ -256,16 +256,17 @@ type Allocation struct {
 
 // AllocationMetric is used to deserialize allocation metrics.
 type AllocationMetric struct {
-	NodesEvaluated     int
-	NodesFiltered      int
-	NodesAvailable     map[string]int
-	ClassFiltered      map[string]int
-	ConstraintFiltered map[string]int
-	NodesExhausted     int
-	ClassExhausted     map[string]int
-	DimensionExhausted map[string]int
-	QuotaExhausted     []string
-	ResourcesExhausted map[string]*Resources
+	NodesEvaluated        int
+	NodesFiltered         int
+	NodesAvailable        map[string]int
+	ClassFiltered         map[string]int
+	ConstraintFiltered    map[string]int
+	NodesExhausted        int
+	ClassExhausted        map[string]int
+	DimensionExhausted    map[string]int
+	DimensionExhaustedPre map[string]int
+	QuotaExhausted        []string
+	ResourcesExhausted    map[string]*Resources
 	// Deprecated, replaced with ScoreMetaData
 	Scores            map[string]float64
 	AllocationTime    time.Duration
