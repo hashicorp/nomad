@@ -298,30 +298,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	return s.computePlacements(diff.place)
 }
 
-func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
-	if acc == nil {
-		return curr.Copy()
-	}
-
-	acc.NodesEvaluated += curr.NodesEvaluated
-	acc.NodesFiltered += curr.NodesFiltered
-
-	if acc.ClassFiltered == nil {
-		acc.ClassFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ClassFiltered {
-		acc.ClassFiltered[k] += v
-	}
-	if acc.ConstraintFiltered == nil {
-		acc.ConstraintFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ConstraintFiltered {
-		acc.ConstraintFiltered[k] += v
-	}
-	acc.AllocationTime += curr.AllocationTime
-	return acc
-}
-
 // computePlacements computes placements for allocations
 func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))

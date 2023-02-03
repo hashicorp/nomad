@@ -10700,52 +10700,126 @@ func NewAllocStubFields() *AllocStubFields {
 	}
 }
 
-type metricStats struct {
+// XMetricStats records statistics about scheduling.
+type XMetricStats struct {
 	// NodesEvaluated is the number of nodes that were evaluated
-	NodesEvaluated int
+	nodesEvaluated int
 
 	// NodesFiltered is the number of nodes filtered due to a constraint
-	NodesFiltered int
+	nodesFiltered int
 
 	// NodesAvailable is the number of nodes available for evaluation per DC.
-	NodesAvailable map[string]int
+	nodesAvailable map[string]int
 
 	// ClassFiltered is the number of nodes filtered by class
-	ClassFiltered map[string]int
+	classFiltered map[string]int
 
 	// ConstraintFiltered is the number of failures caused by constraint
-	ConstraintFiltered map[string]int
+	constraintFiltered map[string]int
 
 	// NodesExhausted is the number of nodes skipped due to being
 	// exhausted of at least one resource
-	NodesExhausted int
+	nodesExhausted int
 
 	// ClassExhausted is the number of nodes exhausted by class
-	ClassExhausted map[string]int
+	classExhausted map[string]int
 
 	// DimensionExhausted provides the count by dimension or reason
-	DimensionExhausted map[string]int
+	dimensionExhausted map[string]int
 
 	// QuotaExhausted provides the exhausted dimensions
-	QuotaExhausted []string
+	quotaExhausted []string
 
 	// ResourcesExhausted provides the amount of resources exhausted by task
 	// during the allocation placement
-	ResourcesExhausted map[string]*Resources
+	resourcesExhausted map[string]*Resources
 }
 
-func (s metricStats) Copy() metricStats {
-	return metricStats{
-		NodesEvaluated:     s.NodesEvaluated,
-		NodesFiltered:      s.NodesFiltered,
-		NodesAvailable:     maps.Clone(s.NodesAvailable),
-		ClassFiltered:      maps.Clone(s.ClassFiltered),
-		ConstraintFiltered: maps.Clone(s.ConstraintFiltered),
-		NodesExhausted:     s.NodesEvaluated,
-		ClassExhausted:     maps.Clone(s.ClassExhausted),
-		DimensionExhausted: maps.Clone(s.DimensionExhausted),
-		QuotaExhausted:     slices.Clone(s.QuotaExhausted),
-		ResourcesExhausted: helper.DeepCopyMap(s.ResourcesExhausted),
+func (s *XMetricStats) Copy() *XMetricStats {
+	if s == nil {
+		return nil
+	}
+	return &XMetricStats{
+		nodesEvaluated:     s.nodesEvaluated,
+		nodesFiltered:      s.nodesFiltered,
+		nodesAvailable:     maps.Clone(s.nodesAvailable),
+		classFiltered:      maps.Clone(s.classFiltered),
+		constraintFiltered: maps.Clone(s.constraintFiltered),
+		nodesExhausted:     s.nodesEvaluated,
+		classExhausted:     maps.Clone(s.classExhausted),
+		dimensionExhausted: maps.Clone(s.dimensionExhausted),
+		quotaExhausted:     slices.Clone(s.quotaExhausted),
+		resourcesExhausted: helper.DeepCopyMap(s.resourcesExhausted),
+	}
+}
+
+func (s *XMetricStats) EvaluateNodes(count int) {
+	s.nodesEvaluated += count
+}
+
+func (s *XMetricStats) FilterNode(node *Node, constraint string) {
+	s.nodesFiltered += 1
+	if node != nil && node.NodeClass != "" {
+		if s.classFiltered == nil {
+			s.classFiltered = make(map[string]int)
+		}
+		s.classFiltered[node.NodeClass] += 1
+	}
+	if constraint != "" {
+		if s.constraintFiltered == nil {
+			s.constraintFiltered = make(map[string]int)
+		}
+		s.constraintFiltered[constraint] += 1
+	}
+}
+
+func (s *XMetricStats) ExhaustedNode(node *Node, dimension string) {
+	s.nodesExhausted += 1
+	if node != nil && node.NodeClass != "" {
+		if s.classExhausted == nil {
+			s.classExhausted = make(map[string]int)
+		}
+		s.classExhausted[node.NodeClass] += 1
+	}
+	if dimension != "" {
+		if s.dimensionExhausted == nil {
+			s.dimensionExhausted = make(map[string]int)
+		}
+		s.dimensionExhausted[dimension] += 1
+	}
+}
+
+func (s *XMetricStats) ExhaustQuota(dimensions []string) {
+	if s.quotaExhausted == nil {
+		s.quotaExhausted = make([]string, 0, len(dimensions))
+	}
+	s.quotaExhausted = append(s.quotaExhausted, dimensions...)
+}
+
+func (s *XMetricStats) ExhaustResources(tg *TaskGroup) {
+	if s.dimensionExhausted == nil {
+		return
+	}
+
+	if s.resourcesExhausted == nil {
+		s.resourcesExhausted = make(map[string]*Resources)
+	}
+
+	for _, t := range tg.Tasks {
+		exhaustedResources := s.resourcesExhausted[t.Name]
+		if exhaustedResources == nil {
+			exhaustedResources = new(Resources)
+		}
+
+		if s.dimensionExhausted["memory"] > 0 {
+			exhaustedResources.MemoryMB += t.Resources.MemoryMB
+		}
+
+		if s.dimensionExhausted["cpu"] > 0 {
+			exhaustedResources.CPU += t.Resources.CPU
+		}
+
+		s.resourcesExhausted[t.Name] = exhaustedResources
 	}
 }
 
@@ -10753,8 +10827,8 @@ func (s metricStats) Copy() metricStats {
 // to make an allocation. These are used to debug a job, or to better
 // understand the pressure within the system.
 type AllocMetric struct {
-	Evaluation   metricStats // while placing an allocation
-	Accumulation metricStats // accumulation while trying preemption
+	evaluation   *XMetricStats // while placing an allocation
+	accumulation *XMetricStats // accumulation while trying preemption
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
@@ -10794,78 +10868,79 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	}
 }
 
-func (a *AllocMetric) EvaluateNode() {
-	a.NodesEvaluated += 1
+func (a *AllocMetric) IncNodesEvaluated(count int) {
+	a.accumulation.EvaluateNodes(count)
+	a.evaluation.EvaluateNodes(count)
+}
+
+func (a *AllocMetric) GetNodesEvaluated() int {
+	return a.evaluation.nodesEvaluated
 }
 
 func (a *AllocMetric) FilterNode(node *Node, constraint string) {
-	a.NodesFiltered += 1
-	if node != nil && node.NodeClass != "" {
-		if a.ClassFiltered == nil {
-			a.ClassFiltered = make(map[string]int)
-		}
-		a.ClassFiltered[node.NodeClass] += 1
-	}
-	if constraint != "" {
-		if a.ConstraintFiltered == nil {
-			a.ConstraintFiltered = make(map[string]int)
-		}
-		a.ConstraintFiltered[constraint] += 1
-	}
+	a.accumulation.FilterNode(node, constraint)
+	a.evaluation.FilterNode(node, constraint)
+}
+
+func (a *AllocMetric) IncNodesFiltered(count int) {
+	a.accumulation.nodesFiltered += count
+	a.evaluation.nodesFiltered += count
+}
+
+func (a *AllocMetric) GetNodesFiltered() int {
+	return a.evaluation.nodesFiltered
 }
 
 func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
-	a.NodesExhausted += 1
-	if node != nil && node.NodeClass != "" {
-		if a.ClassExhausted == nil {
-			a.ClassExhausted = make(map[string]int)
-		}
-		a.ClassExhausted[node.NodeClass] += 1
-	}
-	if dimension != "" {
-		if a.DimensionExhausted == nil {
-			a.DimensionExhausted = make(map[string]int)
-		}
-		a.DimensionExhausted[dimension] += 1
-	}
+	a.accumulation.ExhaustedNode(node, dimension)
+	a.evaluation.ExhaustedNode(node, dimension)
 }
 
 func (a *AllocMetric) ExhaustQuota(dimensions []string) {
-	if a.QuotaExhausted == nil {
-		a.QuotaExhausted = make([]string, 0, len(dimensions))
-	}
-
-	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
+	a.accumulation.ExhaustQuota(dimensions)
+	a.evaluation.ExhaustQuota(dimensions)
 }
 
 // ExhaustResources updates the amount of resources exhausted for the
 // allocation because of the given task group.
 func (a *AllocMetric) ExhaustResources(tg *TaskGroup) {
-	if a.DimensionExhausted == nil {
-		return
-	}
-
-	if a.ResourcesExhausted == nil {
-		a.ResourcesExhausted = make(map[string]*Resources)
-	}
-
-	for _, t := range tg.Tasks {
-		exhaustedResources := a.ResourcesExhausted[t.Name]
-		if exhaustedResources == nil {
-			exhaustedResources = &Resources{}
-		}
-
-		if a.DimensionExhausted["memory"] > 0 {
-			exhaustedResources.MemoryMB += t.Resources.MemoryMB
-		}
-
-		if a.DimensionExhausted["cpu"] > 0 {
-			exhaustedResources.CPU += t.Resources.CPU
-		}
-
-		a.ResourcesExhausted[t.Name] = exhaustedResources
-	}
+	a.accumulation.ExhaustResources(tg)
+	a.evaluation.ExhaustResources(tg)
 }
+
+func (a *AllocMetric) MergeNodeFiltered(curr *AllocMetric) *AllocMetric {
+	if a == nil {
+		return curr.Copy()
+	}
+
+	a.IncNodesEvaluated(curr.)
+}
+
+//func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
+//	if acc == nil {
+//		return curr.Copy()
+//	}
+//	acc.IncNodesEvaluated(curr.GetNodesEvaluated())
+//	// acc.NodesEvaluated += curr.NodesEvaluated
+//
+//	acc.IncNodesFiltered(curr.GetNodesFiltered())
+//	// acc.NodesFiltered += curr.NodesFiltered
+//
+//	if acc.ClassFiltered == nil {
+//		acc.ClassFiltered = make(map[string]int)
+//	}
+//	for k, v := range curr.ClassFiltered {
+//		acc.ClassFiltered[k] += v
+//	}
+//	if acc.ConstraintFiltered == nil {
+//		acc.ConstraintFiltered = make(map[string]int)
+//	}
+//	for k, v := range curr.ConstraintFiltered {
+//		acc.ConstraintFiltered[k] += v
+//	}
+//	acc.AllocationTime += curr.AllocationTime
+//	return acc
+//}
 
 // ScoreNode is used to gather top K scoring nodes in a heap
 func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {

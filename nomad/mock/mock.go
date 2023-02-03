@@ -59,14 +59,16 @@ func BlockedEval() *structs.Evaluation {
 	e := Eval()
 	e.Status = structs.EvalStatusBlocked
 	e.FailedTGAllocs = map[string]*structs.AllocMetric{
-		"cache": {
-			DimensionExhausted: map[string]int{
-				"memory": 1,
-			},
-			ResourcesExhausted: map[string]*structs.Resources{
-				"redis": {
-					CPU:      100,
-					MemoryMB: 1024,
+		"cache": &structs.AllocMetric{
+			Evaluation: &structs.XMetricStats{
+				DimensionExhausted: map[string]int{
+					"memory": 1,
+				},
+				ResourcesExhausted: map[string]*structs.Resources{
+					"redis": {
+						CPU:      100,
+						MemoryMB: 1024,
+					},
 				},
 			},
 		},
