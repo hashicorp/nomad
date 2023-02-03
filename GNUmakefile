@@ -414,4 +414,3 @@ ec2info: ## Generate AWS EC2 CPU specification table
 .PHONY: cl
 cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
-

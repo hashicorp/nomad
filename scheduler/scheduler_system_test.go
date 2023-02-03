@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -3083,4 +3084,64 @@ func TestSystemSched_CSITopology(t *testing.T) {
 	must.Eq(t, "", h.Evals[0].BlockedEval, must.Sprint("did not expect a blocked eval"))
 	must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
 
+}
+
+func TestSystemSched_OverlappingAllocations(t *testing.T) {
+	ci.Parallel(t)
+	h := NewHarness(t)
+
+	node := mock.Node()
+	node.Name = "good-node-1"
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	oldJob := mock.SystemJob()
+	oldJob.ID = "my-job"
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), oldJob))
+
+	job := oldJob.Copy()
+	job.Version++
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	allocOld := mock.Alloc()
+	allocOld.Job = oldJob
+	allocOld.JobID = oldJob.ID
+	allocOld.NodeID = node.ID
+	allocOld.Name = "my-job.web[0]"
+
+	allocCurrent := allocOld.Copy()
+	allocCurrent.ID = uuid.Generate()
+	allocCurrent.Job = job
+
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(),
+		[]*structs.Allocation{
+			allocOld, allocCurrent}))
+
+	// Create a mock evaluation to deregister the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	lastIndex := h.NextIndex()
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		lastIndex, []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	must.NoError(t, h.Process(NewSystemScheduler, eval))
+
+	// Ensure a single plan
+	must.Len(t, 1, h.Plans)
+	plan := h.Plans[0]
+	must.Nil(t, plan.Annotations, must.Sprint("expected no annotations"))
+
+	test.Len(t, 1, plan.NodeUpdate[node.ID], test.Sprint("expected 1 evict/stop"))
+	if len(plan.NodeUpdate[node.ID]) > 0 {
+		test.Eq(t, allocOld.ID, plan.NodeUpdate[node.ID][0].ID,
+			test.Sprintf("expected alloc=%s to be evicted/stopped", allocOld.ID))
+	}
+
+	test.Len(t, 0, plan.NodeAllocation[node.ID], test.Sprint("expected no updates"))
 }

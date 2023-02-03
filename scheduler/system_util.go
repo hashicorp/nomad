@@ -8,13 +8,15 @@ package scheduler
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// materializeSystemTaskGroups is used to materialize all the task groups
-// a system or sysbatch job requires.
+// materializeSystemTaskGroups is used to materialize all the task groups a
+// system or sysbatch job requires. Returns a map of allocation names to task
+// groups.
 func materializeSystemTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 	out := make(map[string]*structs.TaskGroup)
 	if job.Stopped() {
@@ -22,10 +24,10 @@ func materializeSystemTaskGroups(job *structs.Job) map[string]*structs.TaskGroup
 	}
 
 	for _, tg := range job.TaskGroups {
-		for i := 0; i < tg.Count; i++ {
-			name := fmt.Sprintf("%s.%s[%d]", job.Name, tg.Name, i)
-			out[name] = tg
-		}
+		// note that all system/sysbatch allocs for the same task group share
+		// the same alloc index 0
+		name := fmt.Sprintf("%s.%s[0]", job.Name, tg.Name)
+		out[name] = tg
 	}
 	return out
 }
@@ -45,7 +47,7 @@ func diffSystemAllocsForNode(
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
-	required map[string]*structs.TaskGroup, // set of allocations that must exist
+	required map[string]*structs.TaskGroup, // set of task groups (by name) that must exist
 	allocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
@@ -62,7 +64,7 @@ func diffSystemAllocsForNode(
 		// Check for the definition in the required set
 		tg, ok := required[name]
 
-		// If not required, we stop the alloc
+		// If task group is no longer required, we stop the alloc
 		if !ok {
 			result.stop = append(result.stop, allocTuple{
 				Name:      name,
@@ -91,16 +93,6 @@ func diffSystemAllocsForNode(
 		// If we have been marked for migration and aren't terminal, migrate
 		if !exist.TerminalStatus() && exist.DesiredTransition.ShouldMigrate() {
 			result.migrate = append(result.migrate, allocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
-			continue
-		}
-
-		// If we are a sysbatch job and terminal, ignore (or stop?) the alloc
-		if job.Type == structs.JobTypeSysBatch && exist.TerminalStatus() {
-			result.ignore = append(result.ignore, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -152,11 +144,12 @@ func diffSystemAllocsForNode(
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
 		if nodeIsTainted {
-			// If the job is batch and finished successfully, the fact that the
-			// node is tainted does not mean it should be migrated or marked as
-			// lost as the work was already successfully finished. However for
-			// service/system jobs, tasks should never complete. The check of
-			// batch type, defends against client bugs.
+			// If the job is batch and finished successfully (but not yet marked
+			// terminal), the fact that the node is tainted does not mean it
+			// should be migrated or marked as lost as the work was already
+			// successfully finished. However for service/system jobs, tasks
+			// should never complete. The check of batch type, defends against
+			// client bugs.
 			if exist.Job.Type == structs.JobTypeSysBatch && exist.RanSuccessfully() {
 				goto IGNORE
 			}
@@ -228,6 +221,9 @@ func diffSystemAllocsForNode(
 		})
 	}
 
+	// Stop any extraneous allocations
+	ensureSingleSystemAlloc(result)
+
 	// Scan the required groups
 	for name, tg := range required {
 
@@ -291,6 +287,66 @@ func diffSystemAllocsForNode(
 	return result
 }
 
+// ensureSingleSystemAlloc enforces the invariant that a system or sysbatch job
+// should never have more than one allocation in a desired-running state.
+func ensureSingleSystemAlloc(result *diffResult) {
+
+	if len(result.ignore)+len(result.update)+len(result.reconnecting) <= 1 {
+		return
+	}
+
+	// sort by JobModifyIndex, then CreateIndex
+	sortTuples := func(tuples []allocTuple) {
+		sort.Slice(tuples, func(i, j int) bool {
+			if tuples[i].Alloc.Job.JobModifyIndex == tuples[j].Alloc.Job.JobModifyIndex {
+				return tuples[i].Alloc.CreateIndex > tuples[j].Alloc.CreateIndex
+			}
+			return tuples[i].Alloc.Job.JobModifyIndex > tuples[j].Alloc.Job.JobModifyIndex
+		})
+	}
+
+	// ignored allocs are current, so pick the most recent one and stop all the
+	// rest of the running allocs on the node
+	if len(result.ignore) > 0 {
+		sortTuples(result.ignore)
+		if len(result.ignore) > 1 {
+			result.stop = append(result.stop, result.ignore[1:]...)
+			result.ignore = []allocTuple{result.ignore[0]}
+		}
+		result.stop = append(result.stop, result.update...)
+		result.stop = append(result.stop, result.reconnecting...)
+		result.update = []allocTuple{}
+		result.reconnecting = []allocTuple{}
+		return
+	}
+
+	// updated allocs are for in-place updates of the job (ex. bumping the
+	// version for a constraints update), so we can pick the most recent one and
+	// stop all the rest of the running allocs on the node
+	if len(result.update) > 0 {
+		sortTuples(result.update)
+		if len(result.update) > 1 {
+			result.stop = append(result.stop, result.update[1:]...)
+			result.update = []allocTuple{result.update[0]}
+		}
+		result.stop = append(result.stop, result.reconnecting...)
+		result.reconnecting = []allocTuple{}
+		return
+	}
+
+	// reconnecting allocs are for when a node reconnects after being lost with
+	// running allocs. we should only see this case if we got out of sync but
+	// never got a chance to eval before the node disconnected. clean up the
+	// remaining mess.
+	if len(result.reconnecting) > 0 {
+		sortTuples(result.reconnecting)
+		if len(result.reconnecting) > 1 {
+			result.stop = append(result.stop, result.reconnecting[1:]...)
+			result.reconnecting = []allocTuple{result.reconnecting[0]}
+		}
+	}
+}
+
 // diffSystemAllocs is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 func diffSystemAllocs(
@@ -304,15 +360,15 @@ func diffSystemAllocs(
 ) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
-	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
+	allocsByNode := make(map[string][]*structs.Allocation, len(allocs))
 	for _, alloc := range allocs {
-		nodeAllocs[alloc.NodeID] = append(nodeAllocs[alloc.NodeID], alloc)
+		allocsByNode[alloc.NodeID] = append(allocsByNode[alloc.NodeID], alloc)
 	}
 
 	eligibleNodes := make(map[string]*structs.Node)
 	for _, node := range readyNodes {
-		if _, ok := nodeAllocs[node.ID]; !ok {
-			nodeAllocs[node.ID] = nil
+		if _, ok := allocsByNode[node.ID]; !ok {
+			allocsByNode[node.ID] = nil
 		}
 		eligibleNodes[node.ID] = node
 	}
@@ -321,8 +377,8 @@ func diffSystemAllocs(
 	required := materializeSystemTaskGroups(job)
 
 	result := new(diffResult)
-	for nodeID, allocs := range nodeAllocs {
-		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
+	for nodeID, allocsForNode := range allocsByNode {
+		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocsForNode, terminal, serverSupportsDisconnectedClients)
 		result.Append(diff)
 	}
 
