@@ -375,6 +375,12 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
+
+	// This controls the template rerender behaviour when values change in Consul.
+	// By default, Nomad listens for changes to Consul values and re-renders the templates
+	// that depend on those values.  This is not always desirable as it maintains a TCP
+	// connection for each key in each template.
+	RenderTemplatesOnce bool `hcl:"render_templates_once"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -417,6 +423,8 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 		nc.NomadRetry = c.NomadRetry.Copy()
 	}
 
+	nc.RenderTemplatesOnce = c.RenderTemplatesOnce
+
 	return nc
 }
 
@@ -435,7 +443,8 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
 		c.VaultRetry.IsEmpty() &&
-		c.NomadRetry.IsEmpty()
+		c.NomadRetry.IsEmpty() &&
+		c.RenderTemplatesOnce == false
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
