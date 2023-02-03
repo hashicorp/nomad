@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -112,10 +113,14 @@ func TestAPIHook_Ok(t *testing.T) {
 
 	// File should have been created
 	sockDst := apiSocketPath(req.TaskDir)
-	stat, err := os.Stat(sockDst)
-	must.NoError(t, err)
-	must.True(t, stat.Mode()&fs.ModeSocket != 0,
-		must.Sprintf("expected %q to be a unix socket but got %s", sockDst, stat.Mode()))
+
+	// Stat on Windows fails on sockets
+	if runtime.GOOS != "windows" {
+		stat, err := os.Stat(sockDst)
+		must.NoError(t, err)
+		must.True(t, stat.Mode()&fs.ModeSocket != 0,
+			must.Sprintf("expected %q to be a unix socket but got %s", sockDst, stat.Mode()))
+	}
 
 	// Assert the listener is working
 	conn, err := net.Dial("unix", sockDst)
