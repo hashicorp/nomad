@@ -49,6 +49,11 @@ var tcs = map[string]struct {
 		isError:  true,
 		expect:   "template needs to be specified the golang templates.",
 	},
+	"template_sprig": {
+		format:   "template",
+		template: `{{$a := 1}}{{ $a | sprig_add 1 }}`,
+		expect:   "2",
+	},
 }
 
 func TestDataFormat(t *testing.T) {

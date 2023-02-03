@@ -6,6 +6,7 @@ import (
 	"io"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
@@ -62,7 +63,7 @@ func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
 		return "", fmt.Errorf("template needs to be specified the golang templates.")
 	}
 
-	t, err := template.New("format").Parse(p.tmpl)
+	t, err := template.New("format").Funcs(makeFuncMap()).Parse(p.tmpl)
 	if err != nil {
 		return "", err
 	}
@@ -97,4 +98,17 @@ func Format(json bool, template string, data interface{}) (string, error) {
 	}
 
 	return out, nil
+}
+
+func makeFuncMap() template.FuncMap {
+	fm := template.FuncMap{}
+
+	// Add the Sprig functions to the funcmap. These functions are decorated
+	// with `sprig_` to match how they are treated in consul-template
+	for k, v := range sprig.FuncMap() {
+		target := "sprig_" + k
+		fm[target] = v
+	}
+
+	return fm
 }
