@@ -158,7 +158,9 @@ export default class Node extends Model {
     return this.store.adapterFor('node').getMeta(this);
   }
 
-  addMeta(newMeta) {
-    return this.store.adapterFor('node').addMeta(this, newMeta);
+  async addMeta(newMeta) {
+    let metaResponse = await this.store.adapterFor('node').addMeta(this, newMeta);
+    this.meta.recomputeRawProperties(metaResponse.Meta);
+    return metaResponse;
   }
 }

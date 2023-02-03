@@ -8,6 +8,11 @@ const { unflatten } = flat;
 export default class StructuredAttributes extends Fragment {
   @attr() raw;
 
+  recomputeRawProperties(incoming) {
+    this.set('raw', incoming);
+    this.notifyPropertyChange('structured');
+  }
+
   @computed('raw')
   get structured() {
     const original = this.raw;
