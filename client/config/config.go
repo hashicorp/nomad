@@ -311,8 +311,7 @@ type Config struct {
 }
 
 type APIListenerRegistrar interface {
-	// Serve the HTTP API on the provided listener. If the agent is shutting down
-	// the error will be http.ErrServerClosed.
+	// Serve the HTTP API on the provided listener.
 	//
 	// The context is because Serve may be called before the HTTP server has been
 	// initialized. If the context is canceled before the HTTP server is

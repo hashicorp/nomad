@@ -33,8 +33,6 @@ import (
                                   +-----------+
                                      *Kill
                                 (forces terminal)
-
-Link: http://stable.ascii-flow.appspot.com/#Draw4489375405966393064/1824429135
 */
 
 // TaskHook is a lifecycle hook into the life cycle of a task runner.

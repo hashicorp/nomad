@@ -3,26 +3,39 @@ package taskrunner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 )
 
+// apiHook exposes the Task API. The Task API allows task's to access the Nomad
+// HTTP API without having to discover and connect to an agent's address.
+// Instead a unix socket is provided in a standard location. To prevent access
+// by untrusted workloads the Task API always requires authentication even when
+// ACLs are disabled.
+//
+// The Task API hook largely soft-fails as there are a number of ways creating
+// the unix socket could fail (the most common one being path length
+// restrictions), and it is assumed most tasks won't require access to the Task
+// API anyway. Tasks that do require access are expected to crash and get
+// rescheduled should they land on a client who Task API hook soft-fails.
 type apiHook struct {
-	srv    config.APIListenerRegistrar
-	logger hclog.Logger
-	ln     net.Listener
+	shutdownCtx context.Context
+	srv         config.APIListenerRegistrar
+	logger      hclog.Logger
+	ln          net.Listener
 }
 
-func newAPIHook(srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
+func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
 	h := &apiHook{
-		srv: srv,
+		shutdownCtx: shutdownCtx,
+		srv:         srv,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -33,25 +46,21 @@ func (*apiHook) Name() string {
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	udsDir := filepath.Join(req.TaskDir.SecretsDir, "run")
-	if err := os.MkdirAll(udsDir, 0o775); err != nil {
-		return fmt.Errorf("error creating api socket directory: %w", err)
-	}
-
-	udsPath := filepath.Join(udsDir, "nomad.socket")
+	udsPath := apiSocketPath(req.TaskDir)
 	if err := os.RemoveAll(udsPath); err != nil {
-		return fmt.Errorf("could not remove existing api socket: %w", err)
+		h.logger.Warn("error removing task api socket", "path", udsPath, "error", err)
 	}
 
 	udsln, err := net.Listen("unix", udsPath)
 	if err != nil {
-		return fmt.Errorf("could not create api socket: %w", err)
+		h.logger.Warn("error listening on task api socket", "path", udsPath, "error", err)
+		return nil
 	}
 
 	go func() {
 		// Cannot use Prestart's context as it is closed after all prestart hooks
-		// have been closed.
-		if err := h.srv.Serve(context.TODO(), udsln); err != nil {
+		// have been closed, but we do want to try to cleanup on shutdown.
+		if err := h.srv.Serve(h.shutdownCtx, udsln); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				return
 			}
@@ -70,15 +79,26 @@ func (h *apiHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, res
 	if h.ln != nil {
 		if err := h.ln.Close(); err != nil {
 			if !errors.Is(err, net.ErrClosed) {
-				h.logger.Trace("error closing task listener: %v", err)
+				h.logger.Debug("error closing task listener: %v", err)
 			}
 		}
+		h.ln = nil
 	}
 
 	// Best-effort at cleaining things up. Alloc dir cleanup will remove it if
 	// this fails for any reason.
-	udsPath := filepath.Join(req.TaskDir.SecretsDir, "run", "nomad.socket")
-	_ = os.RemoveAll(udsPath)
+	_ = os.RemoveAll(apiSocketPath(req.TaskDir))
 
 	return nil
+}
+
+// apiSocketPath returns the path to the Task API socket.
+//
+// The path needs to be as short as possible because of the low limits on the
+// sun_path char array imposed by the syscall used to create unix sockets.
+//
+// See https://github.com/hashicorp/nomad/pull/13971 for an example of the
+// sadness this causes.
+func apiSocketPath(taskDir *allocdir.TaskDir) string {
+	return filepath.Join(taskDir.SecretsDir, "api.sock")
 }
