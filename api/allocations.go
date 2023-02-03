@@ -254,6 +254,21 @@ type Allocation struct {
 	ModifyTime            int64
 }
 
+type AllocationMetricOutput struct {
+	/*
+		NodesAvailable
+		ClassFiltered
+		ConstraintFiltered
+		NodesExhausted
+		ClassExhausted
+		DimensionExhausted
+		QuotaExhausted
+		ScoreMetaData
+		Scores
+	*/
+	Nodes
+}
+
 // AllocationMetric is used to deserialize allocation metrics.
 type AllocationMetric struct {
 	NodesEvaluated        int
