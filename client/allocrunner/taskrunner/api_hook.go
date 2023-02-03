@@ -46,6 +46,11 @@ func (*apiHook) Name() string {
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	if h.ln != nil {
+		// Listener already set. Task is probably restarting.
+		return nil
+	}
+
 	udsPath := apiSocketPath(req.TaskDir)
 	if err := os.RemoveAll(udsPath); err != nil {
 		h.logger.Warn("error removing task api socket", "path", udsPath, "error", err)

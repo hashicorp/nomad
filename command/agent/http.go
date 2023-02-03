@@ -1063,14 +1063,14 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	if a.srv.parse(resp, req, &args.Region, &args.QueryOptions) {
 		// Error parsing request, 400
 		resp.WriteHeader(http.StatusBadRequest)
-		resp.Write([]byte("Invalid request parameters\n"))
+		resp.Write([]byte(http.StatusText(http.StatusBadRequest)))
 		return
 	}
 
 	if args.AuthToken == "" {
 		// 401 instead of 403 since no token was present.
 		resp.WriteHeader(http.StatusUnauthorized)
-		resp.Write([]byte("Authorization required\n"))
+		resp.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 		return
 	}
 
@@ -1085,7 +1085,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	if reply.Identity == nil || (reply.Identity.ACLToken == nil && reply.Identity.Claims == nil) {
 		a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
 		resp.WriteHeader(http.StatusForbidden)
-		resp.Write([]byte("Forbidden\n"))
+		resp.Write([]byte(http.StatusText(http.StatusForbidden)))
 		return
 	}
 
