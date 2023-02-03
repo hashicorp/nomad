@@ -10780,6 +10780,27 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	return na
 }
 
+func (a *AllocMetric) Add(other *AllocMetric) {
+	a.NodesEvaluated += other.NodesEvaluated
+	a.NodesFiltered += other.NodesFiltered
+	helper.AccumulateMap(a.NodesAvailable, other.NodesAvailable)
+	helper.AccumulateMap(a.ClassFiltered, other.ClassFiltered)
+	helper.AccumulateMap(a.ConstraintFiltered, other.ConstraintFiltered)
+	a.NodesExhausted += other.NodesExhausted
+	helper.AccumulateMap(a.ClassExhausted, other.ClassExhausted)
+	helper.AccumulateMap(a.DimensionExhausted, other.DimensionExhausted)
+	quotaExhausted := set.From(a.QuotaExhausted)
+	quotaExhausted.InsertAll(other.QuotaExhausted)
+	a.QuotaExhausted = quotaExhausted.Slice()
+	helper.AccumulateMap(a.Scores, other.Scores)
+	// ScoreMetaData []*NodeScoreMeta (todo?)
+	a.CoalescedFailures += other.CoalescedFailures
+
+	for k, v := range a.ResourcesExhausted {
+		other.ResourcesExhausted[k] = v
+	}
+}
+
 func (a *AllocMetric) EvaluateNode() {
 	a.NodesEvaluated += 1
 }

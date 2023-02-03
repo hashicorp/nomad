@@ -152,6 +152,13 @@ func DeepCopyMap[M ~map[K]V, K comparable, V Copyable[V]](m M) M {
 	return result
 }
 
+// AccumulateMap is a unionizes a and b, accumulating the values of b onto a.
+func AccumulateMap[M ~map[K]V, K comparable, V constraints.Integer | constraints.Float](a, b M) {
+	for k, v := range b {
+		a[k] += v
+	}
+}
+
 // CopySlice creates a deep copy of s. For slices with elements that do not
 // implement Copy(), use slices.Clone.
 func CopySlice[S ~[]E, E Copyable[E]](s S) S {

@@ -131,6 +131,7 @@ type EvalContext struct {
 	plan        *structs.Plan
 	logger      log.Logger
 	metrics     *structs.AllocMetric
+	metrics2    *structs.AllocMetric
 	eligibility *EvalEligibility
 }
 
@@ -167,6 +168,7 @@ func (e *EvalContext) SetState(s State) {
 }
 
 func (e *EvalContext) Reset() {
+	e.metrics2.Add(e.metrics) // for cli reporting in preemption cases
 	e.metrics = new(structs.AllocMetric)
 }
 
@@ -243,7 +245,7 @@ const (
 	// ineligible for the evaluation.
 	EvalComputedClassIneligible
 
-	// EvalComputedClassIneligible is used to mark the computed class as
+	// EvalComputedClassEligible is used to mark the computed class as
 	// eligible for the evaluation.
 	EvalComputedClassEligible
 
