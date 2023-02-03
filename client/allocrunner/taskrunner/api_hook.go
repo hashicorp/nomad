@@ -9,18 +9,18 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 )
 
 type apiHook struct {
 	srv    config.APIListenerRegistrar
-	logger log.Logger
+	logger hclog.Logger
 	ln     net.Listener
 }
 
-func newAPIHook(srv config.APIListenerRegistrar, logger log.Logger) *apiHook {
+func newAPIHook(srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
 	h := &apiHook{
 		srv: srv,
 	}
@@ -32,14 +32,7 @@ func (*apiHook) Name() string {
 	return "api"
 }
 
-func (h *apiHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	if h.ln != nil {
-		//TODO(schmichael) remove me
-		h.logger.Trace("huh, called apiHook.Prestart twice")
-		return nil
-	}
-
-	//TODO(schmichael) what dir & perms
+func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	udsDir := filepath.Join(req.TaskDir.SecretsDir, "run")
 	if err := os.MkdirAll(udsDir, 0o775); err != nil {
 		return fmt.Errorf("error creating api socket directory: %w", err)
@@ -58,7 +51,13 @@ func (h *apiHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	go func() {
 		// Cannot use Prestart's context as it is closed after all prestart hooks
 		// have been closed.
-		if err := h.srv.Serve(context.TODO(), udsln); err != http.ErrServerClosed {
+		if err := h.srv.Serve(context.TODO(), udsln); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			h.logger.Error("error serving api", "error", err)
 		}
 	}()
@@ -68,17 +67,18 @@ func (h *apiHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 }
 
 func (h *apiHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
-	if h.ln == nil {
-		//TODO(schmichael) remove me
-		h.logger.Trace("huh, no listener")
-		return nil
+	if h.ln != nil {
+		if err := h.ln.Close(); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				h.logger.Trace("error closing task listener: %v", err)
+			}
+		}
 	}
 
-	if err := h.ln.Close(); err != nil {
-		if errors.Is(err, net.ErrClosed) {
-			return nil
-		}
-		h.logger.Trace("error closing task listener: %v", err)
-	}
+	// Best-effort at cleaining things up. Alloc dir cleanup will remove it if
+	// this fails for any reason.
+	udsPath := filepath.Join(req.TaskDir.SecretsDir, "run", "nomad.socket")
+	_ = os.RemoveAll(udsPath)
+
 	return nil
 }

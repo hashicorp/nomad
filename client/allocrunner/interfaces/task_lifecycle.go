@@ -186,6 +186,9 @@ type TaskStopRequest struct {
 	// ExistingState is previously set hook data and should only be
 	// read. Stop hooks cannot alter state.
 	ExistingState map[string]string
+
+	// TaskDir contains the task's directory tree on the host
+	TaskDir *allocdir.TaskDir
 }
 
 type TaskStopResponse struct{}

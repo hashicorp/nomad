@@ -516,6 +516,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.registerEnterpriseHandlers()
 }
 
+// builtinAPI is a wrapper around serving the HTTP API to arbitrary listeners
+// such as the Task API. It is necessary because the HTTP servers are created
+// *after* the client has been initialized, so this wrapper blocks Serve
+// requests from task api hooks until the HTTP server is setup and ready to
+// accept from new listeners.
+//
+// bufconndialer provides similar functionality to consul-template except it
+// satisfies the Dialer API as opposed to the Serve(Listener) API.
 type builtinAPI struct {
 	srv        *http.Server
 	srvReadyCh chan struct{}
@@ -542,7 +550,8 @@ func (b *builtinAPI) SetServer(srv *http.Server) {
 
 // Serve the HTTP API on the listener unless the context is canceled before the
 // HTTP API is ready to serve listeners. A non-nil error will always be
-// returned, but http.ErrServerClosed can likely be ignored.
+// returned, but http.ErrServerClosed and net.ErrClosed can likely be ignored
+// as they indicate the server or listener is being shutdown.
 func (b *builtinAPI) Serve(ctx context.Context, l net.Listener) error {
 	select {
 	case <-ctx.Done():
@@ -1072,7 +1081,6 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	//TODO(schmichael) this is janky but works?
 	// Require an acl token or workload identity
 	if reply.Identity == nil || (reply.Identity.ACLToken == nil && reply.Identity.Claims == nil) {
 		a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
