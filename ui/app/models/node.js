@@ -154,10 +154,6 @@ export default class Node extends Model {
     return this.store.adapterFor('node').cancelDrain(this);
   }
 
-  getMeta() {
-    return this.store.adapterFor('node').getMeta(this);
-  }
-
   async addMeta(newMeta) {
     let metaResponse = await this.store.adapterFor('node').addMeta(this, newMeta);
     this.meta.recomputeRawProperties(metaResponse.Meta);
