@@ -1,5 +1,10 @@
 package scheduler
 
+// The structs and helpers in this file are split out of reconciler.go for code
+// manageability and should not be shared to the system schedulers! If you need
+// something here for system/sysbatch jobs, double-check it's safe to use for
+// all scheduler types before moving it into util.go
+
 import (
 	"fmt"
 	"sort"
