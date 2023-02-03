@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 var _ cli.Command = &OperatorMetricsCommand{}
@@ -73,19 +73,19 @@ func TestCommand_Metrics_Cases(t *testing.T) {
 			[]string{"-address=http://foo"},
 			1,
 			"",
-			"dial tcp: lookup foo: Temporary failure in name resolution",
+			"dial tcp: lookup foo", // dns resolution error messages changes with Go, OS version
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			code := cmd.Run(c.args)
-			out := ui.OutputWriter.String()
-			outerr := ui.ErrorWriter.String()
+			stdOut := ui.OutputWriter.String()
+			stdErr := ui.ErrorWriter.String()
 
-			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
-			require.Contains(t, out, c.expectedOutput, "expected output \"%s\", got \"%s\"", c.expectedOutput, out)
-			require.Containsf(t, outerr, c.expectedError, "expected error \"%s\", got \"%s\"", c.expectedError, outerr)
+			must.Eq(t, code, c.expectedCode, must.Sprintf("expected exit code %d, got: %d: %s", c.expectedCode, code, stdErr))
+			must.StrContains(t, stdOut, c.expectedOutput)
+			must.StrContains(t, stdErr, c.expectedError)
 
 			ui.OutputWriter.Reset()
 			ui.ErrorWriter.Reset()
