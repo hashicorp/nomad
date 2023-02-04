@@ -1091,5 +1091,4 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 
 	a.srv.logger.Trace("Authenticated request", "id", reply.Identity, "method", req.Method, "url", req.URL)
 	a.wrapped.ServeHTTP(resp, req)
-	return
 }
