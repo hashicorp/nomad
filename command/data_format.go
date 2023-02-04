@@ -37,14 +37,12 @@ func DataFormat(format, tmpl string) (DataFormatter, error) {
 	return nil, fmt.Errorf("Unsupported format is specified.")
 }
 
-type JSONFormat struct {
-}
+type JSONFormat struct{}
 
 // TransformData returns JSON format string data.
 func (p *JSONFormat) TransformData(data interface{}) (string, error) {
 	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, jsonHandlePretty)
-	err := enc.Encode(data)
+	err := codec.NewEncoder(&buf, jsonHandlePretty).Encode(data)
 	if err != nil {
 		return "", err
 	}
