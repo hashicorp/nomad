@@ -45,12 +45,39 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
+	// Test with a no-expiry token and -json/-t flag
+	testCasesNoTTL := []string{"-json", "-t='{{ .Policies }}'"}
+	for _, outputFormatFlag := range testCasesNoTTL {
+		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client", outputFormatFlag})
+		require.Equal(t, 0, code)
+
+		// Check the output
+		out = ui.OutputWriter.String()
+		require.Contains(t, out, "foo")
+
+		ui.OutputWriter.Reset()
+		ui.ErrorWriter.Reset()
+	}
+
 	// Create a new token that has an expiry TTL set and check the response.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-type=management", "-ttl=10m"})
 	require.Equal(t, 0, code)
 
 	out = ui.OutputWriter.String()
 	require.NotContains(t, out, "Expiry Time  = <none>")
+
+	// Test with a token that has expiry TTL set and -json/-t flag
+	testCasesWithTTL := [][]string{{"-json", "600000000000"}, {"-t='{{ .ExpirationTTL }}'", "10m0s"}}
+	for _, outputFormatFlag := range testCasesWithTTL {
+		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-type=management", "-ttl=10m", outputFormatFlag[0]})
+		require.Equal(t, 0, code)
+
+		// Check the output
+		out = ui.OutputWriter.String()
+		require.Contains(t, out, outputFormatFlag[1])
+		ui.OutputWriter.Reset()
+		ui.ErrorWriter.Reset()
+	}
 }
 
 func Test_generateACLTokenRoleLinks(t *testing.T) {
