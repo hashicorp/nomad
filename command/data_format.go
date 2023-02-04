@@ -3,7 +3,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -56,21 +55,21 @@ type TemplateFormat struct {
 
 // TransformData returns template format string data.
 func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
-	var out io.Writer = new(bytes.Buffer)
+	var out bytes.Buffer
 	if len(p.tmpl) == 0 {
 		return "", fmt.Errorf("template needs to be specified the golang templates.")
 	}
 
-	t, err := template.New("format").Funcs(makeFuncMap()).Parse(p.tmpl)
+	t, err := template.New("").Funcs(makeFuncMap()).Parse(p.tmpl)
 	if err != nil {
 		return "", err
 	}
 
-	err = t.Execute(out, data)
+	err = t.Execute(&out, data)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprint(out), nil
+	return out.String(), nil
 }
 
 func Format(json bool, template string, data interface{}) (string, error) {
