@@ -91,7 +91,7 @@ func Format(json bool, template string, data interface{}) (string, error) {
 
 	out, err := f.TransformData(data)
 	if err != nil {
-		return "", fmt.Errorf("Error formatting the data: %s", err)
+		return "", fmt.Errorf("Error formatting the data: %w", err)
 	}
 
 	return out, nil
