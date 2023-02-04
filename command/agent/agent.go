@@ -115,8 +115,8 @@ type Agent struct {
 	builtinListener net.Listener
 	builtinDialer   *bufconndialer.BufConnWrapper
 
-	//TODO(schmichael) builtinServer is an HTTP server for attaching
-	//per-task listeners. Always requires auth.
+	// builtinServer is an HTTP server for attaching per-task listeners. Always
+	// requires auth.
 	builtinServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
@@ -1021,7 +1021,6 @@ func (a *Agent) setupClient() error {
 	// running consul-template functions that utilize the Nomad API. We lazy
 	// load this into the client config, therefore this needs to happen before
 	// we call NewClient.
-	//TODO migrate to APIListenerRegistrar
 	a.builtinListener, a.builtinDialer = bufconndialer.New()
 	conf.TemplateDialer = a.builtinDialer
 

@@ -214,8 +214,6 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		srvs = append(srvs, srv)
 	}
 
-	// This HTTP server is only
-
 	if serverInitializationErrors != nil {
 		for _, srv := range srvs {
 			srv.Shutdown()
@@ -1043,8 +1041,10 @@ func wrapCORSWithAllowedMethods(f func(http.ResponseWriter, *http.Request), meth
 	return allowCORSWithMethods(methods...).Handler(http.HandlerFunc(f))
 }
 
-// TODO(schmichael) caching - see client/acl.go
-// TODO(schmichael) where should this thing live
+// authMiddleware implements the http.Handler interface to enforce
+// authentication for *all* requests. Even with ACLs enabled there are
+// endpoints which are accessible without authenticating. This middleware is
+// used for the Task API to enfoce authentication for all API access.
 type authMiddleware struct {
 	srv     *HTTPServer
 	wrapped http.Handler
