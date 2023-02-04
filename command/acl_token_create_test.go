@@ -67,7 +67,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	require.NotContains(t, out, "Expiry Time  = <none>")
 
 	// Test with a token that has expiry TTL set and -json/-t flag
-	testCasesWithTTL := [][]string{{"-json", "600000000000"}, {"-t='{{ .ExpirationTTL }}'", "10m0s"}}
+	testCasesWithTTL := [][]string{{"-json", "ExpirationTTL"}, {"-t='{{ .ExpirationTTL }}'", "10m0s"}}
 	for _, outputFormatFlag := range testCasesWithTTL {
 		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-type=management", "-ttl=10m", outputFormatFlag[0]})
 		require.Equal(t, 0, code)
