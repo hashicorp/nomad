@@ -57,7 +57,7 @@ type TemplateFormat struct {
 func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
 	var out bytes.Buffer
 	if len(p.tmpl) == 0 {
-		return "", fmt.Errorf("template needs to be specified the golang templates.")
+		return "", fmt.Errorf("template needs to be specified in golang's text/template format.")
 	}
 
 	t, err := template.New("").Funcs(makeFuncMap()).Parse(p.tmpl)

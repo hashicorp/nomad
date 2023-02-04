@@ -47,7 +47,7 @@ var tcs = map[string]struct {
 		format:   "template",
 		template: "",
 		isError:  true,
-		expect:   "template needs to be specified the golang templates.",
+		expect:   "template needs to be specified in golang's text/template format.",
 	},
 	"template_sprig": {
 		format:   "template",
