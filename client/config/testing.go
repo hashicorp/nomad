@@ -77,13 +77,13 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	conf.MaxKillTimeout = 30 * time.Second
 
 	// Provide a stub APIListenerRegistrar implementation
-	conf.APIListenerRegistrar = noopAPIListenerRegistrar{}
+	conf.APIListenerRegistrar = NoopAPIListenerRegistrar{}
 
 	return conf, cleanup
 }
 
-type noopAPIListenerRegistrar struct{}
+type NoopAPIListenerRegistrar struct{}
 
-func (noopAPIListenerRegistrar) Serve(_ context.Context, _ net.Listener) error {
+func (NoopAPIListenerRegistrar) Serve(_ context.Context, _ net.Listener) error {
 	return nil
 }

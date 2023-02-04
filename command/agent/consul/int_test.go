@@ -46,7 +46,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
+		c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
@@ -152,19 +152,20 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Build the config
 	config := &taskrunner.Config{
-		Alloc:               alloc,
-		ClientConfig:        conf,
-		Consul:              serviceClient,
-		Task:                task,
-		TaskDir:             taskDir,
-		Logger:              logger,
-		Vault:               vclient,
-		StateDB:             state.NoopDB{},
-		StateUpdater:        logUpdate,
-		DeviceManager:       devicemanager.NoopMockManager(),
-		DriverManager:       drivermanager.TestDriverManager(t),
-		StartConditionMetCh: closedCh,
-		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
+		Alloc:                alloc,
+		ClientConfig:         conf,
+		Consul:               serviceClient,
+		Task:                 task,
+		TaskDir:              taskDir,
+		Logger:               logger,
+		Vault:                vclient,
+		StateDB:              state.NoopDB{},
+		StateUpdater:         logUpdate,
+		DeviceManager:        devicemanager.NoopMockManager(),
+		DriverManager:        drivermanager.TestDriverManager(t),
+		StartConditionMetCh:  closedCh,
+		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
+		APIListenerRegistrar: config.NoopAPIListenerRegistrar{},
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)
