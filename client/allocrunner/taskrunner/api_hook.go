@@ -62,6 +62,10 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 		return nil
 	}
 
+	if err := os.Chmod(udsPath, 0o777); err != nil {
+		h.logger.Warn("error setting task api socket permissions", "path", udsPath, "error", err)
+	}
+
 	go func() {
 		// Cannot use Prestart's context as it is closed after all prestart hooks
 		// have been closed, but we do want to try to cleanup on shutdown.
