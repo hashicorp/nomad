@@ -344,11 +344,9 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 	for class, num := range metrics.ClassExhausted {
 		out += fmt.Sprintf("%s* Class %q exhausted on %d nodes\n", prefix, class, num)
 	}
-	for dim, num := range metrics.DimensionExhausted {
+	for dim, num := range metrics.Output.DimensionExhausted {
+		// YOU ARE HERE (does this work in all cases?)
 		out += fmt.Sprintf("%s* Dimension %q exhausted on %d nodes\n", prefix, dim, num)
-	}
-	for dim, num := range metrics.DimensionExhaustedPre {
-		out += fmt.Sprintf("%s* Dimension %q exhausted on %d nodes (preemption)\n", prefix, dim, num)
 	}
 
 	// Print quota info

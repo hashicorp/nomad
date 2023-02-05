@@ -203,6 +203,13 @@ func CopyMapOfSlice[K comparable, V any](m map[K][]V) map[K][]V {
 	return c
 }
 
+// AccumulateMap is a unionizes a and b, accumulating the values of b onto a.
+func AccumulateMap[M ~map[K]V, K comparable, V constraints.Integer | constraints.Float](a, b M) {
+	for k, v := range b {
+		a[k] += v
+	}
+}
+
 // CleanEnvVar replaces all occurrences of illegal characters in an environment
 // variable with the specified byte.
 func CleanEnvVar(s string, r byte) string {

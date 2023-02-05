@@ -254,23 +254,23 @@ type Allocation struct {
 	ModifyTime            int64
 }
 
+// AllocationMetricOutput keeps track of the accumulation of AllocationMetric
+// throughout an evaluation.
 type AllocationMetricOutput struct {
-	/*
-		NodesAvailable
-		ClassFiltered
-		ConstraintFiltered
-		NodesExhausted
-		ClassExhausted
-		DimensionExhausted
-		QuotaExhausted
-		ScoreMetaData
-		Scores
-	*/
-	Nodes
+	NodesEvaluated     int
+	ClassFiltered      map[string]int
+	ConstraintFiltered map[string]int
+	NodesExhausted     int
+	ClassExhausted     map[string]int
+	DimensionExhausted map[string]int
+	QuotaExhausted     []string
+	ScoreMetaData      []*NodeScoreMeta
+	Scores             map[string]float64 // Deprecated: replaced with ScoreMetaData
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
 type AllocationMetric struct {
+	Output                AllocationMetricOutput
 	NodesEvaluated        int
 	NodesFiltered         int
 	NodesAvailable        map[string]int
@@ -282,11 +282,10 @@ type AllocationMetric struct {
 	DimensionExhaustedPre map[string]int
 	QuotaExhausted        []string
 	ResourcesExhausted    map[string]*Resources
-	// Deprecated, replaced with ScoreMetaData
-	Scores            map[string]float64
-	AllocationTime    time.Duration
-	CoalescedFailures int
-	ScoreMetaData     []*NodeScoreMeta
+	Scores                map[string]float64 // Deprecated: replaced with ScoreMetaData
+	AllocationTime        time.Duration
+	CoalescedFailures     int
+	ScoreMetaData         []*NodeScoreMeta
 }
 
 // NodeScoreMeta is used to serialize node scoring metadata

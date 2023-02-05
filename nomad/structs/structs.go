@@ -10700,10 +10700,38 @@ func NewAllocStubFields() *AllocStubFields {
 	}
 }
 
+// AllocationMetricOutput keeps track of the accumulation of AllocationMetric
+// throughout an evaluation.
+type AllocationMetricOutput struct {
+	NodesEvaluated     int
+	ClassFiltered      map[string]int
+	ConstraintFiltered map[string]int
+	NodesExhausted     int
+	ClassExhausted     map[string]int
+	DimensionExhausted map[string]int
+	QuotaExhausted     *set.Set[string]
+	ScoreMetaData      *set.HashSet[*NodeScoreMeta, string]
+	Scores             map[string]float64 // Deprecated: replaced with ScoreMetaData
+}
+
+func (amo *AllocationMetricOutput) Add(am *AllocMetric) {
+	amo.NodesEvaluated += am.NodesEvaluated
+	helper.AccumulateMap(amo.ClassFiltered, am.ClassFiltered)
+	helper.AccumulateMap(amo.ConstraintFiltered, am.ConstraintFiltered)
+	amo.NodesExhausted += am.NodesExhausted
+	helper.AccumulateMap(amo.ClassExhausted, am.ClassExhausted)
+	helper.AccumulateMap(amo.DimensionExhausted, am.DimensionExhausted)
+	amo.QuotaExhausted.InsertAll(am.QuotaExhausted)
+	amo.ScoreMetaData.InsertAll(am.ScoreMetaData)
+	helper.AccumulateMap(amo.Scores, am.Scores)
+}
+
 // AllocMetric is used to track various metrics while attempting
 // to make an allocation. These are used to debug a job, or to better
 // understand the pressure within the system.
 type AllocMetric struct {
+	Output AllocationMetricOutput
+
 	// NodesEvaluated is the number of nodes that were evaluated
 	NodesEvaluated int
 
@@ -10936,6 +10964,11 @@ func (s *NodeScoreMeta) Score() float64 {
 
 func (s *NodeScoreMeta) Data() interface{} {
 	return s
+}
+
+// Hash returns the NodeID which is as unique as we need.
+func (s *NodeScoreMeta) Hash() string {
+	return s.NodeID
 }
 
 // AllocNetworkStatus captures the status of an allocation's network during runtime.

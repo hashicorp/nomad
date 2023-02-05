@@ -6,7 +6,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // Context is used to track contextual information used for placement
@@ -168,14 +167,8 @@ func (e *EvalContext) SetState(s State) {
 }
 
 func (e *EvalContext) Reset() {
-	oldDimensionExhausted := e.metrics.DimensionExhausted
-	oldDimensionExhaustedPre := e.metrics.DimensionExhaustedPre
+	e.metrics.Output.Add(e.metrics)
 	e.metrics = new(structs.AllocMetric)
-	m := maps.Clone(oldDimensionExhausted)
-	for k, v := range oldDimensionExhaustedPre {
-		m[k] = v
-	}
-	e.metrics.DimensionExhaustedPre = m
 }
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
