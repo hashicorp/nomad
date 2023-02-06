@@ -822,6 +822,7 @@
           @attributePairs={{this.model.meta.structured}}
           @editable={{can "write client"}}
           @onKVSave={{this.addDynamicMetaData}}
+          @onKVEdit={{this.validateMetadata}}
           @class="attributes-table"
         />
       </div>
@@ -843,6 +844,7 @@
           <h3 class="title is-6">Add Dynamic Metadata</h3>
           <MetadataEditor
             @kv={{this.newMetaData}}
+            @onEdit={{this.validateMetadata}}
           >
             <button
               disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}

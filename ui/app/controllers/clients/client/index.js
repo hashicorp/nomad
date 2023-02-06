@@ -284,6 +284,8 @@ export default class ClientController extends Controller.extend(
 
   // #region metadata
 
+  @tracked editingMetadata = false;
+
   get hasMeta() {
     return (
       this.model.meta?.structured && Object.keys(this.model.meta?.structured)
@@ -300,6 +302,14 @@ export default class ClientController extends Controller.extend(
       key: '',
       value: '',
     };
+  }
+
+  @action validateMetadata(event, b, c) {
+    console.log('validatin', event, b, c);
+    if (event.key === 'Escape') {
+      this.resetNewMetaData();
+      this.editingMetadata = false;
+    }
   }
 
   @action async addDynamicMetaData({ key, value }, e) {

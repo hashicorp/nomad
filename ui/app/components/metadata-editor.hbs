@@ -10,6 +10,7 @@
         @type="text"
         @value={{@kv.key}}
         class="input"
+        {{on "keyup" @onEdit}}
       />
     {{/if}}
   </label>
@@ -21,12 +22,14 @@
         @value={{@kv.value}}
         class="input"
         {{autofocus}}
+        {{on "keyup" @onEdit}}
       />
     {{else}}
       <Input
         @type="text"
         @value={{@kv.value}}
         class="input"
+        {{on "keyup" @onEdit}}
       />
     {{/if}}
   </label>

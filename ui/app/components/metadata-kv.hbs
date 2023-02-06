@@ -3,7 +3,7 @@
     <td colspan="2">
       <MetadataEditor
         @kv={{hash key=this.prefixedKey value=this.value}}
-        @onEdit={{fn @onKVEdit (hash key=this.prefixedKey value=this.value)}}
+        @onEdit={{this.onEdit}}
         @constantKey={{true}}
         @autofocusValue={{true}}
         >
