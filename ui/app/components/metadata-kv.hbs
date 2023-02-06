@@ -8,16 +8,15 @@
         @autofocusValue={{true}}
         >
         <button
-          type="button"
-          class="button"
-          {{on "click" 
-            (queue
-              (action (mut this.editing) false)
-              (action (mut this.value) @value)
-            )
-          }}
+          disabled={{or (not @key) (not @value)}}
+          type="submit"
+          class="button is-primary"
+          {{on "click" (queue
+            (action @onKVSave (hash key=@key value=this.value))
+            (action (mut this.editing) false)
+          )}}
         >
-          Cancel
+          Update {{@key}}
         </button>
         <button
           type="button"
@@ -30,26 +29,26 @@
           Delete Property
         </button>
         <button
-          disabled={{or (not @key) (not @value)}}
-          type="submit"
-          class="button is-primary"
-          {{on "click" (queue
-            (action @onKVSave (hash key=@key value=this.value))
-            (action (mut this.editing) false)
-          )}}
+          type="button"
+          class="button"
+          {{on "click" 
+            (queue
+              (action (mut this.editing) false)
+              (action (mut this.value) @value)
+            )
+          }}
         >
-          Update {{@key}}
+          Cancel
         </button>
-
-        </MetadataEditor>
+      </MetadataEditor>
     </td>
   {{else}}
     <td data-test-key>
       {{#if @prefix}}<span class="is-faded" data-test-prefix>{{@prefix}}.</span>{{/if}}
       {{~@key}}
     </td>
-    <td data-test-value title="{{@value}}">
-      {{@value}}
+    <td title="{{@value}}">
+      <span data-test-value>{{@value}}</span>
       {{#if @editable}}
       <button class="button is-light is-compact edit-existing-metadata-button" type="button"
         {{on "click" (action (mut this.editing) true)}}

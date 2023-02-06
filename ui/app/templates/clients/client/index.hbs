@@ -842,7 +842,6 @@
       {{#if this.editingMetadata}}
         <div class="add-dynamic-metadata">
           <h3 class="title is-6">Add Dynamic Metadata</h3>
-          {{!-- TODO: add a cancel button to drop out of editingMetadata --}}
           <MetadataEditor
             @kv={{this.newMetaData}}
             @onEdit={{this.validateKey}}
@@ -859,6 +858,18 @@
             >
               Add {{this.newMetaData.key}} to node metadata
             </button>
+
+            <button
+              type="button"
+              class="button is-secondary"
+              {{on "click" (queue
+                this.resetNewMetaData
+                (action (mut this.editingMetadata) false)
+              )}}
+            >
+              Cancel
+            </button>
+
           </MetadataEditor>
         </div>
       {{else}}
