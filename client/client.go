@@ -186,8 +186,14 @@ type Client struct {
 	// 	// <mutate newConfig>
 	// 	c.config = newConfig
 	// 	c.configLock.Unlock()
-	config     *config.Config
-	configLock sync.Mutex
+	configLock  sync.Mutex
+	config      *config.Config
+	metaDynamic map[string]*string // dynamic node metadata
+
+	// metaStatic are the Node's static metadata set via the agent configuration
+	// and defaults during client initialization. Since this map is never updated
+	// at runtime it may be accessed outside of locks.
+	metaStatic map[string]string
 
 	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
@@ -1533,7 +1539,7 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 
-	// Setup default meta
+	// Setup default static meta
 	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
 		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
 	}
@@ -1547,12 +1553,21 @@ func (c *Client) setupNode() error {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
 	}
 
+	// Since node.Meta will get dynamic metadata merged in, save static metadata
+	// here.
+	c.metaStatic = maps.Clone(node.Meta)
+
 	// Merge dynamic node metadata
-	dynamicMeta, err := c.stateDB.GetNodeMeta()
+	c.metaDynamic, err = c.stateDB.GetNodeMeta()
 	if err != nil {
 		return fmt.Errorf("error reading dynamic node metadata: %w", err)
 	}
-	for dk, dv := range dynamicMeta {
+
+	if c.metaDynamic == nil {
+		c.metaDynamic = map[string]*string{}
+	}
+
+	for dk, dv := range c.metaDynamic {
 		if dv == nil {
 			_, ok := node.Meta[dk]
 			if ok {
@@ -1561,7 +1576,7 @@ func (c *Client) setupNode() error {
 			} else {
 				// Forget dynamic node metadata tombstone as there's no
 				// static value to erase.
-				delete(dynamicMeta, dk)
+				delete(c.metaDynamic, dk)
 			}
 			continue
 		}
@@ -1571,7 +1586,7 @@ func (c *Client) setupNode() error {
 
 	// Write back dynamic node metadata as tombstones may have been removed
 	// above
-	if err := c.stateDB.PutNodeMeta(dynamicMeta); err != nil {
+	if err := c.stateDB.PutNodeMeta(c.metaDynamic); err != nil {
 		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
 	}
 

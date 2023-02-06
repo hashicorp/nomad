@@ -22,12 +22,12 @@ func newNodeMetaEndpoint(srv *Server) *NodeMeta {
 	return n
 }
 
-func (n *NodeMeta) Set(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
-	const method = "NodeMeta.Set"
+func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
+	const method = "NodeMeta.Apply"
 	if done, err := n.srv.forward(method, args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "client_meta", "Set"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "client_meta", "apply"}, time.Now())
 
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {

@@ -11,8 +11,11 @@ type NodeMetaResponse struct {
 	// Meta is the merged static + dynamic Node metadata
 	Meta map[string]string
 
-	// Dynamic is the dynamic Node metadata
+	// Dynamic is the dynamic Node metadata (set via API)
 	Dynamic map[string]*string
+
+	// Static is the static Node metadata (set via agent configuration)
+	Static map[string]string
 }
 
 // NodeMeta is a client for manipulating dynamic Node metadata.

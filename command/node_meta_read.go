@@ -120,8 +120,11 @@ func (c *NodeMetaReadCommand) Run(args []string) int {
 		}
 		rows = append(rows, fmt.Sprintf("%s|%s", k, v))
 	}
-
 	c.Ui.Output(formatKV(rows))
+
+	// Print static meta
+	c.Ui.Output(c.Colorize().Color("\n[bold]Static Meta[reset]"))
+	c.Ui.Output(formatNodeMeta(meta.Static))
 
 	return 0
 }

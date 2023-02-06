@@ -2,6 +2,7 @@ package agent
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -65,6 +66,11 @@ func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) 
 		if k == "" {
 			return nil, CodedError(http.StatusBadRequest, "metadata keys must not be empty")
 		}
+
+		// Actually do a modicum of validation
+		if strings.Contains(k, "*") {
+			return nil, CodedError(http.StatusBadRequest, "metadata keys cannot contain *")
+		}
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
@@ -74,7 +80,7 @@ func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) 
 	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(args.NodeID)
 
 	// Make the RPC
-	const method = "NodeMeta.Set"
+	const method = "NodeMeta.Apply"
 	var reply structs.NodeMetaResponse
 	var rpcErr error
 	if useLocalClient {
