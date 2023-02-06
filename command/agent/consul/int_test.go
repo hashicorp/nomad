@@ -61,6 +61,7 @@ func TestConsul_Integration(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
 	conf.ConsulConfig.Addr = testconsul.HTTPAddr
+	conf.APIListenerRegistrar = config.NoopAPIListenerRegistrar{}
 	consulConfig, err := conf.ConsulConfig.ApiConfig()
 	if err != nil {
 		t.Fatalf("error generating consul config: %v", err)
@@ -152,20 +153,19 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Build the config
 	config := &taskrunner.Config{
-		Alloc:                alloc,
-		ClientConfig:         conf,
-		Consul:               serviceClient,
-		Task:                 task,
-		TaskDir:              taskDir,
-		Logger:               logger,
-		Vault:                vclient,
-		StateDB:              state.NoopDB{},
-		StateUpdater:         logUpdate,
-		DeviceManager:        devicemanager.NoopMockManager(),
-		DriverManager:        drivermanager.TestDriverManager(t),
-		StartConditionMetCh:  closedCh,
-		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
-		APIListenerRegistrar: config.NoopAPIListenerRegistrar{},
+		Alloc:               alloc,
+		ClientConfig:        conf,
+		Consul:              serviceClient,
+		Task:                task,
+		TaskDir:             taskDir,
+		Logger:              logger,
+		Vault:               vclient,
+		StateDB:             state.NoopDB{},
+		StateUpdater:        logUpdate,
+		DeviceManager:       devicemanager.NoopMockManager(),
+		DriverManager:       drivermanager.TestDriverManager(t),
+		StartConditionMetCh: closedCh,
+		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)
