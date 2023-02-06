@@ -2,8 +2,8 @@
   {{#if this.editing}}
     <td colspan="2">
       <MetadataEditor
-        @kv={{hash key=@key value=this.value}}
-        @onEdit={{fn @onKVEdit (hash key=@key value=this.value)}}
+        @kv={{hash key=this.prefixedKey value=this.value}}
+        @onEdit={{fn @onKVEdit (hash key=this.prefixedKey value=this.value)}}
         @constantKey={{true}}
         @autofocusValue={{true}}
         >
@@ -12,17 +12,17 @@
           type="submit"
           class="button is-primary"
           {{on "click" (queue
-            (action @onKVSave (hash key=@key value=this.value))
+            (action @onKVSave (hash key=this.prefixedKey value=this.value))
             (action (mut this.editing) false)
           )}}
         >
-          Update {{@key}}
+          Update {{this.prefixedKey}}
         </button>
         <button
           type="button"
           class="button is-danger"
           {{on "click" (queue
-            (action @onKVSave (hash key=@key value=null))
+            (action @onKVSave (hash key=this.prefixedKey value=null))
             (action (mut this.editing) false)
           )}}
         >

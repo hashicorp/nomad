@@ -8,7 +8,6 @@
     <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}}
     @key={{key}} @value={{value}} @editable={{@editable}} @onKVEdit={{@onKVEdit}} @onKVSave={{@onKVSave}} />
   {{else}}
-  {{!-- TODO: handle prefix --}}
     <MetadataKv @prefix={{this.prefix}}
     @key={{key}} @value={{value}} @editable={{@editable}} @onKVEdit={{@onKVEdit}} @onKVSave={{@onKVSave}} />
   {{/if}}
