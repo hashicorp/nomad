@@ -14,7 +14,7 @@ job "api-auth" {
       driver = "docker"
       config {
         image = "curlimages/curl:7.87.0"
-        args  = [
+        args = [
           "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
           "-v",
           "localhost/v1/agent/health",
@@ -32,7 +32,7 @@ job "api-auth" {
       driver = "docker"
       config {
         image = "curlimages/curl:7.87.0"
-        args  = [
+        args = [
           "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
           "-H", "X-Nomad-Token: 37297754-3b87-41da-9ac7-d98fd934deed",
           "-v",
@@ -52,7 +52,7 @@ job "api-auth" {
 
       config {
         image = "curlimages/curl:7.87.0"
-        args  = [
+        args = [
           "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
           "-H", "Authorization: Bearer ${NOMAD_TOKEN}",
           "-v",
