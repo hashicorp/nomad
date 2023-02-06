@@ -815,7 +815,7 @@
     <div class="boxed-section-head">
       Meta
     </div>
-    {{#if this.model.meta.structured}}
+    {{#if this.hasMeta}}
       <div class="boxed-section-body is-full-bleed">
         <AttributesTable
           data-test-meta
@@ -829,7 +829,6 @@
       <div class="boxed-section-body">
         <div data-test-empty-meta-message class="empty-message">
           <h3 class="empty-message-headline">
-            {{!-- TODO: handle ability to add new when no meta present --}}
             No Meta Attributes
           </h3>
           <p class="empty-message-body">

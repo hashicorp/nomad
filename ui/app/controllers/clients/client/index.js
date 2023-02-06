@@ -283,6 +283,13 @@ export default class ClientController extends Controller.extend(
   }
 
   // #region metadata
+
+  get hasMeta() {
+    return (
+      this.model.meta?.structured && Object.keys(this.model.meta?.structured)
+    );
+  }
+
   @tracked newMetaData = {
     key: '',
     value: '',
