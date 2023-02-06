@@ -1553,6 +1553,28 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_CPUSetMEMs(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support cpuset_mems")
+	}
+
+	task, cfg, _ := dockerTask(t)
+
+	cfg.CPUSetMEMs = "0"
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, cfg.CPUSetMEMs, container.HostConfig.CPUSetMEMs)
+}
+
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)

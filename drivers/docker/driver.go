@@ -888,6 +888,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
 
+	// This translates to docker create/run --cpuset-mems option.
+	// --cpuset-mems is the list of memory nodes on which processes
+	// in this cpuset are allowed to allocate memory.
+	if driverConfig.CPUSetMEMs != "" {
+		hostConfig.CPUSetMEMs = driverConfig.CPUSetMEMs
+	}
+
 	// Enable tini (docker-init) init system.
 	if driverConfig.Init {
 		hostConfig.Init = driverConfig.Init
