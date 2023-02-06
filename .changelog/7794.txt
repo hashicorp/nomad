@@ -1,0 +1,3 @@
+```release-note:bug
+docker: disable driver when running as non-root on cgv2 hosts
+```
