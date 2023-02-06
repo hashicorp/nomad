@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/command/asset"
 	"github.com/posener/complete"
 )
 
@@ -170,19 +171,13 @@ func (c *JobInitCommand) Run(args []string) int {
 	} else {
 		switch {
 		case connect && !short:
-			jobSpec, err = Asset("command/assets/connect.nomad.hcl")
+			jobSpec = asset.JobConnect
 		case connect && short:
-			jobSpec, err = Asset("command/assets/connect-short.nomad.hcl")
+			jobSpec = asset.JobConnectShort
 		case !connect && short:
-			jobSpec, err = Asset("command/assets/example-short.nomad.hcl")
+			jobSpec = asset.JobExampleShort
 		default:
-			jobSpec, err = Asset("command/assets/example.nomad.hcl")
-		}
-		if err != nil {
-			// should never see this because we've precompiled the assets
-			// as part of `make generate-examples`
-			c.Ui.Error(fmt.Sprintf("Accessed non-existent asset: %s", err))
-			return 1
+			jobSpec = asset.JobExample
 		}
 	}
 

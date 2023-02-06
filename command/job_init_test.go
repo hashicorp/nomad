@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/asset"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,7 @@ func TestInitCommand_Run(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
+	defaultJob := asset.JobExample
 	if string(content) != string(defaultJob) {
 		t.Fatalf("unexpected file content\n\n%s", string(content))
 	}
@@ -65,7 +66,7 @@ func TestInitCommand_Run(t *testing.T) {
 	}
 	content, err = ioutil.ReadFile(DefaultInitName)
 	require.NoError(t, err)
-	shortJob, _ := Asset("command/assets/example-short.nomad.hcl")
+	shortJob := asset.JobExampleShort
 	require.Equal(t, string(content), string(shortJob))
 
 	// Fails if the file exists
@@ -82,7 +83,7 @@ func TestInitCommand_defaultJob(t *testing.T) {
 	// Ensure the job file is always written with spaces instead of tabs. Since
 	// the default job file is embedded in the go file, it's easy for tabs to
 	// slip in.
-	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
+	defaultJob := asset.JobExample
 	if strings.Contains(string(defaultJob), "\t") {
 		t.Error("default job contains tab character - please convert to spaces")
 	}
@@ -151,7 +152,7 @@ func TestInitCommand_fromJobTemplate(t *testing.T) {
 
 	jobCmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
-	// Doesnt work if our var lacks a template key
+	// Doesn't work if our var lacks a template key
 	must.Eq(t, 1, jobCmd.Run([]string{"-address=" + url, "-template=invalid-template"}))
 
 	// Works if the file doesn't exist
@@ -193,7 +194,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defaultJob, _ := Asset("command/assets/example.nomad.hcl")
+	defaultJob := asset.JobExample
 	if string(content) != string(defaultJob) {
 		t.Fatalf("unexpected file content\n\n%s", string(content))
 	}
@@ -205,7 +206,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	}
 	content, err = ioutil.ReadFile(filename)
 	require.NoError(t, err)
-	shortJob, _ := Asset("command/assets/example-short.nomad.hcl")
+	shortJob := asset.JobExampleShort
 	require.Equal(t, string(content), string(shortJob))
 
 	// Fails if the file exists
