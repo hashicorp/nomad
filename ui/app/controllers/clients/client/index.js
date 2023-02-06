@@ -304,8 +304,7 @@ export default class ClientController extends Controller.extend(
     };
   }
 
-  @action validateMetadata(event, b, c) {
-    console.log('validatin', event, b, c);
+  @action validateMetadata(event) {
     if (event.key === 'Escape') {
       this.resetNewMetaData();
       this.editingMetadata = false;
