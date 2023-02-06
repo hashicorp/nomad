@@ -7,13 +7,17 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -35,7 +39,7 @@ func TestAPIHook_SoftFail(t *testing.T) {
 
 	// Use a SecretsDir that will always exceed Unix socket path length
 	// limits (sun_path)
-	dst := filepath.Join(t.TempDir(), strings.Repeat("_NOMAD_TEST_", 500))
+	dst := filepath.Join(t.TempDir(), strings.Repeat("_NOMAD_TEST_", 100))
 
 	ctx := context.Background()
 	srv := testAPIListenerRegistrar{}
@@ -43,6 +47,7 @@ func TestAPIHook_SoftFail(t *testing.T) {
 	h := newAPIHook(ctx, srv, logger)
 
 	req := &interfaces.TaskPrestartRequest{
+		Task: &structs.Task{}, // needs to be non-nil for Task.User lookup
 		TaskDir: &allocdir.TaskDir{
 			SecretsDir: dst,
 		},
@@ -102,6 +107,9 @@ func TestAPIHook_Ok(t *testing.T) {
 	h := newAPIHook(ctx, srv, logger)
 
 	req := &interfaces.TaskPrestartRequest{
+		Task: &structs.Task{
+			User: "nobody",
+		},
 		TaskDir: &allocdir.TaskDir{
 			SecretsDir: dst,
 		},
@@ -114,12 +122,28 @@ func TestAPIHook_Ok(t *testing.T) {
 	// File should have been created
 	sockDst := apiSocketPath(req.TaskDir)
 
-	// Stat on Windows fails on sockets
+	// Stat and chown fail on Windows, so skip these checks
 	if runtime.GOOS != "windows" {
 		stat, err := os.Stat(sockDst)
 		must.NoError(t, err)
 		must.True(t, stat.Mode()&fs.ModeSocket != 0,
 			must.Sprintf("expected %q to be a unix socket but got %s", sockDst, stat.Mode()))
+
+		nobody, _ := users.Lookup("nobody")
+		if syscall.Getuid() == 0 && nobody != nil {
+			t.Logf("root and nobody exists: testing file perms")
+
+			// We're root and nobody exists! Check perms
+			must.Eq(t, fs.FileMode(0o600), stat.Mode().Perm())
+
+			sysStat, ok := stat.Sys().(*syscall.Stat_t)
+			must.True(t, ok, must.Sprintf("expected stat.Sys() to be a *syscall.Stat_t on %s but found %T",
+				runtime.GOOS, stat.Sys()))
+
+			nobodyUID, err := strconv.Atoi(nobody.Uid)
+			must.NoError(t, err)
+			must.Eq(t, nobodyUID, int(sysStat.Uid))
+		}
 	}
 
 	// Assert the listener is working

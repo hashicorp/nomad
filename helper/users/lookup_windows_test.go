@@ -44,7 +44,23 @@ func TestWriteFileFor_Windows(t *testing.T) {
 	stat, err := os.Lstat(path)
 	must.NoError(t, err)
 	must.True(t, stat.Mode().IsRegular(),
-		must.Sprintf("expected %s to be a normal file but found %#o", path, stat.Mode()))
+		must.Sprintf("expected %s to be a regular file but found %#o", path, stat.Mode()))
+
+	// Assert Windows hits the fallback world-accessible case
+	must.Eq(t, 0o666, stat.Mode().Perm())
+}
+
+// TestSocketFileFor_Windows asserts that socket files cannot be chowned on
+// windows.
+func TestSocketFileFor_Windows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "api.sock")
+
+	ln, err := SocketFileFor(testlog.HCLogger(t), path, "Administrator")
+	must.NoError(t, err)
+	must.NotNil(t, ln)
+	defer ln.Close()
+	stat, err := os.Lstat(path)
+	must.NoError(t, err)
 
 	// Assert Windows hits the fallback world-accessible case
 	must.Eq(t, 0o666, stat.Mode().Perm())

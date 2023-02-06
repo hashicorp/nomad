@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/users"
 )
 
 // apiHook exposes the Task API. The Task API allows task's to access the Nomad
@@ -29,7 +31,12 @@ type apiHook struct {
 	shutdownCtx context.Context
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
-	ln          net.Listener
+
+	// Lock listener as it is updated from multiple hooks.
+	lock sync.Mutex
+
+	// Listener is the unix domain socket of the task api for this taks.
+	ln net.Listener
 }
 
 func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
@@ -46,24 +53,20 @@ func (*apiHook) Name() string {
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	if h.ln != nil {
 		// Listener already set. Task is probably restarting.
 		return nil
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	if err := os.RemoveAll(udsPath); err != nil {
-		h.logger.Warn("error removing task api socket", "path", udsPath, "error", err)
-	}
-
-	udsln, err := net.Listen("unix", udsPath)
+	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User)
 	if err != nil {
-		h.logger.Warn("error listening on task api socket", "path", udsPath, "error", err)
+		// Soft-fail and let the task fail if it requires the task api.
+		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)
 		return nil
-	}
-
-	if err := os.Chmod(udsPath, 0o777); err != nil {
-		h.logger.Warn("error setting task api socket permissions", "path", udsPath, "error", err)
 	}
 
 	go func() {
@@ -76,7 +79,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 			if errors.Is(err, net.ErrClosed) {
 				return
 			}
-			h.logger.Error("error serving api", "error", err)
+			h.logger.Error("error serving task api", "error", err)
 		}
 	}()
 
@@ -85,6 +88,9 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 }
 
 func (h *apiHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	if h.ln != nil {
 		if err := h.ln.Close(); err != nil {
 			if !errors.Is(err, net.ErrClosed) {
