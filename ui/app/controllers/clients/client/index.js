@@ -288,7 +288,7 @@ export default class ClientController extends Controller.extend(
     value: '',
   };
 
-  @action validateKey(key) {
+  @action validateKey(/* key */) {
     // TODO: make sure key is valid
   }
 
