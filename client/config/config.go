@@ -303,7 +303,7 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
-	// APIListenerRegistrar allows the client to registers listeners created at
+	// APIListenerRegistrar allows the client to register listeners created at
 	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
 	// creates the HTTP *after* the client starts, we have to use this shim to
 	// pass listeners back to the agent.
