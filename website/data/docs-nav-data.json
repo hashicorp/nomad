@@ -701,14 +701,6 @@
             ]
           },
           {
-            "title": "keygen",
-            "path": "commands/operator/keygen"
-          },
-          {
-            "title": "keyring",
-            "path": "commands/operator/keyring"
-          },
-          {
             "title": "metrics",
             "path": "commands/operator/metrics"
           },
