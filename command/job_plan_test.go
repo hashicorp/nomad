@@ -134,8 +134,8 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 }
 
 func TestPlanCommand_From_STDIN(t *testing.T) {
-	s := testutil.NewTestServer(t, nil)
-	defer s.Stop()
+	_, _, addr := testServer(t, false, nil)
+
 	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
@@ -144,7 +144,10 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
-		Meta:      Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr},
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: addr,
+		},
 		JobGetter: JobGetter{testStdin: stdinR},
 	}
 
@@ -167,7 +170,7 @@ job "job1" {
 		stdinW.Close()
 	}()
 
-	args := []string{"-"}
+	args := []string{"-address", addr, "-"}
 	code := cmd.Run(args)
 	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String()))
 	must.Eq(t, "", ui.ErrorWriter.String(), must.Sprintf("expected no stderr output, got:\n%s", ui.ErrorWriter.String()))
