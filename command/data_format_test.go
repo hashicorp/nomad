@@ -7,57 +7,57 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-type testData struct {
-	Region string
-	ID     string
-	Name   string
-}
-
-var tData = testData{"global", "1", "example"}
-
-const expectJSON = `{
-    "ID": "1",
-    "Name": "example",
-    "Region": "global"
-}`
-
-var tcs = map[string]struct {
-	format   string
-	template string
-	expect   string
-	isError  bool
-}{
-	"json_good": {
-		format:   "json",
-		template: "",
-		expect:   expectJSON,
-	},
-	"template_good": {
-		format:   "template",
-		template: "{{.Region}}",
-		expect:   "global",
-	},
-	"template_bad": {
-		format:   "template",
-		template: "{{.foo}}",
-		isError:  true,
-		expect:   "can't evaluate field foo",
-	},
-	"template_empty": {
-		format:   "template",
-		template: "",
-		isError:  true,
-		expect:   "template needs to be specified in golang's text/template format.",
-	},
-	"template_sprig": {
-		format:   "template",
-		template: `{{$a := 1}}{{ $a | sprig_add 1 }}`,
-		expect:   "2",
-	},
-}
-
 func TestDataFormat(t *testing.T) {
 	ci.Parallel(t)
+	type testData struct {
+		Region string
+		ID     string
+		Name   string
+	}
+
+	var tData = testData{"global", "1", "example"}
+
+	const expectJSON = `{
+			"ID": "1",
+			"Name": "example",
+			"Region": "global"
+	}`
+
+	var tcs = map[string]struct {
+		format   string
+		template string
+		expect   string
+		isError  bool
+	}{
+		"json_good": {
+			format:   "json",
+			template: "",
+			expect:   expectJSON,
+		},
+		"template_good": {
+			format:   "template",
+			template: "{{.Region}}",
+			expect:   "global",
+		},
+		"template_bad": {
+			format:   "template",
+			template: "{{.foo}}",
+			isError:  true,
+			expect:   "can't evaluate field foo",
+		},
+		"template_empty": {
+			format:   "template",
+			template: "",
+			isError:  true,
+			expect:   "template needs to be specified in golang's text/template format.",
+		},
+		"template_sprig": {
+			format:   "template",
+			template: `{{$a := 1}}{{ $a | sprig_add 1 }}`,
+			expect:   "2",
+		},
+	}
+
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			ci.Parallel(t)
