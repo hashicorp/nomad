@@ -5,9 +5,6 @@ job "example" {
   datacenters = ["dc1"]
 
   group "cache" {
-
-    count = 2
-
     volume "volume0" {
       type            = "csi"
       source          = "test-volume"
@@ -24,10 +21,10 @@ job "example" {
     }
 
     task "redis" {
-      driver = "docker"
+      driver = "podman"
 
       config {
-        image = "redis:7"
+        image = "docker://redis:7"
         ports = ["db"]
       }
 
@@ -37,8 +34,8 @@ job "example" {
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 100
+        memory = 100
       }
     }
   }
