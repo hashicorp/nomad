@@ -821,7 +821,6 @@
           data-test-meta
           @attributePairs={{this.model.meta.structured}}
           @editable={{can "write client"}}
-          @onKVEdit={{this.validateKey}}
           @onKVSave={{this.addDynamicMetaData}}
           @class="attributes-table"
         />
@@ -845,7 +844,6 @@
           <h3 class="title is-6">Add Dynamic Metadata</h3>
           <MetadataEditor
             @kv={{this.newMetaData}}
-            @onEdit={{this.validateKey}}
           >
             <button
               disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
