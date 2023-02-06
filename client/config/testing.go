@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -74,5 +76,14 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	// Same as default; necessary for task Event messages
 	conf.MaxKillTimeout = 30 * time.Second
 
+	// Provide a stub APIListenerRegistrar implementation
+	conf.APIListenerRegistrar = NoopAPIListenerRegistrar{}
+
 	return conf, cleanup
+}
+
+type NoopAPIListenerRegistrar struct{}
+
+func (NoopAPIListenerRegistrar) Serve(_ context.Context, _ net.Listener) error {
+	return nil
 }

@@ -68,6 +68,7 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, tr.getter, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
 	}
 
 	// If the task has a CSI block, add the hook.
@@ -431,7 +432,9 @@ func (tr *TaskRunner) stop() error {
 			tr.logger.Trace("running stop hook", "name", name, "start", start)
 		}
 
-		req := interfaces.TaskStopRequest{}
+		req := interfaces.TaskStopRequest{
+			TaskDir: tr.taskDir,
+		}
 
 		origHookState := tr.hookState(name)
 		if origHookState != nil {

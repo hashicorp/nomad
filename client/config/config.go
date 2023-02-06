@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -301,8 +303,25 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
+	// APIListenerRegistrar allows the client to register listeners created at
+	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
+	// creates the HTTP *after* the client starts, we have to use this shim to
+	// pass listeners back to the agent.
+	// This is the same design as the bufconndialer but for the
+	// http.Serve(listener) API instead of the net.Dial API.
+	APIListenerRegistrar APIListenerRegistrar
+
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
+}
+
+type APIListenerRegistrar interface {
+	// Serve the HTTP API on the provided listener.
+	//
+	// The context is because Serve may be called before the HTTP server has been
+	// initialized. If the context is canceled before the HTTP server is
+	// initialized, the context's error will be returned.
+	Serve(context.Context, net.Listener) error
 }
 
 // ClientTemplateConfig is configuration on the client specific to template

@@ -16,7 +16,8 @@ func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Re
 
 	args := structs.VariablesListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
+		//TODO(schmichael) shouldn't we return something here?!
+		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
 	}
 
 	var out structs.VariablesListResponse
