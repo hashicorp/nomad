@@ -48,7 +48,9 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('the job definition can be edited', async function (assert) {
-    assert.notOk(Definition.editor.isPresent, 'Editor is not shown on load');
+    assert
+      .dom('[data-test-job-editor]')
+      .doesNotExist('Editor not shown on load.');
 
     await Definition.edit();
 
@@ -64,7 +66,7 @@ module('Acceptance | job definition', function (hooks) {
 
     await Definition.editor.cancelEditing();
     assert.ok(Definition.jsonViewer, 'The JSON Viewer is back');
-    assert.notOk(Definition.editor.isPresent, 'The editor is gone');
+    assert.dom('[data-test-job-editor]').doesNotExist('The editor is gone');
   });
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
