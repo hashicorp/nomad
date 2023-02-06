@@ -55,7 +55,7 @@ Create Options:
     without a TTL and therefore never expire.
 
   -json
-    Output the ACL token information in a JSON format.
+    Output the ACL token information in JSON format.
 
   -t
     Format and display the ACL token information using a Go template.
