@@ -56,6 +56,7 @@ function smallCluster(server) {
     'node',
     {
       name: 'node-with-meta',
+      meta: { foo: 'bar', baz: 'qux' },
     },
     'withMeta'
   );
