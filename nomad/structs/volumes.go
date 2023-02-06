@@ -250,6 +250,7 @@ type VolumeMount struct {
 	Destination     string
 	ReadOnly        bool
 	PropagationMode string
+	SELinuxLabel    string
 }
 
 func (v *VolumeMount) Equal(o *VolumeMount) bool {
