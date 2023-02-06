@@ -8,6 +8,7 @@
         @autofocusValue={{true}}
         >
         <button
+          data-test-update-metadata
           disabled={{or (not @key) (not @value)}}
           type="submit"
           class="button is-primary"
@@ -19,6 +20,7 @@
           Update {{this.prefixedKey}}
         </button>
         <button
+          data-test-delete-metadata
           type="button"
           class="button is-danger"
           {{on "click" (queue
@@ -29,6 +31,7 @@
           Delete Property
         </button>
         <button
+          data-test-cancel-metadata
           type="button"
           class="button"
           {{on "click" 

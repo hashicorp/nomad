@@ -18,6 +18,7 @@
     <strong>Value</strong>
     {{#if @autofocusValue}}
       <Input
+        data-test-metadata-editor-value
         @type="text"
         @value={{@kv.value}}
         class="input"
@@ -26,6 +27,7 @@
       />
     {{else}}
       <Input
+        data-test-metadata-editor-value
         @type="text"
         @value={{@kv.value}}
         class="input"

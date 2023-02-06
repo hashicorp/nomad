@@ -847,6 +847,7 @@
             @onEdit={{this.validateMetadata}}
           >
             <button
+              data-test-new-metadata-button
               disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
               type="submit"
               class="button is-primary"
