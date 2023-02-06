@@ -147,6 +147,9 @@ var uninteresting = []string{
 	// main
 	".",
 
+	// go embed assets
+	"command/asset",
+
 	// testing helpers
 	"ci",
 	"client/testutil",
