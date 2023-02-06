@@ -59,16 +59,18 @@
       data-test-plan
       @text="Plan"
     />
-    <Hds::ButtonSet>
-      <label class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium">
-        <div class="hds-button__text">Upload file</div>
-        <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
-      </label>
-      {{#if (can "write variable" path="*" namespace="*")}}
-        <Hds::Button @icon="file-plus" @text="Save as template" @color="tertiary" @route="jobs.run.templates.new"  {{on "click" this.handleSaveAsTemplate}} data-test-save-as-template />
-        <Hds::Button @icon="file-text" @text="Choose from a template" @color="tertiary" @route="jobs.run.templates" data-test-choose-template />
-      {{/if}}
-    </Hds::ButtonSet>
+    {{#if this.job.isNew}}
+      <Hds::ButtonSet>
+        <label class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium">
+          <div class="hds-button__text">Upload file</div>
+          <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
+        </label>
+        {{#if (can "write variable" path="*" namespace="*")}}
+          <Hds::Button @icon="file-plus" @text="Save as template" @color="tertiary" @route="jobs.run.templates.new"  {{on "click" this.handleSaveAsTemplate}} data-test-save-as-template />
+          <Hds::Button @icon="file-text" @text="Choose from a template" @color="tertiary" @route="jobs.run.templates" data-test-choose-template />
+        {{/if}}
+      </Hds::ButtonSet>
+    {{/if}}
   </div>
 {{/if}}
 
@@ -150,7 +152,7 @@
     </div>
   {{/if}}
   <Hds::ButtonSet class="is-associative">
-    <Hds::Button @size="small" @text="Run" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
-    <Hds::Button @size="small" @color="critical" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
+    <Hds::Button @text="Run" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
+    <Hds::Button @color="secondary" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
   </Hds::ButtonSet>
 {{/if}}
