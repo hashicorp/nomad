@@ -37,8 +37,6 @@ var (
 		"debug",
 		"eval-status",
 		"executor",
-		"keygen",
-		"keyring",
 		"logmon",
 		"node-drain",
 		"node-status",

@@ -59,13 +59,13 @@ server {
 - `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
   Nomad server's gossip network traffic. This key must be 32 bytes that are
   [RFC4648] "URL and filename safe" base64-encoded. You can generate an
-  appropriately-formatted key with the [`nomad operator keygen`] command. The
-  provided key is automatically persisted to the data directory and loaded
-  automatically whenever the agent is restarted. This means that to encrypt
-  Nomad server's gossip protocol, this option only needs to be provided once
-  on each agent's initial startup sequence. If it is provided after Nomad has
-  been initialized with an encryption key, then the provided key is ignored
-  and a warning will be displayed. See the [encryption
+  appropriately-formatted key with the [`nomad operator gossip keyring
+  generate`] command. The provided key is automatically persisted to the data
+  directory and loaded automatically whenever the agent is restarted. This means
+  that to encrypt Nomad server's gossip protocol, this option only needs to be
+  provided once on each agent's initial startup sequence. If it is provided
+  after Nomad has been initialized with an encryption key, then the provided key
+  is ignored and a warning will be displayed. See the [encryption
   documentation][encryption] for more details on this option and its impact on
   the cluster.
 
@@ -479,7 +479,7 @@ work.
 [bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
 [monitoring_nomad_progress]: /nomad/docs/operations/monitoring-nomad#progress
-[`nomad operator keygen`]: /nomad/docs/commands/operator/keygen
+[`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
 [search]: /nomad/docs/configuration/search
 [encryption key]: /nomad/docs/operations/key-management
 [max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect

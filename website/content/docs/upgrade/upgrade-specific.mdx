@@ -98,6 +98,13 @@ The metric `nomad.nomad.broker.total_blocked` has been changed to
 leader's broker, and this is easily confused with the unrelated evaluation
 status `"blocked"` in the Nomad API.
 
+#### Deprecated gossip keyring commands removed
+
+The commands `nomad operator keyring`, `nomad keyring`, `nomad operator keygen`,
+and `nomad keygen` used to manage the gossip keyring were marked as deprecated
+in Nomad 1.4.0. In Nomad 1.5.0, these commands have been removed. Use the `nomad
+operator gossip keyring` commands to manage the gossip keyring.
+
 #### Garbage collection of evaluations and allocations for batch job
 
 Versions prior to 1.5.0 only delete evaluations and allocations of batch jobs
