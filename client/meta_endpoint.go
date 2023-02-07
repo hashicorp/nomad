@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
@@ -40,7 +40,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 
 		// Actually do a modicum of validation
 		if strings.Contains(k, "*") {
-			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys cannot contain *")
+			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys must not contain *")
 		}
 	}
 
@@ -52,9 +52,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		// atomically with updating the metadata inmemory to avoid
 		// bad interleaving between concurrent updates.
 		dyn = maps.Clone(n.c.metaDynamic)
-		for k, v := range args.Meta {
-			dyn[k] = v
-		}
+		maps.Copy(dyn, args.Meta)
 
 		if stateErr = n.c.stateDB.PutNodeMeta(dyn); stateErr != nil {
 			return

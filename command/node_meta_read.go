@@ -16,8 +16,8 @@ func (c *NodeMetaReadCommand) Help() string {
 	helpText := `
 Usage: nomad node meta read [-json] [-node-id ...]
 
-	Read a node's metadata. This command only works on client agents. The node
-	status command can be used to retrieve node metadata from any agent.
+  Read a node's metadata. This command only works on client agents. The node
+  status command can be used to retrieve node metadata from any agent.
 
   Changes via the "node meta apply" subcommand are batched and may take up to
   10 seconds to propagate to the servers and affect scheduling. This command
@@ -32,8 +32,8 @@ General Options:
 Node Meta Options:
 
   -node-id
-		Reads metadata from the specified node. If not specified the node receiving
-		the request will be used by default.
+    Reads metadata from the specified node. If not specified the node receiving
+    the request will be used by default.
 
   -json
     Output the node metadata in its JSON format.
