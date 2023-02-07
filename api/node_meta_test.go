@@ -67,6 +67,7 @@ func TestNodeMeta_Apply(t *testing.T) {
 		node, _, err = c.Nodes().Info(node.ID, nil)
 		must.NoError(t, err)
 		found = node.Meta["foo"] == "bar"
+		time.Sleep(100 * time.Millisecond)
 	}
 	must.True(t, found)
 }
