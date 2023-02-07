@@ -9,7 +9,7 @@ description: >
 # Command: quota inspect
 
 The `quota inspect` command is used to view raw information about a particular
-quota.
+quota. The default output is in JSON format
 
 ~> Quota commands are new in Nomad 0.7 and are only available with Nomad
 Enterprise.
@@ -29,7 +29,6 @@ capability and access to any namespaces that the quota is applied to.
 
 ## Inspect Options
 
-- `-json` : Output quota information in its JSON format.
 - `-t`    : Format and display the quota using a Go template.
 
 ## Examples

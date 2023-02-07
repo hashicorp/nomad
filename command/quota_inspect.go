@@ -32,8 +32,7 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
-  -json
-    Output quota information in its JSON format.
+
   -t
     Format and display the namespaces using a Go template.
 `
@@ -44,8 +43,7 @@ Inspect Options:
 func (c *QuotaInspectCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-t": complete.PredictAnything,
 		})
 }
 
@@ -61,11 +59,8 @@ func (c *QuotaInspectCommand) Name() string { return "quota inspect" }
 
 func (c *QuotaInspectCommand) Run(args []string) int {
 	var tmpl string
-	var json bool
-
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -116,7 +111,7 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		Failures: failuresConverted,
 	}
 
-	out, err := Format(json, tmpl, data)
+	out, err := Format(len(tmpl) == 0, tmpl, data)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
