@@ -17,17 +17,7 @@ func TestNodeMeta_Apply(t *testing.T) {
 	c, s := makeClient(t, nil, cb)
 	defer s.Stop()
 
-	nodeID := ""
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		nodes, _, err := c.Nodes().List(nil)
-		must.NoError(t, err)
-		if len(nodes) > 0 {
-			nodeID = nodes[0].ID
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	nodeID := oneNodeFromNodeList(t, c.Nodes()).ID
 
 	node, _, err := c.Nodes().Info(nodeID, nil)
 	must.NoError(t, err)
@@ -61,7 +51,7 @@ func TestNodeMeta_Apply(t *testing.T) {
 	must.Eq(t, "bar", metaResp.Meta["foo"])
 
 	// Wait up to 10s (plus buffer) for node to re-register
-	deadline = time.Now().Add(11 * time.Second)
+	deadline := time.Now().Add(11 * time.Second)
 	found := false
 	for !found && time.Now().Before(deadline) {
 		node, _, err = c.Nodes().Info(node.ID, nil)
