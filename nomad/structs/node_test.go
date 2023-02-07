@@ -66,6 +66,8 @@ func TestDriverInfoEquals(t *testing.T) {
 }
 
 func TestNodeMeta_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		input    map[string]*string // only specify Meta field

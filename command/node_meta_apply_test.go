@@ -3,11 +3,14 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
 func TestNodeMeta_parseMapFromArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name  string
 		input []string
@@ -75,6 +78,8 @@ func TestNodeMeta_parseMapFromArgs(t *testing.T) {
 }
 
 func TestNodeMeta_applyNodeMetaUnset(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name  string
 		unset string
