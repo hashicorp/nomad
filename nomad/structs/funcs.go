@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
@@ -436,7 +435,7 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 }
 
 // CompileACLObject compiles a set of ACL policies into an ACL object with a cache
-func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL, error) {
+func CompileACLObject(cache *ACLCache[*acl.ACL], policies []*ACLPolicy) (*acl.ACL, error) {
 	// Sort the policies to ensure consistent ordering
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i].Name < policies[j].Name
@@ -444,9 +443,9 @@ func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL
 
 	// Determine the cache key
 	cacheKey := ACLPolicyListHash(policies)
-	aclRaw, ok := cache.Get(cacheKey)
+	entry, ok := cache.Get(cacheKey)
 	if ok {
-		return aclRaw.(*acl.ACL), nil
+		return entry.Get(), nil
 	}
 
 	// Parse the policies

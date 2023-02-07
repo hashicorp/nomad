@@ -441,9 +441,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.setupClientRpc(rpcs)
 
 	// Initialize the ACL state
-	if err := c.clientACLResolver.init(); err != nil {
-		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
-	}
+	c.clientACLResolver.init()
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {

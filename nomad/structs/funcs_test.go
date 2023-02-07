@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1007,8 +1007,7 @@ func TestCompileACLObject(t *testing.T) {
 	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	// Create a small cache
-	cache, err := lru.New2Q(16)
-	assert.Nil(t, err)
+	cache := NewACLCache[*acl.ACL](10)
 
 	// Test compilation
 	aclObj, err := CompileACLObject(cache, []*ACLPolicy{p1})

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -283,7 +282,7 @@ func (s *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error)
 // resolveTokenFromSnapshotCache is used to resolve an ACL object from a
 // snapshot of state, using a cache to avoid parsing and ACL construction when
 // possible. It is split from resolveToken to simplify testing.
-func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID string) (*acl.ACL, error) {
+func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *structs.ACLCache[*acl.ACL], secretID string) (*acl.ACL, error) {
 	// Lookup the ACL Token
 	var token *structs.ACLToken
 	var err error
@@ -308,7 +307,7 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 
 }
 
-func resolveACLFromToken(snap *state.StateSnapshot, cache *lru.TwoQueueCache, token *structs.ACLToken) (*acl.ACL, error) {
+func resolveACLFromToken(snap *state.StateSnapshot, cache *structs.ACLCache[*acl.ACL], token *structs.ACLToken) (*acl.ACL, error) {
 
 	// Check if this is a management token
 	if token.Type == structs.ACLManagementToken {
