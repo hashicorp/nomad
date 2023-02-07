@@ -8,6 +8,8 @@ import (
 )
 
 // TestSuite defines a set of test cases and under what conditions to run them
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type TestSuite struct {
 	Component string // Name of the component/system/feature tested
 
@@ -23,6 +25,8 @@ type TestSuite struct {
 }
 
 // Constraints that must be satisfied for a TestSuite to run
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type Constraints struct {
 	Provider    string   // Cloud provider ex. 'aws', 'azure', 'gcp'
 	OS          string   // Operating system ex. 'windows', 'linux'
@@ -57,6 +61,8 @@ func (c Constraints) matches(env Environment) error {
 }
 
 // TC is the base test case which should be embedded in TestCase implementations.
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type TC struct {
 	cluster *ClusterInfo
 }
