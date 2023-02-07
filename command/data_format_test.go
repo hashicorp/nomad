@@ -17,11 +17,13 @@ func TestDataFormat(t *testing.T) {
 
 	var tData = testData{"global", "1", "example"}
 
+	// Note: this variable is space indented (4) and requires the final brace to
+	// be at char 1
 	const expectJSON = `{
-			"ID": "1",
-			"Name": "example",
-			"Region": "global"
-	}`
+    "ID": "1",
+    "Name": "example",
+    "Region": "global"
+}`
 
 	var tcs = map[string]struct {
 		format   string
@@ -60,8 +62,8 @@ func TestDataFormat(t *testing.T) {
 
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
-			ci.Parallel(t)
 			tc := tc
+			ci.Parallel(t)
 			fm, err := DataFormat(tc.format, tc.template)
 			must.NoError(t, err)
 			result, err := fm.TransformData(tData)
