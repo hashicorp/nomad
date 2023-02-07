@@ -618,7 +618,6 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 }
 
 func shuffle(jobs []*structs.Job) {
-	rand.Seed(time.Now().Unix())
 	for i := range jobs {
 		j := rand.Intn(len(jobs))
 		jobs[i], jobs[j] = jobs[j], jobs[i]

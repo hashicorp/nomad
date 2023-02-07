@@ -11,11 +11,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 )
 
-func init() {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
-}
-
 type fauxAddr struct {
 	Addr string
 }

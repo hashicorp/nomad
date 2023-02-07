@@ -27,10 +27,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano()) // seed random number generator
-}
-
 // TempDir defines the base dir for temporary directories.
 var TempDir = os.TempDir()
 
