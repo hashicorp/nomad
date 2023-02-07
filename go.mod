@@ -109,7 +109,7 @@ require (
 	github.com/rs/cors v1.8.3
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
-	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
+	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/shoenig/go-landlock v0.1.4
 	github.com/shoenig/test v0.6.1
