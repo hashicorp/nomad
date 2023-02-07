@@ -7,7 +7,6 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
 )
 
@@ -27,7 +26,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
-		return nstructs.ErrPermissionDenied
+		return structs.ErrPermissionDenied
 	}
 
 	if len(args.Meta) == 0 {
@@ -93,7 +92,7 @@ func (n *NodeMeta) Read(args *structs.NodeSpecificRequest, reply *structs.NodeMe
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
-		return nstructs.ErrPermissionDenied
+		return structs.ErrPermissionDenied
 	}
 
 	// Must acquire configLock to ensure reads aren't interleaved with
