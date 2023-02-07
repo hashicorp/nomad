@@ -17,20 +17,26 @@ type NodeMeta struct {
 func newNodeMetaEndpoint(srv *Server) *NodeMeta {
 	n := &NodeMeta{
 		srv:    srv,
-		logger: srv.logger.Named("client_meta"),
+		logger: srv.logger.Named("node_meta"),
 	}
 	return n
 }
 
 func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
 	const method = "NodeMeta.Apply"
+
+	authErr := n.srv.Authenticate(nil, args)
 	if done, err := n.srv.forward(method, args, args, reply); done {
 		return err
+	}
+	n.srv.MeasureRPCRate("node_meta", nstructs.RateMetricRead, args)
+	if authErr != nil {
+		return nstructs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_meta", "apply"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return nstructs.ErrPermissionDenied
@@ -41,13 +47,19 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 
 func (n *NodeMeta) Read(args *structs.NodeSpecificRequest, reply *structs.NodeMetaResponse) error {
 	const method = "NodeMeta.Read"
+
+	authErr := n.srv.Authenticate(nil, args)
 	if done, err := n.srv.forward(method, args, args, reply); done {
 		return err
+	}
+	n.srv.MeasureRPCRate("node_meta", nstructs.RateMetricRead, args)
+	if authErr != nil {
+		return nstructs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_meta", "read"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return nstructs.ErrPermissionDenied

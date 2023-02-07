@@ -66,7 +66,6 @@ func (c *NodeMetaReadCommand) Run(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
-	args = flags.Args()
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
