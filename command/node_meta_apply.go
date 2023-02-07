@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -82,16 +83,8 @@ func (c *NodeMetaApplyCommand) Run(args []string) int {
 	}
 
 	// Parse parameters
-	meta := make(map[string]*string)
-	for _, pair := range args {
-		kv := strings.SplitN(pair, "=", 2)
-		meta[kv[0]] = &kv[1]
-	}
-	for _, k := range strings.Split(unset, ",") {
-		if k != "" {
-			meta[k] = nil
-		}
-	}
+	meta := parseMapFromArgs(args)
+	applyNodeMetaUnset(meta, unset)
 
 	req := api.NodeMetaApplyRequest{
 		NodeID: nodeID,
@@ -116,4 +109,31 @@ func (c *NodeMetaApplyCommand) AutocompleteFlags() complete.Flags {
 
 func (c *NodeMetaApplyCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictAnything
+}
+
+// parseMapFromArgs parses a slice of key=value pairs into a map.
+func parseMapFromArgs(args []string) map[string]*string {
+	m := make(map[string]*string, len(args))
+	for _, pair := range args {
+		kv := strings.SplitN(pair, "=", 2)
+		switch len(kv) {
+		case 0:
+			// Nothing to do
+		case 1:
+			m[kv[0]] = pointer.Of("")
+		default:
+			m[kv[0]] = &kv[1]
+		}
+	}
+	return m
+}
+
+// applyNodeMetaUnset parses a comma separated list of keys to set as nil in
+// node metadata. The empty string key is ignored as its invalid to set.
+func applyNodeMetaUnset(m map[string]*string, unset string) {
+	for _, k := range strings.Split(unset, ",") {
+		if k != "" {
+			m[k] = nil
+		}
+	}
 }
