@@ -1575,6 +1575,27 @@ func TestDockerDriver_CPUSetMEMs(t *testing.T) {
 	require.Equal(t, cfg.CPUSetMEMs, container.HostConfig.CPUSetMEMs)
 }
 
+func TestDockerDriver_InvalidCPUSetMEMs(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support cpuset_mems")
+	}
+
+	task, cfg, _ := dockerTask(t)
+
+	cfg.CPUSetMEMs = "0-8"
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	d := dockerDriverHarness(t, nil)
+
+	_, _, err := d.StartTask(task)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Requested memory nodes are not available")
+
+	d.DestroyTask(task.ID, true)
+}
+
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
