@@ -156,10 +156,11 @@ server {
   the number of CPU cores.
 
 - `license_path` `(string: "")` - Specifies the path to load a Nomad Enterprise
-  license from. This must be an absolute path (`/opt/nomad/license.hclic`). The
-  license can also be set by setting `NOMAD_LICENSE_PATH` or by setting
-  `NOMAD_LICENSE` as the entire license value. `license_path` has the highest
-  precedence, followed by `NOMAD_LICENSE` and then `NOMAD_LICENSE_PATH`.
+  license from. This must be an absolute path
+  (ex. `/etc/nomad.d/license.hclic`). The license can also be set by setting
+  `NOMAD_LICENSE_PATH` or by setting `NOMAD_LICENSE` as the entire license
+  value. `license_path` has the highest precedence, followed by `NOMAD_LICENSE`
+  and then `NOMAD_LICENSE_PATH`.
 
 - `plan_rejection_tracker` <code>([PlanRejectionTracker](#plan_rejection_tracker-parameters))</code> -
   Configuration for the plan rejection tracker that the Nomad leader uses to
