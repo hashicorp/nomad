@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -75,9 +74,10 @@ func TestNodeMeta_Validate(t *testing.T) {
 		{
 			name: "Ok",
 			input: map[string]*string{
-				"foo":  nil,
-				"bar":  pointer.Of(""),
-				"eggs": pointer.Of("_spam-spam-spam-spam_"),
+				"foo":             nil,
+				"bar":             nil,
+				"eggs":            nil,
+				"dots.are_ok-too": nil,
 			},
 		},
 		{
@@ -111,6 +111,30 @@ func TestNodeMeta_Validate(t *testing.T) {
 			},
 			contains: `"*bad%" is invalid`,
 		},
+		{
+			name: "StartingDot",
+			input: map[string]*string{
+				"ok":   nil,
+				".bad": nil,
+			},
+			contains: `".bad" is invalid`,
+		},
+		{
+			name: "EndingDot",
+			input: map[string]*string{
+				"ok":   nil,
+				"bad.": nil,
+			},
+			contains: `"bad." is invalid`,
+		},
+		{
+			name: "DottedPartsMustBeValid",
+			input: map[string]*string{
+				"ok":        nil,
+				"bad.-part": nil,
+			},
+			contains: `"bad.-part" is invalid`,
+		},
 	}
 
 	for i := range cases {
@@ -127,6 +151,9 @@ func TestNodeMeta_Validate(t *testing.T) {
 				must.NoError(t, err)
 			default:
 				must.ErrorContains(t, err, tc.contains)
+
+				// Log error to make it easy to double check output.
+				t.Logf("Validate(%s) -> %s", tc.name, err)
 			}
 		})
 	}

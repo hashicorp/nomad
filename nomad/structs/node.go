@@ -3,6 +3,7 @@ package structs
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -376,11 +377,13 @@ func (n *NodeMetaApplyRequest) Validate() error {
 			return fmt.Errorf("metadata keys must not be empty")
 		}
 
-		// Validate keys are identifiers since their primary use case is in
+		// Validate keys are dotted identifiers since their primary use case is in
 		// constraints as interpolated hcl variables.
 		// https://github.com/hashicorp/hcl/blob/v2.16.0/hclsyntax/spec.md#identifiers
-		if !hclsyntax.ValidIdentifier(k) {
-			return fmt.Errorf("%q is invalid; metadata keys must be valid hcl identifiers", k)
+		for _, part := range strings.Split(k, ".") {
+			if !hclsyntax.ValidIdentifier(part) {
+				return fmt.Errorf("%q is invalid; metadata keys must be valid dotted hcl identifiers", k)
+			}
 		}
 	}
 
