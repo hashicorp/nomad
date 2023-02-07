@@ -23,7 +23,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -254,7 +254,7 @@ type Server struct {
 	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
-	aclCache *lru.TwoQueueCache
+	aclCache *structs.ACLCache[*acl.ACL]
 
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
@@ -341,10 +341,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 
 	// Create the ACL object cache
-	aclCache, err := lru.New2Q(aclCacheSize)
-	if err != nil {
-		return nil, err
-	}
+	aclCache := structs.NewACLCache[*acl.ACL](aclCacheSize)
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")

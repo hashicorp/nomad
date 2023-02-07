@@ -4,7 +4,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,55 +31,41 @@ const (
 // of ACLs
 type clientACLResolver struct {
 	// aclCache is used to maintain the parsed ACL objects
-	aclCache *lru.TwoQueueCache
+	aclCache *structs.ACLCache[*acl.ACL]
 
 	// policyCache is used to maintain the fetched policy objects
-	policyCache *lru.TwoQueueCache
+	policyCache *structs.ACLCache[*structs.ACLPolicy]
 
 	// tokenCache is used to maintain the fetched token objects
-	tokenCache *lru.TwoQueueCache
+	tokenCache *structs.ACLCache[*structs.ACLToken]
 
 	// roleCache is used to maintain a cache of the fetched ACL roles. Each
 	// entry is keyed by the role ID.
-	roleCache *lru.TwoQueueCache
+	roleCache *structs.ACLCache[*structs.ACLRole]
 }
 
 // init is used to setup the client resolver state
-func (c *clientACLResolver) init() error {
-	// Create the ACL object cache
-	var err error
-	c.aclCache, err = lru.New2Q(aclCacheSize)
-	if err != nil {
-		return err
-	}
-	c.policyCache, err = lru.New2Q(policyCacheSize)
-	if err != nil {
-		return err
-	}
-	c.tokenCache, err = lru.New2Q(tokenCacheSize)
-	if err != nil {
-		return err
-	}
-	c.roleCache, err = lru.New2Q(roleCacheSize)
-	if err != nil {
-		return err
-	}
-	return nil
+func (c *clientACLResolver) init() {
+	// Create the ACL object caches
+	c.aclCache = structs.NewACLCache[*acl.ACL](aclCacheSize)
+	c.policyCache = structs.NewACLCache[*structs.ACLPolicy](policyCacheSize)
+	c.tokenCache = structs.NewACLCache[*structs.ACLToken](tokenCacheSize)
+	c.roleCache = structs.NewACLCache[*structs.ACLRole](roleCacheSize)
 }
 
-// cachedACLValue is used to manage ACL Token, Policy, or Role cache entries
-// and their TTLs.
-type cachedACLValue struct {
-	Token     *structs.ACLToken
-	Policy    *structs.ACLPolicy
-	Role      *structs.ACLRole
-	CacheTime time.Time
-}
+//// cachedACLValue is used to manage ACL Token, Policy, or Role cache entries
+//// and their TTLs.
+//type cachedACLValue struct {
+//	Token     *structs.ACLToken
+//	Policy    *structs.ACLPolicy
+//	Role      *structs.ACLRole
+//	CacheTime time.Time
+//}
 
-// Age is the time since the token was cached
-func (c *cachedACLValue) Age() time.Duration {
-	return time.Since(c.CacheTime)
-}
+//// Age is the time since the token was cached
+//func (c *cachedACLValue) Age() time.Duration {
+//	return time.Since(c.CacheTime)
+//}
 
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
@@ -154,12 +139,11 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 		return structs.AnonymousACLToken, nil
 	}
 
-	// Lookup the token in the cache
-	raw, ok := c.tokenCache.Get(secretID)
+	// Lookup the token entry in the cache
+	value, ok := c.tokenCache.Get(secretID)
 	if ok {
-		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.GetConfig().ACLTokenTTL {
-			return cached.Token, nil
+		if value.Age() <= c.GetConfig().ACLTokenTTL {
+			return value.First, nil
 		}
 	}
 
@@ -176,17 +160,14 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 		// If we encounter an error but have a cached value, mask the error and extend the cache
 		if ok {
 			c.logger.Warn("failed to resolve token, using expired cached value", "error", err)
-			cached := raw.(*cachedACLValue)
-			return cached.Token, nil
+			cached := value
+			return cached.First, nil
 		}
 		return nil, err
 	}
 
 	// Cache the response (positive or negative)
-	c.tokenCache.Add(secretID, &cachedACLValue{
-		Token:     resp.Token,
-		CacheTime: time.Now(),
-	})
+	c.tokenCache.Add(secretID, resp.Token)
 	return resp.Token, nil
 }
 
@@ -202,18 +183,17 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 	// Scan the cache for each policy
 	for _, policyName := range policies {
 		// Lookup the policy in the cache
-		raw, ok := c.policyCache.Get(policyName)
+		value, ok := c.policyCache.Get(policyName)
 		if !ok {
 			missing = append(missing, policyName)
 			continue
 		}
 
 		// Check if the cached value is valid or expired
-		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.GetConfig().ACLPolicyTTL {
-			out = append(out, cached.Policy)
+		if value.Age() <= c.GetConfig().ACLPolicyTTL {
+			out = append(out, value.Item())
 		} else {
-			expired = append(expired, cached.Policy)
+			expired = append(expired, value.Item())
 		}
 	}
 
@@ -248,7 +228,7 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 
 	// Handle each output
 	for _, policy := range resp.Policies {
-		c.policyCache.Add(policy.Name, &cachedACLValue{
+		c.policyCache.Add(policy.Name, &cachedACLValue{ // YOU ARE HERE
 			Policy:    policy,
 			CacheTime: time.Now(),
 		})
