@@ -1,9 +1,11 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"golang.org/x/exp/maps"
 )
 
@@ -363,6 +365,26 @@ type NodeMetaApplyRequest struct {
 	// Meta is the new Node metadata being applied and differs slightly
 	// from Node.Meta as nil values are used to unset Node.Meta keys.
 	Meta map[string]*string
+}
+
+func (n *NodeMetaApplyRequest) Validate() error {
+	if len(n.Meta) == 0 {
+		return fmt.Errorf("missing required Meta object")
+	}
+	for k := range n.Meta {
+		if k == "" {
+			return fmt.Errorf("metadata keys must not be empty")
+		}
+
+		// Validate keys are identifiers since their primary use case is in
+		// constraints as interpolated hcl variables.
+		// https://github.com/hashicorp/hcl/blob/v2.16.0/hclsyntax/spec.md#identifiers
+		if !hclsyntax.ValidIdentifier(k) {
+			return fmt.Errorf("%q is invalid; metadata keys must be valid hcl identifiers", k)
+		}
+	}
+
+	return nil
 }
 
 // NodeMetaResponse is used to read Node metadata directly from Client agents.

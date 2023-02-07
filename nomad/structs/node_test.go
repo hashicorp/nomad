@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,5 +63,71 @@ func TestDriverInfoEquals(t *testing.T) {
 		first := testCase.input[0]
 		second := testCase.input[1]
 		require.Equal(testCase.expected, first.HealthCheckEquals(second), testCase.errorMsg)
+	}
+}
+
+func TestNodeMeta_Validate(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    map[string]*string // only specify Meta field
+		contains string
+	}{
+		{
+			name: "Ok",
+			input: map[string]*string{
+				"foo":  nil,
+				"bar":  pointer.Of(""),
+				"eggs": pointer.Of("_spam-spam-spam-spam_"),
+			},
+		},
+		{
+			name:     "Nil",
+			input:    nil,
+			contains: "missing required",
+		},
+		{
+			name:     "Empty",
+			input:    map[string]*string{},
+			contains: "missing required",
+		},
+		{
+			name:     "EmptyKey",
+			input:    map[string]*string{"": nil},
+			contains: "not be empty",
+		},
+		{
+			name: "Whitespace",
+			input: map[string]*string{
+				"ok":   nil,
+				" bad": nil,
+			},
+			contains: `" bad" is invalid`,
+		},
+		{
+			name: "BadChars",
+			input: map[string]*string{
+				"ok":    nil,
+				"*bad%": nil,
+			},
+			contains: `"*bad%" is invalid`,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			in := &NodeMetaApplyRequest{
+				Meta: tc.input,
+			}
+
+			err := in.Validate()
+
+			switch tc.contains {
+			case "":
+				must.NoError(t, err)
+			default:
+				must.ErrorContains(t, err, tc.contains)
+			}
+		})
 	}
 }

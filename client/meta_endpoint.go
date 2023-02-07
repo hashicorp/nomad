@@ -2,7 +2,6 @@ package client
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -29,18 +28,8 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		return structs.ErrPermissionDenied
 	}
 
-	if len(args.Meta) == 0 {
-		return structs.NewErrRPCCoded(http.StatusBadRequest, "request missing required Meta object")
-	}
-	for k := range args.Meta {
-		if k == "" {
-			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys must not be empty")
-		}
-
-		// Actually do a modicum of validation
-		if strings.Contains(k, "*") {
-			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys must not contain *")
-		}
+	if err := args.Validate(); err != nil {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
 	}
 
 	var stateErr error
