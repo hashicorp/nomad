@@ -10622,7 +10622,7 @@ func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string) *IdentityCl
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It
-// should never be serialized to msgpack unsigned.
+// normally should not be serialized except as a signed JWT blob (except for WhoAmI)
 type IdentityClaims struct {
 	Namespace    string `json:"nomad_namespace"`
 	JobID        string `json:"nomad_job_id"`
