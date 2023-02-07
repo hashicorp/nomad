@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Add `-json` and `-t` flag to `nomad acl token create` command
+```
