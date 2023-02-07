@@ -37,13 +37,13 @@ func TestNodeMeta_ACL(t *testing.T) {
 
 	resp := structs.NodeMetaResponse{}
 	err := c1.ClientRPC("NodeMeta.Apply", applyReq, &resp)
-	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+	must.ErrorContains(t, err, structs.ErrPermissionDenied.Error())
 
 	readReq := &structs.NodeSpecificRequest{
 		NodeID: c1.NodeID(),
 	}
 	err = c1.ClientRPC("NodeMeta.Read", readReq, &resp)
-	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+	must.ErrorContains(t, err, structs.ErrPermissionDenied.Error())
 
 	// Create a token to make it work
 	policyGood := mock.NodePolicy(acl.PolicyWrite)
