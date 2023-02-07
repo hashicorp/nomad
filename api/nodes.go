@@ -135,7 +135,7 @@ func (n *Nodes) UpdateDrainOpts(nodeID string, opts *DrainOptions, q *WriteOptio
 	}
 
 	var resp NodeDrainUpdateResponse
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, &resp, q)
+	wm, err := n.client.put("/v1/node/"+nodeID+"/drain", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +419,7 @@ func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions)
 	}
 
 	var resp NodeEligibilityUpdateResponse
-	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, &resp, q)
+	wm, err := n.client.put("/v1/node/"+nodeID+"/eligibility", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func (n *Nodes) CSIVolumes(nodeID string, q *QueryOptions) ([]*CSIVolumeListStub
 // ForceEvaluate is used to force-evaluate an existing node.
 func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp nodeEvalResponse
-	wm, err := n.client.write("/v1/node/"+nodeID+"/evaluate", nil, &resp, q)
+	wm, err := n.client.put("/v1/node/"+nodeID+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -515,7 +515,7 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
-//HostNetworkInfo is used to return metadata about a given HostNetwork
+// HostNetworkInfo is used to return metadata about a given HostNetwork
 type HostNetworkInfo struct {
 	Name          string
 	CIDR          string

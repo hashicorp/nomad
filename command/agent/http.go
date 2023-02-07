@@ -428,6 +428,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
 	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
+	s.mux.Handle("/v1/client/metadata", wrapCORS(s.wrap(s.NodeMetaRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -1005,6 +1006,13 @@ func parseFilter(req *http.Request, b *structs.QueryOptions) {
 func parseReverse(req *http.Request, b *structs.QueryOptions) {
 	query := req.URL.Query()
 	b.Reverse = query.Get("reverse") == "true"
+}
+
+// parseNode parses the node_id query parameter for node specific requests.
+func parseNode(req *http.Request, nodeID *string) {
+	if n := req.URL.Query().Get("node_id"); n != "" {
+		*nodeID = n
+	}
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

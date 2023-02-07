@@ -1,4 +1,4 @@
-package main
+package workload_id
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-// TestTaskAPI runs subtets exercising the Task API related functionality.
+// TestTaskAPI runs subtests exercising the Task API related functionality.
 // Bundled with Workload Identity as that's a prereq for the Task API to work.
 func TestTaskAPI(t *testing.T) {
 	nomad := e2eutil.NomadClient(t)

@@ -52,6 +52,14 @@ function smallCluster(server) {
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
+  server.create(
+    'node',
+    {
+      name: 'node-with-meta',
+      meta: { foo: 'bar', baz: 'qux' },
+    },
+    'withMeta'
+  );
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,
@@ -227,10 +235,9 @@ function smallCluster(server) {
     volume.save();
   });
 
-  server.create('auth-method', {name: 'vault'});
-  server.create('auth-method', {name: 'auth0'});
-  server.create('auth-method', {name: 'cognito'});
-
+  server.create('auth-method', { name: 'vault' });
+  server.create('auth-method', { name: 'auth0' });
+  server.create('auth-method', { name: 'cognito' });
 }
 
 function mediumCluster(server) {
@@ -314,7 +321,6 @@ function policiesTestCluster(server) {
   createTokens(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 }
-
 
 function servicesTestCluster(server) {
   faker.seed(1);

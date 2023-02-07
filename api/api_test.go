@@ -92,7 +92,7 @@ func TestRequestTime(t *testing.T) {
 		t.Errorf("bad request time: %d", qm.RequestTime)
 	}
 
-	wm, err := client.write("/", struct{ S string }{"input"}, &out, nil)
+	wm, err := client.put("/", struct{ S string }{"input"}, &out, nil)
 	if err != nil {
 		t.Fatalf("write err: %v", err)
 	}

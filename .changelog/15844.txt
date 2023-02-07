@@ -1,0 +1,3 @@
+```release-note:improvement
+api: add ability to update node metadata via api
+```

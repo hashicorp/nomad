@@ -726,6 +726,22 @@ export default function () {
     }
   });
 
+  // Metadata
+  this.post(
+    '/client/metadata',
+    function (schema, { queryParams: { node_id }, requestBody }) {
+      const attrs = JSON.parse(requestBody);
+      const node = schema.nodes.find(node_id);
+      Object.entries(attrs.Meta).forEach(([key, value]) => {
+        if (value === null) {
+          delete node.meta[key];
+          delete attrs.Meta[key];
+        }
+      });
+      return { Meta: { ...node.meta, ...attrs.Meta } };
+    }
+  );
+
   // TODO: in the future, this hack may be replaceable with dynamic host name
   // support in pretender: https://github.com/pretenderjs/pretender/issues/210
   HOSTS.forEach((host) => {

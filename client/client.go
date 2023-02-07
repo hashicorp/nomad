@@ -186,8 +186,14 @@ type Client struct {
 	// 	// <mutate newConfig>
 	// 	c.config = newConfig
 	// 	c.configLock.Unlock()
-	config     *config.Config
-	configLock sync.Mutex
+	configLock  sync.Mutex
+	config      *config.Config
+	metaDynamic map[string]*string // dynamic node metadata
+
+	// metaStatic are the Node's static metadata set via the agent configuration
+	// and defaults during client initialization. Since this map is never updated
+	// at runtime it may be accessed outside of locks.
+	metaStatic map[string]string
 
 	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
@@ -733,7 +739,7 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	return nil
 }
 
-// Reload allows a client to reload its configuration on the fly
+// Reload allows a client to reload parts of its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
 	existing := c.GetConfig()
 	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(existing.TLSConfig, newConfig.TLSConfig)
@@ -743,7 +749,9 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	}
 
 	if shouldReloadTLS {
-		return c.reloadTLSConnections(newConfig.TLSConfig)
+		if err := c.reloadTLSConnections(newConfig.TLSConfig); err != nil {
+			return err
+		}
 	}
 
 	c.fingerprintManager.Reload()
@@ -781,6 +789,30 @@ func (c *Client) UpdateConfig(cb func(*config.Config)) *config.Config {
 	c.config = newConfig
 
 	return newConfig
+}
+
+// UpdateNode allows mutating just the Node portion of the client
+// configuration. The updated Node is returned.
+//
+// This is similar to UpdateConfig but avoids deep copying the entier Config
+// struct when only the Node is updated.
+func (c *Client) UpdateNode(cb func(*structs.Node)) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	// Create a new copy of Node for updating
+	newNode := c.config.Node.Copy()
+
+	// newNode is now a fresh unshared copy, mutate away!
+	cb(newNode)
+
+	// Shallow copy config before mutating Node pointer which might have
+	// concurrent readers
+	newConfig := *c.config
+	newConfig.Node = newNode
+	c.config = &newConfig
+
+	return newNode
 }
 
 // Datacenter returns the datacenter for the given client
@@ -1507,7 +1539,7 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 
-	// Setup default meta
+	// Setup default static meta
 	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
 		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
 	}
@@ -1519,6 +1551,43 @@ func (c *Client) setupNode() error {
 	}
 	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
+	}
+
+	// Since node.Meta will get dynamic metadata merged in, save static metadata
+	// here.
+	c.metaStatic = maps.Clone(node.Meta)
+
+	// Merge dynamic node metadata
+	c.metaDynamic, err = c.stateDB.GetNodeMeta()
+	if err != nil {
+		return fmt.Errorf("error reading dynamic node metadata: %w", err)
+	}
+
+	if c.metaDynamic == nil {
+		c.metaDynamic = map[string]*string{}
+	}
+
+	for dk, dv := range c.metaDynamic {
+		if dv == nil {
+			_, ok := node.Meta[dk]
+			if ok {
+				// Unset static node metadata
+				delete(node.Meta, dk)
+			} else {
+				// Forget dynamic node metadata tombstone as there's no
+				// static value to erase.
+				delete(c.metaDynamic, dk)
+			}
+			continue
+		}
+
+		node.Meta[dk] = *dv
+	}
+
+	// Write back dynamic node metadata as tombstones may have been removed
+	// above
+	if err := c.stateDB.PutNodeMeta(c.metaDynamic); err != nil {
+		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
 	}
 
 	c.config = newConfig

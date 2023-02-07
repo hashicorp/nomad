@@ -109,6 +109,14 @@ func (m *ErrDB) PurgeCheckResults(allocID string) error {
 	return fmt.Errorf("Error!")
 }
 
+func (m *ErrDB) PutNodeMeta(map[string]*string) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetNodeMeta() (map[string]*string, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
 func (m *ErrDB) Close() error {
 	return fmt.Errorf("Error!")
 }

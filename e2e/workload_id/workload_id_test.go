@@ -1,4 +1,4 @@
-package main
+package workload_id
 
 import (
 	"fmt"
