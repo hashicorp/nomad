@@ -1,6 +1,8 @@
 package client
 
 import (
+	"net/http"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -28,6 +30,20 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		return nstructs.ErrPermissionDenied
 	}
 
+	if len(args.Meta) == 0 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "request missing required Meta object")
+	}
+	for k := range args.Meta {
+		if k == "" {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys must not be empty")
+		}
+
+		// Actually do a modicum of validation
+		if strings.Contains(k, "*") {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, "metadata keys cannot contain *")
+		}
+	}
+
 	var stateErr error
 	var dyn map[string]*string
 
@@ -35,7 +51,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		// First update the Client's state store. This must be done
 		// atomically with updating the metadata inmemory to avoid
 		// bad interleaving between concurrent updates.
-		dyn := maps.Clone(n.c.metaDynamic)
+		dyn = maps.Clone(n.c.metaDynamic)
 		for k, v := range args.Meta {
 			dyn[k] = v
 		}

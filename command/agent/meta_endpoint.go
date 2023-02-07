@@ -2,7 +2,6 @@ package agent
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -58,19 +57,6 @@ func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) 
 	args := structs.NodeMetaApplyRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
-	}
-	if len(args.Meta) == 0 {
-		return nil, CodedError(http.StatusBadRequest, "request missing required Meta object")
-	}
-	for k := range args.Meta {
-		if k == "" {
-			return nil, CodedError(http.StatusBadRequest, "metadata keys must not be empty")
-		}
-
-		// Actually do a modicum of validation
-		if strings.Contains(k, "*") {
-			return nil, CodedError(http.StatusBadRequest, "metadata keys cannot contain *")
-		}
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
