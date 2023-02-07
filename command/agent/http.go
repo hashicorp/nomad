@@ -28,6 +28,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/command/agent/event"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
@@ -88,7 +89,12 @@ type RPCer interface {
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent      RPCer
+	agent RPCer
+
+	// eventAuditor is the enterprise audit log feature which is needed by the
+	// HTTP server.
+	eventAuditor event.Auditor
+
 	mux        *http.ServeMux
 	listener   net.Listener
 	listenerCh chan struct{}
@@ -156,13 +162,14 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		// Create the server
 		srv := &HTTPServer{
-			agent:      agent,
-			mux:        http.NewServeMux(),
-			listener:   ln,
-			listenerCh: make(chan struct{}),
-			logger:     agent.httpLogger,
-			Addr:       ln.Addr().String(),
-			wsUpgrader: wsUpgrader,
+			agent:        agent,
+			eventAuditor: agent.auditor,
+			mux:          http.NewServeMux(),
+			listener:     ln,
+			listenerCh:   make(chan struct{}),
+			logger:       agent.httpLogger,
+			Addr:         ln.Addr().String(),
+			wsUpgrader:   wsUpgrader,
 		}
 		srv.registerHandlers(config.EnableDebug)
 
@@ -186,13 +193,14 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 	// the builtinDialer and builtinListener will be nil.
 	if agent.builtinDialer != nil && agent.builtinListener != nil {
 		srv := &HTTPServer{
-			agent:      agent,
-			mux:        http.NewServeMux(),
-			listener:   agent.builtinListener,
-			listenerCh: make(chan struct{}),
-			logger:     agent.httpLogger,
-			Addr:       "builtin",
-			wsUpgrader: wsUpgrader,
+			agent:        agent,
+			eventAuditor: agent.auditor,
+			mux:          http.NewServeMux(),
+			listener:     agent.builtinListener,
+			listenerCh:   make(chan struct{}),
+			logger:       agent.httpLogger,
+			Addr:         "builtin",
+			wsUpgrader:   wsUpgrader,
 		}
 
 		srv.registerHandlers(config.EnableDebug)
