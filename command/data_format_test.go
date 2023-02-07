@@ -1,68 +1,78 @@
 package command
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 )
 
-type testData struct {
-	Region string
-	ID     string
-	Name   string
-}
+func TestDataFormat(t *testing.T) {
+	ci.Parallel(t)
+	type testData struct {
+		Region string
+		ID     string
+		Name   string
+	}
 
-const expectJSON = `{
+	var tData = testData{"global", "1", "example"}
+
+	// Note: this variable is space indented (4) and requires the final brace to
+	// be at char 1
+	const expectJSON = `{
     "ID": "1",
     "Name": "example",
     "Region": "global"
 }`
 
-var (
-	tData        = testData{"global", "1", "example"}
-	testFormat   = map[string]string{"json": "", "template": "{{.Region}}"}
-	expectOutput = map[string]string{"json": expectJSON, "template": "global"}
-)
-
-func TestDataFormat(t *testing.T) {
-	ci.Parallel(t)
-	for k, v := range testFormat {
-		fm, err := DataFormat(k, v)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		result, err := fm.TransformData(tData)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		if result != expectOutput[k] {
-			t.Fatalf("expected output:\n%s\nactual:\n%s", expectOutput[k], result)
-		}
-	}
-}
-
-func TestInvalidJSONTemplate(t *testing.T) {
-	ci.Parallel(t)
-	// Invalid template {{.foo}}
-	fm, err := DataFormat("template", "{{.foo}}")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	_, err = fm.TransformData(tData)
-	if !strings.Contains(err.Error(), "can't evaluate field foo") {
-		t.Fatalf("expected invalid template error, got: %s", err.Error())
+	var tcs = map[string]struct {
+		format   string
+		template string
+		expect   string
+		isError  bool
+	}{
+		"json_good": {
+			format:   "json",
+			template: "",
+			expect:   expectJSON,
+		},
+		"template_good": {
+			format:   "template",
+			template: "{{.Region}}",
+			expect:   "global",
+		},
+		"template_bad": {
+			format:   "template",
+			template: "{{.foo}}",
+			isError:  true,
+			expect:   "can't evaluate field foo",
+		},
+		"template_empty": {
+			format:   "template",
+			template: "",
+			isError:  true,
+			expect:   "template needs to be specified in golang's text/template format.",
+		},
+		"template_sprig": {
+			format:   "template",
+			template: `{{$a := 1}}{{ $a | sprig_add 1 }}`,
+			expect:   "2",
+		},
 	}
 
-	// No template is specified
-	fm, err = DataFormat("template", "")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	_, err = fm.TransformData(tData)
-	if !strings.Contains(err.Error(), "template needs to be specified the golang templates.") {
-		t.Fatalf("expected not specified template error, got: %s", err.Error())
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			tc := tc
+			ci.Parallel(t)
+			fm, err := DataFormat(tc.format, tc.template)
+			must.NoError(t, err)
+			result, err := fm.TransformData(tData)
+			if tc.isError {
+				must.ErrorContains(t, err, tc.expect)
+				return
+			}
+			must.NoError(t, err)
+			must.Eq(t, tc.expect, result)
+		})
 	}
 }
