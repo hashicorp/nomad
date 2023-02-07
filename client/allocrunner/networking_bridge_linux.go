@@ -144,6 +144,8 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
 		cniAdminChainName))
 }
 
+// Update website/content/docs/networking/cni.mdx when the bridge configuration
+// is modified.
 const nomadCNIConfigTemplate = `{
 	"cniVersion": "0.4.0",
 	"name": "nomad",
