@@ -57,18 +57,12 @@ var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 // minACLAuthMethodVersion is the Nomad version at which the ACL auth methods
 // table was introduced. It forms the minimum version all federated servers must
 // meet before the feature can be used.
-//
-// TODO: version constraint will be updated for every beta or rc until we reach
-// 1.5, otherwise it's hard to test the functionality
-var minACLAuthMethodVersion = version.Must(version.NewVersion("1.4.3-dev"))
+var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
 
 // minACLBindingRuleVersion is the Nomad version at which the ACL binding rules
 // table was introduced. It forms the minimum version all federated servers
 // must meet before the feature can be used.
-//
-// TODO: version constraint will be updated for every beta or rc until we reach
-// 1.5, otherwise it's hard to test the functionality
-var minACLBindingRuleVersion = version.Must(version.NewVersion("1.4.3-dev"))
+var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
 
 // minNomadServiceRegistrationVersion is the Nomad version at which the service
 // registrations table was introduced. It forms the minimum version all local
